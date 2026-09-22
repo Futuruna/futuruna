@@ -172,7 +172,8 @@ calculation. This file is a bounded model audit, not individual tax advice.
     state: Personskat200kProfileState,
     context: Personskat200kSalaryPromotion
 ) -> PersonskatBeregningResultat {
-    beregn_personskat(personskat_200k_profiles_input(state))
+    -- Supported-year search; retain the canonical calculation and validity.
+    personskat_beregning_resultat(personskat_200k_profiles_input(state))
 }
 
 | personskat_200k_profiles_observation(

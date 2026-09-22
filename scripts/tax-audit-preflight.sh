@@ -89,9 +89,19 @@ expect_failure duplicate-first "$RUNTIME_MODEL" "$PROBE_DIR/duplicate-first.json
 make_variant "$PROBE_DIR/runtime.json" year '"year": 0, "year": 2027' "$PROBE_DIR/duplicate-last.json"
 expect_failure duplicate-last "$RUNTIME_MODEL" "$PROBE_DIR/duplicate-last.json" 'duplicate JSON object member'
 
+MESSAGE_MODEL="$ROOT_DIR/tests/fixtures/calculation/assert-message.calculate.runa"
+if "$RUNA_BIN" template "$MESSAGE_MODEL" --format json --output "$PROBE_DIR/message.json"; then
+    make_variant "$PROBE_DIR/message.json" year '"year": 2026' "$PROBE_DIR/message-valid.json"
+    expect_success assertion-message-valid "$MESSAGE_MODEL" "$PROBE_DIR/message-valid.json" '100'
+    make_variant "$PROBE_DIR/message.json" year '"year": 2027' "$PROBE_DIR/message-invalid.json"
+    expect_failure assertion-message-invalid "$MESSAGE_MODEL" "$PROBE_DIR/message-invalid.json" 'year {2027}: unsupported; use a model for that year'
+else
+    fail_probe 'assert_with_message is unavailable; this checkout needs a newer compiler.'
+fi
+
 if [[ "$FAILURES" != 0 ]]; then
     echo "[tax-audit] STOP: $FAILURES compatibility check(s) failed. Do not audit with this binary/model pairing." >&2
     echo "[tax-audit] Use a verified binary built from this checkout, then rerun this check. See website/public/ai-setup.md." >&2
     exit 1
 fi
-echo "[tax-audit] All 7 runtime compatibility checks passed. This is not tax-law, document, or complete model validation."
+echo "[tax-audit] All 9 runtime compatibility checks passed. This is not tax-law, document, or complete model validation."

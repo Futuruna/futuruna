@@ -17854,6 +17854,10 @@ impl Interpreter {
         env.set("filter".into(), Value::Builtin("filter".into()));
         env.set("foldl".into(), Value::Builtin("foldl".into()));
         env.set("assert".into(), Value::Builtin("assert".into()));
+        env.set(
+            "assert_with_message".into(),
+            Value::Builtin("assert_with_message".into()),
+        );
         env.set("range".into(), Value::Builtin("range".into()));
         env.set("push".into(), Value::Builtin("push".into()));
         env.set("nth".into(), Value::Builtin("nth".into()));
@@ -22843,6 +22847,13 @@ impl Interpreter {
                     self.panic_or_calculation_fail(format!("assert expects Bool, got {}", other))
                 }
                 None => self.panic_or_calculation_fail("assert expects one Bool argument"),
+            },
+            "assert_with_message" => match args.as_slice() {
+                [Value::Bool(true), Value::Str(_)] => Value::Unit,
+                [Value::Bool(false), Value::Str(message)] => {
+                    self.panic_or_calculation_fail(format!("Assertion failed: {message}"))
+                }
+                _ => self.panic_or_calculation_fail("assert_with_message expects (Bool, String)"),
             },
             "string_length" => match args.first() {
                 Some(Value::Str(s)) => Value::Int(s.chars().count() as i64),
@@ -45552,6 +45563,7 @@ impl TypeChecker {
             ("db_close", 1),
             // Misc
             ("assert", 1),
+            ("assert_with_message", 2),
             ("shared", 1),
             ("range", 2),
             // Collection/Functional
@@ -57457,6 +57469,23 @@ impl TypeChecker {
                                 ),
                             );
                         }
+                        if canonical == "assert_with_message"
+                            && actual_arity == 2
+                            && !self.var_defined(name)
+                        {
+                            for (argument, required) in args.iter().zip(["Bool", "String"]) {
+                                if let Some(actual) = self.infer_expr_type_name(argument) {
+                                    if actual != required {
+                                        self.error_at_expr(
+                                            argument,
+                                            format!(
+                                            "assert_with_message expects {required}, got {actual}"
+                                        ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
                     } else if self.constructor_signatures.contains_key(name) {
                         if self.constructor_signature_for_args(name, args).is_none() {
                             let expected = self
@@ -68096,6 +68125,63 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let mut env = interpreter.default_env();
 
         interpreter.run_program(&stmts, &mut env);
+    }
+
+    #[test]
+    #[should_panic(expected = "Assertion failed: år {2027}: unsupported")]
+    fn interpreter_assert_with_message_false_is_a_hard_failure() {
+        let source = "assert_with_message(false, \"år {2027}: unsupported\")";
+        let tokens = Lexer::new(source).tokenize();
+        let stmts = Parser::new(tokens, source).parse_program().unwrap();
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&stmts, &mut env);
+    }
+
+    #[test]
+    fn interpreter_assert_with_message_checks_argument_shapes() {
+        for args in [
+            vec![Value::Int(1), Value::Str("message".into())],
+            vec![Value::Bool(true), Value::Int(1)],
+            vec![Value::Bool(true)],
+        ] {
+            let mut interpreter = Interpreter::new();
+            let env = interpreter.default_env();
+            let result = interpreter.with_calculation_runtime(|runtime| {
+                runtime.eval_builtin("assert_with_message", args, &env)
+            });
+            assert!(
+                matches!(result, Err(CalculationRuntimeFailure::InvalidValue(message))
+                if message.contains("expects (Bool, String)"))
+            );
+        }
+    }
+
+    #[test]
+    fn assert_with_message_frontend_checks_known_types_and_arity() {
+        for source in [
+            "assert_with_message(1, \"message\")",
+            "assert_with_message(true, 1)",
+            "assert_with_message(true)",
+        ] {
+            assert!(
+                check_source_for_diagnostics(source)
+                    .iter()
+                    .any(
+                        |diagnostic| diagnostic.message.contains("assert_with_message")
+                            && diagnostic.message.contains("expects")
+                    ),
+                "{source}"
+            );
+        }
+        for source in [
+            "assert_with_message(true, \"message\")",
+            "> assert_with_message(a: Int, b: Int) -> Int { a + b }\n= result = assert_with_message(1, 2)",
+            "= assert_with_message = |a: Int, b: Int| a + b\n= result = assert_with_message(1, 2)",
+        ] {
+            let diagnostics = check_source_for_diagnostics(source);
+            assert!(diagnostics.is_empty(), "{source}: {diagnostics:?}");
+        }
     }
 
     // ── Trait checking tests ─────────────────────────────────────────

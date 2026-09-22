@@ -136,7 +136,9 @@ These constructors encode declared audit facts, not replacement tax formulas.
     state: Personskat350kCommuterState,
     context: Personskat350kSalaryPromotion
 ) -> PersonskatBeregningResultat {
-    beregn_personskat(personskat_350k_commuter_input(state))
+    -- Search admission supplies supported years. Keep the pure canonical
+    -- calculation and its validity, without interactive runtime assertions.
+    personskat_beregning_resultat(personskat_350k_commuter_input(state))
 }
 
 | personskat_350k_commuter_udenlandske_sociale_bidrag_gyldige(

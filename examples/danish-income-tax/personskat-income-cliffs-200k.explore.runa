@@ -148,7 +148,9 @@ retained case count and need not sum to the global mechanism count.
     bruttoløn_kroner: Heltal,
     context: Personskat200kAuditConfiguration
 ) -> PersonskatBeregningResultat {
-    beregn_personskat(personskat_200k_audit_input(context, bruttoløn_kroner))
+    -- The declared search fixes a supported year. Use the pure canonical
+    -- calculation, without the interactive boundary's runtime diagnostic.
+    personskat_beregning_resultat(personskat_200k_audit_input(context, bruttoløn_kroner))
 }
 
 | personskat_200k_audit_løntrin_til_bruttoløn_kroner(

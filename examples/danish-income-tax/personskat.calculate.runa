@@ -280,7 +280,7 @@
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
     question = Some("Hvilket indkomstår skal skatten beregnes for?"),
-    help = Some("Satser, beløbsgrænser og lovregler afhænger af skatteåret."),
+    help = Some("Den kanoniske årsberegning understøtter 2023–2026; se skatteaar-parametre.runa og årets kildehenvisninger. Andre år afvises før beregning. Oplys dokumentets indkomstår, ikke udskriftsåret. Skift aldrig år alene for at få et resultat."),
     unit = Some("år")
 )
 = personskat_felt_kommune = Beregningsfelt(
@@ -19678,4 +19678,18 @@ fraflytningen."
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)
 
 @ calculate("Dansk personskat")
-| beregn_personskat(input: PersonskatInput) -> personskat_beregning_resultat(input)
+| beregn_personskat(input: PersonskatInput) -> {
+    personskat_kontrollér_beregningsår(input.lønmodtager.skatteår, "lønmodtager.skatteår")
+    match input.ægtefælle {
+        | UdenÆgtefælle -> ()
+        | MedÆgtefælle(fakta, _, _) -> personskat_kontrollér_beregningsår(fakta.lønmodtager.skatteår, "ægtefælle.MedÆgtefælle.fakta.lønmodtager.skatteår")
+    }
+    personskat_beregning_resultat(input)
+}
+
+-- Modelafgrænsning, ikke en regel om borgerens skattepligt. Afvis før nogen
+-- årsparametre eller skattebeløb evalueres; brug aldrig et andet års satser.
+-- Hold kontrollen ved den offentlige beregningsgrænse, ikke i lovreglerne.
+> personskat_kontrollér_beregningsår(indkomstår: Heltal, sti: Tekst) -> () {
+    assert_with_message(skatteår_understøttet(indkomstår), sti + ": Indkomstår " + vis(indkomstår) + " understøttes ikke af denne årsberegning (2023–2026). Ingen skat beregnet. Kontrollér dokumentets indkomstår; et korrekt år uden for intervallet kræver en model med kildedækning for det år. Skift ikke år for at få et resultat. Se examples/danish-income-tax/skatteaar-parametre.runa og årets kildehenvisninger.")
+}

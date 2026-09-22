@@ -61,7 +61,8 @@ not individual tax advice.
     state: Personskat350kCommuterState,
     context: PersonskatUnitIntervention
 ) -> PersonskatBeregningResultat {
-    beregn_personskat(personskat_350k_commuter_input(state))
+    -- Supported-year search; retain the canonical calculation and validity.
+    personskat_beregning_resultat(personskat_350k_commuter_input(state))
 }
 
 | personskat_unit_observation(

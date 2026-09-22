@@ -4725,6 +4725,45 @@ mod calculation_execution_tests {
     }
 
     #[test]
+    fn calculation_assert_with_message_is_case_local_and_precedes_bad_math() {
+        let source = r#"
+# Input(year: Int)
+@ calculate
+> calculate(input: Input) -> Int {
+    assert_with_message(input.year == 2026, "year {" + show(input.year) + "}: use a supported model")
+    100 / (2027 - input.year)
+}
+"#;
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            source,
+            [2026, 2027, 2026]
+                .into_iter()
+                .map(|year| serde_json::json!({"year":year}))
+                .collect(),
+        );
+        for jobs in [1, 3] {
+            let output = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(jobs),
+            );
+            assert_eq!(output.results.len(), 2, "{output:?}");
+            assert!(output.results.iter().all(|case| case.result == 100));
+            assert_eq!(output.results[1].case_id, "case-2");
+            assert_eq!(output.diagnostics.len(), 1);
+            assert_eq!(output.diagnostics[0].case_id, "case-1");
+            assert!(
+                output.diagnostics[0]
+                    .message
+                    .contains("Assertion failed: year {2027}: use a supported model"),
+                "{output:?}"
+            );
+        }
+    }
+
+    #[test]
     fn calculation_builtin_arithmetic_is_checked() {
         for (body, bad, expected) in [
             ("-input.value", i64::MIN, -7),

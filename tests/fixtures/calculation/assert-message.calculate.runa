@@ -1,0 +1,7 @@
+# Input(year: Int)
+
+@ calculate
+> calculate(input: Input) -> Int {
+    assert_with_message(input.year == 2026, "year {" + show(input.year) + "}: unsupported; use a model for that year")
+    100 / (2027 - input.year)
+}

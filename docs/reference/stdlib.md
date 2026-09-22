@@ -318,6 +318,7 @@ For error propagation, use monadic bind:
 |----------|-----------|-------------|
 | `not` | `Bool -> Bool` | Logical NOT |
 | `assert` | `Bool -> ()` | Runtime assertion (panics on false) |
+| `assert_with_message` | `(Bool, String) -> ()` | Runtime assertion with an explanatory failure message |
 | `identity` | `a -> a` | Identity function |
 
 ```runa
@@ -325,6 +326,15 @@ For error propagation, use monadic bind:
 assert(2 + 2 == 4)          -- passes
 = x = identity(42)          -- 42
 ```
+
+`assert_with_message(condition, message)` evaluates both arguments in order,
+including the message on success, and returns unit when the condition is true.
+On false, ordinary interpreted/native execution stops with `Assertion failed:`
+followed by the supplied text. The text is data, not a format string. Inside
+`runa call`, failure becomes a case diagnostic with no result for that case;
+other cases remain independent. Avoid personal data in messages. This is a
+runtime check, not a proof or a replacement for a typed domain result when
+the caller should handle alternative outcomes.
 
 ---
 
