@@ -69,6 +69,124 @@ fn single_parent(year: i64, quarters: &[i64]) -> Value {
 }
 
 #[test]
+fn unsupported_year_stops_before_tax_evaluation_with_actionable_diagnostic() {
+    let mut template = run(&["template", MODEL, "--format", "json"]);
+    template["cases"][0]["input"]["lønmodtager"]["skatteår"] = json!(2027);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-unsupported-year-{}.json",
+        std::process::id()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let output = Command::new(binary)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("FUTURUNA_CALCULATION_JOBS", "1")
+        .args(["call", MODEL, "--input", path.to_str().unwrap()])
+        .output()
+        .unwrap();
+    std::fs::remove_file(path).unwrap();
+    assert!(!output.status.success());
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["results"], json!([]));
+    let diagnostics = result["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 1);
+    let message = diagnostics[0]["message"].as_str().unwrap();
+    println!("unsupported year: {message}");
+    for expected in [
+        "lønmodtager.skatteår",
+        "2027",
+        "2023–2026",
+        "Ingen skat beregnet",
+        "skatteaar-parametre.runa",
+    ] {
+        assert!(message.contains(expected), "missing {expected}: {message}");
+    }
+}
+
+#[test]
+fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut input = envelope["cases"][0]["input"].clone();
+    input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
+    input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
+    input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    input["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
+        json!({"$variant":"IntetEkstraBørnetilskud"});
+    input["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+        json!({"$variant":"IngenBoligjobudgifter"});
+    let mut cases = Vec::new();
+    for year in [2023, 2022, 2024, 2027, 2025, 0, 2026, i64::MIN] {
+        let mut facts = input.clone();
+        facts["lønmodtager"]["skatteår"] = json!(year);
+        cases.push(json!({"case_id":format!("year-{year}"),"input":facts}));
+    }
+    for year in [2022, 2027] {
+        let mut facts = input.clone();
+        facts["lønmodtager"]["skatteår"] = json!(2026);
+        facts["ægtefælle"] = spouse(&facts);
+        facts["ægtefælle"]["fakta"]["lønmodtager"]["skatteår"] = json!(year);
+        cases.push(json!({"case_id":format!("spouse-{year}"),"input":facts}));
+    }
+    envelope["cases"] = json!(cases);
+    let path =
+        std::env::temp_dir().join(format!("futuruna-year-batch-{}.json", std::process::id()));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let output = Command::new(binary)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("FUTURUNA_CALCULATION_JOBS", "1")
+        .args(["call", MODEL, "--input", path.to_str().unwrap()])
+        .output()
+        .unwrap();
+    std::fs::remove_file(path).unwrap();
+    assert!(!output.status.success());
+    let output: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), 4);
+    for (row, (year, tax)) in results.iter().zip([
+        (2023, 21678330),
+        (2024, 21556463),
+        (2025, 21194454),
+        (2026, 20872564),
+    ]) {
+        assert_eq!(row["case_id"], format!("year-{year}"));
+        assert_eq!(
+            row["result"]["vurdering"]["slutskat_til_sammenligning_øre"],
+            tax
+        );
+        println!("supported year {year}: tax {tax} øre unchanged");
+    }
+    let diagnostics = output["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 6);
+    for (row, (case, path)) in diagnostics.iter().zip([
+        ("year-2022", "lønmodtager.skatteår"),
+        ("year-2027", "lønmodtager.skatteår"),
+        ("year-0", "lønmodtager.skatteår"),
+        ("year--9223372036854775808", "lønmodtager.skatteår"),
+        (
+            "spouse-2022",
+            "ægtefælle.MedÆgtefælle.fakta.lønmodtager.skatteår",
+        ),
+        (
+            "spouse-2027",
+            "ægtefælle.MedÆgtefælle.fakta.lønmodtager.skatteår",
+        ),
+    ]) {
+        assert_eq!(row["case_id"], case);
+        let message = row["message"].as_str().unwrap();
+        assert!(
+            message.contains(path) && message.contains("Ingen skat beregnet"),
+            "{row}"
+        );
+        println!("{case}: rejected before tax at {path}");
+    }
+}
+
+#[test]
 fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     let mut template = run(&["template", MODEL, "--format", "json"]);
     let mut ordinary = template["cases"][0]["input"].clone();

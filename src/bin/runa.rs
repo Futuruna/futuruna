@@ -23286,11 +23286,32 @@ struct BuiltinDef {
 }
 
 fn apply_builtin_template(tpl: &str, args: &[String]) -> String {
-    let mut s = tpl.to_string();
-    for (i, arg) in args.iter().enumerate() {
-        s = s.replace(&format!("{{{}}}", i), arg);
+    // Substitute only placeholders in the original template. An emitted
+    // argument may itself contain text like "{1}"; never scan it again.
+    let mut rendered = String::with_capacity(tpl.len());
+    let mut cursor = 0;
+    for (start, _) in tpl.match_indices('{') {
+        let tail = &tpl[start + 1..];
+        let Some(end) = tail.find('}') else {
+            continue;
+        };
+        let slot = &tail[..end];
+        let Ok(index) = slot.parse::<usize>() else {
+            continue;
+        };
+        // Preserve non-placeholder braces and noncanonical indices exactly.
+        if slot != index.to_string() {
+            continue;
+        }
+        let Some(argument) = args.get(index) else {
+            continue;
+        };
+        rendered.push_str(&tpl[cursor..start]);
+        rendered.push_str(argument);
+        cursor = start + end + 2;
     }
-    s
+    rendered.push_str(&tpl[cursor..]);
+    rendered
 }
 
 static RUST_BUILTIN_REGISTRY: OnceLock<BTreeMap<String, BuiltinDef>> = OnceLock::new();
@@ -23924,6 +23945,18 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 impure: true,
                 deps: D,
                 rust_tpl: "assert!({0}, \"Assertion failed!\")",
+            },
+        ),
+        (
+            "assert_with_message",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                // Ordinary eager argument evaluation, even on success. The
+                // user message is data, never a Rust format string.
+                rust_tpl: "{ let __condition: bool = {0}; let __message: String = {1}; assert!(__condition, \"Assertion failed: {}\", __message); }",
             },
         ),
         (
@@ -30782,8 +30815,16 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         "db_query" => Some(FirTy::List(Box::new(FirTy::List(Box::new(FirTy::String))))),
         "http_respond" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
-        "print" | "assert" | "write_file" | "append_file" | "sleep" | "http_serve" | "db_exec"
-        | "db_close" | "subscribe" => Some(FirTy::Unit),
+        "print"
+        | "assert"
+        | "assert_with_message"
+        | "write_file"
+        | "append_file"
+        | "sleep"
+        | "http_serve"
+        | "db_exec"
+        | "db_close"
+        | "subscribe" => Some(FirTy::Unit),
         _ => None,
     }
 }
@@ -49834,9 +49875,7 @@ impl RustCodegen {
             .get(builtin_name)
             .map(|def| (def.arity, def.shadowable, def.deps, def.rust_tpl))
         {
-            if arity == args.len()
-                && (!shadowable || !self.types.user_functions.contains(fn_name.as_str()))
-            {
+            if arity == args.len() && (!shadowable || !self.builtin_shadowed_by_callable(fn_name)) {
                 for &(dep_name, dep_ver) in deps {
                     self.cargo_deps
                         .entry(dep_name.to_string())
@@ -49877,7 +49916,7 @@ impl RustCodegen {
             .get(builtin_name)
             .map(|def| {
                 def.arity == arity
-                    && (!def.shadowable || !self.types.user_functions.contains(fn_name.as_str()))
+                    && (!def.shadowable || !self.builtin_shadowed_by_callable(fn_name))
             })
             .unwrap_or(false)
     }
@@ -49894,6 +49933,11 @@ impl RustCodegen {
             .get(fn_name.as_str())
             .map(|ty| Self::fir_arrow_arity(ty) == arity)
             .unwrap_or(false)
+    }
+
+    fn builtin_shadowed_by_callable(&self, name: &str) -> bool {
+        self.types.user_functions.contains(name)
+            || matches!(self.lookup_var_fir_ty(name), Some(FirTy::Arrow(_, _)))
     }
 
     fn static_call_bypasses_non_callable_local(&self, name: &str, arity: usize) -> bool {
@@ -52290,8 +52334,7 @@ impl RustCodegen {
                     }
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
                         if args_str.len() == def.arity
-                            && (!def.shadowable
-                                || !self.types.user_functions.contains(name.as_str()))
+                            && (!def.shadowable || !self.builtin_shadowed_by_callable(name))
                         {
                             for &(dep_name, dep_ver) in def.deps {
                                 self.cargo_deps
@@ -53927,6 +53970,7 @@ impl RustCodegen {
             "range",
             "resume",
             "assert",
+            "assert_with_message",
             "parse_int",
             "to_float",
             "not",
@@ -62379,6 +62423,64 @@ for x in [1, 2] {
 
         assert!(!output.status.success());
         assert!(String::from_utf8_lossy(&output.stderr).contains("Assertion failed!"));
+    }
+
+    #[test]
+    fn builtin_templates_never_reexpand_arguments() {
+        let arguments = ["\"{1}\"".to_string(), "\"år {0} {2}\"".to_string()];
+        assert_eq!(
+            apply_builtin_template("{0}; {1}; {0}", &arguments),
+            "\"{1}\"; \"år {0} {2}\"; \"{1}\""
+        );
+        assert_eq!(
+            apply_builtin_template("{ block({0}); {{1}}; {} }", &arguments),
+            "{ block(\"{1}\"); {\"år {0} {2}\"}; {} }"
+        );
+        let other_braces = "år {2} {00} {+0} {-1} {999999999999999999999999} {";
+        assert_eq!(
+            apply_builtin_template(other_braces, &arguments),
+            other_braces
+        );
+        assert_eq!(apply_builtin_template("{0}", &[]), "{0}");
+        let many = (0..=10)
+            .map(|index| format!("arg{index}"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            apply_builtin_template("{10}/{1}/{0}", &many),
+            "arg10/arg1/arg0"
+        );
+    }
+
+    #[test]
+    fn compiled_assert_with_message_preserves_text_and_eager_arguments() {
+        let source = r#"
+> message() -> String { @ print("message evaluated")
+    "år {2027}: unsupported"
+}
+assert_with_message(true, message())
+@ print("continued")
+"#;
+        assert_eq!(
+            compile_and_run_test_program(source).trim(),
+            "message evaluated\ncontinued"
+        );
+        let output = compile_and_capture_test_source(
+            "assert_with_message(false, \"år {2027}: unsupported\")\n@ print(\"must not run\")",
+            None,
+        );
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr)
+            .contains("Assertion failed: år {2027}: unsupported"));
+        assert_eq!(compile_and_run_test_program(
+            "> assert_with_message(a: Int, b: Int) -> Int { a + b }\n@ print(show(assert_with_message(4, 5)))"
+        ).trim(), "9");
+        assert_eq!(compile_and_run_test_program(
+            "= assert_with_message = |a: Int, b: Int| a + b\n@ print(show(assert_with_message(4, 5)))"
+        ).trim(), "9");
+        assert_eq!(compile_and_run_test_program(
+            "> expected(value: String) -> Bool { value == \"{1}\" }\nassert_with_message(expected(\"{1}\"), \"år {0} {1} {2}\")\n@ print(\"continued\")"
+        ).trim(), "continued");
     }
 
     #[test]

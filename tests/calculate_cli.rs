@@ -64,6 +64,36 @@ fn parse_stdout(output: &Output) -> Value {
     })
 }
 
+#[test]
+fn call_assert_with_message_preserves_json_and_case_isolation() {
+    let source = "tests/fixtures/calculation/assert-message.calculate.runa";
+    let template = run(&["template", source, "--format", "json"]);
+    assert!(template.status.success(), "{template:?}");
+    let mut input = parse_stdout(&template);
+    input["cases"] = serde_json::json!([
+        {"case_id":"before","input":{"year":2026}},
+        {"case_id":"unsupported","input":{"year":2027}},
+        {"case_id":"after","input":{"year":2026}}
+    ]);
+    let input_path = temp_path("json");
+    std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
+    let output = run(&["call", source, "--input", input_path.to_str().unwrap()]);
+    std::fs::remove_file(input_path).unwrap();
+    assert!(!output.status.success());
+    let result = parse_stdout(&output);
+    let results = result["results"].as_array().unwrap();
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0]["case_id"], "before");
+    assert_eq!(results[1]["case_id"], "after");
+    assert!(results.iter().all(|row| row["result"] == 100));
+    let diagnostics = result["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0]["case_id"], "unsupported");
+    let message = diagnostics[0]["message"].as_str().unwrap();
+    assert!(message.contains("year {2027}: unsupported; use a model for that year"));
+    assert!(!message.contains("division"));
+}
+
 fn worksheet_xml_parts(path: &Path) -> Vec<(String, String)> {
     let file = File::open(path).expect("open XLSX package");
     let mut archive = zip::ZipArchive::new(file).expect("read XLSX package");
@@ -4019,7 +4049,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let pension_sheet = workbook_collection_sheet_name(&mut workbook, pension_path);
         assert_eq!(
             workbook_title(&mut workbook, &pension_sheet),
-            "Dansk personskat - Pensionsindbetalinger efter PBL § 18"
+            "Dansk personskat - Private og arbejdsgiveradministrerede pensionsindbetalinger"
         );
         assert_eq!(
             workbook_headers(&mut workbook, &pension_sheet),
@@ -4195,6 +4225,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.pension.fødselsdato.år",
             "lønmodtager.pension.fødselsdato.måned",
             "lønmodtager.pension.fødselsdato.dag",
+            "lønmodtager.pension.udbetalingsoplysninger.for_året_komplette",
+            "lønmodtager.pension.udbetalingsoplysninger.for_foregående_år_komplette",
+            "lønmodtager.pension.atp.$variant",
             "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
             "lønmodtager.pension.pbl18_livrentevalg.$variant",
             "lønmodtager.pension.pbl18_livrentevalg.Pbl18Grundbeløbsvalg.ønsket_fradrag_kroner",
@@ -6305,6 +6338,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
 
     edit_workbook(&input_path, |sheets| {
         let fill_wage_case = |sheets: &mut EditableWorkbook, row: usize, case_id: &str| {
+            // These fictional fixtures have no ATP or pension payouts. State
+            // that explicitly; blank required cells are not a known zero.
             for (header, value) in [
                     ("case_id", Data::String(case_id.to_string())),
                     ("lønmodtager.skatteår", Data::String("2026".to_string())),
@@ -6381,6 +6416,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "lønmodtager.pension.fødselsdato.dag",
                         Data::String("1".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.udbetalingsoplysninger.for_året_komplette",
+                        Data::Bool(true),
+                    ),
+                    (
+                        "lønmodtager.pension.udbetalingsoplysninger.for_foregående_år_komplette",
+                        Data::Bool(true),
+                    ),
+                    (
+                        "lønmodtager.pension.atp.$variant",
+                        Data::String("IngenAtpIndbetalinger".to_string()),
                     ),
                     (
                         "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
@@ -7529,6 +7576,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato.dag",
                 Data::String("1".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.udbetalingsoplysninger.for_året_komplette",
+                Data::Bool(true),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.udbetalingsoplysninger.for_foregående_år_komplette",
+                Data::Bool(true),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.atp.$variant",
+                Data::String("IngenAtpIndbetalinger".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
@@ -12143,6 +12202,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         });
     assert_eq!(xlsx_exact_tax_result["result"]["slutskat_øre"], 20_872_564);
     assert_eq!(
+        xlsx_exact_tax_result["result"]["vurdering"]["slutskat_til_sammenligning_øre"], 20_872_564,
+        "the explicitly complete synthetic case must remain comparable: {:#?}",
+        xlsx_exact_tax_result["result"]["vurdering"]["fejl"]
+    );
+    assert_eq!(
         xlsx_exact_tax_result["result"]["slutskat_kroner_kompatibilitetsprojektion"],
         208_725
     );
@@ -12352,6 +12416,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "pension": {
                 "fødselsdato": { "år": 1990, "måned": 1, "dag": 1 },
+                "udbetalingsoplysninger": {
+                    "for_året_komplette": true,
+                    "for_foregående_år_komplette": true
+                },
+                "atp": { "$variant": "IngenAtpIndbetalinger" },
                 "pbl18_indbetalinger": [],
                 "pbl14b_årsgrundlag": { "udbetalinger": [] },
                 "ambl_par2_stk1_nr5_årsgrundlag": { "indbetalinger": [] },
@@ -14274,6 +14343,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "pension": {
                     "fødselsdato": { "år": 1990, "måned": 1, "dag": 1 },
+                    "udbetalingsoplysninger": {
+                        "for_året_komplette": true,
+                        "for_foregående_år_komplette": true
+                    },
+                    "atp": { "$variant": "IngenAtpIndbetalinger" },
                     "pbl18_indbetalinger": [],
                     "pbl14b_årsgrundlag": { "udbetalinger": [] },
                     "ambl_par2_stk1_nr5_årsgrundlag": { "indbetalinger": [] },

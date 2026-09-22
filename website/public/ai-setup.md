@@ -215,9 +215,10 @@ path:
 RUNA_BIN="$RUNA_BIN" bash scripts/tax-audit-preflight.sh
 ```
 
-It runs seven tiny synthetic checks: valid arithmetic and inline-module results,
-rejection of division by zero and undefined scalar/list rules, and rejection of
-duplicate JSON members in both orders. It needs Bash and standard shell tools,
+It runs nine tiny synthetic checks: valid arithmetic and inline-module results,
+rejection of division by zero and undefined scalar/list rules, rejection of
+duplicate JSON members in both orders, and successful/failing assertions with
+explanatory messages. It needs Bash and standard shell tools,
 not Rust, Node, private documents or the full test suite. It retains a small
 temporary evidence directory and neither installs nor rebuilds anything.
 

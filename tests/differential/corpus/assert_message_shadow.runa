@@ -1,0 +1,21 @@
+-- An assertion message is ordinary text, and a local callable may shadow the
+-- shadowable builtin without being lowered as a Bool/String runtime assertion.
+> checked(condition: Bool) -> Int {
+    assert_with_message(condition, "source {year}: unsupported")
+    7
+}
+
+> replaced() -> Int {
+    = assert_with_message = |a: Int, b: Int| a + b
+    assert_with_message(4, 5)
+}
+
+> brace_is_literal(value: String) -> Bool { value == "{1}" }
+assert_with_message(brace_is_literal("{1}"), "år {0} {1} {2}")
+
+= checked_value = checked(True)
+= replaced_value = replaced()
+| expected_values: (checked_value, replaced_value) -> checked_value == 7 && replaced_value == 9
+? expected_values
+@ print(show(checked_value))
+@ print(show(replaced_value))

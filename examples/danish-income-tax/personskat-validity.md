@@ -45,10 +45,35 @@ models' active-branch validation; a false eligibility decision is not itself
 invalid input. Inactive spouse and optional payment branches are not required.
 
 These are the enumerated checks, not a claim that every possible defect in the
-research model has been ruled out. Unsupported inputs that fail before a result
-can be constructed still produce CLI diagnostics; improving the unsupported-year
-diagnostic is separate work. Native code-generation limitations in shared tax
-modules also remain; this boundary is exercised through `runa call`.
+research model has been ruled out. The public `beregn_personskat` entry checks
+the main person's and any active spouse's tax year before evaluating tax.
+Years outside the current 2023–2026 boundary produce a case diagnostic naming
+the field, supplied year, supported years and
+[parameter source model](skatteaar-parametre.runa), with no result for that case.
+Other cases in the same batch may still succeed. Do not change a correct year
+merely to pass the check: that year needs its own source-backed model. This is
+a model-coverage limit, not a finding about tax liability.
+
+Other unsupported inputs that fail before a result can be constructed still
+produce CLI diagnostics. Native code-generation limitations in shared tax
+modules also remain; this boundary is exercised through `runa call`. The year
+guard uses `assert_with_message` and therefore requires a compiler built after
+that builtin was added, not the original 0.2.0 binary.
+
+## Known foreign-employment coverage limit
+
+The [canonical wage calculation](loenmodtager_beregning.runa) currently fixes
+`udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver` to `false`; it does not collect
+or validate the facts needed for this exclusion. LL §9 J(1), also referenced by
+§9 K, contains an exclusion involving treaty residence abroad, Greenland or the
+Faroe Islands and contribution-liable income from employment performed abroad
+for a foreign employer. See [LBK 1500/2025, §§9 J–9 K](https://www.lovtidende.dk/api/pdf/250970).
+
+Where that combination may apply, do not use the canonical total as a completed
+return audit, even if `BeregnetMedForbehold` is returned. Mixed income needs
+source-specific allocation; neither excluding every foreign amount nor removing
+the person's entire deduction is a safe substitute. This remains an unresolved
+model boundary (`td-64197d`), not a conclusion about an individual's entitlement.
 
 ## Updating existing clients
 
