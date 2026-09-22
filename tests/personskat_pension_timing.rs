@@ -1,4 +1,4 @@
-//! LL §9 L: current-year amounts, previous-year eligibility, public typed call.
+//! Pension deduction bases and payout timing through the public typed call.
 //! All facts are fictional; no amounts are inferred from an official assessment.
 use serde_json::{json, Value};
 use std::process::Command;
@@ -120,6 +120,125 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
     std::fs::remove_file(path).unwrap();
     assert_eq!(output["diagnostics"], json!([]));
     output["results"].as_array().unwrap().clone()
+}
+
+#[test]
+fn employer_lifetime_and_rate_pensions_keep_gross_employment_basis() {
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(200000);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let mut cases = Vec::new();
+    for name in [
+        "employer-rate",
+        "employer-lifetime",
+        "private-lifetime",
+        "previous-year-lifetime",
+        "young-employer-lifetime",
+        "split-employer-pension",
+    ] {
+        let mut input = baseline.clone();
+        let mut payment = contribution();
+        payment["identifikation"] = json!(name);
+        payment["ordning"] = json!({"$variant": if name == "employer-rate" {
+            "Pbl18Rateopsparing"
+        } else { "Pbl18LivsvarigLivrente" }});
+        payment["indbetalingskilde"] = json!({"$variant":"Pbl18Arbejdsgiverindbetaling"});
+        payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(4000);
+        match name {
+            "private-lifetime" => {
+                payment["indbetalingskilde"] = json!({"$variant":"Pbl18EgenIndbetaling"});
+                payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(0);
+                // Fictional continuing annual premium, no ten-year allocation.
+                payment["forfaldne_ikke_tidligere_fratrukket_kroner"] = json!(50000);
+            }
+            "previous-year-lifetime" => {
+                payment["betaling"]["forfaldsår"] = json!(2025);
+                payment["betaling"]["betalingsår"] = json!(2025);
+            }
+            "young-employer-lifetime" => {
+                input["lønmodtager"]["personfradrag_alder_status"] =
+                    json!({"$variant":"Under18Ugift"});
+                input["lønmodtager"]["pension"]["fødselsdato"] =
+                    json!({"år":2009,"måned":1,"dag":1});
+                payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(0);
+            }
+            "split-employer-pension" => {
+                payment["betaling"]["beløb_kroner"] = json!(25000);
+                payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(2000);
+            }
+            _ => {}
+        }
+        let mut payments = vec![payment.clone()];
+        if name == "split-employer-pension" {
+            payment["identifikation"] = json!("split-employer-rate");
+            payment["ordning"] = json!({"$variant":"Pbl18Rateopsparing"});
+            payments.push(payment);
+        }
+        input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!(payments);
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), 6);
+    for row in &results {
+        let result = &row["result"];
+        let name = row["case_id"].as_str().unwrap();
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{name}: {}",
+            result["vurdering"]
+        );
+        assert!(result["vurdering"]["slutskat_til_sammenligning_øre"].is_i64());
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        let (employment, job, extra, wage_am, personal, lifetime_gross) = match name {
+            "private-lifetime" => (25500, 0, 6000, 16000, 134000, 0),
+            "previous-year-lifetime" => (25500, 0, 0, 16000, 184000, 0),
+            "young-employer-lifetime" => (31875, 666, 6000, 0, 200000, 50000),
+            "employer-rate" => (31875, 666, 5520, 16000, 184000, 0),
+            "split-employer-pension" => (31875, 666, 5520, 16000, 184000, 25000),
+            _ => (31875, 666, 5520, 16000, 184000, 50000),
+        };
+        // LL §§9 J/K use gross workplace contributions; §9 L uses after-AM.
+        // https://www.lovtidende.dk/api/pdf/250970
+        println!(
+            "{}: employment={}, job={}, extra-pension={}, tax-øre={}",
+            row["case_id"],
+            result["skat"]["beskæftigelsesfradrag_kroner"],
+            result["skat"]["jobfradrag_kroner"],
+            result["skat"]["ekstra_pensionsfradrag_kroner"],
+            result["vurdering"]["slutskat_til_sammenligning_øre"]
+        );
+        assert_eq!(
+            result["skat"]["beskæftigelsesfradrag_kroner"], employment,
+            "{}",
+            row["case_id"]
+        );
+        assert_eq!(result["skat"]["jobfradrag_kroner"], job);
+        assert_eq!(result["skat"]["ekstra_pensionsfradrag_kroner"], extra);
+        assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], wage_am);
+        assert_eq!(
+            result["skat"]["personlig_indkomst_efter_am_kroner"],
+            personal
+        );
+        assert_eq!(
+            result["pension"]["lønmodtager_pensionsfradrag"]
+                ["øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner"],
+            lifetime_gross
+        );
+        if matches!(
+            name,
+            "employer-rate" | "employer-lifetime" | "split-employer-pension"
+        ) {
+            assert_eq!(
+                result["vurdering"]["slutskat_til_sammenligning_øre"],
+                5308213
+            );
+        }
+    }
+    assert_eq!(
+        results[0]["result"]["vurdering"]["slutskat_til_sammenligning_øre"],
+        results[1]["result"]["vurdering"]["slutskat_til_sammenligning_øre"]
+    );
 }
 
 #[test]

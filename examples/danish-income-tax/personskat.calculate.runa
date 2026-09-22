@@ -291,8 +291,8 @@
 = personskat_felt_bruttoløn = Beregningsfelt(
     path = "lønmodtager.bruttoløn_kroner",
     label = "Årlig bruttoløn",
-    question = Some("Hvor meget modtager du i almindelig løn før skat i hele indkomståret, bortset fra beløb oplyst særskilt som sømandsindkomst, rejsegodtgørelse eller kørselsgodtgørelse?"),
-    help = Some("Angiv lønnen før arbejdsmarkedsbidrag, skat og personlige fradrag. Medtag ikke løn fra skibsarbejde i sømandsindkomsttabellen eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder selv, hvilke særskilt oplyste beløb der skal føres tilbage til ordinær bruttoløn."),
+    question = Some("Hvad er årets almindelige løn før AM-bidrag og skat, men uden arbejdsgiveradministreret pension og ATP, og uden særskilt oplyst sømandsindkomst, rejse- eller kørselsgodtgørelse?"),
+    help = Some("Brug løngrundlaget fra lønoplysningerne, ikke den samlede lønpakke inklusive pension. Arbejdsgiveradministrerede pensionsbidrag, også egenbetaling over lønnen, oplyses særskilt under pension og må ikke samtidig tælles som løn. Private pensionsindbetalinger trækkes derimod ikke fra dette lønfelt. Medtag ikke løn fra skibsarbejde i sømandsindkomsttabellen eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder selv de særskilt oplyste beløb, som skal føres tilbage til ordinær bruttoløn."),
     unit = Some("kr./år")
 )
 = personskat_felt_dis_indkomster = TypetBeregningsfelt(
@@ -17433,6 +17433,12 @@ fraflytningen."
     )
     | arbejdsgiver_rate_og_ophørende_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner - årsresultat().arbejdsgivergrundlag.rate_og_ophørende_am_bidrag_kroner } ellers { 0 }
     | arbejdsgiver_øvrige_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner } ellers { 0 }
+    -- LL §§ 9 J/K, jf. AMBL § 2, stk. 1, nr. 4: almindelig arbejdsgiverlivrente
+    -- indgår før AM. LL § 9 L bruger fortsat beløbet efter det oplyste AM-bidrag.
+    -- Bevar kildebeløbet; udled aldrig brutto ved at dividere netto med 0,92.
+    | arbejdsgiver_livsvarig_livrente_før_am_kroner() -> hvis årsresultat().input_gyldigt {
+        foldl(input.lønmodtager.pension.pbl18_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && indbetaling.ordning == Pbl18LivsvarigLivrente && pbl18_årsindbetaling_fradragsår(indbetaling) == input.lønmodtager.skatteår { indbetaling.betaling.beløb_kroner } ellers { 0 })
+    } ellers { 0 }
     | pensionsalder_resultat() -> ll9l_pensionsalder_resultat(input.lønmodtager.skatteår, input.lønmodtager.pension.fødselsdato)
     -- Afklar kun ukendt historik, hvis den stadig kan ændre LL § 9 L-fradraget.
     -- Begge muligheder anvender den samme kilderegel med dens loft og afrunding.
@@ -17458,7 +17464,7 @@ fraflytningen."
         pbl19_rate_ophørende_bortseelsesret_før_am_kroner = hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner } ellers { 0 },
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = arbejdsgiver_rate_og_ophørende_efter_am_kroner(),
         pbl19_øvrige_indbetalinger_efter_am_kroner = arbejdsgiver_øvrige_efter_am_kroner(),
-        øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = personlig_indkomst.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner,
+        øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = personlig_indkomst.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner + arbejdsgiver_livsvarig_livrente_før_am_kroner(),
         ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner = ambl_par2_stk1_nr5_resultat().samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner,
         pbl20_indkomstskattepligtig_udbetaling_kroner = udbetalingsresultat.modregnet_efter_ligningslov9l_i_året_kroner,
         pbl20_udbetaling_status = personskat_pbl20_udbetalingsstatus(

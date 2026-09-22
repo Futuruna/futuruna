@@ -81,6 +81,51 @@ en tilsvarende udbetaling eller procentvis skatterabat. Dets sats afhænger af
 afstanden til folkepensionsalderen, og grundlaget har sit eget loft.
 [Skattestyrelsens vejledning om ekstra pensionsfradrag](https://skat.dk/borger/fradrag/ekstra-pensionsfradrag).
 
+### Løn og arbejdsgiverpension: brug ikke samme beløb to gange
+
+`lønmodtager.bruttoløn_kroner` er løngrundlaget før AM-bidrag og skat,
+ikke lønpakken inklusive pension. Hold arbejdsgiveradministrerede bidrag,
+også din egen andel over lønnen, adskilt fra lønnen. Private indbetalinger
+skal derimod ikke trækkes fra lønfeltet. Lønoplysningerne er efter fradrag
+af ATP og eget arbejdsgiveradministreret pensionsbidrag.
+[Skattestyrelsens forklaring af AM-bidrag](https://skat.dk/borger/am-bidrag).
+
+En almindelig arbejdsgiverbetalt livsvarig livrente indgår **før AM-bidrag**
+i grundlaget for beskæftigelses- og jobfradrag. Det ekstra pensionsfradrag
+bruger derimod bidraget **efter indeholdt AM-bidrag**. Derfor skal både
+bruttoindbetaling og faktisk indeholdt bidrag oplyses; et nettobeløb divideret
+med 0,92 er ikke dokumentation for bruttoindbetalingen.
+[LL §§ 9 J–9 L](https://www.lovtidende.dk/api/pdf/250970),
+[AMBL § 2, stk. 1, nr. 4](https://www.retsinformation.dk/eli/lta/2020/121).
+
+Et fiktivt 2026-eksempel: 200.000 kr. i løngrundlag, 50.000 kr. på en
+almindelig arbejdsgiverlivrente, 4.000 kr. indeholdt pensions-AM, født i 1990,
+ingen øvrige indkomster, pensionsudbetalinger eller ATP:
+
+| Fradrag | Anvendt grundlag | Beregnet fradrag |
+| --- | --- | --- |
+| Beskæftigelsesfradrag | 250.000 kr. før AM | 31.875 kr. |
+| Jobfradrag | 250.000 − 235.200 kr. | 666 kr. |
+| Ekstra pensionsfradrag | 50.000 − 4.000 kr. | 5.520 kr. |
+
+Satserne og jobfradragets bundgrænse fremgår af
+[Skattestyrelsens 2026-satser](https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag).
+Beløbene i sidste kolonne er fradrag, ikke sparet skat. Indeholdt pensions-AM
+opkræves ikke igen som løn-AM. En privat livrente og en arbejdsgiverbetaling
+henført til et andet år må ikke lægges til årets løngrundlag på denne måde.
+
+Den kanoniske model er rettet, så almindelig arbejdsgiverlivrente fra
+`pbl18_indbetalinger` nu medtages i dette grundlag. Det afledte beløb kan
+følges under `pension.lønmodtager_pensionsfradrag` i feltet
+`øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner`; det kan
+også indeholde andre særskilt modellerede bidragsgrundlag. Tidligere resultater
+kan undervurdere fradragene. Beregn berørte sager igen fra kildefakta med en
+ny skabelon; ret ikke blot slutskatten eller en gammel kontrakthash.
+
+Eksemplet dækker ikke ATP, særlige pensionsordninger eller
+arbejdsgiverindbetalinger over rateloftet. De kræver særskilt kontrol og må
+ikke presses ind som almindelig livrente for at få tallene til at stemme.
+
 ### Hvis du også får pension udbetalt
 
 Indhent udbetalingernes beløb, år og art fra pensionsudbyderen. Efter LL § 9 L,
