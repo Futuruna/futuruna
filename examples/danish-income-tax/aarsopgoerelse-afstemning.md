@@ -24,13 +24,19 @@ exists, and neither workflow certifies the underlying documents.
 
 ## Run the compact review
 
+First run the [tax-audit runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check)
+against the compiler you will use. The original `v0.2.0` download predates
+required calculation-safety fixes; the version string alone is insufficient.
+Do not continue on a failed check. It uses only synthetic data, not your report.
+
 Keep the PDFs, transcriptions, and results in a private directory **outside the
-checkout**. Replace `PRIVATE_WORK_DIR` below with its actual path. From the repo:
+checkout**. Replace `PRIVATE_WORK_DIR` below with its actual path, and keep
+`RUNA_BIN` set to the exact absolute path that passed the check. From the repo:
 
 ```sh
-runa template examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
+"$RUNA_BIN" template examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
 # Fill the generated cases with report observations, preserving $futuruna.
-runa call examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --input PRIVATE_WORK_DIR/report-cases.json --output PRIVATE_WORK_DIR/report-results.json
+"$RUNA_BIN" call examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --input PRIVATE_WORK_DIR/report-cases.json --output PRIVATE_WORK_DIR/report-results.json
 ```
 
 The same contract supports `--format xlsx` and XLSX invocation. The optional

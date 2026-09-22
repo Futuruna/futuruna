@@ -1,0 +1,14 @@
+-- Synthetic runtime compatibility probe, not a tax model.
+-- The partial label rule intentionally tests the `runa call` failure boundary.
+-- Native consumption requires totality; this is not a native-parity fixture.
+# Input(divisor: Int, year: Int)
+# Output(quotient: Int, label: String)
+
+| label(year: Int) -> "known" under year == 0
+@ calculate
+> calculate(input: Input) -> Output {
+    Output(
+        quotient = 100 / (input.divisor + 1),
+        label = label(input.year)
+    )
+}

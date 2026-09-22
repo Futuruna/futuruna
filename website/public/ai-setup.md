@@ -18,8 +18,17 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 - **Installation:** Use the verified Futuruna download made for the user's computer when one is available. Otherwise, install it with Cargo or build it on that computer.
 - **Local result:** Leave the user with a working local `runa` executable and, when they want the examples or legal models, a local Futuruna checkout they can use after this AI session ends.
 - **Time:** A download normally takes 1–3 minutes. Building Futuruna normally takes 5–10 minutes when Rust and Cargo are already installed.
-- **Rust:** The downloaded program can check, format, run, and audit Futuruna code without installing Rust. Building Futuruna or using `runa build` still requires Rust.
-- **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Do not run the full project test suite merely to check an installation.
+- **Rust:** Formatting, interpreted execution (`runa FILE.runa`), `check --frontend`, and typed calculations do not require Rust. The default `runa check`, native `runa run`, `runa build`, and building Futuruna itself require Rust. A frontend-only check does not validate the Rust backend.
+- **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Before tax calculations, also run the small runtime compatibility check below. Do not run the full project test suite merely to check an installation.
+
+**Tax-audit compatibility:** The GitHub
+[`v0.2.0` binaries](https://github.com/Futuruna/futuruna/releases/tag/v0.2.0) published on
+19 September 2026 predate calculation-safety fixes now present in this checkout.
+They must not be used for this checkout's tax-audit workflow. A development
+binary may also report `0.2.0`, so the version string alone is insufficient.
+Use the [runtime compatibility check](#tax-audit-runtime-check) on the exact
+binary selected. If it fails, build from this checkout or obtain a newer verified
+release that passes it; do not proceed using an older binary.
 
 ## Your task
 
@@ -85,23 +94,42 @@ Choose the filename for the user's operating system and processor:
 | macOS `arm64` | `runa-macos-arm64` |
 | macOS `x86_64` | `runa-macos-x86_64` |
 
-From the repository root, replace `DOWNLOAD_NAME` below with that exact filename:
+From the repository root, replace `DOWNLOAD_NAME` below with that exact filename
+and `RELEASE_TAG` with the selected tag from the
+[GitHub releases](https://github.com/Futuruna/futuruna/releases).
+Use one explicit tag for both files, not two independently changing `latest`
+downloads. This block leaves the verified binary in a new directory and prints
+its path; it does not overwrite an existing compiler. The tax-audit warning above
+still applies to `v0.2.0`.
 
-```
+```sh
+(
+set -eu
 BINARY=DOWNLOAD_NAME
-RELEASE_BASE=https://github.com/Futuruna/futuruna/releases/latest/download
-mkdir -p target/release
-curl --fail --location --retry 3 --output "target/release/$BINARY" "$RELEASE_BASE/$BINARY"
-curl --fail --location --retry 3 --output target/release/SHA256SUMS "$RELEASE_BASE/SHA256SUMS"
-cd target/release
+RELEASE_TAG=RELEASE_TAG
+case "$BINARY" in
+    runa-linux-x86_64|runa-linux-arm64|runa-macos-arm64|runa-macos-x86_64) ;;
+    *) echo "Choose the exact download filename first." >&2; exit 1 ;;
+esac
+case "$RELEASE_TAG" in
+    v[0-9]*) ;;
+    *) echo "Choose the release tag first." >&2; exit 1 ;;
+esac
+RELEASE_BASE="https://github.com/Futuruna/futuruna/releases/download/$RELEASE_TAG"
+mkdir -p target
+DOWNLOAD_DIR="$(mktemp -d "$PWD/target/runa-download.XXXXXX")"
+curl --fail --location --retry 3 --output "$DOWNLOAD_DIR/$BINARY" "$RELEASE_BASE/$BINARY"
+curl --fail --location --retry 3 --output "$DOWNLOAD_DIR/SHA256SUMS" "$RELEASE_BASE/SHA256SUMS"
+cd "$DOWNLOAD_DIR"
+awk -v binary="$BINARY" '$2 == binary { print; matches++ } END { if (matches != 1) exit 1 }' SHA256SUMS > selected.sha256
 if command -v sha256sum >/dev/null 2>&1; then
-    grep "  $BINARY$" SHA256SUMS | sha256sum --check -
+    sha256sum --check selected.sha256
 else
-    grep "  $BINARY$" SHA256SUMS | shasum -a 256 --check -
+    shasum -a 256 --check selected.sha256
 fi
 chmod +x "$BINARY"
-mv -f "$BINARY" runa
-cd ../..
+printf 'Verified binary: %s/%s\n' "$DOWNLOAD_DIR" "$BINARY"
+)
 ```
 
 Stop if the download or checksum is unavailable, the checksum line is missing,
@@ -151,17 +179,18 @@ published download.
 
 ### 6. Check the installation on the user's computer
 
-For a release or source build in the checkout, run:
+Set `RUNA_BIN` to the absolute verified download path printed above, or to
+`$PWD/target/release/runa` for a source build. For a Cargo installation, use
+`RUNA_BIN="$(command -v runa)"`. Then, from the checkout:
 
-```
-RUNA_BIN=./target/release/runa
+```sh
+RUNA_BIN=/absolute/path/to/the/verified/binary
 "$RUNA_BIN" --version
 "$RUNA_BIN" examples/weather_demo.runa
 ```
 
-For a Cargo installation, set `RUNA_BIN="$(command -v runa)"` instead. Keep the
-verified absolute path for the remaining commands. If a command fails, diagnose
-it before continuing. Do not claim setup is complete until both commands
+Keep the verified absolute path for the remaining commands. If a command fails,
+diagnose it before continuing. Do not claim setup is complete until both commands
 succeed **on the machine where Futuruna will be used**. Do not run the full
 Futuruna test suite as part of setup.
 
@@ -175,6 +204,33 @@ When setup succeeds, tell the user:
 - where the `runa` binary is located.
 
 Do not add the compiler to a global path or edit the user's environment unless they ask you to.
+
+### Tax-audit runtime check
+
+Before pension scenarios, deduction comparisons or report reconciliation, run
+this from the **same checkout as the models**, using the selected absolute binary
+path:
+
+```sh
+RUNA_BIN="$RUNA_BIN" bash scripts/tax-audit-preflight.sh
+```
+
+It runs seven tiny synthetic checks: valid arithmetic and inline-module results,
+rejection of division by zero and undefined scalar/list rules, and rejection of
+duplicate JSON members in both orders. It needs Bash and standard shell tools,
+not Rust, Node, private documents or the full test suite. It retains a small
+temporary evidence directory and neither installs nor rebuilds anything.
+
+If it fails, stop before generating or evaluating personal cases. Inspect the
+named synthetic evidence; do not call the result a tax discrepancy. The source
+build above is the fallback when a compatible download is unavailable. Preserve
+an existing working compiler and ask before replacing it or installing Rust.
+Re-run this check after changing the selected compiler or model checkout.
+
+A pass establishes only these runtime behaviors, not complete model compatibility,
+correct tax law, true source documents or complete facts. Continue checking the
+model's validity/coverage status and input fingerprint. Generate a fresh template
+from the selected model; never repair a mismatch by editing its fingerprint.
 
 ## Choose a first project
 

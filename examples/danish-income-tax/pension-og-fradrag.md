@@ -6,6 +6,12 @@ resultatet, men afgør ikke skatten. Modellen er forskningssoftware, ikke
 individuel skatte- eller pensionsrådgivning. `schema`, `template` og `call` er
 Preview.
 
+Før beregningen skal den valgte compiler bestå det lille
+[kompatibilitetstjek](../../website/public/ai-setup.md#tax-audit-runtime-check).
+Den oprindelige `v0.2.0`-download mangler senere sikkerhedsrettelser; samme
+versionsnummer er ikke nok. Tjekket bruger kun fiktive data. Fortsæt ikke med
+personlige beregninger, hvis det fejler.
+
 ## Vælg den første opgave
 
 - **»Stemmer min årsopgørelse?«** Brug
