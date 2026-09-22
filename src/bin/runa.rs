@@ -333,15 +333,21 @@ fn main_inner() {
                 calculation_all_tables = true;
                 i += 1;
             }
-            "--format" if matches!(mode, "template" | "call") => {
+            "--format" if matches!(mode, "schema" | "template" | "call") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --format requires json, toml, or xlsx");
+                    if mode == "schema" {
+                        eprintln!("error: schema --format requires json or compact-json");
+                    } else {
+                        eprintln!("error: --format requires json, toml, or xlsx");
+                    }
                     std::process::exit(1);
                 }
                 calculation_format = Some(args[i + 1].clone());
                 i += 2;
             }
-            arg if matches!(mode, "template" | "call") && arg.starts_with("--format=") => {
+            arg if matches!(mode, "schema" | "template" | "call")
+                && arg.starts_with("--format=") =>
+            {
                 calculation_format = Some(arg["--format=".len()..].to_string());
                 i += 1;
             }
@@ -535,6 +541,7 @@ fn main_inner() {
                     "  explore --json        Emit the compact checkpoint, coverage, counts, and layer statuses"
                 );
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
+                eprintln!("  schema --format FORMAT  Select json or compact-json");
                 eprintln!(
                     "  --all-tables       Include inactive XLSX collection sheets (template only)"
                 );
@@ -598,6 +605,9 @@ fn main_inner() {
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
                 eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
                 eprintln!("  runa schema model.calculate.runa --entry calculate_tax");
+                eprintln!(
+                    "  runa schema model.calculate.runa --format compact-json --output schema.json"
+                );
                 eprintln!(
                     "  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx"
                 );
@@ -1754,7 +1764,17 @@ fn run_calculation_command(
 
     match mode {
         "schema" => {
-            let document = serde_json::to_string_pretty(contract).expect("contract is JSON");
+            let document = match requested_format.unwrap_or("json") {
+                "json" => serde_json::to_string_pretty(contract).expect("contract is JSON"),
+                "compact-json" => serde_json::to_string(
+                    &calculate::compact::CompactCalculationContract::from_contract(contract),
+                )
+                .expect("compact contract is JSON"),
+                format => {
+                    eprintln!("error: unsupported schema format `{format}`; expected json or compact-json");
+                    std::process::exit(1);
+                }
+            };
             write_calculation_text(&document, output_path);
         }
         "template" => {

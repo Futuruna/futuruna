@@ -138,6 +138,90 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
 }
 
 #[test]
+fn compact_schema_is_explicit_lossless_and_keeps_the_logical_fingerprint() {
+    let fixture = fixture();
+    let model = fixture.to_str().unwrap();
+    let expanded = run(&["schema", model]);
+    assert!(
+        expanded.status.success(),
+        "{}",
+        String::from_utf8_lossy(&expanded.stderr)
+    );
+    let explicit = run(&["schema", model, "--format", "json"]);
+    assert!(
+        explicit.status.success(),
+        "{}",
+        String::from_utf8_lossy(&explicit.stderr)
+    );
+    assert_eq!(
+        expanded.stdout, explicit.stdout,
+        "default schema wire must not change"
+    );
+    let expanded: futuruna::calculate::CalculationContract =
+        serde_json::from_slice(&expanded.stdout).unwrap();
+    let compact = run(&["schema", model, "--format", "compact-json"]);
+    assert!(
+        compact.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compact.stderr)
+    );
+    let raw = parse_stdout(&compact);
+    assert_eq!(raw["schema"], "futuruna.calculate.compact.v1");
+    assert_eq!(raw["contract_schema"], expanded.schema);
+    assert_eq!(raw["schema_hash"], expanded.schema_hash);
+    let restored = futuruna::calculate::compact::expand_compact_json(
+        std::str::from_utf8(&compact.stdout).unwrap(),
+        4 * 1024 * 1024,
+    )
+    .unwrap();
+    assert_eq!(
+        restored, expanded,
+        "complete metadata and source associations must survive"
+    );
+    let references: usize = expanded
+        .field_metadata
+        .iter()
+        .map(|field| field.sources.len())
+        .sum();
+    assert!(raw["source_objects"].as_object().unwrap().len() < references);
+    let repeated = run(&["schema", model, "--format=compact-json"]);
+    assert!(repeated.status.success());
+    assert_eq!(compact.stdout, repeated.stdout);
+    let missing_format = run(&["schema", model, "--format"]);
+    assert_eq!(missing_format.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&missing_format.stderr)
+        .contains("schema --format requires json or compact-json"));
+
+    let destination = temp_path("json");
+    let written = run(&[
+        "schema",
+        model,
+        "--format",
+        "compact-json",
+        "--output",
+        destination.to_str().unwrap(),
+    ]);
+    assert!(written.status.success());
+    assert_eq!(std::fs::read(&destination).unwrap(), compact.stdout);
+    let invalid = run(&[
+        "schema",
+        model,
+        "--format",
+        "xlsx",
+        "--output",
+        destination.to_str().unwrap(),
+    ]);
+    assert_eq!(invalid.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&invalid.stderr).contains("expected json or compact-json"));
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        compact.stdout,
+        "bad format must not overwrite existing output"
+    );
+    std::fs::remove_file(destination).unwrap();
+}
+
+#[test]
 fn calculation_contract_cache_hits_and_tracks_transitive_imports() {
     let root = temp_path("calculation-cache");
     std::fs::create_dir_all(&root).expect("create calculation cache fixture directory");

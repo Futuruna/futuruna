@@ -16,6 +16,8 @@ use std::time::Instant;
 mod json;
 pub use json::parse_calculation_json;
 
+pub mod compact;
+
 #[cfg(test)]
 thread_local! {
     static CONTRACT_EXTRACTION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };

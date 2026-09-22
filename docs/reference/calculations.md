@@ -188,6 +188,31 @@ The command emits `futuruna.calculate.v1` JSON with input and output types,
 reachable type definitions, linked metadata, and a SHA-256 schema fingerprint.
 Use `--entry` when a file declares more than one calculation.
 
+For models with repeated field-source provenance, opt into a lossless compact
+schema export:
+
+```sh
+runa schema model.calculate.runa --format compact-json --output schema.json
+```
+
+The distinct wire schema `futuruna.calculate.compact.v1` stores each exact source
+object once in `source_objects`, ordered source lists in `source_groups`, and
+a `source_group` reference on each field that has sources. Source order,
+repetitions, text, structured data and field associations are preserved. Root
+metadata and type definitions are unchanged. `contract_schema` identifies the
+expanded logical schema; `schema_hash` remains the fingerprint of that complete
+expanded contract, so templates and workbooks retain the same fingerprint.
+
+Default output and `--format json` remain expanded JSON. Compact schema JSON
+is not a calculation input envelope or workbook adapter format. Exporting it
+does not shrink the compiler's internal contract cache or workbook columns.
+The Rust reader `calculate::compact::expand_compact_json` rejects duplicate and
+unknown keys, corrupt or dangling references and inconsistent fingerprints.
+Its required byte budget limits repeated serialized field-source bytes before
+expansion, not total parsing or process memory. These hashes check consistency,
+not source authenticity: consumers must still compare with a trusted model's
+expected fingerprint.
+
 Linked metadata may reference ground bindings in the calculation file or in a
 recursively reachable plain import. The contract includes stable metadata type
 and value data in its fingerprint. Definition file paths and line numbers stay
