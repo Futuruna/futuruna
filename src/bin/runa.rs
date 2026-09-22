@@ -2037,7 +2037,8 @@ fn calculation_toml_to_json(value: &toml::Value) -> Result<serde_json::Value, St
 
 fn read_calculation_json(path: &str) -> Result<calculate::CalculationInputEnvelope, String> {
     let source = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
-    serde_json::from_str(&source).map_err(|error| error.to_string())
+    let value = calculate::parse_calculation_json(&source).map_err(|error| error.to_string())?;
+    serde_json::from_value(value).map_err(|error| error.to_string())
 }
 
 fn read_calculation_toml(path: &str) -> Result<calculate::CalculationInputEnvelope, String> {
@@ -4142,7 +4143,8 @@ fn calculation_json_from_cell(
             let Data::String(value) = cell else {
                 return Err("expected canonical JSON text".to_string());
             };
-            serde_json::from_str(value).map_err(|error| format!("invalid JSON: {}", error))
+            calculate::parse_calculation_json(value)
+                .map_err(|error| format!("invalid JSON: {}", error))
         }
     }
 }

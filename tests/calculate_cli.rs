@@ -1118,6 +1118,283 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
 }
 
 #[test]
+fn calculation_json_rejects_duplicate_members_without_normalizing_or_overwriting() {
+    let model = temp_path("runa");
+    let input = temp_path("json");
+    let destination = temp_path("json");
+    std::fs::write(&model, "# Input(annual_income: Int)\n@ calculate\n> calculate(input: Input) -> Int { input.annual_income }\n").unwrap();
+    let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
+    assert!(
+        template.status.success(),
+        "{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut envelope = parse_stdout(&template);
+    let metadata = serde_json::to_string(&envelope["$futuruna"]).unwrap();
+    let previous = b"existing output must survive rejected input";
+    std::fs::write(&destination, previous).unwrap();
+    for body in [
+        r#"{"annual_income":0,"annual_income":500000}"#,
+        r#"{"annual_income":500000,"annual_income":0}"#,
+        r#"{"annual_income":500000,"annual_income":500000}"#,
+        r#"{"annual_income":500000,"\u0061nnual_income":0}"#,
+    ] {
+        let document = format!(
+            r#"{{"$futuruna":{metadata},"cases":[{{"case_id":"ambiguous","input":{body}}}]}}"#
+        );
+        std::fs::write(&input, document).unwrap();
+        for mode in ["call", "template"] {
+            let output = run(&[
+                mode,
+                model.to_str().unwrap(),
+                "--input",
+                input.to_str().unwrap(),
+                "--output",
+                destination.to_str().unwrap(),
+            ]);
+            assert_eq!(output.status.code(), Some(1), "{mode} accepted {body}");
+            let diagnostic = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                diagnostic.contains("duplicate JSON object member"),
+                "{diagnostic}"
+            );
+            assert!(
+                diagnostic.contains(r#"$["cases"][0]["input"]["annual_income"]"#),
+                "{diagnostic}"
+            );
+            assert_eq!(std::fs::read(&destination).unwrap(), previous);
+        }
+    }
+    envelope["cases"] = serde_json::json!([
+        {"case_id":"minimum", "input":{"annual_income":i64::MIN}},
+        {"case_id":"zero", "input":{"annual_income":0}},
+        {"case_id":"maximum", "input":{"annual_income":i64::MAX}}
+    ]);
+    std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&[
+        "call",
+        model.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result = parse_stdout(&output);
+    assert_eq!(
+        result["results"],
+        serde_json::json!([
+            {"case_id":"minimum", "result":i64::MIN},
+            {"case_id":"zero", "result":0},
+            {"case_id":"maximum", "result":i64::MAX}
+        ])
+    );
+    assert!(result["diagnostics"].as_array().unwrap().is_empty());
+    for path in [model, input, destination] {
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn calculation_xlsx_duplicate_json_members_are_case_scoped_and_block_refresh() {
+    let model = temp_path("runa");
+    let input = temp_path("xlsx");
+    let refreshed = temp_path("xlsx");
+    std::fs::write(
+        &model,
+        r#"
+# Amount(annual_income: Int)
+# Input(details: Amount?)
+@ calculate
+> calculate(input: Input) -> Int {
+    match input.details {
+        | Some(details) -> details.annual_income
+        | None -> 0
+    }
+}
+"#,
+    )
+    .unwrap();
+    let template = run(&[
+        "template",
+        model.to_str().unwrap(),
+        "--output",
+        input.to_str().unwrap(),
+    ]);
+    assert!(
+        template.status.success(),
+        "{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    edit_workbook(&input, |sheets| {
+        for (index, (id, value)) in [
+            ("good-before", r#"{"annual_income":7}"#),
+            (
+                "conflicting",
+                r#"{"annual_income":500000,"annual_income":0}"#,
+            ),
+            (
+                "escaped",
+                r#"{"annual_income":500000,"\u0061nnual_income":0}"#,
+            ),
+            ("identical", r#"{"annual_income":9,"annual_income":9}"#),
+            ("good-after", r#"{"annual_income":9}"#),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            set_workbook_cell_by_header(
+                sheets,
+                "cases",
+                index + 1,
+                "case_id",
+                Data::String(id.into()),
+            );
+            set_workbook_cell_by_header(
+                sheets,
+                "cases",
+                index + 1,
+                "details",
+                Data::String(value.into()),
+            );
+        }
+    });
+    let output = run(&[
+        "call",
+        model.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+    ]);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result = parse_stdout(&output);
+    assert_eq!(
+        result["results"],
+        serde_json::json!([
+            {"case_id":"good-before", "result":7},
+            {"case_id":"good-after", "result":9}
+        ])
+    );
+    let diagnostics = result["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 3);
+    for (diagnostic, (id, cell)) in diagnostics.iter().zip([
+        ("conflicting", "cases!B4"),
+        ("escaped", "cases!B5"),
+        ("identical", "cases!B6"),
+    ]) {
+        assert_eq!(diagnostic["case_id"], id);
+        assert_eq!(diagnostic["path"], cell);
+        assert!(diagnostic["message"]
+            .as_str()
+            .unwrap()
+            .contains("duplicate JSON object member"));
+    }
+    let previous = b"existing workbook must survive rejected refresh";
+    std::fs::write(&refreshed, previous).unwrap();
+    let refresh = run(&[
+        "template",
+        model.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--output",
+        refreshed.to_str().unwrap(),
+    ]);
+    assert_eq!(refresh.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&refresh.stderr).contains("duplicate JSON object member"));
+    assert_eq!(std::fs::read(&refreshed).unwrap(), previous);
+    for path in [model, input, refreshed] {
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn calculation_inline_module_list_rule_cannot_become_a_successful_zero() {
+    let model = temp_path("runa");
+    let input = temp_path("json");
+    std::fs::write(&model, r#"
+# Input(value: Int)
+# Output(first: Int, second: Int, count: Int)
+| amount(value: Int) -> value + 1000
+> module First {
+    | amount(value: Int) -> value + 10
+    | amounts(value: Int) -> [value, value + 1] under value >= 0
+}
+> module Second {
+    | amount(value: Int) -> value + 20
+}
+@ calculate
+> calculate(input: Input) -> Output {
+    Output(First.amount(input.value), Second.amount(input.value), length(First.amounts(input.value)))
+}
+"#).unwrap();
+    let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
+    assert!(
+        template.status.success(),
+        "{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut envelope = parse_stdout(&template);
+    envelope["cases"] = serde_json::json!([
+        {"case_id":"good-before", "input":{"value":2}},
+        {"case_id":"missing-list", "input":{"value":-1}},
+        {"case_id":"valid-zero-input", "input":{"value":0}},
+        {"case_id":"good-after", "input":{"value":3}}
+    ]);
+    std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let mut previous = None;
+    for jobs in ["1", "3"] {
+        let call = run_with_env(
+            &[
+                "call",
+                model.to_str().unwrap(),
+                "--input",
+                input.to_str().unwrap(),
+            ],
+            &[("FUTURUNA_CALCULATION_JOBS", jobs)],
+        );
+        assert_eq!(
+            call.status.code(),
+            Some(1),
+            "{}",
+            String::from_utf8_lossy(&call.stderr)
+        );
+        let output = parse_stdout(&call);
+        assert_eq!(
+            output["results"],
+            serde_json::json!([
+                {"case_id":"good-before", "result":{"first":12,"second":22,"count":2}},
+                {"case_id":"valid-zero-input", "result":{"first":10,"second":20,"count":2}},
+                {"case_id":"good-after", "result":{"first":13,"second":23,"count":2}}
+            ])
+        );
+        let diagnostics = output["diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0]["case_id"], "missing-list");
+        assert!(
+            diagnostics[0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("amounts/1"),
+            "{}",
+            diagnostics[0]
+        );
+        if let Some(previous) = previous {
+            assert_eq!(output, previous);
+        }
+        previous = Some(output);
+    }
+    for path in [model, input] {
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
 fn calculation_output_encodes_empty_list_literals() {
     let source_path = temp_path("runa");
     let input_path = temp_path("json");

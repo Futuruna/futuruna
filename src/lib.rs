@@ -20375,18 +20375,29 @@ impl Interpreter {
         let module_closure_env =
             self.refresh_runtime_declaration_env(&module_declaration_env, &module_env);
         module_namespace.install_declaration_env(&module_closure_env);
-        let bindings = Rc::new(
-            module_env
-                .bindings
-                .iter()
-                .map(|(binding_name, value)| {
-                    (
-                        binding_name.clone(),
-                        Self::capture_module_value(value, &module_closure_env),
-                    )
-                })
-                .collect(),
-        );
+        let mut bindings: HashMap<_, _> = module_env
+            .bindings
+            .iter()
+            .map(|(binding_name, value)| {
+                (
+                    binding_name.clone(),
+                    Self::capture_module_value(value, &module_closure_env),
+                )
+            })
+            .collect();
+        // Rules live in the registry, not ordinary environment bindings.
+        // Publish only this module's own families, preserving any explicit
+        // value shadowing and retaining their declaration namespace/environment.
+        // Do not walk parent namespaces when exposing module members.
+        {
+            let state = module_namespace.state.borrow();
+            for rule_name in state.rules_by_name.keys() {
+                bindings.entry(rule_name.clone()).or_insert_with(|| {
+                    self.runtime_registry_builtin(&module_namespace, format!("rule:{rule_name}"))
+                });
+            }
+        }
+        let bindings = Rc::new(bindings);
         let value = Value::Scope {
             name: name.to_string(),
             bindings,
@@ -21642,6 +21653,10 @@ impl Interpreter {
                 }
             }
             _ => {
+                if self.checking_calculation {
+                    return self
+                        .calculation_fail("attempted to call a non-callable value in calculation");
+                }
                 self.output.push(format!("Error: cannot apply {}", func));
                 Value::Unit
             }
@@ -64951,6 +64966,71 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn inline_module_rule_members_keep_arity_lexical_capture_and_local_ownership() {
+        let source = r#"
+| amount(value: Int) -> value + 1000
+| parent_only(value: Int) -> value + 2000
+> module First {
+    = offset = 10
+    | amount(value: Int) -> value + offset
+    | amount(left: Int, right: Int) -> left + right + 100
+    | amounts(value: Int) -> [value, value + 1]
+    | shadowed(value: Int) -> value + 50
+    = shadowed = 73
+}
+> module Second {
+    | amount(value: Int) -> value + 20
+}
+= direct = First.amount(2)
+= named = First.amount(value = 2)
+= other_arity = First.amount(2, 3)
+= named_other_arity = First.amount(right = 3, left = 2)
+= sibling = Second.amount(2)
+= root = amount(2)
+= count = length(First.amounts(2))
+= callback = First.amount
+= offset = 9000
+= captured = callback(2)
+= kept_shadow = First.shadowed
+"#;
+        let statements = parse_test_program(source).expect("parse inline module fixture");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&statements, &mut env);
+        for (binding, expected) in [
+            ("direct", "12"),
+            ("named", "12"),
+            ("other_arity", "105"),
+            ("named_other_arity", "105"),
+            ("sibling", "22"),
+            ("root", "1002"),
+            ("count", "2"),
+            ("captured", "12"),
+            ("kept_shadow", "73"),
+        ] {
+            assert_eq!(
+                env.get(binding).map(ToString::to_string).as_deref(),
+                Some(expected),
+                "{binding}"
+            );
+        }
+        let Value::Scope { bindings, .. } = env.get("First").expect("inline module") else {
+            panic!("expected inline module scope");
+        };
+        assert!(
+            !bindings.contains_key("parent_only"),
+            "parent-only rules are not module members"
+        );
+        assert!(
+            interpreter
+                .registered_rules()
+                .iter()
+                .all(|(name, _)| name == "amount" || name == "parent_only"),
+            "inline rules must not enter the root registry"
+        );
     }
 
     #[test]

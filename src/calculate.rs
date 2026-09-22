@@ -13,6 +13,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
+mod json;
+pub use json::parse_calculation_json;
+
 #[cfg(test)]
 thread_local! {
     static CONTRACT_EXTRACTION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -4896,6 +4899,79 @@ mod calculation_execution_tests {
             assert_eq!(output.diagnostics[0].case_id, "case-1");
             assert!(output.diagnostics[0].message.contains("integer division"));
         }
+    }
+
+    #[test]
+    fn calculation_inline_module_rules_are_callable_and_namespace_owned() {
+        let source = r#"
+# Input(value: Int)
+# Output(first: Int, second: Int, count: Int, eligible: Bool)
+| amount(value: Int) -> value + 1000
+> module First {
+    | amount(value: Int) -> value + 10
+    | amounts(value: Int) -> [value, value + 1]
+    | eligible(value: Int) -> True under value > 0
+}
+> module Second {
+    | amount(value: Int) -> value + 20
+}
+> module Partial {
+    | amount(value: Int) -> value + 30 under value >= 0
+}
+@ calculate
+> calculate(input: Input) -> Output {
+    = callback = First.amount
+    if input.value < 0 {
+        Output(Partial.amount(input.value), Second.amount(input.value), length(First.amounts(input.value)), First.eligible(input.value))
+    } else {
+        Output(callback(input.value), Second.amount(input.value), length(First.amounts(input.value)), First.eligible(input.value))
+    }
+}
+"#;
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            source,
+            vec![
+                serde_json::json!({"value":0}),
+                serde_json::json!({"value":-1}),
+                serde_json::json!({"value":2}),
+            ],
+        );
+        let serial =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(1));
+        let parallel =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(3));
+        assert_eq!(serial, parallel);
+        assert_eq!(serial.results.len(), 2, "{serial:?}");
+        assert_eq!(serial.results[0].case_id, "case-0");
+        assert_eq!(
+            serial.results[0].result,
+            serde_json::json!({"first":10,"second":20,"count":2,"eligible":false})
+        );
+        assert_eq!(serial.results[1].case_id, "case-2");
+        assert_eq!(
+            serial.results[1].result,
+            serde_json::json!({"first":12,"second":22,"count":2,"eligible":true})
+        );
+        assert_eq!(serial.diagnostics.len(), 1);
+        assert_eq!(serial.diagnostics[0].case_id, "case-1");
+        assert!(serial.diagnostics[0].message.contains("amount/1"));
+    }
+
+    #[test]
+    fn calculation_non_callable_values_fail_without_rejecting_valid_unit_results() {
+        let mut interpreter = Interpreter::new();
+        let env = interpreter.default_env();
+        for callee in [Value::Unit, Value::Int(7)] {
+            let failure =
+                interpreter.with_calculation_runtime(|runtime| runtime.apply(callee, vec![], &env));
+            assert!(
+                matches!(failure, Err(CalculationRuntimeFailure::InvalidValue(message)) if message.contains("non-callable value"))
+            );
+        }
+        let valid = interpreter.with_calculation_runtime(|runtime| {
+            runtime.eval_builtin("assert", vec![Value::Bool(true)], &env)
+        });
+        assert!(matches!(valid, Ok(Value::Unit)));
     }
 
     #[test]
