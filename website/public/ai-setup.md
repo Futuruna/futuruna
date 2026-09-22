@@ -235,6 +235,11 @@ also accounts for reported earlier refunds on amended assessments. This is
 mechanical reconciliation, not an independently verified spouse calculation;
 never describe `BetingetAfstemt` as proof that the tax report is legally correct.
 
+Ask whether the report shows a refund or tax owed (`restskat`). The conditional
+guide has a separate restskat route for the principal before interest and
+percentage additions. Do not enter debt as a negative refund or describe that
+principal check as verification of the amount to pay, instalments or due dates.
+
 For an independent calculation with supported source facts, inspect the contract
 and generate an Excel workbook. Replace `PRIVATE_WORK_DIR` with the private
 directory chosen by the user:

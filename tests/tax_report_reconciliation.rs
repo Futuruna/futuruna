@@ -308,3 +308,162 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
         .iter()
         .any(|v| v["navn"] == total_name));
 }
+
+#[test]
+fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
+    let mut ordinary = baseline();
+    ordinary["betaling"] = json!({
+        "oplyst_forskudsskat_øre": 9000000,
+        "oplyst_beregnet_skat_øre": 9820000,
+        "oplyst_overskydende_skat_øre": null,
+        "korrektioner_til_udbetaling": [],
+        "korrektioner_komplette": false,
+        "oplyst_udbetaling_kroner": null,
+        "restskat": {
+            "oplyst_restskat_øre": 820000,
+            "tillæg_til_slutskat": [],
+            "tillæg_til_slutskat_komplette": true
+        }
+    });
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
+        let mut input = ordinary.clone();
+        edit(&mut input);
+        cases.push(json!({"case_id": name, "input": input}));
+        expected.push((name.to_string(), status.to_string()));
+    };
+    for year in 2023..=2026 {
+        add(&format!("debt-{year}"), "BetingetAfstemt", &|v| {
+            v["skatteår"] = json!(year);
+        });
+    }
+    add("debt-one-ore-error", "Modstrid", &|v| {
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(820001);
+    });
+    add("debt-unknown-observation", "Ufuldstændig", &|v| {
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = Value::Null;
+    });
+    add("debt-unknown-prepaid", "Ufuldstændig", &|v| {
+        v["betaling"]["oplyst_forskudsskat_øre"] = Value::Null;
+    });
+    add("debt-unknown-additions", "Ufuldstændig", &|v| {
+        v["betaling"]["restskat"]["tillæg_til_slutskat_komplette"] = json!(false);
+    });
+    add("debt-carried-tax", "BetingetAfstemt", &|v| {
+        v["betaling"]["restskat"]["tillæg_til_slutskat"] =
+            json!([{"navn": "Oplyst overført restskat", "beløb_øre": 50000}]);
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(870000);
+    });
+    for amount in [0, 1] {
+        add(
+            &format!("debt-boundary-{amount}"),
+            "BetingetAfstemt",
+            &|v| {
+                v["betaling"]["oplyst_forskudsskat_øre"] = json!(9820000 - amount);
+                v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(amount);
+            },
+        );
+    }
+    add("refund-in-debt-route", "Modstrid", &|v| {
+        v["betaling"]["oplyst_forskudsskat_øre"] = json!(9820001);
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(0);
+    });
+    add("refund-with-unknown-debt", "Modstrid", &|v| {
+        v["betaling"]["oplyst_forskudsskat_øre"] = json!(9820001);
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = Value::Null;
+    });
+    add("negative-debt", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(-1);
+    });
+    add("mixed-payout", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["oplyst_udbetaling_kroner"] = json!(0);
+    });
+    add("mixed-surplus", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["oplyst_overskydende_skat_øre"] = json!(0);
+    });
+    add("mixed-corrections", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["korrektioner_til_udbetaling"] =
+            json!([{"navn": "Tidligere udbetalt", "beløb_øre": -50000}]);
+    });
+    add("negative-addition", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["restskat"]["tillæg_til_slutskat"] =
+            json!([{"navn": "Negativt tillæg", "beløb_øre": -1}]);
+    });
+    add("duplicate-additions", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["restskat"]["tillæg_til_slutskat"] = json!([
+            {"navn": "Samme tillæg", "beløb_øre": 1},
+            {"navn": " Samme tillæg ", "beløb_øre": 1}
+        ]);
+    });
+    add("overflow-debt", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(i64::MAX);
+    });
+    add("overflow-addition", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["restskat"]["tillæg_til_slutskat"] =
+            json!([{"navn": "For stort tillæg", "beløb_øre": i64::MAX}]);
+    });
+
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    assert_eq!(
+        template["cases"][0]["input"]["betaling"]["restskat"],
+        Value::Null
+    );
+    template["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-report-debt-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let output = invoke(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), expected.len());
+    for (case, (name, status)) in results.iter().zip(&expected) {
+        let result = &case["result"];
+        assert_eq!(case["case_id"], *name);
+        assert_eq!(result["status"]["$variant"], *status, "{name}: {result}");
+        assert_eq!(result["uafhængig_skatteberegning_udført"], false);
+        if status != "UgyldigtRapportinput" {
+            assert_eq!(result["kontroller"].as_array().unwrap().len(), 4);
+            assert!(result["uafklaret"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|value| { value.as_str().unwrap().contains("Kun restskat før renter") }));
+        }
+    }
+    let get = |name: &str| &results.iter().find(|r| r["case_id"] == name).unwrap()["result"];
+    let name = "Restskat før renter og procenttillæg";
+    assert_eq!(control(get("debt-2023"), name)["forventet"], 820000);
+    assert_eq!(control(get("debt-carried-tax"), name)["forventet"], 870000);
+    assert_eq!(control(get("debt-one-ore-error"), name)["difference"], 1);
+    assert_eq!(
+        control(get("debt-unknown-observation"), name)["forventet"],
+        820000
+    );
+    assert_eq!(
+        control(get("debt-unknown-observation"), name)["oplyst"],
+        Value::Null
+    );
+    assert_eq!(
+        control(get("debt-unknown-additions"), name)["forventet"],
+        Value::Null
+    );
+    assert_eq!(
+        control(get("debt-unknown-prepaid"), name)["forventet"],
+        Value::Null
+    );
+    assert_eq!(
+        condition(
+            get("refund-with-unknown-debt"),
+            "Ikke-negativ restskat før renter og procenttillæg"
+        )["inden_for_kontrollerede_grænser"],
+        false
+    );
+}

@@ -8,14 +8,15 @@
 -- Observationer fra en årsopgørelse og afledte nødvendige betingelser holdes
 -- adskilt. Ingen af de afledte beløb indsættes som kildefakta i PersonskatInput.
 -- PSL §§ 10, 11 og 13: https://www.retsinformation.dk/eli/lta/2021/1284
--- KSL §§ 60, 62 og 62 A: https://www.retsinformation.dk/eli/lta/2024/460
+-- KSL §§ 60–62 A: https://www.retsinformation.dk/eli/lta/2024/460
 -- Satser og beløbsgrænser genbruges fra de importerede lovmodeller.
 
 # RapportBeløb(navn: Tekst, beløb_øre: Heltal)
 # RapportIndkomstBro(personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, øvrige_indkomstreguleringer_kroner: Heltal, oplyst_ægtefælleunderskud_kroner: Heltal?)
 # RapportÆgtefællenedslag(statsligt_personfradrag_øre: Heltal?, kommunalt_personfradrag_øre: Heltal?, kirkeligt_personfradrag_øre: Heltal?, negativ_kapitalindkomst_øre: Heltal?, eget_negativ_kapitalindkomstnedslag_øre: Heltal?)
 # RapportSkat(poster_uden_ægtefællenedslag: List(RapportBeløb), poster_uden_ægtefællenedslag_komplette: Boolsk, oplyst_beregnet_skat_øre: Heltal?)
-# RapportBetaling(oplyst_forskudsskat_øre: Heltal?, oplyst_beregnet_skat_øre: Heltal?, oplyst_overskydende_skat_øre: Heltal?, korrektioner_til_udbetaling: List(RapportBeløb), korrektioner_komplette: Boolsk, oplyst_udbetaling_kroner: Heltal?)
+# RapportRestskat(oplyst_restskat_øre: Heltal?, tillæg_til_slutskat: List(RapportBeløb), tillæg_til_slutskat_komplette: Boolsk)
+# RapportBetaling(oplyst_forskudsskat_øre: Heltal?, oplyst_beregnet_skat_øre: Heltal?, oplyst_overskydende_skat_øre: Heltal?, korrektioner_til_udbetaling: List(RapportBeløb), korrektioner_komplette: Boolsk, oplyst_udbetaling_kroner: Heltal?, restskat: RapportRestskat?)
 # ÅrsopgørelseAfstemningsinput(skatteår: Heltal, kommune: Kommune, betaler_kirkeskat: Boolsk, ægtefællens_kommune: Kommune?, gift_samlevende_ved_årets_udløb: Boolsk?, indkomstbro: RapportIndkomstBro?, ægtefællenedslag: RapportÆgtefællenedslag, skat: RapportSkat, betaling: RapportBetaling)
 
 # AfstemningsKontrolStatus = Stemmer | Afviger | IkkeOplyst
@@ -46,13 +47,14 @@
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::oplyst_overskydende_skat_øre), label = "Overskydende skat før korrektioner", question = None, help = Some("Før godtgørelse og fradrag for tidligere tilbagebetaling."), unit = Some("øre")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::korrektioner_til_udbetaling), label = "Korrektioner fra overskydende skat til udbetaling", question = Some("Hvilke renter, godtgørelser og tidligere udbetalinger står i rapporten?"), help = Some("Tillæg positive, tidligere udbetalinger og modregninger negative. Oplyste beløb afstemmes, men deres retmæssighed genberegnes ikke."), unit = Some("øre")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::korrektioner_komplette), label = "Alle betalingskorrektioner er med", question = None, help = Some("false hvis ukendt; en tom liste og true betyder kendt ingen korrektioner."), unit = None),
-        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::oplyst_udbetaling_kroner), label = "Rapportens beløb til udbetaling", question = None, help = Some("Hele DKK, ikke øre. På en ændret årsopgørelse er tidligere udbetaling allerede modregnet."), unit = Some("DKK"))
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::oplyst_udbetaling_kroner), label = "Rapportens beløb til udbetaling", question = None, help = Some("Hele DKK, ikke øre. På en ændret årsopgørelse er tidligere udbetaling allerede modregnet."), unit = Some("DKK")),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::restskat), label = "Afstem restskat i stedet for tilbagebetaling", question = Some("Viser rapporten restskat før renter og procenttillæg?"), help = Some("null vælger den hidtidige tilbagebetalingskontrol. Ellers JSON med oplyst_restskat_øre (positivt beløb eller null), tillæg_til_slutskat (navn og beløb_øre) og tillæg_til_slutskat_komplette (false hvis ukendt). Tillæggene er kun overført restskat mv. og pensionsbeskatningsafgift, der indgår før årets restskat; ikke renter eller procenttillæg på årets restskat. Tom liste og true kræver kendt ingen tillæg. Udbetalingsbeløb skal være null og korrektioner_til_udbetaling tom. Dette kontrollerer ikke opkrævningen eller raterne."), unit = Some("øre"))
     ],
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
         Source(value = RapportAfstemningskilde(url = "https://www.retsinformation.dk/eli/lta/2021/1284", identifier = "PSL §§ 9–13; betingede overførsler, ikke rekonstruktion af kildefakta")),
-        Source(value = RapportAfstemningskilde(url = "https://www.retsinformation.dk/eli/lta/2024/460", identifier = "KSL §§ 60, 62, 62 A; afstemning af rapportens oplyste beløb")),
+        Source(value = RapportAfstemningskilde(url = "https://www.retsinformation.dk/eli/lta/2024/460", identifier = "KSL §§ 60–62 A; restskat før renter/procenttillæg og afstemning af rapportens oplyste beløb")),
         Warning(value = "Betinget afstemning er ikke uafhængig skatteberegning eller bevis for lovlig samlet husstand.")
     )
 )
@@ -63,11 +65,15 @@
 | rapport_option_afgrænset(beløb: Heltal?) -> match beløb { | None -> Sandt | Some(værdi) -> rapport_beløb_afgrænset(værdi) }
 | rapport_poster_gyldige(poster: List(RapportBeløb)) -> length(poster) <= 1000 && all(poster, |post: RapportBeløb| trim(post.navn) != "" && rapport_beløb_afgrænset(post.beløb_øre) && length(filter(poster, |anden: RapportBeløb| trim(anden.navn) == trim(post.navn))) == 1)
 | rapport_sum(poster: List(RapportBeløb)) -> foldl(poster, 0, |sum: Heltal, post: RapportBeløb| sum + post.beløb_øre)
+| rapport_restskatinput_gyldigt(b: RapportBetaling) -> match b.restskat {
+    | None -> Sandt
+    | Some(r) -> rapport_option_afgrænset(r.oplyst_restskat_øre) && (match r.oplyst_restskat_øre { | None -> Sandt | Some(beløb) -> beløb >= 0 }) && rapport_poster_gyldige(r.tillæg_til_slutskat) && all(r.tillæg_til_slutskat, |post: RapportBeløb| post.beløb_øre >= 0) && b.oplyst_overskydende_skat_øre == None && b.oplyst_udbetaling_kroner == None && length(b.korrektioner_til_udbetaling) == 0
+}
 | rapport_indkomstbro_gyldig(bro: RapportIndkomstBro?) -> match bro {
     | None -> Sandt
     | Some(b) -> rapport_beløb_afgrænset(b.personlig_indkomst_kroner) && rapport_beløb_afgrænset(b.kapitalindkomst_kroner) && rapport_beløb_afgrænset(b.ligningsmæssige_fradrag_kroner) && b.ligningsmæssige_fradrag_kroner >= 0 && rapport_beløb_afgrænset(b.skattepligtig_indkomst_kroner) && rapport_beløb_afgrænset(b.øvrige_indkomstreguleringer_kroner) && rapport_option_afgrænset(b.oplyst_ægtefælleunderskud_kroner)
 }
-| rapport_input_gyldigt(input: ÅrsopgørelseAfstemningsinput) -> rapport_indkomstbro_gyldig(input.indkomstbro) && rapport_poster_gyldige(input.skat.poster_uden_ægtefællenedslag) && rapport_poster_gyldige(input.betaling.korrektioner_til_udbetaling) && all([
+| rapport_input_gyldigt(input: ÅrsopgørelseAfstemningsinput) -> rapport_restskatinput_gyldigt(input.betaling) && rapport_indkomstbro_gyldig(input.indkomstbro) && rapport_poster_gyldige(input.skat.poster_uden_ægtefællenedslag) && rapport_poster_gyldige(input.betaling.korrektioner_til_udbetaling) && all([
     input.ægtefællenedslag.statsligt_personfradrag_øre,
     input.ægtefællenedslag.kommunalt_personfradrag_øre,
     input.ægtefællenedslag.kirkeligt_personfradrag_øre,
@@ -137,16 +143,35 @@
     }
 }
 | rapport_overskydende(b: RapportBetaling) -> rapport_option_difference(b.oplyst_forskudsskat_øre, b.oplyst_beregnet_skat_øre)
+-- KSL § 61, stk. 1, kontrolleret i officiel LBK 460/2024, s. 20,
+-- den 22. september 2026. Reglen afstemmer rapportobservationer; den
+-- klassificerer ikke tillæg og beviser ikke deres retmæssighed.
+----
+Beløbet benævnes »restskat«.
+----
+| rapport_restskat(b: RapportBetaling, r: RapportRestskat) -> hvis r.tillæg_til_slutskat_komplette {
+    rapport_option_difference(rapport_option_plus(b.oplyst_beregnet_skat_øre, Some(rapport_sum(r.tillæg_til_slutskat))), b.oplyst_forskudsskat_øre)
+} ellers { None }
+| rapport_restskatforudsætninger(b: RapportBetaling) -> match b.restskat {
+    | None -> []
+    | Some(r) -> match rapport_restskat(b, r) {
+        | None -> []
+        | Some(beløb) -> [rapport_forudsætning("Ikke-negativ restskat før renter og procenttillæg", "øre", beløb, None, Sandt, "Slutskat med oplyste tillæg efter KSL § 61, stk. 1, minus forskudsskat. Et negativt beløb hører ikke til restskatssporet. Det beregnede beløb er ikke et krav om betaling nu.")]
+    }
+}
 | rapport_udbetaling(b: RapportBetaling) -> hvis b.korrektioner_komplette {
     match rapport_overskydende(b) {
         | Some(overskud) -> hvis overskud >= 0 && overskud + rapport_sum(b.korrektioner_til_udbetaling) >= 0 { Some((overskud + rapport_sum(b.korrektioner_til_udbetaling)) / 100) } ellers { None }
         | None -> None
     }
 } ellers { None }
-| rapport_betalingskontroller(b: RapportBetaling) -> [
-    rapport_kontrol("Overskydende skat før godtgørelse og tidligere udbetaling", "øre", rapport_overskydende(b), b.oplyst_overskydende_skat_øre),
-    rapport_kontrol("Udbetaling efter oplyste korrektioner og hele kroner", "DKK", rapport_udbetaling(b), b.oplyst_udbetaling_kroner)
-]
+| rapport_betalingskontroller(b: RapportBetaling) -> match b.restskat {
+    | None -> [
+        rapport_kontrol("Overskydende skat før godtgørelse og tidligere udbetaling", "øre", rapport_overskydende(b), b.oplyst_overskydende_skat_øre),
+        rapport_kontrol("Udbetaling efter oplyste korrektioner og hele kroner", "DKK", rapport_udbetaling(b), b.oplyst_udbetaling_kroner)
+    ]
+    | Some(r) -> [rapport_kontrol("Restskat før renter og procenttillæg", "øre", rapport_restskat(b, r), r.oplyst_restskat_øre)]
+}
 
 | rapport_ægtefællekommune_understøttet(skatteår: Heltal, kommune: Kommune?) -> match kommune {
     | None -> Sandt
@@ -175,6 +200,7 @@
         rapport_kontrol("Samme beregnede skat i skatteberegning og betaling", "øre", input.skat.oplyst_beregnet_skat_øre, input.betaling.oplyst_beregnet_skat_øre)
         ], rapport_betalingskontroller(input.betaling)))
     = forudsætninger = flat_map([
+        rapport_restskatforudsætninger(input.betaling),
         rapport_underskudsforudsætning(input.indkomstbro, ægtefælle_mulig),
         rapport_nedslagsforudsætning("Ubrugt statslig personfradragsværdi fra ægtefælle", input.ægtefællenedslag.statsligt_personfradrag_øre, Some(statsmaks), ægtefælle_mulig),
         rapport_nedslagsforudsætning("Ubrugt kommunal personfradragsværdi fra ægtefælle", input.ægtefællenedslag.kommunalt_personfradrag_øre, kommunemaks, ægtefælle_mulig),
@@ -195,7 +221,10 @@
             "Ægtefællens faktiske indkomst, egne modregninger og overførselsbetingelser er ukendte; nødvendige betingelser er ikke et eksistensbevis for en lovlig samlet husstand.",
             "Kommunale og kirkelige overførselslofter bygger på ægtefællens kommune, hvis oplyst. Ukendt kommune giver null som loft; modtagers kommune bruges ikke som erstatning.",
             "Godtgørelse, renter, tidligere udbetaling og modregning er rapportobservationer, ikke selvstændigt fastslået ret til udbetaling.",
-            "Betalingskontrollen dækker ikke restskat eller et negativt beløb efter korrektioner; sådanne tilfælde er ufuldstændige, ikke godkendte.",
+            match input.betaling.restskat {
+                | None -> "Tilbagebetalingskontrollen dækker ikke restskat eller et negativt beløb efter korrektioner. Brug det særskilte restskatsspor til restskat før renter og procenttillæg."
+                | Some(r) -> "Kun restskat før renter og procenttillæg afstemmes. Tillæggenes retmæssighed, renter, procenttillæg, tidligere betalinger, opkrævning, rater og betalingsfrister er ikke kontrolleret. BetingetAfstemt godkender kun de viste sammenligninger, ikke betaling af beløbet."
+            },
             "Ingen ukendt værdi er erstattet med nul. Afledte krav må ikke genbruges som verificerede kildefakta."
         ]
     )
@@ -204,7 +233,7 @@
 @ calculate("Afstem årsopgørelse uden ægtefællens rapport")
 | afstem_årsopgørelse(input: ÅrsopgørelseAfstemningsinput) -> hvis skatteår_understøttet(input.skatteår) && kommune_indkomstskat_understøttet_i_år(input.skatteår, input.kommune) && rapport_ægtefællekommune_understøttet(input.skatteår, input.ægtefællens_kommune) {
     hvis rapport_input_gyldigt(input) { rapport_afstem_med_parametre(input) } ellers {
-        ÅrsopgørelseAfstemningsresultat(status = UgyldigtRapportinput, uafhængig_skatteberegning_udført = Falskt, kontroller = [], nødvendige_forudsætninger = [], uafklaret = ["Kontrollér beløbsenheder, beløbsgrænser, ikke-negative fradrag og entydige postnavne. Ingen afstemning udført."])
+        ÅrsopgørelseAfstemningsresultat(status = UgyldigtRapportinput, uafhængig_skatteberegning_udført = Falskt, kontroller = [], nødvendige_forudsætninger = [], uafklaret = ["Kontrollér beløbsenheder, beløbsgrænser, ikke-negative fradrag/restskat/tillæg og entydige postnavne. Restskatssporet må ikke samtidig indeholde udbetalingsbeløb eller udbetalingskorrektioner. Ingen afstemning udført."])
     }
 } ellers {
     ÅrsopgørelseAfstemningsresultat(status = IkkeUnderstøttetÅrEllerKommune, uafhængig_skatteberegning_udført = Falskt, kontroller = [], nødvendige_forudsætninger = [], uafklaret = ["År eller kommune mangler understøttede parametre. Ingen afstemning udført."])

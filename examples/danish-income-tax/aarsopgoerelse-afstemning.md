@@ -56,6 +56,9 @@ Transcribe only these selected observations:
   are signed øre: interest/allowances positive, prior refunds/offsets negative.
   The final refund is in **whole DKK**, after rounding down.
 
+For a report with **restskat** instead of a refund, select the tax-owed route
+below. Do not put a negative debt amount in the surplus-tax field.
+
 Neither the spouse's municipality nor year-end tax cohabitation is mandatory.
 When the spouse's municipality is unknown, the municipal transfer ceiling is
 `null`; the model does not substitute the recipient's municipality. A known
@@ -101,9 +104,81 @@ cross-border adjustments remain unverified.
 An amended assessment's new surplus is not its additional refund: subtract any
 reported earlier refund before comparing the whole-krone payout. This mode
 checks those reported amounts, not the independent legality of interest rates,
-offsets or payment dates. It leaves restskat and negative post-correction
-settlements incomplete.
+offsets or payment dates. The refund route leaves negative post-correction
+settlements incomplete; it does not silently turn them into a debt calculation.
 [Kildeskatteloven §§ 60, 62 and 62 A](https://www.retsinformation.dk/eli/lta/2024/460).
+
+## Reports with tax owed (restskat)
+
+Set `betaling.restskat` to an object instead of `null` to reconcile the
+**underlying restskat before interest and the percentage addition**. For example,
+with reported assessed tax of 98,200 DKK and prepaid tax of 90,000 DKK:
+
+```json
+{
+  "oplyst_restskat_øre": 820000,
+  "tillæg_til_slutskat": [],
+  "tillæg_til_slutskat_komplette": true
+}
+```
+
+This is only the `betaling.restskat` object, not a complete input document.
+It is a synthetic example. A complete empty addition list is a positive
+confirmation that there are no additions, not a default for missing facts.
+Use `false` when completeness is unknown; use `null` for an unknown reported
+restskat amount. The expected amount remains visible when the underlying
+figures are known, even if the reported restskat line is missing.
+
+The check is:
+
+`reported assessed tax + reported additions to that tax − prepaid tax`
+
+Under KSL § 61(1), additions at this stage include carried restskat and the
+specified pension tax. Record their positive øre amounts with unique names in
+`tillæg_til_slutskat` **only when they are separate from the reported assessed
+tax**. For instance, a separately reported 500 DKK carried amount gives a
+principal of 8,700 DKK in this example. Do not double-count an included amount.
+Keep the same current assessed-tax amount in `skat` and `betaling`; the existing
+cross-section check still applies. These are report observations, not verified
+legal classifications or permissions to add arbitrary balancing amounts.
+
+Interest and percentage additions **on this year's restskat** do not belong in
+that list. Neither do instalments, a prior refund, or a payment made after the
+assessment. This route does not model those collection/reassessment movements.
+Read the report's separately labelled principal line rather than substituting
+the amount on a payment slip. For an amended assessment, this is the new total
+principal, not necessarily the change from the preceding assessment.
+
+While this route is selected, keep `oplyst_overskydende_skat_øre` and
+`oplyst_udbetaling_kroner` as `null` and `korrektioner_til_udbetaling` empty.
+These are inactive fields, not assumed zero observations. Supplying both routes
+is rejected rather than silently dropping a payment observation. A known
+negative principal contradicts the selected debt route, including when the
+reported restskat is unknown. Zero is allowed for a reconciled zero balance.
+
+`BetingetAfstemt` now means the **selected** arithmetic checks agree. In this
+route it does not mean that an amount to collect, interest, rates, due dates,
+minimum collection amounts, or earlier payments were checked. There is no
+calculated “pay this now” output. The result keeps this limitation explicit.
+The distinction follows [KSL § 61(1)–(2), § 62 and § 62 C](https://www.retsinformation.dk/eli/lta/2024/460/pdf),
+checked against the official law text September 22, 2026. No new annual
+interest rates or payment schedules are inferred.
+
+### Existing templates
+
+The optional `betaling.restskat` field changes the Preview model's contract
+fingerprint. Regenerate the template and migrate supported observations; never
+edit an old workbook's hidden fingerprint. `null` preserves the refund route,
+including the earlier-refund correction. Existing JSON records may omit the
+optional field after migration to the current envelope. Saved results are
+historical evidence, not automatically recalculated with the new contract.
+
+The focused regression checks both routes, including the one-øre debt boundary,
+missing amounts/additions, mixed-route rejection and the existing refund cases:
+
+```sh
+CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 cargo test --quiet --test tax_report_reconciliation
+```
 
 Coverage is 2023–2026 and the supported municipal parameter table. The mode
 does not independently recompute individual tax lines, resolve other spouse
