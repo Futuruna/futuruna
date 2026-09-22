@@ -49,6 +49,44 @@ en tilsvarende udbetaling eller procentvis skatterabat. Dets sats afhænger af
 afstanden til folkepensionsalderen, og grundlaget har sit eget loft.
 [Skattestyrelsens vejledning om ekstra pensionsfradrag](https://skat.dk/borger/fradrag/ekstra-pensionsfradrag).
 
+### Hvis du også får pension udbetalt
+
+Indhent udbetalingernes beløb, år og art fra pensionsudbyderen. Efter LL § 9 L,
+stk. 2, er det **årets** relevante skattepligtige udbetalinger, der reducerer
+grundlaget for ekstra pensionsfradrag — men kun hvis der også var relevante
+udbetalinger i det foregående år. Sidste års beløb er en betingelse, ikke det
+beløb, som skal trækkes fra. Det behøver ikke være samme ordning eller udbyder.
+Visse udbetalinger er undtaget, blandt andet bestemte invaliditets- og
+efterladtepensioner. Undtagne udbetalinger sidste år udløser heller ikke i sig
+selv modregning af almindelige udbetalinger i år.
+[Lovforarbejderne til LL § 9 L, bemærkninger til nr. 6 og 7](https://www.retsinformation.dk/api/pdf/201576).
+
+Et afgrænset 2026-eksempel med 50.000 kr. i fradragsberettiget indbetaling og
+12 %-satsen viser forskellen (beløbene er fradrag, **ikke sparet skat**):
+
+| Ikke-undtaget udbetaling sidste år | Ikke-undtaget udbetaling i år | Ekstra pensionsfradrag |
+| --- | --- | --- |
+| 40.000 kr. | 0 kr. | 6.000 kr. |
+| 0 kr. | 30.000 kr. | 6.000 kr. |
+| 10.000 kr. | 30.000 kr. | 2.400 kr. |
+
+Årets skattepligtige pensionsudbetaling er fortsat indkomst, selv om den ikke
+reducerer det ekstra pensionsfradrag. Indtast ikke samme sportspensionsrate
+både under § 15 B og som øvrig § 20-udbetaling.
+
+I `pension.udbetalingsresultat` vises årets ikke-undtagne beløb som
+`samlet_modregningspligtig_pbl20_i_året_kroner` og det faktisk anvendte beløb
+som `modregnet_efter_ligningslov9l_i_året_kroner`. De tidligere års felter
+bevarer deres historiske betydning; `pbl20_udbetaling_status` i det afledte
+pensionsfradragsinput beskriver det foregående års betingelse. Læs altid
+gyldighedsvurderingen før beløbene bruges.
+
+Modellen blev rettet 22. september 2026: tidligere blev sidste års beløb
+fejlagtigt modregnet. Beregn berørte sager igen fra dokumenterede fakta med
+den rettede model. Outputkontrakten har fået de to ovenstående sporingsfelter;
+generer en ny skabelon med `template`, overfør kun gennemgåede inputfakta og
+kør `call` igen. Overskriv ikke gamle resultater eller kontrakthashes.
+
 ## Beregn før og efter fra samme grundlag
 
 Når de nødvendige kildefakta foreligger, brug den eksisterende
