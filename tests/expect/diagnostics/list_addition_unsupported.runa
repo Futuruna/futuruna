@@ -1,0 +1,10 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: operator `+` does not concatenate lists; use concat(left, right)
+
+# Input(left: List(Int), right: List(Int))
+
+@ calculate
+> count(input: Input) -> Int {
+    length(input.left + input.right)
+}

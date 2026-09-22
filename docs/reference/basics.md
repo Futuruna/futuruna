@@ -53,6 +53,9 @@ Interpolation desugars to `"Result: " + show(x + 5)`.
 []                       -- empty list
 ```
 
+Use `concat(left, right)` to concatenate lists. The `+` operator does not
+concatenate lists.
+
 ### Unit
 ```runa
 ()                       -- unit value and unit type

@@ -9,12 +9,13 @@ The canonical local and CI command for proving Futuruna is mint is:
 It runs the regression-prone lanes that have historically caught user-facing breakage:
 
 ```bash
-cargo test --quiet
 cargo build --release
+FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" cargo test --quiet
 ./scripts/first-run-canary.sh
 ./scripts/rust-interop-canary.sh
 ./scripts/from-rust-downstream-canary.sh
 ./scripts/from-rust-differential.sh
+./scripts/compiler-cross-product-canary.sh
 ./target/release/runa test
 ./target/release/runa test --run
 ./target/release/runa expect tests/expect
@@ -30,6 +31,16 @@ cargo build --release
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-06.runa
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-07.runa
 ```
+
+Mint builds the optimized compiler from the current checkout first, then pins
+`FUTURUNA_MODEL_TEST_RUNA` to that artifact for calculation CLI and model tests
+that support this override. It overwrites any inherited override: an older
+release or corpus binary must not validate changed compiler source. This keeps
+large model/template checks practical without dropping tests or assertions.
+Rust unit tests still use Cargo's test profile. Ordinary focused `cargo test`
+runs without the override continue to use `CARGO_BIN_EXE_runa` (the debug CLI).
+When changing calculation runtime behavior, exercise a focused regression in
+that default mode too; mint then checks the optimized executable.
 
 These lanes are the core mint contract because they cover:
 

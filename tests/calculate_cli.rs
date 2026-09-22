@@ -1,6 +1,7 @@
-use calamine::{open_workbook_auto, Data, Reader, SheetVisible};
+use calamine::{open_workbook_auto as open_uncached_workbook, Data, Reader, SheetVisible};
 use serde_json::Value;
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -13,8 +14,11 @@ thread_local! {
     static MISSING_WORKBOOK_COLUMNS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
-fn runa() -> &'static str {
-    env!("CARGO_BIN_EXE_runa")
+fn runa() -> std::ffi::OsString {
+    // Mint builds this optimized binary from the same checkout before tests.
+    // Ordinary focused Cargo runs continue to exercise the debug compiler.
+    std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into())
 }
 
 fn fixture() -> PathBuf {
@@ -876,6 +880,241 @@ fn json_batch_invokes_conditions_and_exceptions() {
     assert_eq!(result["results"][0]["result"]["annual_income"], 600_000);
     assert_eq!(result["results"][0]["result"]["taxable_income"], 588_000);
     assert_eq!(result["results"][0]["result"]["annual_tax"], 117_600);
+}
+
+#[test]
+fn calculation_cli_rejects_list_addition_before_evaluation() {
+    let model = temp_path("runa");
+    let input_path = temp_path("json");
+    let good_source = "# Input(left: List(Int), right: List(Int))\n@ calculate\n> count(input: Input) -> Int { length(concat(input.left, input.right)) }\n";
+    std::fs::write(&model, good_source).expect("write concat control");
+    let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
+    assert!(
+        template.status.success(),
+        "{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut input = parse_stdout(&template);
+    input["cases"][0]["input"] = serde_json::json!({"left":[1,2], "right":[3]});
+    std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
+    let good = run(&[
+        "call",
+        model.to_str().unwrap(),
+        "--input",
+        input_path.to_str().unwrap(),
+    ]);
+    assert!(
+        good.status.success(),
+        "{}",
+        String::from_utf8_lossy(&good.stderr)
+    );
+    assert_eq!(parse_stdout(&good)["results"][0]["result"], 3);
+    std::fs::write(
+        &model,
+        good_source.replace(
+            "concat(input.left, input.right)",
+            "input.left + input.right",
+        ),
+    )
+    .unwrap();
+    for args in [
+        vec!["check", "--frontend", model.to_str().unwrap()],
+        vec!["schema", model.to_str().unwrap()],
+        vec!["template", model.to_str().unwrap(), "--format", "json"],
+        vec![
+            "call",
+            model.to_str().unwrap(),
+            "--input",
+            input_path.to_str().unwrap(),
+        ],
+    ] {
+        let output = run(&args);
+        assert!(
+            !output.status.success(),
+            "{args:?} accepted unsupported list addition"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains("operator `+` does not concatenate lists"),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    std::fs::remove_file(model).unwrap();
+    std::fs::remove_file(input_path).unwrap();
+}
+
+#[test]
+fn calculation_cli_reports_indirect_list_operator_failure() {
+    let model = temp_path("runa");
+    let input_path = temp_path("json");
+    std::fs::write(&model, "# Input(left: List(Int), right: List(Int))\n> unchecked_add(left, right) { left + right }\n@ calculate\n> count(input: Input) -> Int { length(unchecked_add(input.left, input.right)) }\n").unwrap();
+    let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
+    assert!(
+        template.status.success(),
+        "{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut input = parse_stdout(&template);
+    input["cases"][0]["input"] = serde_json::json!({"left":[1,2],"right":[3]});
+    std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
+    let output = run(&[
+        "call",
+        model.to_str().unwrap(),
+        "--input",
+        input_path.to_str().unwrap(),
+    ]);
+    assert!(!output.status.success());
+    let result = parse_stdout(&output);
+    assert!(result["results"].as_array().unwrap().is_empty());
+    assert_eq!(result["diagnostics"].as_array().unwrap().len(), 1);
+    assert!(result["diagnostics"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("unsupported operands"));
+    std::fs::remove_file(model).unwrap();
+    std::fs::remove_file(input_path).unwrap();
+}
+
+#[test]
+fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
+    let directory = temp_path("runtime-failures");
+    std::fs::create_dir(&directory).expect("create calculation runtime fixture");
+    let policy_path = directory.join("policy.runa");
+    let source_path = directory.join("model.calculate.runa");
+    let input_path = directory.join("cases.json");
+    let output_path = directory.join("results.xlsx");
+    std::fs::write(
+        &policy_path,
+        r#"
+| parameter(year: Int) -> "known" under year == 2026
+# Flags(amount: Int) {
+    | eligible() -> True under amount > 0
+}
+@ export parameter
+@ export
+> eligible(amount: Int) -> Bool { Flags(amount).eligible() }
+"#,
+    )
+    .expect("write imported rule");
+    std::fs::write(
+        &source_path,
+        r#"
+@ import Policy from ./policy
+# Input(year: Int, amount: Int, divisor: Int)
+# Output(amount: Int, label: String, eligible: Bool)
+@ calculate
+> calculate(input: Input) -> Output {
+    Output(amount = input.amount / input.divisor, label = Policy.parameter(input.year), eligible = Policy.eligible(input.amount))
+}
+"#,
+    )
+    .expect("write calculation");
+    let template = run(&[
+        "template",
+        source_path.to_str().unwrap(),
+        "--format",
+        "json",
+        "--output",
+        input_path.to_str().unwrap(),
+    ]);
+    assert!(
+        template.status.success(),
+        "{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut input: Value = serde_json::from_slice(&std::fs::read(&input_path).unwrap()).unwrap();
+    input["cases"] = serde_json::json!([
+        {"case_id":"good-before", "input":{"year":2026,"amount":8,"divisor":2}},
+        {"case_id":"zero-divisor", "input":{"year":2026,"amount":7,"divisor":0}},
+        {"case_id":"unsupported-year", "input":{"year":2027,"amount":8,"divisor":2}},
+        {"case_id":"overflow", "input":{"year":2026,"amount":i64::MIN,"divisor":-1}},
+        {"case_id":"valid-zero", "input":{"year":2026,"amount":0,"divisor":2}},
+        {"case_id":"good-after", "input":{"year":2026,"amount":8,"divisor":2}}
+    ]);
+    std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
+    let mut previous = None;
+    for jobs in ["1", "3"] {
+        let call = run_with_env(
+            &[
+                "call",
+                source_path.to_str().unwrap(),
+                "--input",
+                input_path.to_str().unwrap(),
+            ],
+            &[("FUTURUNA_CALCULATION_JOBS", jobs)],
+        );
+        assert_eq!(
+            call.status.code(),
+            Some(1),
+            "{}",
+            String::from_utf8_lossy(&call.stderr)
+        );
+        assert!(!String::from_utf8_lossy(&call.stderr).contains("panicked"));
+        let output = parse_stdout(&call);
+        assert_eq!(
+            output["results"],
+            serde_json::json!([
+                {"case_id":"good-before", "result":{"amount":4,"label":"known","eligible":true}},
+                {"case_id":"valid-zero", "result":{"amount":0,"label":"known","eligible":false}},
+                {"case_id":"good-after", "result":{"amount":4,"label":"known","eligible":true}}
+            ])
+        );
+        let diagnostics = output["diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics.len(), 3);
+        for (diagnostic, case_id, message) in [
+            (&diagnostics[0], "zero-divisor", "integer division"),
+            (&diagnostics[1], "unsupported-year", "parameter/1"),
+            (&diagnostics[2], "overflow", "integer division"),
+        ] {
+            assert_eq!(diagnostic["case_id"], case_id);
+            assert_eq!(diagnostic["path"], "$");
+            assert!(
+                diagnostic["message"].as_str().unwrap().contains(message),
+                "{diagnostic}"
+            );
+        }
+        if let Some(previous) = previous {
+            assert_eq!(output, previous);
+        }
+        previous = Some(output);
+    }
+    let call = run_with_env(
+        &[
+            "call",
+            source_path.to_str().unwrap(),
+            "--input",
+            input_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ],
+        &[("FUTURUNA_CALCULATION_JOBS", "1")],
+    );
+    assert_eq!(
+        call.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&call.stderr)
+    );
+    let mut workbook = open_workbook_auto(&output_path).expect("mixed-success result workbook");
+    for (sheet, ids) in [
+        ("results", ["good-before", "valid-zero", "good-after"]),
+        (
+            "diagnostics",
+            ["zero-divisor", "unsupported-year", "overflow"],
+        ),
+    ] {
+        let rows = workbook.worksheet_range(sheet).unwrap();
+        assert_eq!(rows.height(), 4);
+        for (row, id) in rows.rows().skip(1).zip(ids) {
+            assert_eq!(row[0].to_string(), id);
+        }
+    }
+    drop(workbook);
+    for path in [&output_path, &input_path, &source_path, &policy_path] {
+        std::fs::remove_file(path).expect("remove owned calculation fixture file");
+    }
+    std::fs::remove_dir(&directory).expect("remove empty owned fixture directory");
 }
 
 #[test]
@@ -5704,9 +5943,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     }
 
     edit_workbook(&input_path, |sheets| {
-        let fill_wage_case = |sheets: &mut [(String, Vec<Vec<Data>>)],
-                              row: usize,
-                              case_id: &str| {
+        let fill_wage_case = |sheets: &mut EditableWorkbook, row: usize, case_id: &str| {
             for (header, value) in [
                     ("case_id", Data::String(case_id.to_string())),
                     ("lønmodtager.skatteår", Data::String("2026".to_string())),
@@ -5733,6 +5970,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "lønmodtager.ligningsfradrag.sømandsfradrag.valg",
                         Data::String("FravælgSømandsfradrag".to_string()),
+                    ),
+                    (
+                        "lønmodtager.ligningsfradrag.enlig_forsørger.$variant",
+                        Data::String("IntetEkstraBørnetilskud".to_string()),
+                    ),
+                    (
+                        "lønmodtager.ligningsfradrag.boligjob.$variant",
+                        Data::String("IngenBoligjobudgifter".to_string()),
                     ),
                     (
                         "lønmodtager.ligningsfradrag.fiskerfradrag.valg",
@@ -5945,7 +6190,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     set_workbook_cell_by_header(sheets, "cases", row, header, value);
                 }
         };
-        let fill_kgl_choices = |sheets: &mut [(String, Vec<Vec<Data>>)], row: usize| {
+        let fill_kgl_choices = |sheets: &mut EditableWorkbook, row: usize| {
             for (header, value) in [
                 (
                     "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
@@ -6090,7 +6335,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ] {
             set_workbook_cell_by_header(sheets, "cases", 25, header, value);
         }
-        let fill_par32_case = |sheets: &mut [(String, Vec<Vec<Data>>)],
+        let fill_par32_case = |sheets: &mut EditableWorkbook,
                                row: usize,
                                skatteyder_identifikation: &str| {
             for (header, value) in [
@@ -6140,7 +6385,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let par32_current_contracts_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.kontrakter";
         let par32_current_contracts_sheet =
             workbook_collection_sheet_name_from_rows(sheets, par32_current_contracts_path);
-        let fill_par32_contract = |sheets: &mut [(String, Vec<Vec<Data>>)],
+        let fill_par32_contract = |sheets: &mut EditableWorkbook,
                                    sheet: &str,
                                    row: usize,
                                    case_id: &str,
@@ -6873,6 +7118,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.sømandsfradrag.valg",
                 Data::String("FravælgSømandsfradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.enlig_forsørger.$variant",
+                Data::String("IntetEkstraBørnetilskud".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.boligjob.$variant",
+                Data::String("IngenBoligjobudgifter".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.fiskerfradrag.valg",
@@ -11689,6 +11942,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
+                "enlig_forsørger": { "$variant": "IntetEkstraBørnetilskud" },
+                "boligjob": { "$variant": "IngenBoligjobudgifter" },
                 "sømandsfradrag": {
                     "valg": { "$variant": "FravælgSømandsfradrag" },
                     "beskæftigelser": []
@@ -13609,6 +13864,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "erhvervsbefordring": { "sager": [] },
                 "ligningsfradrag": {
+                    "enlig_forsørger": { "$variant": "IntetEkstraBørnetilskud" },
+                    "boligjob": { "$variant": "IngenBoligjobudgifter" },
                     "sømandsfradrag": {
                         "valg": { "$variant": "FravælgSømandsfradrag" },
                         "beskæftigelser": []
@@ -22526,13 +22783,8 @@ fn workbook_headers(
         .collect()
 }
 
-fn workbook_column_paths(
-    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
-    sheet: &str,
-) -> Vec<String> {
-    let metadata = workbook
-        .worksheet_range("_columns")
-        .expect("column metadata");
+fn workbook_column_paths(workbook: &mut InspectionWorkbook, sheet: &str) -> Vec<String> {
+    let metadata = workbook.metadata("_columns");
     let headers = metadata.rows().next().expect("column metadata headers");
     let sheet_column = headers
         .iter()
@@ -22555,13 +22807,11 @@ fn workbook_column_paths(
 }
 
 fn workbook_column_choices(
-    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    workbook: &mut InspectionWorkbook,
     sheet: &str,
     path: &str,
 ) -> Vec<String> {
-    let metadata = workbook
-        .worksheet_range("_columns")
-        .expect("column metadata");
+    let metadata = workbook.metadata("_columns");
     let headers = metadata.rows().next().expect("column metadata headers");
     let sheet_column = headers
         .iter()
@@ -22594,13 +22844,9 @@ fn workbook_column_choices(
         .collect()
 }
 
-fn workbook_collection_sheet_name(
-    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
-    path: &str,
-) -> String {
+fn workbook_collection_sheet_name(workbook: &mut InspectionWorkbook, path: &str) -> String {
     let rows: Vec<Vec<Data>> = workbook
-        .worksheet_range("_tables")
-        .expect("table metadata")
+        .metadata("_tables")
         .rows()
         .map(|row| row.to_vec())
         .collect();
@@ -22666,10 +22912,126 @@ fn assert_workbook_visibility(
     );
 }
 
-fn edit_workbook(path: &Path, edit: impl FnOnce(&mut Vec<(String, Vec<Vec<Data>>)>)) {
+type WorkbookReader = calamine::Sheets<std::io::BufReader<std::fs::File>>;
+
+// An inspection owns one read-only opened file. Reopen after edits, as with
+// calamine itself. Cache only the two immutable metadata sheets: repeatedly
+// decoding their XML dominated the full-workbook assertions in debug tests.
+struct InspectionWorkbook {
+    reader: WorkbookReader,
+    metadata: BTreeMap<String, calamine::Range<Data>>,
+}
+
+fn open_workbook_auto(path: impl AsRef<Path>) -> Result<InspectionWorkbook, calamine::Error> {
+    open_uncached_workbook(path).map(|reader| InspectionWorkbook {
+        reader,
+        metadata: BTreeMap::new(),
+    })
+}
+
+impl std::ops::Deref for InspectionWorkbook {
+    type Target = WorkbookReader;
+
+    fn deref(&self) -> &Self::Target {
+        &self.reader
+    }
+}
+
+impl std::ops::DerefMut for InspectionWorkbook {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.reader
+    }
+}
+
+impl InspectionWorkbook {
+    fn metadata(&mut self, name: &str) -> &calamine::Range<Data> {
+        assert!(matches!(name, "_columns" | "_tables"));
+        if !self.metadata.contains_key(name) {
+            let rows = self
+                .reader
+                .worksheet_range(name)
+                .expect("workbook metadata");
+            self.metadata.insert(name.to_string(), rows);
+        }
+        &self.metadata[name]
+    }
+}
+
+type WorkbookSheets = Vec<(String, Vec<Vec<Data>>)>;
+
+#[derive(Default)]
+struct SheetColumnIndex {
+    count: usize,
+    input_paths: BTreeMap<String, usize>,
+    paths: BTreeMap<String, usize>,
+}
+
+// The large canonical workbook has many unrelated metadata rows. Build this
+// index once per edit, not twice per cell. Unstructured mutable access always
+// invalidates it, including tests that intentionally corrupt workbook metadata.
+#[derive(Default)]
+struct EditableWorkbook {
+    sheets: WorkbookSheets,
+    columns: OnceCell<BTreeMap<String, SheetColumnIndex>>,
+}
+
+impl std::ops::Deref for EditableWorkbook {
+    type Target = WorkbookSheets;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sheets
+    }
+}
+
+impl std::ops::DerefMut for EditableWorkbook {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.columns.take();
+        &mut self.sheets
+    }
+}
+
+impl EditableWorkbook {
+    fn column_index(&self) -> &BTreeMap<String, SheetColumnIndex> {
+        self.columns.get_or_init(|| {
+            let mut index = BTreeMap::<String, SheetColumnIndex>::new();
+            let Some((_, rows)) = self.sheets.iter().find(|(name, _)| name == "_columns") else {
+                return index;
+            };
+            let Some(headers) = rows.first() else {
+                return index;
+            };
+            let column = |name: &str| headers.iter().position(|cell| cell.to_string() == name);
+            let (Some(sheet_column), Some(path_column), Some(input_path_column)) =
+                (column("sheet"), column("path"), column("input_path"))
+            else {
+                return index;
+            };
+            for row in rows.iter().skip(1) {
+                let Some(sheet) = row.get(sheet_column) else {
+                    continue;
+                };
+                let fields = index.entry(sheet.to_string()).or_default();
+                let ordinal = fields.count;
+                fields.count += 1;
+                if let Some(path) = row.get(input_path_column) {
+                    fields
+                        .input_paths
+                        .entry(path.to_string())
+                        .or_insert(ordinal);
+                }
+                if let Some(path) = row.get(path_column) {
+                    fields.paths.entry(path.to_string()).or_insert(ordinal);
+                }
+            }
+            index
+        })
+    }
+}
+
+fn edit_workbook(path: &Path, edit: impl FnOnce(&mut EditableWorkbook)) {
     let mut workbook = open_workbook_auto(path).expect("open workbook for editing");
     let sheet_names = workbook.sheet_names().to_vec();
-    let mut sheets: Vec<(String, Vec<Vec<Data>>)> = sheet_names
+    let sheets: WorkbookSheets = sheet_names
         .into_iter()
         .map(|name| {
             let rows = workbook
@@ -22682,6 +23044,10 @@ fn edit_workbook(path: &Path, edit: impl FnOnce(&mut Vec<(String, Vec<Vec<Data>>
         })
         .collect();
     drop(workbook);
+    let mut sheets = EditableWorkbook {
+        sheets,
+        ..Default::default()
+    };
     MISSING_WORKBOOK_COLUMNS.with(|missing| missing.borrow_mut().clear());
     edit(&mut sheets);
     let missing_columns = MISSING_WORKBOOK_COLUMNS.with(|missing| missing.take());
@@ -22692,7 +23058,7 @@ fn edit_workbook(path: &Path, edit: impl FnOnce(&mut Vec<(String, Vec<Vec<Data>>
     );
 
     let mut workbook = rust_xlsxwriter::Workbook::new();
-    for (name, rows) in sheets {
+    for (name, rows) in sheets.sheets {
         let worksheet = workbook.add_worksheet();
         worksheet.set_name(&name).expect("sheet name");
         for (row, cells) in rows.iter().enumerate() {
@@ -22753,17 +23119,30 @@ fn copy_workbook_data_row(
 }
 
 fn set_workbook_cell_by_header(
-    sheets: &mut [(String, Vec<Vec<Data>>)],
+    sheets: &mut EditableWorkbook,
     sheet: &str,
     row: usize,
     header: &str,
     value: Data,
 ) {
     let metadata_column = calculation_workbook_column(sheets, sheet, header);
-    let display_header = calculation_workbook_display_header(sheets, sheet, header)
+    let display_header = metadata_column
+        .and_then(|column| {
+            sheets
+                .iter()
+                .find(|(name, _)| name == sheet)?
+                .1
+                .get(1)?
+                .get(column)
+        })
+        .map(ToString::to_string)
         .unwrap_or_else(|| header.to_string());
     let column = metadata_column.or_else(|| {
-        let rows = workbook_sheet_mut(sheets, sheet);
+        let rows = &sheets
+            .iter()
+            .find(|(name, _)| name == sheet)
+            .expect("sheet")
+            .1;
         rows.get(1)
             .expect("header row")
             .iter()
@@ -22777,7 +23156,12 @@ fn set_workbook_cell_by_header(
         });
         return;
     };
-    let rows = workbook_sheet_mut(sheets, sheet);
+    if sheet == "_columns" || row == 0 {
+        sheets.columns.take();
+    }
+    // A data-cell write cannot change metadata or headers. Other mutations go
+    // through DerefMut above, so no index leaks between workbooks or edits.
+    let rows = workbook_sheet_mut(&mut sheets.sheets, sheet);
     let physical_row = row + 1;
     while rows.len() <= physical_row {
         rows.push(Vec::new());
@@ -22789,47 +23173,223 @@ fn set_workbook_cell_by_header(
 }
 
 fn calculation_workbook_column(
-    sheets: &[(String, Vec<Vec<Data>>)],
+    sheets: &EditableWorkbook,
     sheet: &str,
     path: &str,
 ) -> Option<usize> {
-    let rows = &sheets.iter().find(|(name, _)| name == "_columns")?.1;
-    let headers = rows.first()?;
-    let column = |name: &str| headers.iter().position(|cell| cell.to_string() == name);
-    let sheet_column = column("sheet")?;
-    let path_column = column("path")?;
-    let input_path_column = column("input_path")?;
-    let sheet_rows = rows
-        .iter()
-        .skip(1)
-        .filter(|row| row.get(sheet_column).map(ToString::to_string).as_deref() == Some(sheet))
-        .collect::<Vec<_>>();
-    let field_column = sheet_rows
-        .iter()
-        .position(|row| {
-            row.get(input_path_column)
-                .map(ToString::to_string)
-                .as_deref()
-                == Some(path)
-        })
-        .or_else(|| {
-            sheet_rows.iter().position(|row| {
-                row.get(path_column).map(ToString::to_string).as_deref() == Some(path)
-            })
-        })?;
+    let fields = sheets.column_index().get(sheet)?;
+    let field_column = fields
+        .input_paths
+        .get(path)
+        .or_else(|| fields.paths.get(path))?;
     let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.get(1)?;
-    let technical_columns = visible_headers.len().checked_sub(sheet_rows.len())?;
+    let technical_columns = visible_headers.len().checked_sub(fields.count)?;
     Some(technical_columns + field_column)
 }
 
-fn calculation_workbook_display_header(
-    sheets: &[(String, Vec<Vec<Data>>)],
-    sheet: &str,
-    path: &str,
-) -> Option<String> {
-    let field_column = calculation_workbook_column(sheets, sheet, path)?;
-    let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.get(1)?;
-    visible_headers.get(field_column).map(ToString::to_string)
+#[test]
+fn workbook_column_index_preserves_precedence_offsets_and_mutation() {
+    let strings = |cells: &[&str]| {
+        cells
+            .iter()
+            .map(|cell| Data::String((*cell).into()))
+            .collect()
+    };
+    let mut sheets = EditableWorkbook {
+        sheets: vec![
+            (
+                "_columns".into(),
+                vec![
+                    strings(&["sheet", "path", "input_path"]),
+                    strings(&["cases", "alias", "first"]),
+                    strings(&["children", "name", "children.name"]),
+                    strings(&["cases", "second", "alias"]),
+                    strings(&["cases", "duplicate", "alias"]),
+                ],
+            ),
+            (
+                "cases".into(),
+                vec![
+                    strings(&["Title"]),
+                    strings(&["case_id", "First", "Second", "Third"]),
+                ],
+            ),
+            (
+                "children".into(),
+                vec![
+                    strings(&["Children"]),
+                    strings(&["case_id", "item_id", "position", "Name"]),
+                ],
+            ),
+        ],
+        ..Default::default()
+    };
+    // A later input_path beats an earlier path alias. Duplicate input paths
+    // keep the first occurrence; each sheet has its own technical prefix.
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "alias"),
+        Some(2)
+    );
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "first"),
+        Some(1)
+    );
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "duplicate"),
+        Some(3)
+    );
+    assert_eq!(
+        calculation_workbook_column(&sheets, "children", "name"),
+        Some(3)
+    );
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "absent"),
+        None
+    );
+    for row in 1..20 {
+        set_workbook_cell_by_header(&mut sheets, "cases", row, "alias", Data::Int(row as i64));
+        assert!(
+            sheets.columns.get().is_some(),
+            "data edits must reuse the index"
+        );
+    }
+    assert_eq!(sheets.sheets[1].1[20][2], Data::Int(19));
+    // Technical and display headers retain the legacy visible-header fallback.
+    set_workbook_cell_by_header(
+        &mut sheets,
+        "cases",
+        1,
+        "case_id",
+        Data::String("case".into()),
+    );
+    set_workbook_cell_by_header(&mut sheets, "cases", 1, "Third", Data::Int(99));
+    assert_eq!(sheets.sheets[1].1[2][0], Data::String("case".into()));
+    assert_eq!(sheets.sheets[1].1[2][3], Data::Int(99));
+    assert!(MISSING_WORKBOOK_COLUMNS
+        .with(|missing| missing.take())
+        .is_empty());
+
+    workbook_sheet_mut(&mut sheets, "_columns")[3][2] = Data::String("renamed".into());
+    assert!(sheets.columns.get().is_none());
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "renamed"),
+        Some(2)
+    );
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "alias"),
+        Some(3)
+    );
+    sheets
+        .iter_mut()
+        .find(|(name, _)| name == "cases")
+        .unwrap()
+        .1[1]
+        .insert(0, Data::String("new technical".into()));
+    assert!(sheets.columns.get().is_none());
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "renamed"),
+        Some(3)
+    );
+    sheets.retain(|(name, _)| name != "_columns");
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "renamed"),
+        None
+    );
+}
+
+#[test]
+fn workbook_column_index_does_not_leak_between_workbooks_or_cache_missing_metadata() {
+    let mut sheets = EditableWorkbook::default();
+    assert_eq!(calculation_workbook_column(&sheets, "cases", "value"), None);
+    sheets.push((
+        "_columns".into(),
+        vec![
+            vec![
+                Data::String("sheet".into()),
+                Data::String("path".into()),
+                Data::String("input_path".into()),
+            ],
+            vec![
+                Data::String("cases".into()),
+                Data::String("value".into()),
+                Data::String("value".into()),
+            ],
+        ],
+    ));
+    sheets.push((
+        "cases".into(),
+        vec![vec![], vec![Data::String("Value".into())]],
+    ));
+    assert_eq!(
+        calculation_workbook_column(&sheets, "cases", "value"),
+        Some(0)
+    );
+    let other = EditableWorkbook::default();
+    assert_eq!(calculation_workbook_column(&other, "cases", "value"), None);
+    workbook_sheet_mut(&mut sheets, "cases")[1].clear();
+    assert_eq!(calculation_workbook_column(&sheets, "cases", "value"), None);
+}
+
+#[test]
+fn workbook_metadata_inspection_reuses_rows_and_reopens_after_edits() {
+    let path = temp_path("xlsx");
+    for value in ["First", "Second"] {
+        let mut file = rust_xlsxwriter::Workbook::new();
+        let columns = file.add_worksheet();
+        columns.set_name("_columns").unwrap();
+        for (row, cells) in [
+            ["sheet", "path", "input_path", "choices"],
+            ["cases", "value", "value", value],
+            ["cases", "empty", "empty", ""],
+            ["children", "name", "children.name", "One | Two"],
+        ]
+        .iter()
+        .enumerate()
+        {
+            for (column, cell) in cells.iter().enumerate() {
+                columns
+                    .write_string(row as u32, column as u16, *cell)
+                    .unwrap();
+            }
+        }
+        let tables = file.add_worksheet();
+        tables.set_name("_tables").unwrap();
+        tables.write_string(0, 0, "path").unwrap();
+        tables.write_string(0, 1, "sheet").unwrap();
+        tables.write_string(1, 0, "children").unwrap();
+        tables.write_string(1, 1, "children_sheet").unwrap();
+        file.save(&path).unwrap();
+        drop(file);
+
+        let mut workbook = open_workbook_auto(&path).unwrap();
+        assert!(workbook.metadata.is_empty());
+        assert_eq!(
+            workbook_column_paths(&mut workbook, "cases"),
+            ["value", "empty"]
+        );
+        let first_range = workbook.metadata("_columns") as *const _;
+        assert_eq!(
+            workbook_column_choices(&mut workbook, "cases", "value"),
+            [value]
+        );
+        assert_eq!(
+            workbook_column_choices(&mut workbook, "children", "name"),
+            ["One", "Two"]
+        );
+        assert!(workbook_column_choices(&mut workbook, "cases", "empty").is_empty());
+        assert!(workbook_column_choices(&mut workbook, "cases", "missing").is_empty());
+        assert_eq!(first_range, workbook.metadata("_columns") as *const _);
+        assert_eq!(workbook.metadata.len(), 1);
+        assert_eq!(
+            workbook_collection_sheet_name(&mut workbook, "children"),
+            "children_sheet"
+        );
+        assert_eq!(workbook.metadata.len(), 2);
+        // Each iteration drops its reader before replacing the file. A new
+        // inspection must see the replacement, never another instance's cache.
+        drop(workbook);
+    }
+    std::fs::remove_file(path).unwrap();
 }
 
 fn write_workbook_data(
