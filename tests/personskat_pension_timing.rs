@@ -112,6 +112,7 @@ fn fictional_input() -> (Value, Value) {
     input["lønmodtager"]["ligningsfradrag"]["boligjob"] =
         json!({"$variant":"IngenBoligjobudgifter"});
     input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
+    input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
     input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([contribution()]);
     (envelope, input)
 }
@@ -131,6 +132,295 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
     std::fs::remove_file(path).unwrap();
     assert_eq!(output["diagnostics"], json!([]));
     output["results"].as_array().unwrap().clone()
+}
+
+#[test]
+fn atp_template_distinguishes_unknown_from_confirmed_absence() {
+    let template = run(&["template", MODEL, "--format", "json"]);
+    assert_eq!(
+        template["cases"][0]["input"]["lønmodtager"]["pension"]["atp"]["$variant"],
+        "AtpUoplyst"
+    );
+}
+
+#[test]
+fn atp_source_bases_preserve_income_and_distinguish_public_contributions() {
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(200000);
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let names = [
+        "none",
+        "employer",
+        "public-benefit",
+        "supp",
+        "mandatory",
+        "mixed",
+        "job-threshold",
+        "young",
+        "senior",
+        "with-private-rate",
+        "payout-offset",
+        "2025",
+    ];
+    let mut cases = Vec::new();
+    for name in names {
+        let mut input = baseline.clone();
+        let mut row = atp_payment("atp-payment", "AtpArbejdsgiverPar19Stk1", 5000, Some(4600));
+        match name {
+            "public-benefit" => row["grundlag"] = json!({"$variant":"AtpOffentligYdelsePar19Stk2"}),
+            "supp" => {
+                row["grundlag"] = json!({"$variant":"AtpSupplerendeArbejdsmarkedspensionPar19Stk4"})
+            }
+            "mandatory" => {
+                row["grundlag"] = json!({"$variant":"AtpObligatoriskPensionPar19Stk4"});
+                row["indberettet_efter_am_kroner"] = json!(5000);
+            }
+            "job-threshold" => input["lønmodtager"]["bruttoløn_kroner"] = json!(235000),
+            "young" => {
+                input["lønmodtager"]["personfradrag_alder_status"] =
+                    json!({"$variant":"Under18Ugift"});
+                input["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(2009);
+                row["indberettet_efter_am_kroner"] = json!(5000);
+            }
+            "senior" => input["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1960),
+            "with-private-rate" => {
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([contribution()])
+            }
+            "payout-offset" => {
+                input["lønmodtager"]["pension"]["øvrige_pbl20_årsgrundlag"]["udbetalinger"] =
+                    json!([
+                        payout("prior", 2025, 1000, false),
+                        payout("current", 2026, 3000, false)
+                    ])
+            }
+            "2025" => {
+                input["lønmodtager"]["skatteår"] = json!(2025);
+                row["indkomstår"] = json!(2025);
+            }
+            _ => {}
+        }
+        let mut rows = vec![row];
+        if name == "mixed" {
+            rows.push(atp_payment(
+                "public",
+                "AtpOffentligYdelsePar19Stk2",
+                5000,
+                Some(4600),
+            ));
+            rows.push(atp_payment(
+                "op",
+                "AtpObligatoriskPensionPar19Stk4",
+                5000,
+                Some(5000),
+            ));
+        }
+        if name != "none" {
+            input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"OplysteAtpIndbetalinger","oplysninger_for_året_komplette":true,"poster":rows});
+        }
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), names.len());
+    for (row, name) in results.iter().zip(names) {
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{name}: {}",
+            result["vurdering"]
+        );
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        let atp = &result["pension"]["atp_resultat"];
+        let work = if matches!(name, "none" | "public-benefit" | "supp" | "mandatory") {
+            0
+        } else {
+            5000
+        };
+        let net = match name {
+            "none" => 0,
+            "mandatory" | "young" => 5000,
+            "mixed" => 14200,
+            _ => 4600,
+        };
+        assert_eq!(atp["arbejdsfradragsgrundlag_kroner"], work, "{name}");
+        assert_eq!(atp["ekstra_pensionsfradragsgrundlag_kroner"], net, "{name}");
+        let wage = if name == "job-threshold" {
+            235000
+        } else {
+            200000
+        };
+        let am = if name == "young" { 0 } else { wage * 8 / 100 };
+        let private = if name == "with-private-rate" {
+            50000
+        } else {
+            0
+        };
+        let taxable_payout = if name == "payout-offset" { 3000 } else { 0 };
+        let extra = (net + private - taxable_payout) * if name == "senior" { 32 } else { 12 } / 100;
+        assert_eq!(result["skat"]["bruttoløn_kroner"], wage, "{name}");
+        assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], am, "{name}");
+        assert_eq!(
+            result["skat"]["personlig_indkomst_efter_am_kroner"],
+            wage - am - private + taxable_payout,
+            "{name}"
+        );
+        assert_eq!(
+            result["skat"]["beskæftigelsesfradrag_kroner"],
+            (wage + work) * if name == "2025" { 1230 } else { 1275 } / 10000,
+            "{name}"
+        );
+        assert_eq!(
+            result["skat"]["jobfradrag_kroner"],
+            if name == "job-threshold" { 216 } else { 0 },
+            "{name}"
+        );
+        assert_eq!(
+            result["skat"]["seniorbeskæftigelsesfradrag_kroner"],
+            if name == "senior" { 2870 } else { 0 },
+            "{name}"
+        );
+        assert_eq!(
+            result["skat"]["ekstra_pensionsfradrag_kroner"], extra,
+            "{name}"
+        );
+        assert_eq!(
+            result["pension"]["pbl18_årsresultat"]["rate_og_ophørende_fradrag_kroner"], private,
+            "{name}"
+        );
+        // ATP never consumes the ordinary rate-pension cap.
+        assert_eq!(
+            result["pension"]["arbejdsgiver_rate_resultat"]["indbetaling_efter_am_kroner"], 0,
+            "{name}"
+        );
+        if name == "none" {
+            assert_eq!(
+                result["vurdering"]["slutskat_til_sammenligning_øre"],
+                5602015
+            );
+        }
+        println!(
+            "ATP {name}: employment={}, extra={extra}, tax-øre={}",
+            result["skat"]["beskæftigelsesfradrag_kroner"],
+            result["vurdering"]["slutskat_til_sammenligning_øre"]
+        );
+    }
+}
+
+fn atp_payment(id: &str, basis: &str, gross: i64, net: Option<i64>) -> Value {
+    json!({"identifikation":id,"indkomstår":2026,"kildereference":"fictional-ATP-record",
+        "grundlag":{"$variant":basis},"indberettet_før_am_kroner":gross,"indberettet_efter_am_kroner":net})
+}
+
+#[test]
+fn atp_unknown_incomplete_and_conflicting_sources_withhold_comparison() {
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let specs = [
+        ("unknown", "atp"),
+        ("incomplete", "oplysninger_for_året_komplette"),
+        ("empty", "poster"),
+        ("net-unknown", "indberettet_efter_am_kroner"),
+        ("mandatory-with-am", "indberettet_efter_am_kroner"),
+        ("duplicate", "identifikation"),
+        ("cross-route-duplicate", "identifikation"),
+        ("wrong-year", "poster"),
+        ("unsupported", "grundlag"),
+        ("spouse-unknown", "atp"),
+        ("history-needed", "for_foregående_år_komplette"),
+    ];
+    let mut cases = Vec::new();
+    for (name, _) in specs {
+        let mut input = baseline.clone();
+        let mut post = atp_payment("atp-payment", "AtpArbejdsgiverPar19Stk1", 5000, Some(4600));
+        match name {
+            "net-unknown" => post["indberettet_efter_am_kroner"] = Value::Null,
+            "mandatory-with-am" => {
+                post["grundlag"] = json!({"$variant":"AtpObligatoriskPensionPar19Stk4"})
+            }
+            "wrong-year" => post["indkomstår"] = json!(2025),
+            "unsupported" => post["grundlag"] = json!({"$variant":"AtpAndetEllerUoplystGrundlag"}),
+            "cross-route-duplicate" => {
+                let mut private = contribution();
+                private["identifikation"] = json!("atp-payment");
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([private]);
+            }
+            "history-needed" => {
+                input["lønmodtager"]["pension"]["udbetalingsoplysninger"]
+                    ["for_foregående_år_komplette"] = json!(false);
+                input["lønmodtager"]["pension"]["øvrige_pbl20_årsgrundlag"]["udbetalinger"] =
+                    json!([payout("current", 2026, 3000, false)]);
+            }
+            _ => {}
+        }
+        let rows = match name {
+            "empty" => vec![],
+            "duplicate" => vec![post.clone(), post],
+            _ => vec![post],
+        };
+        input["lønmodtager"]["pension"]["atp"] = if name.ends_with("unknown")
+            && name != "net-unknown"
+        {
+            json!({"$variant":"AtpUoplyst"})
+        } else {
+            json!({"$variant":"OplysteAtpIndbetalinger","oplysninger_for_året_komplette":name != "incomplete","poster":rows})
+        };
+        if name == "spouse-unknown" {
+            let facts: serde_json::Map<String, Value> = [
+                "lønmodtager",
+                "kapitalindkomst",
+                "aktieavance",
+                "udenlandske_sociale_bidrag",
+                "cfc",
+                "skatteforhold",
+                "underskudsforhold",
+                "ejendomsskatter",
+            ]
+            .into_iter()
+            .map(|key| (key.into(), input[key].clone()))
+            .collect();
+            input = baseline.clone();
+            input["ægtefælle"] = json!({"$variant":"MedÆgtefælle","fakta":facts,"samlevende_ved_indkomstårets_udløb":true,"kildeskat25a_fordelinger":[]});
+        }
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), specs.len());
+    for (row, (name, suffix)) in results.iter().zip(specs) {
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        assert_eq!(gate["alle_kontroller_gyldige"], false, "{name}");
+        assert_eq!(
+            gate["slutskat_til_sammenligning_øre"],
+            Value::Null,
+            "{name}"
+        );
+        assert!(
+            gate["fejl"].as_array().unwrap().iter().any(|error| {
+                let path = error["sti"].as_str().unwrap();
+                path.ends_with(suffix)
+                    && (name != "spouse-unknown"
+                        || path.starts_with("ægtefælle.MedÆgtefælle.fakta."))
+            }),
+            "{name}: {gate}"
+        );
+        if name == "history-needed" {
+            assert_eq!(
+                result["pension"]["oplysningsstatus"]["foregående_oplysninger_nødvendige"],
+                true
+            );
+        }
+        if name == "net-unknown" {
+            assert_eq!(
+                result["pension"]["atp_resultat"]["input"]["poster"][0]
+                    ["indberettet_efter_am_kroner"],
+                Value::Null
+            );
+        }
+        println!("ATP {name}: comparison withheld at {suffix}");
+    }
 }
 
 #[test]

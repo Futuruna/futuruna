@@ -36,6 +36,7 @@ These constructors encode declared audit facts, not replacement tax formulas.
 ) -> PersonskatPensionsInput(
     fødselsdato = fødselsdato,
     udbetalingsoplysninger = PersonskatPensionsudbetalingsoplysninger(for_året_komplette = Sandt, for_foregående_år_komplette = Sandt),
+    atp = IngenAtpIndbetalinger,
     pbl18_indbetalinger = [],
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
