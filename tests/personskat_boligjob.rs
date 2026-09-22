@@ -140,6 +140,61 @@ fn invoice_facts_dates_allocations_and_caps() {
         facts(vec![march.clone()]),
     );
     add("march-not-work-year", 2023, true, 0, 0, facts(vec![march]));
+    for (name, work, paid, category, valid, service) in [
+        (
+            "pre-regulation-work",
+            (2022, 3, 31),
+            (2023, 3, 1),
+            "Ll8VRengøring",
+            false,
+            0,
+        ),
+        (
+            "regulation-first-day",
+            (2022, 4, 1),
+            (2023, 3, 1),
+            "Ll8VRengøring",
+            true,
+            100000,
+        ),
+        (
+            "old-service-feb-not-2023",
+            (2022, 12, 31),
+            (2023, 2, 28),
+            "Ll8VRengøring",
+            true,
+            0,
+        ),
+        (
+            "old-service-march-2023",
+            (2022, 12, 31),
+            (2023, 3, 1),
+            "Ll8VRengøring",
+            true,
+            100000,
+        ),
+        (
+            "old-craft-not-revived",
+            (2022, 4, 1),
+            (2025, 3, 1),
+            "Ll8VTagisolering",
+            true,
+            0,
+        ),
+        (
+            "old-new-service-not-revived",
+            (2022, 4, 1),
+            (2025, 3, 1),
+            "Ll8VTagrender",
+            true,
+            0,
+        ),
+    ] {
+        let mut p = post(work.0, category, 100000);
+        p["betaling"]["arbejdsdato"] = json!({"år":work.0,"måned":work.1,"dag":work.2});
+        p["betaling"]["betalingsdato"] = json!({"år":paid.0,"måned":paid.1,"dag":paid.2});
+        add(name, paid.0, valid, service, 0, facts(vec![p]));
+    }
     for (name, field, value, valid) in [
         ("cash", "betalingsform", "Ll8VKontanter", true),
         ("check", "betalingsform", "Ll8VCheck", true),
@@ -379,6 +434,21 @@ fn invoice_facts_dates_allocations_and_caps() {
         );
         for post in value["poster"].as_array().unwrap() {
             assert_eq!(post["betingelser"].as_array().unwrap().len(), 17, "{name}");
+            if name == "old-service-feb-not-2023" {
+                assert_eq!(post["fradragsår"], 2022, "{name}");
+                assert_eq!(post["betingelser_opfyldt"], true, "{name}");
+            }
+            if name == "pre-regulation-work" {
+                assert!(post["kontrolpunkter"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|reason| {
+                        reason
+                            .as_str()
+                            .is_some_and(|text| text.contains("1. april 2022"))
+                    }));
+            }
             if name == "cash" {
                 assert!(post["kontrolpunkter"]
                     .as_array()
