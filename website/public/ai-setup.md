@@ -196,6 +196,13 @@ and show the contribution, allowed deduction, modeled tax change and change in
 available cash separately. Unknown spouse facts must not become fixed assumed
 transfers in a new scenario.
 
+Do not interpret an empty pension payout list as confirmed absence. Complete
+`lønmodtager.pension.udbetalingsoplysninger` only from reviewed facts. Follow
+`pension.oplysningsstatus` to ask about prior-year payouts only when further
+history can still affect the extra deduction; retain unknown history as unknown.
+If the validity assessment withholds the comparison amount, do not use the raw
+tax total instead. The same applies to a calculated spouse.
+
 For deductions, identify relevant candidates, check whether they are already
 included, and name the evidence or next action needed. Do not present a candidate
 as an established entitlement. The guide includes an optional fictional pension

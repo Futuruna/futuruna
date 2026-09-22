@@ -58,6 +58,18 @@ Active invoice facts and spouse allocations must pass their component and
 household consistency checks; a known ineligible expense is distinct from an
 incomplete or unsupported calculation.
 
+Pension payout completeness is explicit too. Both Boolean fields under
+`lønmodtager.pension.udbetalingsoplysninger` start as `false` (unknown or
+incomplete), never as confirmed absence. The current year's facts must be
+complete before comparing tax. Prior history only needs further clarification
+if it can still change the modeled LL §9 L deduction. A known eligible prior
+payout may already establish the condition; otherwise the model evaluates the
+same source rule with and without the current payout offset, including caps and
+rounding. The output keeps `foregående_oplysninger_komplette` distinct from
+`foregående_oplysninger_tilstrækkelige`: irrelevant unknowns remain unknown.
+An active spouse and the separate part-year calculation have the same gate.
+See the [Danish pension interview and migration guide](pension-og-fradrag.md).
+
 Never fill a missing birthday or other unknown fact with a plausible substitute.
 When unavailable spouse facts prevent an independent household calculation, use
 the [conditional report reconciliation](aarsopgoerelse-afstemning.md) instead.

@@ -81,9 +81,41 @@ bevarer deres historiske betydning; `pbl20_udbetaling_status` i det afledte
 pensionsfradragsinput beskriver det foregående års betingelse. Læs altid
 gyldighedsvurderingen før beløbene bruges.
 
+### Når pensionsoplysninger mangler
+
+En tom udbetalingsliste er ikke en bekræftelse på, at du ikke har modtaget
+pension. Under `lønmodtager.pension.udbetalingsoplysninger` starter begge
+fuldstændighedsmarkeringer som `false`:
+
+- `for_året_komplette`: Bekræft først, når årets relevante udbetalinger er
+  gennemgået. Det omfatter også sportspension og eventuelle feriemidler efter
+  PBL § 14 B i pensionsgrundlaget. En gennemgået tom liste kan bekræftes;
+  en uoplyst liste kan ikke.
+- `for_foregående_år_komplette`: Bekræft kun, hvis sidste års relevante
+  § 20-udbetalinger og deres undtagelser er afklaret. Lad markeringen være
+  `false`, hvis historikken stadig er ukendt eller ufuldstændig.
+
+Futuruna kræver ikke automatisk endnu en årsopgørelse. I
+`pension.oplysningsstatus` vises, om sidste års historik stadig kan ændre
+det ekstra fradrag. Et dokumenteret ikke-undtaget beløb sidste år kan være
+nok til at fastslå betingelsen. Historikken kan også være uden betydning,
+fx ved ingen aktuelle modregningsrelevante udbetalinger, intet
+fradragsberettiget indbetalingsgrundlag eller samme fradrag med og uden
+modregning på grund af loftet. Det sidste kontrolleres med selve LL § 9 L-
+reglen, inklusive loft og afrunding — ikke med en AI-vurdering.
+
+`foregående_oplysninger_komplette` forbliver da `false`, selv om
+`foregående_oplysninger_tilstrækkelige` er `true`. Det betyder **tilstrækkeligt
+til denne beregning**, ikke at manglende historik er blevet til kendte nuller.
+Hvis oplysningerne stadig er nødvendige, viser `vurdering.fejl` den konkrete
+inputsti, og sammenligningsbeløbet er `null`. Samme regler gælder for en
+beregnet ægtefælle. Den betingede rapportafstemning kræver fortsat ikke
+ægtefællens dokumenter.
+
 Modellen blev rettet 22. september 2026: tidligere blev sidste års beløb
 fejlagtigt modregnet. Beregn berørte sager igen fra dokumenterede fakta med
-den rettede model. Outputkontrakten har fået de to ovenstående sporingsfelter;
+den rettede model. Kontrakten har fået sporingsfelter og de eksplicitte
+fuldstændighedsmarkeringer; gamle input kræver derfor gennemgang og migrering:
 generer en ny skabelon med `template`, overfør kun gennemgåede inputfakta og
 kør `call` igen. Overskriv ikke gamle resultater eller kontrakthashes.
 
