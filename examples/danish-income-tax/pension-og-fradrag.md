@@ -114,8 +114,8 @@ Beløbene i sidste kolonne er fradrag, ikke sparet skat. Indeholdt pensions-AM
 opkræves ikke igen som løn-AM. En privat livrente og en arbejdsgiverbetaling
 henført til et andet år må ikke lægges til årets løngrundlag på denne måde.
 
-Den kanoniske model er rettet, så almindelig arbejdsgiverlivrente fra
-`pbl18_indbetalinger` nu medtages i dette grundlag. Det afledte beløb kan
+Den kanoniske model medtager almindelig arbejdsgiverlivrente fra både
+`pbl18_indbetalinger` og den særskilte § 19-kildevej nedenfor. Det afledte beløb kan
 følges under `pension.lønmodtager_pensionsfradrag` i feltet
 `øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner`; det kan
 også indeholde andre særskilt modellerede bidragsgrundlag. Tidligere resultater
@@ -152,7 +152,7 @@ Ved 200.000 kr. i øvrigt løngrundlag bliver den personlige indkomst før
 private pensionsfradrag 184.000 + 23.300 = 207.300 kr. Ved 12 %-satsen
 er det ekstra pensionsfradrag 8.244 kr. Med dette arbejdsgiverbidrag er der
 ingen resterende fradragsplads til privat ratepension. Modellen tilføjer selv
-overskuddet fra rækkerne i `pbl18_indbetalinger`; indtast ikke de samme
+overskuddet fra de samordnede pensionsbetalinger; indtast ikke de samme
 23.300 kr. igen som anden indkomst eller som en rubrik 347-samlepost.
 
 Beskæftigelses- og jobfradrag omfatter både den bortseelsesberettigede
@@ -167,11 +167,51 @@ giver ikke i sig selv et nyt fradrag i indbetalingsåret. En overførsel kan
 ændre indberetningen; brug da dokumenterede, korrigerede oplysninger.
 [Skattestyrelsens beskrivelse af valgmulighederne](https://skat.dk/borger/pension-og-efterloen/fradrag-for-indbetalinger-til-pension).
 
-Den rettede beregning gælder den kanoniske pensionsliste. Den alternative
-§ 19-gren under `personlig_indkomst.ordinære_forhold.arbejdsgiverydelser`
-er endnu ikke afstemt med denne fælles rateberegning. Brug ikke begge veje
-for samme betaling, og antag ikke, at blandede indberetningsveje er dækket.
-Særlige ordninger efter §§ 15, 15 A og 15 B har egne regler.
+### To inputveje, én betaling
+
+En almindelig arbejdsgiverpension kan oplyses i pensionslisten
+`lønmodtager.pension.pbl18_indbetalinger` eller i varianten
+`ArbejdsgiveradministreretPensionEfterPbl19` under
+`lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser`.
+Den korte § 19-post kræver år, betalingsidentifikation, arbejdsgiverrelation,
+ordningstype samt dokumenterede beløb før og efter indeholdt AM.
+Brug pensionsudbyderens oplysninger — ikke et fradragstal fra årsopgørelsen.
+
+Modellen samler almindelige ratebidrag og ophørende livrenter fra begge
+lister **før** den fælles årsgrænse og arbejdsgiverprioriteten anvendes.
+Almindelige livsvarige livrenter fra begge veje indgår i de relevante
+fradragsgrundlag. Den opfinder ikke betalingsdatoer eller særlige
+ordningsvilkår for at omdanne en kort § 19-post til en detaljeret § 18-post.
+
+Det fiktive 200.000/50.000 kr.-eksempel ovenfor giver i København uden
+kirkeskat **53.082,13 kr. i modelleret slutskat** gennem begge inputveje.
+Med 50.000 kr. i arbejdsgiverbetalt ratepension (46.000 kr. efter AM) og
+22.701 kr. i privat ratepension giver begge veje 22.700 kr. i privat fradrag,
+1 kr. uden fradrag og **44.409,18 kr. i modelleret slutskat**.
+Det er afgrænsede testresultater, ikke en godkendelse af en virkelig årsopgørelse.
+
+Hver betaling må kun forekomme én gang. Samme betalingsidentifikation i
+begge lister giver en fejl og intet sammenligningsbeløb. Fjern den dobbelte
+registrering; løs ikke fejlen ved blot at omdøbe den. To reelt forskellige
+betalinger må gerne have samme beløb. Modellen kan ikke genkende én betaling,
+som fejlagtigt har fået to forskellige identifikationer: gennemgå derfor
+kildernes overlap. Et samlet skattepligtigt beløb efter §§ 19/56 er heller
+ikke dokumentation for en ny pensionsindbetaling eller et ekstra fradrag.
+
+Under `pension.arbejdsgiverydelser_resultat` ses de oprindelige § 19-poster,
+kontroller og supplerende brutto-/nettogrundlag. `arbejdsgiver_rate_resultat`
+viser det **fælles** årsresultat. `pbl18_årsresultat.arbejdsgivergrundlag`
+omfatter også de supplerende ratebidrag, selv om de oprindelige § 18-inputrækker
+bevares uændret. Et kendt nettobeløb gør ikke et ukendt bruttobeløb kendt.
+Bevar `null`, hvis dokumentationen mangler; beregningen tilbageholder da
+sammenligningsbeløbet og angiver den manglende inputsti. Det gælder også en
+beregnet ægtefælle og ved delårsberegning.
+
+Den korte § 19-gren dækker ikke særlige ordninger efter §§ 15, 15 A og 15 B
+eller almindelige gamle kapitalordninger ud fra kapitel 1-klassifikationen
+alene. De kræver deres detaljerede regelspecifikke grundlag. De udtrykkeligt
+skattepligtige § 19-undtagelser, fx aldersopsparing, bevarer deres behandling
+som indkomst uden nyt AM; de bliver ikke ekstra pensionsfradrag.
 
 **Migration:** Det afledte felt i `LønmodtagerPensionsfradrag` er omdøbt fra
 `pbl19_rate_ophørende_bortseelsesret_før_am_kroner` til
@@ -182,6 +222,18 @@ køres igen. Generer en ny skabelon og overfør gennemgåede kildefakta; ændr
 ikke gamle kontrakthashes. Håndskrevne lavniveau- og delårsinput skal holde
 rateoverskud adskilt fra bruttoløn og samtidig medtage det i øvrig personlig
 indkomst uden nyt AM.
+
+I den enkelte § 19-post er feltet
+`bortseelsesberettiget_efter_indeholdt_arbejdsmarkedsbidrag_kroner` desuden
+omdøbt til `bortseelsesgrundlag_før_årsgrænser_efter_am_kroner`. Det er en
+foreløbig postklassifikation, **ikke** det endeligt tilladte årsbeløb. Brug
+`pension.arbejdsgiver_rate_resultat.bortseelsesberettiget_efter_am_kroner`
+for den samlede almindelige ratepensions bortseelsesret. Tidligere resultater
+fra den alternative § 19-gren kan mangle fradrag eller fælles begrænsninger;
+kør dem igen med den rettede model. De eksisterende selvstændige funktioner
+`pbl18_årsresultat` og `pbl19_rate_årsresultat` bevarer deres argumenter; deres
+interne `ÅrsSag`-konstruktører har fået to supplerende beløbsargumenter
+(brutto og indeholdt AM). Foretræk funktionerne ved direkte lavniveaukald.
 
 ### Hvis du også får pension udbetalt
 

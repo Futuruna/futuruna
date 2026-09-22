@@ -49,6 +49,17 @@ fn contribution() -> Value {
     })
 }
 
+fn employer_benefit_pension(id: &str, plan: &str, gross: Option<i64>, net: i64) -> Value {
+    json!({"identifikation":id,"indkomstår":2026,
+    "ydelse":{"$variant":"ArbejdsgiveradministreretPensionEfterPbl19","fakta":{
+        "arbejdsgiverrelation":{"$variant":"Pbl19NuværendeArbejdsgiver"},
+        "ordning":{"$variant":plan},
+        "indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner":gross,
+        "indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner":net,
+        "kapitalordningsstatus":{"$variant":"Pbl19IngenTidligereAfgiftsberigtigelse"}
+    }}})
+}
+
 fn payout(id: &str, year: i64, amount: i64, exempt: bool) -> Value {
     json!({
         "identifikation":id, "indkomstår":year,
@@ -120,6 +131,264 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
     std::fs::remove_file(path).unwrap();
     assert_eq!(output["diagnostics"], json!([]));
     output["results"].as_array().unwrap().clone()
+}
+
+#[test]
+fn employer_pension_routes_share_deductions_caps_and_private_priority() {
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(200000);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    let names = [
+        "alternate-lifetime",
+        "alternate-rate",
+        "alternate-over-cap",
+        "mixed-rate-lifetime",
+        "mixed-rate-private",
+        "alternate-private-boundary",
+        "canonical-private-boundary",
+        "young-alternate-lifetime",
+        "taxable-aldersopsparing",
+    ];
+    let mut cases = Vec::new();
+    for name in names {
+        let mut input = baseline.clone();
+        let mut employer = contribution();
+        employer["identifikation"] = json!("canonical-employer");
+        employer["indbetalingskilde"] = json!({"$variant":"Pbl18Arbejdsgiverindbetaling"});
+        employer["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(4000);
+        let mut private = contribution();
+        private["betaling"]["beløb_kroner"] = json!(22701);
+        let (plan, gross, net) = match name {
+            "alternate-lifetime" => ("Pbl18LivsvarigLivrente", 50000, 46000),
+            "alternate-over-cap" => ("Pbl18Rateforsikring", 100000, 92000),
+            "mixed-rate-lifetime" => {
+                employer["betaling"]["beløb_kroner"] = json!(25000);
+                employer["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(2000);
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([employer]);
+                ("Pbl18LivsvarigLivrente", 25000, 23000)
+            }
+            "mixed-rate-private" => {
+                private["betaling"]["beløb_kroner"] = json!(5000);
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([employer, private]);
+                ("Pbl18OphørendeLivrente", 50000, 46000)
+            }
+            "alternate-private-boundary" => {
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([private]);
+                ("Pbl18Rateopsparing", 50000, 46000)
+            }
+            "canonical-private-boundary" => {
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([employer, private]);
+                ("Pbl18Rateopsparing", 0, 0)
+            }
+            "young-alternate-lifetime" => {
+                input["lønmodtager"]["personfradrag_alder_status"] =
+                    json!({"$variant":"Under18Ugift"});
+                input["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(2009);
+                ("Pbl18LivsvarigLivrente", 50000, 50000)
+            }
+            "taxable-aldersopsparing" => ("Pbl18Aldersopsparing", 990, 911),
+            _ => ("Pbl18Rateopsparing", 50000, 46000),
+        };
+        if name != "canonical-private-boundary" {
+            input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["arbejdsgiverydelser"] =
+                json!([employer_benefit_pension(name, plan, Some(gross), net)]);
+        }
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), names.len());
+    for (row, name) in results.iter().zip(names) {
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{name}: {}",
+            result["vurdering"]
+        );
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        let bridge = &result["pension"]["arbejdsgiverydelser_resultat"];
+        assert_eq!(bridge["alle_input_gyldige"], true);
+        assert_eq!(
+            bridge["kildeposter"].as_array().unwrap().len(),
+            usize::from(name != "canonical-private-boundary")
+        );
+        let (employment, job, extra, private, personal, tax) = match name {
+            "alternate-over-cap" | "mixed-rate-private" => {
+                (38250, 2916, 8244, 0, 207300, Some(5867580))
+            }
+            "alternate-private-boundary" | "canonical-private-boundary" => {
+                (31875, 666, 8244, 22700, 161300, None)
+            }
+            "young-alternate-lifetime" => (31875, 666, 6000, 0, 200000, Some(4263386)),
+            "taxable-aldersopsparing" => (25626, 0, 0, 0, 184911, None),
+            _ => (31875, 666, 5520, 0, 184000, Some(5308213)),
+        };
+        assert_eq!(
+            result["skat"]["beskæftigelsesfradrag_kroner"], employment,
+            "{name}"
+        );
+        assert_eq!(result["skat"]["jobfradrag_kroner"], job, "{name}");
+        assert_eq!(
+            result["skat"]["ekstra_pensionsfradrag_kroner"], extra,
+            "{name}"
+        );
+        assert_eq!(
+            result["skat"]["personlig_indkomst_efter_am_kroner"], personal,
+            "{name}"
+        );
+        assert_eq!(
+            result["skat"]["arbejdsmarkedsbidrag_kroner"],
+            if name == "young-alternate-lifetime" {
+                0
+            } else {
+                16000
+            },
+            "{name}"
+        );
+        assert_eq!(
+            result["pension"]["pbl18_årsresultat"]["rate_og_ophørende_fradrag_kroner"], private,
+            "{name}"
+        );
+        if let Some(tax) = tax {
+            assert_eq!(
+                result["vurdering"]["slutskat_til_sammenligning_øre"], tax,
+                "{name}"
+            );
+        }
+        if name.ends_with("private-boundary") {
+            assert_eq!(
+                result["pension"]["pbl18_årsresultat"]
+                    ["egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner"],
+                1
+            );
+        }
+        println!(
+            "{name}: employment={employment}, extra={extra}, private={private}, tax-øre={}",
+            result["vurdering"]["slutskat_til_sammenligning_øre"]
+        );
+    }
+    // Same payment facts in either route produce identical final taxes and
+    // private cap; the original source lists remain distinct in the trace.
+    assert_eq!(results[5]["result"]["skat"], results[6]["result"]["skat"]);
+    assert_eq!(
+        results[5]["result"]["vurdering"]["slutskat_til_sammenligning_øre"],
+        results[6]["result"]["vurdering"]["slutskat_til_sammenligning_øre"]
+    );
+}
+
+#[test]
+fn employer_pension_routes_reject_missing_facts_and_duplicate_payments() {
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    let specs = [
+        (
+            "missing-gross",
+            "indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner",
+        ),
+        ("duplicate-across-routes", "identifikation"),
+        ("unsupported-special-plan", "ordning"),
+        ("gross-below-net", "arbejdsgiverydelser"),
+        ("wrong-year", "arbejdsgiverydelser"),
+        ("duplicate-in-route", "arbejdsgiverydelser"),
+        (
+            "spouse-missing-gross",
+            "indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner",
+        ),
+    ];
+    let mut cases = Vec::new();
+    for (name, _) in specs {
+        let mut input = baseline.clone();
+        let mut post = employer_benefit_pension(
+            "source-payment",
+            "Pbl18LivsvarigLivrente",
+            Some(50000),
+            46000,
+        );
+        match name {
+            "missing-gross" | "spouse-missing-gross" => {
+                post["ydelse"]["fakta"]
+                    ["indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner"] =
+                    Value::Null
+            }
+            "gross-below-net" => {
+                post["ydelse"]["fakta"]
+                    ["indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner"] =
+                    json!(45000)
+            }
+            "unsupported-special-plan" => {
+                post["ydelse"]["fakta"]["ordning"] = json!({"$variant":"Pbl18Indeksordning"})
+            }
+            "wrong-year" => post["indkomstår"] = json!(2025),
+            "duplicate-across-routes" => {
+                let mut payment = contribution();
+                payment["identifikation"] = json!("source-payment");
+                payment["ordning"] = json!({"$variant":"Pbl18LivsvarigLivrente"});
+                payment["indbetalingskilde"] = json!({"$variant":"Pbl18Arbejdsgiverindbetaling"});
+                payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(4000);
+                input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([payment]);
+            }
+            _ => {}
+        }
+        input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["arbejdsgiverydelser"] =
+            if name == "duplicate-in-route" {
+                json!([post.clone(), post])
+            } else {
+                json!([post])
+            };
+        if name == "spouse-missing-gross" {
+            let facts: serde_json::Map<String, Value> = [
+                "lønmodtager",
+                "kapitalindkomst",
+                "aktieavance",
+                "udenlandske_sociale_bidrag",
+                "cfc",
+                "skatteforhold",
+                "underskudsforhold",
+                "ejendomsskatter",
+            ]
+            .into_iter()
+            .map(|key| (key.into(), input[key].clone()))
+            .collect();
+            input = baseline.clone();
+            input["ægtefælle"] = json!({"$variant":"MedÆgtefælle","fakta":facts,"samlevende_ved_indkomstårets_udløb":true,"kildeskat25a_fordelinger":[]});
+        }
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), specs.len());
+    for (row, (name, suffix)) in results.iter().zip(specs) {
+        let gate = &row["result"]["vurdering"];
+        assert_eq!(gate["alle_kontroller_gyldige"], false, "{name}");
+        assert_eq!(
+            gate["slutskat_til_sammenligning_øre"],
+            Value::Null,
+            "{name}"
+        );
+        let prefix = if name.starts_with("spouse-") {
+            "ægtefælle.MedÆgtefælle.fakta."
+        } else {
+            ""
+        };
+        assert!(
+            gate["fejl"].as_array().unwrap().iter().any(|error| {
+                let path = error["sti"].as_str().unwrap();
+                path.starts_with(prefix) && path.ends_with(suffix)
+            }),
+            "{name}: {gate}"
+        );
+        if name == "missing-gross" {
+            assert_eq!(
+                row["result"]["pension"]["arbejdsgiverydelser_resultat"]["kildeposter"][0]
+                    ["ydelse"]["fakta"]
+                    ["indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner"],
+                Value::Null
+            );
+        }
+        println!("{name}: comparison withheld, actionable source-path diagnostic");
+    }
 }
 
 #[test]

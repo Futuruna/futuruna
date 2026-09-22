@@ -16,6 +16,7 @@
 @ importer ./personskat - etableringskonto - beregningsmeta
 @ importer ./personskat - personlig - indkomst - beregningsmeta
 @ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat - pensionsindbetalinger
 @ importer ./personskat - par3 - stk2 - nr2 - beregningsmeta
 @ importer ./personskat - par3 - erhvervsposter - beregningsmeta
 @ importer ./personskat - par4 - finansielle - poster - beregningsmeta
@@ -160,7 +161,7 @@
 # PersonskatPensionsOplysningsstatus(aktuelle_oplysninger_komplette: Boolsk, foregående_oplysninger_komplette: Boolsk, foregående_oplysninger_nødvendige: Boolsk, foregående_oplysninger_tilstrækkelige: Boolsk)
 # PersonskatPensionsInput(fødselsdato: Dato, udbetalingsoplysninger: PersonskatPensionsudbetalingsoplysninger, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl14b_årsgrundlag: Pbl14BÅrsgrundlag, ambl_par2_stk1_nr5_årsgrundlag: AmblPar2Nr5Årsgrundlag, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl14b_resultat: Pbl14BÅrsresultat, aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner: Heltal, samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_året_kroner: Heltal, modregnet_efter_ligningslov9l_i_året_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
-# PersonskatPensionsResultat(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, oplysningsstatus: PersonskatPensionsOplysningsstatus, pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, arbejdsgiver_rate_resultat: Pbl19RateÅrsresultat, ambl_par2_stk1_nr5_resultat: AmblPar2Nr5Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
+# PersonskatPensionsResultat(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, oplysningsstatus: PersonskatPensionsOplysningsstatus, pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, arbejdsgiverydelser_resultat: PersonskatPensionsArbejdsgiverydelserResultat, arbejdsgiver_rate_resultat: Pbl19RateÅrsresultat, ambl_par2_stk1_nr5_resultat: AmblPar2Nr5Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
@@ -10080,7 +10081,7 @@
     path = "lønmodtager.pension.pbl18_indbetalinger.identifikation",
     label = "Pensionsindbetaling",
     question = Some("Hvilken entydig identifikation skal denne pensionsindbetaling have?"),
-    help = Some("Brug en stabil identifikation for ordningen eller betalingen, så dens beregning og fradrag kan spores særskilt."),
+    help = Some("Brug en stabil identifikation for hver betaling, så den kan spores. Samme betaling må ikke også stå under personlig_indkomst.ordinære_forhold.arbejdsgiverydelser. To reelt forskellige betalinger kan have samme beløb, men skal have forskellige identifikationer."),
     unit = None
 )
 = personskat_felt_pbl18_ordning = Beregningsfelt(
@@ -17386,7 +17387,9 @@ fraflytningen."
 # PersonskatPensionsSag(input: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigÅrsresultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
     -- Rateoverskud er indkomst allerede før beregning af private pensionsfradrag.
     -- Årsgrænsen afhænger kun af år og betalingsfakta, ikke af den indkomst.
-    | arbejdsgiver_rate_resultat() -> pbl19_rate_årsresultat(input.lønmodtager.skatteår, input.lønmodtager.pension.pbl18_indbetalinger)
+    | arbejdsgiverydelser_resultat() -> personskat_pensions_arbejdsgiverydelser_resultat(input.lønmodtager.skatteår, input.lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser, input.lønmodtager.pension.pbl18_indbetalinger)
+    | arbejdsgiverydelser_rate_am_kroner() -> arbejdsgiverydelser_resultat().rate_før_am_kroner - arbejdsgiverydelser_resultat().rate_efter_am_kroner
+    | arbejdsgiver_rate_resultat() -> pbl19_rate_årsresultat_med_supplerende_indbetalinger(input.lønmodtager.skatteår, input.lønmodtager.pension.pbl18_indbetalinger, arbejdsgiverydelser_resultat().rate_før_am_kroner, arbejdsgiverydelser_rate_am_kroner())
     | ambl_par2_stk1_nr5_resultat() -> ambl_par2_nr5_årsresultat(
         input.lønmodtager.skatteår,
         input.lønmodtager.pension.ambl_par2_stk1_nr5_årsgrundlag
@@ -17414,7 +17417,7 @@ fraflytningen."
         par15b_årsgrundlag = input.lønmodtager.pension.pbl15b_årsgrundlag,
         indbetalinger = input.lønmodtager.pension.pbl18_indbetalinger
     )
-    | årsresultat() -> pbl18_årsresultat(årsinput())
+    | årsresultat() -> pbl18_årsresultat_med_supplerende_arbejdsgiverrate(årsinput(), arbejdsgiverydelser_resultat().rate_før_am_kroner, arbejdsgiverydelser_rate_am_kroner())
     | aktiepensionsfradrag_valg_resultat() -> match input.lønmodtager.pension.aktiepensionsfradrag_valg {
         | UdenAktiepensionsfradragIAktieindkomst -> par4a_intet_pensionsfradrag_valg(input.lønmodtager.skatteår)
         | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner, meddelelse_dato_yyyymmdd, omgørelse_dato_yyyymmdd) -> par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
@@ -17435,12 +17438,12 @@ fraflytningen."
         aktiepensionsfradrag_resultat()
     )
     | arbejdsgiver_rate_og_ophørende_efter_am_kroner() -> hvis årsresultat().input_gyldigt { arbejdsgiver_rate_resultat().bortseelsesberettiget_efter_am_kroner } ellers { 0 }
-    | arbejdsgiver_øvrige_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner } ellers { 0 }
+    | arbejdsgiver_øvrige_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner + arbejdsgiverydelser_resultat().livsvarig_livrente_efter_am_kroner } ellers { 0 }
     -- LL §§ 9 J/K, jf. AMBL § 2, stk. 1, nr. 4: almindelig arbejdsgiverlivrente
     -- indgår før AM. LL § 9 L bruger fortsat beløbet efter det oplyste AM-bidrag.
     -- Bevar kildebeløbet; udled aldrig brutto ved at dividere netto med 0,92.
     | arbejdsgiver_livsvarig_livrente_før_am_kroner() -> hvis årsresultat().input_gyldigt {
-        foldl(input.lønmodtager.pension.pbl18_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && indbetaling.ordning == Pbl18LivsvarigLivrente && pbl18_årsindbetaling_fradragsår(indbetaling) == input.lønmodtager.skatteår { indbetaling.betaling.beløb_kroner } ellers { 0 })
+        arbejdsgiverydelser_resultat().livsvarig_livrente_før_am_kroner + foldl(input.lønmodtager.pension.pbl18_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && indbetaling.ordning == Pbl18LivsvarigLivrente && pbl18_årsindbetaling_fradragsår(indbetaling) == input.lønmodtager.skatteår { indbetaling.betaling.beløb_kroner } ellers { 0 })
     } ellers { 0 }
     | pensionsalder_resultat() -> ll9l_pensionsalder_resultat(input.lønmodtager.skatteår, input.lønmodtager.pension.fødselsdato)
     -- Afklar kun ukendt historik, hvis den stadig kan ændre LL § 9 L-fradraget.
@@ -17480,6 +17483,7 @@ fraflytningen."
         oplysningsstatus = oplysningsstatus(),
         pbl18_årsinput = årsinput(),
         pbl18_årsresultat = årsresultat(),
+        arbejdsgiverydelser_resultat = arbejdsgiverydelser_resultat(),
         arbejdsgiver_rate_resultat = arbejdsgiver_rate_resultat(),
         ambl_par2_stk1_nr5_resultat = ambl_par2_stk1_nr5_resultat(),
         udbetalingsresultat = udbetalingsresultat,
@@ -19277,7 +19281,7 @@ fraflytningen."
 -- Kontroller kun domænernes samlede gyldighed, ikke vilkårlige boolske felter.
 -- Samme kontrolpakke anvendes på hovedpersonen og en faktisk beregnet ægtefælle.
 > personskat_person_inputkontroller(grundlag: PersonskatPersonGrundlagResultat, præfiks: Tekst, indkomstår: Heltal) -> List(PersonskatInputkontrol) {
-    [
+    concat([
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.boligjob", gyldig = grundlag.ligningsfradrag.boligjob.input_gyldigt, forklaring = "Årets service- og håndværkerudgifter skal være afklaret med gyldige bilag, datoer og fordeling. Ukendt eller uden for modellens omfang er ikke nul; se ligningsfradrag.boligjob."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.enlig_forsørger", gyldig = grundlag.enligforsørgerfradrag.input_gyldigt, forklaring = "Årets ekstra børnetilskud skal være afklaret med gyldige kvartaler og kildereferencer; uoplyst er ikke nul. Se enligforsørgerfradrag.fejl."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.skatteår", gyldig = grundlag.fakta.lønmodtager.skatteår == indkomstår && skatteår_understøttet(indkomstår), forklaring = "Personens indkomstår skal være understøttet og stemme med husstandens beregningsår."),
@@ -19296,7 +19300,7 @@ fraflytningen."
         PersonskatInputkontrol(sti = præfiks + "aktieavance", gyldig = grundlag.aktieavance.alle_input_gyldige, forklaring = "Aktive aktieforløb, kildeidentiteter og tabs-/fradragssamordning skal være gyldige."),
         PersonskatInputkontrol(sti = præfiks + "udenlandske_sociale_bidrag", gyldig = personskat_udenlandske_sociale_bidrag_input_gyldigt(grundlag.udenlandske_sociale_bidrag), forklaring = "Aktive udenlandske socialbidrag skal have gyldige fakta og forenelig skattepligt."),
         PersonskatInputkontrol(sti = præfiks + "cfc", gyldig = grundlag.cfc.alle_input_gyldige, forklaring = "Aktive CFC-forhold skal opfylde deres kildemodels kontroller.")
-    ]
+        ], map(grundlag.pension.arbejdsgiverydelser_resultat.kontroller, |kontrol: PersonskatInputkontrol| PersonskatInputkontrol(sti = præfiks + kontrol.sti, gyldig = kontrol.gyldig, forklaring = kontrol.forklaring)))
 }
 > personskat_ægtefælle_inputkontroller(ægtefælle: PersonskatÆgtefælleBeregningResultat, indkomstår: Heltal) -> List(PersonskatInputkontrol) {
     match ægtefælle {
