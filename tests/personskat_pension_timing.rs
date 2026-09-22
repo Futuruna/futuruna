@@ -123,6 +123,151 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
 }
 
 #[test]
+fn young_worker_keeps_birth_date_before_pension_deductions() {
+    let (envelope, mut input) = fictional_input();
+    input["lønmodtager"]["bruttoløn_kroner"] = json!(100000);
+    input["lønmodtager"]["personfradrag_alder_status"] = json!({"$variant":"Under18Ugift"});
+    input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":2009,"måned":12,"dag":31});
+    input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let results = calculate(
+        envelope,
+        vec![json!({"case_id":"young-worker", "input":input})],
+    );
+    let result = &results[0]["result"];
+    assert_eq!(result["vurdering"]["alle_kontroller_gyldige"], true);
+    // LOV 96/2025 §1 and §7(4): zero AM throughout 2026 when turning 17.
+    // https://www.retsinformation.dk/eli/lta/2025/96/pdf
+    assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], 0);
+    assert_eq!(
+        result["pension"]["pbl18_årsinput"]["personlig_indkomst_før_pensionsfradrag_kroner"],
+        100000,
+        "The preliminary pension basis must use the taxpayer's birth date, not a fictional adult"
+    );
+    assert_eq!(result["skat"]["personlig_indkomst_efter_am_kroner"], 50000);
+}
+
+#[test]
+fn young_worker_year_and_birthday_boundaries_keep_the_income_basis() {
+    let (envelope, baseline) = fictional_input();
+    let specifications = [
+        (
+            "seventeen-before-reform",
+            2025,
+            2008,
+            12,
+            31,
+            50000,
+            8000,
+            false,
+        ),
+        ("seventeen-january-birthday", 2026, 2009, 1, 1, 0, 0, false),
+        (
+            "eighteen-january-birthday",
+            2026,
+            2008,
+            1,
+            1,
+            50000,
+            8000,
+            false,
+        ),
+        (
+            "eighteen-december-birthday",
+            2026,
+            2008,
+            12,
+            31,
+            50000,
+            8000,
+            false,
+        ),
+        ("adult-spouse", 2026, 2008, 1, 1, 50000, 8000, true),
+    ];
+    let mut cases = Vec::new();
+    for (name, year, birth_year, month, day, paid, _, is_spouse) in specifications {
+        let mut input = baseline.clone();
+        input["lønmodtager"]["skatteår"] = json!(year);
+        input["lønmodtager"]["bruttoløn_kroner"] = json!(100000);
+        input["lønmodtager"]["personfradrag_alder_status"] = json!({"$variant":
+            if year - birth_year < 18 { "Under18Ugift" } else { "Fyldt18EllerGift" }});
+        input["lønmodtager"]["pension"]["fødselsdato"] =
+            json!({"år":birth_year,"måned":month,"dag":day});
+        input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+            json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+        let mut payment = contribution();
+        payment["betaling"]["beløb_kroner"] = json!(paid);
+        payment["betaling"]["forfaldsår"] = json!(year);
+        payment["betaling"]["betalingsår"] = json!(year);
+        input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = if paid == 0 {
+            json!([])
+        } else {
+            json!([payment])
+        };
+        if is_spouse {
+            let mut facts = serde_json::Map::new();
+            for field in [
+                "lønmodtager",
+                "kapitalindkomst",
+                "aktieavance",
+                "udenlandske_sociale_bidrag",
+                "cfc",
+                "skatteforhold",
+                "underskudsforhold",
+                "ejendomsskatter",
+            ] {
+                facts.insert(field.into(), input[field].clone());
+            }
+            input["ægtefælle"] = json!({"$variant":"MedÆgtefælle", "fakta":facts,
+                "samlevende_ved_indkomstårets_udløb":true, "kildeskat25a_fordelinger":[]});
+            input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
+        }
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), specifications.len());
+    for (row, (name, year, _, _, _, paid, am, is_spouse)) in results.iter().zip(specifications) {
+        assert_eq!(row["case_id"], name);
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{name}: {}",
+            result["vurdering"]
+        );
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        let pension = if is_spouse {
+            &result["ægtefælle"]["grundlag"]["pension"]
+        } else {
+            &result["pension"]
+        };
+        assert_eq!(
+            pension["pbl18_årsinput"]["personlig_indkomst_før_pensionsfradrag_kroner"],
+            100000 - am,
+            "{name}"
+        );
+        if !is_spouse {
+            assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], am, "{name}");
+            assert_eq!(
+                result["skat"]["personlig_indkomst_efter_am_kroner"],
+                100000 - am - paid,
+                "{name}"
+            );
+            // A zero contribution rate does not remove the wage income from
+            // the employment-deduction basis (L117/2024-25 notes to §1).
+            assert_eq!(
+                result["skat"]["beskæftigelsesfradrag_kroner"],
+                if year == 2025 { 12300 } else { 12750 },
+                "{name}"
+            );
+        }
+        eprintln!(
+            "{name}: preliminary income {} kr.; AM {am} kr.; pension contribution {paid} kr.",
+            100000 - am
+        );
+    }
+}
+
+#[test]
 fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts() {
     let (envelope, mut input) = fictional_input();
     input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
