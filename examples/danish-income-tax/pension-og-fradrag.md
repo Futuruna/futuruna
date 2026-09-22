@@ -122,9 +122,66 @@ også indeholde andre særskilt modellerede bidragsgrundlag. Tidligere resultate
 kan undervurdere fradragene. Beregn berørte sager igen fra kildefakta med en
 ny skabelon; ret ikke blot slutskatten eller en gammel kontrakthash.
 
-Eksemplet dækker ikke ATP, særlige pensionsordninger eller
-arbejdsgiverindbetalinger over rateloftet. De kræver særskilt kontrol og må
-ikke presses ind som almindelig livrente for at få tallene til at stemme.
+Eksemplet dækker ikke ATP eller særlige pensionsordninger. De kræver særskilt
+kontrol og må ikke presses ind som almindelig livrente for at få tallene til
+at stemme. Arbejdsgiverbetalinger over den almindelige rategrænse behandles
+som beskrevet nedenfor.
+
+### Hvis arbejdsgiveren har indbetalt over rategrænsen
+
+Den fælles grænse for almindelig ratepension og ophørende livrente gælder
+**efter indeholdt AM-bidrag**, på tværs af ordninger. Arbejdsgiverbidrag har
+prioritet over private bidrag. Overskud fra arbejdsgiverordningen er personlig
+indkomst; det giver ikke ekstra pensionsfradrag. Skattestyrelsen henfører
+det til rubrik 347, hvor der ikke skal betales AM igen.
+[Vejledningen om rategrænsen og prioritet](https://info.skat.dk/data.aspx?oid=2048285),
+[Skattestyrelsens pensionsguide](https://skat.dk/borger/pension-og-efterloen/fradrag-for-indbetalinger-til-pension),
+[oplysningsskemaets indkomstgrupper](https://skat.dk/media/s3hff0yh/04003-plus-04068-2025-t.pdf).
+
+For en fiktiv voksen i 2026 med 100.000 kr. i arbejdsgiverbetalt ratepension
+og 8.000 kr. i dokumenteret pensions-AM viser
+`pension.arbejdsgiver_rate_resultat`:
+
+| Størrelse | Beløb |
+| --- | --- |
+| Indbetaling efter AM | 92.000 kr. |
+| Fælles rategrænse og bortseelsesberettiget beløb | 68.700 kr. |
+| Overskud til personlig indkomst uden nyt AM | 23.300 kr. |
+
+Ved 200.000 kr. i øvrigt løngrundlag bliver den personlige indkomst før
+private pensionsfradrag 184.000 + 23.300 = 207.300 kr. Ved 12 %-satsen
+er det ekstra pensionsfradrag 8.244 kr. Med dette arbejdsgiverbidrag er der
+ingen resterende fradragsplads til privat ratepension. Modellen tilføjer selv
+overskuddet fra rækkerne i `pbl18_indbetalinger`; indtast ikke de samme
+23.300 kr. igen som anden indkomst eller som en rubrik 347-samlepost.
+
+Beskæftigelses- og jobfradrag omfatter både den bortseelsesberettigede
+pension og det skattepligtige arbejdsvederlag. Her tælles det dokumenterede
+bruttobeløb derfor én gang, også over grænsen. At begrænse dette samlede
+grundlag til 68.700 kr. ville være en anden fejl.
+[Lovforarbejderne til LL § 9 J, til § 1, nr. 1 og 2](https://www.retsinformation.dk/eli/ft/201712L00238).
+
+Kontakt udbyderen om en eventuel overførsel til livrente. Modellen vælger
+ikke en overførsel for dig. En almindelig tilbagebetaling af rateoverskud
+giver ikke i sig selv et nyt fradrag i indbetalingsåret. En overførsel kan
+ændre indberetningen; brug da dokumenterede, korrigerede oplysninger.
+[Skattestyrelsens beskrivelse af valgmulighederne](https://skat.dk/borger/pension-og-efterloen/fradrag-for-indbetalinger-til-pension).
+
+Den rettede beregning gælder den kanoniske pensionsliste. Den alternative
+§ 19-gren under `personlig_indkomst.ordinære_forhold.arbejdsgiverydelser`
+er endnu ikke afstemt med denne fælles rateberegning. Brug ikke begge veje
+for samme betaling, og antag ikke, at blandede indberetningsveje er dækket.
+Særlige ordninger efter §§ 15, 15 A og 15 B har egne regler.
+
+**Migration:** Det afledte felt i `LønmodtagerPensionsfradrag` er omdøbt fra
+`pbl19_rate_ophørende_bortseelsesret_før_am_kroner` til
+`pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner`, fordi hele grundlaget
+ikke nødvendigvis har bortseelsesret. Efter-AM-feltet for bortseelsesret
+indeholder nu kun det tilladte beløb. Ældre beregninger med rateoverskud skal
+køres igen. Generer en ny skabelon og overfør gennemgåede kildefakta; ændr
+ikke gamle kontrakthashes. Håndskrevne lavniveau- og delårsinput skal holde
+rateoverskud adskilt fra bruttoløn og samtidig medtage det i øvrig personlig
+indkomst uden nyt AM.
 
 ### Hvis du også får pension udbetalt
 

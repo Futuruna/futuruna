@@ -25,7 +25,7 @@
 omfang som nævnt i ligningslovens § 8 M,
 ----
 
-# LønmodtagerPensionsfradrag(fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_før_am_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
+# LønmodtagerPensionsfradrag(fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
 # LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, øvrig_personlig_indkomst_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # LønmodtagerSkatteforhold(aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # LønmodtagerSkatteloftResult(nedslag: Par19SkatteloftNedslagResultat, input: Par19SkatteloftInput, overskydende_basispoint: Heltal, nedslag_kroner: Heltal)
@@ -61,7 +61,7 @@ omfang som nævnt i ligningslovens § 8 M,
 | lønmodtager_uden_pensionsfradrag(fødselsdato: Dato) -> LønmodtagerPensionsfradrag(
     fødselsdato = fødselsdato,
     pbl18_fradragsberettiget_indbetaling_kroner = 0,
-    pbl19_rate_ophørende_bortseelsesret_før_am_kroner = 0,
+    pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner = 0,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
     pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
     øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = 0,
@@ -72,7 +72,10 @@ omfang som nævnt i ligningslovens § 8 M,
 -- Fiktiv voksen til eksisterende scenarier, ikke en erstatning for personfakta.
 -- Beregninger af en oplyst person bruger lønmodtager_uden_pensionsfradrag(dato).
 | lønmodtager_ingen_ekstra_pensionsfradrag() -> lønmodtager_uden_pensionsfradrag(Dato(år = 1990, måned = 1, dag = 1))
-| lønmodtager_ligningsfradragsgrundlag_kroner(input: LønmodtagerInput) -> input.bruttoløn_kroner + positivt_beløb(input.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_før_am_kroner) + positivt_beløb(input.pensionsfradrag.øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner)
+-- Rategrundlaget omfatter både bortseelsesberettiget pension og skattepligtigt
+-- overskud. Sidstnævnte ligger i øvrig personlig indkomst uden nyt AM, ikke i
+-- bruttoløn; hele det oplyste pensionsbruttobeløb tælles derfor én gang her.
+| lønmodtager_ligningsfradragsgrundlag_kroner(input: LønmodtagerInput) -> input.bruttoløn_kroner + positivt_beløb(input.pensionsfradrag.pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner) + positivt_beløb(input.pensionsfradrag.øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner)
 | ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(
     skatteår = input.skatteår,
     arbejdsmarkedsbidragsgrundlag_kroner = lønmodtager_ligningsfradragsgrundlag_kroner(input),

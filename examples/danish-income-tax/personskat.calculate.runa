@@ -160,7 +160,7 @@
 # PersonskatPensionsOplysningsstatus(aktuelle_oplysninger_komplette: Boolsk, foregående_oplysninger_komplette: Boolsk, foregående_oplysninger_nødvendige: Boolsk, foregående_oplysninger_tilstrækkelige: Boolsk)
 # PersonskatPensionsInput(fødselsdato: Dato, udbetalingsoplysninger: PersonskatPensionsudbetalingsoplysninger, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl14b_årsgrundlag: Pbl14BÅrsgrundlag, ambl_par2_stk1_nr5_årsgrundlag: AmblPar2Nr5Årsgrundlag, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl14b_resultat: Pbl14BÅrsresultat, aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner: Heltal, samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_året_kroner: Heltal, modregnet_efter_ligningslov9l_i_året_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
-# PersonskatPensionsResultat(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, oplysningsstatus: PersonskatPensionsOplysningsstatus, pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, ambl_par2_stk1_nr5_resultat: AmblPar2Nr5Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
+# PersonskatPensionsResultat(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, oplysningsstatus: PersonskatPensionsOplysningsstatus, pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, arbejdsgiver_rate_resultat: Pbl19RateÅrsresultat, ambl_par2_stk1_nr5_resultat: AmblPar2Nr5Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
@@ -10071,9 +10071,9 @@
 )
 = personskat_felt_pbl18_indbetalinger = Beregningsfelt(
     path = "lønmodtager.pension.pbl18_indbetalinger",
-    label = "Pensionsindbetalinger efter PBL § 18",
+    label = "Private og arbejdsgiveradministrerede pensionsindbetalinger",
     question = Some("Hvilke pensionsindbetalinger og pensionsordninger skal indgå i årets beregning?"),
-    help = Some("Tilføj én række pr. ordning og betaling. Futuruna fordeler de fælles årsgrænser på tværs af rækkerne og giver arbejdsgiverindbetalinger lovbestemt prioritet."),
+    help = Some("Tilføj én række pr. ordning og betaling, med brutto og faktisk indeholdt AM. Futuruna fordeler den fælles rategrænse på tværs af rækkerne og giver arbejdsgiverindbetalinger prioritet. Et overskydende ratebeløb fra arbejdsgiveren føres automatisk til personlig indkomst uden nyt AM-bidrag; indtast ikke også samme beløb fra rubrik 347 som anden indkomst. Ved overførsel til en anden pensionsordning bruges de korrigerede indberetninger; en tilbagebetaling giver ikke automatisk et nyt fradrag."),
     unit = None
 )
 = personskat_felt_pbl18_identifikation = Beregningsfelt(
@@ -10094,7 +10094,7 @@
     path = "lønmodtager.pension.pbl18_indbetalinger.indbetalingskilde",
     label = "Hvem foretog indbetalingen",
     question = Some("Blev indbetalingen foretaget af dig, af en arbejdsgiver eller af en hjælpe- eller understøttelsesfond?"),
-    help = Some("Egne indbetalinger kan give fradrag efter PBL § 18. Arbejdsgiverindbetalinger bruges til at reducere den resterende fælles årsgrænse."),
+    help = Some("Egne indbetalinger kan give fradrag efter PBL § 18. Arbejdsgiveradministrerede ratebidrag, også din andel over lønnen, bruger først den fælles rategrænse efter §§ 16 og 19; overskydende ratebidrag bliver personlig indkomst uden nyt AM-bidrag. Livsvarig livrente er ikke underlagt denne rategrænse."),
     unit = None
 )
 = personskat_felt_pbl18_fradragsretshaver = Beregningsfelt(
@@ -17384,6 +17384,9 @@ fraflytningen."
 | personskat_selvstændig_øvrig_personlig_indkomst_regulering_kroner(personlig_indkomst: PersonskatPersonligIndkomstResultat, årsresultat: ArbejdsmarkedsbidragSelvstændigÅrsresultat) -> hvis årsresultat.input_gyldigt { årsresultat.nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner - årsresultat.arbejdsmarkedsbidragsgrundlag_kroner - personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner } ellers { 0 }
 
 # PersonskatPensionsSag(input: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigÅrsresultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
+    -- Rateoverskud er indkomst allerede før beregning af private pensionsfradrag.
+    -- Årsgrænsen afhænger kun af år og betalingsfakta, ikke af den indkomst.
+    | arbejdsgiver_rate_resultat() -> pbl19_rate_årsresultat(input.lønmodtager.skatteår, input.lønmodtager.pension.pbl18_indbetalinger)
     | ambl_par2_stk1_nr5_resultat() -> ambl_par2_nr5_årsresultat(
         input.lønmodtager.skatteår,
         input.lønmodtager.pension.ambl_par2_stk1_nr5_årsgrundlag
@@ -17392,7 +17395,7 @@ fraflytningen."
         skatteår = input.lønmodtager.skatteår,
         kommune = input.lønmodtager.kommune,
         bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner + ligningsfradrag.rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + personskat_selvstændig_bruttolønsregulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) + udbetalingsresultat.samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner + ambl_par2_stk1_nr5_resultat().samlet_skattepligtig_arbejdsgiverindbetaling_kroner + aktieavance.arbejdsmarkedsbidragsgrundlag_kroner,
-        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + aktieavance.øvrig_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + personskat_selvstændig_øvrig_personlig_indkomst_regulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
+        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + aktieavance.øvrig_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + personskat_selvstændig_øvrig_personlig_indkomst_regulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner + arbejdsgiver_rate_resultat().skattepligtig_personlig_indkomst_uden_nyt_am_kroner,
         nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
         ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
         -- Bevar personens AM-alder før PBL § 18-fradraget. En fiktiv voksen
@@ -17431,7 +17434,7 @@ fraflytningen."
         årsresultat(),
         aktiepensionsfradrag_resultat()
     )
-    | arbejdsgiver_rate_og_ophørende_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner - årsresultat().arbejdsgivergrundlag.rate_og_ophørende_am_bidrag_kroner } ellers { 0 }
+    | arbejdsgiver_rate_og_ophørende_efter_am_kroner() -> hvis årsresultat().input_gyldigt { arbejdsgiver_rate_resultat().bortseelsesberettiget_efter_am_kroner } ellers { 0 }
     | arbejdsgiver_øvrige_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner } ellers { 0 }
     -- LL §§ 9 J/K, jf. AMBL § 2, stk. 1, nr. 4: almindelig arbejdsgiverlivrente
     -- indgår før AM. LL § 9 L bruger fortsat beløbet efter det oplyste AM-bidrag.
@@ -17461,7 +17464,7 @@ fraflytningen."
     | lønmodtager_pensionsfradrag() -> LønmodtagerPensionsfradrag(
         fødselsdato = input.lønmodtager.pension.fødselsdato,
         pbl18_fradragsberettiget_indbetaling_kroner = årsresultat().samlet_fradrag_i_skattepligtig_indkomst_kroner,
-        pbl19_rate_ophørende_bortseelsesret_før_am_kroner = hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner } ellers { 0 },
+        pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner = hvis årsresultat().input_gyldigt { arbejdsgiver_rate_resultat().indbetaling_før_am_kroner } ellers { 0 },
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = arbejdsgiver_rate_og_ophørende_efter_am_kroner(),
         pbl19_øvrige_indbetalinger_efter_am_kroner = arbejdsgiver_øvrige_efter_am_kroner(),
         øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = personlig_indkomst.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner + arbejdsgiver_livsvarig_livrente_før_am_kroner(),
@@ -17477,6 +17480,7 @@ fraflytningen."
         oplysningsstatus = oplysningsstatus(),
         pbl18_årsinput = årsinput(),
         pbl18_årsresultat = årsresultat(),
+        arbejdsgiver_rate_resultat = arbejdsgiver_rate_resultat(),
         ambl_par2_stk1_nr5_resultat = ambl_par2_stk1_nr5_resultat(),
         udbetalingsresultat = udbetalingsresultat,
         aktiepensionsfradrag_resultat = aktiepensionsfradrag_resultat(),
@@ -17536,7 +17540,7 @@ fraflytningen."
     skatteår = input.skatteår,
     kommune = input.kommune,
     bruttoløn_kroner = input.bruttoløn_kroner + ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner + ligningsfradrag.rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + personskat_selvstændig_bruttolønsregulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) + pension.udbetalingsresultat.samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner + pension.ambl_par2_stk1_nr5_resultat.samlet_skattepligtig_arbejdsgiverindbetaling_kroner + aktieavance.arbejdsmarkedsbidragsgrundlag_kroner,
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + aktieavance.øvrig_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + personskat_selvstændig_øvrig_personlig_indkomst_regulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + aktieavance.øvrig_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + personskat_selvstændig_øvrig_personlig_indkomst_regulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner + pension.arbejdsgiver_rate_resultat.skattepligtig_personlig_indkomst_uden_nyt_am_kroner,
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
     pensionsfradrag = pension.lønmodtager_pensionsfradrag,

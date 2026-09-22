@@ -123,6 +123,159 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
 }
 
 #[test]
+fn employer_rate_above_cap_is_taxable_without_second_am_charge() {
+    let (envelope, mut input) = fictional_input();
+    input["lønmodtager"]["bruttoløn_kroner"] = json!(200000);
+    input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let mut payment = contribution();
+    payment["indbetalingskilde"] = json!({"$variant":"Pbl18Arbejdsgiverindbetaling"});
+    payment["betaling"]["beløb_kroner"] = json!(100000);
+    payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(8000);
+    input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([payment]);
+    let results = calculate(
+        envelope,
+        vec![json!({"case_id":"employer-over-cap","input":input})],
+    );
+    let result = &results[0]["result"];
+    assert_eq!(result["vurdering"]["alle_kontroller_gyldige"], true);
+    println!(
+        "extra={}, personal={}, AM={}, employment={}, job={}, tax-øre={}",
+        result["skat"]["ekstra_pensionsfradrag_kroner"],
+        result["skat"]["personlig_indkomst_efter_am_kroner"],
+        result["skat"]["arbejdsmarkedsbidrag_kroner"],
+        result["skat"]["beskæftigelsesfradrag_kroner"],
+        result["skat"]["jobfradrag_kroner"],
+        result["vurdering"]["slutskat_til_sammenligning_øre"]
+    );
+    // 92000 after AM, 68700 exempt, 23300 taxable (SKAT box 347).
+    // LL9L: 68700 * 12%; the excess has no further pension deduction.
+    assert_eq!(result["skat"]["ekstra_pensionsfradrag_kroner"], 8244);
+    assert_eq!(result["skat"]["personlig_indkomst_efter_am_kroner"], 207300);
+    assert_eq!(
+        result["pension"]["pbl18_årsinput"]["personlig_indkomst_før_pensionsfradrag_kroner"],
+        207300
+    );
+    assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], 16000);
+    assert_eq!(result["skat"]["beskæftigelsesfradrag_kroner"], 38250);
+    assert_eq!(result["skat"]["jobfradrag_kroner"], 2916);
+    assert_eq!(
+        result["pension"]["arbejdsgiver_rate_resultat"],
+        json!({
+            "indkomstår":2026, "input_gyldigt":true,
+            "indbetaling_før_am_kroner":100000, "indeholdt_am_kroner":8000,
+            "indbetaling_efter_am_kroner":92000, "fælles_rateloft_kroner":68700,
+            "bortseelsesberettiget_efter_am_kroner":68700,
+            "skattepligtig_personlig_indkomst_uden_nyt_am_kroner":23300
+        })
+    );
+}
+
+#[test]
+fn employer_rate_year_cap_boundary_and_private_priority() {
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(200000);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let specs = [
+        ("2025-cap", 2025, 100000, 8000, 65500, false),
+        ("zero-am-at-cap", 2026, 68700, 0, 68700, false),
+        ("zero-am-one-over", 2026, 68701, 0, 68700, false),
+        ("split-and-private", 2026, 100000, 8000, 68700, true),
+    ];
+    let mut cases = Vec::new();
+    for (name, year, gross, am, _, split) in specs {
+        let mut input = baseline.clone();
+        input["lønmodtager"]["skatteår"] = json!(year);
+        if am == 0 {
+            input["lønmodtager"]["personfradrag_alder_status"] = json!({"$variant":"Under18Ugift"});
+            input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":2009,"måned":1,"dag":1});
+        }
+        let mut payment = contribution();
+        payment["identifikation"] = json!(name);
+        payment["indbetalingskilde"] = json!({"$variant":"Pbl18Arbejdsgiverindbetaling"});
+        payment["betaling"]["beløb_kroner"] = json!(if split { gross / 2 } else { gross });
+        payment["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(if split { am / 2 } else { am });
+        payment["betaling"]["forfaldsår"] = json!(year);
+        payment["betaling"]["betalingsår"] = json!(year);
+        if year == 2025 {
+            payment["ordning"] = json!({"$variant":"Pbl18Rateforsikring"});
+        }
+        let mut payments = vec![payment.clone()];
+        if split {
+            payment["identifikation"] = json!("second-employer-terminating-annuity");
+            payment["ordning"] = json!({"$variant":"Pbl18OphørendeLivrente"});
+            payments.push(payment);
+            let mut private = contribution();
+            private["betaling"]["beløb_kroner"] = json!(5000);
+            payments.push(private);
+        }
+        input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!(payments);
+        cases.push(json!({"case_id":name,"input":input}));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), specs.len());
+    for (row, (name, year, gross, am, cap, split)) in results.iter().zip(specs) {
+        assert_eq!(row["case_id"], name);
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{name}: {}",
+            result["vurdering"]
+        );
+        assert!(result["vurdering"]["slutskat_til_sammenligning_øre"].is_i64());
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        let wage_am = if am == 0 { 0 } else { 16000 };
+        let excess = gross - am - cap;
+        let personal = 200000 - wage_am + excess;
+        assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], wage_am);
+        assert_eq!(
+            result["skat"]["personlig_indkomst_efter_am_kroner"],
+            personal
+        );
+        assert_eq!(
+            result["pension"]["pbl18_årsinput"]["personlig_indkomst_før_pensionsfradrag_kroner"],
+            personal
+        );
+        assert_eq!(
+            result["skat"]["ekstra_pensionsfradrag_kroner"],
+            cap * 12 / 100
+        );
+        assert_eq!(
+            result["skat"]["beskæftigelsesfradrag_kroner"],
+            (200000 + gross) * if year == 2025 { 1230 } else { 1275 } / 10000
+        );
+        let job = ((200000 + gross - if year == 2025 { 224500 } else { 235200 }) * 450 / 10000)
+            .min(if year == 2025 { 2900 } else { 3100 });
+        assert_eq!(result["skat"]["jobfradrag_kroner"], job);
+        let rate = &result["pension"]["arbejdsgiver_rate_resultat"];
+        assert_eq!(rate["indbetaling_før_am_kroner"], gross);
+        assert_eq!(rate["indeholdt_am_kroner"], am);
+        assert_eq!(rate["fælles_rateloft_kroner"], cap);
+        assert_eq!(rate["bortseelsesberettiget_efter_am_kroner"], cap);
+        assert_eq!(
+            rate["skattepligtig_personlig_indkomst_uden_nyt_am_kroner"],
+            excess
+        );
+        let private = &result["pension"]["pbl18_årsresultat"];
+        assert_eq!(private["rate_og_ophørende_fradrag_kroner"], 0);
+        assert_eq!(
+            private["egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner"],
+            if split { 5000 } else { 0 }
+        );
+        assert_eq!(
+            result["pension"]["lønmodtager_pensionsfradrag"]
+                ["pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner"],
+            gross
+        );
+        println!(
+            "{name}: exempt={cap}, excess={excess}, personal={personal}, tax-øre={}",
+            result["vurdering"]["slutskat_til_sammenligning_øre"]
+        );
+    }
+}
+
+#[test]
 fn employer_lifetime_and_rate_pensions_keep_gross_employment_basis() {
     let (envelope, mut baseline) = fictional_input();
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(200000);
