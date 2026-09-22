@@ -71,6 +71,9 @@ Object.assign(baseline.lønmodtager, {
   kommune: variant('København'), betaler_kirkeskat: false,
 });
 baseline.lønmodtager.pension.fødselsdato = { år: 1990, måned: 1, dag: 1 };
+baseline.lønmodtager.pension.udbetalingsoplysninger = {
+  for_året_komplette: true, for_foregående_år_komplette: true,
+}; // Explicitly confirmed absence in this fictional person only.
 baseline.lønmodtager.ligningsfradrag.enlig_forsørger = variant('IntetEkstraBørnetilskud');
 baseline.lønmodtager.ligningsfradrag.boligjob = variant('IngenBoligjobudgifter');
 assert.deepEqual(baseline.ægtefælle, variant('UdenÆgtefælle'));

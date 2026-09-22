@@ -88,9 +88,8 @@ fn sport_payout(year: i64, amount: i64) -> Value {
     })
 }
 
-#[test]
-fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+fn fictional_input() -> (Value, Value) {
+    let envelope = run(&["template", MODEL, "--format", "json"]);
     let mut input = envelope["cases"][0]["input"].clone();
     // Fictional resident employee, no church tax/spouse/other income/deductions.
     input["lønmodtager"]["skatteår"] = json!(2026);
@@ -103,6 +102,31 @@ fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts()
         json!({"$variant":"IngenBoligjobudgifter"});
     input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([contribution()]);
+    (envelope, input)
+}
+
+fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
+    envelope["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-pension-timing-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    output["results"].as_array().unwrap().clone()
+}
+
+#[test]
+fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts() {
+    let (envelope, mut input) = fictional_input();
+    input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
     let mut cases = Vec::new();
     let mut expected = Vec::new();
     // Independently derived from LL9L and L238 amendment notes pp5-6:
@@ -201,20 +225,7 @@ fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts()
         cases.push(json!({"case_id":name, "input":case}));
         expected.push((name, extra, offset, taxable));
     }
-    envelope["cases"] = json!(cases);
-    let path = std::env::temp_dir().join(format!(
-        "futuruna-pension-timing-{}-{}.json",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
-    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
-    std::fs::remove_file(path).unwrap();
-    assert_eq!(output["diagnostics"], json!([]));
-    let results = output["results"].as_array().unwrap();
+    let results = calculate(envelope, cases);
     assert_eq!(results.len(), expected.len());
     for (row, (name, extra, offset, taxable)) in results.iter().zip(expected) {
         assert_eq!(row["case_id"], name);
@@ -275,5 +286,285 @@ fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts()
             "{name}"
         );
         eprintln!("{name}: extra deduction {extra} kr.; current offset {offset} kr.; current taxable payout {taxable} kr.");
+    }
+}
+
+#[test]
+fn missing_pension_history_is_not_confirmed_zero() {
+    let (envelope, input) = fictional_input();
+    assert_eq!(
+        input["lønmodtager"]["pension"]["udbetalingsoplysninger"],
+        json!({"for_året_komplette":false,"for_foregående_år_komplette":false}),
+        "Template completeness defaults must be unknown, not confirmed absence"
+    );
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    // Complete current facts do not imply complete prior facts. Neither flag
+    // replaces row validity or proves the underlying documents are true.
+    for (
+        name,
+        current_complete,
+        prior_complete,
+        current_amount,
+        prior_amount,
+        prior_exempt,
+        need_history,
+        failure_suffix,
+    ) in [
+        (
+            "unknown-current",
+            false,
+            false,
+            0,
+            0,
+            false,
+            false,
+            Some("for_året_komplette"),
+        ),
+        ("known-no-current", true, false, 0, 0, false, false, None),
+        (
+            "unknown-prior",
+            true,
+            false,
+            30000,
+            0,
+            false,
+            true,
+            Some("for_foregående_år_komplette"),
+        ),
+        (
+            "confirmed-first-year",
+            true,
+            true,
+            30000,
+            0,
+            false,
+            true,
+            None,
+        ),
+        (
+            "known-prior-trigger",
+            true,
+            false,
+            30000,
+            1,
+            false,
+            false,
+            None,
+        ),
+        (
+            "exempt-prior-not-complete",
+            true,
+            false,
+            30000,
+            40000,
+            true,
+            true,
+            Some("for_foregående_år_komplette"),
+        ),
+        (
+            "exempt-prior-complete",
+            true,
+            true,
+            30000,
+            40000,
+            true,
+            true,
+            None,
+        ),
+        (
+            "current-exempt-history-irrelevant",
+            true,
+            false,
+            30000,
+            0,
+            false,
+            false,
+            None,
+        ),
+        (
+            "no-contribution-history-irrelevant",
+            true,
+            false,
+            30000,
+            0,
+            false,
+            false,
+            None,
+        ),
+        (
+            "cap-history-irrelevant",
+            true,
+            false,
+            10000,
+            0,
+            false,
+            false,
+            None,
+        ),
+        (
+            "sport-history-needed",
+            true,
+            false,
+            30000,
+            0,
+            false,
+            true,
+            Some("for_foregående_år_komplette"),
+        ),
+        (
+            "spouse-history-needed",
+            true,
+            false,
+            30000,
+            0,
+            false,
+            true,
+            Some("for_foregående_år_komplette"),
+        ),
+        (
+            "audit-2025",
+            true,
+            false,
+            30000,
+            0,
+            false,
+            true,
+            Some("for_foregående_år_komplette"),
+        ),
+        (
+            "partial-current-with-trigger",
+            false,
+            false,
+            30000,
+            1,
+            false,
+            false,
+            Some("for_året_komplette"),
+        ),
+    ] {
+        let mut case = input.clone();
+        let pension = &mut case["lønmodtager"]["pension"];
+        pension["udbetalingsoplysninger"] = json!({
+            "for_året_komplette":current_complete,"for_foregående_år_komplette":prior_complete});
+        let mut rows = Vec::new();
+        if current_amount > 0 {
+            rows.push(payout(
+                "current",
+                2026,
+                current_amount,
+                name == "current-exempt-history-irrelevant",
+            ));
+        }
+        if prior_amount > 0 {
+            rows.push(payout("prior", 2025, prior_amount, prior_exempt));
+        }
+        pension["øvrige_pbl20_årsgrundlag"]["udbetalinger"] = json!(rows);
+        match name {
+            "no-contribution-history-irrelevant" => pension["pbl18_indbetalinger"] = json!([]),
+            "cap-history-irrelevant" => {
+                // 50k private rate + 55.2k employer lifelong after AM: both
+                // 105.2k and (105.2k-10k) exceed the2026 LL9L base cap87,800.
+                let mut employer = contribution();
+                employer["identifikation"] = json!("fictional-employer-lifelong");
+                employer["indbetalingskilde"] = json!({"$variant":"Pbl18Arbejdsgiverindbetaling"});
+                employer["ordning"] = json!({"$variant":"Pbl18LivsvarigLivrente"});
+                employer["betaling"]["beløb_kroner"] = json!(60000);
+                employer["betaling"]["arbejdsmarkedsbidrag_kroner"] = json!(4800);
+                pension["pbl18_indbetalinger"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(employer);
+            }
+            "sport-history-needed" => {
+                pension["øvrige_pbl20_årsgrundlag"]["udbetalinger"] = json!([]);
+                pension["pbl15b_årsgrundlag"] = sport_payout(2026, 30000);
+            }
+            "audit-2025" => {
+                pension["pbl18_indbetalinger"][0]["betaling"]["forfaldsår"] = json!(2025);
+                pension["pbl18_indbetalinger"][0]["betaling"]["betalingsår"] = json!(2025);
+                pension["øvrige_pbl20_årsgrundlag"]["udbetalinger"][0]["indkomstår"] = json!(2025);
+                case["lønmodtager"]["skatteår"] = json!(2025);
+            }
+            _ => {}
+        }
+        let spouse = name == "spouse-history-needed";
+        if spouse {
+            let facts: serde_json::Map<String, Value> = [
+                "lønmodtager",
+                "kapitalindkomst",
+                "aktieavance",
+                "udenlandske_sociale_bidrag",
+                "cfc",
+                "skatteforhold",
+                "underskudsforhold",
+                "ejendomsskatter",
+            ]
+            .into_iter()
+            .map(|key| (key.into(), case[key].clone()))
+            .collect();
+            case = input.clone();
+            case["lønmodtager"]["pension"]["udbetalingsoplysninger"]["for_året_komplette"] =
+                json!(true);
+            case["ægtefælle"] = json!({"$variant":"MedÆgtefælle", "fakta":facts,
+                "samlevende_ved_indkomstårets_udløb":true,"kildeskat25a_fordelinger":[]});
+        }
+        cases.push(json!({"case_id":name,"input":case}));
+        expected.push((name, need_history, failure_suffix, spouse, prior_complete));
+    }
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), expected.len());
+    for (row, (name, need_history, failure_suffix, spouse, prior_complete)) in
+        results.iter().zip(expected)
+    {
+        let result = &row["result"];
+        assert_eq!(row["case_id"], name);
+        let gate = &result["vurdering"];
+        let pension = if spouse {
+            &result["ægtefælle"]["grundlag"]["pension"]
+        } else {
+            &result["pension"]
+        };
+        assert_eq!(
+            pension["oplysningsstatus"]["foregående_oplysninger_nødvendige"], need_history,
+            "{name}"
+        );
+        assert_eq!(
+            pension["oplysningsstatus"]["foregående_oplysninger_komplette"], prior_complete,
+            "{name}: enough information must not be relabelled complete history"
+        );
+        assert_eq!(gate["samlet_modeldækning_bekræftet"], false, "{name}");
+        if name == "cap-history-irrelevant" {
+            assert_eq!(result["skat"]["ekstra_pensionsfradrag_kroner"], 10536);
+        }
+        if let Some(suffix) = failure_suffix {
+            let prefix = if spouse {
+                "ægtefælle.MedÆgtefælle.fakta."
+            } else {
+                ""
+            };
+            let path = format!("{prefix}lønmodtager.pension.udbetalingsoplysninger.{suffix}");
+            assert_eq!(gate["alle_kontroller_gyldige"], false, "{name}: {gate}");
+            assert_eq!(
+                gate["slutskat_til_sammenligning_øre"],
+                Value::Null,
+                "{name}"
+            );
+            assert!(
+                gate["fejl"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["sti"] == path),
+                "{name}: {gate}"
+            );
+        } else {
+            assert_eq!(gate["alle_kontroller_gyldige"], true, "{name}: {gate}");
+            assert!(gate["slutskat_til_sammenligning_øre"].is_i64(), "{name}");
+        }
+        eprintln!(
+            "{name}: prior history can still matter={need_history}; comparison allowed={}",
+            failure_suffix.is_none()
+        );
     }
 }

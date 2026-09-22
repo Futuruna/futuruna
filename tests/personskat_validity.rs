@@ -87,6 +87,9 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     ordinary["lønmodtager"]["skatteår"] = json!(2025);
     ordinary["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     ordinary["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
+    // Confirmed absence for this fictional fixture, not an input default.
+    ordinary["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
     let mut cases = Vec::new();
     let mut expectations = Vec::new();
     let mut add =
