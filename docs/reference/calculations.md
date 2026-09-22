@@ -346,7 +346,12 @@ reinitialized before another case. This boundary is not a sandbox for effects
 or a guarantee of recovery from process termination or resource exhaustion.
 
 Calculation workbooks must be `.xlsx`. VBA projects and formulas in the input
-sheet are rejected. Unknown columns, duplicate or empty case identifiers,
+sheet are rejected. JSON input documents and canonical JSON workbook cells
+reject duplicate object member names at every depth, including escaped names
+that decode to the same key. This also applies to template hydration: ambiguous
+values are never normalized by choosing the first or last occurrence.
+
+Unknown columns, duplicate or empty case identifiers,
 duplicate item identifiers, list positions, or map keys, orphaned parent rows,
 non-exact integers, invalid enum choices, missing required fields, and malformed
 canonical JSON are rejected before their case runs. A bad related row invalidates

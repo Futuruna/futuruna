@@ -1,0 +1,20 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 12
+-- expect-stdout: 22
+-- expect-stdout: 1002
+-- expect-stdout: 2
+
+| amount(value: Int) -> value + 1000
+> module First {
+    | amount(value: Int) -> value + 10
+    | amounts(value: Int) -> [value, value + 1]
+}
+> module Second {
+    | amount(value: Int) -> value + 20
+}
+
+@ print(show(First.amount(2)))
+@ print(show(Second.amount(2)))
+@ print(show(amount(2)))
+@ print(show(length(First.amounts(2))))
