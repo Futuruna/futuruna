@@ -180,6 +180,28 @@ Do not add the compiler to a global path or edit the user's environment unless t
 
 Ask the user which of these they want to do first.
 
+### Understand pension changes or possible deductions
+
+For Danish users, an ordinary question can be the first project: “What changes
+if I pay more or less into my pension?” or “Which deductions should I check?”
+Read `examples/danish-income-tax/pension-og-fradrag.md` and start with the
+question, tax year and relevant facts. A PDF or full workbook is not a prerequisite
+for a useful first conversation.
+
+Distinguish pension contributions from payouts, private from employer-managed
+schemes, and annual from monthly amounts. Use the canonical Futuruna model for
+the calculation; do not invent a marginal tax formula. Compare a preserved
+baseline with clearly labelled alternatives, keep validity and coverage warnings,
+and show the contribution, allowed deduction, modeled tax change and change in
+available cash separately. Unknown spouse facts must not become fixed assumed
+transfers in a new scenario.
+
+For deductions, identify relevant candidates, check whether they are already
+included, and name the evidence or next action needed. Do not present a candidate
+as an established entitlement. The guide includes an optional fictional pension
+demo; it is not a replacement for a person's facts. Ordinary JSON calculation
+batches are enough for these questions; no Explore stream is needed.
+
 ### Audit your Annual Tax Report (Årsopgørelse)
 
 Suggest this if the user is from Denmark. Futuruna contains an active research implementation of the Danish personal income-tax model. Ask the user to download their Annual Tax Report as a PDF from [SKAT](https://skat.dk/borger/aarsopgoerelse/aarsopgoerelsen), keep it private, and choose a private working directory. The intended workflow is that you read the PDF with the user, transcribe supported source facts into a generated workbook, and let Futuruna validate and calculate the result deterministically.

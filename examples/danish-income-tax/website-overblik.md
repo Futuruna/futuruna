@@ -4,6 +4,20 @@ Denne side er på dansk, fordi loven og dens retskilder er danske. Siden er
 projektets ene webviste overblik. Lovtekst, regler, scenarier og audits ligger i
 selve Futuruna-projektet under `examples/danish-income-tax/`.
 
+## Begynd med dit eget spørgsmål
+
+Du kan starte med »stemmer min årsopgørelse?«, »hvad ændrer en større eller
+mindre pensionsindbetaling?« eller »hvilke fradrag bør jeg undersøge?«.
+[Pension og fradrag](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/pension-og-fradrag.md)
+viser de relevante spørgsmål, en konkret før/efter-beregning og hvilke bilag
+der er nødvendige. Du behøver ikke begynde med hele skattearbejdsbogen.
+
+Mangler din ægtefælles oplysninger, kan du stadig
+[afstemme din egen årsopgørelse betinget](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/aarsopgoerelse-afstemning.md).
+Resultatet viser blandt andet, hvilke overførsler der skulle være til stede,
+men beviser ikke de ukendte forhold. Modellerne er forskningssoftware, ikke
+individuel skatterådgivning.
+
 ## Et samlet sprog til lov og ret
 
 Futuruna lader den juridiske tekst og den eksekverbare model bo tæt på
