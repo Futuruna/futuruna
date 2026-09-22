@@ -259,6 +259,12 @@ history can still affect the extra deduction; retain unknown history as unknown.
 If the validity assessment withholds the comparison amount, do not use the raw
 tax total instead. The same applies to a calculated spouse.
 
+Review `lønmodtager.pension.atp` even when the person has no company pension.
+It defaults to unknown. Employer-reported ATP includes both employee and employer
+shares; do not substitute the employee's payslip deduction or invent a gross/net
+amount. Use the documented source branch for public-benefit ATP, SUPP or mandatory
+pension savings, and do not also enter the same payment as an ordinary pension.
+
 For deductions, identify relevant candidates, check whether they are already
 included, and name the evidence or next action needed. Do not present a candidate
 as an established entitlement. The guide includes an optional fictional pension

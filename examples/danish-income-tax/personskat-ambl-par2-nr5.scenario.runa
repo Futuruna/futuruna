@@ -5,6 +5,7 @@
 | personskat_ambl_par2_nr5_pensionsinput(årsgrundlag: AmblPar2Nr5Årsgrundlag) -> PersonskatPensionsInput(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     udbetalingsoplysninger = PersonskatPensionsudbetalingsoplysninger(for_året_komplette = Sandt, for_foregående_år_komplette = Sandt),
+    atp = IngenAtpIndbetalinger,
     pbl18_indbetalinger = [],
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,

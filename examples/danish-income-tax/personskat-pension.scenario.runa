@@ -42,6 +42,7 @@
 | personskat_pensionsinput_med_par15a_og_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), par15a_årsgrundlag: Pbl15AÅrsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> PersonskatPensionsInput(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     udbetalingsoplysninger = PersonskatPensionsudbetalingsoplysninger(for_året_komplette = Sandt, for_foregående_år_komplette = Sandt),
+    atp = IngenAtpIndbetalinger,
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
@@ -57,6 +58,7 @@
 | personskat_pensionsinput_med_pbl14b(pbl14b_årsgrundlag: Pbl14BÅrsgrundlag) -> PersonskatPensionsInput(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     udbetalingsoplysninger = PersonskatPensionsudbetalingsoplysninger(for_året_komplette = Sandt, for_foregående_år_komplette = Sandt),
+    atp = IngenAtpIndbetalinger,
     pbl18_indbetalinger = [],
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
@@ -70,6 +72,7 @@
 | personskat_pensionsinput_med_pbl20(indbetalinger: List(Pbl18Årsindbetaling), pbl20_årsgrundlag: Pbl20Årsgrundlag) -> PersonskatPensionsInput(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     udbetalingsoplysninger = PersonskatPensionsudbetalingsoplysninger(for_året_komplette = Sandt, for_foregående_år_komplette = Sandt),
+    atp = IngenAtpIndbetalinger,
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
@@ -83,6 +86,7 @@
 | personskat_pensionsinput_med_par15b(indbetalinger: List(Pbl18Årsindbetaling), par15b_årsgrundlag: Pbl15BÅrsgrundlag) -> PersonskatPensionsInput(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     udbetalingsoplysninger = PersonskatPensionsudbetalingsoplysninger(for_året_komplette = Sandt, for_foregående_år_komplette = Sandt),
+    atp = IngenAtpIndbetalinger,
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,

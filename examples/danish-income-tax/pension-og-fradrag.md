@@ -122,10 +122,78 @@ også indeholde andre særskilt modellerede bidragsgrundlag. Tidligere resultate
 kan undervurdere fradragene. Beregn berørte sager igen fra kildefakta med en
 ny skabelon; ret ikke blot slutskatten eller en gammel kontrakthash.
 
-Eksemplet dækker ikke ATP eller særlige pensionsordninger. De kræver særskilt
-kontrol og må ikke presses ind som almindelig livrente for at få tallene til
-at stemme. Arbejdsgiverbetalinger over den almindelige rategrænse behandles
-som beskrevet nedenfor.
+Eksemplet har udtrykkeligt ingen ATP. Har du ATP, skal den oplyses særskilt
+som beskrevet nedenfor, ikke presses ind som almindelig livrente for at få
+tallene til at stemme. Særlige pensionsordninger kræver deres eget grundlag.
+Arbejdsgiverbetalinger over den almindelige rategrænse behandles nedenfor.
+
+### ATP tæller også, selv om du ikke har firmapension
+
+Årets ATP skal afklares under `lønmodtager.pension.atp`. Skabelonen starter
+med `AtpUoplyst`. Vælg `IngenAtpIndbetalinger` kun efter gennemgang; ellers
+brug `OplysteAtpIndbetalinger` med kildehenvisning, år og poster og bekræft
+først fuldstændighed, når alle kilder er gennemgået. Det gælder også ved
+flere arbejdsgivere eller en del af året på offentlige ydelser.
+
+Find oplysningerne i TastSelv under **Skatteoplysninger → Arbejdsmarkedets
+Tillægspension (ATP)** og i ATPs oversigt. Det er indbetalingernes kildebeløb,
+du skal bruge, ikke årsopgørelsens beregnede ekstra pensionsfradrag.
+[Skattestyrelsens ATP-vejledning](https://skat.dk/borger/pension-og-efterloen/fradrag-for-indbetalinger-til-pension).
+
+Ved arbejdsgiverindberettet ATP er bruttobeløbet i eIndkomst felt 46
+**lønmodtagerens og arbejdsgiverens bidrag i alt**. Dit eget ATP-løntræk er
+ikke hele bidraget. Gæt ikke totalen ud fra løn, timer eller din egen andel.
+Obligatorisk pensionsopsparing på overførselsindkomst har et særskilt felt 47.
+[eIndkomstvejledningen, afsnit 8.2](https://info.skat.dk/data.aspx?oid=2233519).
+
+| Dokumenteret kilde | Beskæftigelses-/jobfradragets grundlag | Ekstra pensionsfradrags grundlag |
+| --- | --- | --- |
+| Arbejdsgiverindberettet ATP, PBL § 19, stk. 1 | Indberettet bidrag før ATPs AM | Indberettet bidrag efter AM |
+| ATP på offentlige ydelser, PBL § 19, stk. 2 | Intet tillæg | Indberettet bidrag efter AM |
+| SUPP indbetalt til ATP, PBL § 19, stk. 4 | Intet tillæg | Indberettet bidrag efter AM |
+| Obligatorisk pension efter ATP-lovens § 17 s, fra 2020 | Intet tillæg | Hele bidraget; AM-fritaget |
+
+Afgrænsningen følger [LL §§ 9 J–9 L](https://www.lovtidende.dk/api/pdf/250970),
+[PBL § 19](https://www.retsinformation.dk/eli/lta/2024/1243/pdf) og
+[AMBL § 3, nr. 5](https://www.retsinformation.dk/eli/lta/2020/121).
+Senior- og enligforsørgerfradrag bruger også arbejdsfradragsgrundlaget, når
+betingelserne for dem er opfyldt. ATP forbruger ikke ratepensionsloftet.
+
+Oplys brutto og dokumenteret netto særskilt i hele kroner fra årets
+beregningsgrundlag. Bevar originale kildebeløb med eventuelle øre; rund ikke
+hver måned på egen hånd for at konstruere en årsindberetning. Der udledes
+ikke automatisk et nettobeløb med 8 % AM: blandt andet blev AM-reglerne for
+unge ændret fra 2026. `null` betyder stadig ukendt, og sammenligningsbeløbet
+tilbageholdes, hvis nødvendige oplysninger mangler. Et forkert netto på
+obligatorisk AM-fritaget pension afvises også.
+
+Løn og offentlige ydelser oplyses som deres særskilte indkomstgrundlag.
+ATP lægges **ikke** tilbage som skattepligtig løn, får ikke et ekstra privat
+§ 18-fradrag og pålægges ikke endnu et AM-bidrag. Vis indberetningerne og de
+to forskellige tillæg i `pension.atp_resultat`. Det ekstra fradrag kan fortsat
+begrænses af loftet eller pensionsudbetalinger; tillægget er ikke sparet skat.
+
+Et kørt, fiktivt 2026-eksempel isolerer forskellen: 200.000 kr. i løngrundlag,
+født i 1990, København, ingen kirkeskat, ægtefælle, andre indkomster,
+pensionsindbetalinger eller -udbetalinger. Med 5.000 kr. arbejdsgiverindberettet
+ATP før AM og 4.600 kr. efter AM bliver beskæftigelsesfradraget 26.137 kr.
+og det ekstra pensionsfradrag 552 kr. Modelleret skat er 55.742,04 kr., mod
+56.020,15 kr. i kontrollen uden ATP: en forskel på 278,11 kr. ATP-beløbet er
+en testværdi, ikke en standardsats eller en valgfri pensionsindbetaling.
+Løn-AM er stadig 16.000 kr.; den allerede indeholdte ATP-AM opkræves ikke igen.
+
+Brug en stabil betalingsidentifikation. Samme betaling i ATP-listen og den
+almindelige pensionsliste eller under arbejdsgiverydelser giver en fejl;
+omdøb ikke dubletten for at omgå kontrollen. Den dedikerede ATP-gren omfatter
+ikke selvstændiges private ATP-indbetalinger eller SUPP hos andre
+pensionsudbydere. Vælg ikke en arbejdsgivergren for sådanne forhold for at
+få et resultat; deres fradragsgrundlag skal behandles særskilt.
+
+**Migration:** `atp` er et nyt påkrævet input. Generer en ny skabelon, overfør
+gennemgåede fakta, og beregn igen. En gammel sag uden feltet beviser ikke,
+at der ingen ATP var. Det gælder også en aktiv ægtefælle og delårsberegning.
+De fiktive pensionsdemonstrationer angiver udtrykkeligt ingen ATP; dette er
+ikke et forslag til standardvalg i en virkelig sag.
 
 ### Hvis arbejdsgiveren har indbetalt over rategrænsen
 

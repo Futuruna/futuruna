@@ -76,6 +76,15 @@ rounding. The output keeps `foregående_oplysninger_komplette` distinct from
 An active spouse and the separate part-year calculation have the same gate.
 See the [Danish pension interview and migration guide](pension-og-fradrag.md).
 
+The required `lønmodtager.pension.atp` input starts as `AtpUoplyst`, not
+confirmed absence. Employer-reported ATP, public-benefit ATP, SUPP paid to ATP
+and mandatory pension savings have different deduction bases. Complete source
+rows must preserve the reported gross/net amounts and payment identities;
+missing net amounts or duplicate payments with other pension routes withhold
+comparison. An active spouse and part-year calculation use the same gate.
+Regenerate older templates and review actual ATP facts, even without company
+pension. The source rows and derived bases remain visible in `pension.atp_resultat`.
+
 Never fill a missing birthday or other unknown fact with a plausible substitute.
 When unavailable spouse facts prevent an independent household calculation, use
 the [conditional report reconciliation](aarsopgoerelse-afstemning.md) instead.
