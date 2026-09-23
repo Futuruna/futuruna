@@ -24,7 +24,9 @@ personlige beregninger, hvis det fejler.
   En relevant mulighed er ikke det samme som dokumenteret fradragsret.
 - **»Stemmer mit beskæftigelsesfradrag ved udenlandsk arbejde?«** Brug den
   [afgrænsede indkomstfordeling](beskaeftigelsesfradrag.md). Den håndterer blandede
-  kilder, men er endnu ikke tilsluttet den samlede Personskat-beregning.
+  kilder og bruges også i den samlede Personskat-beregning. Den enkle sag
+  kræver et dokumenteret nej til mindst én betingelse for alle relevante
+  ansættelser; skabelonens udgangspunkt er uoplyst.
 
 Afklar først indkomståret. En gennemgang af årsopgørelsen for 2025 og en
 planlagt indbetaling i 2026 er to forskellige opgaver. En hypotetisk ændring
@@ -161,6 +163,13 @@ Afgrænsningen følger [LL §§ 9 J–9 L](https://www.lovtidende.dk/api/pdf/250
 [AMBL § 3, nr. 5](https://www.retsinformation.dk/eli/lta/2020/121).
 Senior- og enligforsørgerfradrag bruger også arbejdsfradragsgrundlaget, når
 betingelserne for dem er opfyldt. ATP forbruger ikke ratepensionsloftet.
+
+Ved [udlandsundtagelsen](beskaeftigelsesfradrag.md) følger relevante
+ansættelsesrelaterede pensions- og ATP-bidrag den pågældende kilde i
+arbejdsfradragsgrundlaget. Det ekstra pensionsfradrags eget grundlag ændres
+ikke af denne undtagelse. Opdater fordelingen, hvis et pensionsscenarie ændrer
+grundlaget; en gammel sum må ikke bruges som genvej til et sammenligneligt
+skattebeløb.
 
 Oplys brutto og dokumenteret netto særskilt i hele kroner fra årets
 beregningsgrundlag. Bevar originale kildebeløb med eventuelle øre; rund ikke

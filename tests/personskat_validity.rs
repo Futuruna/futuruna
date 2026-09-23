@@ -6,6 +6,8 @@ use std::process::Command;
 const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
 #[path = "support/boligjob.rs"]
 mod boligjob;
+#[path = "support/foreign_employment.rs"]
+mod foreign_employment;
 
 fn run(args: &[&str]) -> Value {
     // Model-only iteration may reuse a verified binary from the same compiler
@@ -115,6 +117,8 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
         json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
     input["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
         json!({"$variant":"IntetEkstraBørnetilskud"});
+    input["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"] =
+        foreign_employment::no_exclusion();
     input["lønmodtager"]["ligningsfradrag"]["boligjob"] =
         json!({"$variant":"IngenBoligjobudgifter"});
     let mut cases = Vec::new();
@@ -196,6 +200,12 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     );
     ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
         json!({"$variant":"IntetEkstraBørnetilskud"});
+    assert_eq!(
+        ordinary["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"]["$variant"],
+        "ArbejdsfradragUdlandUoplyst"
+    );
+    ordinary["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"] =
+        foreign_employment::no_exclusion();
     assert_eq!(
         ordinary["lønmodtager"]["ligningsfradrag"]["boligjob"]["$variant"],
         "BoligjobUoplyst"

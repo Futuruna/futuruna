@@ -7,6 +7,7 @@
 -- entydig uden at være afhængig af en privat årsopgørelse.
 
 = slutskat_komponenter_input = LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2025,
     kommune = Frederiksberg,
     bruttoløn_kroner = 600000,

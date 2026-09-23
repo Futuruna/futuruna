@@ -211,6 +211,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 | personskat_sømandsfradrag_kildetilknytning(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning) -> Sømandsbeskatningslov4Kildetilknytning(kilde = kilde, arbejdstilknytning = arbejdstilknytning)
 | personskat_sømandsfradrag_fælles_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput, befordring: PersonskatBefordringsfradragInput) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    arbejdsfradrag_udland = personskat_fiktivt_arbejdsfradrag_uden_udlandsudelukkelse(),
     boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4,
@@ -356,6 +357,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     )
     PersonskatLigningsfradragInput(
         enlig_forsørger = fuldt_input.enlig_forsørger,
+        arbejdsfradrag_udland = fuldt_input.arbejdsfradrag_udland,
         boligjob = fuldt_input.boligjob,
         sømandsfradrag = fuldt_input.sømandsfradrag,
         sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),
@@ -381,6 +383,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     )
     PersonskatLigningsfradragInput(
         enlig_forsørger = fuldt_input.enlig_forsørger,
+        arbejdsfradrag_udland = fuldt_input.arbejdsfradrag_udland,
         boligjob = fuldt_input.boligjob,
         sømandsfradrag = fuldt_input.sømandsfradrag,
         sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),

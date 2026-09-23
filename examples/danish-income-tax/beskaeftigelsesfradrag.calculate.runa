@@ -28,7 +28,7 @@
             "Beløbene er almindeligt beskæftigelsesfradrag og jobfradrag, ikke skat eller skattebesparelse. Enligforsørger- og seniorfradrag indgår ikke i disse to beløb.",
             "LL § 9 L ekstra pensionsfradrag har sit eget grundlag og må ikke sættes til nul som følge af denne udlandsundtagelse.",
             "Hele kroner følger den eksisterende models procentprojektion. Den præcise administrative afrundingsregel er ikke uafhængigt verificeret.",
-            "Denne særskilte kontrol er endnu ikke indbygget i den samlede Personskat-beregning. Brug ikke dens uændrede total som en fuld audit af indkomst, der rammes af udlandsundtagelsen."
+            "Personskat bruger samme indkomstfordeling via lønmodtager.ligningsfradrag.arbejdsfradrag_udland. Denne særskilte kontrol beregner ikke slutskat eller udenlandsk skattenedslag."
         ]
     )
 }

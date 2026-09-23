@@ -57,6 +57,7 @@ These constructors encode declared audit facts, not replacement tax formulas.
     profil: Personskat350kCommuterProfile
 ) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    arbejdsfradrag_udland = personskat_fiktivt_arbejdsfradrag_uden_udlandsudelukkelse(),
     boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
