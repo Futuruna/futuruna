@@ -139,7 +139,7 @@ Skatteministeriets officielle tidsserie for centrale skattesatser.
     KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 39),
     KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 120)
 ]
-| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskatter2023 under skatteår == 2023
+| kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskatter2023) under skatteår == 2023
 --@end:kommunale_indkomstskatteparametre_2023--
 
 = skatteministeriet_kommunale_parametre_2024 = KommunaleParametreKildeInfo(
@@ -361,7 +361,7 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 ]
 --@end::kommunale_parametre_2024--
 
-| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskatter2024 under skatteår == 2024
+| kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskatter2024) under skatteår == 2024
 
 = skatteministeriet_kommunale_parametre_2025 = KommunaleParametreKildeInfo(
     år = 2025,
@@ -582,7 +582,7 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 ]
 --@end::kommunale_parametre_2025--
 
-| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskatter2025 under skatteår == 2025
+| kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskatter2025) under skatteår == 2025
 
 = skatteministeriet_kommunale_parametre_2026 = KommunaleParametreKildeInfo(
     år = 2026,
@@ -803,29 +803,29 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 ]
 --@end::kommunale_parametre_2026--
 
-| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskattesatser2026Xlsx under skatteår == 2026
+| kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskattesatser2026Xlsx) under skatteår == 2026
 
 | kommunalt_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2024 || skatteår == 2025 || skatteår == 2026
-| kommunale_parametre_for_år(skatteår: Heltal) -> kommunale_parametre_2024 under skatteår == 2024
-| kommunale_parametre_for_år(skatteår: Heltal) -> kommunale_parametre_2025 under skatteår == 2025
-| kommunale_parametre_for_år(skatteår: Heltal) -> kommunale_parametre_2026 under skatteår == 2026
+| kommunale_parametre_for_år_opslag(skatteår: Heltal) -> Some(kommunale_parametre_2024) under skatteår == 2024
+| kommunale_parametre_for_år_opslag(skatteår: Heltal) -> Some(kommunale_parametre_2025) under skatteår == 2025
+| kommunale_parametre_for_år_opslag(skatteår: Heltal) -> Some(kommunale_parametre_2026) under skatteår == 2026
 | kommunale_parametre_kandidater(skatteår: Heltal, kommune: Kommune) -> filter(kommunale_parametre_for_år(skatteår), |parametre: KommunaleParametre| parametre.kommune == kommune)
 | kommune_understøttet(kommune: Kommune) -> any(alle_kommuner, |kandidat: Kommune| kandidat == kommune)
 | kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> kommunalt_skatteår_understøttet(skatteår) && length(kommunale_parametre_kandidater(skatteår, kommune)) == 1
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(kommunale_parametre_kandidater(skatteår, kommune)) under kommune_understøttet_i_år(skatteår, kommune)
-| kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_kilde_for_år(skatteår) under kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_parametre_værdi_for_opslag(skatteår: Heltal, kommune: Kommune) -> Some(head(kommunale_parametre_kandidater(skatteår, kommune))) under kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_parametre_kilde_opslag(skatteår: Heltal, kommune: Kommune) -> Some(kommunale_parametre_kilde_for_år(skatteår)) under kommune_understøttet_i_år(skatteår, kommune)
 | kommunale_parametre_kildeinfo(kilde: KommunaleParametreKilde) -> match kilde {
     | SkatteministerietKommuneskatter2023 -> skatteministeriet_kommunale_indkomstskatteparametre_2023
     | SkatteministerietKommuneskatter2024 -> skatteministeriet_kommunale_parametre_2024
     | SkatteministerietKommuneskatter2025 -> skatteministeriet_kommunale_parametre_2025
     | SkatteministerietKommuneskattesatser2026Xlsx -> skatteministeriet_kommunale_parametre_2026
 }
-| kommunale_parametre_resultat(skatteår: Heltal, kommune: Kommune) -> KommunaleParametreResultat(
+| kommunale_parametre_resultat_opslag(skatteår: Heltal, kommune: Kommune) -> Some(KommunaleParametreResultat(
     skatteår = skatteår,
     kommune = kommune,
     kilde = kommunale_parametre_kilde(skatteår, kommune),
     parametre = kommunale_parametre_værdi_for(skatteår, kommune)
-) under kommune_understøttet_i_år(skatteår, kommune)
+)) under kommune_understøttet_i_år(skatteår, kommune)
 | kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_resultat(skatteår, kommune).parametre
 
 | kommunale_indkomstskatteparametre_fra_samlede(parametre: KommunaleParametre) -> KommunaleIndkomstskatteparametre(
@@ -843,12 +843,36 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 | kommune_indkomstskat_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Falskt
 | exception kommune_indkomstskat_2023_understøttet kommune_indkomstskat_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under skatteår == 2023 && length(kommunale_indkomstskatteparametre_2023_kandidater(kommune)) == 1
 | exception kommune_indkomstskat_ny_ordning_understøttet kommune_indkomstskat_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommunalt_skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
-| kommunale_indkomstskatteparametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(kommunale_indkomstskatteparametre_2023_kandidater(kommune)) under skatteår == 2023 && kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
-| kommunale_indkomstskatteparametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> kommunale_indkomstskatteparametre_fra_samlede(kommunale_parametre_for(skatteår, kommune)) under kommunalt_skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
-| kommunale_indkomstskatteparametre_resultat(skatteår: Heltal, kommune: Kommune) -> KommunaleIndkomstskatteparametreResultat(
+| kommunale_indkomstskatteparametre_værdi_for_opslag(skatteår: Heltal, kommune: Kommune) -> Some(head(kommunale_indkomstskatteparametre_2023_kandidater(kommune))) under skatteår == 2023 && kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
+| kommunale_indkomstskatteparametre_værdi_for_opslag(skatteår: Heltal, kommune: Kommune) -> Some(kommunale_indkomstskatteparametre_fra_samlede(kommunale_parametre_for(skatteår, kommune))) under kommunalt_skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_indkomstskatteparametre_resultat_opslag(skatteår: Heltal, kommune: Kommune) -> Some(KommunaleIndkomstskatteparametreResultat(
     skatteår = skatteår,
     kommune = kommune,
     kilde = kommunale_parametre_kilde_for_år(skatteår),
     parametre = kommunale_indkomstskatteparametre_værdi_for(skatteår, kommune)
-) under kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
+)) under kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
 | kommunale_indkomstskatteparametre_for(skatteår: Heltal, kommune: Kommune) -> kommunale_indkomstskatteparametre_resultat(skatteår, kommune).parametre
+
+-- Opslag giver None uden for kildens domæne, aldrig en erstatningssats.
+-- De hidtidige værdifunktioner kræver et understøttet år og stopper ved fravær.
+
+| kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> None
+| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> head(match kommunale_parametre_kilde_for_år_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| kommunale_parametre_for_år_opslag(skatteår: Heltal) -> None
+| kommunale_parametre_for_år(skatteår: Heltal) -> head(match kommunale_parametre_for_år_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| kommunale_parametre_værdi_for_opslag(skatteår: Heltal, kommune: Kommune) -> None
+| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(match kommunale_parametre_værdi_for_opslag(skatteår, kommune) { | Some(værdi) -> [værdi] | None -> [] })
+
+| kommunale_parametre_kilde_opslag(skatteår: Heltal, kommune: Kommune) -> None
+| kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> head(match kommunale_parametre_kilde_opslag(skatteår, kommune) { | Some(værdi) -> [værdi] | None -> [] })
+
+| kommunale_parametre_resultat_opslag(skatteår: Heltal, kommune: Kommune) -> None
+| kommunale_parametre_resultat(skatteår: Heltal, kommune: Kommune) -> head(match kommunale_parametre_resultat_opslag(skatteår, kommune) { | Some(værdi) -> [værdi] | None -> [] })
+
+| kommunale_indkomstskatteparametre_værdi_for_opslag(skatteår: Heltal, kommune: Kommune) -> None
+| kommunale_indkomstskatteparametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(match kommunale_indkomstskatteparametre_værdi_for_opslag(skatteår, kommune) { | Some(værdi) -> [værdi] | None -> [] })
+
+| kommunale_indkomstskatteparametre_resultat_opslag(skatteår: Heltal, kommune: Kommune) -> None
+| kommunale_indkomstskatteparametre_resultat(skatteår: Heltal, kommune: Kommune) -> head(match kommunale_indkomstskatteparametre_resultat_opslag(skatteår, kommune) { | Some(værdi) -> [værdi] | None -> [] })

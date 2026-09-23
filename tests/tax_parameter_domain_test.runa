@@ -1,0 +1,52 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / skatteaar - parametre
+@ importer ../examples / danish - income - tax / personskatteloven - par11 - parametre
+
+-- Kildetabellerne er facit for opslaget, ikke resultatet af et andet opslag.
+> kommunal_tabel_stemmer(år: Heltal, tabel: List(KommunaleParametre)) -> Boolsk {
+    length(tabel) == 98 && kommunale_parametre_for_år_opslag(år) == Some(tabel) && all(tabel, |p: KommunaleParametre|
+        kommunale_parametre_værdi_for_opslag(år, p.kommune) == Some(p) &&
+        kommunale_parametre_resultat(år, p.kommune).parametre == p &&
+        kommunale_parametre_kilde_opslag(år, p.kommune) == kommunale_parametre_kilde_for_år_opslag(år) &&
+        kommunale_indkomstskatteparametre_værdi_for_opslag(år, p.kommune) == Some(kommunale_indkomstskatteparametre_fra_samlede(p)))
+}
+
+= kommunale_tabeller = kommunal_tabel_stemmer(2024, kommunale_parametre_2024) && kommunal_tabel_stemmer(2025, kommunale_parametre_2025) && kommunal_tabel_stemmer(2026, kommunale_parametre_2026)
+= indkomst_2023 = length(kommunale_indkomstskatteparametre_2023) == 98 && all(kommunale_indkomstskatteparametre_2023, |p: KommunaleIndkomstskatteparametre| kommunale_indkomstskatteparametre_værdi_for_opslag(2023, p.kommune) == Some(p) && kommunale_indkomstskatteparametre_resultat(2023, p.kommune).parametre == p)
+= pakker = flat_map(range(2023, 2027), |år: Heltal| map(alle_kommuner, |kommune: Kommune| skatteår_parameterpakke_resultat(år, kommune)))
+= nationale = map(range(2023, 2027), nationalparametre_resultat)
+= historiske = map(range(2012, 2028), par11_negativ_kapital_nedslag_sats_resultat)
+
+= pakkeopslag = length(pakker) == 392 && all(pakker, |p: SkatteårParameterpakkeResultat|
+    p.pakke.nationale.skatteår == p.skatteår && p.pakke.kommunale.skatteår == p.skatteår && p.pakke.kommunale.kommune == p.kommune &&
+    skatteår_parameterpakke_resultat_opslag(p.skatteår, p.kommune) == Some(p) &&
+    nationalparametre_resultat_opslag(p.skatteår) == Some(nationalparametre_resultat(p.skatteår)) &&
+    nationalparametre_værdi_for_opslag(p.skatteår) == Some(p.pakke.nationale) &&
+    nationalparametre_kilde_opslag(p.skatteår) == Some(p.national_kilde) &&
+    kommunale_indkomstskatteparametre_resultat_opslag(p.skatteår, p.kommune) == Some(kommunale_indkomstskatteparametre_resultat(p.skatteår, p.kommune)))
+
+> uden_for_år(år: Heltal) -> Boolsk {
+    nationalparametre_værdi_for_opslag(år) == None && nationalparametre_kilde_opslag(år) == None && nationalparametre_resultat_opslag(år) == None &&
+    kommunale_parametre_kilde_for_år_opslag(år) == None && kommunale_parametre_for_år_opslag(år) == None &&
+    all(alle_kommuner, |kommune: Kommune|
+        skatteår_parameterpakke_resultat_opslag(år, kommune) == None && kommunale_parametre_værdi_for_opslag(år, kommune) == None &&
+        kommunale_parametre_kilde_opslag(år, kommune) == None && kommunale_parametre_resultat_opslag(år, kommune) == None &&
+        kommunale_indkomstskatteparametre_værdi_for_opslag(år, kommune) == None && kommunale_indkomstskatteparametre_resultat_opslag(år, kommune) == None)
+}
+
+= fravær = all([-1, 0, 2022, 2027], uden_for_år)
+= ingen_grundskyld_2023 = kommunale_parametre_for_år_opslag(2023) == None && kommunale_parametre_kilde_for_år_opslag(2023) == Some(SkatteministerietKommuneskatter2023) && all(alle_kommuner, |kommune: Kommune| kommunale_parametre_værdi_for_opslag(2023, kommune) == None && kommunale_parametre_resultat_opslag(2023, kommune) == None)
+= par11_fravær = all([-1, 0, 2011], |år: Heltal| par11_negativ_kapital_nedslag_procent_opslag(år) == None && par11_negativ_kapital_nedslag_sats_kilde_opslag(år) == None && par11_negativ_kapital_nedslag_sats_resultat_opslag(år) == None)
+= par11_satser = map(historiske, |p: Par11NegativKapitalNedslagSatsResultat| p.sats_basispoint)
+
+| opslag_bevarer_kildetabeller: kommunale_tabeller -> kommunale_tabeller && indkomst_2023 && pakkeopslag
+| opslag_opfinder_ikke_dækning: fravær -> fravær && ingen_grundskyld_2023 && par11_fravær
+| par11_satser_bevaret: par11_satser -> par11_satser == [100, 200, 300, 400, 500, 600, 700, 800, 800, 800, 800, 800, 800, 800, 800, 800]
+? opslag_bevarer_kildetabeller
+? opslag_opfinder_ikke_dækning
+? par11_satser_bevaret
+
+-- Den permanente native/interpreter-test sammenligner alle felter og kilder.
+@ print(vis(nationale))
+@ print(vis(pakker))
+@ print(vis(historiske))

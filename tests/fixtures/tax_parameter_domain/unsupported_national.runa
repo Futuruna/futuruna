@@ -1,0 +1,3 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / skatteaar - parametre
+@ print(show(nationalparametre_for(2027)))
