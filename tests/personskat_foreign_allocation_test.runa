@@ -1,0 +1,81 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / ligningsloven - par9j - udland
+
+-- Kun fiktive kilder. Ingen private dokumenter eller resultater.
+> post(id: Tekst, kilde: Tekst, år: Heltal, fra: Heltal, til: Heltal, beløb: Heltal, forhold: Ll9jIndkomstforhold) -> Ll9jGrundlagspost {
+    Ll9jGrundlagspost(identifikation = id, indkomstkilde = kilde, kildereference = "fiktiv kilde", indkomstår = år, første_dag_i_året = fra, sidste_dag_i_året = til, grundlag_kroner = beløb, forhold = forhold)
+}
+> resultat(grundlag: Option(Heltal), poster: List(Ll9jGrundlagspost)) -> Ll9jUdlandsresultat {
+    ll9j_udlandsresultat(2026, grundlag, "fiktiv selvstændig grundlagsopgørelse", Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst = Sandt, poster = poster))
+}
+= udenlandsk = Ll9jAnsættelsesindkomst(Some(Sandt), Some(Sandt), Some(Sandt))
+-- Dansk arbejdssted afkræfter undtagelsen uden at opfinde et andet
+-- samtidigt DBO-hjemsted for samme person i den udenlandske indkomstkilde.
+= dansk = Ll9jAnsættelsesindkomst(None, Some(Falskt), Some(Sandt))
+= dansk_post = post("dk", "arbejde-a", 2026, 1, 365, 300000, dansk)
+= udenlandsk_post = post("ud", "arbejde-b", 2026, 1, 365, 300000, udenlandsk)
+= blandet = resultat(Some(600000), [dansk_post, udenlandsk_post])
+= underskud = resultat(Some(100000), [post("løn", "arbejde", 2026, 1, 365, 600000, udenlandsk), post("tab", "virksomhed", 2026, 1, 365, -500000, Ll9jIkkeAnsættelsesindkomst)])
+= delt = resultat(Some(600000), [post("før", "samme arbejde", 2026, 1, 100, 300000, udenlandsk), post("efter", "samme arbejde", 2026, 101, 365, 300000, dansk)])
+= overlap = resultat(Some(600000), [post("før", "samme arbejde", 2026, 1, 100, 300000, udenlandsk), post("efter", "samme arbejde", 2026, 100, 365, 300000, dansk)])
+= ukendte = [
+    resultat(None, []),
+    resultat(Some(1), [post("x", "x", 2026, 1, 365, 1, Ll9jIndkomstforholdUoplyst)]),
+    resultat(Some(1), [post("x", "x", 2026, 1, 365, 1, Ll9jAnsættelsesindkomst(None, Some(Sandt), Some(Sandt)))]),
+    ll9j_udlandsresultat(2026, Some(0), "fiktiv", Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst = Falskt, poster = []))
+]
+= ugyldige = [
+    resultat(Some(600001), [dansk_post, udenlandsk_post]),
+    resultat(Some(600000), [dansk_post, dansk_post]),
+    resultat(Some(600000), [dansk_post, post(" dk ", "ny kilde", 2026, 1, 365, 300000, dansk)]),
+    resultat(Some(1), [post(" ", "x", 2026, 1, 365, 1, dansk)]),
+    resultat(Some(1), [post("x", " ", 2026, 1, 365, 1, dansk)]),
+    resultat(Some(1), [post("x", "x", 2025, 1, 365, 1, dansk)]),
+    resultat(Some(1), [post("x", "x", 2026, 0, 365, 1, dansk)]),
+    resultat(Some(1), [post("x", "x", 2026, 366, 366, 1, dansk)]),
+    resultat(Some(1), [post("x", "x", 2026, 100, 99, 1, dansk)]),
+    resultat(Some(-1), [post("x", "x", 2026, 1, 365, -1, udenlandsk)]),
+    resultat(Some(9223372036854775807), [post("x", "x", 2026, 1, 365, 9223372036854775807, dansk)]),
+    resultat(Some(-9223372036854775807 - 1), [post("x", "x", 2026, 1, 365, -9223372036854775807 - 1, Ll9jIkkeAnsættelsesindkomst)]),
+    resultat(Some(0), map(range(0, 1001), |i: Heltal| post(show(i), show(i), 2026, 1, 365, 0, dansk))),
+    ll9j_udlandsresultat(2027, Some(0), "fiktiv", Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst = Sandt, poster = [])),
+    ll9j_udlandsresultat(2026, Some(0), " \t ", Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst = Sandt, poster = [])),
+    overlap
+]
+= valg = [None, Some(Falskt), Some(Sandt)]
+= sandhedstabel = flat_map(valg, |a: Option(Boolsk)| flat_map(valg, |b: Option(Boolsk)| map(valg, |c: Option(Boolsk)| {
+        = forventet = hvis a == Some(Falskt) || b == Some(Falskt) || c == Some(Falskt) { Some(Falskt) } ellers hvis a == Some(Sandt) && b == Some(Sandt) && c == Some(Sandt) { Some(Sandt) } ellers { None }
+        ll9j_udland_udelukket(Ll9jAnsættelsesindkomst(a, b, c)) == forventet
+    })))
+= nul = resultat(Some(0), [])
+= skudår = ll9j_udlandsresultat(2024, Some(1), "fiktiv", Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst = Sandt, poster = [post("x", "x", 2024, 366, 366, 1, dansk)]))
+
+= blandet_ok = blandet.alle_input_gyldige && blandet.grundlag == Some(Ll9jUdlandsgrundlag(600000, 300000, 300000))
+= underskud_ok = underskud.alle_input_gyldige && underskud.grundlag == Some(Ll9jUdlandsgrundlag(100000, 600000, -500000))
+= delt_ok = delt.alle_input_gyldige && delt.grundlag == blandet.grundlag
+= ukendte_ok = all(ukendte, |r: Ll9jUdlandsresultat| r.alle_input_gyldige == Falskt && r.grundlag == None)
+= ugyldige_ok = all(ugyldige, |r: Ll9jUdlandsresultat| r.alle_input_gyldige == Falskt && r.grundlag == None)
+= sandhedstabel_ok = length(sandhedstabel) == 27 && all(sandhedstabel, |b: Boolsk| b)
+= nul_ok = nul.alle_input_gyldige && nul.grundlag == Some(Ll9jUdlandsgrundlag(0, 0, 0))
+= skudår_ok = skudår.alle_input_gyldige
+| blandet_indkomst_bevares: blandet_ok -> blandet_ok
+| negativt_øvrigt_grundlag_bevares: underskud_ok -> underskud_ok
+| samme_kilde_med_ændrede_forhold: delt_ok -> delt_ok
+| ukendt_er_ikke_nul: ukendte_ok -> ukendte_ok
+| ugyldigt_er_ikke_nul: ugyldige_ok -> ugyldige_ok
+| tre_samtidige_betingelser: sandhedstabel_ok -> sandhedstabel_ok
+| kendt_nul_kan_afklares: nul_ok -> nul_ok
+| skudårets_sidste_dag_accepteres: skudår_ok -> skudår_ok
+
+? blandet_indkomst_bevares
+? negativt_øvrigt_grundlag_bevares
+? samme_kilde_med_ændrede_forhold
+? ukendt_er_ikke_nul
+? ugyldigt_er_ikke_nul
+? tre_samtidige_betingelser
+? kendt_nul_kan_afklares
+? skudårets_sidste_dag_accepteres
+
+@ print(show(blandet.grundlag))
+@ print(show(underskud.grundlag))
+@ print("27 betingelseskombinationer; ukendte og ugyldige input uden sammenligneligt grundlag.")

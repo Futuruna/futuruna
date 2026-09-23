@@ -1,0 +1,40 @@
+@ sprog da
+@ importer ./ligningsloven - par9j - udland
+@ importer ./ligningsloven_fradrag
+
+-- Afgrænset kontrol af almindeligt beskæftigelsesfradrag og jobfradrag.
+-- Ingen ny skatteberegner: satser og lofter genbruges fra lovmodellen.
+# ArbejdsfradragAuditInput(skatteår: Heltal, grundlag_før_udlandsafgrænsning_kroner: Option(Heltal), grundlag_kildereference: Tekst, fordeling: Ll9jUdlandsfordeling)
+# ArbejdsfradragAuditBeløb(almindeligt_beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal)
+# ArbejdsfradragAuditResultat(afgrænsning: Ll9jUdlandsresultat, fradrag_til_sammenligning: Option(ArbejdsfradragAuditBeløb), forbehold: List(Tekst))
+
+@ calculate("Arbejdsfradrag med indkomstspecifik udlandsafgrænsning (2023–2026)")
+> arbejdsfradrag_audit(input: ArbejdsfradragAuditInput) -> ArbejdsfradragAuditResultat {
+    = afgrænsning = ll9j_udlandsresultat(input.skatteår, input.grundlag_før_udlandsafgrænsning_kroner, input.grundlag_kildereference, input.fordeling)
+    = beløb = match afgrænsning.grundlag {
+        | None -> None
+        | Some(grundlag) -> {
+            -- Undtagelsen er allerede anvendt indkomstvist. Den resterende
+            -- sum må ikke udelukkes igen med en persondækkende boolsk værdi.
+            = fradragsinput = LigningslovLønmodtagerFradragInput(skatteår = input.skatteår, arbejdsmarkedsbidragsgrundlag_kroner = grundlag.grundlag_efter_udlandsafgrænsning_kroner, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt)
+            Some(ArbejdsfradragAuditBeløb(almindeligt_beskæftigelsesfradrag_kroner = ll_lønmodtager_beskæftigelsesfradrag_kroner(fradragsinput), jobfradrag_kroner = ll_lønmodtager_jobfradrag_kroner(fradragsinput)))
+        }
+    }
+    ArbejdsfradragAuditResultat(
+        afgrænsning = afgrænsning,
+        fradrag_til_sammenligning = beløb,
+        forbehold = [
+            "Afgrænset forskningsmodel: kontrollerne bekræfter ikke kildefakta, DBO-hjemsted eller den forudgående opgørelse af § 9 J-grundlaget.",
+            "Beløbene er almindeligt beskæftigelsesfradrag og jobfradrag, ikke skat eller skattebesparelse. Enligforsørger- og seniorfradrag indgår ikke i disse to beløb.",
+            "LL § 9 L ekstra pensionsfradrag har sit eget grundlag og må ikke sættes til nul som følge af denne udlandsundtagelse.",
+            "Hele kroner følger den eksisterende models procentprojektion. Den præcise administrative afrundingsregel er ikke uafhængigt verificeret.",
+            "Denne særskilte kontrol er endnu ikke indbygget i den samlede Personskat-beregning. Brug ikke dens uændrede total som en fuld audit af indkomst, der rammes af udlandsundtagelsen."
+        ]
+    )
+}
+
+= arbejdsfradrag_felt_år = TypetBeregningsfelt(path = refof(ArbejdsfradragAuditInput::skatteår), label = "Indkomstår", question = Some("Hvilket indkomstår kontrollerer du (2023–2026)?"), help = Some("Brug indkomståret, ikke året hvor årsopgørelsen blev hentet."), unit = Some("år"))
+= arbejdsfradrag_felt_grundlag = TypetBeregningsfelt(path = refof(ArbejdsfradragAuditInput::grundlag_før_udlandsafgrænsning_kroner), label = "Selvstændigt opgjort arbejdsfradragsgrundlag", question = Some("Hvad er årets opgjorte § 9 J-grundlag før udlandsundtagelsen?"), help = Some("Ikke nettoløn eller årsopgørelsens fradrag. Medtag kun lovens relevante AM-grundlag og pensionsbidrag; bevar null, hvis opgørelsen mangler. Gæt ikke baglæns fra fradraget."), unit = Some("kr./år"))
+= arbejdsfradrag_felt_kilde = TypetBeregningsfelt(path = refof(ArbejdsfradragAuditInput::grundlag_kildereference), label = "Grundlagets dokumentation", question = Some("Hvor findes den selvstændige opgørelse af grundlaget?"), help = Some("Brug en lokal henvisning, ikke CPR eller upload af dokumenter. Fordelingslisten skal stemme med denne opgørelse."), unit = None)
+= arbejdsfradrag_meta = TypetBeregningsmeta(felter = [arbejdsfradrag_felt_år, arbejdsfradrag_felt_grundlag, arbejdsfradrag_felt_kilde], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
+--@label:arbejdsfradrag_audit::meta:arbejdsfradrag_meta--

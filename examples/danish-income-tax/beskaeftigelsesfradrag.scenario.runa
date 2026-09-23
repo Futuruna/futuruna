@@ -1,0 +1,26 @@
+@ sprog da
+@ importer ./beskaeftigelsesfradrag.calculate
+
+-- Fiktive, selvstændigt opgjorte § 9 J-grundlag. Ingen personlige skattefakta.
+> arbejdsfradrag_fiktiv_post(id: Tekst, beløb: Heltal, forhold: Ll9jIndkomstforhold) -> Ll9jGrundlagspost {
+    Ll9jGrundlagspost(identifikation = id, indkomstkilde = id, kildereference = "fiktiv grundlagsdel", indkomstår = 2026, første_dag_i_året = 1, sidste_dag_i_året = 365, grundlag_kroner = beløb, forhold = forhold)
+}
+> arbejdsfradrag_fiktiv_audit(poster: List(Ll9jGrundlagspost)) -> ArbejdsfradragAuditResultat {
+    arbejdsfradrag_audit(ArbejdsfradragAuditInput(skatteår = 2026, grundlag_før_udlandsafgrænsning_kroner = Some(600000), grundlag_kildereference = "fiktiv selvstændig årsopgørelse af grundlaget", fordeling = Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst = Sandt, poster = poster)))
+}
+-- Arbejde udført i Danmark: undtagelsen er afkræftet uden en antagelse om
+-- DBO-hjemsted. De to samtidige kilder får ikke modstridende hjemsteder.
+= arbejdsfradrag_fiktiv_dansk = Ll9jAnsættelsesindkomst(None, Some(Falskt), Some(Sandt))
+= arbejdsfradrag_fiktiv_udland = Ll9jAnsættelsesindkomst(Some(Sandt), Some(Sandt), Some(Sandt))
+= arbejdsfradrag_fiktiv_ukendt = Ll9jAnsættelsesindkomst(None, Some(Sandt), Some(Sandt))
+= arbejdsfradrag_fiktiv_ordinær = arbejdsfradrag_fiktiv_audit([arbejdsfradrag_fiktiv_post("arbejde-a", 600000, arbejdsfradrag_fiktiv_dansk)])
+= arbejdsfradrag_fiktiv_blandet = arbejdsfradrag_fiktiv_audit([arbejdsfradrag_fiktiv_post("arbejde-a", 300000, arbejdsfradrag_fiktiv_dansk), arbejdsfradrag_fiktiv_post("arbejde-b", 300000, arbejdsfradrag_fiktiv_udland)])
+= arbejdsfradrag_fiktiv_uafklaret = arbejdsfradrag_fiktiv_audit([arbejdsfradrag_fiktiv_post("arbejde-a", 300000, arbejdsfradrag_fiktiv_dansk), arbejdsfradrag_fiktiv_post("arbejde-b", 300000, arbejdsfradrag_fiktiv_ukendt)])
+= arbejdsfradrag_fiktive_beløb = [arbejdsfradrag_fiktiv_ordinær.fradrag_til_sammenligning, arbejdsfradrag_fiktiv_blandet.fradrag_til_sammenligning, arbejdsfradrag_fiktiv_uafklaret.fradrag_til_sammenligning]
+
+| arbejdsfradrag_fiktive_resultater: arbejdsfradrag_fiktive_beløb -> arbejdsfradrag_fiktive_beløb == [Some(ArbejdsfradragAuditBeløb(63300, 3100)), Some(ArbejdsfradragAuditBeløb(38250, 2916)), None]
+? arbejdsfradrag_fiktive_resultater
+
+@ print("Alle 600.000 kr. bevaret: " + show(arbejdsfradrag_fiktiv_ordinær.fradrag_til_sammenligning))
+@ print("300.000 kr. bevaret, 300.000 kr. udelukket: " + show(arbejdsfradrag_fiktiv_blandet.fradrag_til_sammenligning))
+@ print("Uafklaret DBO-hjemsted: " + show(arbejdsfradrag_fiktiv_uafklaret.fradrag_til_sammenligning))

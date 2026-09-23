@@ -1,0 +1,93 @@
+@ sprog da
+@ importer ./metadata
+@ importer ./personskat - beregningskontrol
+
+# Ll9jUdlandKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= ll9j_udland_lovkilde = Ll9jUdlandKilde(url = "https://www.lovtidende.dk/api/pdf/250970", identifier = "LL § 9 J, stk. 1, 6.-7. pkt., stk. 3 og 5 samt § 9 K, LBK 1500 af 24. november 2025", hentet_dato = "2026-09-23")
+= ll9j_udland_bemærkninger = Ll9jUdlandKilde(url = "https://www.ft.dk/ripdf/samling/20171/lovforslag/l238/20171_l238_som_fremsat.pdf", identifier = "L 238, 2017-18, bemærkninger til § 1, nr. 3, trykt side 15-16: videreførelse af indkomstspecifik undtagelse", hentet_dato = "2026-09-23")
+= ll9j_udland_meta = Metadata(attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
+
+--@label:ll9j_udlandsafgrænsning::meta:ll9j_udland_meta--
+-- § 9 J-undtagelsen kræver samtidig DBO-hjemsted i en fremmed stat,
+-- Grønland eller Færøerne, arbejde udført i udlandet og udenlandsk arbejdsgiver.
+-- L 238 præciserer, at undtagelsen vedrører den pågældende indkomst.
+-- Kildens tre forhold skal derfor gælde samme indkomst og samme periode.
+-- Grundlaget er allerede opgjort efter § 9 J, stk. 1, 1.-4. pkt.; det er
+-- hverken al udenlandsk indkomst, nettoløn, betalt AM eller et oplyst fradrag.
+-- Modellen fastlægger ikke DBO-hjemsted eller arbejdsgiverens hjemsted.
+--@begin:ll9j_udlandsafgrænsning--
+# Ll9jIndkomstforhold = Ll9jIndkomstforholdUoplyst | Ll9jIkkeAnsættelsesindkomst | Ll9jAnsættelsesindkomst(dbo_hjemmehørende_udland: Option(Boolsk), arbejde_udført_udland: Option(Boolsk), udenlandsk_arbejdsgiver: Option(Boolsk))
+# Ll9jGrundlagspost(identifikation: Tekst, indkomstkilde: Tekst, kildereference: Tekst, indkomstår: Heltal, første_dag_i_året: Heltal, sidste_dag_i_året: Heltal, grundlag_kroner: Heltal, forhold: Ll9jIndkomstforhold)
+# Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst: Boolsk, poster: List(Ll9jGrundlagspost))
+# Ll9jUdlandsgrundlag(grundlag_før_udlandsafgrænsning_kroner: Heltal, udelukket_udenlandsk_ansættelsesindkomst_kroner: Heltal, grundlag_efter_udlandsafgrænsning_kroner: Heltal)
+# Ll9jUdlandsresultat(skatteår: Heltal, fordeling: Ll9jUdlandsfordeling, kontroller: List(PersonskatInputkontrol), alle_input_gyldige: Boolsk, grundlag: Option(Ll9jUdlandsgrundlag))
+
+> ll9j_udland_udelukket(forhold: Ll9jIndkomstforhold) -> Option(Boolsk) {
+    match forhold {
+        | Ll9jIndkomstforholdUoplyst -> None
+        | Ll9jIkkeAnsættelsesindkomst -> Some(Falskt)
+        | Ll9jAnsættelsesindkomst(hjemsted, arbejde, arbejdsgiver) -> {
+            hvis hjemsted == Some(Falskt) || arbejde == Some(Falskt) || arbejdsgiver == Some(Falskt) { Some(Falskt) }
+            ellers hvis hjemsted == Some(Sandt) && arbejde == Some(Sandt) && arbejdsgiver == Some(Sandt) { Some(Sandt) }
+            ellers { None }
+        }
+    }
+}
+
+-- Tekniske indgangsgrænser, ikke lovbestemte beløbslofter. Kontroller før
+-- summering; højst 1000 poster à +/- 1 mia. kr. kan ikke overflyde Heltal.
+| ll9j_udland_summering_sikker(poster: List(Ll9jGrundlagspost)) -> length(poster) <= 1000 && all(poster, |post: Ll9jGrundlagspost| post.grundlag_kroner >= -1000000000 && post.grundlag_kroner <= 1000000000)
+| ll9j_udland_dage_i_året(år: Heltal) -> hvis år % 400 == 0 || år % 4 == 0 && år % 100 != 0 { 366 } ellers { 365 }
+| ll9j_udland_perioder_overlapper(a: Ll9jGrundlagspost, b: Ll9jGrundlagspost) -> trim(a.indkomstkilde) == trim(b.indkomstkilde) && a.første_dag_i_året <= b.sidste_dag_i_året && b.første_dag_i_året <= a.sidste_dag_i_året
+
+> ll9j_udland_postkontroller(post: Ll9jGrundlagspost, poster: List(Ll9jGrundlagspost), skatteår: Heltal) -> List(PersonskatInputkontrol) {
+    [
+        PersonskatInputkontrol(sti = "fordeling.poster", gyldig = trim(post.identifikation) != "" && trim(post.indkomstkilde) != "" && trim(post.kildereference) != "", forklaring = "Posten " + post.identifikation + ": angiv stabil post- og kildeidentifikation samt lokal dokumenthenvisning. Brug ikke CPR."),
+        PersonskatInputkontrol(sti = "fordeling.poster.indkomstår", gyldig = post.indkomstår == skatteår, forklaring = "Posten " + post.identifikation + " skal vedrøre beregningens indkomstår, ikke dokumentets udstedelsesår."),
+        PersonskatInputkontrol(sti = "fordeling.poster.første_dag_i_året", gyldig = post.første_dag_i_året >= 1 && post.sidste_dag_i_året >= post.første_dag_i_året && post.sidste_dag_i_året <= ll9j_udland_dage_i_året(skatteår), forklaring = "Posten " + post.identifikation + ": oplys en gyldig periode i året, begge dage inklusive. Del posten, hvis et af de tre ansættelsesforhold ændrer sig; opfind ikke en forholdsmæssig beløbsfordeling."),
+        PersonskatInputkontrol(sti = "fordeling.poster.identifikation", gyldig = length(filter(poster, |anden: Ll9jGrundlagspost| trim(anden.identifikation) == trim(post.identifikation))) == 1 && length(filter(poster, |anden: Ll9jGrundlagspost| ll9j_udland_perioder_overlapper(post, anden))) == 1, forklaring = "Posten " + post.identifikation + ": samme post må ikke gentages, og samme indkomstkildes perioder må ikke overlappe. Saml kildebeløbene pr. periode, inklusive de relevante pensionsbidrag; omdøb ikke en dublet."),
+        PersonskatInputkontrol(sti = "fordeling.poster.forhold", gyldig = ll9j_udland_udelukket(post.forhold) != None, forklaring = "Posten " + post.identifikation + ": afklar om alle tre udlandsbetingelser gælder samtidigt. Et dokumenteret nej er tilstrækkeligt til at afkræfte undtagelsen; ellers bevares manglende fakta som ukendte."),
+        PersonskatInputkontrol(sti = "fordeling.poster.grundlag_kroner", gyldig = post.grundlag_kroner >= 0 || post.forhold == Ll9jIkkeAnsættelsesindkomst, forklaring = "Posten " + post.identifikation + ": negative øvrige grundlag bevares, fx virksomhedsunderskud. Negative ansættelsesbeløb kræver særskilt korrektionstilknytning, som denne afgrænsede model endnu ikke understøtter.")
+    ]
+}
+
+> ll9j_udlandsresultat(skatteår: Heltal, grundlag_før: Option(Heltal), grundlag_kildereference: Tekst, fordeling: Ll9jUdlandsfordeling) -> Ll9jUdlandsresultat {
+    = sikker = ll9j_udland_summering_sikker(fordeling.poster)
+    = sum = hvis sikker { foldl(fordeling.poster, 0, |sum: Heltal, post: Ll9jGrundlagspost| sum + post.grundlag_kroner) } ellers { 0 }
+    = kontroller = concat([
+        PersonskatInputkontrol(sti = "skatteår", gyldig = skatteår >= 2023 && skatteår <= 2026, forklaring = "Denne afgrænsede model understøtter indkomstårene 2023–2026. Senere satser må ikke arves."),
+        PersonskatInputkontrol(sti = "grundlag_før_udlandsafgrænsning_kroner", gyldig = grundlag_før != None && sikker && grundlag_før == Some(sum), forklaring = "Posterne skal tilsammen svare til det selvstændigt opgjorte § 9 J-grundlag før udlandsafgrænsning, inklusive negative øvrige poster. Udled ikke grundlaget baglæns af årsopgørelsens beskæftigelsesfradrag. Ukendt er ikke nul."),
+        PersonskatInputkontrol(sti = "grundlag_kildereference", gyldig = trim(grundlag_kildereference) != "", forklaring = "Henvis til den selvstændige opgørelse af årets § 9 J-grundlag. Denne kontrol bekræfter ikke opgørelsens retlige korrekthed."),
+        PersonskatInputkontrol(sti = "fordeling.alle_kilder_og_perioder_oplyst", gyldig = fordeling.alle_kilder_og_perioder_oplyst, forklaring = "Bekræft kun efter gennemgang af alle grundlagets kilder og perioder. En tom liste er kun tilstrækkelig ved bekræftet fravær og et kendt nulgrundlag."),
+        PersonskatInputkontrol(sti = "fordeling.poster", gyldig = sikker, forklaring = "Teknisk modelgrænse: højst 1000 poster med hvert beløb mellem -1 og 1 mia. kr. Dette er ikke et lovbestemt fradragsloft.")
+        ], hvis sikker { flat_map(fordeling.poster, |post: Ll9jGrundlagspost| ll9j_udland_postkontroller(post, fordeling.poster, skatteår)) } ellers { [] })
+    = gyldigt = all(kontroller, |kontrol: PersonskatInputkontrol| kontrol.gyldig)
+    = grundlag = hvis gyldigt {
+        = udelukket = foldl(fordeling.poster, 0, |sum: Heltal, post: Ll9jGrundlagspost| sum + hvis ll9j_udland_udelukket(post.forhold) == Some(Sandt) { post.grundlag_kroner } ellers { 0 })
+        Some(Ll9jUdlandsgrundlag(grundlag_før_udlandsafgrænsning_kroner = sum, udelukket_udenlandsk_ansættelsesindkomst_kroner = udelukket, grundlag_efter_udlandsafgrænsning_kroner = sum - udelukket))
+    } ellers { None }
+    Ll9jUdlandsresultat(skatteår = skatteår, fordeling = fordeling, kontroller = kontroller, alle_input_gyldige = gyldigt, grundlag = grundlag)
+}
+--@end:ll9j_udlandsafgrænsning--
+
+= ll9j_udland_felt_komplet = TypetBeregningsfelt(path = refof(Ll9jUdlandsfordeling::alle_kilder_og_perioder_oplyst), label = "Alle indkomstkilder og perioder gennemgået", question = Some("Omfatter fordelingen hele årets allerede opgjorte arbejdsfradragsgrundlag?"), help = Some("Start med falsk. Medtag også dansk indkomst, relevante pensionsbidrag og negative øvrige grundlag. En indkomst må kun indgå én gang."), unit = None)
+= ll9j_udland_felt_poster = TypetBeregningsfelt(path = refof(Ll9jUdlandsfordeling::poster), label = "Grundlag fordelt på kilder og perioder", question = Some("Hvilke dokumenterede dele udgør det samlede grundlag?"), help = Some("Beløbene er grundlagsdele før denne udlandsundtagelse, ikke fradrag. Opdel ved ændrede forhold; der foretages ingen automatisk fordeling efter dage."), unit = None)
+= ll9j_udland_fordelingsmeta = TypetBeregningsmeta(felter = [ll9j_udland_felt_komplet, ll9j_udland_felt_poster], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
+--@label:Ll9jUdlandsfordeling::meta:ll9j_udland_fordelingsmeta--
+
+= ll9j_udland_felt_hjemsted = TypetBeregningsfelt(path = refof(Ll9jIndkomstforhold::Ll9jAnsættelsesindkomst::dbo_hjemmehørende_udland), label = "DBO-hjemsted uden for Danmark", question = Some("Anses personen efter en dobbeltbeskatningsoverenskomst for hjemmehørende i en fremmed stat, Grønland eller Færøerne for denne indkomstperiode?"), help = Some("Bopælsadresse, statsborgerskab og en udenlandsk arbejdsgiver afgør ikke alene DBO-hjemsted. Bevar null ved uafklaret hjemsted."), unit = None)
+= ll9j_udland_felt_arbejde = TypetBeregningsfelt(path = refof(Ll9jIndkomstforhold::Ll9jAnsættelsesindkomst::arbejde_udført_udland), label = "Arbejde udført i udlandet", question = Some("Vedrører netop dette beløb arbejde udført i udlandet?"), help = Some("Vurder arbejdsstedet, ikke hvorfra lønnen udbetales. Opdel dokumenteret dansk og udenlandsk arbejde; brug null ved uafklarede fakta."), unit = None)
+= ll9j_udland_felt_arbejdsgiver = TypetBeregningsfelt(path = refof(Ll9jIndkomstforhold::Ll9jAnsættelsesindkomst::udenlandsk_arbejdsgiver), label = "Udenlandsk arbejdsgiver", question = Some("Er arbejdsgiveren for netop denne indkomst og periode udenlandsk?"), help = Some("En udenlandsk bankkonto er ikke nok. Afklar arbejdsgiverforholdet; brug null hvis ukendt."), unit = None)
+= ll9j_udland_forholdsmeta = TypetBeregningsmeta(felter = [ll9j_udland_felt_hjemsted, ll9j_udland_felt_arbejde, ll9j_udland_felt_arbejdsgiver], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
+--@label:Ll9jIndkomstforhold::meta:ll9j_udland_forholdsmeta--
+
+= ll9j_udland_felt_id = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::identifikation), label = "Postens identifikation", question = Some("Hvilken entydig identifikation har denne grundlagsdel?"), help = Some("Genbrug ikke en identifikation. Kontrollen kan ikke afsløre samme betaling, hvis den omdøbes og oplyses igen."), unit = None)
+= ll9j_udland_felt_indkomstkilde = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::indkomstkilde), label = "Indkomstkildens identifikation", question = Some("Hvilken arbejdsgiver, virksomhed eller anden indkomstkilde vedrører posten?"), help = Some("Brug samme lokale identifikation gennem året. Samme kildes perioder må ikke overlappe. Tilknyt relevante løn- og pensionsdele til samme ansættelse, ikke kunstige nye kilder."), unit = None)
+= ll9j_udland_felt_postkilde = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::kildereference), label = "Postens dokumentation", question = Some("Hvor dokumenteres beløbet, perioden og indkomstforholdene?"), help = Some("Brug lokale dokumenthenvisninger. Dokumenterne uploades ikke af beregningen."), unit = None)
+= ll9j_udland_felt_postår = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::indkomstår), label = "Postens indkomstår", question = Some("Hvilket indkomstår vedrører denne grundlagsdel?"), help = Some("Skal svare til beregningens indkomstår."), unit = Some("år"))
+= ll9j_udland_felt_første = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::første_dag_i_året), label = "Første dag i perioden", question = Some("Hvilken dag i året begynder perioden med uændrede indkomstforhold?"), help = Some("1 er 1. januar. Begge endepunkter er inklusive. Beløbet fordeles ikke automatisk efter antallet af dage."), unit = Some("dag i året"))
+= ll9j_udland_felt_sidste = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::sidste_dag_i_året), label = "Sidste dag i perioden", question = Some("Hvilken dag i året slutter perioden?"), help = Some("365 er 31. december i almindelige år; brug 366 i skudåret 2024. En ændring i hjemsted, arbejdssted eller arbejdsgiverforhold kræver særskilte dokumenterede grundlagsdele."), unit = Some("dag i året"))
+= ll9j_udland_felt_postbeløb = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::grundlag_kroner), label = "Postens andel af arbejdsfradragsgrundlaget", question = Some("Hvilken del af det allerede opgjorte § 9 J-grundlag tilhører denne kilde og periode?"), help = Some("Oplys grundlagsdelen før udlandsundtagelsen. Ikke almindelig nettoløn, fradrag eller skat. Relevante pensionsdele følger den tilknyttede ansættelse; § 9 L's nettogrundlag er et andet beløb."), unit = Some("kr."))
+= ll9j_udland_felt_forhold = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::forhold::$variant), label = "Grundlagsdelens indkomstforhold", question = Some("Er delen knyttet til ansættelse eller til anden indkomst, fx selvstændig virksomhed?"), help = Some("Start med uoplyst. Ansættelsesrelaterede pensionsbidrag følger ansættelsen. Vælg ikke anden indkomst alene, fordi beløbet er ATP eller pension."), unit = None)
+= ll9j_udland_postmeta = TypetBeregningsmeta(felter = [ll9j_udland_felt_id, ll9j_udland_felt_indkomstkilde, ll9j_udland_felt_postkilde, ll9j_udland_felt_postår, ll9j_udland_felt_første, ll9j_udland_felt_sidste, ll9j_udland_felt_postbeløb, ll9j_udland_felt_forhold], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
+--@label:Ll9jGrundlagspost::meta:ll9j_udland_postmeta--
