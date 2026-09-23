@@ -75,6 +75,11 @@ source-specific allocation; neither excluding every foreign amount nor removing
 the person's entire deduction is a safe substitute. This remains an unresolved
 model boundary (`td-64197d`), not a conclusion about an individual's entitlement.
 
+A separate [employment-deduction audit](beskaeftigelsesfradrag.md) now implements
+validated source/period allocation for ordinary employment and job deductions.
+It preserves mixed income and unknowns, but is not yet wired into the canonical
+total (`td-88f8b6`). Its results do not remove the whole-return limitation above.
+
 ## Updating existing clients
 
 The validity assessment itself is an additive change to the research model's

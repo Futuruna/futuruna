@@ -22,6 +22,9 @@ personlige beregninger, hvis det fejler.
   samme års grundlag med én tydeligt beskrevet ændring som nedenfor.
 - **»Er der fradrag, jeg bør undersøge?«** Start med tjeklisten nedenfor.
   En relevant mulighed er ikke det samme som dokumenteret fradragsret.
+- **»Stemmer mit beskæftigelsesfradrag ved udenlandsk arbejde?«** Brug den
+  [afgrænsede indkomstfordeling](beskaeftigelsesfradrag.md). Den håndterer blandede
+  kilder, men er endnu ikke tilsluttet den samlede Personskat-beregning.
 
 Afklar først indkomståret. En gennemgang af årsopgørelsen for 2025 og en
 planlagt indbetaling i 2026 er to forskellige opgaver. En hypotetisk ændring
