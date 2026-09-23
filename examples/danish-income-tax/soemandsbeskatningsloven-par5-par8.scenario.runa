@@ -57,6 +57,7 @@
     løn = løn
 )
 | søbl_scenarie_lønmodtagerinput(ordinær_bruttoløn_kroner: Heltal, årsresultat: Søbl5Til8Årsresultat) -> LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2025,
     kommune = København,
     bruttoløn_kroner = ordinær_bruttoløn_kroner + årsresultat.samlet_ordinær_bruttoløn_kroner,

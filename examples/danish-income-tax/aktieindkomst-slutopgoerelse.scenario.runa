@@ -26,6 +26,7 @@
 = scenarie1_mand_aktie_høj_skat_slutopgørelse = aktieindkomst_slutopgørelse_resultat(scenarie1_mand_aktie_høj_skat_case)
 
 = scenarie1_lav_løn_høj_aktie_person = beregn_lønmodtager(LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 0,

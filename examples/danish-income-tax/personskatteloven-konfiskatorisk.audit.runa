@@ -60,6 +60,7 @@ current-year Personskatteloven tax itself doing so.
         overført_restskat_mv_kroner = overført_restskat_mv_kroner
     )
     | lønmodtager_input() -> LønmodtagerInput(
+        ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
         skatteår = skatteår,
         kommune = kommune,
         bruttoløn_kroner = bruttoløn_kroner,
@@ -119,32 +120,32 @@ current-year Personskatteloven tax itself doing so.
 = konfiskatorisk_overført_restskat_trin = [0, 150000]
 
 = konfiskatorisk_søgecases = flat_map(konfiskatorisk_år_kommuner, |ak| {
-    flat_map(konfiskatorisk_bruttoløn_trin, |løn| {
-        flat_map(konfiskatorisk_kapital_trin, |kapital| {
-            flat_map(konfiskatorisk_aktie_trin, |aktie| {
-                flat_map(konfiskatorisk_ægtefælle_aktie_trin, |ægtefælle_aktie| {
-                    flat_map(konfiskatorisk_samliv_trin, |samliv| {
-                        flat_map(konfiskatorisk_kirkeskat_trin, |kirkeskat| {
-                            map(konfiskatorisk_overført_restskat_trin, |overført| {
-                                KonfiskatoriskCase(
-                                    skatteår = ak.skatteår,
-                                    kommune = ak.kommune,
-                                    bruttoløn_kroner = løn,
-                                    positiv_nettokapitalindkomst_kroner = kapital,
-                                    aktieindkomst_kroner = aktie,
-                                    ægtefælle_aktieindkomst_kroner = ægtefælle_aktie,
-                                    samlevende_ved_årets_udløb = samliv,
-                                    betaler_kirkeskat = kirkeskat,
-                                    overført_restskat_mv_kroner = overført
-                                )
+        flat_map(konfiskatorisk_bruttoløn_trin, |løn| {
+                flat_map(konfiskatorisk_kapital_trin, |kapital| {
+                        flat_map(konfiskatorisk_aktie_trin, |aktie| {
+                                flat_map(konfiskatorisk_ægtefælle_aktie_trin, |ægtefælle_aktie| {
+                                        flat_map(konfiskatorisk_samliv_trin, |samliv| {
+                                                flat_map(konfiskatorisk_kirkeskat_trin, |kirkeskat| {
+                                                        map(konfiskatorisk_overført_restskat_trin, |overført| {
+                                                                KonfiskatoriskCase(
+                                                                    skatteår = ak.skatteår,
+                                                                    kommune = ak.kommune,
+                                                                    bruttoløn_kroner = løn,
+                                                                    positiv_nettokapitalindkomst_kroner = kapital,
+                                                                    aktieindkomst_kroner = aktie,
+                                                                    ægtefælle_aktieindkomst_kroner = ægtefælle_aktie,
+                                                                    samlevende_ved_årets_udløb = samliv,
+                                                                    betaler_kirkeskat = kirkeskat,
+                                                                    overført_restskat_mv_kroner = overført
+                                                                )
+                                                            })
+                                                    })
+                                            })
+                                    })
                             })
-                        })
                     })
-                })
             })
-        })
     })
-})
 
 = konfiskatorisk_søgeresultater = map(konfiskatorisk_søgecases, |c: KonfiskatoriskCase| konfiskatorisk_resultat(c))
 = konfiskatorisk_årsskat_over100 = filter(konfiskatorisk_søgeresultater, |r| r.årsskat_basispoint > 10000)

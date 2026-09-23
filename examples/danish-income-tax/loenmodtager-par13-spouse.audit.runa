@@ -36,6 +36,7 @@ I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
 ))
 
 = par13_stk2_lønmodtager_underskud_input = LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2025,
     kommune = København,
     bruttoløn_kroner = 100000,

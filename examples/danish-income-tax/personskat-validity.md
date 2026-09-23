@@ -60,25 +60,30 @@ modules also remain; this boundary is exercised through `runa call`. The year
 guard uses `assert_with_message` and therefore requires a compiler built after
 that builtin was added, not the original 0.2.0 binary.
 
-## Known foreign-employment coverage limit
+## Foreign-employment allocation
 
-The [canonical wage calculation](loenmodtager_beregning.runa) currently fixes
-`udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver` to `false`; it does not collect
-or validate the facts needed for this exclusion. LL §9 J(1), also referenced by
-§9 K, contains an exclusion involving treaty residence abroad, Greenland or the
-Faroe Islands and contribution-liable income from employment performed abroad
-for a foreign employer. See [LBK 1500/2025, §§9 J–9 K](https://www.lovtidende.dk/api/pdf/250970).
+The required `lønmodtager.ligningsfradrag.arbejdsfradrag_udland` input starts
+unknown. A documented common condition can rule out the exclusion for all
+relevant employment; otherwise [source/period allocation](beskaeftigelsesfradrag.md)
+must reconcile to the model's independently derived work-deduction basis.
+Unknown facts, mismatched sums and an attempted blanket exclusion fail the
+canonical validity check, including for an active spouse.
 
-Where that combination may apply, do not use the canonical total as a completed
-return audit, even if `BeregnetMedForbehold` is returned. Mixed income needs
-source-specific allocation; neither excluding every foreign amount nor removing
-the person's entire deduction is a safe substitute. This remains an unresolved
-model boundary (`td-64197d`), not a conclusion about an individual's entitlement.
+Only the affected employment income is excluded from the basis for ordinary,
+job, senior and single-parent employment deductions. AM, personal income and
+the LL §9 L pension basis are unchanged. The internal all-or-nothing Boolean
+remains `false` because the source-specific exclusion has already been applied;
+it is no longer an assumption that the person's foreign facts are false.
+See [LBK 1500/2025, §§9 J–9 L](https://www.lovtidende.dk/api/pdf/250970) and
+[L 238, 2017–18, notes to §1 no. 3, pp. 15–16](https://www.ft.dk/ripdf/samling/20171/lovforslag/l238/20171_l238_som_fremsat.pdf).
 
-A separate [employment-deduction audit](beskaeftigelsesfradrag.md) now implements
-validated source/period allocation for ordinary employment and job deductions.
-It preserves mixed income and unknowns, but is not yet wired into the canonical
-total (`td-88f8b6`). Its results do not remove the whole-return limitation above.
+The component result exposes the before/excluded/after amounts and controls.
+Source truth, treaty residence, foreign relief and complete tax coverage remain
+separate questions. The existing whole-krone deduction projection is unchanged;
+independent confirmation of administrative rounding remains open (`td-64197d`).
+The [part-year entry](personskat-par14.calculate.runa) also preserves and
+reconciles the exclusion before recomputing annual deductions; check its own
+`input_gyldigt` rather than using a diagnostic scalar total.
 
 ## Updating existing clients
 
@@ -93,6 +98,11 @@ The required [service/handyman input](boligjob.md) also starts as unknown.
 Active invoice facts and spouse allocations must pass their component and
 household consistency checks; a known ineligible expense is distinct from an
 incomplete or unsupported calculation.
+
+Regenerate templates for the required foreign-employment input too. Preserve
+unknowns until the facts are available, and update source allocations when a
+pension or wage scenario changes the work-deduction basis. Fictional scenario
+helpers are not suitable defaults for a real person's treaty-residence facts.
 
 Pension payout completeness is explicit too. Both Boolean fields under
 `lønmodtager.pension.udbetalingsoplysninger` start as `false` (unknown or

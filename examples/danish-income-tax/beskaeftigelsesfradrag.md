@@ -6,10 +6,11 @@ grundlagsbeløb der bevares eller udelukkes, og giver ingen sammenlignelige
 fradragsbeløb, hvis nødvendige fakta er uafklarede. Det er en forskningsmodel,
 ikke individuel skatterådgivning. `schema`, `template` og `call` er Preview.
 
-Den samlede Personskat-beregning er **endnu ikke tilsluttet denne fordeling**.
-Brug ikke dens uændrede slutskat som en fuld audit af en sag, hvor undtagelsen
-kan gælde. Denne beregning er heller ikke en beregning af skat, udenlandsk
-skattenedslag eller værdien af et ekstra fradrag.
+Den samlede [Personskat-beregning](personskat.calculate.runa) bruger samme
+fordeling og beregner selv grundlaget ud fra indkomst og pension. Her påvirker
+afgrænsningen også senior- og enligforsørgertillæg, når deres betingelser er
+opfyldt. Den afgrænsede beregning ovenfor viser derimod kun de to fradrag, ikke
+skat, udenlandsk skattenedslag eller værdien af et ekstra fradrag.
 
 ## Hvorfor ikke bare »udenlandsk indkomst: ja/nej«?
 
@@ -89,6 +90,65 @@ Enligforsørger- og seniorfradrag er separate tillæg og er ikke med i de to
 viste fradragsbeløb. LL § 9 L ekstra pensionsfradrag bruger sit eget grundlag;
 det må ikke sættes til nul på grund af § 9 J-undtagelsen.
 [Ligningsloven, §§ 9 J–9 L](https://www.lovtidende.dk/api/pdf/250970).
+
+## I den samlede Personskat-beregning
+
+Det nye felt er `lønmodtager.ligningsfradrag.arbejdsfradrag_udland`.
+Skabelonen starter som `ArbejdsfradragUdlandUoplyst`, ikke som et stiltiende nej.
+
+- Hvis mindst én af de tre betingelser kan afkræftes for **alle relevante
+  ansættelser og perioder**, vælg `IngenUdlandsudelukkelseIFællesForhold`.
+  Oplys det dokumenterede nej og kildereferencen; andre uafklarede forhold kan
+  blive stående som `null`. Kommunen eller en dansk adresse er ikke i sig selv
+  dokumentation for DBO-hjemsted.
+- Ellers vælg `FordeltArbejdsfradragsgrundlag`, og oplys fordelingen som
+  ovenfor. Dens sum skal stemme med Personskats afledte grundlag **før**
+  udlandsundtagelsen. Tre ja-værdier i den fælles gren accepteres ikke som
+  grundlag for at udelukke hele årets indkomst.
+- Kontroller `arbejdsfradrag_udland.grundlag` og `kontroller` i resultatet og
+  derefter [den samlede vurdering](personskat-validity.md). En aktiv ægtefælle
+  har samme kontrol i sit eget grundlag. Uoplyste eller modstridende forhold
+  tilbageholder `vurdering.slutskat_til_sammenligning_øre`.
+
+Afgrænsningen ændrer ikke AM-bidrag, personlig indkomst eller LL § 9 L's
+pensionsgrundlag. Et fiktivt 2026-grundlag på 600.000 kr., hvor 300.000 kr.
+udelukkes, giver i den samlede beregning de samme 38.250 kr. og 2.916 kr. som
+ovenfor; et berettiget senior- eller enligforsørgertillæg bruger også de
+bevarede 300.000 kr. Det er ikke en påstand om fuld dækning af en udlandssag:
+skattepligt, DBO-lempelse og andre indkomstforhold kræver deres egne fakta.
+
+Ved pensions- og lønscenarier skal fordelingen følge den ændrede kilde.
+Genbrug ikke en gammel fordeling efter ændring af grundlaget: en forkert sum
+bliver afvist, ikke automatisk rettet. Generér nye JSON/XLSX-skabeloner efter
+denne kontraktændring; ændr ikke gamle schemafingeraftryk. Repoets fiktive
+scenariehjælpere er ikke dokumentation for en rigtig persons udlandsforhold.
+
+## Når skattepligten kun gælder en del af året
+
+I [delårsberegningen](personskat-par14.calculate.runa) følger det udelukkede
+grundlag med til helårsberegningen. Tilføj én kilde med beregningsfelt
+`Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst` for hver udelukket
+fordelingspost. Brug samme `identifikation` og `delårsbeløb_kroner` som posten.
+Det er en afgrænsning, ikke endnu en løn eller et ekstra fradrag.
+
+Omregningsmetoden skal passe til netop denne kildes grundlag: løbende beløb,
+engangsbeløb eller et dokumenteret retvisende helårsbeløb. Fradraget beregnes
+igen af det bevarede helårsgrundlag; det omregnes ikke blot efter dage.
+Ved valg af faktisk helårsindkomst skal også det faktiske udelukkede
+helårsbeløb oplyses. Brug `DokumenteretHelårsPersonskat`, når ændrede
+forhold eller sammensatte årsforløb kræver en fuld opgørelse; dens udelukkelse
+skal stemme med kildebeløbene.
+[Den juridiske vejledning, C.F.1.6.2.1](https://info.skat.dk/data.aspx?oid=1977388).
+
+En kilde, som kun forekommer uden for delårsperioden, har nul i
+`delårsbeløb_kroner`. Identifikationen og helårsbeløbet skal da kunne genfindes
+i `DokumenteretHelårsPersonskat`; opfind ikke et ansættelsesforhold i delåret.
+
+Se `input_gyldigt`, `kilder_gyldige`, `kilder_afstemt_med_personskat` og
+`helårsgrundlag_gyldigt` før brug af delårsresultatet. Manglende afgrænsning,
+forkert kilde eller negativt udelukket beløb afvises. Modellen kontrollerer
+identitet og beløb, men kan ikke bekræfte dokumenternes sandhed eller vælge
+en juridisk retvisende omregningsmetode uden fakta.
 
 Den tekniske indgangsgrænse er 1.000 poster med højst +/- 1 mia. kr. pr. post,
 ikke et lovbestemt loft. Fordelingsmodulet er også kontrolleret med native

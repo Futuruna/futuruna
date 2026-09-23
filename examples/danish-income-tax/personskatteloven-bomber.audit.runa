@@ -60,6 +60,7 @@ skatteloft basis.
 = bomb_par14_annualiseringsdelta_kroner = bomb_par14_annualiseret_statslig_delårsskat_kroner - bomb_par14_normal_statslig_delårsskat_kroner
 
 = bomb_københavn_900k = beregn_lønmodtager(LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 900000,
@@ -71,6 +72,7 @@ skatteloft basis.
     betaler_kirkeskat = Falskt
 ))
 = bomb_langeland_900k = beregn_lønmodtager(LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2026,
     kommune = Langeland,
     bruttoløn_kroner = 900000,
@@ -86,6 +88,7 @@ skatteloft basis.
 = bomb_langeland_samlet_merbelastning_mod_københavn_kroner = bomb_langeland_900k.samlet_inkl_am_efter_personfradrag_kroner - bomb_københavn_900k.samlet_inkl_am_efter_personfradrag_kroner
 
 = bomb_københavn_kapital = beregn_lønmodtager(LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 650000,

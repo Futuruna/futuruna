@@ -2,6 +2,8 @@
 //! All facts are fictional; no amounts are inferred from an official assessment.
 use serde_json::{json, Value};
 use std::process::Command;
+#[path = "support/foreign_employment.rs"]
+mod foreign_employment;
 
 const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
 
@@ -109,6 +111,8 @@ fn fictional_input() -> (Value, Value) {
     input["lønmodtager"]["betaler_kirkeskat"] = json!(false);
     input["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
         json!({"$variant":"IntetEkstraBørnetilskud"});
+    input["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"] =
+        foreign_employment::no_exclusion();
     input["lønmodtager"]["ligningsfradrag"]["boligjob"] =
         json!({"$variant":"IngenBoligjobudgifter"});
     input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});

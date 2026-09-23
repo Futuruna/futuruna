@@ -39,6 +39,7 @@ Personskat-beregning.
 
 | personskat_ll9_stk1_års_ligningsfradrag(indkomstår: Heltal) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    arbejdsfradrag_udland = personskat_fiktivt_arbejdsfradrag_uden_udlandsudelukkelse(),
     boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
@@ -168,6 +169,7 @@ Personskat-beregning.
     kildetilknytninger: List(Sømandsbeskatningslov4Kildetilknytning)
 ) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    arbejdsfradrag_udland = personskat_fiktivt_arbejdsfradrag_uden_udlandsudelukkelse(),
     boligjob = IngenBoligjobudgifter,
     sømandsfradrag = personskat_ll9_stk1_scenarie_sømandsfradrag(valg = valg),
     sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),

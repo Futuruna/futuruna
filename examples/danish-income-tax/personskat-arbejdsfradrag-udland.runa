@@ -1,0 +1,45 @@
+@ sprog da
+@ importer ./ligningsloven - par9j - udland
+
+-- Den enkle gren afkræfter undtagelsen for alle årets relevante ansættelser.
+-- Tre ja-værdier kan ikke bruges til at udelukke hele personens grundlag:
+-- der kan også være danske kilder og selvstændig virksomhed. Brug fordeling.
+# PersonskatArbejdsfradragUdland = ArbejdsfradragUdlandUoplyst | IngenUdlandsudelukkelseIFællesForhold(dbo_hjemmehørende_udland_i_nogen_periode: Option(Boolsk), noget_arbejde_udført_udland: Option(Boolsk), nogen_udenlandsk_arbejdsgiver: Option(Boolsk), kildereference: Tekst) | FordeltArbejdsfradragsgrundlag(fordeling: Ll9jUdlandsfordeling)
+# PersonskatArbejdsfradragUdlandsresultat(input: PersonskatArbejdsfradragUdland, alle_input_gyldige: Boolsk, kontroller: List(PersonskatInputkontrol), grundlag: Option(Ll9jUdlandsgrundlag))
+
+> personskat_arbejdsfradrag_udlandsresultat(skatteår: Heltal, afledt_grundlag_kroner: Heltal, input: PersonskatArbejdsfradragUdland) -> PersonskatArbejdsfradragUdlandsresultat {
+    match input {
+        | FordeltArbejdsfradragsgrundlag(fordeling) -> {
+            = afgrænsning = ll9j_udlandsresultat(skatteår, Some(afledt_grundlag_kroner), "Afledt af Personskat-indkomst- og pensionsgrundlag", fordeling)
+            PersonskatArbejdsfradragUdlandsresultat(input = input, alle_input_gyldige = afgrænsning.alle_input_gyldige, kontroller = afgrænsning.kontroller, grundlag = afgrænsning.grundlag)
+        }
+        | IngenUdlandsudelukkelseIFællesForhold(hjemsted, arbejde, arbejdsgiver, kilde) -> {
+            = gyldigt = skatteår >= 2023 && skatteår <= 2026 && trim(kilde) != "" && ll9j_udland_udelukket(Ll9jAnsættelsesindkomst(hjemsted, arbejde, arbejdsgiver)) == Some(Falskt)
+            PersonskatArbejdsfradragUdlandsresultat(
+                input = input,
+                alle_input_gyldige = gyldigt,
+                kontroller = [PersonskatInputkontrol(sti = "IngenUdlandsudelukkelseIFællesForhold", gyldig = gyldigt, forklaring = "Afkræft mindst én af de tre betingelser for ALLE årets relevante ansættelser og perioder, og angiv kilde. Et udenlandsk hjemsted, arbejdssted eller en arbejdsgiver må ikke gættes. Ellers kræves kilde- og periodefordeling; tre ja-værdier udelukker ikke automatisk hele personens indkomst.")],
+                grundlag = hvis gyldigt { Some(Ll9jUdlandsgrundlag(afledt_grundlag_kroner, 0, afledt_grundlag_kroner)) } ellers { None }
+            )
+        }
+        | ArbejdsfradragUdlandUoplyst -> PersonskatArbejdsfradragUdlandsresultat(input = input, alle_input_gyldige = Falskt, kontroller = [PersonskatInputkontrol(sti = "$variant", gyldig = Falskt, forklaring = "Udlandsforholdene for arbejdsfradraget er uafklarede. Afklar en fælles betingelse, som afkræfter undtagelsen, eller fordel grundlaget på dokumenterede kilder og perioder. Ukendt er ikke ingen udelukkelse.")], grundlag = None)
+    }
+}
+
+-- Kun til diagnostiske skattekomponenter. Ved None skal den samlede
+-- beregningsvurdering afvise slutskat til sammenligning; nul er ikke en oplysning.
+| personskat_arbejdsfradrag_udelukket_til_diagnostik(resultat: PersonskatArbejdsfradragUdlandsresultat) -> match resultat.grundlag {
+    | Some(grundlag) -> grundlag.udelukket_udenlandsk_ansættelsesindkomst_kroner
+    | None -> 0
+}
+
+-- Eksplicit fiktiv forudsætning for repoets scenarier, ikke en brugerstandard.
+| personskat_fiktivt_arbejdsfradrag_uden_udlandsudelukkelse() -> IngenUdlandsudelukkelseIFællesForhold(Some(Falskt), None, None, "Fiktivt scenarie: intet DBO-hjemsted i udlandet i indkomståret")
+
+= personskat_udlandsfradrag_valg = TypetBeregningsfelt(path = refof(PersonskatArbejdsfradragUdland::$variant), label = "Udlandsforhold for beskæftigelsesfradrag", question = Some("Kan udlandsundtagelsen afkræftes for alle relevante ansættelser, eller kræver året fordeling?"), help = Some("Start uoplyst. Vælg fælles forhold kun med et dokumenteret nej, som dækker alle relevante kilder og perioder. Ellers fordel grundlaget. Kommunen eller udenlandske beløb alene giver ikke svaret."), unit = None)
+= personskat_udlandsfradrag_hjemsted = TypetBeregningsfelt(path = refof(PersonskatArbejdsfradragUdland::IngenUdlandsudelukkelseIFællesForhold::dbo_hjemmehørende_udland_i_nogen_periode), label = "DBO-hjemsted i udlandet i nogen relevant periode", question = Some("Var personen efter en DBO hjemmehørende i en fremmed stat, Grønland eller Færøerne i nogen relevant ansættelsesperiode?"), help = Some("Nej skal dække alle relevante perioder. Adresse og statsborgerskab afgør ikke alene hjemsted. Brug null ved uafklarede forhold."), unit = None)
+= personskat_udlandsfradrag_arbejde = TypetBeregningsfelt(path = refof(PersonskatArbejdsfradragUdland::IngenUdlandsudelukkelseIFællesForhold::noget_arbejde_udført_udland), label = "Noget relevant ansættelsesarbejde udført i udlandet", question = Some("Vedrører nogen del af ansættelsesgrundlaget arbejde udført i udlandet?"), help = Some("Et dokumenteret nej afkræfter undtagelsen, også hvis hjemstedet endnu er ukendt. Ja er ikke en blanketudelukkelse. Brug null ved uafklarede arbejdssteder."), unit = None)
+= personskat_udlandsfradrag_arbejdsgiver = TypetBeregningsfelt(path = refof(PersonskatArbejdsfradragUdland::IngenUdlandsudelukkelseIFællesForhold::nogen_udenlandsk_arbejdsgiver), label = "Nogen relevant udenlandsk arbejdsgiver", question = Some("Har nogen del af ansættelsesgrundlaget en udenlandsk arbejdsgiver?"), help = Some("Nej skal dække alle relevante arbejdsgivere. En bankkonto eller arbejdets land er ikke alene en arbejdsgiverklassifikation. Brug null hvis ukendt."), unit = None)
+= personskat_udlandsfradrag_kilde = TypetBeregningsfelt(path = refof(PersonskatArbejdsfradragUdland::IngenUdlandsudelukkelseIFællesForhold::kildereference), label = "Dokumentation for de fælles forhold", question = Some("Hvilke oplysninger understøtter den afkræftede betingelse for alle relevante kilder og perioder?"), help = Some("Brug lokal dokumenthenvisning, ikke CPR. Bekræft ikke alene fordi den oprindelige model eller en skabelon antog ingen undtagelse."), unit = None)
+= personskat_udlandsfradrag_meta = TypetBeregningsmeta(felter = [personskat_udlandsfradrag_valg, personskat_udlandsfradrag_hjemsted, personskat_udlandsfradrag_arbejde, personskat_udlandsfradrag_arbejdsgiver, personskat_udlandsfradrag_kilde], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), PreparatorySource(value = ll9j_udland_bemærkninger)))
+--@label:PersonskatArbejdsfradragUdland::meta:personskat_udlandsfradrag_meta--

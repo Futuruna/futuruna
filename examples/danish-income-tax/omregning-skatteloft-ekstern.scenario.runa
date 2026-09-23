@@ -110,6 +110,7 @@ https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
     positiv_kapital_loft_basispoint = 4200
 )
 = par19_ekstern_langeland_2026_lønmodtager = beregn_lønmodtager(LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2026,
     kommune = Langeland,
     bruttoløn_kroner = 900000,
@@ -121,6 +122,7 @@ https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
     betaler_kirkeskat = Falskt
 ))
 = par19_ekstern_langeland_2026_kapital = beregn_lønmodtager(LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
     skatteår = 2026,
     kommune = Langeland,
     bruttoløn_kroner = 650000,

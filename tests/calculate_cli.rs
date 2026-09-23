@@ -6372,6 +6372,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("IntetEkstraBørnetilskud".to_string()),
                     ),
                     (
+                        "lønmodtager.ligningsfradrag.arbejdsfradrag_udland.$variant",
+                        Data::String("IngenUdlandsudelukkelseIFællesForhold".to_string()),
+                    ),
+                    (
+                        "lønmodtager.ligningsfradrag.arbejdsfradrag_udland.IngenUdlandsudelukkelseIFællesForhold.dbo_hjemmehørende_udland_i_nogen_periode",
+                        Data::Bool(false),
+                    ),
+                    (
+                        "lønmodtager.ligningsfradrag.arbejdsfradrag_udland.IngenUdlandsudelukkelseIFællesForhold.kildereference",
+                        Data::String("fictional Danish treaty residence throughout year".to_string()),
+                    ),
+                    (
                         "lønmodtager.ligningsfradrag.boligjob.$variant",
                         Data::String("IngenBoligjobudgifter".to_string()),
                     ),
@@ -7530,6 +7542,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.enlig_forsørger.$variant",
                 Data::String("IntetEkstraBørnetilskud".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.arbejdsfradrag_udland.$variant",
+                Data::String("IngenUdlandsudelukkelseIFællesForhold".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.arbejdsfradrag_udland.IngenUdlandsudelukkelseIFællesForhold.dbo_hjemmehørende_udland_i_nogen_periode",
+                Data::Bool(false),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.arbejdsfradrag_udland.IngenUdlandsudelukkelseIFællesForhold.kildereference",
+                Data::String("fictional Danish treaty residence throughout year".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.boligjob.$variant",
@@ -12368,6 +12392,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
                 "enlig_forsørger": { "$variant": "IntetEkstraBørnetilskud" },
+                "arbejdsfradrag_udland": { "$variant":"IngenUdlandsudelukkelseIFællesForhold", "dbo_hjemmehørende_udland_i_nogen_periode":false, "noget_arbejde_udført_udland":null, "nogen_udenlandsk_arbejdsgiver":null, "kildereference":"fictional Danish treaty residence throughout year" },
                 "boligjob": { "$variant": "IngenBoligjobudgifter" },
                 "sømandsfradrag": {
                     "valg": { "$variant": "FravælgSømandsfradrag" },
@@ -14295,6 +14320,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "erhvervsbefordring": { "sager": [] },
                 "ligningsfradrag": {
                     "enlig_forsørger": { "$variant": "IntetEkstraBørnetilskud" },
+                    "arbejdsfradrag_udland": { "$variant":"IngenUdlandsudelukkelseIFællesForhold", "dbo_hjemmehørende_udland_i_nogen_periode":false, "noget_arbejde_udført_udland":null, "nogen_udenlandsk_arbejdsgiver":null, "kildereference":"fictional Danish treaty residence throughout year" },
                     "boligjob": { "$variant": "IngenBoligjobudgifter" },
                     "sømandsfradrag": {
                         "valg": { "$variant": "FravælgSømandsfradrag" },
