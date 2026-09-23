@@ -112,9 +112,14 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
     add("incomplete-tax-lines", "Ufuldstændig", &|v| {
         v["skat"]["poster_uden_ægtefællenedslag_komplette"] = json!(false);
     });
-    add("empty-tax-lines", "Ufuldstændig", &|v| {
-        v["skat"]["poster_uden_ægtefællenedslag"] = json!([]);
-    });
+    // The baseline confirms completeness and retains nonzero assessed tax.
+    add(
+        "complete-empty-tax-lines-with-nonzero-tax",
+        "Modstrid",
+        &|v| {
+            v["skat"]["poster_uden_ægtefællenedslag"] = json!([]);
+        },
+    );
     add("incomplete-corrections", "Ufuldstændig", &|v| {
         v["betaling"]["korrektioner_komplette"] = json!(false);
     });
@@ -307,6 +312,151 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
         .unwrap()
         .iter()
         .any(|v| v["navn"] == total_name));
+}
+
+#[test]
+fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
+    let mut empty = baseline();
+    empty["skatteår"] = json!(2026);
+    empty["gift_samlevende_ved_årets_udløb"] = json!(false);
+    empty["indkomstbro"] = json!({
+        "personlig_indkomst_kroner":0, "kapitalindkomst_kroner":0,
+        "ligningsmæssige_fradrag_kroner":0, "skattepligtig_indkomst_kroner":0,
+        "øvrige_indkomstreguleringer_kroner":0, "oplyst_ægtefælleunderskud_kroner":0
+    });
+    empty["ægtefællenedslag"] = json!({
+        "statsligt_personfradrag_øre":0, "kommunalt_personfradrag_øre":0,
+        "kirkeligt_personfradrag_øre":0, "negativ_kapitalindkomst_øre":0,
+        "eget_negativ_kapitalindkomstnedslag_øre":0
+    });
+    empty["skat"] = json!({
+        "poster_uden_ægtefællenedslag":[],
+        "poster_uden_ægtefællenedslag_komplette":true,
+        "oplyst_beregnet_skat_øre":0
+    });
+    empty["betaling"] = json!({
+        "oplyst_forskudsskat_øre":0, "oplyst_beregnet_skat_øre":0,
+        "oplyst_overskydende_skat_øre":0, "korrektioner_til_udbetaling":[],
+        "korrektioner_komplette":true, "oplyst_udbetaling_kroner":0, "restskat":null
+    });
+    // These are positively confirmed fictional observations, never template defaults.
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
+        let mut input = empty.clone();
+        edit(&mut input);
+        cases.push(json!({"case_id":name,"input":input}));
+        expected.push((name.to_string(), status.to_string()));
+    };
+    add("confirmed-empty", "BetingetAfstemt", &|_| {});
+    add("explicit-zero-post", "BetingetAfstemt", &|v| {
+        v["skat"]["poster_uden_ægtefællenedslag"] =
+            json!([{"navn":"Fiktiv bekræftet nulpost","beløb_øre":0}]);
+    });
+    add("unconfirmed-empty", "Ufuldstændig", &|v| {
+        v["skat"]["poster_uden_ægtefællenedslag_komplette"] = json!(false);
+    });
+    add("confirmed-empty-nonzero-tax", "Modstrid", &|v| {
+        v["skat"]["oplyst_beregnet_skat_øre"] = json!(1);
+        v["betaling"]["oplyst_beregnet_skat_øre"] = json!(1);
+        v["betaling"]["oplyst_forskudsskat_øre"] = json!(1);
+    });
+    add("confirmed-empty-unknown-tax", "Ufuldstændig", &|v| {
+        v["skat"]["oplyst_beregnet_skat_øre"] = Value::Null;
+        v["betaling"]["oplyst_beregnet_skat_øre"] = Value::Null;
+    });
+    let unknown_transfers = |v: &mut Value| {
+        for value in v["ægtefællenedslag"].as_object_mut().unwrap().values_mut() {
+            *value = Value::Null;
+        }
+    };
+    add(
+        "confirmed-empty-unknown-transfers",
+        "Ufuldstændig",
+        &unknown_transfers,
+    );
+    add(
+        "confirmed-empty-unknown-transfers-nonzero-tax",
+        "Modstrid",
+        &|v| {
+            unknown_transfers(v);
+            v["skat"]["oplyst_beregnet_skat_øre"] = json!(1);
+            v["betaling"]["oplyst_beregnet_skat_øre"] = json!(1);
+            v["betaling"]["oplyst_forskudsskat_øre"] = json!(1);
+        },
+    );
+    let debt = |v: &mut Value| {
+        v["betaling"]["oplyst_overskydende_skat_øre"] = Value::Null;
+        v["betaling"]["oplyst_udbetaling_kroner"] = Value::Null;
+        v["betaling"]["restskat"] = json!({
+            "oplyst_restskat_øre":0, "tillæg_til_slutskat":[],
+            "tillæg_til_slutskat_komplette":true
+        });
+    };
+    add("debt-confirmed-empty", "BetingetAfstemt", &debt);
+    add("debt-unconfirmed-empty", "Ufuldstændig", &|v| {
+        debt(v);
+        v["skat"]["poster_uden_ægtefællenedslag_komplette"] = json!(false);
+    });
+    add("debt-confirmed-empty-nonzero-tax", "Modstrid", &|v| {
+        debt(v);
+        v["skat"]["oplyst_beregnet_skat_øre"] = json!(1);
+        v["betaling"]["oplyst_beregnet_skat_øre"] = json!(1);
+        v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(1);
+    });
+
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    assert_eq!(
+        template["cases"][0]["input"]["skat"]["poster_uden_ægtefællenedslag_komplette"],
+        false
+    );
+    template["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-empty-report-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let output = invoke(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), expected.len());
+    for (case, (name, status)) in results.iter().zip(expected) {
+        assert_eq!(case["case_id"], name);
+        assert_eq!(
+            case["result"]["status"]["$variant"], status,
+            "{name}: {case}"
+        );
+        assert_eq!(case["result"]["uafhængig_skatteberegning_udført"], false);
+        assert!(!case["result"]["uafklaret"].as_array().unwrap().is_empty());
+    }
+    assert_eq!(results[0]["result"], results[1]["result"]);
+    let get = |name: &str| &results.iter().find(|r| r["case_id"] == name).unwrap()["result"];
+    let total = "Nødvendig samlet skattenedsættelse fra ægtefælle";
+    let comparison = "Samlet ægtefællenedslag i beregnet skat";
+    assert_eq!(
+        condition(get("confirmed-empty"), total)["nødvendigt_beløb"],
+        0
+    );
+    let unknown = control(get("confirmed-empty-unknown-transfers"), comparison);
+    assert_eq!(unknown["forventet"], 0);
+    assert_eq!(unknown["oplyst"], Value::Null);
+    assert_eq!(unknown["difference"], Value::Null);
+    assert_eq!(
+        control(get("unconfirmed-empty"), comparison)["forventet"],
+        Value::Null
+    );
+    let contradiction = condition(get("confirmed-empty-unknown-transfers-nonzero-tax"), total);
+    assert_eq!(contradiction["nødvendigt_beløb"], -1);
+    assert_eq!(contradiction["inden_for_kontrollerede_grænser"], false);
+    assert_eq!(
+        control(get("confirmed-empty-nonzero-tax"), comparison)["difference"],
+        1
+    );
 }
 
 #[test]

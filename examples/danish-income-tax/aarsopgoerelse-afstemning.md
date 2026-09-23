@@ -65,6 +65,13 @@ Transcribe only these selected observations:
 For a report with **restskat** instead of a refund, select the tax-owed route
 below. Do not put a negative debt amount in the surplus-tax field.
 
+An explicitly reviewed empty tax section has a known sum of zero. Leave the
+list empty and mark it complete only after checking the report; do not invent a
+zero-valued row to make reconciliation run. An unreviewed empty list remains
+incomplete. Unknown observed tax or transfer amounts still stay `null`. A
+confirmed empty section can also expose a contradiction with nonzero reported
+tax; it is not automatically treated as missing information.
+
 Neither the spouse's municipality nor year-end tax cohabitation is mandatory.
 When the spouse's municipality is unknown, the municipal transfer ceiling is
 `null`; the model does not substitute the recipient's municipality. A known
@@ -171,6 +178,13 @@ checked against the official law text September 22, 2026. No new annual
 interest rates or payment schedules are inferred.
 
 ### Existing templates
+
+The confirmed-empty correction updates field-help metadata, which is included
+in the contract fingerprint. If an older envelope or workbook is rejected,
+regenerate a template and carry over reviewed observations; do not edit the
+stored hash to bypass the check. Recalculate affected cases: historical empty
+sections may have been reported as incomplete even when zero or a contradiction
+could be established.
 
 The optional `betaling.restskat` field changes the Preview model's contract
 fingerprint. Regenerate the template and migrate supported observations; never
