@@ -202,8 +202,36 @@ CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 cargo test --quiet --test tax_report_reco
 
 Coverage is 2023–2026 and the supported municipal parameter table. The mode
 does not independently recompute individual tax lines, resolve other spouse
-mechanisms, or prove a complete household solution. The typed interpreter
-(`runa call`) is the supported execution path for this review; native `runa
-check`/codegen currently encounters guarded-rule errors in the shared tax
-parameter modules (tracked as `td-438812`). Do not claim native parity from a
-successful frontend or interpreter check.
+mechanisms, or prove a complete household solution. Use `runa call` for typed
+report inputs. The compact report model also passes native `runa check`;
+`tests/tax_report_native_test.runa` compares complete interpreted and native
+outputs for 16 fictional reports, including missing observations, one-øre
+contradictions, spouse transfers, both settlement routes and unsupported years.
+This is not a native-coverage claim for the larger `personskat.calculate.runa`
+model.
+
+### Parameter lookup coverage
+
+The shared national, municipal and PSL § 11 parameter helpers expose
+`*_opslag` rules returning `Some(value)` or `None`. `None` means the encoded
+source does not cover that input; it is never a zero rate or a neighbouring
+year's value. In particular, the 2023 income-tax table does not provide the
+2024–2026 property-tax table's parameters.
+
+Existing value rules retain their names and supported results; ordinary callers
+need no source migration. The source-backed guarded clauses now live in the
+optional lookup families. Strict value rules extract a present value and stop
+with the checked `head: empty list` runtime failure on absence, never a
+replacement value. They do not prove all inputs valid. Code
+accepting an uncertain year should match the optional lookup first. The report
+boundary keeps its `IkkeUnderstøttetÅrEllerKommune` result, and the canonical
+calculation keeps its separate actionable unsupported-year diagnostic.
+
+No tax rates, source quotations, provenance, input schema or compiler rule-
+totality policy changed in this repair. The focused parameter regression
+checks every supported municipality/year, preserves historical PSL § 11
+rates, and tests both execution modes' refusal to invent missing parameters:
+
+```sh
+CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 cargo test --quiet --test tax_parameter_domain
+```

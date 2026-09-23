@@ -1,0 +1,3 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / kommunale - parametre
+@ print(show(kommunale_parametre_for(2023, København)))

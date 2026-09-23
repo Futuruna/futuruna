@@ -18,21 +18,33 @@ indkomståret 2019 og efterfølgende indkomstår udgør procenten 8.
 # Par11NegativKapitalNedslagSatsKilde = PersonskattelovenLbk1284Af2021Par11Stk2
 # Par11NegativKapitalNedslagSatsResultat(skatteår: Heltal, kilde: Par11NegativKapitalNedslagSatsKilde, procent: Heltal, sats_basispoint: Heltal)
 
-| par11_negativ_kapital_nedslag_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par11Stk2 under skatteår >= 2012
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 1 under skatteår == 2012
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 2 under skatteår == 2013
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 3 under skatteår == 2014
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 4 under skatteår == 2015
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 5 under skatteår == 2016
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 6 under skatteår == 2017
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 7 under skatteår == 2018
-| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 8 under skatteår >= 2019
-| par11_negativ_kapital_nedslag_sats_resultat(skatteår: Heltal) -> Par11NegativKapitalNedslagSatsResultat(
+| par11_negativ_kapital_nedslag_sats_kilde_opslag(skatteår: Heltal) -> Some(PersonskattelovenLbk1284Af2021Par11Stk2) under skatteår >= 2012
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(1) under skatteår == 2012
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(2) under skatteår == 2013
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(3) under skatteår == 2014
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(4) under skatteår == 2015
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(5) under skatteår == 2016
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(6) under skatteår == 2017
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(7) under skatteår == 2018
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> Some(8) under skatteår >= 2019
+| par11_negativ_kapital_nedslag_sats_resultat_opslag(skatteår: Heltal) -> Some(Par11NegativKapitalNedslagSatsResultat(
     skatteår = skatteår,
     kilde = par11_negativ_kapital_nedslag_sats_kilde(skatteår),
     procent = par11_negativ_kapital_nedslag_procent(skatteår),
     sats_basispoint = par11_negativ_kapital_nedslag_procent(skatteår) * 100
-) under skatteår >= 2012
+)) under skatteår >= 2012
 | negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> par11_negativ_kapital_nedslag_sats_resultat(skatteår).sats_basispoint
 
 | par11_beløbsgrænse_kroner() -> 50000
+
+-- Opslag giver None uden for kildens domæne, aldrig en erstatningssats.
+-- De hidtidige værdifunktioner kræver et understøttet år og stopper ved fravær.
+
+| par11_negativ_kapital_nedslag_sats_kilde_opslag(skatteår: Heltal) -> None
+| par11_negativ_kapital_nedslag_sats_kilde(skatteår: Heltal) -> head(match par11_negativ_kapital_nedslag_sats_kilde_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| par11_negativ_kapital_nedslag_procent_opslag(skatteår: Heltal) -> None
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> head(match par11_negativ_kapital_nedslag_procent_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| par11_negativ_kapital_nedslag_sats_resultat_opslag(skatteår: Heltal) -> None
+| par11_negativ_kapital_nedslag_sats_resultat(skatteår: Heltal) -> head(match par11_negativ_kapital_nedslag_sats_resultat_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })

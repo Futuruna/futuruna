@@ -56,7 +56,7 @@ https://skm.dk/tal-og-metode/satser/tidsserier/centrale-skattesatser-i-skattelov
 https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2018-2024
 ----
 
-| nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
+| nationalparametre_værdi_for_opslag(skatteår: Heltal) -> Some(NationalParametre(
     skatteår = 2023,
     bundskat_basispoint = 1206,
     topskat_basispoint = 1500,
@@ -74,9 +74,9 @@ https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skatte
     positiv_nettokapital_progressiv_bundfradrag_kroner = 48800,
     skatteloft_personlig_basispoint = 5207,
     skatteloft_positiv_nettokapital_basispoint = 4200
-) under skatteår == 2023
+)) under skatteår == 2023
 
-| nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
+| nationalparametre_værdi_for_opslag(skatteår: Heltal) -> Some(NationalParametre(
     skatteår = 2024,
     bundskat_basispoint = 1201,
     topskat_basispoint = 1500,
@@ -94,7 +94,7 @@ https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skatte
     positiv_nettokapital_progressiv_bundfradrag_kroner = 50500,
     skatteloft_personlig_basispoint = 5207,
     skatteloft_positiv_nettokapital_basispoint = 4200
-) under skatteår == 2024
+)) under skatteår == 2024
 
 ----
 Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
@@ -114,7 +114,7 @@ Topskat (til og med 2025): 15 %
 Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 611.800 kr.
 ----
 
-| nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
+| nationalparametre_værdi_for_opslag(skatteår: Heltal) -> Some(NationalParametre(
     skatteår = 2025,
     bundskat_basispoint = 1201,
     topskat_basispoint = 1500,
@@ -132,7 +132,7 @@ Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 611.80
     positiv_nettokapital_progressiv_bundfradrag_kroner = 52400,
     skatteloft_personlig_basispoint = 5207,
     skatteloft_positiv_nettokapital_basispoint = 4200
-) under skatteår == 2025
+)) under skatteår == 2025
 
 ----
 Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
@@ -153,7 +153,7 @@ Topskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 7,5 % / 777.90
 Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592.700 kr.
 ----
 
-| nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
+| nationalparametre_værdi_for_opslag(skatteår: Heltal) -> Some(NationalParametre(
     skatteår = 2026,
     bundskat_basispoint = 1201,
     topskat_basispoint = 750,
@@ -171,17 +171,17 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
     positiv_nettokapital_progressiv_bundfradrag_kroner = 55000,
     skatteloft_personlig_basispoint = 4457,
     skatteloft_positiv_nettokapital_basispoint = 4200
-) under skatteår == 2026
+)) under skatteår == 2026
 
-| nationalparametre_kilde(skatteår: Heltal) -> SkatteministerietCentraleSatser2023 under skatteår == 2023
-| nationalparametre_kilde(skatteår: Heltal) -> SkattestyrelsenSatserSkat2024 under skatteår == 2024
-| nationalparametre_kilde(skatteår: Heltal) -> SkattestyrelsenSatserSkat2025 under skatteår == 2025
-| nationalparametre_kilde(skatteår: Heltal) -> SkattestyrelsenSatserSkat2026 under skatteår == 2026
-| nationalparametre_resultat(skatteår: Heltal) -> NationalParametreResultat(
+| nationalparametre_kilde_opslag(skatteår: Heltal) -> Some(SkatteministerietCentraleSatser2023) under skatteår == 2023
+| nationalparametre_kilde_opslag(skatteår: Heltal) -> Some(SkattestyrelsenSatserSkat2024) under skatteår == 2024
+| nationalparametre_kilde_opslag(skatteår: Heltal) -> Some(SkattestyrelsenSatserSkat2025) under skatteår == 2025
+| nationalparametre_kilde_opslag(skatteår: Heltal) -> Some(SkattestyrelsenSatserSkat2026) under skatteår == 2026
+| nationalparametre_resultat_opslag(skatteår: Heltal) -> Some(NationalParametreResultat(
     skatteår = skatteår,
     kilde = nationalparametre_kilde(skatteår),
     parametre = nationalparametre_værdi_for(skatteår)
-) under skatteår_understøttet(skatteår)
+)) under skatteår_understøttet(skatteår)
 | nationalparametre_for(skatteår: Heltal) -> nationalparametre_resultat(skatteår).parametre
 
 | skatteår_understøttet(skatteår: Heltal) -> Falskt
@@ -190,7 +190,7 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
 | exception skatteår_2025 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2025
 | exception skatteår_2026 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2026
 
-| skatteår_parameterpakke_resultat(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakkeResultat(
+| skatteår_parameterpakke_resultat_opslag(skatteår: Heltal, kommune: Kommune) -> Some(SkatteårParameterpakkeResultat(
     skatteår = skatteår,
     kommune = kommune,
     national_kilde = nationalparametre_resultat(skatteår).kilde,
@@ -199,7 +199,7 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
         nationale = nationalparametre_for(skatteår),
         kommunale = kommunale_indkomstskatteparametre_for(skatteår, kommune)
     )
-) under parameterpakke_komplet(skatteår, kommune)
+)) under parameterpakke_komplet(skatteår, kommune)
 | skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> skatteår_parameterpakke_resultat(skatteår, kommune).pakke
 
 | samlet_indkomstskatteprocent_basispoint(kommunale: KommunaleParametre) -> kommunale.kommuneskat_basispoint + kommunale.kirkeskat_basispoint + kommunale.sundhedsbidrag_basispoint + kommunale.bundskat_basispoint - kommunale.skatteloftsnedslag_basispoint
@@ -260,3 +260,18 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
 | m3_2026_er_i_pakken: m3_2026_understøttet -> m3_2026_understøttet == Sandt
 | m3_2026_langeland_er_komplet: m3_2026_langeland_pakke_komplet -> m3_2026_langeland_pakke_komplet == Sandt
 | m3_2022_langeland_er_ikke_komplet: m3_2022_langeland_pakke_ikke_komplet -> m3_2022_langeland_pakke_ikke_komplet == Falskt
+
+-- Opslag giver None uden for kildens domæne, aldrig en erstatningssats.
+-- De hidtidige værdifunktioner kræver et understøttet år og stopper ved fravær.
+
+| nationalparametre_værdi_for_opslag(skatteår: Heltal) -> None
+| nationalparametre_værdi_for(skatteår: Heltal) -> head(match nationalparametre_værdi_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| nationalparametre_kilde_opslag(skatteår: Heltal) -> None
+| nationalparametre_kilde(skatteår: Heltal) -> head(match nationalparametre_kilde_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| nationalparametre_resultat_opslag(skatteår: Heltal) -> None
+| nationalparametre_resultat(skatteår: Heltal) -> head(match nationalparametre_resultat_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+
+| skatteår_parameterpakke_resultat_opslag(skatteår: Heltal, kommune: Kommune) -> None
+| skatteår_parameterpakke_resultat(skatteår: Heltal, kommune: Kommune) -> head(match skatteår_parameterpakke_resultat_opslag(skatteår, kommune) { | Some(værdi) -> [værdi] | None -> [] })

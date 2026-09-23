@@ -1,0 +1,52 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / aarsopgoerelse - afstemning.calculate
+
+-- Fiktive, positivt oplyste rapportfakta; aldrig skabelonens standardværdier.
+> nulrapport(år: Heltal, komplet: Boolsk, skat: Heltal?, nedslag: Heltal?, restskat: Boolsk) -> ÅrsopgørelseAfstemningsinput {
+    ÅrsopgørelseAfstemningsinput(
+        skatteår = år, kommune = København, betaler_kirkeskat = Falskt,
+        ægtefællens_kommune = None, gift_samlevende_ved_årets_udløb = Some(Falskt),
+        indkomstbro = Some(RapportIndkomstBro(personlig_indkomst_kroner = 0, kapitalindkomst_kroner = 0, ligningsmæssige_fradrag_kroner = 0, skattepligtig_indkomst_kroner = 0, øvrige_indkomstreguleringer_kroner = 0, oplyst_ægtefælleunderskud_kroner = Some(0))),
+        ægtefællenedslag = RapportÆgtefællenedslag(statsligt_personfradrag_øre = nedslag, kommunalt_personfradrag_øre = nedslag, kirkeligt_personfradrag_øre = nedslag, negativ_kapitalindkomst_øre = nedslag, eget_negativ_kapitalindkomstnedslag_øre = nedslag),
+        skat = RapportSkat(poster_uden_ægtefællenedslag = [], poster_uden_ægtefællenedslag_komplette = komplet, oplyst_beregnet_skat_øre = skat),
+        betaling = RapportBetaling(oplyst_forskudsskat_øre = skat, oplyst_beregnet_skat_øre = skat, oplyst_overskydende_skat_øre = hvis restskat { None } ellers { Some(0) }, korrektioner_til_udbetaling = [], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = hvis restskat { None } ellers { Some(0) }, restskat = hvis restskat { Some(RapportRestskat(oplyst_restskat_øre = Some(0), tillæg_til_slutskat = [], tillæg_til_slutskat_komplette = Sandt)) } ellers { None })
+    )
+}
+
+> ægtefællerapport(statsligt_nedslag: Heltal) -> ÅrsopgørelseAfstemningsinput {
+    ÅrsopgørelseAfstemningsinput(
+        skatteår = 2023, kommune = København, betaler_kirkeskat = Falskt,
+        ægtefællens_kommune = None, gift_samlevende_ved_årets_udløb = None,
+        indkomstbro = Some(RapportIndkomstBro(personlig_indkomst_kroner = 400000, kapitalindkomst_kroner = -10000, ligningsmæssige_fradrag_kroner = 45000, skattepligtig_indkomst_kroner = 333000, øvrige_indkomstreguleringer_kroner = 0, oplyst_ægtefælleunderskud_kroner = Some(12000))),
+        ægtefællenedslag = RapportÆgtefællenedslag(statsligt_personfradrag_øre = Some(statsligt_nedslag), kommunalt_personfradrag_øre = Some(200000), kirkeligt_personfradrag_øre = Some(0), negativ_kapitalindkomst_øre = Some(80000), eget_negativ_kapitalindkomstnedslag_øre = Some(80000)),
+        skat = RapportSkat(poster_uden_ægtefællenedslag = [RapportBeløb(navn = "Fiktiv øvrig skat", beløb_øre = 10200000)], poster_uden_ægtefællenedslag_komplette = Sandt, oplyst_beregnet_skat_øre = Some(9820000)),
+        betaling = RapportBetaling(oplyst_forskudsskat_øre = Some(9900000), oplyst_beregnet_skat_øre = Some(9820000), oplyst_overskydende_skat_øre = Some(80000), korrektioner_til_udbetaling = [RapportBeløb(navn = "Fiktiv oplyst godtgørelse", beløb_øre = 1234)], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = Some(812), restskat = None)
+    )
+}
+
+= fakta = [
+    nulrapport(2026, Sandt, Some(0), Some(0), Falskt),
+    nulrapport(2026, Falskt, Some(0), Some(0), Falskt),
+    nulrapport(2026, Sandt, None, Some(0), Falskt),
+    nulrapport(2026, Sandt, Some(0), None, Falskt),
+    nulrapport(2026, Sandt, Some(1), Some(0), Falskt),
+    nulrapport(2026, Sandt, Some(1), None, Falskt),
+    nulrapport(2022, Sandt, Some(0), Some(0), Falskt),
+    nulrapport(2027, Sandt, Some(0), Some(0), Falskt),
+    nulrapport(2023, Sandt, Some(0), Some(0), Falskt),
+    nulrapport(2024, Sandt, Some(0), Some(0), Falskt),
+    nulrapport(2025, Sandt, Some(0), Some(0), Falskt),
+    nulrapport(2026, Sandt, Some(0), Some(0), Sandt),
+    nulrapport(2026, Sandt, Some(1), Some(0), Sandt),
+    nulrapport(2026, Falskt, Some(0), Some(0), Sandt),
+    ægtefællerapport(100000),
+    ægtefællerapport(100001)
+]
+= resultater = map(fakta, afstem_årsopgørelse)
+= statusser = map(resultater, |r: ÅrsopgørelseAfstemningsresultat| r.status)
+= forventede = [BetingetAfstemt, Ufuldstændig, Ufuldstændig, Ufuldstændig, Modstrid, Modstrid, IkkeUnderstøttetÅrEllerKommune, IkkeUnderstøttetÅrEllerKommune, BetingetAfstemt, BetingetAfstemt, BetingetAfstemt, BetingetAfstemt, Modstrid, Ufuldstændig, BetingetAfstemt, Modstrid]
+| korrekte_statusser: statusser -> statusser == forventede
+| fortsat_betinget: resultater -> all(resultater, |r: ÅrsopgørelseAfstemningsresultat| r.uafhængig_skatteberegning_udført == Falskt && length(r.uafklaret) > 0)
+? korrekte_statusser
+? fortsat_betinget
+@ print(vis(resultater))
