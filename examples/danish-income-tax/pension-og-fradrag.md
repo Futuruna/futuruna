@@ -90,6 +90,13 @@ en tilsvarende udbetaling eller procentvis skatterabat. Dets sats afhænger af
 afstanden til folkepensionsalderen, og grundlaget har sit eget loft.
 [Skattestyrelsens vejledning om ekstra pensionsfradrag](https://skat.dk/borger/fradrag/ekstra-pensionsfradrag).
 
+Små forskelle kan skyldes afrunding. Modellen oprunder nu det ekstra
+pensionsfradrag til hele kroner efter modregning og loft, i overensstemmelse
+med [otte fiktive observationer hos SKAT for 2025/2026](skatdk-pensionsfradrag-ekstern.md).
+Ved et grundlag på 40.001 kr. og 12 % bliver fradraget 4.801 kr., ikke
+4.800 kr. Genberegn tidligere resultater fra de samme fakta; en resterende
+forskel er ikke i sig selv bevis for en fejl i din årsopgørelse.
+
 ### Løn og arbejdsgiverpension: brug ikke samme beløb to gange
 
 `lønmodtager.bruttoløn_kroner` er løngrundlaget før AM-bidrag og skat,
