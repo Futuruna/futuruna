@@ -12,6 +12,10 @@ Den oprindelige `v0.2.0`-download mangler senere sikkerhedsrettelser; samme
 versionsnummer er ikke nok. Tjekket bruger kun fiktive data. Fortsæt ikke med
 personlige beregninger, hvis det fejler.
 
+Bevar den afprøvede binærs absolutte sti i `RUNA_BIN`, som i opsætningsguiden,
+og brug samme sti i kommandoerne nedenfor. En anden `runa` på din PATH er
+ikke nødvendigvis den binær, der bestod tjekket.
+
 ## Vælg den første opgave
 
 - **»Stemmer min årsopgørelse?«** Brug
@@ -394,9 +398,9 @@ Der skal ikke skrives en ny skatteformel eller startes en Explore-strøm.
 Fra projektets rod, med `PRIVATE_WORK_DIR` erstattet af din private mappe:
 
 ```sh
-runa template examples/danish-income-tax/personskat.calculate.runa --format json --output PRIVATE_WORK_DIR/pension-cases.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --format json --output PRIVATE_WORK_DIR/pension-cases.json
 # Udfyld og gennemgå fakta før beregningen.
-runa call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
+"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
 ```
 
 En genereret skabelon er **ikke et udfyldt menneske**. Nulbeløb, tomme lister
@@ -454,10 +458,10 @@ Futuruna. Eksemplet læser ingen personlige filer og indlæser ingen LLM.
 Hvis Node.js allerede er installeret, kør fra projektets rod:
 
 ```sh
-node examples/danish-income-tax/pension-demo.mjs ./target/release/runa
+node examples/danish-income-tax/pension-demo.mjs "$RUNA_BIN"
 ```
 
-Angiv en aktuel `runa`-binær, der understøtter modellens beregningskontrakt.
+Brug den samme `runa`-binær, der bestod kompatibilitetstjekket.
 Scriptet kræver Node.js 18 eller nyere, men Node er ikke nødvendigt for den
 almindelige `runa template`/`runa call`-arbejdsgang. Installer ikke ekstra
 software blot for dette valgfrie eksempel uden brugerens accept.
