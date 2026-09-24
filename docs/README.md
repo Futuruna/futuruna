@@ -21,6 +21,7 @@ and historical material live.
 - [Compiler pass contracts](compiler-pass-contracts.md), [proof kernel](proof-kernel.md),
   and [verified bootstrap](verified-bootstrap.md)
 - [State and roadmap](state-and-roadmap.md)
+- [Danish tax-audit readiness](tax-audit-readiness.md): delivered fixes, usable entry points, and remaining limits
 
 ## Design, research, and history
 

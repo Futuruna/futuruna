@@ -88,3 +88,14 @@ test('release workflow checks its staged artifact, not a replacement build', () 
   const workflow = readFileSync(join(root, '.github/workflows/release.yml'), 'utf8');
   assert.ok(workflow.includes('RUNA_BIN="$binary" bash scripts/tax-audit-preflight.sh'));
 });
+
+test('ordinary tax guides keep compiler commands on the checked binary', () => {
+  for (const name of ['pension-og-fradrag.md', 'aarsopgoerelse-afstemning.md', 'boligjob.md']) {
+    const text = readFileSync(join(root, 'examples/danish-income-tax', name), 'utf8');
+    assert.ok(text.includes('tax-audit-runtime-check'), `${name}: link the runtime check`);
+    const shell = [...text.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).join('\n');
+    assert.ok(shell.includes('"$RUNA_BIN"'), `${name}: use the checked compiler`);
+    assert.doesNotMatch(shell, /^\s*runa\s+(?:template|call|check|run)\s/m,
+      `${name}: do not silently switch to a PATH compiler`);
+  }
+});
