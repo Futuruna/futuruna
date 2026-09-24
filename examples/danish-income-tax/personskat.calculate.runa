@@ -18280,15 +18280,13 @@ fraflytningen."
 | personskat_par13_forhold_med_ægtefælle(egne_underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælles_foreløbige_skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk, skatteår: Heltal) -> personskat_par13_forhold_med_ægtefælle_og_par13a(egne_underskudsforhold, ægtefælles_foreløbige_skat, samlevende_ved_indkomstårets_udløb, skatteår, 0)
 | personskat_kun_par13_indgående_ægtefælle(afsenders_skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk) -> MedIndgåendeÆgtefælleoverførsler(
     afsenders_par13_underskud = afsenders_skat.par13_underskud,
-    afsenders_statslige_personfradrag = lønmodtager_tom_statslig_personfradragsnedsættelse(),
-    afsenders_ikke_statslige_personfradrag = lønmodtager_tom_ikke_statslig_personfradragsnedsættelse(),
+    afsenders_personfradragsgrundlag = Par12Personfradragsgrundlag(0, 0, 0),
     afsenders_par11_nedslag = lønmodtager_tom_par11_modregning(),
     gift_samlevende_ved_årets_udløb = samlevende_ved_indkomstårets_udløb
 )
-| personskat_indgående_ægtefælleoverførsler(afsenders_par13_skat: LønmodtagerBeregning, afsenders_skat_efter_par13: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk) -> MedIndgåendeÆgtefælleoverførsler(
+| personskat_indgående_ægtefælleoverførsler(afsenders_par13_skat: LønmodtagerBeregning, afsenders_skat_efter_par13: LønmodtagerBeregning, afsenders_eksakte_skat_efter_par13: LønmodtagerEksaktBeregning, samlevende_ved_indkomstårets_udløb: Boolsk) -> MedIndgåendeÆgtefælleoverførsler(
     afsenders_par13_underskud = afsenders_par13_skat.par13_underskud,
-    afsenders_statslige_personfradrag = afsenders_skat_efter_par13.statsligt_personfradrag,
-    afsenders_ikke_statslige_personfradrag = afsenders_skat_efter_par13.ikke_statsligt_personfradrag,
+    afsenders_personfradragsgrundlag = afsenders_eksakte_skat_efter_par13.udgående_overførsler.personfradragsgrundlag,
     afsenders_par11_nedslag = afsenders_skat_efter_par13.par11_nedslag.modregning,
     gift_samlevende_ved_årets_udløb = samlevende_ved_indkomstårets_udløb
 )
@@ -18441,13 +18439,13 @@ fraflytningen."
             hovedgrundlag.lønmodtager_input,
             hovedskatteforhold,
             hoved_par13_forhold,
-            personskat_indgående_ægtefælleoverførsler(ægtefælle_par13_kilde, ægtefælle_efter_par13, samlevende_ved_indkomstårets_udløb)
+            personskat_indgående_ægtefælleoverførsler(ægtefælle_par13_kilde, ægtefælle_efter_par13, ægtefælle_eksakt_efter_par13, samlevende_ved_indkomstårets_udløb)
         )
         = ægtefælleskat = beregn_lønmodtager_model_med_ægtefælleoverførsler(
             ægtefællegrundlag.lønmodtager_input,
             ægtefælleskabsskatteforhold,
             ægtefælle_par13_forhold,
-            personskat_indgående_ægtefælleoverførsler(hoved_par13_kilde, hoved_efter_par13, samlevende_ved_indkomstårets_udløb)
+            personskat_indgående_ægtefælleoverførsler(hoved_par13_kilde, hoved_efter_par13, hoved_eksakt_efter_par13, samlevende_ved_indkomstårets_udløb)
         )
         = hovedskat_eksakt = beregn_lønmodtager_eksakt_med_overførsler(
             hovedgrundlag.lønmodtager_input,

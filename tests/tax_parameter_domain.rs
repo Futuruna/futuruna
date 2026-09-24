@@ -58,6 +58,41 @@ fn ordinary_deductions_match_external_skat_calculator_boundaries() {
 }
 
 #[test]
+fn personal_allowance_transfer_matches_native_execution() {
+    let path = "tests/personfradrag_transfer_test.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+        assert!(
+            output.status.success(),
+            "{lane}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("7 samordnings-"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
+fn personal_allowance_recipient_offsets_obey_cohabitation() {
+    // The surrounding PSL §10 source still has pre-existing native guarded-
+    // lookup failures (td-124b83). The isolated new §12 kernel has parity above;
+    // this checks its integration into §10 without claiming full native support.
+    let output = execute(
+        false,
+        "tests/fixtures/tax_parameter_domain/personfradrag_recipient.runa",
+    );
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("2 modtagerkontroller"));
+}
+
+#[test]
 fn deduction_ore_projection_preserves_external_cases_and_known_disagreements() {
     for path in [
         "examples/danish-income-tax/skatdk-fradrag-oere-ekstern.scenario.runa",

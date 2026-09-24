@@ -1,0 +1,20 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / kapitel - 03 - personfradrag
+
+-- Den modtagende ægtefælle skal også kunne bruge den lokale værdi i bundskat.
+> pf_modtagers_samordning(samliv: Boolsk) -> Par10ÆgtefællePersonfradragResultat {
+    par10_ægtefælle_personfradrag_resultat(Par10ÆgtefællePersonfradragInput(
+        Par10ÆgtefællePersonfradragKilde(
+            Par9StatsskatPersonfradragResultat(0, 0, 0, 0, 0, 0, 0, 0),
+            Par9IkkeStatPersonfradragResultat(0, 0, 0, 0, 80, 0, 0)
+        ),
+        Par10ÆgtefællePersonfradragSkatter(100, 0, 0, 0, 0, 0, 0, 0), samliv
+    ))
+}
+= pf_modtagers_resultat = pf_modtagers_samordning(Sandt)
+= pf_adskilt_resultat = pf_modtagers_samordning(Falskt)
+| pf_modtager_samordner_uden_dobbeltbrug: pf_modtagers_resultat -> pf_modtagers_resultat.statslig_nedsættelse.par6_efter_kroner == 20 && pf_modtagers_resultat.anvendt_skatteværdi_kroner == 80 && pf_modtagers_resultat.ubrugt_efter_ægtefælle_kroner == 0
+| pf_uden_samliv_ingen_overførsel: pf_adskilt_resultat -> pf_adskilt_resultat.statslig_nedsættelse.par6_efter_kroner == 100 && pf_adskilt_resultat.anvendt_skatteværdi_kroner == 0 && pf_adskilt_resultat.afskåret_uden_samliv_kroner == 80
+? pf_modtager_samordner_uden_dobbeltbrug
+? pf_uden_samliv_ingen_overførsel
+@ print("Personfradrag: 2 modtagerkontroller stemmer.")

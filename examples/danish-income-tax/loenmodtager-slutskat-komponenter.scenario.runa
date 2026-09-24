@@ -42,8 +42,7 @@
     lønmodtager_par13_standard_forhold(),
     MedIndgåendeÆgtefælleoverførsler(
         afsenders_par13_underskud = slutskat_komponenter_uden_overførsel.par13_underskud,
-        afsenders_statslige_personfradrag = lønmodtager_tom_statslig_personfradragsnedsættelse(),
-        afsenders_ikke_statslige_personfradrag = lønmodtager_tom_ikke_statslig_personfradragsnedsættelse(),
+        afsenders_personfradragsgrundlag = Par12Personfradragsgrundlag(0, 0, 0),
         afsenders_par11_nedslag = slutskat_komponenter_par11_kilde,
         gift_samlevende_ved_årets_udløb = Sandt
     )

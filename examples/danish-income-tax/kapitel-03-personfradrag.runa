@@ -5,6 +5,7 @@
 @ importer ./skatteaar - parametre
 @ importer ./personskatteloven - par11 - parametre
 @ importer ./kapitel - 02 - statsskat
+@ importer ./personfradrag - samordning
 @ importer ./kursgevinstloven - par32
 
 -- Personskatteloven — personfradrag, negativ kapitalindkomst og underskud (§§ 10-13).
@@ -250,7 +251,7 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
     | exception par10_ægtefælle_kommunal_skatteværdi overført_kommunal_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kommunal_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
     | overført_kirkelig_skatteværdi_kroner() -> 0
     | exception par10_ægtefælle_kirkelig_skatteværdi overført_kirkelig_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kirkelig_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
-    | statslig_nedsættelse() -> par10_ægtefælle_statsskat_resultat(Par10ÆgtefælleStatsskatInput(
+    | statslig_nedsættelse_før_samordning() -> par10_ægtefælle_statsskat_resultat(Par10ÆgtefælleStatsskatInput(
         ubrugt_par8_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par8_skatteværdi_kroner,
         ubrugt_par6_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par6_skatteværdi_kroner,
         ægtefælle_par6_skat_kroner = input.modtagers_skatter.par6_skat_kroner,
@@ -260,7 +261,7 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
         ægtefælle_par8a_stk2_skat_kroner = input.modtagers_skatter.par8a_stk2_skat_kroner,
         gift_samlevende_ved_årets_udløb = input.gift_samlevende_ved_årets_udløb
     ))
-    | ikke_statslig_nedsættelse() -> par9_ikke_stat_personfradrag_resultat(Par9IkkeStatPersonfradragInput(
+    | ikke_statslig_nedsættelse_før_samordning() -> par9_ikke_stat_personfradrag_resultat(Par9IkkeStatPersonfradragInput(
         par8c_skat_kroner = input.modtagers_skatter.par8c_skat_kroner,
         kommuneskat_kroner = input.modtagers_skatter.kommuneskat_kroner,
         kirkeskat_kroner = input.modtagers_skatter.kirkeskat_kroner,
@@ -269,6 +270,32 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
         kirkelig_skatteværdi_kroner = overført_kirkelig_skatteværdi_kroner()
     ))
     | overført_ikke_statslig_skatteværdi_kroner() -> overført_par8c_skatteværdi_kroner() + overført_kommunal_skatteværdi_kroner() + overført_kirkelig_skatteværdi_kroner()
+    | samordnet() -> {
+        = stat = statslig_nedsættelse_før_samordning()
+        = par6_rest = penge_mindste_beløb(stat.ubrugt_efter_ægtefælle_kroner, stat.overført_par6_skatteværdi_kroner)
+        par12_samordn_personfradrag(Par9StatsskatPersonfradragResultat(
+            stat.par6_efter_kroner, stat.par7_efter_kroner, stat.par7a_efter_kroner,
+            stat.par8_efter_kroner, stat.par8a_stk2_efter_kroner,
+            stat.ubrugt_efter_ægtefælle_kroner - par6_rest, par6_rest, stat.ubrugt_efter_ægtefælle_kroner
+            ), ikke_statslig_nedsættelse_før_samordning())
+    }
+    | statslig_nedsættelse() -> {
+        = før = statslig_nedsættelse_før_samordning()
+        = efter = samordnet().statslig
+        Par10ÆgtefælleStatsskatResultat(
+            par6_efter_kroner = efter.par6_efter_kroner,
+            par7_efter_kroner = efter.par7_efter_kroner,
+            par7a_efter_kroner = efter.par7a_efter_kroner,
+            par8_efter_kroner = efter.par8_efter_kroner,
+            par8a_stk2_efter_kroner = efter.par8a_stk2_efter_kroner,
+            overført_par8_skatteværdi_kroner = før.overført_par8_skatteværdi_kroner,
+            overført_par6_skatteværdi_kroner = før.overført_par6_skatteværdi_kroner,
+            anvendt_skatteværdi_kroner = før.overført_par8_skatteværdi_kroner + før.overført_par6_skatteværdi_kroner - efter.ubrugt_skatteværdi_kroner,
+            ubrugt_efter_ægtefælle_kroner = efter.ubrugt_skatteværdi_kroner,
+            afskåret_uden_samliv_kroner = før.afskåret_uden_samliv_kroner
+        )
+    }
+    | ikke_statslig_nedsættelse() -> samordnet().ikke_statslig
     | ubrugt_ikke_statslig_skatteværdi_kroner() -> ikke_statslig_nedsættelse().ubrugt_par8c_skatteværdi_kroner + ikke_statslig_nedsættelse().ubrugt_kommunal_skatteværdi_kroner + ikke_statslig_nedsættelse().ubrugt_kirkelig_skatteværdi_kroner
     | overført_skatteværdi_kroner() -> statslig_nedsættelse().overført_par8_skatteværdi_kroner + statslig_nedsættelse().overført_par6_skatteværdi_kroner + overført_ikke_statslig_skatteværdi_kroner()
     | ubrugt_efter_ægtefælle_kroner() -> statslig_nedsættelse().ubrugt_efter_ægtefælle_kroner + ubrugt_ikke_statslig_skatteværdi_kroner()

@@ -117,6 +117,15 @@ reconciles the exclusion before recomputing annual deductions; check its own
 
 ## Updating existing clients
 
+The [spouse personal-allowance correction](personfradrag-samordning.md) uses
+the donor's allowance amounts after own-tax offsets and the recipient's rates,
+not the donor's tax-credit amounts. This also corrects ordinary low-income
+own-tax offsets. Six fictional 2025 calculator observations exercise the
+canonical source-fact boundary. The additional outgoing allowance-basis record
+changes the Preview schema fingerprint: regenerate templates even though no
+new personal input fact is required. Read the linked rounding and coverage
+limits before treating the result as full administrative conformance.
+
 The validity assessment itself is an additive change to the research model's
 Preview output. Subsequent deduction work also adds a required
 [single-parent benefit input](ligningsloven-par9j-enlig.md): its template default
