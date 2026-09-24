@@ -70,11 +70,9 @@ fn single_parent(year: i64, quarters: &[i64]) -> Value {
             "berettiget":true,"modtaget":true,"kildereference":"synthetic-benefit-record"})).collect::<Vec<_>>()})
 }
 
-#[test]
-fn spouse_allowance_uses_recipient_rates_from_source_facts() {
+fn fictional_spouse_rates_input(envelope: &Value) -> Value {
     // Fictional source facts matching SKAT's anonymous 2025 calculator.
     // No reported deduction or tax amount is inserted into the input.
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let mut baseline = envelope["cases"][0]["input"].clone();
     baseline["lønmodtager"]["skatteår"] = json!(2025);
     baseline["lønmodtager"]["kommune"] = json!({"$variant":"København"});
@@ -92,6 +90,73 @@ fn spouse_allowance_uses_recipient_rates_from_source_facts() {
     baseline["ægtefælle"] = spouse(&baseline);
     baseline["ægtefælle"]["fakta"]["lønmodtager"]["kommune"] = json!({"$variant":"Ballerup"});
     baseline["ægtefælle"]["fakta"]["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline
+}
+
+#[test]
+fn spouse_loss_uses_recipient_rates_from_source_facts() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut baseline = fictional_spouse_rates_input(&envelope);
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    baseline["ægtefælle"]["fakta"]["kapitalindkomst"]["renter"]["renteudgifter_kroner"] =
+        json!(503500);
+    // Independent anonymous SKAT 2025 observations, 2026-09-25:
+    // recipient wage 600000, Copenhagen; spouse zero wage, Ballerup,
+    // other-debt interest (rubrik 44) 503500. No reported tax is an input.
+    // (Recipient church, donor church, final tax in ore, loss credit in kroner.)
+    let expectations = [
+        (false, false, 6729888, 2350),
+        (true, false, 6639328, 2430),
+        (false, true, 6729888, 2350),
+    ];
+    envelope["cases"] =
+        json!(expectations.iter().map(|(church, donor_church, _, _)| {
+        let mut input = baseline.clone();
+        input["lønmodtager"]["betaler_kirkeskat"] = json!(church);
+        input["ægtefælle"]["fakta"]["lønmodtager"]["betaler_kirkeskat"] = json!(donor_church);
+        json!({"case_id":format!("loss-recipient-{church}-donor-{donor_church}"),"input":input})
+    }).collect::<Vec<_>>());
+    let path =
+        std::env::temp_dir().join(format!("futuruna-spouse-loss-{}.json", std::process::id()));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), expectations.len());
+    for (row, (church, donor_church, expected, credit)) in results.iter().zip(expectations) {
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        println!("loss recipient church={church}, donor church={donor_church}: tax={}, expected={expected}", gate["slutskat_til_sammenligning_øre"]);
+        assert_eq!(gate["alle_kontroller_gyldige"], true, "{gate}");
+        assert_eq!(gate["slutskat_til_sammenligning_øre"], expected);
+        assert_eq!(
+            result["indgående_ægtefælle"]["par13_indkomstfradrag_kroner"],
+            493500
+        );
+        assert_eq!(
+            result["indgående_ægtefælle"]["par13_skattemodregning_kroner"],
+            credit
+        );
+        let loss = &result["ægtefælle"]["skat"]["par13_underskud"];
+        assert_eq!(loss["fremført_efter_ægtefælle_kroner"], 0);
+        assert_eq!(
+            loss["ægtefælle_skattemodregning"]["dækket_underskud_ved_skattemodregning_kroner"],
+            10000
+        );
+        let exact = &result["hovedskat_eksakt"];
+        assert_eq!(
+            exact["før_nedsættelser"]["par6_skat_øre"].as_i64().unwrap()
+                - exact["efter_par13"]["par6_skat_øre"].as_i64().unwrap(),
+            credit * 100
+        );
+    }
+}
+
+#[test]
+fn spouse_allowance_uses_recipient_rates_from_source_facts() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let baseline = fictional_spouse_rates_input(&envelope);
     // Observed independently in the anonymous calculator on 2026-09-25.
     // (Recipient church membership, donor church membership, donor wage, tax.)
     let expectations = [

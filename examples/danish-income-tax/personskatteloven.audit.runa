@@ -345,6 +345,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     par13a_nedsættelsesbeløb_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = 15000,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
+    ægtefælle_skatteværdi_sats_basispoint = 2350,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt

@@ -18263,6 +18263,7 @@ fraflytningen."
     par13a_nedsættelsesbeløb_kroner = par13a_nedsættelsesbeløb_kroner,
     ægtefælle_skattepligtig_indkomst_kroner = 0,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
+    ægtefælle_skatteværdi_sats_basispoint = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Falskt,
     ikke_rummet_i_tidligere_indkomst_eller_skat = personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(underskudsforhold, skatteår)
@@ -18273,6 +18274,7 @@ fraflytningen."
     par13a_nedsættelsesbeløb_kroner = par13a_nedsættelsesbeløb_kroner,
     ægtefælle_skattepligtig_indkomst_kroner = ægtefælles_foreløbige_skat.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
+    ægtefælle_skatteværdi_sats_basispoint = ægtefælles_foreløbige_skat.par13_underskud.skatteværdi_sats_basispoint,
     ægtefælle_modregningsskatter = personskat_par13_modregningsskatter_efter_eget_underskud(ægtefælles_foreløbige_skat),
     gift_samlevende_ved_årets_udløb = samlevende_ved_indkomstårets_udløb,
     ikke_rummet_i_tidligere_indkomst_eller_skat = personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(egne_underskudsforhold, skatteår)
