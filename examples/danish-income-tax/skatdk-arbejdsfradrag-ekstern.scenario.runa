@@ -1,0 +1,36 @@
+@ sprog da
+@ importer ./ligningsloven_fradrag
+
+-- Uafhængige observationer fra SKATs offentlige, anonyme beregnere, 2026-09-24.
+-- Kilder, fiktive input og afgrænsning: skatdk-arbejdsfradrag-ekstern.md.
+-- Forventningerne nedenfor er aflæste beløb, ikke genberegnede procentformler.
+# SkatDkArbejdsfradragObservation(skatteår: Heltal, løn_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, kommuneskat_før_personfradrag_øre: Heltal, samlet_skat_inkl_am_øre: Heltal)
+
+= skatdk_arbejdsfradrag_observationer = [
+    SkatDkArbejdsfradragObservation(2025, 100001, 12301, 0, 92001, 79700, 1872950, 1945566),
+    SkatDkArbejdsfradragObservation(2025, 224501, 27614, 1, 206541, 178926, 4204761, 6649002),
+    SkatDkArbejdsfradragObservation(2025, 288922, 35538, 2899, 265809, 227372, 5343242, 9014592),
+    SkatDkArbejdsfradragObservation(2025, 288923, 35538, 2900, 265810, 227372, 5343242, 9014604),
+    SkatDkArbejdsfradragObservation(2026, 100000, 12750, 0, 92000, 79250, 1853657, 1843437),
+    SkatDkArbejdsfradragObservation(2026, 100001, 12751, 0, 92001, 79250, 1853657, 1843449),
+    SkatDkArbejdsfradragObservation(2026, 235201, 29989, 1, 216385, 186395, 4359779, 6925022)
+]
+
+> skatdk_arbejdsfradrag_matcher(o: SkatDkArbejdsfradragObservation) -> Boolsk {
+    = fradrag = LigningslovLønmodtagerFradragInput(o.skatteår, o.løn_kroner, Falskt)
+    ll_lønmodtager_beskæftigelsesfradrag_kroner(fradrag) == o.beskæftigelsesfradrag_kroner
+    && ll_lønmodtager_jobfradrag_kroner(fradrag) == o.jobfradrag_kroner
+}
+
+-- Fire yderligere aflæsninger fra årsberegnerens ligningsmæssige fradrag i alt.
+-- I denne isolerede profil er jobfradrag og alle øvrige fradrag nul.
+= skatdk_2025_små_løntrin = map([100000, 100004, 100005, 100500], |løn: Heltal| ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2025, løn, Falskt)))
+| skatdk_2025_små_løntrin_matcher: skatdk_2025_små_løntrin -> skatdk_2025_små_løntrin == [12300, 12301, 12301, 12362]
+| skatdk_arbejdsfradrag_matcher_kilden: skatdk_arbejdsfradrag_observationer -> all(skatdk_arbejdsfradrag_observationer, skatdk_arbejdsfradrag_matcher)
+
+? skatdk_2025_små_løntrin_matcher
+? skatdk_arbejdsfradrag_matcher_kilden
+
+-- Indkomst- og skattekolonnerne bruges også af den kanoniske integrationstest.
+-- Native dækning her vedrører fradragsreglerne, ikke hele Personskat.
+@ print("SKAT: 11 fiktive arbejdsfradragscases stemmer.")

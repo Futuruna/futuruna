@@ -139,6 +139,68 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
 }
 
 #[test]
+fn ordinary_salary_matches_external_skat_rounding_and_tax_amounts() {
+    // Independently observed public calculator outputs, NOT formulas derived
+    // from this model. Profile, sources and limitations:
+    // examples/danish-income-tax/skatdk-arbejdsfradrag-ekstern.md.
+    // year, salary, employment, job, personal, taxable, municipal ore, total ore.
+    let observed = [
+        (2025, 100001, 12301, 0, 92001, 79700, 1872950, 1945566),
+        (2025, 224501, 27614, 1, 206541, 178926, 4204761, 6649002),
+        (2025, 288922, 35538, 2899, 265809, 227372, 5343242, 9014592),
+        (2025, 288923, 35538, 2900, 265810, 227372, 5343242, 9014604),
+        (2026, 100000, 12750, 0, 92000, 79250, 1853657, 1843437),
+        (2026, 100001, 12751, 0, 92001, 79250, 1853657, 1843449),
+        (2026, 235201, 29989, 1, 216385, 186395, 4359779, 6925022),
+    ];
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let cases = observed
+        .iter()
+        .map(|&(year, salary, ..)| {
+            let mut input = baseline.clone();
+            input["lønmodtager"]["skatteår"] = json!(year);
+            input["lønmodtager"]["bruttoløn_kroner"] = json!(salary);
+            json!({"case_id":format!("skat-{year}-{salary}"),"input":input})
+        })
+        .collect();
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), observed.len());
+    for (row, (year, salary, employment, job, personal, taxable, municipal, total)) in
+        results.iter().zip(observed)
+    {
+        let id = format!("skat-{year}-{salary}");
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{id}: {}",
+            result["vurdering"]
+        );
+        // Matching these observations is not a whole-law coverage certificate.
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        for (field, expected) in [
+            ("beskæftigelsesfradrag_kroner", employment),
+            ("jobfradrag_kroner", job),
+            ("personlig_indkomst_efter_am_kroner", personal),
+            ("almindelig_skattepligtig_indkomst_kroner", taxable),
+        ] {
+            assert_eq!(result["skat"][field], expected, "{id}: {field}");
+        }
+        assert_eq!(
+            result["hovedskat_eksakt"]["før_nedsættelser"]["kommuneskat_øre"], municipal,
+            "{id}: municipal tax"
+        );
+        assert_eq!(
+            result["vurdering"]["slutskat_til_sammenligning_øre"], total,
+            "{id}: total tax"
+        );
+    }
+}
+
+#[test]
 fn atp_template_distinguishes_unknown_from_confirmed_absence() {
     let template = run(&["template", MODEL, "--format", "json"]);
     assert_eq!(
@@ -271,7 +333,9 @@ fn atp_source_bases_preserve_income_and_distinguish_public_contributions() {
         );
         assert_eq!(
             result["skat"]["beskæftigelsesfradrag_kroner"],
-            (wage + work) * if name == "2025" { 1230 } else { 1275 } / 10000,
+            // Ordinary LL9J rounds upward; external boundary observations live
+            // in skatdk-arbejdsfradrag-ekstern.scenario.runa.
+            ((wage + work) * if name == "2025" { 1230 } else { 1275 } + 9999) / 10000,
             "{name}"
         );
         assert_eq!(
@@ -806,9 +870,10 @@ fn employer_rate_year_cap_boundary_and_private_priority() {
         );
         assert_eq!(
             result["skat"]["beskæftigelsesfradrag_kroner"],
-            (200000 + gross) * if year == 2025 { 1230 } else { 1275 } / 10000
+            ((200000 + gross) * if year == 2025 { 1230 } else { 1275 } + 9999) / 10000
         );
-        let job = ((200000 + gross - if year == 2025 { 224500 } else { 235200 }) * 450 / 10000)
+        let job = (((200000 + gross - if year == 2025 { 224500 } else { 235200 }) * 450 + 9999)
+            / 10000)
             .min(if year == 2025 { 2900 } else { 3100 });
         assert_eq!(result["skat"]["jobfradrag_kroner"], job);
         let rate = &result["pension"]["arbejdsgiver_rate_resultat"];
