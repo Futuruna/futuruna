@@ -37,6 +37,34 @@ planlagt indbetaling i 2026 er to forskellige opgaver. En hypotetisk ændring
 af et afsluttet år betyder ikke, at betalingen kan foretages med tilbagevirkende
 kraft. Gem personlige dokumenter, input og resultater uden for Git-projektet.
 
+### Skattekommunen er ikke altid din nuværende bopæl
+
+`lønmodtager.kommune` betyder **skattekommunen for indkomståret**. Hovedreglen
+bruger bopælen den 5. september året før, men skattesatsen fra selve indkomståret.
+Ved eksempelvis tilflytning fra udlandet, flere bopæle, institutionsophold eller
+skibsophold skal særreglerne afklares; modellen udleder ikke valget fra din
+adresse. Det gælder også ægtefællens kommune, som ikke må gættes ud fra din.
+[Kommuneskattelovens § 2](https://www.retsinformation.dk/eli/lta/2019/935).
+
+Et fiktivt eksempel: Du boede i København den **5. september 2025** og flyttede
+senere til Ballerup. Under hovedreglen er skattekommunen for 2026 København,
+selv om du nu bor i Ballerup. Med 400.000 kr. i **skattepligtig indkomst**, ikke
+bruttoløn, giver kommuneskatten før personfradrag 93.560 kr. Forkert valg af
+Ballerup ville give 102.000 kr. — en forskel på 8.440 kr. Dette er kun én
+skattekomponent, ikke forskellen i samlet slutskat. Satserne er henholdsvis
+23,39 % og 25,50 % i [ministeriets 2026-tabel](https://svmn.dk/tal-og-metode/satser/oversigt-over-kommuneskatter).
+Det [eksekverbare eksempel](kommuneskattelov-skattekommune.scenario.runa)
+kontrollerer kommunevalg, årssats og beløb.
+
+I den kompakte rapportafstemning oplyses derimod **rapportens** skattekommune.
+Et aritmetisk match beviser ikke, at rapportens kommunevalg er korrekt. Hvis
+rapporten og dine bopælsfakta strider mod hinanden, skal forskellen undersøges;
+skift ikke kommunen blot for at få tallene til at passe.
+
+Feltstier og skatteformler er uændrede. Nye feltforklaringer ændrer kontraktens
+fingeraftryk: genopret en skabelon med den valgte compiler, og overfør de
+kontrollerede fakta. Ret ikke kun `schema_hash` i gamle input eller resultater.
+
 ### Fødselsdato er ikke kun et pensionsfelt
 
 Oplys den faktiske fødselsdato under `lønmodtager.pension.fødselsdato`, også

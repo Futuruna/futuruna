@@ -22,6 +22,19 @@
 )
 = kommunal_skattekommune_bopæl_fixture = kommunal_par2_skattekommune_resultat(kommunal_skattekommune_bopæl_input)
 
+-- Fiktiv almindelig helårsskattepligtig: København den 5. september 2025,
+-- flytter derefter til Ballerup. 2026 bruger København, men 2026-satsen.
+-- Isoleret kommuneskat før personfradrag, ikke en samlet årsopgørelse.
+= kommunal_flytning_parametre = kommunale_indkomstskatteparametre_for(2026, kommunal_skattekommune_bopæl_fixture.skattekommune)
+= kommunal_flytning_skat = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = 400000,
+    udskrivningsprocent_basispoint = kommunal_flytning_parametre.kommuneskat_basispoint
+))
+= kommunal_flytning_forkert_nuværende_kommune_skat = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = 400000,
+    udskrivningsprocent_basispoint = kommunale_indkomstskatteparametre_for(2026, Ballerup).kommuneskat_basispoint
+))
+
 = kommunal_skattekommune_institution_input = KommunalSkattekommuneInput(
     bopælskommune_femte_september = Langeland,
     opholdskommune_femte_september = Langeland,
@@ -109,6 +122,7 @@
 ))
 
 | kommunal_par2_bopæl_skattekommune: kommunal_skattekommune_bopæl_fixture -> kommunal_skattekommune_bopæl_fixture.skattekommune == København && kommunal_skattekommune_bopæl_fixture.grundlag == SkattekommuneBopælFemteSeptember
+| kommunal_flytning_bruger_skattekommunens_årssats: kommunal_flytning_parametre -> kommunal_flytning_parametre.skatteår == 2026 && kommunal_flytning_parametre.kommune == København && kommunal_flytning_parametre.kommuneskat_basispoint == 2339 && kommunal_flytning_skat == 93560 && kommunal_flytning_forkert_nuværende_kommune_skat == 102000 && kommunal_flytning_forkert_nuværende_kommune_skat - kommunal_flytning_skat == 8440
 | kommunal_par2_institution_anden_bopæl: kommunal_skattekommune_institution_fixture -> kommunal_skattekommune_institution_fixture.skattekommune == Gentofte && kommunal_skattekommune_institution_fixture.grundlag == SkattekommuneAndenBopælVedInstitutionMv
 | kommunal_par2_skib_hjemsted: kommunal_skattekommune_skib_fixture -> kommunal_skattekommune_skib_fixture.skattekommune == Langeland && kommunal_skattekommune_skib_fixture.grundlag == SkattekommuneDanskSkibHjemsted && kommunal_skattekommune_skib_fixture.administrativ_tvivl_afgøres_af_minister == Sandt
 | kommunal_par2_udrejse_kirkebidrag_fritager_kirkedel: kommunal_udrejse_kirkebidrag_fixture -> kommunal_udrejse_kirkebidrag_fixture.tilfalder_statskassen == Sandt && kommunal_udrejse_kirkebidrag_fixture.kirkeskat_medregnes == Falskt && kommunal_udrejse_kirkebidrag_fixture.skattebeløb_kroner == 100000
@@ -118,6 +132,7 @@
 | kommunal_par3_under_tre_måneder_ingen_andel: kommunal_par3_under_tre_måneder_fixture -> kommunal_par3_under_tre_måneder_fixture.tilflytningskommune_har_andel == Falskt && kommunal_par3_under_tre_måneder_fixture.tilflytningskommune_andel_kroner == 0 && kommunal_par3_under_tre_måneder_fixture.resterende_til_skattekommune_kroner == 120000
 
 ? kommunal_par2_bopæl_skattekommune
+? kommunal_flytning_bruger_skattekommunens_årssats
 ? kommunal_par2_institution_anden_bopæl
 ? kommunal_par2_skib_hjemsted
 ? kommunal_par2_udrejse_kirkebidrag_fritager_kirkedel
