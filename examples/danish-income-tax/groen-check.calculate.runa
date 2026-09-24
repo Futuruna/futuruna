@@ -1,0 +1,29 @@
+@ sprog da
+@ importer ./groen - check
+
+= grøn_check_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = pathof(GrønCheckInput::skatteår), label = "Indkomstår", question = Some("Hvilket indkomstår gælder den grønne check?"), help = Some("2023–2026, ikke året hvor årsopgørelsen blev udskrevet."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::person), label = "Personens kildefakta", question = Some("Kendes fødselsdato, skattepligt 1. januar, forskerordning og årets forløb?"), help = Some("JSON eller null ved manglende personfakta. Pensionsstatus gælder ved årets udløb: førtids-, senior- eller tidlig pension efter socialpensionslovene, ikke blot en privat pensionsudbetaling. Folkepensionsalderen udledes af datoen, også hvis folkepension er udskudt. null for et ukendt boolesk faktum; false er kendt nej. OrdinærtHelår kræver et helt almindeligt indkomstår uden dødsfald eller migration."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::indkomst), label = "Indkomsttal før grøn-check-aftrapning", question = Some("Hvad er personlig indkomst efter AM, PBL § 16-tillæg og nettokapitalindkomst?"), help = Some("JSON med hele DKK og kildereference, eller null. Brug det relevante PSL § 7-grundlag før bundfradraget: ikke bruttoløn, skattepligtig indkomst efter ligningsmæssige fradrag eller alene beløbet over topskattegrænsen. Et reporttal er en oplyst observation, ikke en selvstændigt efterprøvet indkomstberegning. Beløb begrænses til ±1 mia. DKK; tillæg skal være ikke-negativt."), unit = Some("DKK")),
+        Beregningsfelt(path = pathof(GrønCheckInput::ægtefælle::$variant), label = "Ægtefælle- og samlivsforløb", question = Some("Var I gift og skattemæssigt samlevende hele året?"), help = Some("Ukendt er en særskilt mulighed. En ægtefælles fulde rapport er ikke nødvendig, men nettokapitalindkomst og kilde skal kendes for den dækkede helårsgren. Positiv kapital over det individuelle grundbeløb tilbageholdes indtil den dokumenterede uoverensstemmelse er afklaret."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::ægtefælle::GrønCheckSamlevendeHelår::ægtefælles_nettokapitalindkomst_kroner), label = "Ægtefællens nettokapitalindkomst", question = Some("Hvad er ægtefællens samlede nettokapitalindkomst for indkomståret?"), help = Some("Hele DKK med fortegn. Ukendt må ikke erstattes med 0; vælg i stedet ukendte ægtefælleforhold."), unit = Some("DKK")),
+        Beregningsfelt(path = pathof(GrønCheckInput::børneforhold::$variant), label = "Børneforhold", question = Some("Kendes alle børn og deres børne-/ungeydelse?"), help = Some("Uoplyste børneforhold er ikke nul børn. En tom liste kræver udtrykkelig fuldstændighed og kilde. Børne-/ungeydelse er ikke det ekstra børnetilskud til enlige forsørgere."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::børneforhold::GrønCheckOplysteBørn::børn::lokal_reference), label = "Barnets lokale reference", question = None, help = Some("Entydigt lokalt navn, fx barn-1; ingen CPR-numre. Brug samme reference kun én gang."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::børneforhold::GrønCheckOplysteBørn::børn::ophold_den_1_januar), label = "Barnets ophold 1. januar", question = None, help = Some("Kortvarigt udlandsophold eller midlertidigt uddannelsesophold efter § 1, stk. 3, kan opfylde betingelsen; uddannelsesopholdet skal forbedre mulighederne for fortsat ophold i Danmark. Brug ukendt ved tvivl."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::børneforhold::GrønCheckOplysteBørn::børn::børneydelse_ved_årets_udløb), label = "Din ret til børne-/ungeydelsen ved årets udløb", question = Some("Har du ret til ingen, halv eller hele ydelsen for dette barn?"), help = Some("Ret efter børne- og ungeydelseslovens § 4, ikke blot et modtaget nettobeløb. Halv ydelse giver 120 kr.; hel ydelse giver 240 kr. før loft og indkomstaftrapning. Ved delvis ydelse til barnet selv vælges det særskilte alternativ; beregningen tilbageholdes, fordi samspillet med loftet endnu er uafklaret."), unit = None),
+        Beregningsfelt(path = pathof(GrønCheckInput::oplyst_samlet_grøn_check_øre), label = "Rapportens samlede grønne check, valgfri", question = Some("Hvilken sum viser rapporten for grøn check, børnekompensation og tillæg?"), help = Some("Oplyst observation til sammenligning, aldrig input til beregningen af retten. Summér de tre poster én gang. null hvis ikke oplyst; 0 kun ved kendt nul. 1.005,00 DKK skrives 100500 øre."), unit = Some("øre"))
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = grøn_check_kilder),
+        Warning(value = "Kompakt delberegning; ændrer ikke Personskats årsopgørelse eller den betingede rapportafstemning automatisk.")
+    )
+)
+
+--@label:vurder_grøn_check::meta:grøn_check_beregningsmeta--
+@ calculate("Grøn check — kildefakta, aftrapning og rapportkontrol")
+> vurder_grøn_check(input: GrønCheckInput) -> GrønCheckResultat {
+    vurder_grøn_check_input(input)
+}

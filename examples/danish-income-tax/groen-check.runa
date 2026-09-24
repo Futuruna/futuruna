@@ -1,0 +1,188 @@
+@ sprog da
+@ importer ./socialpensionsloven - par1a
+@ importer ./skatteaar - parametre
+@ importer ./metadata
+
+-- Kompensationsloven, ordinære helår 2023–2026. Se groen-check.md for
+-- afgrænsning, administrativ øreprojektion og den åbne ægtefællekapitalsag.
+# GrønCheckKilde(url: Tekst, identifier: Tekst, kontrolleret: Tekst)
+= grøn_check_kilder = Metadata(attachments = (
+    Source(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2022/1306", identifier = "Kompensationsloven §§ 1–5", kontrolleret = "2026-09-25")),
+    AmendmentSource(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2023/753", identifier = "§ 38: barnets lov fra 2024", kontrolleret = "2026-09-25")),
+    AmendmentSource(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2025/96", identifier = "§ 3: 1.000 kr. for 2024 og tilbageført topskattereference", kontrolleret = "2026-09-25")),
+    AmendmentSource(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1779", identifier = "§ 5: 1.005 kr. for 2025", kontrolleret = "2026-09-25")),
+    AmendmentSource(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1642", identifier = "§§ 3 og 10: mellemskat og ydelse delvis til barnet fra 2026", kontrolleret = "2026-09-25")),
+    ParameterSource(value = GrønCheckKilde(url = "https://svmn.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2023-2024", identifier = "§ 2-grænser 2023–2024", kontrolleret = "2026-09-25")),
+    ParameterSource(value = GrønCheckKilde(url = "https://skat.dk/borger/fradrag/groen-check", identifier = "§ 2-grænser 2025–2026 og borgervejledning", kontrolleret = "2026-09-25")),
+    Warning(value = "Indkomsttal og ydelsesfakta leveres af brugeren; kildehenvisninger er ikke dokumentautentifikation. Ingen automatisk indsættelse i Personskat endnu.")
+))
+
+--@label:grøn_check_regler::meta:grøn_check_kilder--
+-- Uddrag af LBK 1306/2022: § 1, stk. 1, 2. pkt.
+----
+Til personer, der ved indkomstårets udløb har nået folkepensionsalderen, jf. § 1 a i lov om social pension, eller modtager førtidspension, seniorpension eller tidlig pension efter lov om social pension eller lov om højeste, mellemste, forhøjet almindelig og almindelig førtidspension m.v., og som den første dag i indkomståret er skattepligtige efter kildeskattelovens § 1 eller omfattet af kildeskattelovens afsnit I A, ydes en skattefri kompensation med et beløb, der udgør 875 kr.
+----
+-- § 1, stk. 2, 3. pkt.
+----
+For indkomståret 2023 og efterfølgende indkomstår udgør beløbet 120 kr. pr. barn, dog maksimalt 240 kr.
+----
+-- § 1, stk. 5.
+----
+Stk. 5. Stk. 1-3 finder ikke anvendelse på personer, som har valgt beskatning efter kildeskattelovens §§ 48 E og 48 F.
+----
+-- § 2, stk. 1 og 3–4.
+----
+§ 2. Den kompensation, som er nævnt i § 1, stk. 1, nedsættes med 7,5 pct. af grundlaget for topskat efter personskattelovens § 7, stk. 1 og 6, i det omfang topskattegrundlaget overstiger et bundfradrag på 362.800 kr. (2010-niveau).
+
+Stk. 3. Det tillæg, som er nævnt i § 1, stk. 4, bortfalder, hvis grundlaget for topskat efter personskattelovens § 7, stk. 1 og 3, overstiger et grundbeløb på 212.000 kr. (2010-niveau).
+
+Stk. 4. For ægtefæller finder personskattelovens § 7, stk. 6, anvendelse ved den beregning, der skal foretages efter stk. 1-3.
+----
+-- § 4, 1. pkt., og § 5, 1.–2. pkt.
+----
+§ 4. Kompensation efter § 1 ydes efter kildeskattelovens § 60, jf. § 62.
+
+§ 5. Kompensationen til personer med børn efter § 1, stk. 2, ydes til personer, der ved indkomstårets udløb har ret til at få udbetalt børne- og ungeydelse, jf. § 4 i lov om en børne- og ungeydelse. I tilfælde, hvor hele børne- og ungeydelsen for et barn udbetales til én modtager, jf. § 4, stk. 1, 3. pkt., eller stk. 2, 5-8 eller 10, i lov om en børne- og ungeydelse, ydes kompensation med det dobbelte af beløbene pr. barn i § 1, stk. 2.
+----
+
+--@begin:grøn_check_regler--
+# GrønCheckSatser(pensionist_kroner: Heltal, aftrapningsgrænse_kroner: Heltal, tillægsgrænse_kroner: Heltal)
+> grøn_check_satser(år: Heltal) -> GrønCheckSatser? {
+    match år {
+        | 2023 -> Some(GrønCheckSatser(pensionist_kroner = 875, aftrapningsgrænse_kroner = 441900, tillægsgrænse_kroner = 258300))
+        | 2024 -> Some(GrønCheckSatser(pensionist_kroner = 1000, aftrapningsgrænse_kroner = 457500, tillægsgrænse_kroner = 267400))
+        | 2025 -> Some(GrønCheckSatser(pensionist_kroner = 1005, aftrapningsgrænse_kroner = 475300, tillægsgrænse_kroner = 277800))
+        | 2026 -> Some(GrønCheckSatser(pensionist_kroner = 875, aftrapningsgrænse_kroner = 498200, tillægsgrænse_kroner = 291100))
+        | _ -> None
+    }
+}
+
+# GrønCheckSkattepligt = GrønCheckFuldSkattepligt | GrønCheckGrænsegænger | GrønCheckIngenSkattepligt | GrønCheckSkattepligtUkendt
+# GrønCheckÅrsforløb = GrønCheckOrdinærtHelår | GrønCheckAndetÅrsforløb | GrønCheckÅrsforløbUkendt
+# GrønCheckPerson(fødselsdato: Dato, skattepligt_den_1_januar: GrønCheckSkattepligt, forskerordning: Boolsk?, modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb: Boolsk?, årsforløb: GrønCheckÅrsforløb, kildereference: Tekst)
+# GrønCheckIndkomst(personlig_indkomst_efter_am_kroner: Heltal, pbl16_tillæg_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, kildereference: Tekst)
+-- Kun nettokapitalindkomsten er nødvendig, når fælles kapital ikke overstiger
+-- det dobbelte grundbeløb. Ægtefællens komplette årsopgørelse kræves ikke.
+# GrønCheckÆgtefælle = GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut | GrønCheckSamlevendeHelår(ægtefælles_nettokapitalindkomst_kroner: Heltal, kildereference: Tekst) | GrønCheckAndetÆgtefælleforløb | GrønCheckÆgtefælleforholdUkendt
+# GrønCheckBarnOphold = GrønCheckBarnIDanmark | GrønCheckBarnKortvarigtUdland | GrønCheckBarnUddannelsesophold | GrønCheckBarnAndetUdland | GrønCheckBarnOpholdUkendt
+# GrønCheckBørneydelse = GrønCheckIngenBørneydelse | GrønCheckHalvBørneydelse | GrønCheckHelBørneydelse | GrønCheckRestEfterYdelseTilBarnet | GrønCheckBørneydelseUkendt
+# GrønCheckBarn(lokal_reference: Tekst, fødselsdato: Dato, ophold_den_1_januar: GrønCheckBarnOphold, har_indgået_ægteskab_den_1_januar: Boolsk?, anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar: Boolsk?, børneydelse_ved_årets_udløb: GrønCheckBørneydelse, kildereference: Tekst)
+# GrønCheckBørneforhold = GrønCheckBørnUoplyst | GrønCheckOplysteBørn(børn: List(GrønCheckBarn), oplysninger_komplette: Boolsk, kildereference: Tekst)
+# GrønCheckInput(skatteår: Heltal, person: GrønCheckPerson?, indkomst: GrønCheckIndkomst?, ægtefælle: GrønCheckÆgtefælle, børneforhold: GrønCheckBørneforhold, oplyst_samlet_grøn_check_øre: Heltal?)
+# GrønCheckStatus = GrønCheckBeregnet | GrønCheckAfviger | GrønCheckUfuldstændig | GrønCheckUgyldigtInput | GrønCheckUdenForDækning
+# GrønCheckBeregning(adgang_til_kompensation: Boolsk, pensionistregel: Boolsk, indkomstgrundlag_kroner: Heltal, pensionist_før_aftrapning_øre: Heltal, pensionist_efter_aftrapning_øre: Heltal, berettigede_børn: Heltal, børn_med_dobbeltydelse: Heltal, børn_før_aftrapning_øre: Heltal, børn_efter_aftrapning_øre: Heltal, pensionist_aftrapningsgrænse_kroner: Heltal, børn_aftrapningsgrænse_kroner: Heltal, tillægsgrænse_kroner: Heltal, tillæg_øre: Heltal, samlet_kredit_øre: Heltal)
+# GrønCheckResultat(status: GrønCheckStatus, beregning: GrønCheckBeregning?, oplyst_samlet_grøn_check_øre: Heltal?, difference_øre: Heltal?, uafklaret: List(Tekst), forbehold: List(Tekst))
+
+> grøn_check_plus(beløb: Heltal) -> Heltal { hvis beløb > 0 { beløb } ellers { 0 } }
+> grøn_check_min(a: Heltal, b: Heltal) -> Heltal { hvis a < b { a } ellers { b } }
+> grøn_check_beløb_gyldigt(beløb: Heltal) -> Boolsk { beløb >= -1000000000 && beløb <= 1000000000 }
+> grøn_check_børn(input: GrønCheckBørneforhold) -> List(GrønCheckBarn) {
+    match input { | GrønCheckBørnUoplyst -> [] | GrønCheckOplysteBørn(børn, _, _) -> børn }
+}
+> grøn_check_inputfejl(i: GrønCheckInput) -> List(Tekst) {
+    = børn = grøn_check_børn(i.børneforhold)
+    = personfejl = match i.person {
+        | None -> Falskt
+        | Some(p) -> dato_gyldig(p.fødselsdato) == Falskt || p.fødselsdato.år > i.skatteår
+    }
+    = indkomstfejl = match i.indkomst {
+        | None -> Falskt
+        | Some(g) -> grøn_check_beløb_gyldigt(g.personlig_indkomst_efter_am_kroner) == Falskt || grøn_check_beløb_gyldigt(g.nettokapitalindkomst_kroner) == Falskt || g.pbl16_tillæg_kroner < 0 || g.pbl16_tillæg_kroner > 1000000000
+    }
+    = ægtefællefejl = match i.ægtefælle { | GrønCheckSamlevendeHelår(k, _) -> grøn_check_beløb_gyldigt(k) == Falskt | _ -> Falskt }
+    = observationsfejl = match i.oplyst_samlet_grøn_check_øre { | None -> Falskt | Some(v) -> v < 0 || v > 100000000000 }
+    hvis personfejl || indkomstfejl || ægtefællefejl || observationsfejl {
+        ["Ugyldig fødselsdato eller beløb uden for kontraktens grænser; ingen beregning udført."]
+    } ellers hvis length(børn) > 100 || any(børn, |b: GrønCheckBarn| dato_gyldig(b.fødselsdato) == Falskt || b.fødselsdato.år > i.skatteår || trim(b.lokal_reference) == "" || length(filter(børn, |anden: GrønCheckBarn| trim(anden.lokal_reference) == trim(b.lokal_reference))) != 1) {
+        ["Børnelisten skal have gyldige datoer, højst 100 børn og entydige lokale referencer uden CPR-numre."]
+    } ellers { [] }
+}
+> grøn_check_mangler(i: GrønCheckInput) -> List(Tekst) {
+    = person = match i.person {
+        | None -> ["Personens fødselsdato, skattepligt og pensions-/årsforløb mangler."]
+        | Some(p) -> concat(
+            hvis p.skattepligt_den_1_januar == GrønCheckSkattepligtUkendt || p.årsforløb == GrønCheckÅrsforløbUkendt || p.forskerordning == None || trim(p.kildereference) == "" { ["Personens skattepligt, forskerordning, årsforløb eller kilde er uafklaret."] } ellers { [] },
+            hvis p.modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb == None && socialpensionslov1a_resultat_for_indkomstår(p.fødselsdato, i.skatteår).folkepension_opnåelsesår > i.skatteår { ["Under folkepensionsalderen: oplys om førtids-, senior- eller tidlig pension ved årets udløb."] } ellers { [] }
+        )
+    }
+    = indkomst = match i.indkomst { | None -> ["Personlig indkomst efter AM, eventuelt PBL § 16-tillæg og nettokapitalindkomst mangler."] | Some(g) -> hvis trim(g.kildereference) == "" { ["Indkomsttallenes kilde mangler."] } ellers { [] } }
+    = ægtefælle = match i.ægtefælle { | GrønCheckÆgtefælleforholdUkendt -> ["Ægtefælle-/samlivsforhold er ukendt; brug ikke ugift som standard."] | GrønCheckSamlevendeHelår(_, kilde) -> hvis trim(kilde) == "" { ["Kilden til ægtefællens nettokapitalindkomst mangler."] } ellers { [] } | _ -> [] }
+    = børn = match i.børneforhold {
+        | GrønCheckBørnUoplyst -> ["Børneforhold er uoplyste; det er ikke det samme som ingen berettigede børn."]
+        | GrønCheckOplysteBørn(liste, komplette, kilde) -> concat(
+            hvis komplette == Falskt || trim(kilde) == "" { ["Bekræft børnelistens fuldstændighed og kilde, også når listen er tom."] } ellers { [] },
+            flat_map(liste, |b: GrønCheckBarn| hvis b.ophold_den_1_januar == GrønCheckBarnOpholdUkendt || b.har_indgået_ægteskab_den_1_januar == None || b.anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar == None || b.børneydelse_ved_årets_udløb == GrønCheckBørneydelseUkendt || trim(b.kildereference) == "" { ["Barn " + b.lokal_reference + ": ophold, ægteskab, forsørgelse, ydelsesmodtager eller kilde mangler."] } ellers { [] })
+        )
+    }
+    concat(concat(person, indkomst), concat(ægtefælle, børn))
+}
+> grøn_check_dækningsmangler(i: GrønCheckInput) -> List(Tekst) {
+    = person = match i.person {
+        | None -> []
+        | Some(p) -> hvis p.årsforløb == GrønCheckAndetÅrsforløb || p.skattepligt_den_1_januar == GrønCheckGrænsegænger { ["Delår, dødsår, migration og grænsegængerberegning kræver særskilt vurdering; modellen nægter ikke den lovbestemte ret."] } ellers { [] }
+    }
+    = ægtefælle = match i.ægtefælle {
+        | GrønCheckAndetÆgtefælleforløb -> ["Ægteskab/samliv kun en del af året er ikke dækket af denne kompakte beregning."]
+        | GrønCheckSamlevendeHelår(k, _) -> match i.indkomst {
+            | None -> []
+            | Some(g) -> hvis g.nettokapitalindkomst_kroner + k > 2 * nationalparametre_for(i.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner || g.nettokapitalindkomst_kroner > nationalparametre_for(i.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner || k > nationalparametre_for(i.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner { ["Ægtefællers positive kapital over det individuelle grundbeløb: lovgrundlag og anonym 2025-beregner er endnu ikke afstemt (td-5f8fb4). Intet sammenligningsbeløb udstedes."] } ellers { [] }
+        }
+        | _ -> []
+    }
+    = børn = hvis any(grøn_check_børn(i.børneforhold), |b: GrønCheckBarn| b.børneydelse_ved_årets_udløb == GrønCheckRestEfterYdelseTilBarnet) { ["Ydelse delvis til barnet selv: særskilt hjemmel fra 2026, men samspillet med § 5-loftet er endnu ikke afklaret (td-6d49ab). Intet sammenligningsbeløb udstedes."] } ellers { [] }
+    concat(person, concat(ægtefælle, børn))
+}
+> grøn_check_barn_berettiget(b: GrønCheckBarn, år: Heltal) -> Boolsk {
+    dato_før_eller_lig_med(b.fødselsdato, Dato(år = år, måned = 1, dag = 1)) && b.fødselsdato.år + 18 > år && b.ophold_den_1_januar != GrønCheckBarnAndetUdland && b.ophold_den_1_januar != GrønCheckBarnOpholdUkendt && b.har_indgået_ægteskab_den_1_januar == Some(Falskt) && b.anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar == Some(Falskt) && b.børneydelse_ved_årets_udløb != GrønCheckIngenBørneydelse && b.børneydelse_ved_årets_udløb != GrønCheckBørneydelseUkendt
+}
+-- Halve øre bevares til sidst. Administrativ projektion: positivt restbeløb
+-- afrundet til nærmeste øre, halv op (eksterne 2025-observationer i guiden).
+> grøn_check_aftrappet_øre(før_øre: Heltal, indkomst: Heltal, grænse: Heltal) -> Heltal {
+    (grøn_check_plus(før_øre * 2 - grøn_check_plus(indkomst - grænse) * 15) + 1) / 2
+}
+> grøn_check_beregning(i: GrønCheckInput, p: GrønCheckPerson, g: GrønCheckIndkomst, s: GrønCheckSatser) -> GrønCheckBeregning {
+    = adgang = p.skattepligt_den_1_januar == GrønCheckFuldSkattepligt && p.forskerordning == Some(Falskt)
+    = pensionist = socialpensionslov1a_resultat_for_indkomstår(p.fødselsdato, i.skatteår).folkepension_opnåelsesår <= i.skatteår || p.modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb == Some(Sandt)
+    = kapital = match i.ægtefælle { | GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut -> grøn_check_plus(g.nettokapitalindkomst_kroner - nationalparametre_for(i.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner) | _ -> 0 }
+    = indkomst = g.personlig_indkomst_efter_am_kroner + g.pbl16_tillæg_kroner + kapital
+    = børn = filter(grøn_check_børn(i.børneforhold), |b: GrønCheckBarn| adgang && grøn_check_barn_berettiget(b, i.skatteår))
+    = dobbelt = length(filter(børn, |b: GrønCheckBarn| b.børneydelse_ved_årets_udløb == GrønCheckHelBørneydelse))
+    = børn_før = grøn_check_min(120 * (length(børn) + dobbelt), 240 + 120 * grøn_check_min(dobbelt, 2)) * 100
+    = pensionist_før = hvis adgang && pensionist { s.pensionist_kroner * 100 } ellers { 0 }
+    = børnegrænse = s.aftrapningsgrænse_kroner + hvis pensionist { 11667 } ellers { 0 }
+    = voksen = grøn_check_aftrappet_øre(pensionist_før, indkomst, s.aftrapningsgrænse_kroner)
+    = barn = grøn_check_aftrappet_øre(børn_før, indkomst, børnegrænse)
+    = tillæg = hvis adgang && pensionist && indkomst <= s.tillægsgrænse_kroner { 28000 } ellers { 0 }
+    GrønCheckBeregning(adgang_til_kompensation = adgang, pensionistregel = pensionist, indkomstgrundlag_kroner = indkomst, pensionist_før_aftrapning_øre = pensionist_før, pensionist_efter_aftrapning_øre = voksen, berettigede_børn = length(børn), børn_med_dobbeltydelse = dobbelt, børn_før_aftrapning_øre = børn_før, børn_efter_aftrapning_øre = barn, pensionist_aftrapningsgrænse_kroner = s.aftrapningsgrænse_kroner, børn_aftrapningsgrænse_kroner = børnegrænse, tillægsgrænse_kroner = s.tillægsgrænse_kroner, tillæg_øre = tillæg, samlet_kredit_øre = voksen + barn + tillæg)
+}
+> grøn_check_resultat(status: GrønCheckStatus, beregning: GrønCheckBeregning?, observation: Heltal?, uafklaret: List(Tekst)) -> GrønCheckResultat {
+    GrønCheckResultat(status = status, beregning = beregning, oplyst_samlet_grøn_check_øre = observation, difference_øre = match beregning { | None -> None | Some(b) -> match observation { | None -> None | Some(v) -> Some(v - b.samlet_kredit_øre) } }, uafklaret = uafklaret, forbehold = ["Beregnet ud fra oplyste indkomsttal og kildefakta; ikke en uafhængig beregning af hele årsopgørelsen eller autentifikation af bilag.", "Kredit efter KSL § 60, ikke ligningsmæssigt fradrag. Saml pensionistbeløb, børnebeløb og tillæg én gang; indsæt aldrig oven i en allerede medregnet grøn check.", "Øreprojektionen er kontrolleret på udvalgte 2025-eksempler; historisk og universel administrativ overensstemmelse er ikke bevist."])
+}
+> vurder_grøn_check_input(i: GrønCheckInput) -> GrønCheckResultat {
+    match grøn_check_satser(i.skatteår) {
+        | None -> grøn_check_resultat(GrønCheckUdenForDækning, None, i.oplyst_samlet_grøn_check_øre, ["Kun indkomstårene 2023–2026 er understøttet."])
+        | Some(s) -> {
+            = fejl = grøn_check_inputfejl(i)
+            hvis length(fejl) > 0 { grøn_check_resultat(GrønCheckUgyldigtInput, None, i.oplyst_samlet_grøn_check_øre, fejl) } ellers {
+                = mangler = grøn_check_mangler(i)
+                = dækning = grøn_check_dækningsmangler(i)
+                hvis length(mangler) > 0 || length(dækning) > 0 {
+                    grøn_check_resultat(hvis length(dækning) > 0 { GrønCheckUdenForDækning } ellers { GrønCheckUfuldstændig }, None, i.oplyst_samlet_grøn_check_øre, concat(mangler, dækning))
+                } ellers {
+                    match i.person {
+                        | None -> grøn_check_resultat(GrønCheckUfuldstændig, None, i.oplyst_samlet_grøn_check_øre, ["Person mangler."])
+                        | Some(p) -> match i.indkomst {
+                            | None -> grøn_check_resultat(GrønCheckUfuldstændig, None, i.oplyst_samlet_grøn_check_øre, ["Indkomst mangler."])
+                            | Some(g) -> {
+                                = b = grøn_check_beregning(i, p, g, s)
+                                = afviger = match i.oplyst_samlet_grøn_check_øre { | None -> Falskt | Some(v) -> v != b.samlet_kredit_øre }
+                                grøn_check_resultat(hvis afviger { GrønCheckAfviger } ellers { GrønCheckBeregnet }, Some(b), i.oplyst_samlet_grøn_check_øre, [])
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+--@end:grøn_check_regler--
