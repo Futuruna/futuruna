@@ -31,10 +31,12 @@ Modellen træffer ikke selv en afgørelse om hjemsted.
 
 Brug en compiler, der består det aktuelle
 [tax-audit-kompatibilitetstjek](../../website/public/ai-setup.md#tax-audit-runtime-check),
-ikke alene det oprindelige download med versionsnummer 0.2.0. Kør fra repoets rod:
+ikke alene det oprindelige download med versionsnummer 0.2.0. Bevar den
+afprøvede binærs absolutte sti i `RUNA_BIN`, og brug den samme binær i alle
+kommandoer nedenfor. Kør fra repoets rod:
 
 ```sh
-./target/release/runa examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa
+"$RUNA_BIN" examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa
 ```
 
 Det [fiktive eksempel](beskaeftigelsesfradrag.scenario.runa) giver:
@@ -49,6 +51,21 @@ Fradragene er ikke skattebesparelser. Modellen genbruger de eksisterende
 årssatser og lofter i [ligningsloven_fradrag.runa](ligningsloven_fradrag.runa).
 Den præcise administrative afrunding til hele kroner er fortsat ikke
 uafhængigt verificeret; dette arbejde ændrer ikke den eksisterende projektion.
+
+### En kendt forskel på én krone er ikke afklaret
+
+[Den juridiske vejlednings delårseksempel, C.F.1.6.2.1](https://info.skat.dk/data.aspx?oid=1977388),
+viser 12,75 % af 444.077 kr. som 56.620 kr. Den nuværende fradragsregel giver
+56.619 kr. ved det samme viste grundlag: det eksakte produkt er 56.619,8175 kr.,
+og modellen afkorter til hele kroner. Eksemplets andet viste grundlag på
+188.637 kr. giver derimod 24.051 kr. både i tabellen og i modellen.
+
+Dette er en konkret forskel fra et officielt eksempel, ikke dokumentation for
+en generel afrundingsregel. Delårseksemplet har også omregning og afrundede
+visningstal; den fulde beregning er ikke rekonstrueret her. En forskel på én
+krone må derfor undersøges, ikke automatisk betegnes som en fejl i din
+årsopgørelse. Ret hverken kildefakta eller beløb for at få et match. Modellen
+ændres ikke til nærmeste krone uden et bedre administrativt grundlag.
 
 ## Oplys egne fakta uden at gætte
 
@@ -76,8 +93,8 @@ Gem dokumenter, input og resultater uden for checkout. Fra repoets rod kan du
 generere en JSON-skabelon; vælg et nyt filnavn i en privat mappe, du allerede har:
 
 ```sh
-./target/release/runa template examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --format json --output /absolut/privat/mappe/arbejdsfradrag.json
-./target/release/runa call examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --input /absolut/privat/mappe/arbejdsfradrag.json --output /absolut/privat/mappe/arbejdsfradrag-resultat.json
+"$RUNA_BIN" template examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --format json --output /absolut/privat/mappe/arbejdsfradrag.json
+"$RUNA_BIN" call examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --input /absolut/privat/mappe/arbejdsfradrag.json --output /absolut/privat/mappe/arbejdsfradrag-resultat.json
 ```
 
 Skabelonen starter uafklaret. Udfyld og gennemgå den **før** `call`; ret ikke
@@ -156,7 +173,7 @@ er kontrolleret med native kørsel og giver samme output som den fortolkede
 kørsel. Eksemplet kan også køres med:
 
 ```sh
-./target/release/runa run examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa
+"$RUNA_BIN" run examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa
 ```
 
 Denne kontrol gælder den afgrænsede arbejdsfradragsberegning, ikke native
