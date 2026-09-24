@@ -1,0 +1,3 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / kapitel - 04 - omregning - skatteloft
+@ print(vis(par14_helt_kroner_afrundet(100, 0)))

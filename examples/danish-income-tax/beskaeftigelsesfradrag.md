@@ -151,6 +151,24 @@ identitet og beløb, men kan ikke bekræfte dokumenternes sandhed eller vælge
 en juridisk retvisende omregningsmetode uden fakta.
 
 Den tekniske indgangsgrænse er 1.000 poster med højst +/- 1 mia. kr. pr. post,
-ikke et lovbestemt loft. Fordelingsmodulet er også kontrolleret med native
-kørsel. Den samlede fradragsberegnings importerede lovmodul har fortsat en
-native-begrænsning; brug den viste fortolkede kørsel eller `runa call`.
+ikke et lovbestemt loft. Både fordelingsmodulet og det viste fradragseksempel
+er kontrolleret med native kørsel og giver samme output som den fortolkede
+kørsel. Eksemplet kan også køres med:
+
+```sh
+./target/release/runa run examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa
+```
+
+Denne kontrol gælder den afgrænsede arbejdsfradragsberegning, ikke native
+kørsel af hele Personskat.
+
+### Hvis du bruger lovmodulets parameterfunktioner direkte
+
+Årstabellerne har eksplicitte `*_opslag`-funktioner, som returnerer `Some(...)`
+ved et dækket opslag og `None`, når den nødvendige parameter mangler.
+De eksisterende værdifunktioner beholder navn og værdi for dækkede opslag,
+men stopper ved manglende parametre; fravær bliver ikke til en nulsats.
+Brug opslaget, hvis dit program selv skal håndtere et udækket år.
+En kendt pensionsprocent er ikke nok til et fuldt pensionsfradrag: uden årets
+reguleringstal kan modellen ikke fastlægge det regulerede loft. Dette udvider
+ikke auditberegningens understøttede skatteår.

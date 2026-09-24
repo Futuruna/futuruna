@@ -80,7 +80,10 @@ fn audit_interview_has_danish_questions_and_provenance() {
         })
         .unwrap();
     assert!(residence["help"].as_str().unwrap().contains("null"));
-    let example = execute(&["examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa"]);
+    let path = "examples/danish-income-tax/beskaeftigelsesfradrag.scenario.runa";
+    let example = execute(&[path]);
+    let native = execute(&["run", path]);
+    assert_eq!(example.stdout, native.stdout, "public audit native parity");
     let output = String::from_utf8(example.stdout).unwrap();
     assert!(output.contains("Uafklaret DBO-hjemsted: None"));
     assert!(output.contains("jobfradrag_kroner: 2916"));

@@ -1689,7 +1689,7 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
 | ll9d_ingen_normaludgift() -> Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer = 0)
 | ll9d_ingen_faktisk_udgift() -> Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 0)
 | ll9d_skatteår_understøttet(skatteår: Heltal) -> skatteår >= 2023 && skatteår <= 2026
-| ll9d_satser_for(skatteår: Heltal) -> Ligningslov9DSatser(
+| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
     skatteår = 2023,
     normalfradrag_øre_pr_km = 219,
     erhverv_høj_øre_pr_km = 373,
@@ -1697,8 +1697,8 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     erhverv_høj_kilometerloft = 20000,
     normalfradrag_kilde = Ll9dSkatteraadetBek1449Af2022Par1Par4,
     erhvervssats_kilde = Ll9dSkatteraadetBek1449Af2022Par1Par4
-) under skatteår == 2023
-| ll9d_satser_for(skatteår: Heltal) -> Ligningslov9DSatser(
+)) under skatteår == 2023
+| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
     skatteår = 2024,
     normalfradrag_øre_pr_km = 223,
     erhverv_høj_øre_pr_km = 379,
@@ -1706,8 +1706,8 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     erhverv_høj_kilometerloft = 20000,
     normalfradrag_kilde = Ll9dSkatteraadetBek1312Af2023Par1Par4,
     erhvervssats_kilde = Ll9dSkatteraadetBek1312Af2023Par1Par4
-) under skatteår == 2024
-| ll9d_satser_for(skatteår: Heltal) -> Ligningslov9DSatser(
+)) under skatteår == 2024
+| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
     skatteår = 2025,
     normalfradrag_øre_pr_km = 223,
     erhverv_høj_øre_pr_km = 381,
@@ -1715,8 +1715,8 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     erhverv_høj_kilometerloft = 20000,
     normalfradrag_kilde = Ll9dSkatteraadetBek1189Af2024Par1Par4,
     erhvervssats_kilde = Ll9dSkatteraadetBek1189Af2024Par1Par4
-) under skatteår == 2025
-| ll9d_satser_for(skatteår: Heltal) -> Ligningslov9DSatser(
+)) under skatteår == 2025
+| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
     skatteår = 2026,
     normalfradrag_øre_pr_km = 317,
     erhverv_høj_øre_pr_km = 394,
@@ -1724,7 +1724,10 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     erhverv_høj_kilometerloft = 20000,
     normalfradrag_kilde = Ll9dLov616Af2026Par1,
     erhvervssats_kilde = Ll9dSkatteraadetBek1333Af2025Par1Par4
-) under skatteår == 2026
+)) under skatteår == 2026
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9d_satser_for_opslag(skatteår: Heltal) -> None
+| ll9d_satser_for(skatteår: Heltal) -> head(match ll9d_satser_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9d_øre_afrundet_til_kroner(øre: Heltal) -> 0
 | exception ll9d_positive_øre_afrundes ll9d_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
 | ll9d_normaludgiftsgrundlag_gyldigt(grundlag: Ligningslov9DNormaludgiftsgrundlag) -> match grundlag {
@@ -1839,7 +1842,7 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
 | ll9d_ikke_omfattet_resultat() -> ll9d_ikke_omfattet_resultat_for(2026)
 | ll9c_øre_afrundet_til_kroner(øre: Heltal) -> 0
 | exception ll9c_positive_øre_afrundes ll9c_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
-| ll9c_satser_for(skatteår: Heltal) -> Ligningslov9CSatser(
+| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
     skatteår = 2023,
     almindelig_op_til_120_øre_pr_km = 219,
     almindelig_over_120_øre_pr_km = 110,
@@ -1852,8 +1855,8 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     almindelig_satskilder = [SkatteraadetBek1449Af2022Par1Til3],
     yderkommune_satskilder = [SkatteraadetBek1449Af2022Par1Til3],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1449Af2022Par1Til3, SkatteministerietPsl20Beloebsgraenser2023_2024]
-) under skatteår == 2023
-| ll9c_satser_for(skatteår: Heltal) -> Ligningslov9CSatser(
+)) under skatteår == 2023
+| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
     skatteår = 2024,
     almindelig_op_til_120_øre_pr_km = 223,
     almindelig_over_120_øre_pr_km = 112,
@@ -1866,8 +1869,8 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     almindelig_satskilder = [SkatteraadetBek1312Af2023Par1Til3],
     yderkommune_satskilder = [SkatteraadetBek1312Af2023Par1Til3, LigningslovLov109Af2024Par1Nr7Til9],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1312Af2023Par1Til3, SkatteministerietPsl20Beloebsgraenser2023_2024]
-) under skatteår == 2024
-| ll9c_satser_for(skatteår: Heltal) -> Ligningslov9CSatser(
+)) under skatteår == 2024
+| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
     skatteår = 2025,
     almindelig_op_til_120_øre_pr_km = 223,
     almindelig_over_120_øre_pr_km = 112,
@@ -1880,8 +1883,8 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     almindelig_satskilder = [SkatteraadetBek1189Af2024Par1Til3],
     yderkommune_satskilder = [SkatteraadetBek1189Af2024Par1Til3, LigningslovLov109Af2024Par1Nr7Til9],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1189Af2024Par1Til3, SkatteministerietPsl20Beloebsgraenser2024_2025]
-) under skatteår == 2025
-| ll9c_satser_for(skatteår: Heltal) -> Ligningslov9CSatser(
+)) under skatteår == 2025
+| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
     skatteår = 2026,
     almindelig_op_til_120_øre_pr_km = 317,
     almindelig_over_120_øre_pr_km = 159,
@@ -1894,7 +1897,10 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     almindelig_satskilder = [SkatteraadetBek1333Af2025Par1Til3, Lov616Af2026Par1],
     yderkommune_satskilder = [SkatteraadetBek1333Af2025Par1Til3, LigningslovLov109Af2024Par1Nr7Til9, Lov616Af2026Par1],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1333Af2025Par1Til3, Lov616Af2026Par1, SkatteministerietPsl20Beloebsgraenser2025_2026]
-) under skatteår == 2026
+)) under skatteår == 2026
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9c_satser_for_opslag(skatteår: Heltal) -> None
+| ll9c_satser_for(skatteår: Heltal) -> head(match ll9c_satser_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9c_arbejdsplads_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> input.befordringsformål == IndtægtsgivendeArbejdsplads && input.modtaget_skattefri_befordringsgodtgørelse_for_strækning == Falskt && input.par9d.afskærer_par9c_stk1_8 == Falskt && input.fradrag_udelukket_folketingshverv_m_v == Falskt
 | ll9c_su_uddannelsessted_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> input.skatteår >= 2026 && input.befordringsformål == SuUddannelsessted && input.bopæl_i_yderkommune_eller_lille_ø == Sandt && input.modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning == Falskt && input.par9d.afskærer_par9c_stk10 == Falskt
 | ll9c_ordinært_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> ll9c_arbejdsplads_befordringsfradrag_berettiget(input) || ll9c_su_uddannelsessted_befordringsfradrag_berettiget(input)
@@ -2261,81 +2267,84 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 | ligningslov_basispoint_afrundet_til_hel_procent(sats_basispoint: Heltal) -> penge_basispoint_afrundet_til_hel_procent(sats_basispoint)
 | ligningslov_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_afrundet_kroner(beløb_kroner, sats_basispoint)
 
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2012,
     beskæftigelsesfradrag_basispoint = 440,
     beskæftigelsesfradrag_maks_kroner = 14100
-) under skatteår == 2012
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2012
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2013,
     beskæftigelsesfradrag_basispoint = 695,
     beskæftigelsesfradrag_maks_kroner = 22300
-) under skatteår == 2013
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2013
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2014,
     beskæftigelsesfradrag_basispoint = 765,
     beskæftigelsesfradrag_maks_kroner = 25000
-) under skatteår == 2014
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2014
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2015,
     beskæftigelsesfradrag_basispoint = 805,
     beskæftigelsesfradrag_maks_kroner = 26800
-) under skatteår == 2015
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2015
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2016,
     beskæftigelsesfradrag_basispoint = 830,
     beskæftigelsesfradrag_maks_kroner = 28000
-) under skatteår == 2016
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2016
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2017,
     beskæftigelsesfradrag_basispoint = 875,
     beskæftigelsesfradrag_maks_kroner = 30000
-) under skatteår == 2017
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2017
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2018,
     beskæftigelsesfradrag_basispoint = 950,
     beskæftigelsesfradrag_maks_kroner = 34300
-) under skatteår == 2018
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2018
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2019,
     beskæftigelsesfradrag_basispoint = 1010,
     beskæftigelsesfradrag_maks_kroner = 37200
-) under skatteår == 2019
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2019
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2020,
     beskæftigelsesfradrag_basispoint = 1050,
     beskæftigelsesfradrag_maks_kroner = 39400
-) under skatteår == 2020
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2020
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2021,
     beskæftigelsesfradrag_basispoint = 1060,
     beskæftigelsesfradrag_maks_kroner = 40600
-) under skatteår == 2021
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2021
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2022,
     beskæftigelsesfradrag_basispoint = 1065,
     beskæftigelsesfradrag_maks_kroner = 43500
-) under skatteår == 2022
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2022
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2023,
     beskæftigelsesfradrag_basispoint = 1065,
     beskæftigelsesfradrag_maks_kroner = 45600
-) under skatteår == 2023
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2023
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2024,
     beskæftigelsesfradrag_basispoint = 1065,
     beskæftigelsesfradrag_maks_kroner = 45100
-) under skatteår == 2024
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2024
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2025,
     beskæftigelsesfradrag_basispoint = 1230,
     beskæftigelsesfradrag_maks_kroner = 55600
-) under skatteår == 2025
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+)) under skatteår == 2025
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
     skatteår = 2026,
     beskæftigelsesfradrag_basispoint = 1275,
     beskæftigelsesfradrag_maks_kroner = 63300
-) under skatteår == 2026
+)) under skatteår == 2026
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9j_parametre_for_opslag(skatteår: Heltal) -> None
+| ll9j_parametre_for(skatteår: Heltal) -> head(match ll9j_parametre_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input: Ligningslov9JInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
 | ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> penge_beløb_gange_basispoint_kroner(ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint)
 | ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> 0
@@ -2421,60 +2430,63 @@ Jobfradrag, § 9 K
 # LigningslovLønmodtagerFradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
 
 | ll9k_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2018
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2018,
     jobfradrag_basispoint = 250,
     jobfradrag_indkomstgrænse_kroner = 187500,
     jobfradrag_maks_kroner = 1400
-) under skatteår == 2018
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2018
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2019,
     jobfradrag_basispoint = 375,
     jobfradrag_indkomstgrænse_kroner = 191600,
     jobfradrag_maks_kroner = 2100
-) under skatteår == 2019
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2019
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2020,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 195800,
     jobfradrag_maks_kroner = 2600
-) under skatteår == 2020
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2020
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2021,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 200300,
     jobfradrag_maks_kroner = 2600
-) under skatteår == 2021
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2021
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2022,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 202700,
     jobfradrag_maks_kroner = 2700
-) under skatteår == 2022
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2022
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2023,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 208700,
     jobfradrag_maks_kroner = 2700
-) under skatteår == 2023
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2023
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2024,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 216100,
     jobfradrag_maks_kroner = 2800
-) under skatteår == 2024
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2024
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2025,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 224500,
     jobfradrag_maks_kroner = 2900
-) under skatteår == 2025
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+)) under skatteår == 2025
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
     skatteår = 2026,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 235200,
     jobfradrag_maks_kroner = 3100
-) under skatteår == 2026
+)) under skatteår == 2026
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9k_parametre_for_opslag(skatteår: Heltal) -> None
+| ll9k_parametre_for(skatteår: Heltal) -> head(match ll9k_parametre_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt && ll9k_gælder_for_skatteår(input.skatteår)
 | ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
 | ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)
@@ -2647,22 +2659,40 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
     )
 }
 | ll9l_maksimalt_grundlag_2010_niveau_kroner() -> 63900
-| ll9l_maksimalt_grundlag_kroner(skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
-    grundbeløb_2010_niveau_kroner = ll9l_maksimalt_grundlag_2010_niveau_kroner(),
-    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
-)) under ll9l_gælder_for_skatteår(skatteår)
-| ll9l_ordinær_sats_basispoint(skatteår: Heltal) -> 800 under skatteår >= 2018 && skatteår <= 2019
-| ll9l_ordinær_sats_basispoint(skatteår: Heltal) -> 1200 under skatteår >= 2020
-| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> 2000 under skatteår == 2018
-| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> 2200 under skatteår == 2019
-| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> 3200 under skatteår >= 2020
+| ll9l_maksimalt_grundlag_kroner_opslag(skatteår: Heltal) -> match par20_reguleringstal_tiendedele_for_skatteår_opslag(skatteår) {
+    | Some(reguleringstal) -> Some(par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+        grundbeløb_2010_niveau_kroner = ll9l_maksimalt_grundlag_2010_niveau_kroner(),
+        reguleringstal_tiendedele = reguleringstal
+    )))
+    | None -> None
+} under ll9l_gælder_for_skatteår(skatteår)
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9l_maksimalt_grundlag_kroner_opslag(skatteår: Heltal) -> None
+| ll9l_maksimalt_grundlag_kroner(skatteår: Heltal) -> head(match ll9l_maksimalt_grundlag_kroner_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal) -> Some(800) under skatteår >= 2018 && skatteår <= 2019
+| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal) -> Some(1200) under skatteår >= 2020
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal) -> None
+| ll9l_ordinær_sats_basispoint(skatteår: Heltal) -> head(match ll9l_ordinær_sats_basispoint_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> Some(2000) under skatteår == 2018
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> Some(2200) under skatteår == 2019
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> Some(3200) under skatteår >= 2020
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> None
+| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> head(match ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> ll9l_ordinær_sats_basispoint(skatteår)
 | exception ll9l_fra15år_før_folkepension ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> ll9l_folkepensionsnær_sats_basispoint(skatteår) under status == Ll9lFra15ÅrFørFolkepension
-| ll9l_parametre_for(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> Ligningslov9LParametre(
-    skatteår = skatteår,
-    pensionsfradrag_basispoint = ll9l_sats_basispoint(skatteår, status),
-    maksimalt_grundlag_kroner = ll9l_maksimalt_grundlag_kroner(skatteår)
-) under ll9l_gælder_for_skatteår(skatteår)
+| ll9l_parametre_for_opslag(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> match ll9l_maksimalt_grundlag_kroner_opslag(skatteår) {
+    | Some(maksimum) -> Some(Ligningslov9LParametre(
+        skatteår = skatteår,
+        pensionsfradrag_basispoint = ll9l_sats_basispoint(skatteår, status),
+        maksimalt_grundlag_kroner = maksimum
+    ))
+    | None -> None
+} under ll9l_gælder_for_skatteår(skatteår)
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| ll9l_parametre_for_opslag(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> None
+| ll9l_parametre_for(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> head(match ll9l_parametre_for_opslag(skatteår, status) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl18_fradragsberettiget_indbetaling_kroner) + ligningslov_positivt_beløb(input.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner) + ligningslov_positivt_beløb(input.pbl19_øvrige_indbetalinger_efter_am_kroner)
 | ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> 0
 | exception ll9l_modregner_pbl20_udbetaling ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl20_indkomstskattepligtig_udbetaling_kroner) under input.pbl20_udbetaling_status == Ll9lModregningspligtigPbl20Udbetaling
