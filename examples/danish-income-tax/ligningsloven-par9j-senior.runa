@@ -25,10 +25,10 @@ Stk. 6. For indkomstårene 2026-2028 udgør procenten 1,4, og grundbeløbet
 -- https://svmn.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
 -- https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag
 -- Kun 2026-satsen er optaget her. Senere års satser/lofter må ikke arves.
--- Hele kroner bevarer denne seniorregels hidtidige nedrunding for positive
--- beløb; projektionen er ikke en særskilt kildebelagt afrundingsregel.
--- Den eksterne kontrol af almindeligt § 9 J-fradrag fastslår ikke afrundingen
--- af dette separate tillæg. Se skatdk-arbejdsfradrag-ekstern.md.
+-- Heløreprojektion før oprunding understøttes af særskilte seniorcases i
+-- SKATs 2026-beregner. Det er en administrativ modelkonvention, ikke en ny
+-- lovbestemmelse. Én observeret afvigelse ved nøjagtigt én øre står åben;
+-- se skatdk-fradrag-oere-ekstern.md. Alder, periode og loft ændres ikke.
 
 --@begin:ll9j_senior--
 # Ligningslov9JSeniorResultat(skatteår: Heltal, folkepensionsalder: Socialpensionslov1AResultat, regelgrundlag_understøttet: Boolsk, input_gyldigt: Boolsk, i_seniorperioden: Boolsk, omfattet_af_stk1: Boolsk, berettiget: Boolsk, grundlag_kroner: Heltal, sats_basispoint: Heltal, maks_fradrag_kroner: Heltal, fradrag_kroner: Heltal)
@@ -47,7 +47,7 @@ Stk. 6. For indkomstårene 2026-2028 udgør procenten 1,4, og grundbeløbet
         hvis grundlag >= (maks_fradrag * 10000 + sats - 1) / sats {
             maks_fradrag
         } ellers {
-            penge_beløb_gange_basispoint_kroner(grundlag, sats)
+            penge_beløb_gange_basispoint_via_øre_oprundet_kroner(grundlag, sats)
         }
     } ellers { 0 }
     Ligningslov9JSeniorResultat(

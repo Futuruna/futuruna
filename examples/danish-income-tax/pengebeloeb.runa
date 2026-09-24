@@ -38,6 +38,10 @@ positivbeløb, procent- eller øreafrunding.
         tæller / 10000 + hvis tæller % 10000 > 0 { 1 } ellers { 0 }
     } ellers { 0 }
 }
+-- Bevar forskellen mellem matematisk oprunding og en heløreprojektion.
+-- Der bruges kun heltal; nøjagtigt én øre må ikke forsvinde som flydestøjsfejl.
+| penge_øre_oprundet_kroner(beløb_øre: Heltal) -> hvis beløb_øre > 0 { beløb_øre / 100 + hvis beløb_øre % 100 > 0 { 1 } ellers { 0 } } ellers { 0 }
+| penge_beløb_gange_basispoint_via_øre_oprundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> hvis beløb_kroner > 0 && sats_basispoint > 0 { penge_øre_oprundet_kroner(penge_beløb_gange_basispoint_øre(beløb_kroner, sats_basispoint)) } ellers { 0 }
 | penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> 0
 | exception penge_positiv_ørebrøk_nedrundes penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> tæller / nævner under tæller > 0 && nævner > 0
 | penge_øre_beregning(tæller: Heltal, nævner: Heltal) -> PengeØreBeregning(

@@ -201,6 +201,103 @@ fn ordinary_salary_matches_external_skat_rounding_and_tax_amounts() {
 }
 
 #[test]
+fn supplementary_deductions_and_sub_ore_cases_match_official_tax_components() {
+    // Public fictional observations, not expectations computed by Futuruna.
+    // See skatdk-fradrag-oere-ekstern.md. Tax is BEFORE green-check/prepayment
+    // settlement; this is not a comparison of refunds or forskudsskat.
+    // year, birth, salary, quarters, employment, job, senior, single-parent,
+    // taxable income, municipal tax ore, assessed tax including AM ore.
+    let observed = [
+        (
+            2026, 1960, 100001, 0, 12751, 0, 1401, 0, 77849, 1820888, 1810680,
+        ),
+        (
+            2026, 1960, 435643, 0, 55545, 3100, 6099, 0, 336048, 7860162, 14243633,
+        ),
+        (
+            2026, 1960, 435644, 0, 55545, 3100, 6100, 0, 336048, 7860162, 14243645,
+        ),
+        (
+            2025, 1990, 100001, 4, 12301, 0, 0, 11501, 68199, 1602676, 1675292,
+        ),
+        (
+            2026, 1990, 100010, 3, 12752, 0, 0, 8626, 70632, 1652082, 1641982,
+        ),
+        (
+            2026, 1990, 100661, 3, 12835, 0, 0, 8682, 71092, 1662841, 1665135,
+        ),
+        (
+            2026, 1990, 439992, 4, 56099, 3100, 0, 50600, 294994, 6899909, 13366232,
+        ),
+        (
+            2025, 1990, 100187, 0, 12323, 0, 0, 0, 79850, 1876475, 1952556,
+        ),
+        (
+            2026, 1990, 100251, 0, 12782, 0, 0, 0, 79449, 1858312, 1852866,
+        ),
+        (
+            2026, 1990, 235289, 0, 30000, 4, 0, 0, 186462, 4361346, 6928262,
+        ),
+    ];
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let cases = observed.iter().enumerate().map(|(index, &(year, birth, salary, quarters, ..))| {
+        let mut input = baseline.clone();
+        input["lønmodtager"]["skatteår"] = json!(year);
+        input["lønmodtager"]["bruttoløn_kroner"] = json!(salary);
+        input["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(birth);
+        if quarters > 0 {
+            input["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] = json!({
+                "$variant":"OplystEkstraBørnetilskud", "oplysninger_for_året_komplette":true,
+                "kvartaler": (1..=quarters).map(|q| json!({"indkomstår":year,"kvartal":q,
+                    "berettiget":true,"modtaget":true,"kildereference":"fictional complete benefit record"})).collect::<Vec<_>>()
+            });
+        }
+        json!({"case_id":format!("skat-ore-{index}"),"input":input})
+    }).collect();
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), observed.len());
+    for (index, (row, (_, _, _, _, employment, job, senior, parent, taxable, municipal, total))) in
+        results.iter().zip(observed).enumerate()
+    {
+        assert_eq!(row["case_id"], format!("skat-ore-{index}"));
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{index}: {}",
+            result["vurdering"]
+        );
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        for (field, expected) in [
+            ("beskæftigelsesfradrag_kroner", employment),
+            ("jobfradrag_kroner", job),
+            ("seniorbeskæftigelsesfradrag_kroner", senior),
+            ("almindelig_skattepligtig_indkomst_kroner", taxable),
+        ] {
+            assert_eq!(result["skat"][field], expected, "{index}: {field}");
+        }
+        assert_eq!(
+            result["enligforsørgerfradrag"]["fradrag_kroner"], parent,
+            "{index}"
+        );
+        assert_eq!(
+            result["hovedskat_eksakt"]["før_nedsættelser"]["kommuneskat_øre"], municipal,
+            "{index}"
+        );
+        assert_eq!(
+            result["hovedskat_eksakt"]["samlet_inkl_am_øre"], total,
+            "{index}"
+        );
+        assert_eq!(
+            result["vurdering"]["slutskat_til_sammenligning_øre"], total,
+            "{index}"
+        );
+    }
+}
+
+#[test]
 fn atp_template_distinguishes_unknown_from_confirmed_absence() {
     let template = run(&["template", MODEL, "--format", "json"]);
     assert_eq!(
@@ -333,9 +430,9 @@ fn atp_source_bases_preserve_income_and_distinguish_public_contributions() {
         );
         assert_eq!(
             result["skat"]["beskæftigelsesfradrag_kroner"],
-            // Ordinary LL9J rounds upward; external boundary observations live
-            // in skatdk-arbejdsfradrag-ekstern.scenario.runa.
-            ((wage + work) * if name == "2025" { 1230 } else { 1275 } + 9999) / 10000,
+            // Truncate to ore, then round upward to kroner; independently
+            // observed boundaries live in skatdk-fradrag-oere-ekstern.scenario.runa.
+            ((wage + work) * if name == "2025" { 1230 } else { 1275 } / 100 + 99) / 100,
             "{name}"
         );
         assert_eq!(
@@ -870,10 +967,11 @@ fn employer_rate_year_cap_boundary_and_private_priority() {
         );
         assert_eq!(
             result["skat"]["beskæftigelsesfradrag_kroner"],
-            ((200000 + gross) * if year == 2025 { 1230 } else { 1275 } + 9999) / 10000
+            ((200000 + gross) * if year == 2025 { 1230 } else { 1275 } / 100 + 99) / 100
         );
-        let job = (((200000 + gross - if year == 2025 { 224500 } else { 235200 }) * 450 + 9999)
-            / 10000)
+        let job = (((200000 + gross - if year == 2025 { 224500 } else { 235200 }) * 450 / 100
+            + 99)
+            / 100)
             .min(if year == 2025 { 2900 } else { 3100 });
         assert_eq!(result["skat"]["jobfradrag_kroner"], job);
         let rate = &result["pension"]["arbejdsgiver_rate_resultat"];

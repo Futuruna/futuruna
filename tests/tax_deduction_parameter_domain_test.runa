@@ -35,6 +35,8 @@
 = oprunding = map([-1, 0, 1, 9999, 10000, 10001], |beløb: Heltal| penge_beløb_gange_basispoint_oprundet_kroner(beløb, 1))
 | positiv_oprunding_uden_ekstra_krone_ved_heltal: oprunding -> oprunding == [0, 0, 1, 1, 1, 2] && penge_beløb_gange_basispoint_oprundet_kroner(10000, 0) == 0 && penge_beløb_gange_basispoint_oprundet_kroner(10000, -1) == 0 && penge_beløb_gange_basispoint_oprundet_kroner(9223372036854775807, 1) == 922337203685478
 | øvrige_projektioner_er_uændrede: oprunding -> penge_beløb_gange_basispoint_kroner(100004, 1230) == 12300 && penge_beløb_gange_basispoint_afrundet_kroner(100004, 1230) == 12300
+| øretrinnet_er_ikke_matematisk_oprunding: oprunding -> map([10000, 10001, 10099, 10100, 10101], |beløb: Heltal| penge_beløb_gange_basispoint_via_øre_oprundet_kroner(beløb, 1)) == [1, 1, 1, 2, 2] && penge_beløb_gange_basispoint_oprundet_kroner(100187, 1230) == 12324 && penge_beløb_gange_basispoint_via_øre_oprundet_kroner(100187, 1230) == 12323
+| hele_øre_bevares_eksakt: oprunding -> map([-1, 0, 1, 99, 100, 101, 9223372036854775807], penge_øre_oprundet_kroner) == [0, 0, 1, 1, 1, 2, 92233720368547759] && penge_beløb_gange_basispoint_via_øre_oprundet_kroner(10000, -1) == 0 && penge_beløb_gange_basispoint_via_øre_oprundet_kroner(-1, 10000) == 0
 | jobgrænse_og_udelukkelse_bevaret: oprunding -> map([235199, 235200, 235201], |løn: Heltal| ll9k_jobfradrag_kroner(Ligningslov9KInput(2026, løn, Falskt))) == [0, 0, 1] && ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 100001, Sandt)) == 0 && ll9k_jobfradrag_kroner(Ligningslov9KInput(2026, 235201, Sandt)) == 0 && ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, -1, Falskt)) == 0
 
 ? historiske_j_satser_bevaret
@@ -54,6 +56,8 @@
 ? hundredeafrunding_bevaret
 ? positiv_oprunding_uden_ekstra_krone_ved_heltal
 ? øvrige_projektioner_er_uændrede
+? øretrinnet_er_ikke_matematisk_oprunding
+? hele_øre_bevares_eksakt
 ? jobgrænse_og_udelukkelse_bevaret
 
 -- Alle feltværdier og kildehenvisninger sammenlignes mellem de to kørsler.

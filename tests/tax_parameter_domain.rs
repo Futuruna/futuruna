@@ -58,6 +58,27 @@ fn ordinary_deductions_match_external_skat_calculator_boundaries() {
 }
 
 #[test]
+fn deduction_ore_projection_preserves_external_cases_and_known_disagreements() {
+    for path in [
+        "examples/danish-income-tax/skatdk-fradrag-oere-ekstern.scenario.runa",
+        "tests/personskat_senior_test.runa",
+        "tests/personskat_single_parent_test.runa",
+    ] {
+        let interpreted = execute(false, path);
+        let native = execute(true, path);
+        for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+            assert!(
+                output.status.success(),
+                "{lane} {path}: {}\n{}",
+                String::from_utf8_lossy(&output.stderr),
+                String::from_utf8_lossy(&output.stdout)
+            );
+        }
+        assert_eq!(interpreted.stdout, native.stdout, "{path}");
+    }
+}
+
+#[test]
 fn strict_parameter_helpers_fail_instead_of_fabricating_missing_rates() {
     for path in [
         "tests/fixtures/tax_parameter_domain/unsupported_national.runa",

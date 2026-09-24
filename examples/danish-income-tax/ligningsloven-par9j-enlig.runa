@@ -26,8 +26,10 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
 -- https://www.retsinformation.dk/eli/lta/2023/42 (§ 9 J, stk. 4)
 -- 2025: 11,5 %, 48.300 kr.; 2026: 11,5 %, 50.600 kr.
 -- https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag
--- Hele kroner projiceres nedad som i den eksisterende § 9 J-model; den
--- administrative afrunding er et særskilt dokumenteret kontrolpunkt.
+-- Modelkonvention afstemt mod særskilte 2025/2026-beregnercases: afkort
+-- årsbeløbet til hele øre, fordel efter kvartaler, afkort igen til hele øre,
+-- og oprund så til hele kroner. Oprund ikke årsbeløbet til kroner først.
+-- Se skatdk-fradrag-oere-ekstern.md; historisk afrunding er ikke verificeret.
 
 -- Ukendt står først, så genererede skabeloner ikke hævder, at en ydelse er nul.
 # Ligningslov9JEnligInput = EkstraBørnetilskudUoplyst | IntetEkstraBørnetilskud | OplystEkstraBørnetilskud(kvartaler: List(Ligningslov9JEnligKvartal), oplysninger_for_året_komplette: Boolsk)
@@ -58,10 +60,12 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
     = sats = hvis skatteår == 2023 || skatteår == 2024 { 625 } ellers hvis skatteår == 2025 || skatteår == 2026 { 1150 } ellers { 0 }
     = loft = hvis skatteår == 2023 { 24400 } ellers hvis skatteår == 2024 { 25300 } ellers hvis skatteår == 2025 { 48300 } ellers hvis skatteår == 2026 { 50600 } ellers { 0 }
     = grundlag = penge_positivt_beløb(arbejdsmarkedsbidragsgrundlag_kroner)
-    -- Bevar brøken frem til kvartalsfordelingen; begræns før multiplikation.
+    -- Begræns før multiplikation. Bevar øre, ikke et oprundet helkronebeløb,
+    -- frem til kvartalsfordelingen; de to heløretrin er observeret særskilt.
     = helårs_tæller = hvis understøttet && omfattet_af_stk1 {
         hvis grundlag >= (loft * 10000 + sats - 1) / sats { loft * 10000 } ellers { grundlag * sats }
     } ellers { 0 }
+    = helårs_øre = helårs_tæller / 100
     = fejl = concat(concat(
         hvis understøttet { [] } ellers { ["Årets satser er ikke dækket; brug ikke et andet års loft."] },
         hvis afklaret { [] } ellers { ["Ekstra børnetilskud er ikke afklaret for hele året; ukendt er ikke nul."] }
@@ -79,8 +83,8 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
         grundlag_kroner = grundlag,
         sats_basispoint = sats,
         årsloft_kroner = loft,
-        helårsfradrag_kroner = hvis gyldigt { helårs_tæller / 10000 } ellers { 0 },
-        fradrag_kroner = hvis gyldigt { helårs_tæller * antal / 40000 } ellers { 0 }
+        helårsfradrag_kroner = hvis gyldigt { penge_øre_oprundet_kroner(helårs_øre) } ellers { 0 },
+        fradrag_kroner = hvis gyldigt { penge_øre_oprundet_kroner(helårs_øre * antal / 4) } ellers { 0 }
     )
 }
 --@end:ll9j_enlig--
