@@ -511,6 +511,14 @@ kontroller om de allerede er medtaget. Køb ikke noget alene fordi ordet
 | Enlig forsørger | Oplysninger om ekstra børnetilskud og relevante kvartaler, ikke alene civilstand. Se [kildemodellen](ligningsloven-par9j-enlig.md). |
 | Arbejdsrejser eller andre arbejdsudgifter | Arbejdssted, periode, udgiftstype, bilag og arbejdsgiverens betaling/godtgørelse; undersøg den specifikke regel. |
 
+For faglige kontingenter beskriver `skatteyderstatus` **dig som skatteyder**,
+ikke den, der betaler regningen. Arbejdsgiverbetaling gør ikke en lønmodtager
+til `Ll13JuridiskPerson`; den status afvises ved aktive kontingenter i en
+personlig beregning. Den almindelige lønmodtagergrænse er 6.000 kr. i 2023
+og 7.000 kr. fra 2024. A-kassebidrag skal ikke lægges ind under det loft;
+de har deres egen regel og inputgren. Ret ikke status for at få et større
+fradrag. [SKATs juridiske vejledning](https://info.skat.dk/data.aspx?oid=2061770).
+
 Afslut hver mulighed med én af fire konklusioner: **dokumenteret og beregnet**,
 **allerede medtaget**, **kræver flere oplysninger**, eller **ikke omfattet af
 den undersøgte regel/model**. Angiv det konkrete næste skridt: eksempelvis
