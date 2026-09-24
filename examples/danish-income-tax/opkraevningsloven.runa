@@ -429,7 +429,7 @@ INDHOLD:
 | opkrævning_par7_rente_offentliggøres_senest_15_december() -> Sandt
 | opkrævning_par7_daglig_rente_samme_kalenderår(input: OpkrævningPar7DagligRenteInput) -> opkrævning_betalingsfrist_år(input.afregning) == input.afregning.betaling.år
 | opkrævning_par7_daglig_rente_kalenderår(input: OpkrævningPar7DagligRenteInput) -> input.afregning.betaling.år
-| opkrævning_par7_daglig_rente_kontekst(input: OpkrævningPar7DagligRenteInput) -> OpkrævningPar7DagligRenteKontekst(
+| opkrævning_par7_daglig_rente_kontekst(input: OpkrævningPar7DagligRenteInput) -> head(hvis opkrævning_for_sen_betaling_udløser_rente(input.afregning) && opkrævning_par7_daglig_rente_samme_kalenderår(input) { [OpkrævningPar7DagligRenteKontekst(
     krav_kroner = input.krav_kroner,
     seneste_rettidige_betalingsdag = opkrævning_betalingsfrist_dato(input.afregning),
     betalingsdag = opkrævning_betalingsdato(input.afregning),
@@ -439,7 +439,7 @@ INDHOLD:
     månedlig_forsinkelsesrente_basispoint = opkrævning_par7_stk1_månedlig_forsinkelsesrente_basispoint(opkrævning_par7_daglig_rente_kalenderår(input)),
     renteår_dage = dato_dage_i_år(opkrævning_par7_daglig_rente_kalenderår(input)),
     rentedage = opkrævning_dage_efter_til_og_med(opkrævning_betalingsfrist_dato(input.afregning), opkrævning_betalingsdato(input.afregning))
-) under opkrævning_for_sen_betaling_udløser_rente(input.afregning) && opkrævning_par7_daglig_rente_samme_kalenderår(input)
+    )] } ellers { [] })
 | opkrævning_par7_daglig_rente_tæller_øre(input: OpkrævningPar7DagligRenteKontekst) -> input.krav_kroner * input.månedlig_forsinkelsesrente_basispoint * 12 * input.rentedage * 100
 | opkrævning_par7_daglig_rente_nævner(input: OpkrævningPar7DagligRenteKontekst) -> input.renteår_dage * 10000
 | opkrævning_par7_daglig_rente_øre_beregning(input: OpkrævningPar7DagligRenteKontekst) -> penge_øre_beregning(opkrævning_par7_daglig_rente_tæller_øre(input), opkrævning_par7_daglig_rente_nævner(input))

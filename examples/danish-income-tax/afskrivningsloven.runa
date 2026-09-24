@@ -570,8 +570,11 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
 # AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, blandet_småaktivgrænse_kroner: Heltal, dok_og_bedding_minimum_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, par5b_højeste_sats_basispoint: Heltal, par5b_nybygget_førsteårs_sats_basispoint: Heltal, par5c_stk1_højeste_sats_basispoint: Heltal, par5c_stk2_højeste_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
 
 | afskrivningslov_årsparametre_understøttet(indkomstår: Heltal) -> indkomstår >= 2023 && indkomstår <= 2026
-| afskrivningslov_årsparameter_kilde(indkomstår: Heltal) -> AlSkatteministerietSatser2023_2024 under indkomstår >= 2023 && indkomstår <= 2024
-| afskrivningslov_årsparameter_kilde(indkomstår: Heltal) -> AlSkatteministerietSatser2025_2026 under indkomstår >= 2025 && indkomstår <= 2026
+| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal) -> Some(AlSkatteministerietSatser2023_2024) under indkomstår >= 2023 && indkomstår <= 2024
+| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal) -> Some(AlSkatteministerietSatser2025_2026) under indkomstår >= 2025 && indkomstår <= 2026
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal) -> None
+| afskrivningslov_årsparameter_kilde(indkomstår: Heltal) -> head(match afskrivningslov_årsparameter_kilde_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
 | afskrivningslov_reguleret_årsgrænse_kroner(indkomstår: Heltal, grundbeløb_2010_niveau_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = grundbeløb_2010_niveau_kroner,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
@@ -582,7 +585,7 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
 | exception afskrivningslov_forskning_under_loft_2026 afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår: Heltal) -> 11400 under indkomstår == 2026
 | afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal) -> 10800
 | exception afskrivningslov_forskning_over_loft_2026 afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal) -> 11000 under indkomstår == 2026
-| afskrivningslov_årsparametre(indkomstår: Heltal) -> AfskrivningslovÅrsparametre(
+| afskrivningslov_årsparametre_opslag(indkomstår: Heltal) -> Some(AfskrivningslovÅrsparametre(
     indkomstår = indkomstår,
     kilde = afskrivningslov_årsparameter_kilde(indkomstår),
     småsaldigrænse_kroner = afskrivningslov_reguleret_årsgrænse_kroner(indkomstår, 26200),
@@ -597,7 +600,10 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
     par5c_stk2_højeste_sats_basispoint = 700,
     forskning_sats_under_loft_basispoint = afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår),
     forskning_sats_over_loft_basispoint = afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår)
-) under afskrivningslov_årsparametre_understøttet(indkomstår)
+)) under afskrivningslov_årsparametre_understøttet(indkomstår)
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| afskrivningslov_årsparametre_opslag(indkomstår: Heltal) -> None
+| afskrivningslov_årsparametre(indkomstår: Heltal) -> head(match afskrivningslov_årsparametre_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
 --@end:afskrivningsloven_2023_2026_parametre--
 
 = afskrivningsloven_par5_metadata = Metadata(
@@ -3860,7 +3866,7 @@ virksomhed overstiger grundbeløbet.
 --@begin:afskrivningsloven_par29--
 # Afskrivningslov29Resultat(aftale: AfskrivningslovForskudsAftale, par28_resultat: Afskrivningslov28Resultat, grundbeløb_resultat: Afskrivningslov29GrundbeløbResultat, bestillings_eller_planlægningsår: Heltal, planlagte_aktiver_gyldige: Boolsk, identifikationer_entydige: Boolsk, levering_eller_færdiggørelse_i_første_til_fjerde_år: Boolsk, samlet_aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_og_virksomhed_kroner: Heltal, grundbeløb_matcher_indkomståret: Boolsk, grundbeløb_oversteget: Boolsk, omfattet_af_par29: Boolsk)
 
-| afskrivningslov29_grundbeløb_resultat(indkomstår: Heltal) -> Afskrivningslov29GrundbeløbResultat(
+| afskrivningslov29_grundbeløb_resultat_opslag(indkomstår: Heltal) -> Some(Afskrivningslov29GrundbeløbResultat(
     indkomstår = indkomstår,
     grundbeløb_2010_niveau_kroner = 1406800,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår),
@@ -3868,7 +3874,10 @@ virksomhed overstiger grundbeløbet.
         grundbeløb_2010_niveau_kroner = 1406800,
         reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
     ))
-) under indkomstår >= 2009 && indkomstår <= 2026
+)) under indkomstår >= 2009 && indkomstår <= 2026
+-- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
+| afskrivningslov29_grundbeløb_resultat_opslag(indkomstår: Heltal) -> None
+| afskrivningslov29_grundbeløb_resultat(indkomstår: Heltal) -> head(match afskrivningslov29_grundbeløb_resultat_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
 | afskrivningslov29_planlagte_identifikationer(aftale: AfskrivningslovForskudsAftale) -> map(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.identifikation)
 | afskrivningslov29_identifikationer_entydige(aftale: AfskrivningslovForskudsAftale) -> length(afskrivningslov29_planlagte_identifikationer(aftale)) == length(distinct(afskrivningslov29_planlagte_identifikationer(aftale)))
 | afskrivningslov29_planlagte_aktiver_gyldige(aftale: AfskrivningslovForskudsAftale) -> length(aftale.planlagte_aktiver) > 0 && aftale.virksomhedsidentifikation != "" && all(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.identifikation != "" && aktiv.aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner > 0) && afskrivningslov29_identifikationer_entydige(aftale)

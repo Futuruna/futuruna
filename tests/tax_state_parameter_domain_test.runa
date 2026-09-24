@@ -1,0 +1,72 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / kapitel - 02 - statsskat
+
+-- Bevar de eksisterende tabeller og beregninger; ikke en uafhængig juridisk oracle.
+-- Den samme native binær bruges til afvisningskanter valgt af Rust-testen.
+= statsskat_bundsatser = flat_map(range(2021, 2028), |år: Heltal| map([BetalerKommunalEllerPar8c, BetalerIkkeKommunalEllerPar8c], |pligt: KommunalSkattepligt| bundskat_sats_resultat(år, pligt)))
+= statsskat_reformlag = [MellemskatLag, TopskatLag, ToptopskatLag]
+= statsskat_reformparametre = map(statsskat_reformlag, |lag: ProgressivStatsskatLag| reform_statskat_parameter_resultat(lag, 2026))
+= statsskat_aktiesatser = flat_map(range(2010, 2028), |år: Heltal| map([LavAktieSkat, HøjAktieSkat], |lag: AktieSkatteLag| aktieindkomstskat_sats_resultat(år, lag)))
+= statsskat_selskabssatser = map(range(2023, 2028), selskabsskattelov_par17_stk1_sats_resultat)
+= statsskat_afskrivningsparametre = map(range(2023, 2027), afskrivningslov_årsparametre)
+
+| statsskat_bundsatser_bevaret: statsskat_bundsatser -> map(statsskat_bundsatser, |p: BundskatSatsResultat| p.sats_basispoint) == [1209, 409, 1209, 409, 1206, 406, 1201, 401, 1201, 401, 1201, 401, 1201, 401]
+| statsskat_historiske_grundbeløb_bevaret: statsskat_bundsatser -> map(range(2012, 2023), topskat_bundfradrag_2010_niveau_kroner) == [389900, 421000, 441100, 444500, 446300, 448200, 456000, 459200, 464500, 466000, 467000]
+| statsskat_reformparametre_bevaret: statsskat_reformparametre -> map(statsskat_reformparametre, |p: ReformStatsskatParameterResultat| p.sats_basispoint) == [750, 750, 500] && map(statsskat_reformparametre, |p: ReformStatsskatParameterResultat| p.bundfradrag_kroner) == [641200, 777900, 2592700] && par7_reform_mellemskat_kapital_grundbeløb_kroner(2026) == 55000
+| statsskat_reformberegninger_bevaret: statsskat_reformparametre -> par7a_reform_topskat_resultat(2026, 800000).skat_kroner == 1657 && par8_reform_toptopskat_resultat(2026, 2600000).skat_kroner == 365
+| statsskat_historisk_topskat_bevaret: statsskat_bundsatser -> par7_topskat_2025_fixture.bundfradrag_kroner == 611800 && par7_topskat_2025_fixture.kapital_grundbeløb_kroner == 52400 && par7_topskat_2025_fixture.personligt_beregningsgrundlag_kroner == 620000 && par7_topskat_2025_fixture.personlig_over_bundfradrag_kroner == 8200 && par7_topskat_2025_fixture.kapital_over_grundbeløb_kroner == 27600 && par7_topskat_2025_fixture.samlet_grundlag_over_bundfradrag_kroner == 35800 && par7_topskat_2025_fixture.kapitalgrundlag_kroner == 27600 && par7_topskat_2025_fixture.personlig_skat_kroner == 1230 && par7_topskat_2025_fixture.kapital_skat_kroner == 4140 && par7_topskat_2025_fixture.samlet_skat_kroner == 5370
+| statsskat_udfasning_bevaret: statsskat_bundsatser -> map(range(2011, 2021), udligningsskat_procent) == [6, 6, 6, 6, 5, 4, 3, 0, 0, 0] && map(range(2010, 2022), sundhedsbidrag_procent) == [8, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0]
+| statsskat_lovligt_nul_er_ikke_fravær: statsskat_bundsatser -> sundhedsbidrag_procent_opslag(2027) == Some(0) && udligningsskat_procent_opslag(2027) == Some(0) && sundhedsbidrag_procent_opslag(2009) == None && udligningsskat_procent_opslag(2010) == None
+| statsskat_aktiesatser_bevaret: statsskat_aktiesatser -> map(range(2010, 2014), |år: Heltal| aktieindkomstskat_procent(år, LavAktieSkat)) == [28, 28, 27, 27] && all(range(2010, 2028), |år: Heltal| aktieindkomstskat_procent(år, HøjAktieSkat) == 42) && aktieindkomstskat_sats_resultat(2026, LavAktieSkat).endelig_skat && aktieindkomstskat_sats_resultat(2026, HøjAktieSkat).indgår_i_slutskat
+| statsskat_cfc_selskabssats_bevaret: statsskat_selskabssatser -> all(statsskat_selskabssatser, |p: SelskabsskattelovPar17Stk1SatsResultat| p.selskabsskat_basispoint == 2200 && p.tillægsselskabsskat_basispoint == 300 && p.cfc_sats_basispoint == 2200) && selskabsskattelov_par17_stk1_sats_kilde(2024) == SelskabsskattelovenLbk1241Af2022 && selskabsskattelov_par17_stk1_sats_kilde(2025) == SelskabsskattelovenLbk279Af2025
+| statsskat_afskrivningsgrænser_bevaret: statsskat_afskrivningsparametre -> map(statsskat_afskrivningsparametre, |p: AfskrivningslovÅrsparametre| p.småaktivgrænse_kroner) == [32000, 33100, 34400, 36000] && map(statsskat_afskrivningsparametre, |p: AfskrivningslovÅrsparametre| p.dok_og_bedding_minimum_kroner) == [856800, 887000, 921500, 965800] && afskrivningslov29_grundbeløb_resultat(2009).reguleret_grundbeløb_kroner == 1406800
+
+= statsskat_mangler_år = all([-1, 0, 2020], |år: Heltal| bundskat_sats_kilde_opslag(år) == None && bundskat_sats_resultat_opslag(år, BetalerKommunalEllerPar8c) == None && bundskat_sats_basispoint_for_pligt_opslag(år, BetalerIkkeKommunalEllerPar8c) == None) && all([-1, 0, 2009], |år: Heltal| sundhedsbidrag_sats_resultat_opslag(år) == None && aktieindkomstskat_sats_resultat_opslag(år, LavAktieSkat) == None && aktieindkomstskat_sats_resultat_opslag(år, HøjAktieSkat) == None) && udligningsskat_sats_resultat_opslag(2010) == None && topskat_bundfradrag_2010_niveau_kroner_opslag(2011) == None
+| statsskat_manglende_parametre_er_eksplicitte: statsskat_mangler_år -> statsskat_mangler_år && selskabsskattelov_par17_stk1_sats_resultat_opslag(2022) == None && par8c_sats_resultat_opslag(2022) == None && par8c_sats_resultat_opslag(2027) == None && afskrivningslov_årsparametre_opslag(2022) == None && afskrivningslov_årsparametre_opslag(2027) == None && afskrivningslov29_grundbeløb_resultat_opslag(2008) == None && afskrivningslov29_grundbeløb_resultat_opslag(2027) == None
+| statsskat_kendt_sats_kræver_stadig_årsgrænse: statsskat_reformparametre -> all(statsskat_reformlag, |lag: ProgressivStatsskatLag| reform_statskat_sats_basispoint_opslag(lag, 2025) == None && reform_statskat_sats_basispoint_opslag(lag, 2027) == Some(reform_statskat_sats_basispoint_for_lag(lag)) && reform_statskat_reguleret_bundfradrag_kroner_opslag(lag, 2025) == None && reform_statskat_reguleret_bundfradrag_kroner_opslag(lag, 2027) == None && reform_statskat_parameter_resultat_opslag(lag, 2027) == None) && par7_reform_mellemskat_kapital_grundbeløb_resultat_opslag(2025) == None && par7_reform_mellemskat_kapital_grundbeløb_resultat_opslag(2027) == None
+
+> statsskat_kildefixture(status: Kildestatus, start: Heltal, slut: Heltal, formål: Beregningsformål) -> Boolsk {
+    kilde_egnet_til_formål(Retskilde("fiktiv kilde", 2026, 1, status, aktuel_kildestatusdato_yyyymmdd, start, slut), formål)
+}
+= statsskat_kildeformål = [AktuelSkatteberegning, DagsaktuelAutomatiskBeregning, HistoriskAudit, KildeDiff]
+= statsskat_kildematrix = flat_map([Gældende, Historisk], |status: Kildestatus| flat_map([1, 0, -1], |periode: Heltal| map(statsskat_kildeformål, |formål: Beregningsformål| statsskat_kildefixture(status, aktuel_kildestatusdato_yyyymmdd + periode, aktuel_kildestatusdato_yyyymmdd + periode, formål))))
+| statsskat_kildepolitik_bevarer_ukendt_horisont: statsskat_kildematrix -> statsskat_kildematrix == [Sandt, Falskt, Sandt, Sandt, Sandt, Sandt, Sandt, Sandt, Sandt, Falskt, Sandt, Sandt, Falskt, Falskt, Sandt, Sandt, Falskt, Falskt, Sandt, Sandt, Falskt, Falskt, Sandt, Sandt]
+| statsskat_næringsgrene_bevaret: statsskat_bundsatser -> map([IkkeNæring, FordringsEllerKontraktNæring, FinansieringsNæring], |status: Næringsstatus| kapitalpost_medregnes_personligt_ved_næring(KursgevinstOgTab, status)) == [Falskt, Sandt, Sandt]
+| statsskat_pbl53a_metodevalg_bevaret: statsskat_bundsatser -> pbl53a_pal_afkast_fixture.afkast_efter_valgt_metode_kroner == 28000 && pbl53a_pal_afkast_fixture.skattepligtigt_afkast_kroner == 22000 && pbl53a_alternativt_afkast_fixture.afkast_efter_valgt_metode_kroner == 27000 && pbl53a_alternativt_afkast_fixture.skattepligtigt_afkast_kroner == 13500 && pbl53a_negativt_afkast_fixture.afkast_efter_valgt_metode_kroner == -8000 && pbl53a_negativt_afkast_fixture.fremført_negativt_afkast_ultimo_kroner == 13000
+
+> statsskat_rentefixture(betalingsår: Heltal, betalingsdag: Heltal) -> OpkrævningPar7DagligRenteInput {
+    OpkrævningPar7DagligRenteInput(100000, OpkrævningASkatAmAfregningInput(OpkrævningAfregningsperiode(2026, 3), OpkrævningTilsvarHistorik(100000, 500000), Falskt, OpkrævningBankkalender(Falskt, 0, 31), OpkrævningBetaling(betalingsår, 4, betalingsdag)))
+}
+= statsskat_rente = opkrævning_par7_daglig_rente_beregning(statsskat_rentefixture(2026, 15))
+| statsskat_rentegren_bevaret: statsskat_rente -> statsskat_rente.kontekst.rentedage == 5 && statsskat_rente.kontekst.renteår_dage == 365 && statsskat_rente.rente.øre_nedrundet == 15616
+
+-- Afvis ugyldige kald før checks udskriver deres status; intet resultat må slippe ud.
+= statsskat_testcase = env_var("FUTURUNA_STATE_PARAMETER_CASE")
+= statsskat_testoutput = hvis statsskat_testcase == "missing-reform" { vis(reform_statskat_parameter_resultat(TopskatLag, 2027)) }
+ellers hvis statsskat_testcase == "pre-reform" { vis(par7a_reform_topskat_resultat(2025, 800000)) }
+ellers hvis statsskat_testcase == "post-historical" { vis(par7_historisk_topskat_resultat(Par7TopskatInput(2026, 620000, 0, 80000))) }
+ellers hvis statsskat_testcase == "missing-bundskat" { vis(bundskat_sats_resultat(2020, BetalerKommunalEllerPar8c)) }
+ellers hvis statsskat_testcase == "missing-par8c" { vis(par8c_sats_resultat(2027)) }
+ellers hvis statsskat_testcase == "missing-al" { vis(afskrivningslov_årsparametre(2027)) }
+ellers hvis statsskat_testcase == "timely-interest" { vis(opkrævning_par7_daglig_rente_kontekst(statsskat_rentefixture(2026, 10))) }
+ellers hvis statsskat_testcase == "cross-year-interest" { vis(opkrævning_par7_daglig_rente_kontekst(statsskat_rentefixture(2027, 15))) }
+ellers { vis((statsskat_bundsatser, statsskat_reformparametre, statsskat_aktiesatser, statsskat_selskabssatser, statsskat_afskrivningsparametre, statsskat_kildematrix, statsskat_rente)) }
+
+? statsskat_bundsatser_bevaret
+? statsskat_historiske_grundbeløb_bevaret
+? statsskat_reformparametre_bevaret
+? statsskat_reformberegninger_bevaret
+? statsskat_udfasning_bevaret
+? statsskat_lovligt_nul_er_ikke_fravær
+? statsskat_aktiesatser_bevaret
+? statsskat_cfc_selskabssats_bevaret
+? statsskat_afskrivningsgrænser_bevaret
+? statsskat_manglende_parametre_er_eksplicitte
+? statsskat_kendt_sats_kræver_stadig_årsgrænse
+? statsskat_kildepolitik_bevarer_ukendt_horisont
+? statsskat_næringsgrene_bevaret
+? statsskat_pbl53a_metodevalg_bevaret
+? statsskat_rentegren_bevaret
+? statsskat_historisk_topskat_bevaret
+
+@ print(statsskat_testoutput)

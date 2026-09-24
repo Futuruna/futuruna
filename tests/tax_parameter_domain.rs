@@ -67,3 +67,102 @@ fn strict_parameter_helpers_fail_instead_of_fabricating_missing_rates() {
         }
     }
 }
+
+#[test]
+fn state_tax_domains_preserve_native_results_and_reject_missing_inputs() {
+    // Compile this large shared import graph once, then exercise runtime edges
+    // against that exact binary rather than recompiling for every input.
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let binary = std::fs::canonicalize(binary).unwrap();
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/tax_state_parameter_domain_test.runa");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-state-tax-native-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    let build = Command::new(&binary)
+        .current_dir(&directory)
+        .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+        .args(["build", source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    if !build.status.success() {
+        let diagnostic_path = directory.join("build.stderr");
+        std::fs::write(&diagnostic_path, &build.stderr).unwrap();
+        panic!(
+            "state-tax build failed (complete diagnostics at {}):\n{}",
+            diagnostic_path.display(),
+            String::from_utf8_lossy(&build.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let executable = directory.join(format!(
+        "tax_state_parameter_domain_test{}",
+        std::env::consts::EXE_SUFFIX
+    ));
+    let run_case = |native: bool, case: &str| {
+        let mut command = Command::new(if native { &executable } else { &binary });
+        command
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+            .env("FUTURUNA_STATE_PARAMETER_CASE", case);
+        if !native {
+            command.arg(&source);
+        }
+        command.output().unwrap()
+    };
+    let interpreted = run_case(false, "supported");
+    let native = run_case(true, "supported");
+    for output in [&interpreted, &native] {
+        assert!(
+            output.status.success(),
+            "state-tax cases: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!output.stdout.is_empty());
+    }
+    assert_eq!(interpreted.stdout, native.stdout, "state-tax native parity");
+    for case in [
+        "missing-reform",
+        "pre-reform",
+        "post-historical",
+        "missing-bundskat",
+        "missing-par8c",
+        "missing-al",
+        "timely-interest",
+        "cross-year-interest",
+    ] {
+        let output = run_case(true, case);
+        assert!(
+            !output.status.success(),
+            "{case}: unsupported native result"
+        );
+        assert!(output.stdout.is_empty(), "{case}: emitted a result");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("head: empty list"),
+            "{case}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    for case in ["missing-reform", "timely-interest"] {
+        let output = run_case(false, case);
+        assert!(
+            !output.status.success(),
+            "{case}: unsupported interpreted result"
+        );
+        assert!(output.stdout.is_empty(), "{case}: emitted a result");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("head: empty list"));
+    }
+    std::fs::remove_file(executable).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+    println!("State-tax native parity, 16 invariants and eight runtime rejection edges passed");
+}

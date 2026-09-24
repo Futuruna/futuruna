@@ -55,10 +55,20 @@ merely to pass the check: that year needs its own source-backed model. This is
 a model-coverage limit, not a finding about tax liability.
 
 Other unsupported inputs that fail before a result can be constructed still
-produce CLI diagnostics. Native code-generation limitations in shared tax
-modules also remain; this boundary is exercised through `runa call`. The year
-guard uses `assert_with_message` and therefore requires a compiler built after
-that builtin was added, not the original 0.2.0 binary.
+produce CLI diagnostics. Native checks now pass for the state-tax source module
+and the [focused employment-deduction audit](beskaeftigelsesfradrag.md), but this
+does not establish native support for the full Personskat calculation. Remaining
+code-generation limitations mean this boundary is exercised through `runa call`.
+The year guard uses `assert_with_message` and therefore requires a compiler built
+after that builtin was added, not the original 0.2.0 binary.
+
+Low-level year-parameter tables expose `*_opslag` helpers with `Some(...)` or
+`None`. Their existing value helpers stop when a required parameter is absent;
+they do not invent a zero rate. A legally phased-out rate of zero remains a
+known value. A known rate does not establish an indexed threshold for an
+uncovered future year. These helpers do not expand the canonical 2023–2026
+input boundary, and guarded low-level calculation helpers still require their
+stated preconditions.
 
 ## Foreign-employment allocation
 
