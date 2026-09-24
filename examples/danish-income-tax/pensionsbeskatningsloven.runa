@@ -1974,7 +1974,7 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
     | afkastmetode_tilladt_efter_udbyderopgørelse() -> pbl53a_afkastmetode_tilladt_i_regime(afkastregelregime(), input.afkastmetode, input.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget)
     | metodevalg_bindende_opfyldt() -> pbl53a_metodevalg_bindende_i_regime(afkastregelregime(), input.afkastmetode, input.metodehistorik)
     | beløb_medregnes_efter_stk3() -> regelregime_understøttet() && ordning_bestod_i_indkomståret() && omfattet_af_stk1() && undtaget_efter_stk4() == Falskt && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
-    | afkast_efter_valgt_metode_kroner() -> input.afkast_efter_pal_par3_til_5_kroner under input.afkastmetode == Pbl53AAfkastEfterPalPar3Til5
+    | afkast_efter_valgt_metode_kroner() -> input.afkast_efter_pal_par3_til_5_kroner
     | exception pbl53a_alternativ_kapitalværdi_afkast afkast_efter_valgt_metode_kroner() -> (input.kapitalværdi_ultimo_kroner + penge_positivt_beløb(input.udbetalinger_i_året_kroner)) - (input.kapitalværdi_primo_kroner + penge_positivt_beløb(input.indbetalinger_i_året_kroner)) under input.afkastmetode == Pbl53AAlternativKapitalværdi
     | andel_nævner() -> penge_største_beløb(input.andel_nævner, 1)
     | afkastandel_før_negativ_fremførsel_kroner() -> afkast_efter_valgt_metode_kroner() * penge_positivt_beløb(input.andel_tæller) / andel_nævner()

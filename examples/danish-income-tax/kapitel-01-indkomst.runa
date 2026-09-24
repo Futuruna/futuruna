@@ -1150,7 +1150,7 @@ fra og med den 1. januar 2027.
 | kapitalindkomst_omfatter(post: Kapitalpost) -> Sandt
 | kapitalomkostning_fradrages_i_kapitalindkomst() -> Sandt
 
-| kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Falskt under status == IkkeNæring
+| kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Falskt
 | exception fordringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FordringsEllerKontraktNæring
 | exception finansieringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FinansieringsNæring
 

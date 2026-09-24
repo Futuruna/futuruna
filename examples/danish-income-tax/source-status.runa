@@ -926,6 +926,7 @@ EndDate: 2026-07-01
 | kilde_hentet_på_statusdato(kilde: Retskilde) -> kilde.hentet_yyyymmdd == aktuel_kildestatusdato_yyyymmdd
 | kilde_formelt_gældende_men_metadata_udløbet(kilde: Retskilde) -> kilde.status == Gældende && kilde_metadata_horisont_udløbet(kilde, aktuel_kildestatusdato_yyyymmdd)
 
+| kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Falskt
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under kilde.status == Gældende && formål == AktuelSkatteberegning
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under kilde.status == Gældende && formål == DagsaktuelAutomatiskBeregning && kilde_metadata_dækker_dato(kilde, aktuel_kildestatusdato_yyyymmdd)
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under formål == HistoriskAudit || formål == KildeDiff
