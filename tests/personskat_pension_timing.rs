@@ -139,6 +139,81 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
 }
 
 #[test]
+fn ordinary_interest_offsets_match_official_2025_calculator() {
+    // Independent anonymous SKAT observations, 2026-09-25; full fictional
+    // profile and units: skatdk-rentefradrag-ekstern.md. Only source income
+    // and expense amounts enter PersonskatInput, never the expected tax.
+    // salary, interest expense, interest income, taxable income,
+    // municipal tax before allowances, applied PSL11 credit, total tax (ore).
+    let observed = [
+        (600000, 49999, 0, 443501, 10422273, 399992, 19619485),
+        (600000, 50000, 0, 443500, 10422250, 400000, 19619454),
+        (600000, 50001, 0, 443499, 10422226, 400000, 19619430),
+        (600000, 51001, 1000, 443499, 10422226, 400000, 19619430),
+        (100000, 30000, 0, 49700, 1167950, 240000, 1000554),
+        (100000, 40000, 0, 39700, 932950, 205554, 800000),
+    ];
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["skatteår"] = json!(2025);
+    baseline["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let cases = observed
+        .iter()
+        .map(|&(salary, expense, income, ..)| {
+            let mut input = baseline.clone();
+            input["lønmodtager"]["bruttoløn_kroner"] = json!(salary);
+            input["kapitalindkomst"]["renter"]["renteudgifter_kroner"] = json!(expense);
+            input["kapitalindkomst"]["renter"]["renteindtægter_kroner"] = json!(income);
+            json!({"case_id":format!("interest-{salary}-{expense}-{income}"),"input":input})
+        })
+        .collect();
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), observed.len());
+    for (row, (salary, expense, income, taxable, municipal, credit, total)) in
+        results.iter().zip(observed)
+    {
+        let id = format!("interest-{salary}-{expense}-{income}");
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        assert_eq!(gate["alle_kontroller_gyldige"], true, "{id}: {gate}");
+        assert_eq!(gate["samlet_modeldækning_bekræftet"], false);
+        assert_eq!(
+            result["skat"]["nettokapitalindkomst_kroner"],
+            income - expense,
+            "{id}"
+        );
+        assert_eq!(
+            result["skat"]["almindelig_skattepligtig_indkomst_kroner"], taxable,
+            "{id}"
+        );
+        let exact = &result["hovedskat_eksakt"];
+        assert_eq!(
+            exact["før_nedsættelser"]["kommuneskat_øre"], municipal,
+            "{id}"
+        );
+        let tax_sum = |phase: &str| -> i64 {
+            exact[phase]
+                .as_object()
+                .unwrap()
+                .values()
+                .map(|amount| amount.as_i64().unwrap())
+                .sum()
+        };
+        // The observed credit is what is actually usable AFTER personal
+        // allowances, not necessarily 8% of the capped capital-income basis.
+        assert_eq!(
+            tax_sum("efter_personfradrag") - tax_sum("efter_par11"),
+            credit,
+            "{id}"
+        );
+        assert_eq!(gate["slutskat_til_sammenligning_øre"], total, "{id}");
+        println!("{id}: applied capital credit {credit} ore; final tax {total} ore");
+    }
+}
+
+#[test]
 fn extra_pension_rounding_matches_official_calculators() {
     // Anonymous SKAT calculator, wholly fictional source facts. Expectations
     // were observed independently, not computed from this model. Full profile
