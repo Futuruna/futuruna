@@ -21,6 +21,12 @@ No LLM evaluates these rules at runtime. A person or assistant supplies and
 classifies source facts; Futuruna executes the arithmetic and logic. Do not
 turn inferred report residuals into supposedly independent input facts.
 
+Saved conditional results can also be read through the
+[local Danish result viewer](../examples/danish-income-tax/aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
+It retains every check, necessary amount, caveat and failed-case diagnostic;
+it is a read-only presentation, not a second tax calculator or an authenticity
+check of saved output.
+
 ## Original findings: source closeout
 
 “Implemented” below concerns the named defect, not all tax-law coverage.

@@ -66,6 +66,38 @@ checkout**. Replace `PRIVATE_WORK_DIR` below with its actual path, and keep
 "$RUNA_BIN" call examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --input PRIVATE_WORK_DIR/report-cases.json --output PRIVATE_WORK_DIR/report-results.json
 ```
 
+### Læs resultatet på dansk
+
+Hvis Node.js 18 eller nyere allerede er installeret, kan du vise **dine egne
+gemte resultater**, ikke kun demonstrationsdata:
+
+```sh
+node examples/danish-income-tax/afstemning-resultat.mjs PRIVATE_WORK_DIR/report-results.json
+```
+
+Øverst står et samlet overblik, så en vellykket sag ikke skjuler andre sagers
+modstrid eller manglende oplysninger. Visningen viser alle returnerede
+kontroller, nødvendige beløb, nedre/øvre grænser, forklaringer og forbehold.
+Øre vises både eksakt og som kroner med to
+decimaler; DKK-felter beholder deres enhed. `null` vises som **ukendt**, og et
+ukendt loft betyder ikke ubegrænset ret. En forskel på én øre forsvinder ikke
+ved visningsafrunding. Case-diagnostik vises også, hvis andre sager i samme
+batch blev beregnet.
+
+Programmet læser kun den angivne lokale resultatfil. Det ændrer ingen filer,
+kontakter ingen server, bruger ingen LLM og beregner ikke skatten igen. Den
+gemte kontrakthash vises som identifikation, men kontrolleres ikke mod den
+aktuelle model: en visning af et gammelt resultat gør det ikke aktuelt eller
+ægte. Bevar den oprindelige JSON og kildehenvisningerne. Output kan indeholde
+personlige beløb; del det ikke offentligt.
+
+Exitkode **0** betyder kun, at de viste sager er betinget afstemt. **2** betyder,
+at mindst én sag er ufuldstændig, modstridende, ugyldig, ikke understøttet eller
+har beregningsdiagnostik. **1** betyder, at filen eller formatet ikke kan vises;
+der udskrives da ingen delvis succesrapport. Ukendte resultatfelter/statusser,
+gentagne JSON-felter og ikke-heltallige beløb afvises frem for at blive skjult
+eller afrundet. Ingen af exitkoderne er en skattemæssig godkendelse.
+
 The same contract supports `--format xlsx` and XLSX invocation. The optional
 income bridge remains one canonical JSON field in that format. Field metadata
 explains the units, signs, and completeness questions. Generated template values
