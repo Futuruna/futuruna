@@ -1,0 +1,51 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / ligningsloven_fradrag
+
+-- Eksisterende kildetabellers værdier, ikke en ny juridisk konformitetsoracle.
+= fradrag_j = map(range(2012, 2027), ll9j_parametre_for)
+= fradrag_k = map(range(2018, 2027), ll9k_parametre_for)
+= fradrag_l = flat_map(range(2018, 2027), |år: Heltal| map([Ll9lMereEnd15ÅrFørFolkepension, Ll9lFra15ÅrFørFolkepension], |status: Ligningslov9LPensionsalderStatus| ll9l_parametre_for(år, status)))
+= befordring_c = map(range(2023, 2027), ll9c_satser_for)
+= befordring_d = map(range(2023, 2027), ll9d_satser_for)
+= reguleringstal = map(range(2009, 2027), par20_reguleringstal_resultat)
+= personloft = map(range(2015, 2028), par19_personlig_skatteloft_resultat)
+= kapitalloft = map(range(2010, 2028), par19_positiv_kapital_skatteloft_resultat)
+
+| historiske_j_satser_bevaret: fradrag_j -> map(fradrag_j, |p: Ligningslov9JParametre| p.beskæftigelsesfradrag_basispoint) == [440, 695, 765, 805, 830, 875, 950, 1010, 1050, 1060, 1065, 1065, 1065, 1230, 1275] && map(fradrag_j, |p: Ligningslov9JParametre| p.beskæftigelsesfradrag_maks_kroner) == [14100, 22300, 25000, 26800, 28000, 30000, 34300, 37200, 39400, 40600, 43500, 45600, 45100, 55600, 63300]
+| historiske_k_satser_bevaret: fradrag_k -> map(fradrag_k, |p: Ligningslov9KParametre| p.jobfradrag_basispoint) == [250, 375, 450, 450, 450, 450, 450, 450, 450] && map(fradrag_k, |p: Ligningslov9KParametre| p.jobfradrag_indkomstgrænse_kroner) == [187500, 191600, 195800, 200300, 202700, 208700, 216100, 224500, 235200] && map(fradrag_k, |p: Ligningslov9KParametre| p.jobfradrag_maks_kroner) == [1400, 2100, 2600, 2600, 2700, 2700, 2800, 2900, 3100]
+| historiske_l_lofter_bevaret: fradrag_l -> map(range(2018, 2027), ll9l_maksimalt_grundlag_kroner) == [70000, 71500, 73100, 74700, 75600, 77900, 80600, 83800, 87800]
+| pensionssatser_bevaret: fradrag_l -> map(range(2018, 2028), ll9l_ordinær_sats_basispoint) == [800, 800, 1200, 1200, 1200, 1200, 1200, 1200, 1200, 1200] && map(range(2018, 2028), ll9l_folkepensionsnær_sats_basispoint) == [2000, 2200, 3200, 3200, 3200, 3200, 3200, 3200, 3200, 3200]
+| befordringssatser_bevaret: befordring_c -> map(befordring_c, |p: Ligningslov9CSatser| p.almindelig_op_til_120_øre_pr_km) == [219, 223, 223, 317] && map(befordring_c, |p: Ligningslov9CSatser| p.lavindkomst_maks_kroner) == [15400, 15400, 15400, 30800] && map(befordring_d, |p: Ligningslov9DSatser| p.erhverv_høj_øre_pr_km) == [373, 379, 381, 394]
+| reguleringstal_bevaret: reguleringstal -> map(reguleringstal, |p: Par20ReguleringstalResultat| p.reguleringstal_tiendedele) == [1000, 1000, 1000, 1000, 1000, 1018, 1033, 1047, 1070, 1094, 1118, 1143, 1169, 1183, 1218, 1261, 1310, 1373]
+| personlofter_bevaret: personloft -> map(personloft, |p: Par19SkatteloftResultat| p.loft_basispoint) == [5195, 5195, 5195, 5202, 5205, 5206, 5206, 5207, 5207, 5207, 5207, 4457, 4457]
+| loftkilder_bevaret: kapitalloft -> par19_positiv_kapital_skatteloft_basispoint(2010) == 4950 && par19_positiv_kapital_skatteloft_basispoint(2013) == 4350 && par19_positiv_kapital_skatteloft_basispoint(2027) == 4200 && par19_skatteloft_kilde(Par19PersonligtLoft, 2026) == PersonskattelovenLov482Af2024Par1Nr15Stk1 && par19_skatteloft_kilde(Par19PositivKapitalLoft, 2025) == PersonskattelovenLbk1284Af2021Par19Stk2
+
+= fravær = all([-1, 0, 2022, 2027], |år: Heltal| ll9c_satser_for_opslag(år) == None && ll9d_satser_for_opslag(år) == None && par19_skatteloft_input_for_opslag(år, København, 100000) == None) && all([-1, 0, 2011, 2027], |år: Heltal| ll9j_parametre_for_opslag(år) == None) && all([-1, 0, 2017, 2027], |år: Heltal| ll9k_parametre_for_opslag(år) == None && ll9l_maksimalt_grundlag_kroner_opslag(år) == None && ll9l_parametre_for_opslag(år, Ll9lMereEnd15ÅrFørFolkepension) == None && ll9l_parametre_for_opslag(år, Ll9lFra15ÅrFørFolkepension) == None) && all([-1, 0, 2008, 2027], |år: Heltal| par20_reguleringstal_kilde_opslag(år) == None && par20_reguleringstal_tiendedele_for_skatteår_opslag(år) == None)
+| manglende_kilder_er_ikke_nul: fravær -> fravær && par19_skatteloft_kilde_opslag(Par19PersonligtLoft, 2014) == None && par19_skatteloft_kilde_opslag(Par19PositivKapitalLoft, 2009) == None && par19_personlig_skatteloft_basispoint_for_skatteår_opslag(2014) == None && par19_positiv_kapital_skatteloft_basispoint_for_skatteår_opslag(2009) == None && ll9l_ordinær_sats_basispoint_opslag(2017) == None && ll9l_folkepensionsnær_sats_basispoint_opslag(2017) == None
+| kendt_procent_er_ikke_kendt_årsloft: fravær -> ll9l_ordinær_sats_basispoint_opslag(2027) == Some(1200) && ll9l_folkepensionsnær_sats_basispoint_opslag(2027) == Some(3200) && ll9l_parametre_for_opslag(2027, Ll9lFra15ÅrFørFolkepension) == None
+| historisk_henvisning_holder_sit_domæne: reguleringstal -> par20_reguleringstal_2009_til_2013_tiendedele_opslag(2009) == Some(1000) && par20_reguleringstal_2009_til_2013_tiendedele_opslag(2013) == Some(1000) && par20_reguleringstal_2009_til_2013_tiendedele_opslag(2008) == None && par20_reguleringstal_2009_til_2013_tiendedele_opslag(2014) == None
+| reformens_exception_bevaret: personloft -> par19_loftrelevant_progressiv_statsskat_basispoint(2025) == 1500 && par19_loftrelevant_progressiv_statsskat_basispoint(2026) == 750
+| lovligt_nul_er_ikke_manglende_sats: fradrag_k -> ll9k_jobfradrag_kroner(Ligningslov9KInput(2017, 600000, Falskt)) == 0 && ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 0, Falskt)) == 0
+
+= afrunding = map([-151, -150, -149, -1, 0, 1, 149, 150, 151], |tæller: Heltal| par14_helt_kroner_afrundet(tæller, 100))
+| delårsafrunding_bevaret: afrunding -> afrunding == [-2, -2, -1, 0, 0, 0, 1, 2, 2] && par14_helt_kroner_afrundet_opslag(100, 0) == None && par14_helt_kroner_afrundet_opslag(-100, -1) == None
+| hundredeafrunding_bevaret: afrunding -> map([0, 1, 99, 100, 101], par20_afrund_op_til_nærmeste_100_kroner) == [0, 100, 100, 100, 200]
+
+? historiske_j_satser_bevaret
+? historiske_k_satser_bevaret
+? historiske_l_lofter_bevaret
+? pensionssatser_bevaret
+? befordringssatser_bevaret
+? reguleringstal_bevaret
+? personlofter_bevaret
+? loftkilder_bevaret
+? manglende_kilder_er_ikke_nul
+? kendt_procent_er_ikke_kendt_årsloft
+? historisk_henvisning_holder_sit_domæne
+? reformens_exception_bevaret
+? lovligt_nul_er_ikke_manglende_sats
+? delårsafrunding_bevaret
+? hundredeafrunding_bevaret
+
+-- Alle feltværdier og kildehenvisninger sammenlignes mellem de to kørsler.
+@ print(vis((fradrag_j, fradrag_k, fradrag_l, befordring_c, befordring_d, reguleringstal, personloft, kapitalloft, afrunding)))

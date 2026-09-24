@@ -1,0 +1,3 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / ligningsloven_fradrag
+@ print(vis(ll9l_parametre_for(2027, Ll9lFra15ÅrFørFolkepension)))

@@ -19,6 +19,7 @@ fn execute(native: bool, path: &str) -> Output {
 fn source_parameters_and_report_results_match_native_execution() {
     for path in [
         "tests/tax_parameter_domain_test.runa",
+        "tests/tax_deduction_parameter_domain_test.runa",
         "tests/tax_report_native_test.runa",
     ] {
         let interpreted = execute(false, path);
@@ -44,6 +45,9 @@ fn strict_parameter_helpers_fail_instead_of_fabricating_missing_rates() {
     for path in [
         "tests/fixtures/tax_parameter_domain/unsupported_national.runa",
         "tests/fixtures/tax_parameter_domain/unsupported_property.runa",
+        "tests/fixtures/tax_parameter_domain/unsupported_employment.runa",
+        "tests/fixtures/tax_parameter_domain/unsupported_pension_ceiling.runa",
+        "tests/fixtures/tax_parameter_domain/invalid_part_year_divisor.runa",
     ] {
         for native in [false, true] {
             let output = execute(native, path);
