@@ -22,14 +22,18 @@
     enlig_grænse(2026, 600000, 0, Sandt, 0),
     enlig_grænse(2026, 100000, 4, Sandt, 11500),
     enlig_grænse(2026, 100000, 1, Sandt, 2875),
-    enlig_grænse(2026, 439999, 4, Sandt, 50599),
+    enlig_grænse(2026, 439991, 4, Sandt, 50599),
+    enlig_grænse(2026, 439992, 4, Sandt, 50600),
+    enlig_grænse(2026, 439999, 4, Sandt, 50600),
     enlig_grænse(2026, 440000, 4, Sandt, 50600),
     enlig_grænse(2026, 440001, 4, Sandt, 50600),
     enlig_grænse(2026, 0, 4, Sandt, 0),
     enlig_grænse(2026, -1, 4, Sandt, 0),
     enlig_grænse(2026, 600000, 4, Falskt, 0),
     enlig_grænse(2026, 9223372036854775807, 4, Sandt, 50600),
-    enlig_grænse(2026, 50, 3, Sandt, 4)
+    enlig_grænse(2026, 50, 3, Sandt, 5),
+    enlig_grænse(2026, 100661, 3, Sandt, 8682),
+    enlig_grænse(2026, 100035, 3, Sandt, 8629)
 ]
 = enlig_ugyldige = map([
     EkstraBørnetilskudUoplyst,

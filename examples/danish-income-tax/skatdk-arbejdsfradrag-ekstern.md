@@ -1,9 +1,12 @@
 # Ekstern kontrol af arbejdsfradragenes hele kroner
 
 Den 24. september 2026 blev 11 **fiktive** lønmodtagerberegninger kontrolleret
-mod Skattestyrelsens offentlige, anonyme beregnere. De viser oprunding af
-almindeligt beskæftigelsesfradrag og jobfradrag til hele kroner. Futurunas
-tidligere afkortning gav op til én krone for lidt i hvert fradrag.
+mod Skattestyrelsens offentlige, anonyme beregnere. De viser højere hele
+fradragsbeløb end Futurunas tidligere afkortning til kroner. En
+[efterfølgende kontrol af øretrin og tillæg](skatdk-fradrag-oere-ekstern.md)
+præciserer forklaringen: modellen afkorter nu til hele øre før oprunding til
+kroner. De 11 observationer nedenfor stemmer fortsat; direkte matematisk
+oprunding fra procentproduktet er ikke længere modellens konvention.
 
 Det [eksekverbare scenarie](skatdk-arbejdsfradrag-ekstern.scenario.runa) gemmer
 aflæste forventninger og kontrollerer de almindelige fradrag. Den kanoniske
@@ -61,7 +64,7 @@ er 12300,492; både nedrunding og afrunding til nærmeste krone ville give 12300
 
 ## Hvad kontrollen fastslår — og ikke fastslår
 
-Oprunding stemmer med disse operationelle observationer i **2025 og 2026**,
+Oprunding efter afkortning til hele øre stemmer med disse observationer i **2025 og 2026**,
 inklusive et helt produkt, små positive brøkdele, jobfradragets start og
 2025-jobfradragets loft. Skattekomponenterne viser, at de hele fradragsbeløb
 faktisk indgår i beregningsgrundlaget; forskellen er ikke blot visning.
@@ -73,17 +76,19 @@ samme oprunding for almindeligt § 9 J/§ 9 K i sine ældre år som en udtrykkel
 Der indføres ikke en opdigtet lovændring i 2025. Satser, lofter, betingelser og
 fordeling af udenlandsk arbejdsindkomst ændres ikke.
 
-Seniorfradrag, enligforsørgertillæg og ekstra pensionsfradrag er ikke undersøgt
-af disse cases og beholder deres hidtidige projektioner. Kontrollen er heller
-ikke fuld validering af en personlig årsopgørelse eller af delårsberegning.
+Seniorfradrag og enligforsørgertillæg er undersøgt særskilt i
+[den efterfølgende kontrol](skatdk-fradrag-oere-ekstern.md), som også
+dokumenterer **to åbne 2026-afvigelser på én krone**. Ekstra pensionsfradrags
+afrunding er ikke undersøgt. Kontrollen er heller ikke fuld validering af en
+personlig årsopgørelse eller af delårsberegning.
 [DJV's delårseksempel C.F.1.6.2.1](https://info.skat.dk/data.aspx?oid=1977388)
 har afrundede grundlag og omregning; det kan ikke læses som en isoleret
 helkroneafrundingsregel. En resterende forskel må undersøges, ikke udlignes
 ved at ændre brugerens fakta.
 
 Genberegn tidligere resultater efter modelopdateringen. API og inputtyper
-ændres ikke; ubeskårne brøkfradrag kan stige med én krone hver og dermed
-ændre den beregnede skat. Brug den afprøvede compiler fra
+ændres ikke; ændret fradragsafrunding kan flytte et fradrag med én krone og
+dermed ændre den beregnede skat. Brug den afprøvede compiler fra
 [tax-audit-opsætningen](../../website/public/ai-setup.md#tax-audit-runtime-check):
 
 ```sh

@@ -52,16 +52,22 @@ Fradragene er ikke skattebesparelser. Modellen genbruger de eksisterende
 
 ### Afrunding kan forklare en forskel på én krone
 
-Almindeligt beskæftigelsesfradrag og jobfradrag oprundes nu til hele kroner,
-før årets loft anvendes. Det stemmer med
-[11 fiktive cases hos SKAT](skatdk-arbejdsfradrag-ekstern.md) i årsberegneren
-for 2025 og forskudsberegneren for 2026. Eksempel: 100.004 kr. i løn i 2025
-giver 12.301 kr. i beskæftigelsesfradrag, hvor den tidligere model gav
-12.300 kr. Syv cases kontrollerer også indkomstgrundlag og skat i øre.
+Almindeligt beskæftigelsesfradrag og jobfradrag afkortes nu til hele øre og
+oprundes derefter til hele kroner, med årets loft bevaret. De
+[første 11 fiktive cases hos SKAT](skatdk-arbejdsfradrag-ekstern.md) stemmer
+fortsat, men [yderligere randtilfælde](skatdk-fradrag-oere-ekstern.md) viser,
+at direkte matematisk oprunding kan give én krone for meget. Eksempel:
+100.187 kr. i løn i 2025 giver 12.323 kr., ikke 12.324 kr.
+
+Den nye kontrol omfatter også senior- og enligforsørgertillæg samt
+kvartalsfordeling. 27 nye fradragscases matcher; **to 2026-afvigelser på én
+krone står åbne**. Ti nye cases kontrollerer også skattekomponenter i øre,
+før grøn check og slutafregning. Det er ikke fuld validering af restskat
+eller tilbagebetaling.
 
 Samme afrunding i ældre år er en modelantagelse, ikke uafhængigt verificeret
-historisk praksis. Kontrollen gælder ikke senior-, enligforsørger- eller
-pensionsfradrag og er ikke fuld rekonstruktion af DJV's delårseksempler.
+historisk praksis. Ekstra pensionsfradrags afrunding er ikke undersøgt,
+og kontrollen er ikke fuld rekonstruktion af DJV's delårseksempler.
 Genberegn tidligere resultater; en resterende forskel må undersøges,
 ikke automatisk betegnes som en fejl i din årsopgørelse. Ret aldrig fakta
 eller beløb for at få et match.
