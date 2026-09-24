@@ -2346,7 +2346,12 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 | ll9j_parametre_for_opslag(skatteår: Heltal) -> None
 | ll9j_parametre_for(skatteår: Heltal) -> head(match ll9j_parametre_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input: Ligningslov9JInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
-| ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> penge_beløb_gange_basispoint_kroner(ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint)
+-- Administrativ helkroneprojektion: SKATs årsberegner 2025 og forskudsberegner
+-- 2026 oprunder almindeligt § 9 J- og § 9 K-fradrag. Se observationer og
+-- afgrænsning i skatdk-arbejdsfradrag-ekstern.md samt det eksekverbare scenarie.
+-- Samme projektion i ældre år er en modelantagelse, ikke historisk verificeret
+-- praksis eller en påstand om, at loven ændrede afrunding i 2025.
+| ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> penge_beløb_gange_basispoint_oprundet_kroner(ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint)
 | ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> 0
 | exception ll9j_almindelig_lønmodtager ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_mindste_beløb(ll9j_beregnet_beskæftigelsesfradrag_kroner(input), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_maks_kroner) under ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input)
 
@@ -2489,7 +2494,8 @@ Jobfradrag, § 9 K
 | ll9k_parametre_for(skatteår: Heltal) -> head(match ll9k_parametre_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt && ll9k_gælder_for_skatteår(input.skatteår)
 | ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
-| ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)
+-- Samme dokumenterede helkroneprojektion og historiske forbehold som § 9 J.
+| ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_oprundet_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)
 | ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> 0
 | exception ll9k_almindelig_lønmodtager ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> ligningslov_mindste_beløb(ll9k_beregnet_jobfradrag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_maks_kroner) under ll9k_almindeligt_jobfradrag_berettiget(input)
 

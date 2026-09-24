@@ -41,6 +41,23 @@ fn source_parameters_and_report_results_match_native_execution() {
 }
 
 #[test]
+fn ordinary_deductions_match_external_skat_calculator_boundaries() {
+    let path = "examples/danish-income-tax/skatdk-arbejdsfradrag-ekstern.scenario.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+        assert!(
+            output.status.success(),
+            "{lane}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("11 fiktive"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
 fn strict_parameter_helpers_fail_instead_of_fabricating_missing_rates() {
     for path in [
         "tests/fixtures/tax_parameter_domain/unsupported_national.runa",

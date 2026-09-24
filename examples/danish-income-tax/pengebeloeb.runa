@@ -31,6 +31,13 @@ positivbeløb, procent- eller øreafrunding.
 | penge_beløb_gange_basispoint_øre(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 100
 | penge_øre_gange_basispoint_øre(beløb_øre: Heltal, sats_basispoint: Heltal) -> beløb_øre * sats_basispoint / 10000
 | penge_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> hvis beløb_kroner > 0 && sats_basispoint > 0 { (beløb_kroner * sats_basispoint + 5000) / 10000 } ellers { 0 }
+-- Positivt procentbeløb oprundet; ændrer ikke de øvrige afrundingshjælpere.
+> penge_beløb_gange_basispoint_oprundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> Heltal {
+    hvis beløb_kroner > 0 && sats_basispoint > 0 {
+        = tæller = beløb_kroner * sats_basispoint
+        tæller / 10000 + hvis tæller % 10000 > 0 { 1 } ellers { 0 }
+    } ellers { 0 }
+}
 | penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> 0
 | exception penge_positiv_ørebrøk_nedrundes penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> tæller / nævner under tæller > 0 && nævner > 0
 | penge_øre_beregning(tæller: Heltal, nævner: Heltal) -> PengeØreBeregning(

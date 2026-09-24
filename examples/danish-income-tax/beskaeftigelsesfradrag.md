@@ -49,23 +49,22 @@ Det [fiktive eksempel](beskaeftigelsesfradrag.scenario.runa) giver:
 
 Fradragene er ikke skattebesparelser. Modellen genbruger de eksisterende
 årssatser og lofter i [ligningsloven_fradrag.runa](ligningsloven_fradrag.runa).
-Den præcise administrative afrunding til hele kroner er fortsat ikke
-uafhængigt verificeret; dette arbejde ændrer ikke den eksisterende projektion.
 
-### En kendt forskel på én krone er ikke afklaret
+### Afrunding kan forklare en forskel på én krone
 
-[Den juridiske vejlednings delårseksempel, C.F.1.6.2.1](https://info.skat.dk/data.aspx?oid=1977388),
-viser 12,75 % af 444.077 kr. som 56.620 kr. Den nuværende fradragsregel giver
-56.619 kr. ved det samme viste grundlag: det eksakte produkt er 56.619,8175 kr.,
-og modellen afkorter til hele kroner. Eksemplets andet viste grundlag på
-188.637 kr. giver derimod 24.051 kr. både i tabellen og i modellen.
+Almindeligt beskæftigelsesfradrag og jobfradrag oprundes nu til hele kroner,
+før årets loft anvendes. Det stemmer med
+[11 fiktive cases hos SKAT](skatdk-arbejdsfradrag-ekstern.md) i årsberegneren
+for 2025 og forskudsberegneren for 2026. Eksempel: 100.004 kr. i løn i 2025
+giver 12.301 kr. i beskæftigelsesfradrag, hvor den tidligere model gav
+12.300 kr. Syv cases kontrollerer også indkomstgrundlag og skat i øre.
 
-Dette er en konkret forskel fra et officielt eksempel, ikke dokumentation for
-en generel afrundingsregel. Delårseksemplet har også omregning og afrundede
-visningstal; den fulde beregning er ikke rekonstrueret her. En forskel på én
-krone må derfor undersøges, ikke automatisk betegnes som en fejl i din
-årsopgørelse. Ret hverken kildefakta eller beløb for at få et match. Modellen
-ændres ikke til nærmeste krone uden et bedre administrativt grundlag.
+Samme afrunding i ældre år er en modelantagelse, ikke uafhængigt verificeret
+historisk praksis. Kontrollen gælder ikke senior-, enligforsørger- eller
+pensionsfradrag og er ikke fuld rekonstruktion af DJV's delårseksempler.
+Genberegn tidligere resultater; en resterende forskel må undersøges,
+ikke automatisk betegnes som en fejl i din årsopgørelse. Ret aldrig fakta
+eller beløb for at få et match.
 
 ## Oplys egne fakta uden at gætte
 

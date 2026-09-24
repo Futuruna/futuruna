@@ -438,12 +438,12 @@ fn part_year_preserves_source_exclusion_and_recomputes_annual_work_deductions() 
         );
         assert_eq!(
             r["helårsberegning"]["beskæftigelsesfradrag_kroner"],
-            annual_basis * 1275 / 10000,
+            (annual_basis * 1275 + 9999) / 10000,
             "{id}"
         );
         assert_eq!(
             r["helårsberegning"]["jobfradrag_kroner"],
-            if id == "one-off" { 0 } else { 3027 },
+            if id == "one-off" { 0 } else { 3028 },
             "{id}"
         );
     }
