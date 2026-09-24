@@ -1,0 +1,43 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personfradrag - samordning
+
+-- Fiktive beløb; de eksterne forventninger står i personfradrag-samordning.md.
+= pf_ballerup = Par12PersonfradragSatser(1201, 0, 0, 2550, 0)
+= pf_københavn = Par12PersonfradragSatser(1201, 0, 0, 2350, 0)
+= pf_københavn_kirke = Par12PersonfradragSatser(1201, 0, 0, 2350, 80)
+= pf_60000 = par12_samordn_personfradrag(
+    Par9StatsskatPersonfradragResultat(43236, 0, 0, 0, 0, 0, 0, 0),
+    Par9IkkeStatPersonfradragResultat(0, 0, 0, 0, 96390, 0, 0)
+)
+= pf_60000_grundlag = par12_overførselsgrundlag_øre(pf_60000, pf_ballerup)
+= pf_60000_modtager = par12_omvurder_lokal_øre(pf_60000_grundlag, pf_københavn)
+| pf_egne_skatter_før_ægtefælle: pf_60000 -> pf_60000.statslig.par6_efter_kroner == 0 && par12_lokal_ubrugt(pf_60000.ikke_statslig) == 53154
+| pf_hele_kroner_før_modtagers_sats: pf_60000_grundlag -> pf_60000_grundlag.lokalt_kroner == 2084 && par12_lokal_ubrugt(pf_60000_modtager) == 48974
+
+= pf_60000_kirke = par12_samordn_personfradrag(
+    Par9StatsskatPersonfradragResultat(43236, 0, 0, 0, 0, 0, 0, 0),
+    Par9IkkeStatPersonfradragResultat(0, 0, 0, 0, 96390, 2835, 0)
+)
+= pf_60000_kirke_grundlag = par12_overførselsgrundlag_øre(pf_60000_kirke, Par12PersonfradragSatser(1201, 0, 0, 2550, 75))
+| pf_kirke_indgår_i_fælles_rest: pf_60000_kirke -> par12_lokal_ubrugt(pf_60000_kirke.ikke_statslig) == 55989 && pf_60000_kirke_grundlag.lokalt_kroner == 2132 && par12_lokal_ubrugt(par12_omvurder_lokal_øre(pf_60000_kirke_grundlag, pf_københavn_kirke)) == 51807
+
+= pf_nulindkomst = Par12Personfradragsgrundlag(51600, 0, 51600)
+| pf_modtagers_kirke_uden_afsenders_kirke: pf_nulindkomst -> par12_lokal_ubrugt(par12_omvurder_lokal_øre(pf_nulindkomst, pf_københavn_kirke)) == 1253880
+| pf_helkrone_kompatibilitet_bruger_samme_grundlag: pf_nulindkomst -> par12_lokal_ubrugt(par12_omvurder_lokal_kroner(pf_nulindkomst, pf_københavn)) == 12126 && par12_lokal_ubrugt(par12_omvurder_lokal_kroner(pf_60000_grundlag, pf_københavn)) == 489
+| pf_samme_sats_og_nulsats: pf_nulindkomst -> par12_lokal_ubrugt(par12_omvurder_lokal_øre(pf_nulindkomst, pf_ballerup)) == 1315800 && par12_fradragsgrundlag_fra_øre(0, 0) == 0
+
+-- Også omvendt samordning: uudnyttet statslig værdi mod lokale skatter.
+= pf_stat_til_lokal = par12_samordn_personfradrag(
+    Par9StatsskatPersonfradragResultat(0, 0, 0, 0, 0, 0, 150, 150),
+    Par9IkkeStatPersonfradragResultat(0, 100, 20, 0, 0, 0, 120)
+)
+| pf_stat_til_lokal_bevarer_rest: pf_stat_til_lokal -> pf_stat_til_lokal.ikke_statslig.samlet_efter_kroner == 0 && pf_stat_til_lokal.statslig.ubrugt_skatteværdi_kroner == 30
+
+? pf_egne_skatter_før_ægtefælle
+? pf_hele_kroner_før_modtagers_sats
+? pf_kirke_indgår_i_fælles_rest
+? pf_modtagers_kirke_uden_afsenders_kirke
+? pf_helkrone_kompatibilitet_bruger_samme_grundlag
+? pf_samme_sats_og_nulsats
+? pf_stat_til_lokal_bevarer_rest
+@ print("Personfradrag: 7 samordnings- og overførselskontroller stemmer.")

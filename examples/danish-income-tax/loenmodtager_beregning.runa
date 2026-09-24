@@ -8,6 +8,7 @@
 @ importer ./kapitel - 01 - indkomst
 @ importer ./kapitel - 02 - statsskat
 @ importer ./kapitel - 03 - personfradrag
+@ importer ./personfradrag - samordning
 @ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./pengebeloeb
 
@@ -36,13 +37,20 @@ omfang som nævnt i ligningslovens § 8 M,
 # LønmodtagerPar13Forhold(egne_tidligere_underskud_kroner: Heltal, par13a_nedsættelsesbeløb_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, ægtefælles_egne_tidligere_underskud_kroner: Heltal, ægtefælle_modregningsskatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
 # LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal, udnyttet_skatteværdi_kroner: Heltal, stk1_fremførsel: Par13Stk1FremførselResult, par13a_underskud_før_nedsættelse_kroner: Heltal, par13a_underskud_nedsat_kroner: Heltal, par13a_underskud_efter_nedsættelse_kroner: Heltal, par13a_nedsættelsesbeløb_efter_underskud_kroner: Heltal, ægtefælle_egne_underskud_prioritet: Par13ÆgtefælleEgneUnderskudPrioritetResult, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, ægtefælle_skattemodregning: Par13ÆgtefælleSkatModregningResult, fremført_efter_ægtefælle_kroner: Heltal)
 # LønmodtagerPar11NedslagResultat(nedslag: Par11NegativKapitalNedslagResultat, modregning: Par11NedslagModregningResultat)
-# LønmodtagerIndgåendeÆgtefælleoverførsler = UdenIndgåendeÆgtefælleoverførsler | MedIndgåendeÆgtefælleoverførsler(afsenders_par13_underskud: LønmodtagerPar13UnderskudResult, afsenders_statslige_personfradrag: Par9StatsskatPersonfradragResultat, afsenders_ikke_statslige_personfradrag: Par9IkkeStatPersonfradragResultat, afsenders_par11_nedslag: Par11NedslagModregningResultat, gift_samlevende_ved_årets_udløb: Boolsk)
+# LønmodtagerIndgåendeÆgtefælleoverførsler = UdenIndgåendeÆgtefælleoverførsler | MedIndgåendeÆgtefælleoverførsler(afsenders_par13_underskud: LønmodtagerPar13UnderskudResult, afsenders_personfradragsgrundlag: Par12Personfradragsgrundlag, afsenders_par11_nedslag: Par11NedslagModregningResultat, gift_samlevende_ved_årets_udløb: Boolsk)
 # LønmodtagerIndgåendeÆgtefælleResultat(par13_indkomstfradrag_kroner: Heltal, par13_skattemodregning_kroner: Heltal, personfradrag: Par10ÆgtefællePersonfradragResultat, par11_nedslag: Par11IndgåendeÆgtefælleNedslagResultat)
 # LønmodtagerSlutskat(personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, samlet_skatteloftsnedslag_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
 # LønmodtagerBeregning(input: LønmodtagerInput, indkomstgrundlag: LønmodtagerIndkomstgrundlag, ligningsfradrag: LønmodtagerLigningsfradrag, før_personfradrag: LønmodtagerSkattekomponenter, statsskat_før_personfradrag: Par5StatsskatResultat, par13_underskud: LønmodtagerPar13UnderskudResult, statsligt_personfradrag: Par9StatsskatPersonfradragResultat, ikke_statsligt_personfradrag: Par9IkkeStatPersonfradragResultat, personfradrag: LønmodtagerPersonfradragResultat, par11_nedslag: LønmodtagerPar11NedslagResultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, efter_personfradrag_før_skatteloft: LønmodtagerSkattekomponenter, slutskat: LønmodtagerSlutskat, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
 # LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, øvrig_personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, seniorbeskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, ekstra_pensionsfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, udligningsskat_før_personfradrag_kroner: Heltal, sundhedsbidrag_før_personfradrag_kroner: Heltal, aktieindkomstskat_før_personfradrag_kroner: Heltal, cfc_indkomstskat_før_personfradrag_kroner: Heltal, kommunal_lignende_statsskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, statslig_indkomstskat_før_personfradrag_kroner: Heltal, par13_skattepligtigt_underskud_kroner: Heltal, par13_underskud_skatteværdi_kroner: Heltal, par13_ubenyttet_skatteværdi_kroner: Heltal, par13_dækket_underskud_ved_skattemodregning_kroner: Heltal, par13_resterende_underskud_efter_skattemodregning_kroner: Heltal, par13_ægtefælle_fradrag_kroner: Heltal, par13_ægtefælle_skattemodregning_kroner: Heltal, par13_fremført_underskud_kroner: Heltal, statslig_indkomstskat_efter_par13_før_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner: Heltal, samlet_indkomstskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, par11_nedslagsgrundlag_kroner: Heltal, par11_nedslag_kroner: Heltal, par11_ubrugt_efter_egne_skatter_kroner: Heltal, par11_overført_til_ægtefælle_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, statslig_indkomstskat_efter_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
 
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(beløb_kroner, sats_basispoint)
+| lønmodtager_personfradrag_satser(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> Par12PersonfradragSatser(
+    par6_basispoint = nationalparametre_for(input.skatteår).bundskat_basispoint,
+    par8_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
+    par8c_basispoint = lønmodtager_par8c_basispoint(input, skatteforhold),
+    kommunal_basispoint = lønmodtager_kommunal_basispoint(input, skatteforhold),
+    kirkelig_basispoint = kirkeskat_sats_for(input)
+)
 | positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | lønmodtager_positiv_nettokapitalindkomst(input: LønmodtagerInput) -> positivt_beløb(input.nettokapitalindkomst_kroner)
 | lønmodtager_negativ_nettokapitalindkomst(input: LønmodtagerInput) -> positivt_beløb(0 - input.nettokapitalindkomst_kroner)
@@ -706,27 +714,27 @@ nedsat med de overskydende procenter.
     | positiv_kapital_skatteloft_beregningsgrundlag_kroner() -> lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input)
     | indgående_ægtefælle_samliv() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> Falskt
-        | MedIndgåendeÆgtefælleoverførsler(_, _, _, _, gift_samlevende_ved_årets_udløb) -> gift_samlevende_ved_årets_udløb
+        | MedIndgåendeÆgtefælleoverførsler(_, _, _, gift_samlevende_ved_årets_udløb) -> gift_samlevende_ved_årets_udløb
     }
     | indgående_par13_indkomstfradrag_kroner() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> 0
-        | MedIndgåendeÆgtefælleoverførsler(par13_underskud, _, _, _, _) -> par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_indkomstfradrag_kroner
+        | MedIndgåendeÆgtefælleoverførsler(par13_underskud, _, _, _) -> par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_indkomstfradrag_kroner
     }
     | indgående_par13_skattemodregning_kroner() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> 0
-        | MedIndgåendeÆgtefælleoverførsler(par13_underskud, _, _, _, _) -> par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_skattemodregning.udnyttet_skatteværdi_kroner
+        | MedIndgåendeÆgtefælleoverførsler(par13_underskud, _, _, _) -> par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_skattemodregning.udnyttet_skatteværdi_kroner
     }
     | indgående_statslige_personfradrag() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> lønmodtager_tom_statslig_personfradragsnedsættelse()
-        | MedIndgåendeÆgtefælleoverførsler(_, statslige_personfradrag, _, _, _) -> statslige_personfradrag
+        | MedIndgåendeÆgtefælleoverførsler(_, grundlag, _, _) -> par12_omvurder_statslig_kroner(grundlag, lønmodtager_personfradrag_satser(input, skatteforhold))
     }
     | indgående_ikke_statslige_personfradrag() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> lønmodtager_tom_ikke_statslig_personfradragsnedsættelse()
-        | MedIndgåendeÆgtefælleoverførsler(_, _, ikke_statslige_personfradrag, _, _) -> ikke_statslige_personfradrag
+        | MedIndgåendeÆgtefælleoverførsler(_, grundlag, _, _) -> par12_omvurder_lokal_kroner(grundlag, lønmodtager_personfradrag_satser(input, skatteforhold))
     }
     | indgående_par11_nedslag_kilde() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> lønmodtager_tom_par11_modregning()
-        | MedIndgåendeÆgtefælleoverførsler(_, _, _, par11_nedslag, _) -> par11_nedslag
+        | MedIndgåendeÆgtefælleoverførsler(_, _, par11_nedslag, _) -> par11_nedslag
     }
     | par13_underskud_input() -> Par13UnderskudInput(
         skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_kroner(),
@@ -919,7 +927,7 @@ nedsat med de overskydende procenter.
     )
     | indgående_par13_modregning_fra_kilde() -> match indgående_ægtefælleoverførsler {
         | UdenIndgåendeÆgtefælleoverførsler -> par13_modregning()
-        | MedIndgåendeÆgtefælleoverførsler(par13_underskud, _, _, _, _) -> par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_skattemodregning.modregning
+        | MedIndgåendeÆgtefælleoverførsler(par13_underskud, _, _, _) -> par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_skattemodregning.modregning
     }
     | par13_modregning_efter_indgående_ægtefælle() -> par13_modregning()
     | exception par13_stk2_indgående_ægtefælleoverførsel par13_modregning_efter_indgående_ægtefælle() -> indgående_par13_modregning_fra_kilde() under indgående_par13_indkomstfradrag_kroner() > 0 || indgående_par13_skattemodregning_kroner() > 0
@@ -946,7 +954,8 @@ nedsat med de overskydende procenter.
         par6_skatteværdi_kroner = bundskat_personfradrag_skatteværdi_kroner(),
         par8_skatteværdi_kroner = sundhedsbidrag_personfradrag_skatteværdi_kroner()
     )
-    | statsskat_personfradrag_nedsættelse() -> par9_statsskat_personfradrag_resultat(statsskat_personfradrag_input())
+    | samordnet_personfradrag() -> par12_samordn_personfradrag(par9_statsskat_personfradrag_resultat(statsskat_personfradrag_input()), par9_ikke_stat_personfradrag_resultat(ikke_stat_personfradrag_input()))
+    | statsskat_personfradrag_nedsættelse() -> samordnet_personfradrag().statslig
     | ikke_stat_personfradrag_input() -> Par9IkkeStatPersonfradragInput(
         par8c_skat_kroner = kommunal_lignende_statsskat_før_personfradrag_kroner(),
         kommuneskat_kroner = kommuneskat_før_personfradrag_kroner(),
@@ -955,7 +964,7 @@ nedsat med de overskydende procenter.
         kommunal_skatteværdi_kroner = kommunal_personfradrag_skatteværdi_kroner(),
         kirkelig_skatteværdi_kroner = kirkelig_personfradrag_skatteværdi_kroner()
     )
-    | ikke_stat_personfradrag_nedsættelse() -> par9_ikke_stat_personfradrag_resultat(ikke_stat_personfradrag_input())
+    | ikke_stat_personfradrag_nedsættelse() -> samordnet_personfradrag().ikke_statslig
     | ægtefælle_personfradrag_input() -> Par10ÆgtefællePersonfradragInput(
         kilde = Par10ÆgtefællePersonfradragKilde(
             statslig_nedsættelse = indgående_statslige_personfradrag(),

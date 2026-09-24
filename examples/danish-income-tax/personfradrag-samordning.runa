@@ -1,0 +1,123 @@
+@ sprog da
+
+@ importer ./kapitel - 02 - statsskat
+@ importer ./metadata
+
+# PersonfradragSamordningKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= personfradrag_samordning_metadata = Metadata(attachments = (
+    Source(value = PersonfradragSamordningKilde(
+        url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+        identifier = "PSL § 12, stk. 2, sammenholdt med §§ 9 og 10, stk. 3",
+        hentet_dato = "2026-09-25"
+    )),
+    Source(value = PersonfradragSamordningKilde(
+        url = "https://www.retsinformation.dk/eli/mt/1994/129",
+        identifier = "CIR nr. 129 af 4. juli 1994, pkt. 11.1.1–11.1.2",
+        hentet_dato = "2026-09-25"
+    )),
+))
+
+--@label:personfradrag_samordning::meta:personfradrag_samordning_metadata--
+----
+Hvis skatteværdien af personfradraget ikke kan udnyttes ved beregningen af en
+eller flere af de i § 9 nævnte skatter, anvendes den ikke udnyttede del til
+nedsættelse af de øvrige skatter.
+----
+
+--@begin:personfradrag_samordning--
+-- § 9-resultaterne er deltrin. § 12 samordner dem før § 10-overførsel.
+-- Beløbene skal have samme enhed: de ældre *_kroner-felter kan også bære
+-- øre i den eksakte beregning. AM-bidrag, CFC og lav aktieskat indgår ikke.
+# Par12SamordnetPersonfradrag(statslig: Par9StatsskatPersonfradragResultat, ikke_statslig: Par9IkkeStatPersonfradragResultat)
+# Par12PersonfradragSatser(par6_basispoint: Heltal, par8_basispoint: Heltal, par8c_basispoint: Heltal, kommunal_basispoint: Heltal, kirkelig_basispoint: Heltal)
+# Par12Personfradragsgrundlag(par6_kroner: Heltal, par8_kroner: Heltal, lokalt_kroner: Heltal)
+
+| par12_lokal_ubrugt(lokal: Par9IkkeStatPersonfradragResultat) -> lokal.ubrugt_par8c_skatteværdi_kroner + lokal.ubrugt_kommunal_skatteværdi_kroner + lokal.ubrugt_kirkelig_skatteværdi_kroner
+| par12_lokal_sats(satser: Par12PersonfradragSatser) -> satser.par8c_basispoint + satser.kommunal_basispoint + satser.kirkelig_basispoint
+
+-- En rest i den fælles lokale pulje fordeles forholdsmæssigt. Sidste felt
+-- bærer divisionsresten, så ingen skattekredit forsvinder ved opdelingen.
+-- Denne præsentationsfordeling er ikke en selvstændig fradragsret.
+> par12_andel(rest: Heltal, del: Heltal, samlet: Heltal) -> Heltal {
+    hvis samlet > 0 { rest * del / samlet } ellers { 0 }
+}
+
+> par12_samordn_personfradrag(stat: Par9StatsskatPersonfradragResultat, lokal: Par9IkkeStatPersonfradragResultat) -> Par12SamordnetPersonfradrag {
+    = lokal_ubrugt = par12_lokal_ubrugt(lokal)
+    = stat_efter_lokal = par9_statsskat_personfradrag_resultat(Par9StatsskatPersonfradragInput(
+        par6_skat_kroner = stat.par6_efter_kroner,
+        par7_skat_kroner = stat.par7_efter_kroner,
+        par7a_skat_kroner = stat.par7a_efter_kroner,
+        par8_skat_kroner = stat.par8_efter_kroner,
+        par8a_stk2_skat_kroner = stat.par8a_stk2_efter_kroner,
+        par6_skatteværdi_kroner = lokal_ubrugt,
+        par8_skatteværdi_kroner = 0
+    ))
+    = lokal_rest = stat_efter_lokal.ubrugt_skatteværdi_kroner
+    = lokal_par8c_rest = par12_andel(lokal_rest, lokal.ubrugt_par8c_skatteværdi_kroner, lokal_ubrugt)
+    = lokal_kommune_rest = par12_andel(lokal_rest, lokal.ubrugt_kommunal_skatteværdi_kroner, lokal_ubrugt)
+    = stat_til_par8c = penge_mindste_beløb(stat.ubrugt_skatteværdi_kroner, lokal.par8c_efter_kroner)
+    = stat_til_kommune = penge_mindste_beløb(stat.ubrugt_skatteværdi_kroner - stat_til_par8c, lokal.kommuneskat_efter_kroner)
+    = stat_til_kirke = penge_mindste_beløb(stat.ubrugt_skatteværdi_kroner - stat_til_par8c - stat_til_kommune, lokal.kirkeskat_efter_kroner)
+    = stat_anvendt = stat_til_par8c + stat_til_kommune + stat_til_kirke
+    = par8_rest = penge_positivt_beløb(stat.ubrugt_par8_skatteværdi_kroner - stat_anvendt)
+    = par6_rest = stat.ubrugt_skatteværdi_kroner - stat_anvendt - par8_rest
+    Par12SamordnetPersonfradrag(
+        statslig = Par9StatsskatPersonfradragResultat(
+            par6_efter_kroner = stat_efter_lokal.par6_efter_kroner,
+            par7_efter_kroner = stat_efter_lokal.par7_efter_kroner,
+            par7a_efter_kroner = stat_efter_lokal.par7a_efter_kroner,
+            par8_efter_kroner = stat_efter_lokal.par8_efter_kroner,
+            par8a_stk2_efter_kroner = stat_efter_lokal.par8a_stk2_efter_kroner,
+            ubrugt_par8_skatteværdi_kroner = par8_rest,
+            ubrugt_par6_skatteværdi_kroner = par6_rest,
+            ubrugt_skatteværdi_kroner = par8_rest + par6_rest
+        ),
+        ikke_statslig = Par9IkkeStatPersonfradragResultat(
+            par8c_efter_kroner = lokal.par8c_efter_kroner - stat_til_par8c,
+            kommuneskat_efter_kroner = lokal.kommuneskat_efter_kroner - stat_til_kommune,
+            kirkeskat_efter_kroner = lokal.kirkeskat_efter_kroner - stat_til_kirke,
+            ubrugt_par8c_skatteværdi_kroner = lokal_par8c_rest,
+            ubrugt_kommunal_skatteværdi_kroner = lokal_kommune_rest,
+            ubrugt_kirkelig_skatteværdi_kroner = lokal_rest - lokal_par8c_rest - lokal_kommune_rest,
+            samlet_efter_kroner = lokal.samlet_efter_kroner - stat_anvendt
+        )
+    )
+}
+
+-- CIR 129: restværdier omregnes til fradragsbeløb før modtagers satser.
+-- Helkrone-nedrunding i omregningen er en eksplicit konformitetsfortolkning:
+-- SKATs offentlige 2025-beregner, fiktiv Ballerup-løn 60.000, efterlader
+-- 531,54 kr. / 25,5 % = 2.084,4705… kr.; overførslen bruger 2.084 kr.
+-- Se personfradrag-samordning.md. Dette er ikke et citat af en afrundingslov.
+> par12_fradragsgrundlag_fra_øre(ubrugt_øre: Heltal, sats_basispoint: Heltal) -> Heltal {
+    hvis sats_basispoint > 0 { ubrugt_øre * 100 / sats_basispoint } ellers { 0 }
+}
+| par12_overførselsgrundlag_øre(resultat: Par12SamordnetPersonfradrag, satser: Par12PersonfradragSatser) -> Par12Personfradragsgrundlag(
+    par6_kroner = par12_fradragsgrundlag_fra_øre(resultat.statslig.ubrugt_par6_skatteværdi_kroner, satser.par6_basispoint),
+    par8_kroner = par12_fradragsgrundlag_fra_øre(resultat.statslig.ubrugt_par8_skatteværdi_kroner, satser.par8_basispoint),
+    lokalt_kroner = par12_fradragsgrundlag_fra_øre(par12_lokal_ubrugt(resultat.ikke_statslig), par12_lokal_sats(satser))
+)
+| par12_omvurder_statslig_øre(grundlag: Par12Personfradragsgrundlag, satser: Par12PersonfradragSatser) -> {
+    = par6 = penge_beløb_gange_basispoint_øre(grundlag.par6_kroner, satser.par6_basispoint)
+    = par8 = penge_beløb_gange_basispoint_øre(grundlag.par8_kroner, satser.par8_basispoint)
+    Par9StatsskatPersonfradragResultat(0, 0, 0, 0, 0, par8, par6, par8 + par6)
+}
+| par12_omvurder_lokal_øre(grundlag: Par12Personfradragsgrundlag, satser: Par12PersonfradragSatser) -> {
+    = samlet = penge_beløb_gange_basispoint_øre(grundlag.lokalt_kroner, par12_lokal_sats(satser))
+    = par8c = penge_beløb_gange_basispoint_øre(grundlag.lokalt_kroner, satser.par8c_basispoint)
+    = kirke = penge_beløb_gange_basispoint_øre(grundlag.lokalt_kroner, satser.kirkelig_basispoint)
+    Par9IkkeStatPersonfradragResultat(0, 0, 0, par8c, samlet - par8c - kirke, kirke, 0)
+}
+| par12_omvurder_statslig_kroner(grundlag: Par12Personfradragsgrundlag, satser: Par12PersonfradragSatser) -> {
+    = par6 = penge_beløb_gange_basispoint_kroner(grundlag.par6_kroner, satser.par6_basispoint)
+    = par8 = penge_beløb_gange_basispoint_kroner(grundlag.par8_kroner, satser.par8_basispoint)
+    Par9StatsskatPersonfradragResultat(0, 0, 0, 0, 0, par8, par6, par8 + par6)
+}
+| par12_omvurder_lokal_kroner(grundlag: Par12Personfradragsgrundlag, satser: Par12PersonfradragSatser) -> {
+    = samlet = penge_beløb_gange_basispoint_kroner(grundlag.lokalt_kroner, par12_lokal_sats(satser))
+    = par8c = penge_beløb_gange_basispoint_kroner(grundlag.lokalt_kroner, satser.par8c_basispoint)
+    = kirke = penge_beløb_gange_basispoint_kroner(grundlag.lokalt_kroner, satser.kirkelig_basispoint)
+    Par9IkkeStatPersonfradragResultat(0, 0, 0, par8c, samlet - par8c - kirke, kirke, 0)
+}
+--@end:personfradrag_samordning--
