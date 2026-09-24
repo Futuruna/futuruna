@@ -1,0 +1,56 @@
+-- Text patterns compare values, before user guards; they are not Rust expressions
+-- in pattern position. Cover nested payloads, ownership, escaping and tail calls.
+# TextEntry(kind: String, currency: Option(String), amount: Int)
+
+> classify(text: String) -> Int {
+    match text {
+        | "a" -> 1
+        | "b" -> 2
+        | "" -> 3
+        | "år\n\"\\" -> 4
+        | _ -> 0
+    }
+}
+
+> guarded(text: String, enabled: Bool) -> String {
+    = __fut_string_pattern = "outer"
+    match text {
+        | "a" if enabled && __fut_string_pattern == "outer" -> "first"
+        | "a" -> "second"
+        | other -> other
+    }
+}
+
+> nested(entry: TextEntry, __fut_string_pattern: Int) -> Int {
+    match entry {
+        | TextEntry(kind: "job", currency: Some("dkk"), amount: amount) if __fut_string_pattern == 9 -> amount
+        | _ -> -1
+    }
+}
+
+> count_down(text: String, remaining: Int) -> Int {
+    match text {
+        | "stop" -> remaining
+        | _ if remaining > 0 -> count_down("stop", remaining - 1)
+        | _ -> -1
+    }
+}
+
+> selected() -> String { @ print("scrutinee") "a" }
+> guard_probe() -> Bool { @ print("guard") True }
+
+@ print(show(map(["a", "b", "", "år\n\"\\", "other"], classify)))
+@ print(guarded("a", True))
+@ print(guarded("a", False))
+= preserved = "other"
+@ print(guarded(preserved, True))
+@ print(preserved)
+@ print(show(map([TextEntry("job", Some("dkk"), 7), TextEntry("job", Some("eur"), 8), TextEntry("other", Some("dkk"), 9), TextEntry("job", None, 10)], |entry: TextEntry| nested(entry, 9))))
+@ print(show(count_down("go", 4)))
+@ print(show(count_down("stop", 4)))
+@ print(show(count_down("go", 0)))
+@ print(show(match selected() {
+        | "b" if guard_probe() -> 6
+        | "a" if guard_probe() -> 7
+        | _ -> 8
+    }))
