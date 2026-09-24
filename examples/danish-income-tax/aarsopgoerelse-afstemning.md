@@ -29,6 +29,30 @@ against the compiler you will use. The original `v0.2.0` download predates
 required calculation-safety fixes; the version string alone is insufficient.
 Do not continue on a failed check. It uses only synthetic data, not your report.
 
+### Prøv først med fiktive tal
+
+Du kan se et dansk eksempel uden at finde eller indtaste dokumenter. Brug den
+absolutte sti i `RUNA_BIN`, som bestod kompatibilitetstjekket:
+
+```sh
+node examples/danish-income-tax/afstemning-demo.mjs "$RUNA_BIN"
+```
+
+Demonstrationen kører tre fiktive rapporter gennem den kompakte model: én med
+betinget match, én med manglende overførselslinjer og én med en forskel på én
+øre. I alle tre er ægtefællens kommune og samlivsbetingelse ukendte. Modellen
+viser stadig det nødvendige indkomstfradrag på 12.000 DKK og det nødvendige
+samlede skattenedslag på 380.000 øre (3.800 DKK). Manglende observationer vises
+som **ukendt**, ikke nul. Tallene er ikke beregnet af JavaScript eller en LLM;
+JavaScript kalder Futuruna, kontrollerer de fiktive forventninger og viser svaret.
+
+Input og fulde resultater med alle forbehold gemmes i en ny midlertidig mappe
+uden for projektet; stien vises til sidst. Scriptet læser ingen personlige
+dokumenter. Eksemplerne er ikke skabeloner for dine egne fakta, og et betinget
+match dokumenterer ikke, at ægtefællens forhold er lovligt rekonstrueret.
+
+### Use your own report observations
+
 Keep the PDFs, transcriptions, and results in a private directory **outside the
 checkout**. Replace `PRIVATE_WORK_DIR` below with its actual path, and keep
 `RUNA_BIN` set to the exact absolute path that passed the check. From the repo:
