@@ -2562,11 +2562,24 @@ Jobfradrag, § 9 K
     identifier = "Ligningsloven § 9 L, satser og beløbsgrænser 2026",
     hentet_dato = "2026-07-18"
 )
+= skatdk_par9l_afrunding_2025 = LigningslovFradragKildeInfo(
+    url = "https://www.tastselv.skat.dk/borger/beregn2025/profil.do",
+    identifier = "Anonym årsberegner 2025: fiktive private ratebidrag, 12 og 32 pct.; se skatdk-pensionsfradrag-ekstern.md",
+    hentet_dato = "2026-09-25"
+)
+= skatdk_par9l_afrunding_2026 = LigningslovFradragKildeInfo(
+    url = "https://www.tastselv.skat.dk/fskbrgn2/Skprofil.aspx?indkomstaar=2026",
+    identifier = "Anonym forskudsberegner 2026, profilversion 26.3.5.1: fiktive private ratebidrag, 12 og 32 pct.",
+    hentet_dato = "2026-09-25"
+)
 
 = ligningsloven_par9l_metadata = Metadata(
     attachments = (
         Source(value = ligningsloven_lbk1500_par9l),
         RateSource(value = skatteministeriet_ligningsloven_par9l_satser_2026),
+        Practice(value = skatdk_par9l_afrunding_2025),
+        Practice(value = skatdk_par9l_afrunding_2026),
+        Assumption(value = "Helkroneoprunding er observeret beregnerpraksis i 2025/2026, ikke udtrykkelig ordlyd i § 9 L. Anvendelse i ældre år er ikke uafhængigt verificeret."),
     )
 )
 
@@ -2706,7 +2719,11 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | ll9l_nettopensionsindbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input) - ll9l_modregningspligtig_udbetaling_kroner(input))
 | ll9l_fradragsgrundlag_kroner(input: Ligningslov9LInput) -> ligningslov_mindste_beløb(ll9l_nettopensionsindbetalinger_kroner(input), ll9l_parametre_for(input.skatteår, ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).pensionsalder_status).maksimalt_grundlag_kroner)
 | ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> 0
-| exception ll9l_gældende_skatteår_og_gyldig_fødselsdato ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_afrundet_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).pensionsalder_status).pensionsfradrag_basispoint) under ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).input_gyldigt
+-- Oprund det samlede, modregnede og loftsbegrænsede fradrag én gang.
+-- SKATs observerede 2025/2026-praksis: skatdk-pensionsfradrag-ekstern.md.
+-- Alle § 9 L-satser giver eksakte øre ved hele kronegrundlag. Samme
+-- konvention i ældre år er en modelantagelse, ikke en lovændring i 2025.
+| exception ll9l_gældende_skatteår_og_gyldig_fødselsdato ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_via_øre_oprundet_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).pensionsalder_status).pensionsfradrag_basispoint) under ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).input_gyldigt
 | ll9j_9k_9l_9j_input(input: Ligningslov9J9K9LInput) -> Ligningslov9JInput(
     skatteår = input.skatteår,
     arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,

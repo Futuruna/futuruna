@@ -58,6 +58,23 @@ fn ordinary_deductions_match_external_skat_calculator_boundaries() {
 }
 
 #[test]
+fn extra_pension_deduction_matches_external_rounding_and_native_execution() {
+    let path = "examples/danish-income-tax/ligningsloven-par9l.scenario.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+        assert!(
+            output.status.success(),
+            "{lane}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("8 fiktive pensionsfradragscases"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
 fn personal_allowance_transfer_matches_native_execution() {
     let path = "tests/personfradrag_transfer_test.runa";
     let interpreted = execute(false, path);

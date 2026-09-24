@@ -66,7 +66,8 @@ før grøn check og slutafregning. Det er ikke fuld validering af restskat
 eller tilbagebetaling.
 
 Samme afrunding i ældre år er en modelantagelse, ikke uafhængigt verificeret
-historisk praksis. Ekstra pensionsfradrags afrunding er ikke undersøgt,
+historisk praksis. Ekstra pensionsfradrags afrunding er undersøgt
+[særskilt for 2025/2026](skatdk-pensionsfradrag-ekstern.md),
 og kontrollen er ikke fuld rekonstruktion af DJV's delårseksempler.
 Genberegn tidligere resultater; en resterende forskel må undersøges,
 ikke automatisk betegnes som en fejl i din årsopgørelse. Ret aldrig fakta

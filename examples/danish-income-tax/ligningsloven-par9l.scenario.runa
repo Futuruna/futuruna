@@ -113,7 +113,7 @@
 
 | ll9l_2019_reguleret_maks_og_22pct: ll9l_2019_folkepensionsnær_maks_fixture -> ll9l_2019_folkepensionsnær_maks_fixture == 15730
 | ll9l_2026_reguleret_maks_og_12pct: ll9l_2026_ordinær_maks_fixture -> ll9l_2026_ordinær_maks_fixture == 10536
-| ll9l_2025_afrundes_til_nærmeste_hele_krone: ll9l_2025_afrundet_fixture -> ll9l_2025_afrundet_fixture == 495
+| ll9l_2025_samlet_grundlag_oprundes: ll9l_2025_afrundet_fixture -> ll9l_2025_afrundet_fixture == 495
 | ll9l_pbl20_udbetaling_modregnes: ll9l_2026_modregnet_udbetaling_fixture -> ll9l_2026_modregnet_udbetaling_fixture == 4800
 | ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
 | ll9l_ugyldig_fødselsdato_failer_lukket: ll9l_2026_ugyldig_fødselsdato_fixture -> ll9l_2026_ugyldig_fødselsdato_fixture == 0 && ll9l_pensionsalder_resultat(2026, Dato(år = 1990, måned = 2, dag = 30)).input_gyldigt == Falskt
@@ -146,7 +146,7 @@
 ? ll9l_halvårsalder_bevares_i_måneder
 ? ll9l_2019_reguleret_maks_og_22pct
 ? ll9l_2026_reguleret_maks_og_12pct
-? ll9l_2025_afrundes_til_nærmeste_hele_krone
+? ll9l_2025_samlet_grundlag_oprundes
 ? ll9l_pbl20_udbetaling_modregnes
 ? ll9l_pbl20_udbetaling_undtages
 ? ll9l_ugyldig_fødselsdato_failer_lukket
@@ -156,3 +156,35 @@
 ? ll9j_senior_arver_stk1_udelukkelse
 
 @ print("Ligningslovens § 9 L: folkepensionsalderen afledes fra fødselsdato og den tidsmæssigt gældende § 1 a")
+
+-- Uafhængigt aflæste fradrag fra anonyme SKAT-beregnere, 2026-09-25.
+-- Fiktive private ratebidrag, ikke beløb udledt fra modellens procentformel.
+-- Profil, skattekomponenter og kildeafgrænsning: skatdk-pensionsfradrag-ekstern.md.
+# SkatDkPensionsfradragObservation(skatteår: Heltal, fødselsår: Heltal, privat_ratebidrag_kroner: Heltal, fradrag_kroner: Heltal)
+= skatdk_pensionsfradrag_observationer = [
+    SkatDkPensionsfradragObservation(2025, 1990, 1, 1),
+    SkatDkPensionsfradragObservation(2025, 1990, 40000, 4800),
+    SkatDkPensionsfradragObservation(2025, 1990, 40001, 4801),
+    SkatDkPensionsfradragObservation(2025, 1990, 40004, 4801),
+    SkatDkPensionsfradragObservation(2025, 1990, 40005, 4801),
+    SkatDkPensionsfradragObservation(2025, 1960, 40001, 12801),
+    SkatDkPensionsfradragObservation(2026, 1990, 40001, 4801),
+    SkatDkPensionsfradragObservation(2026, 1960, 40001, 12801)
+]
+> skatdk_pensionsfradrag_matcher(o: SkatDkPensionsfradragObservation) -> Boolsk {
+    = input = Ligningslov9LInput(o.skatteår, Dato(o.fødselsår, 1, 1), o.privat_ratebidrag_kroner, 0, 0, 0, Ll9lIngenPbl20Udbetaling)
+    ll9l_pensionsalder_resultat(o.skatteår, input.fødselsdato).input_gyldigt
+    && ll9l_ekstra_pensionsfradrag_kroner(input) == o.fradrag_kroner
+}
+| ll9l_matcher_offentlige_beregnere: skatdk_pensionsfradrag_observationer -> all(skatdk_pensionsfradrag_observationer, skatdk_pensionsfradrag_matcher)
+
+-- Afledte modelkanter, IKKE yderligere eksterne observationer. § 9 L
+-- anvender procenten på samlet grundlag efter modregning og loft, ikke pr. post.
+> ll9l_afrundingskant(privat: Heltal, rate: Heltal, øvrig: Heltal, udbetaling: Heltal) -> Heltal {
+    ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(2026, Dato(1990, 1, 1), privat, rate, øvrig, udbetaling, Ll9lModregningspligtigPbl20Udbetaling))
+}
+= ll9l_afrundingskanter = [ll9l_afrundingskant(0, 0, 0, 0), ll9l_afrundingskant(1, 1, 1, 0), ll9l_afrundingskant(40001, 0, 0, 1), ll9l_afrundingskant(1, 0, 0, 2), ll9l_afrundingskant(0, 0, 87800, 0), ll9l_afrundingskant(0, 0, 87801, 0)]
+| ll9l_oprunder_efter_sum_modregning_og_loft: ll9l_afrundingskanter -> ll9l_afrundingskanter == [0, 1, 4800, 0, 10536, 10536]
+? ll9l_matcher_offentlige_beregnere
+? ll9l_oprunder_efter_sum_modregning_og_loft
+@ print("SKAT: 8 fiktive pensionsfradragscases stemmer; 6 afledte afrundingskanter kontrolleret.")

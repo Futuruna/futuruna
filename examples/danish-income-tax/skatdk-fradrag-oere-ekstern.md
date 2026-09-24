@@ -155,7 +155,9 @@ er synlige, betyder ikke, at de stemmer med SKAT. Testene kører offline.
 
 Native/interpreter-paritet gælder dette lille fradragsmodul. Skattetesten bruger
 `runa call`; den validerer ikke hele Personskats native kodegenerering.
-Ekstra pensionsfradrags afrunding, historiske år og fuld delårskonformitet er
-ikke verificeret af disse observationer. Inputtyper ændres ikke; genberegn
+Ekstra pensionsfradrags afrunding er undersøgt i en
+[særskilt kontrol for 2025/2026](skatdk-pensionsfradrag-ekstern.md).
+Historiske år og fuld delårskonformitet er ikke verificeret af disse
+observationer. Inputtyper ændres ikke; genberegn
 tidligere resultater efter modelopdateringen. Modellen er forskningssoftware,
 ikke individuel skatterådgivning.

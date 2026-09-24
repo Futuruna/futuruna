@@ -79,7 +79,8 @@ fordeling af udenlandsk arbejdsindkomst ændres ikke.
 Seniorfradrag og enligforsørgertillæg er undersøgt særskilt i
 [den efterfølgende kontrol](skatdk-fradrag-oere-ekstern.md), som også
 dokumenterer **to åbne 2026-afvigelser på én krone**. Ekstra pensionsfradrags
-afrunding er ikke undersøgt. Kontrollen er heller ikke fuld validering af en
+afrunding er efterfølgende undersøgt i [otte særskilte pensionscases](skatdk-pensionsfradrag-ekstern.md).
+Kontrollen er heller ikke fuld validering af en
 personlig årsopgørelse eller af delårsberegning.
 [DJV's delårseksempel C.F.1.6.2.1](https://info.skat.dk/data.aspx?oid=1977388)
 har afrundede grundlag og omregning; det kan ikke læses som en isoleret

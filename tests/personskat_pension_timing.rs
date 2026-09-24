@@ -139,6 +139,69 @@ fn calculate(mut envelope: Value, cases: Vec<Value>) -> Vec<Value> {
 }
 
 #[test]
+fn extra_pension_rounding_matches_official_calculators() {
+    // Anonymous SKAT calculator, wholly fictional source facts. Expectations
+    // were observed independently, not computed from this model. Full profile
+    // and all eight observations: skatdk-pensionsfradrag-ekstern.md.
+    // year, birth year, private rate contribution, extra deduction, taxable
+    // income, municipal tax ore, assessed tax including AM ore.
+    let observed = [
+        (2025, 1990, 1, 1, 493498, 11597203, 21194394),
+        (2025, 1990, 40001, 4801, 448698, 10544403, 19661194),
+        (2025, 1960, 40001, 12801, 440698, 10356403, 19473194),
+        (2026, 1990, 40001, 4801, 440798, 10310265, 19344232),
+        (2026, 1960, 40001, 12801, 426698, 9980466, 19014433),
+    ];
+    let (envelope, mut baseline) = fictional_input();
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let cases = observed
+        .iter()
+        .map(|&(year, birth, paid, ..)| {
+            let mut input = baseline.clone();
+            input["lønmodtager"]["skatteår"] = json!(year);
+            input["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(birth);
+            let payment =
+                &mut input["lønmodtager"]["pension"]["pbl18_indbetalinger"][0]["betaling"];
+            payment["beløb_kroner"] = json!(paid);
+            payment["forfaldsår"] = json!(year);
+            payment["betalingsår"] = json!(year);
+            json!({"case_id":format!("skat-pension-{year}-{birth}-{paid}"),"input":input})
+        })
+        .collect();
+    let results = calculate(envelope, cases);
+    assert_eq!(results.len(), observed.len());
+    for (row, (year, birth, paid, extra, taxable, municipal, total)) in results.iter().zip(observed)
+    {
+        let id = format!("skat-pension-{year}-{birth}-{paid}");
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        assert_eq!(
+            result["vurdering"]["alle_kontroller_gyldige"], true,
+            "{id}: {}",
+            result["vurdering"]
+        );
+        assert_eq!(result["vurdering"]["samlet_modeldækning_bekræftet"], false);
+        assert_eq!(
+            result["skat"]["ekstra_pensionsfradrag_kroner"], extra,
+            "{id}"
+        );
+        assert_eq!(
+            result["skat"]["almindelig_skattepligtig_indkomst_kroner"], taxable,
+            "{id}"
+        );
+        assert_eq!(
+            result["hovedskat_eksakt"]["før_nedsættelser"]["kommuneskat_øre"], municipal,
+            "{id}"
+        );
+        assert_eq!(
+            result["vurdering"]["slutskat_til_sammenligning_øre"], total,
+            "{id}"
+        );
+    }
+}
+
+#[test]
 fn ordinary_salary_matches_external_skat_rounding_and_tax_amounts() {
     // Independently observed public calculator outputs, NOT formulas derived
     // from this model. Profile, sources and limitations:
