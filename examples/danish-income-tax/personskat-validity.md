@@ -117,6 +117,12 @@ reconciles the exclusion before recomputing annual deductions; check its own
 
 ## Updating existing clients
 
+The [spouse loss-credit correction](underskud-modtagersats.md) also uses the
+recipient's rates, including for conversion back to unused losses. Three
+fictional 2025 calculator cases cover different municipalities and church
+membership. No new public input fact is required; direct `.runa` constructors
+of `LønmodtagerPar13Forhold` must supply the recipient's derived §13 rate.
+
 The [spouse personal-allowance correction](personfradrag-samordning.md) uses
 the donor's allowance amounts after own-tax offsets and the recipient's rates,
 not the donor's tax-credit amounts. This also corrects ordinary low-income

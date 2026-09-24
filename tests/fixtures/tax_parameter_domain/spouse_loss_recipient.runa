@@ -1,0 +1,58 @@
+@ sprog da
+
+@ importer ../../../examples / danish - income - tax / loenmodtager - eksakt - skat
+
+-- Fiktiv afsender: Ballerup 2025, ingen løn/kirkeskat, renter på 10.000 kr.
+-- Modtagers skattekapacitet er et kontrolleret mellemresultat i disse
+-- komponentkontroller, ikke en oplyst slutskat i Personskat.
+-- Kilde: DJV C.A.1.2.3.2.1, https://info.skat.dk/data.aspx?oid=2061672.
+= afsender = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = Ballerup,
+    bruttoløn_kroner = 0,
+    øvrig_personlig_indkomst_kroner = 0,
+    nettokapitalindkomst_kroner = -10000,
+    ligningsmæssige_fradrag_kroner = 0,
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+| modtager_forhold(sats: Heltal, skat: Heltal, egne: Heltal, samliv: Boolsk) -> LønmodtagerPar13Forhold(
+    egne_tidligere_underskud_kroner = 0,
+    par13a_nedsættelsesbeløb_kroner = 0,
+    ægtefælle_skattepligtig_indkomst_kroner = 0,
+    ægtefælles_egne_tidligere_underskud_kroner = egne,
+    ægtefælle_skatteværdi_sats_basispoint = sats,
+    ægtefælle_modregningsskatter = Par13ModregningsSkatter(skat, 0, 0, 0, 0),
+    gift_samlevende_ved_årets_udløb = samliv,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+)
+| helkrone_resultat(sats: Heltal, skat: Heltal, egne: Heltal, samliv: Boolsk) -> beregn_lønmodtager_model_med_par13_forhold(afsender, modtager_forhold(sats, skat, egne, samliv)).par13_underskud
+| eksakt_resultat(sats: Heltal, samliv: Boolsk) -> beregn_lønmodtager_eksakt(afsender, lønmodtager_standard_skatteforhold(), modtager_forhold(sats, 3000, 0, samliv)).udgående_overførsler
+
+= fuld = helkrone_resultat(2350, 2350, 0, Sandt)
+= halv = helkrone_resultat(2350, 1175, 0, Sandt)
+= uden = helkrone_resultat(2350, 2350, 0, Falskt)
+= prioritet = helkrone_resultat(2350, 2350, 5000, Sandt)
+= ældre_hjælper = lønmodtager_par13_sag(afsender, modtager_forhold(2350, 1175, 0, Sandt)).resultat()
+= eksakt = eksakt_resultat(2350, Sandt)
+= eksakt_kirke = eksakt_resultat(2430, Sandt)
+= eksakt_uden = eksakt_resultat(2350, Falskt)
+
+| modtagersats_uden_ændring_af_egen_sats: fuld -> fuld.skatteværdi_sats_basispoint == 2550 && fuld.skatteværdi_kroner == 2550 && fuld.ægtefælle_skattemodregning.skatteværdi_til_modregning_kroner == 2350 && fuld.fremført_efter_ægtefælle_kroner == 0
+| modtagersats_ved_tilbageomregning: halv -> halv.ægtefælle_skattemodregning.udnyttet_skatteværdi_kroner == 1175 && halv.ægtefælle_skattemodregning.dækket_underskud_ved_skattemodregning_kroner == 5000 && halv.fremført_efter_ægtefælle_kroner == 5000
+| ingen_overførsel_uden_samliv: uden -> uden.ægtefælle_skattemodregning.udnyttet_skatteværdi_kroner == 0 && uden.fremført_efter_ægtefælle_kroner == 10000 && eksakt_uden.par13_skatteværdi_øre == 0 && eksakt_uden.par13_indkomstfradrag_kroner == 0
+| egne_underskud_før_modtaget_underskud: prioritet -> prioritet.ægtefælle_egne_underskud_prioritet.egne_underskud_skattemodregning.udnyttet_skatteværdi_kroner == 1175 && prioritet.ægtefælle_skattemodregning.udnyttet_skatteværdi_kroner == 1175 && prioritet.fremført_efter_ægtefælle_kroner == 5000
+| ældre_hjælper_bruger_modtagersats: ældre_hjælper -> ældre_hjælper.ægtefælle_skattemodregning.skatteværdi_til_modregning_kroner == 2350 && ældre_hjælper.fremført_efter_ægtefælle_kroner == 5000
+| eksakt_bruger_modtagers_kommune_og_kirke: eksakt -> eksakt.par13_skatteværdi_øre == 235000 && eksakt_kirke.par13_skatteværdi_øre == 243000
+
+? modtagersats_uden_ændring_af_egen_sats
+? modtagersats_ved_tilbageomregning
+? ingen_overførsel_uden_samliv
+? egne_underskud_før_modtaget_underskud
+? ældre_hjælper_bruger_modtagersats
+? eksakt_bruger_modtagers_kommune_og_kirke
+
+@ print("6 kontroller af underskudsoverførsel og modtagersats bestået.")

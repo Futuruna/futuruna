@@ -93,6 +93,26 @@ fn personal_allowance_recipient_offsets_obey_cohabitation() {
 }
 
 #[test]
+fn spouse_loss_recipient_rates_preserve_capacity_and_priority() {
+    // Full wage/tax native generation has separately tracked guarded-lookup
+    // failures (td-124b83); this model change claims interpreter coverage only.
+    for path in [
+        "tests/fixtures/tax_parameter_domain/spouse_loss_recipient.runa",
+        "examples/danish-income-tax/loenmodtager-par13-spouse.audit.runa",
+        "examples/danish-income-tax/loenmodtager-par13-priority.audit.runa",
+    ] {
+        let output = execute(false, path);
+        assert!(
+            output.status.success(),
+            "{path}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(!output.stdout.is_empty(), "{path}: no results");
+    }
+}
+
+#[test]
 fn deduction_ore_projection_preserves_external_cases_and_known_disagreements() {
     for path in [
         "examples/danish-income-tax/skatdk-fradrag-oere-ekstern.scenario.runa",
