@@ -28,8 +28,8 @@ This vault is meant to make those threads easier to navigate without replacing t
 - `research/` holds exploratory design and analysis
 - `paper/` holds publication material
 - `wiki/` is the Obsidian knowledge layer that cross-links the moving parts
-- `.raw/` stages raw sources for ingest
-- `_attachments/` holds images and PDFs referenced by wiki pages
+- `wiki/.raw/` stages raw sources for ingest
+- `wiki/_attachments/` holds images and PDFs referenced by wiki pages
 
 ## Current Emphasis
 
@@ -46,5 +46,5 @@ This vault is meant to make those threads easier to navigate without replacing t
 - [[dashboard]]
 - [[verification-lanes]]
 - [[language-surface]]
-- [[proof-kernel]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[test-surface]]

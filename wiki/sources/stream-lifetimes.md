@@ -12,7 +12,7 @@ tags:
   - lifecycle
   - scopes
 related:
-  - "[[feature-stages]]"
+  - "[[wiki/sources/feature-stages|feature-stages]]"
   - "[[verification-lanes]]"
   - "[[test-surface]]"
   - "[[repo-docs]]"
@@ -43,7 +43,7 @@ This source note summarizes `docs/stream-lifetimes.md`.
 
 ## Best Companion Notes
 
-- [[feature-stages]]
+- [[wiki/sources/feature-stages|feature-stages]]
 - [[verification-lanes]]
 - [[test-surface]]
-- [[state-and-roadmap]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]

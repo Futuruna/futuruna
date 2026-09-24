@@ -11,8 +11,8 @@ tags:
   - proof
   - kernel
 related:
-  - "[[proof-kernel]]"
-  - "[[verified-bootstrap]]"
+  - "[[wiki/modules/proof-kernel|proof-kernel]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
   - "[[repo-docs]]"
 ---
 
@@ -47,7 +47,7 @@ The kernel does not unfold arbitrary function bodies. Instead, the compiler can 
 
 ## Why This Matters To The Wiki
 
-- [[proof-kernel]] is the conceptual summary.
-- [[verified-bootstrap]] depends on the kernel being small and honest.
+- [[wiki/modules/proof-kernel|proof-kernel]] is the conceptual summary.
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]] depends on the kernel being small and honest.
 - [[current-state]] should never overclaim beyond this trust boundary.
 

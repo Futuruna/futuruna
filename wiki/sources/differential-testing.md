@@ -61,6 +61,6 @@ The script can be scaled or redirected with:
 
 ## Wiki Implication
 
-This is Futuruna's search lane. It complements [[expectation-suites]], authored
+This is Futuruna's search lane. It complements [[wiki/sources/expectation-suites|expectation-suites]], authored
 canaries, downstream canaries, and proof-backed checking by exploring valid
 program combinations that humans are unlikely to write by hand.

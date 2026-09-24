@@ -80,5 +80,5 @@ binary size.
 ## Wiki Implication
 
 The milestone docs are useful as history and design intent, but the production
-readiness guide should prefer current lanes: [[mint-gate]], [[canary-suite]],
-[[differential-testing]], [[expectation-suites]], and `td critical-path`.
+readiness guide should prefer current lanes: [[wiki/sources/mint-gate|mint-gate]], [[wiki/sources/canary-suite|canary-suite]],
+[[wiki/sources/differential-testing|differential-testing]], [[wiki/sources/expectation-suites|expectation-suites]], and `td critical-path`.

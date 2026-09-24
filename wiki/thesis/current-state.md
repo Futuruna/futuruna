@@ -9,9 +9,9 @@ tags:
 related:
   - "[[overview]]"
   - "[[verification-lanes]]"
-  - "[[proof-kernel]]"
-  - "[[verified-bootstrap]]"
-  - "[[state-and-roadmap]]"
+  - "[[wiki/modules/proof-kernel|proof-kernel]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
+  - "[[wiki/sources/state-and-roadmap|state-and-roadmap]]"
 ---
 
 # Current State
@@ -43,7 +43,7 @@ Futuruna is no longer in the “add features and hope” phase. It now has a rea
 
 ### Small trusted proof core
 
-- [[proof-kernel]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
 - primitive kernel axioms
 
 ### Still-trusted proof elaboration
@@ -58,7 +58,7 @@ Futuruna is no longer in the “add features and hope” phase. It now has a rea
 - keep Futuruna mint through explicit lanes instead of intuition
 - expand authored workflow coverage toward downstream-user shapes
 - burn down semantic contract gaps before they become issue churn
-- shrink the proof trust boundary deliberately through [[verified-bootstrap]]
+- shrink the proof trust boundary deliberately through [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
 
 ## Near-Term Direction
 
@@ -68,8 +68,8 @@ Futuruna is no longer in the “add features and hope” phase. It now has a rea
 
 ## Primary Sources
 
-- [[state-and-roadmap]]
-- [[mint-gate]]
-- [[canary-matrix]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]
+- [[wiki/sources/mint-gate|mint-gate]]
+- [[wiki/sources/canary-matrix|canary-matrix]]
 - [[verified-bootstrap-doc]]
 - [[proof-kernel-spec]]

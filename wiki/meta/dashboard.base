@@ -1,6 +1,10 @@
 filters:
   and:
     - file.inFolder("wiki")
+    - '!file.inFolder("wiki/skills")'
+    - '!file.inFolder("wiki/_templates")'
+    - '!file.inFolder("wiki/_attachments")'
+    - '!file.inFolder("wiki/.raw")'
     - 'file.ext == "md"'
 
 formulas:

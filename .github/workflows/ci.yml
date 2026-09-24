@@ -10,6 +10,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  repository-hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s scripts/tests -p 'test_repository_hygiene.py'
+      - run: python3 scripts/repository-hygiene.py
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

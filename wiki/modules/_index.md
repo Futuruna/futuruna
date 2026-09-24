@@ -12,5 +12,5 @@ tags:
 
 - [[compiler-pipeline]]
 - [[language-surface]]
-- [[proof-kernel]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[test-surface]]

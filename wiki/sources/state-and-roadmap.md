@@ -12,7 +12,7 @@ tags:
 related:
   - "[[current-state]]"
   - "[[verification-lanes]]"
-  - "[[verified-bootstrap]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
   - "[[repo-docs]]"
 ---
 
@@ -30,8 +30,8 @@ This source note summarizes the contributor-facing map in `docs/state-and-roadma
 
 - [[verification-lanes]] for the blocking mint gate, authored canaries, differential search, and FIR snapshots.
 - [[mint-ratchet]] for the contributor discipline around semantic changes.
-- [[proof-kernel]] for the small trusted checker.
-- [[verified-bootstrap]] for the path from tiny proved compiler fragments to larger proof-carrying slices.
+- [[wiki/modules/proof-kernel|proof-kernel]] for the small trusted checker.
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]] for the path from tiny proved compiler fragments to larger proof-carrying slices.
 
 ## Trust Boundary Summary
 
@@ -55,6 +55,6 @@ The narrow trusted proof core is `src/proof_kernel.rs` plus the primitive kernel
 
 - [[current-state]]
 - [[verification-lanes]]
-- [[proof-kernel]]
-- [[verified-bootstrap]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
 

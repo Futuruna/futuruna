@@ -2,7 +2,7 @@
 type: meta
 title: "Getting Started"
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-09-24
 tags:
   - meta
   - onboarding
@@ -21,7 +21,8 @@ This vault is a superimposed knowledge layer on top of the Futuruna project. It 
 
 ### 1. Open the repo as a vault
 
-Open `/Users/andreasrudolph/futuruna` directly in Obsidian.
+Open the Futuruna repository root directly in Obsidian, rather than the `wiki/`
+subdirectory. Links to `docs/`, `src/`, and research material use the same vault.
 
 The repo already ships with shared vault config for:
 
@@ -33,10 +34,15 @@ The repo already ships with shared vault config for:
 ### 2. Put material in the right place
 
 - project docs already live in `docs/`, `research/`, `paper/`, and `tests/`
-- external material to ingest should go in `.raw/`
-- reusable images and PDFs for notes should go in `_attachments/`
+- external material to ingest should go in `wiki/.raw/`
+- reusable images and PDFs for notes should go in `wiki/_attachments/`
 
 ### 3. Use the wiki workflows
+
+Repository copies of the workflows live in `wiki/skills/`. Their paths are
+relative to the repository root. When using a separately installed generic
+wiki skill, follow these repository-specific locations for sources, templates,
+and attachments.
 
 - `ingest [filename]`
 - `what do you know about [topic]?`
@@ -47,7 +53,9 @@ The repo already ships with shared vault config for:
 ## Manual Obsidian Steps Still Worth Doing
 
 - install or enable the community plugins you actually want, especially Dataview, Templater, and Obsidian Git
-- if you want REST-backed vault automation, install Local REST API and wire MCP as described in [[WIKI]]
+- set Templater's template folder to `wiki/_templates` if you use it; shared
+  attachment settings already point to `wiki/_attachments`
+- if you want REST-backed vault automation, install Local REST API and wire MCP as described in [[wiki/workflows|Wiki workflows]]
 
 ## Good Navigation Pages
 
@@ -55,7 +63,7 @@ The repo already ships with shared vault config for:
 - [[dashboard]]
 - [[current-state]]
 - [[compiler-pipeline]]
-- [[proof-kernel]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[verification-lanes]]
 
 ## What This Vault Is Best For

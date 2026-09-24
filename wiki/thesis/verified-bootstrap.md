@@ -9,9 +9,9 @@ tags:
   - bootstrap
 related:
   - "[[current-state]]"
-  - "[[proof-kernel]]"
+  - "[[wiki/modules/proof-kernel|proof-kernel]]"
   - "[[verified-bootstrap-doc]]"
-  - "[[proof-backed-checking]]"
+  - "[[wiki/sources/proof-backed-checking|proof-backed-checking]]"
 ---
 
 # Verified Bootstrap
@@ -51,6 +51,6 @@ theorem prover.
 ## Primary Sources
 
 - [[verified-bootstrap-doc]]
-- [[proof-backed-checking]]
+- [[wiki/sources/proof-backed-checking|proof-backed-checking]]
 - [[proof-kernel-spec]]
-- [[state-and-roadmap]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]

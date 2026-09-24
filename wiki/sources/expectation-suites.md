@@ -11,8 +11,8 @@ tags:
   - compiler
 related:
   - "[[test-surface]]"
-  - "[[mint-gate]]"
-  - "[[canary-matrix]]"
+  - "[[wiki/sources/mint-gate|mint-gate]]"
+  - "[[wiki/sources/canary-matrix|canary-matrix]]"
 ---
 
 # Expectation Suites

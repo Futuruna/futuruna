@@ -14,7 +14,7 @@ updated: 2026-07-18
 related:
   - "[[current-state]]"
   - "[[repo-docs]]"
-  - "[[verified-bootstrap]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
   - "[[proof-kernel-spec]]"
 ---
 
@@ -50,11 +50,11 @@ It does not mean the production compiler is proved. It means explicit proof term
 
 ## Where It Leads
 
-The kernel matters because it enables [[verified-bootstrap]]: small semantics-preserving compiler fragments proved in Futuruna itself. The long-term goal is not just “have a proof kernel,” but “use it to shrink trusted compiler logic where it pays off.”
+The kernel matters because it enables [[wiki/thesis/verified-bootstrap|verified-bootstrap]]: small semantics-preserving compiler fragments proved in Futuruna itself. The long-term goal is not just “have a proof kernel,” but “use it to shrink trusted compiler logic where it pays off.”
 
 ## Main References
 
 - [[current-state]]
 - [[repo-docs]]
 - [[proof-kernel-spec]]
-- [[verified-bootstrap]]
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]

@@ -14,7 +14,7 @@ tags:
 ## Now
 
 - [ ] ### Mint Hardening for Downstream Users
-	**td path:** [[td-f7f0d2]] — Keep Futuruna mint for users (epic)
+	**td path:** `td-f7f0d2` — Keep Futuruna mint for users (epic)
 
 	**Milestone meaning**
 	The mint gate (`./scripts/mint.sh`) is the contract Futuruna offers to anyone who imports a `.runa` library or compiles a `.runa` program against a real Cargo backend. The work right now is not language features — it is closing the long tail of downstream-consumer compiler bugs that surface only when programs are imported, exported, and compiled instead of run from a single file. Authored canaries and downstream fixtures already catch most regressions; this milestone is the steady-state hardening that lets us call any feature "stable" without quotes.
@@ -26,14 +26,14 @@ tags:
 	- A user can take a tagged `.runa` library, `runa add` it, and consume it without a compiler bug filed within 24 hours
 
 	**References**
-	- [[mint-gate]]
-	- [[compatibility-policy]]
-	- [[canary-matrix]]
+	- [[wiki/sources/mint-gate|mint-gate]]
+	- [[wiki/sources/compatibility-policy|compatibility-policy]]
+	- [[wiki/sources/canary-matrix|canary-matrix]]
 
 
 - [ ] ### Stream Subscription Lifetime Contract
-	**td path:** [[td-17811d]] — Align stream subscription lifetimes with explicit scopes (epic)
-	**Open under epic:** [[td-1e74be]] (contract doc), [[td-b48d46]] (returned-handle design)
+	**td path:** `td-17811d` — Align stream subscription lifetimes with explicit scopes (epic)
+	**Open under epic:** `td-1e74be` (contract doc), `td-b48d46` (returned-handle design)
 
 	**Milestone meaning**
 	Runtime ownership of streams is now coherent: scopes own derived async operator handles, function-local subscriptions outside a scope are rejected at compile time, and a lifecycle canary proves teardown actually freezes derived streams. What is missing is the *written contract* — a doc that pins what a `| scope` guarantees, how returned streams should work, and where the boundary sits between snapshot reads and live subscriptions. Without that contract the implementation is ahead of the spec, and any future relaxation (e.g. function-as-scope sugar) has nothing to validate against.
@@ -42,16 +42,16 @@ tags:
 	- A reference doc defines: scope-ownership rules, snapshot vs live distinction, derived-operator handle ownership, teardown ordering, and the rules for crossing function/scope boundaries
 	- Returned-stream design (td-b48d46) is named in the doc as an open question and tracked separately
 	- Validation diagnostics in `runa.rs:19776` cite the contract doc
-	- Function-as-scope question is surfaced in the contract doc as an open design question with no forced answer; resolution tracked in [[td-fb9cf4]]
+	- Function-as-scope question is surfaced in the contract doc as an open design question with no forced answer; resolution tracked in `td-fb9cf4`
 
 	**References**
-	- [[stream-lifetimes]]
+	- [[wiki/sources/stream-lifetimes|stream-lifetimes]]
 	- [[reactive-design]]
 
 
 - [ ] ### M26b — Persist Phase B
-	**td path:** [[td-c0a7a1]] (epic)
-	**Subtasks:** [[td-8b2887]] typed columns · [[td-7b097f]] assert/retract · [[td-f4f433]] findall · [[td-c4282c]] scope-as-transaction · [[td-13a997]] watch · [[td-25667e]] migrate
+	**td path:** `td-c0a7a1` (epic)
+	**Subtasks:** `td-8b2887` typed columns · `td-7b097f` assert/retract · `td-f4f433` findall · `td-c4282c` scope-as-transaction · `td-13a997` watch · `td-25667e` migrate
 	**Phase A shipped:** object store with `assert` / `retract` / scoped DBs
 
 	**Milestone meaning**
@@ -73,8 +73,8 @@ tags:
 ## Next
 
 - [ ] ### Proof-Backed Checking Expansion
-	**td path:** [[td-a97ed9]] — Harden proof-backed compiler checking (epic)
-	**Open under epic:** [[td-4d7e81]] (expectation corpus), [[td-15746e]] (golden snapshots), [[td-48e5d9]] (cross-binding phase samples)
+	**td path:** `td-a97ed9` — Harden proof-backed compiler checking (epic)
+	**Open under epic:** `td-4d7e81` (expectation corpus), `td-15746e` (golden snapshots), `td-48e5d9` (cross-binding phase samples)
 
 	**Milestone meaning**
 	`runa expect` and `tests/expect/` give us pinned diagnostics, run/fail behavior, and phase-specific markers — the compiletest-equivalent for a small language. The lane works; what it lacks is breadth. To make proof-backed checking load-bearing we need a wider corpus: more diagnostic shapes, phase snapshots across binding/module boundaries, and golden-file support so structural FIR snapshots can be compared without writing brittle string matchers.
@@ -86,13 +86,13 @@ tags:
 	- A regression in any user-visible phase output is caught by the expectation lane before it lands on main
 
 	**References**
-	- [[expectation-suites]]
-	- [[proof-backed-checking]]
+	- [[wiki/sources/expectation-suites|expectation-suites]]
+	- [[wiki/sources/proof-backed-checking|proof-backed-checking]]
 
 
 - [ ] ### Canary Matrix Tail
-	**td path:** [[td-39b478]] — Build an authored Futuruna canary suite (epic)
-	**Open tail:** [[td-4ceb72]] (WASM build canary lane), [[td-770bee]] (check-codegen external-crate gap), [[td-acc049]] follow-ups
+	**td path:** `td-39b478` — Build an authored Futuruna canary suite (epic)
+	**Open tail:** `td-4ceb72` (WASM build canary lane), `td-770bee` (check-codegen external-crate gap), `td-acc049` follow-ups
 
 	**Milestone meaning**
 	The core wave is shipped: 5 stateful canaries, 6 extended canaries, 3 downstream-consumer families, all tracked in `docs/canary-matrix.md`. The remaining tail is targeted: an automated WASM build canary lane so `runa wasm` regressions are caught structurally, and closing the check-codegen gap where external-crate breakages slip through because the lane skips local imports. After this the canary matrix is at steady-state expansion (one per real bug) rather than backlog burn-down.
@@ -104,7 +104,7 @@ tags:
 	- New compiler bugs land with a canary fixture or a tracked follow-up — no fixture-less bug fixes
 
 	**References**
-	- [[canary-matrix]]
+	- [[wiki/sources/canary-matrix|canary-matrix]]
 	- [[test-surface]]
 
 
@@ -224,7 +224,7 @@ tags:
 	**Exit criteria**
 	- 30-minute getting-started flow with runnable code
 	- Hosted docs site (could land alongside M40)
-	- Curated example progression from `hello` to the showcase project-examples
+	- Curated example progression from `hello` to the showcase examples/apps
 
 
 - [ ] ### M38 — CI/CD Pipeline
@@ -268,7 +268,7 @@ tags:
 
 
 - [ ] ### Decide Function-as-Scope for Stream Lifetimes
-	**td path:** [[td-fb9cf4]]
+	**td path:** `td-fb9cf4`
 
 	**Milestone meaning**
 	Today every function that hosts a live stream subscription must wrap the body in `| scope Name { ... }`. The forced-naming ceremony is the hot spot. Three points on the spectrum: (A) keep the status quo — explicit named scope required; (B) allow anonymous `| scope { ... }` — drops forced naming, keeps the brace; (C) function-as-scope — function frame implicitly counts as a scope. The current design analysis sits in `docs/stream-lifetimes.md` under "Open Design Decisions > Function-as-scope" but does not commit to a direction. This card exists to make sure the question is held until decided.
@@ -279,7 +279,7 @@ tags:
 	- The decision references real cases (downstream consumers, internal demos) rather than speculation
 
 	**References**
-	- [[stream-lifetimes]]
+	- [[wiki/sources/stream-lifetimes|stream-lifetimes]]
 
 
 ## Done
@@ -369,7 +369,7 @@ tags:
 	**Status:** Constraint generation + union-find unification. Generic ADTs with real type parameters.
 
 - [x] ### Targeted Semantic Audits Epic
-	**td path:** [[td-a27991]] (closed)
+	**td path:** `td-a27991` (closed)
 	**Status:** Audit waves over high-risk language surfaces shipped under this epic; durable regressions and follow-ups left behind.
 
 

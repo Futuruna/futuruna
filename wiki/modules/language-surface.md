@@ -14,9 +14,9 @@ created: 2026-07-18
 updated: 2026-07-18
 related:
   - "[[language-reference]]"
-  - "[[feature-stages]]"
-  - "[[compatibility-policy]]"
-  - "[[stream-lifetimes]]"
+  - "[[wiki/sources/feature-stages|feature-stages]]"
+  - "[[wiki/sources/compatibility-policy|compatibility-policy]]"
+  - "[[wiki/sources/stream-lifetimes|stream-lifetimes]]"
 ---
 
 # Language Surface
@@ -44,11 +44,11 @@ contract hardening.
 
 Treat the stable core as the language area to keep mint and expectation-backed.
 Treat streams and Rust compatibility as preview areas until their contracts are
-fully reflected in [[stream-lifetimes]], `docs/artifact-codegen-contracts.md`,
+fully reflected in [[wiki/sources/stream-lifetimes|stream-lifetimes]], `docs/artifact-codegen-contracts.md`,
 canaries, and minimized expectation fixtures.
 
 ## Source Notes
 
 - [[language-reference]]
-- [[feature-stages]]
-- [[compatibility-policy]]
+- [[wiki/sources/feature-stages|feature-stages]]
+- [[wiki/sources/compatibility-policy|compatibility-policy]]

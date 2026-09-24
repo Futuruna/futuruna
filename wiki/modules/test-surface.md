@@ -14,10 +14,10 @@ updated: 2026-07-18
 related:
   - "[[verification-lanes]]"
   - "[[mint-ratchet]]"
-  - "[[canary-matrix]]"
-  - "[[canary-suite]]"
-  - "[[expectation-suites]]"
-  - "[[differential-testing]]"
+  - "[[wiki/sources/canary-matrix|canary-matrix]]"
+  - "[[wiki/sources/canary-suite|canary-suite]]"
+  - "[[wiki/sources/expectation-suites|expectation-suites]]"
+  - "[[wiki/sources/differential-testing|differential-testing]]"
 ---
 
 # Test Surface
@@ -54,13 +54,13 @@ import-consumer contracts in `tests/downstream/`.
 
 ## Differential Shape
 
-[[differential-testing]] is the search lane. It replays minimized corpus cases
+[[wiki/sources/differential-testing|differential-testing]] is the search lane. It replays minimized corpus cases
 and runs seeded stress generation. A real mismatch should become a minimized
 fixture plus a compiler fix, not just a one-off saved artifact.
 
 ## Downstream Shape
 
-[[canary-suite]] defines authored downstream consumer coverage. The local lane is
+[[wiki/sources/canary-suite|canary-suite]] defines authored downstream consumer coverage. The local lane is
 blocking and repo-owned.
 
 ## Current Pressure
@@ -69,7 +69,7 @@ The biggest remaining pressure is downstream library-consumer behavior: nested i
 
 ## Key Reference
 
-- [[canary-matrix]]
-- [[canary-suite]]
-- [[expectation-suites]]
-- [[differential-testing]]
+- [[wiki/sources/canary-matrix|canary-matrix]]
+- [[wiki/sources/canary-suite|canary-suite]]
+- [[wiki/sources/expectation-suites|expectation-suites]]
+- [[wiki/sources/differential-testing|differential-testing]]

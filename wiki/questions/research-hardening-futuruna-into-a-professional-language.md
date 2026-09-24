@@ -60,7 +60,7 @@ The research converges on one answer: Futuruna becomes professional by combining
    Keep `mint.sh`, but add more structured suites for expected diagnostics, run/fail behavior, snapshots, and pass-specific expectations instead of encoding all behavior as ad hoc full-program tests. (Source: [[rust-testing-and-stability]])
 
 5. Pilot translation validation on one narrow Futuruna slice.
-   Do not wait for whole-compiler proof. Pick one risky transformation or IR/codegen handoff and check source/target equivalence there. (Source: [[alive2-translation-validation]]) (Source: [[verified-bootstrap]])
+   Do not wait for whole-compiler proof. Pick one risky transformation or IR/codegen handoff and check source/target equivalence there. (Source: [[alive2-translation-validation]]) (Source: [[wiki/thesis/verified-bootstrap|verified-bootstrap]])
 
 6. Separate language evolution from ordinary patch flow.
    Maintain a lightweight evolution/governance process for user-visible language changes, especially anything affecting syntax, semantics, diagnostics, or compatibility. (Source: [[swift-source-compatibility-and-governance]]) (Source: [[kotlin-evolution-and-compatibility]])

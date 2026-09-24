@@ -3,11 +3,12 @@
     "agents/",
     "commands/",
     "hooks/",
-    "skills/",
-    "_templates/",
+    "wiki/skills/",
+    "wiki/_templates/",
     "README.md",
     "CLAUDE.md",
-    "WIKI.md",
+    "wiki/workflows.md",
     "Welcome.md"
-  ]
+  ],
+  "attachmentFolderPath": "wiki/_attachments"
 }

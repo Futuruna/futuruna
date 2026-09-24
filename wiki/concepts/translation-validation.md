@@ -9,7 +9,7 @@ tags:
   - compiler
 related:
   - "[[alive2-translation-validation]]"
-  - "[[verified-bootstrap]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
   - "[[research-hardening-futuruna-into-a-professional-language]]"
 ---
 
@@ -37,5 +37,5 @@ Futuruna’s proof ambitions become more practical if paired with a translation-
 ## Primary Sources
 
 - [[alive2-translation-validation]]
-- [[verified-bootstrap]]
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
 

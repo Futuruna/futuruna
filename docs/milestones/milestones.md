@@ -383,7 +383,7 @@ merge/zip, pipeline composition, skip/distinct/flat_map, aggregations (sum/any/
 all/last), window/enumerate. Interpreter and compiled output byte-identical.
 All existing .runa programs unaffected (0 regressions). ✅
 
-**Design:** `research/language-design/reactive-design.md`
+**Design:** `docs/reactive-design.md`
 
 ## M13: Scopes, Subjects & Lifecycle (Hot Streams)
 
@@ -392,7 +392,7 @@ data. Hot streams push events. Scopes control when streams start and stop.
 This is where Futuruna becomes a reactive application framework — not just a
 pipeline language.
 
-**Design:** `research/language-design/reactive-subjects-lifecycle.md`
+**Design:** `docs/reactive-subjects-lifecycle.md`
 
 ### M13a: Scope Execution
 
