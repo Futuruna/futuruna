@@ -13,7 +13,7 @@
 
 # RapportBeløb(navn: Tekst, beløb_øre: Heltal)
 # RapportIndkomstBro(personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, øvrige_indkomstreguleringer_kroner: Heltal, oplyst_ægtefælleunderskud_kroner: Heltal?)
-# RapportÆgtefællenedslag(statsligt_personfradrag_øre: Heltal?, kommunalt_personfradrag_øre: Heltal?, kirkeligt_personfradrag_øre: Heltal?, negativ_kapitalindkomst_øre: Heltal?, eget_negativ_kapitalindkomstnedslag_øre: Heltal?)
+# RapportÆgtefællenedslag(statsligt_personfradrag_øre: Heltal?, kommunalt_personfradrag_øre: Heltal?, kirkeligt_personfradrag_øre: Heltal?, kommunalt_og_kirkeligt_personfradrag_øre: Heltal?, negativ_kapitalindkomst_øre: Heltal?, eget_negativ_kapitalindkomstnedslag_øre: Heltal?)
 # RapportSkat(poster_uden_ægtefællenedslag: List(RapportBeløb), poster_uden_ægtefællenedslag_komplette: Boolsk, oplyst_beregnet_skat_øre: Heltal?)
 # RapportRestskat(oplyst_restskat_øre: Heltal?, tillæg_til_slutskat: List(RapportBeløb), tillæg_til_slutskat_komplette: Boolsk)
 # RapportBetaling(oplyst_forskudsskat_øre: Heltal?, oplyst_beregnet_skat_øre: Heltal?, oplyst_overskydende_skat_øre: Heltal?, korrektioner_til_udbetaling: List(RapportBeløb), korrektioner_komplette: Boolsk, oplyst_udbetaling_kroner: Heltal?, restskat: RapportRestskat?)
@@ -31,16 +31,17 @@
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::skatteår), label = "Årsopgørelsens indkomstår", question = Some("Hvilket indkomstår gælder rapporten?"), help = Some("2023–2026. Brug indkomståret, ikke udskriftsåret."), unit = None),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::kommune), label = "Rapportens skattekommune", question = Some("Hvilken skattekommune står i rapporten?"), help = None, unit = None),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaler_kirkeskat), label = "Kirkeskat i rapporten", question = Some("Er personen omfattet af kirkeskat?"), help = Some("Et kirkeligt personfradrag kan ikke bruges uden kirkeskat."), unit = None),
-        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællens_kommune), label = "Ægtefællens skattekommune, hvis kendt", question = Some("Kendes ægtefællens skattekommune for året?"), help = Some("null hvis ukendt. Kopiér ikke automatisk egen kommune. Bruges kun til overførselsloftet."), unit = None),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællens_kommune), label = "Ægtefællens skattekommune, hvis kendt", question = Some("Kendes ægtefællens skattekommune for året?"), help = Some("Valgfri rapportoplysning; null hvis ukendt. Overførselslofter beregnes med modtagers kommune og kirkeskat, ikke afsenders. Feltet bevares for eksisterende input."), unit = None),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::gift_samlevende_ved_årets_udløb), label = "Gift og skattemæssigt samlevende ved årets udløb", question = Some("Er denne overførselsbetingelse kendt?"), help = Some("null hvis ukendt; false kun hvis betingelsen vides ikke at være opfyldt. Rapportens civilstand alene dokumenterer ikke samliv."), unit = None),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::indkomstbro), label = "Rapportens indkomstbro", question = Some("Kendes de samlede indkomsttal og øvrige reguleringer?"), help = Some("JSON med personlig indkomst, kapitalindkomst, ligningsmæssige fradrag, skattepligtig indkomst og øvrige indkomstreguleringer, alle i hele DKK. null hvis broen er ukomplet. Oplyst ægtefælleunderskud kan være null; det nødvendige beløb beregnes stadig."), unit = Some("DKK")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::statsligt_personfradrag_øre), label = "Overført personfradragsværdi, stat", question = None, help = Some("Positivt nedslag fra rapporten i øre. null er ukendt; 0 er kendt intet nedslag."), unit = Some("øre")),
-        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::kommunalt_personfradrag_øre), label = "Overført personfradragsværdi, kommune", question = None, help = Some("Positivt nedslag, ikke personfradragets indkomstgrundlag."), unit = Some("øre")),
-        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::kirkeligt_personfradrag_øre), label = "Overført personfradragsværdi, kirke", question = None, help = Some("Positivt nedslag. Brug kun 0 når fraværet er kendt."), unit = Some("øre")),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::kommunalt_personfradrag_øre), label = "Overført personfradragsværdi, kun kommune", question = None, help = Some("Positivt særskilt kommunalt nedslag, ikke personfradragets indkomstgrundlag. null hvis det samlede kommune-/kirkefelt bruges."), unit = Some("øre")),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::kirkeligt_personfradrag_øre), label = "Overført personfradragsværdi, kun kirke", question = None, help = Some("Positivt særskilt kirkeligt nedslag. Brug kun 0 når fraværet er kendt; null hvis det samlede kommune-/kirkefelt bruges."), unit = Some("øre")),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::kommunalt_og_kirkeligt_personfradrag_øre), label = "Overført personfradragsværdi, kommune og kirke samlet", question = Some("Viser rapporten kommune og kirke som ét overført nedslag?"), help = Some("Positivt samlet beløb i øre. En linje benævnt kommuneskat kan bruge kommune- og kirkesatsen tilsammen. Brug dette felt til den samlede observation og lad begge særskilte felter være null, også når summen er 0. Opfind ikke en fordeling. null vælger de særskilte felter."), unit = Some("øre")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::negativ_kapitalindkomst_øre), label = "Overført nedslag for negativ kapitalindkomst", question = None, help = Some("Positiv overført skatteværdi efter PSL § 11, ikke renteudgiften."), unit = Some("øre")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::ægtefællenedslag::eget_negativ_kapitalindkomstnedslag_øre), label = "Eget nedslag for negativ kapitalindkomst", question = None, help = Some("Eget positive nedslag fra rapporten. Reducerer den mulige plads til ægtefællens overførte nedslag."), unit = Some("øre")),
-        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::skat::poster_uden_ægtefællenedslag), label = "Skatteposter uden de fire ægtefællenedslag", question = Some("Hvilke øvrige poster indgår i beregnet skat?"), help = Some("Skatter positive, egne fradragsværdier og lempelser negative. Ingen subtotaler, forskudsskat eller tilbagebetaling her. Udelad kun de fire særskilt oplyste ægtefællenedslag."), unit = Some("øre")),
-        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::skat::poster_uden_ægtefællenedslag_komplette), label = "Alle øvrige skatteposter er med", question = Some("Er alle poster, bortset fra de fire ægtefællenedslag, transskriberet?"), help = Some("false hvis ukendt. true kun efter gennemgang, også når afsnittet faktisk ikke har nogen poster. En bekræftet tom liste summerer til nul; tilføj ikke en opdigtet nulpost. En manglende post må ikke fortolkes som ægtefælleoverførsel."), unit = None),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::skat::poster_uden_ægtefællenedslag), label = "Skatteposter uden ægtefællenedslagene", question = Some("Hvilke øvrige poster indgår i beregnet skat?"), help = Some("Skatter positive, egne fradragsværdier og lempelser negative. Ingen subtotaler, forskudsskat eller tilbagebetaling her. Udelad de særskilt registrerede ægtefællenedslag; kommune og kirke kan stå samlet."), unit = Some("øre")),
+        Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::skat::poster_uden_ægtefællenedslag_komplette), label = "Alle øvrige skatteposter er med", question = Some("Er alle poster, bortset fra de særskilt registrerede ægtefællenedslag, transskriberet?"), help = Some("false hvis ukendt. true kun efter gennemgang, også når afsnittet faktisk ikke har nogen poster. En bekræftet tom liste summerer til nul; tilføj ikke en opdigtet nulpost. En manglende post må ikke fortolkes som ægtefælleoverførsel."), unit = None),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::skat::oplyst_beregnet_skat_øre), label = "Beregnet skat ifølge skatteberegningen", question = None, help = Some("Rapportobservation til afstemning; aldrig kildefaktum til en uafhængig skatteberegning."), unit = Some("øre")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::oplyst_forskudsskat_øre), label = "Samlet forskudsskat ifølge rapporten", question = None, help = None, unit = Some("øre")),
         Beregningsfelt(path = pathof(ÅrsopgørelseAfstemningsinput::betaling::oplyst_beregnet_skat_øre), label = "Beregnet skat ifølge betalingsopgørelsen", question = None, help = Some("Kontrolleres også mod samme beløb i skatteberegningen."), unit = Some("øre")),
@@ -54,6 +55,7 @@
     beløbsfelter = [],
     attachments = (
         Source(value = RapportAfstemningskilde(url = "https://www.retsinformation.dk/eli/lta/2021/1284", identifier = "PSL §§ 9–13; betingede overførsler, ikke rekonstruktion af kildefakta")),
+        Source(value = RapportAfstemningskilde(url = "https://www.retsinformation.dk/eli/mt/1994/129", identifier = "CIR nr. 129 af 04/07/1994, 11.1.1–11.1.2: modtagers egne skatteprocenter; kontrolleret mod anonym 2025-beregner 2026-09-25")),
         Source(value = RapportAfstemningskilde(url = "https://www.retsinformation.dk/eli/lta/2024/460", identifier = "KSL §§ 60–62 A; restskat før renter/procenttillæg og afstemning af rapportens oplyste beløb")),
         Warning(value = "Betinget afstemning er ikke uafhængig skatteberegning eller bevis for lovlig samlet husstand.")
     )
@@ -73,10 +75,18 @@
     | None -> Sandt
     | Some(b) -> rapport_beløb_afgrænset(b.personlig_indkomst_kroner) && rapport_beløb_afgrænset(b.kapitalindkomst_kroner) && rapport_beløb_afgrænset(b.ligningsmæssige_fradrag_kroner) && b.ligningsmæssige_fradrag_kroner >= 0 && rapport_beløb_afgrænset(b.skattepligtig_indkomst_kroner) && rapport_beløb_afgrænset(b.øvrige_indkomstreguleringer_kroner) && rapport_option_afgrænset(b.oplyst_ægtefælleunderskud_kroner)
 }
-| rapport_input_gyldigt(input: ÅrsopgørelseAfstemningsinput) -> rapport_restskatinput_gyldigt(input.betaling) && rapport_indkomstbro_gyldig(input.indkomstbro) && rapport_poster_gyldige(input.skat.poster_uden_ægtefællenedslag) && rapport_poster_gyldige(input.betaling.korrektioner_til_udbetaling) && all([
+| rapport_lokalt_nedslag_entydigt(n: RapportÆgtefællenedslag) -> match n.kommunalt_og_kirkeligt_personfradrag_øre {
+    | None -> Sandt
+    | Some(_) -> match n.kommunalt_personfradrag_øre {
+        | Some(_) -> Falskt
+        | None -> match n.kirkeligt_personfradrag_øre { | None -> Sandt | Some(_) -> Falskt }
+    }
+}
+| rapport_input_gyldigt(input: ÅrsopgørelseAfstemningsinput) -> rapport_lokalt_nedslag_entydigt(input.ægtefællenedslag) && rapport_restskatinput_gyldigt(input.betaling) && rapport_indkomstbro_gyldig(input.indkomstbro) && rapport_poster_gyldige(input.skat.poster_uden_ægtefællenedslag) && rapport_poster_gyldige(input.betaling.korrektioner_til_udbetaling) && all([
     input.ægtefællenedslag.statsligt_personfradrag_øre,
     input.ægtefællenedslag.kommunalt_personfradrag_øre,
     input.ægtefællenedslag.kirkeligt_personfradrag_øre,
+    input.ægtefællenedslag.kommunalt_og_kirkeligt_personfradrag_øre,
     input.ægtefællenedslag.negativ_kapitalindkomst_øre,
     input.ægtefællenedslag.eget_negativ_kapitalindkomstnedslag_øre,
     input.skat.oplyst_beregnet_skat_øre,
@@ -121,7 +131,11 @@
     | None -> []
     | Some(værdi) -> [rapport_forudsætning(navn, "øre", værdi, maksimum, ægtefælle_mulig, "Denne ubrugte skatteværdi skal kunne overføres. Et kontrolleret loft er kun en nødvendig betingelse; null betyder ukendt loft, ikke ubegrænset ret. Ægtefællens egen anvendelse og overførselsbetingelser er ikke dokumenteret.")]
 }
-| rapport_samlet_ægtefællenedslag(n: RapportÆgtefællenedslag) -> rapport_option_plus(rapport_option_plus(n.statsligt_personfradrag_øre, n.kommunalt_personfradrag_øre), rapport_option_plus(n.kirkeligt_personfradrag_øre, n.negativ_kapitalindkomst_øre))
+| rapport_lokalt_nedslag(n: RapportÆgtefællenedslag) -> match n.kommunalt_og_kirkeligt_personfradrag_øre {
+    | None -> rapport_option_plus(n.kommunalt_personfradrag_øre, n.kirkeligt_personfradrag_øre)
+    | Some(beløb) -> Some(beløb)
+}
+| rapport_samlet_ægtefællenedslag(n: RapportÆgtefællenedslag) -> rapport_option_plus(rapport_option_plus(n.statsligt_personfradrag_øre, rapport_lokalt_nedslag(n)), n.negativ_kapitalindkomst_øre)
 -- Bekræftet tomhed har summen nul; kun fuldstændighedsmarkeringen afgør,
 -- om posterne kan bruges. Ukendte beløb forbliver valgfrie.
 | rapport_nødvendigt_skattenedslag(skat: RapportSkat) -> hvis skat.poster_uden_ægtefællenedslag_komplette {
@@ -131,7 +145,7 @@
     | None -> []
     | Some(beløb) -> [rapport_forudsætning("Nødvendig samlet skattenedsættelse fra ægtefælle", "øre", beløb, maksimum, ægtefælle_mulig, "Residual mellem alle oplyste øvrige skatteposter og rapportens beregnede skat. Identificerer kun summen, ikke fordelingen eller ægtefællens faktiske forhold. Forudsætter at ingen andre skatteposter mangler.")]
 }
--- En delvist oplyst sum kan stadig være umulig: alle fire overførte nedslag
+-- En delvist oplyst sum kan stadig være umulig: alle overførte nedslag
 -- er ikke-negative skatteværdier efter PSL §§ 9–11. Træk kun observationer
 -- fra residualet; udfyld aldrig en manglende observation med det afledte krav.
 # RapportNedslagMedLoft(oplyst: Heltal?, loft: Heltal?)
@@ -194,16 +208,24 @@ Beløbet benævnes »restskat«.
     | None -> Sandt
     | Some(k) -> kommune_indkomstskat_understøttet_i_år(skatteår, k)
 }
-| rapport_kommunalt_personfradragsloft(input: ÅrsopgørelseAfstemningsinput, personfradrag: Heltal) -> match input.ægtefællens_kommune {
-    | None -> None
-    | Some(k) -> Some(penge_beløb_gange_basispoint_øre(personfradrag, kommunale_indkomstskatteparametre_for(input.skatteår, k).kommuneskat_basispoint))
-}
+-- CIR 129/1994, 11.1.1. PSL §§ 10 og 12; modtagers satser, ikke afsenders.
+-- Samme beregningsretning observeret i Skattestyrelsens anonyme 2025-beregner
+-- den 25. september 2026 med udelukkende fiktive fakta; se ledsagende vejledning.
+----
+Her beregnes skatteværdierne med ægtefællens egne skatteprocenter
+----
+| rapport_kommunalt_personfradragsloft(input: ÅrsopgørelseAfstemningsinput, personfradrag: Heltal) -> Some(penge_beløb_gange_basispoint_øre(personfradrag, kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kommuneskat_basispoint))
 | rapport_kirkeligt_personfradragsloft(input: ÅrsopgørelseAfstemningsinput, personfradrag: Heltal) -> hvis input.betaler_kirkeskat {
-    match input.ægtefællens_kommune {
-        | None -> None
-        | Some(k) -> Some(penge_beløb_gange_basispoint_øre(personfradrag, kommunale_indkomstskatteparametre_for(input.skatteår, k).kirkeskat_basispoint))
-    }
+    Some(penge_beløb_gange_basispoint_øre(personfradrag, kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kirkeskat_basispoint))
 } ellers { Some(0) }
+| rapport_lokale_nedslagsforudsætninger(n: RapportÆgtefællenedslag, kommunemaks: Heltal?, kirkemaks: Heltal?, ægtefælle_mulig: Boolsk) -> match n.kommunalt_og_kirkeligt_personfradrag_øre {
+    | None -> concat(rapport_nedslagsforudsætning("Ubrugt kommunal personfradragsværdi fra ægtefælle", n.kommunalt_personfradrag_øre, kommunemaks, ægtefælle_mulig), rapport_nedslagsforudsætning("Ubrugt kirkelig personfradragsværdi fra ægtefælle", n.kirkeligt_personfradrag_øre, kirkemaks, ægtefælle_mulig))
+    | Some(beløb) -> rapport_nedslagsforudsætning("Ubrugt kommunal og kirkelig personfradragsværdi fra ægtefælle samlet", Some(beløb), rapport_option_plus(kommunemaks, kirkemaks), ægtefælle_mulig)
+}
+| rapport_lokale_nedslag_med_loft(n: RapportÆgtefællenedslag, kommunemaks: Heltal?, kirkemaks: Heltal?) -> match n.kommunalt_og_kirkeligt_personfradrag_øre {
+    | None -> [RapportNedslagMedLoft(n.kommunalt_personfradrag_øre, kommunemaks), RapportNedslagMedLoft(n.kirkeligt_personfradrag_øre, kirkemaks)]
+    | Some(beløb) -> [RapportNedslagMedLoft(Some(beløb), rapport_option_plus(kommunemaks, kirkemaks))]
+}
 | rapport_afstem_med_parametre(input: ÅrsopgørelseAfstemningsinput) -> {
     = nationale = nationalparametre_for(input.skatteår)
     = ægtefælle_mulig = rapport_ægtefælle_mulig(input.gift_samlevende_ved_årets_udløb)
@@ -220,17 +242,14 @@ Beløbet benævnes »restskat«.
         rapport_restskatforudsætninger(input.betaling),
         rapport_underskudsforudsætning(input.indkomstbro, ægtefælle_mulig),
         rapport_nedslagsforudsætning("Ubrugt statslig personfradragsværdi fra ægtefælle", input.ægtefællenedslag.statsligt_personfradrag_øre, Some(statsmaks), ægtefælle_mulig),
-        rapport_nedslagsforudsætning("Ubrugt kommunal personfradragsværdi fra ægtefælle", input.ægtefællenedslag.kommunalt_personfradrag_øre, kommunemaks, ægtefælle_mulig),
-        rapport_nedslagsforudsætning("Ubrugt kirkelig personfradragsværdi fra ægtefælle", input.ægtefællenedslag.kirkeligt_personfradrag_øre, kirkemaks, ægtefælle_mulig),
+        rapport_lokale_nedslagsforudsætninger(input.ægtefællenedslag, kommunemaks, kirkemaks, ægtefælle_mulig),
         rapport_negativ_kapital_forudsætning(input.ægtefællenedslag, kapitalmaks, kapitalsats, ægtefælle_mulig),
         rapport_egen_kapital_forudsætning(input.ægtefællenedslag, kapitalmaks),
         rapport_nødvendigt_nedslag_forudsætning(input.skat, rapport_option_plus(Some(statsmaks + rapport_resterende_kapitalloft(input.ægtefællenedslag, kapitalmaks)), rapport_option_plus(kommunemaks, kirkemaks)), ægtefælle_mulig),
-        rapport_uoplyste_nedslag_forudsætning(input.skat, [
+        rapport_uoplyste_nedslag_forudsætning(input.skat, concat([
             RapportNedslagMedLoft(input.ægtefællenedslag.statsligt_personfradrag_øre, Some(statsmaks)),
-            RapportNedslagMedLoft(input.ægtefællenedslag.kommunalt_personfradrag_øre, kommunemaks),
-            RapportNedslagMedLoft(input.ægtefællenedslag.kirkeligt_personfradrag_øre, kirkemaks),
             RapportNedslagMedLoft(input.ægtefællenedslag.negativ_kapitalindkomst_øre, Some(rapport_resterende_kapitalloft(input.ægtefællenedslag, kapitalmaks)))
-            ], ægtefælle_mulig)
+            ], rapport_lokale_nedslag_med_loft(input.ægtefællenedslag, kommunemaks, kirkemaks)), ægtefælle_mulig)
         ], |krav: List(AfstemningsForudsætning)| krav)
     = modstrid = any(kontroller, |k: AfstemningsKontrol| k.status == Afviger) || any(forudsætninger, |f: AfstemningsForudsætning| f.inden_for_kontrollerede_grænser == Falskt)
     = ufuldstændig = any(kontroller, |k: AfstemningsKontrol| k.status == IkkeOplyst)
@@ -242,7 +261,7 @@ Beløbet benævnes »restskat«.
         uafklaret = [
             "Rapportens kildefakta, fradragsret og alle enkelte skatteposter er ikke uafhængigt genberegnet.",
             "Ægtefællens faktiske indkomst, egne modregninger og overførselsbetingelser er ukendte; nødvendige betingelser er ikke et eksistensbevis for en lovlig samlet husstand.",
-            "Kommunale og kirkelige overførselslofter bygger på ægtefællens kommune, hvis oplyst. Ukendt kommune giver null som loft; modtagers kommune bruges ikke som erstatning.",
+            "Kommunale og kirkelige overførselslofter bygger på modtagers kommune og kirkeskat. Ægtefællens kommune kræves ikke til disse lofter. Et samlet rapportbeløb opdeles ikke i opdigtede kommune- og kirkebeløb.",
             "Godtgørelse, renter, tidligere udbetaling og modregning er rapportobservationer, ikke selvstændigt fastslået ret til udbetaling.",
             match input.betaling.restskat {
                 | None -> "Tilbagebetalingskontrollen dækker ikke restskat eller et negativt beløb efter korrektioner. Brug det særskilte restskatsspor til restskat før renter og procenttillæg."
@@ -256,7 +275,7 @@ Beløbet benævnes »restskat«.
 @ calculate("Afstem årsopgørelse uden ægtefællens rapport")
 | afstem_årsopgørelse(input: ÅrsopgørelseAfstemningsinput) -> hvis skatteår_understøttet(input.skatteår) && kommune_indkomstskat_understøttet_i_år(input.skatteår, input.kommune) && rapport_ægtefællekommune_understøttet(input.skatteår, input.ægtefællens_kommune) {
     hvis rapport_input_gyldigt(input) { rapport_afstem_med_parametre(input) } ellers {
-        ÅrsopgørelseAfstemningsresultat(status = UgyldigtRapportinput, uafhængig_skatteberegning_udført = Falskt, kontroller = [], nødvendige_forudsætninger = [], uafklaret = ["Kontrollér beløbsenheder, beløbsgrænser, ikke-negative fradrag/restskat/tillæg og entydige postnavne. Restskatssporet må ikke samtidig indeholde udbetalingsbeløb eller udbetalingskorrektioner. Ingen afstemning udført."])
+        ÅrsopgørelseAfstemningsresultat(status = UgyldigtRapportinput, uafhængig_skatteberegning_udført = Falskt, kontroller = [], nødvendige_forudsætninger = [], uafklaret = ["Kontrollér beløbsenheder, beløbsgrænser, ikke-negative fradrag/restskat/tillæg og entydige postnavne. Samlet kommune-/kirkenedslag kræver null i begge særskilte felter; brug ikke begge repræsentationer. Restskatssporet må ikke samtidig indeholde udbetalingsbeløb eller udbetalingskorrektioner. Ingen afstemning udført."])
     }
 } ellers {
     ÅrsopgørelseAfstemningsresultat(status = IkkeUnderstøttetÅrEllerKommune, uafhængig_skatteberegning_udført = Falskt, kontroller = [], nødvendige_forudsætninger = [], uafklaret = ["År eller kommune mangler understøttede parametre. Ingen afstemning udført."])

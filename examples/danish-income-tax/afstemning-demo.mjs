@@ -102,12 +102,12 @@ assert.equal(named(missingResult.kontroller, creditControl).oplyst, null);
 assert.equal(named(missingResult.kontroller, creditControl).difference, null);
 assert.equal(named(output.results[2].result.kontroller, creditControl).difference, 1);
 assert.equal(named(output.results[0].result.nødvendige_forudsætninger,
-  'Ubrugt kommunal personfradragsværdi fra ægtefælle').højst, null);
+  'Ubrugt kommunal personfradragsværdi fra ægtefælle').højst, 1265399);
 const partialResult = output.results[3].result;
 const partialResidual = named(partialResult.nødvendige_forudsætninger, residualName);
 assert.equal(partialResidual.nødvendigt_beløb, -1);
 assert.equal(partialResidual.inden_for_kontrollerede_grænser, false);
-assert.equal(partialResidual.højst, null);
+assert.equal(partialResidual.højst, 1265399);
 assert.equal(named(partialResult.kontroller, creditControl).oplyst, null);
 assert.equal(named(partialResult.kontroller, creditControl).difference, null);
 

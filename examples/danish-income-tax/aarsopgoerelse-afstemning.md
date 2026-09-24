@@ -79,12 +79,13 @@ Transcribe only these selected observations:
   income. The residual is the required spouse loss deduction. If any bridge
   component is unknown, leave the whole bridge `null`; the printed spouse-loss
   line may independently be `null`.
-- All tax lines in **øre**, excluding the four separately recorded spouse
+- All tax lines in **øre**, excluding the separately recorded spouse
   credits: state, municipal and church personal-allowance values, and negative
   capital-income credit. Taxes are positive; other credits are negative. Do not
   include subtotals or payments. Only mark the list complete after checking it.
-- The four reported spouse credits as positive **øre** amounts or `null`, plus
-  the person's own reported negative-capital credit when known.
+- The reported spouse credits as positive **øre** amounts or `null`, plus
+  the person's own reported negative-capital credit when known. Municipal and
+  church allowance may be supplied as one combined observed amount (see below).
 - Prepaid tax, assessed tax, and surplus tax in **øre**. Payment corrections
   are signed øre: interest/allowances positive, prior refunds/offsets negative.
   The final refund is in **whole DKK**, after rounding down.
@@ -100,9 +101,58 @@ confirmed empty section can also expose a contradiction with nonzero reported
 tax; it is not automatically treated as missing information.
 
 Neither the spouse's municipality nor year-end tax cohabitation is mandatory.
-When the spouse's municipality is unknown, the municipal transfer ceiling is
-`null`; the model does not substitute the recipient's municipality. A known
-failure of the cohabitation condition conflicts with a nonzero spouse transfer.
+The municipal and church transfer ceilings use the **recipient's** municipality
+and church-tax status. The spouse's optional municipality does not change these
+bounds. A known failure of the cohabitation condition conflicts with a nonzero
+spouse transfer; unknown cohabitation remains an unverified condition.
+
+### Kommune og kirke kan stå på samme linje
+
+En overført personfradragsværdi kan stå som én kommunal linje med kommune- og
+kirkesatsen lagt sammen. Skriv da hele den positive skatteværdi i
+`ægtefællenedslag.kommunalt_og_kirkeligt_personfradrag_øre`, og lad
+`kommunalt_personfradrag_øre` og `kirkeligt_personfradrag_øre` være `null`.
+En samlet observation på nul er også kendt nul; den kræver stadig `null` i de
+to særskilte felter. Oplys ikke samme nedslag begge steder, og opfind ikke en
+fordeling ud fra skattesatserne.
+
+Hvis rapporten faktisk viser kommune og kirke hver for sig, bruges de to
+særskilte felter, mens det samlede felt er `null`. Hvis beløbene ikke kendes,
+forbliver de ukendte; modellen kan stadig vise det nødvendige samlede nedslag.
+
+Lofterne følger modtagers satser efter PSL §§ 10 og 12, fortolket sammen med
+[cirkulære nr. 129 af 4. juli 1994, afsnit 11.1.1–11.1.2](https://www.retsinformation.dk/eli/mt/1994/129).
+Cirkulæret beskriver omregning af ubrugte skatteværdier til fradragsbeløb hos
+afsender og ny beregning med modtagers egne satser. Det er ikke dokumentation
+for, hvor meget en konkret ægtefælle har til overs.
+
+Den 25. september 2026 kontrollerede vi denne beregningsretning i
+[Skattestyrelsens anonyme beregner for 2025](https://www.tastselv.skat.dk/borger/beregn2025/profil.do)
+med to helt fiktive profiler: begge født 1. januar 1990 og gift hele året,
+400.000 DKK løn i København, en ægtefælle i Ballerup uden indkomst og uden
+kirkeskat, ingen andre indkomster, fradrag eller betalinger. Kun modtagers
+kirkemedlemskab varierede.
+
+| Oplyst beregningslinje (DKK) | Modtager uden kirkeskat | Modtager med kirkeskat |
+| --- | ---: | ---: |
+| Overført personfradragsværdi, stat | 6.197,16 | 6.197,16 |
+| Overført personfradragsværdi, kommune og kirke samlet | 12.126,00 | 12.538,80 |
+| Anvendt lokal sats | 23,50 % | 24,30 % |
+| Beregnet skat / restskat før procenttillæg | 113.786,98 | 115.488,58 |
+
+Beregneren brugte således Københavns sats, ikke Ballerups, og gav også
+modtagers kirkelige fradragsværdi, når afsender ikke var medlem. De præcise
+rapportlinjer er bevaret som syntetiske regressioner i
+[`tests/tax_report_reconciliation.rs`](../../tests/tax_report_reconciliation.rs).
+Afstemningen matcher dem uden ægtefællens kommune som input. Dette er to
+eksterne observationer for 2025, ikke en uafhængig kontrol af alle års satser,
+delvist udnyttede personfradrag eller den fulde `beregn_personskat`-beregning.
+
+**Eksisterende input:** Det nye valgfrie felt og den opdaterede metadata ændrer
+kontraktens fingeraftryk. Generér en ny skabelon og overfør de gennemgåede
+observationer; ret ikke blot det gamle fingeraftryk. Tidligere særskilte
+kommune-/kirkebeløb kan bevares med det samlede felt `null`. Tidligere resultater
+med afsenders sats som loft bør køres igen.
 
 ## Read the result
 
@@ -130,10 +180,11 @@ kirken og 800 DKK for negativ kapitalindkomst. Det kommunale nedslag er ukendt.
 Det skulle derfor være −0,01 DKK. Det er en **Modstrid**, ikke blot manglende
 oplysninger: et ikke-negativt overført nedslag kan ikke forklare forskellen.
 
-Den øvre grænse summerer kun lofterne for de manglende poster. Ukendt kommune
-giver derfor stadig et ukendt loft, hvis det kommunale nedslag mangler. Hvis
-det kommunale beløb derimod er oplyst og kun det statslige mangler, kan det
-statslige loft kontrolleres uden at kende ægtefællens kommune. Ingen residual
+Den øvre grænse summerer kun lofterne for de manglende poster. Kommune- og
+kirkeloftet er kendt fra modtagers oplysninger, også uden ægtefællens kommune.
+Et kendt samlet kommune-/kirkebeløb tæller én gang; de to særskilte `null`-felter
+er da ikke manglende poster. Hvis kun det statslige beløb mangler, gælder kun
+det statslige loft for residualet. Ingen residual
 udledes, hvis de øvrige skatteposter ikke er bekræftet komplette eller den
 beregnede skat er ukendt. Kendt nul og ukendt holdes adskilt.
 
@@ -151,7 +202,8 @@ The output distinguishes:
 - `Ufuldstændig`: comparisons cannot be completed; available necessary amounts
   are still returned. Missing values are not silently zeroed.
 - `UgyldigtRapportinput`: invalid numeric bounds, duplicate/empty post names,
-  or negative ordinary deductions prevented reconciliation.
+  negative ordinary deductions, or overlapping combined/separate local credits
+  prevented reconciliation.
 - `IkkeUnderstøttetÅrEllerKommune`: no supported parameter coverage.
 
 Each check shows expected and observed amounts, unit, and **observed minus
