@@ -71,6 +71,8 @@ person with at least two children pays 20%.
 
 ## Learn and explore
 
+- [Repository map](docs/repository-layout.md) · [Documentation index](docs/README.md)
+- [Examples](examples/README.md) · [Research](research/README.md) · [Project wiki](wiki/index.md)
 - [Guided tutorial](https://futuruna.com/docs/tutorial)
 - [Language documentation](https://futuruna.com/docs)
 - [Why Futuruna](https://futuruna.com/why)

@@ -10,10 +10,10 @@ tags:
   - testing
   - canary
 related:
-  - "[[canary-matrix]]"
+  - "[[wiki/sources/canary-matrix|canary-matrix]]"
   - "[[test-surface]]"
   - "[[verification-lanes]]"
-  - "[[mint-gate]]"
+  - "[[wiki/sources/mint-gate|mint-gate]]"
 ---
 
 # Canary Suite
@@ -52,7 +52,7 @@ Canaries are for user-shaped workflows and distilled bug patterns broader than
 one minimized compiler case. They are not for exact diagnostics, phase-output
 assertions, giant downstream applications, or unclear external ports.
 
-Those belong in [[expectation-suites]], `tests/downstream/`, or a tracked
+Those belong in [[wiki/sources/expectation-suites|expectation-suites]], `tests/downstream/`, or a tracked
 follow-up.
 
 ## Downstream Lane

@@ -1,9 +1,23 @@
 # Build artifacts
 /target/
 website/target/
+__pycache__/
 .runa-build/
 .playwright-cli/
 /personskat-income-cliffs-native-*.experiment
+
+# Historical root build outputs (runa build writes to the working directory)
+/store_v3_dump
+/test_build
+/parser
+/parser-audit
+/parser-e2e
+/ownership_linked_list
+
+# Standalone research executables; keep their Rust sources and datasets
+/research/syntax_pareto
+/research/syntax_frontier2
+/research/syntax_stau
 
 # Deploy output
 /deploy/

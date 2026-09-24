@@ -78,6 +78,17 @@ Never merge a semantic fix that relies only on a verbal explanation.
 Pure docs, comments, or clearly non-behavioral refactors do not need the full
 semantic ratchet. Keep the diff honest and run the smallest relevant checks.
 
+For repository layout, documentation links, and generated-file hygiene, run:
+
+```sh
+python3 scripts/repository-hygiene.py
+git diff --check
+```
+
+Follow the [repository map](docs/repository-layout.md) when adding or moving
+files. Keep generated executables and runtime databases out of Git; preserve
+reference paths through a recorded migration and update their consumers.
+
 ## Releases
 
 Public tags, crates.io publication, release binaries, checksums, and macOS

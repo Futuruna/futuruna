@@ -9,10 +9,10 @@ tags:
 related:
   - "[[mint-ratchet]]"
   - "[[test-surface]]"
-  - "[[mint-gate]]"
-  - "[[canary-matrix]]"
-  - "[[canary-suite]]"
-  - "[[differential-testing]]"
+  - "[[wiki/sources/mint-gate|mint-gate]]"
+  - "[[wiki/sources/canary-matrix|canary-matrix]]"
+  - "[[wiki/sources/canary-suite|canary-suite]]"
+  - "[[wiki/sources/differential-testing|differential-testing]]"
 ---
 
 # Verification Lanes
@@ -21,7 +21,7 @@ Futuruna’s verification stack is layered on purpose. The lanes are meant to co
 
 ## Fast Blocking Gate
 
-[[mint-gate]] defines the minimum blocking contract:
+[[wiki/sources/mint-gate|mint-gate]] defines the minimum blocking contract:
 
 - Rust tests
 - release build
@@ -33,8 +33,8 @@ Futuruna’s verification stack is layered on purpose. The lanes are meant to co
 
 ## Authored Realistic Workflows
 
-[[canary-suite]] defines the operational canary commands, while
-[[canary-matrix]] tracks the curated authored suite:
+[[wiki/sources/canary-suite|canary-suite]] defines the operational canary commands, while
+[[wiki/sources/canary-matrix|canary-matrix]] tracks the curated authored suite:
 
 - `core` for blocking language workflows
 - `stateful` for subjects, actors, lifecycle, and effects
@@ -48,7 +48,7 @@ runtime behavior.
 
 ## Deep Search And Internal Visibility
 
-- [[differential-testing]] hunts unknown semantic bugs and preserves replayable
+- [[wiki/sources/differential-testing|differential-testing]] hunts unknown semantic bugs and preserves replayable
   seeds
 - FIR snapshots make internal compiler drift visible instead of silent
 - focused Rust regressions keep every discovered compiler bug permanent

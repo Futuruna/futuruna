@@ -11,7 +11,7 @@ tags:
   - stability
   - feature-stages
 related:
-  - "[[compatibility-policy]]"
+  - "[[wiki/sources/compatibility-policy|compatibility-policy]]"
   - "[[compatibility-discipline]]"
   - "[[repo-docs]]"
 ---
@@ -38,6 +38,6 @@ This source note summarizes `docs/feature-stages.md`.
 
 ## Best Companion Notes
 
-- [[compatibility-policy]]
+- [[wiki/sources/compatibility-policy|compatibility-policy]]
 - [[compatibility-discipline]]
-- [[state-and-roadmap]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]

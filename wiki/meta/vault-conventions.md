@@ -18,13 +18,13 @@ This vault is layered on top of the Futuruna repository root.
 ## Important Constraint
 
 The repo already has a root `CLAUDE.md` for agent instructions. This vault does not replace or overwrite that file.
-Use [[WIKI]] as the vault-facing reference instead.
+Use [[wiki/workflows|Wiki workflows]] as the vault-facing reference instead.
 
 ## Working Model
 
 - source of truth for implementation remains the repo
 - source of truth for durable synthesis can live in `wiki/`
-- raw imports belong in `.raw/`
+- raw imports belong in `wiki/.raw/`
 - the vault should link to existing docs instead of copying them blindly
 
 ## Note Rules

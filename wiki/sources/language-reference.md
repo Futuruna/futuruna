@@ -19,9 +19,9 @@ tags:
   - reference
 related:
   - "[[language-surface]]"
-  - "[[feature-stages]]"
-  - "[[stream-lifetimes]]"
-  - "[[compatibility-policy]]"
+  - "[[wiki/sources/feature-stages|feature-stages]]"
+  - "[[wiki/sources/stream-lifetimes|stream-lifetimes]]"
+  - "[[wiki/sources/compatibility-policy|compatibility-policy]]"
 ---
 
 # Language Reference
@@ -35,7 +35,7 @@ preview surfaces:
 - `basics.md`, `runes.md`, and `stdlib.md` are listed as stable.
 - `streams.md` and `rust-compatibility.md` are listed as preview.
 
-For the full stage matrix, the reference points to [[feature-stages]].
+For the full stage matrix, the reference points to [[wiki/sources/feature-stages|feature-stages]].
 
 ## Stable Core
 
@@ -66,7 +66,7 @@ indexing as runtime errors, while `tail([])` returns `[]`.
 `streams.md` defines `~` stream bindings, push-based `subject()` values,
 operators, subscriptions with `|` arms, and scope-owned lifetimes. Its most
 important contract is that ordinary functions may not start hidden live
-subscriptions unless a named scope owns them. See [[stream-lifetimes]].
+subscriptions unless a named scope owns them. See [[wiki/sources/stream-lifetimes|stream-lifetimes]].
 
 `rust-compatibility.md` defines the Rust-facing story: ownership inference,
 `inout`, raw Rust blocks, Cargo dependencies, Rust `use` imports, build modes,

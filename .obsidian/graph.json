@@ -1,6 +1,6 @@
 {
   "collapse-filter": false,
-  "search": "path:wiki",
+  "search": "path:wiki -path:wiki/skills -path:wiki/_templates -path:wiki/_attachments",
   "showTags": false,
   "showAttachments": false,
   "hideUnresolved": true,

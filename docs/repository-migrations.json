@@ -1,0 +1,71 @@
+{
+  "date": "2026-09-24",
+  "snapshot_commit": "03203bc93471b7963be7d2ec33d7b3cf8743de5a",
+  "moves": {
+    "project-examples": "examples/apps",
+    "projects/self-hosting/README.md": "docs/archive/self-hosting-plan.md",
+    "WIKI.md": "wiki/workflows.md",
+    "skills": "wiki/skills",
+    "_templates": "wiki/_templates",
+    "_attachments": "wiki/_attachments",
+    ".raw": "wiki/.raw"
+  },
+  "removed_artifacts": [
+    {
+      "path": "store_v3_dump",
+      "bytes": 2238640,
+      "sha256": "f7e97d314d1393345f280a17cf4ba4cdf23b8291a2a10318347baf603bf8ce2a",
+      "git_blob": "bda3c86f7c39763fbd78e35cf48ed955c750842c",
+      "reason": "Compiled macOS arm64 executable"
+    },
+    {
+      "path": "test_build",
+      "bytes": 463960,
+      "sha256": "efff1a2395236b8d1b661ad41e3c92e56197e36df59af773d194a6ae4f1cfe2d",
+      "git_blob": "24dd4402d81f68dbe5379b6357b06747dc627e66",
+      "reason": "Compiled macOS arm64 executable"
+    },
+    {
+      "path": "parser",
+      "bytes": 899800,
+      "sha256": "aad026961e62717bab25fd219cd43db4b86ff123ee2b7e62805cb1102d12a69d",
+      "git_blob": "25b31ca00218ccdd5b4b4fb225db64a264860133",
+      "reason": "Compiled macOS arm64 executable"
+    },
+    {
+      "path": "parser-audit",
+      "bytes": 1032832,
+      "sha256": "81feb004995654ff4519fb865093573d28cd727ecab7385e7997418d1b9e9ed2",
+      "git_blob": "7094b2c51941ea5bc578c3559ae054df469cf310",
+      "reason": "Compiled macOS arm64 executable"
+    },
+    {
+      "path": "parser-e2e",
+      "bytes": 873144,
+      "sha256": "46ce3b0e5f106b8108e381c2347d46fe394a7637141b488e7d5cafc764c5e210",
+      "git_blob": "9afdefaa345b8e0d0a23ff262a23b995ee811e8d",
+      "reason": "Compiled macOS arm64 executable"
+    },
+    {
+      "path": "ownership_linked_list",
+      "bytes": 489848,
+      "sha256": "2436318ba1984226ac6de75b21fef56c8905bbcfd0fb6a0b0abeee723ed8a604",
+      "git_blob": "27cba4f23c832b653d17b54f3940adbc9d227d7c",
+      "reason": "Compiled macOS arm64 executable"
+    },
+    {
+      "path": ".store.db-shm",
+      "bytes": 32768,
+      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+      "git_blob": "fe9ac2845eca6fe6da8a63cd096d9cf9e24ece10",
+      "reason": "SQLite runtime sidecar"
+    },
+    {
+      "path": ".store.db-wal",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "reason": "SQLite runtime sidecar"
+    }
+  ]
+}

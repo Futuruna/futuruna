@@ -11,8 +11,8 @@ tags:
   - proof
   - bootstrap
 related:
-  - "[[verified-bootstrap]]"
-  - "[[proof-kernel]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
+  - "[[wiki/modules/proof-kernel|proof-kernel]]"
   - "[[current-state]]"
   - "[[repo-docs]]"
 ---
@@ -31,7 +31,7 @@ It is not enough to say the production compiler is verified.
 
 ## Trusted Boundary Today
 
-- Small trusted core: [[proof-kernel]]
+- Small trusted core: [[wiki/modules/proof-kernel|proof-kernel]]
 - Still-trusted elaboration: proof parsing, theorem construction, computation-lemma generation, constructor metadata seeding, local-lemma registration
 - Not part of the closed kernel story: Z3 fallback and the rest of the compiler
 
@@ -46,7 +46,7 @@ The bootstrap plan is staged:
 
 ## Best Companion Notes
 
-- [[verified-bootstrap]]
-- [[proof-kernel]]
-- [[state-and-roadmap]]
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]
 

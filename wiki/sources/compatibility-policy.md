@@ -38,5 +38,5 @@ contract.
 
 - [[compatibility-discipline]]
 - [[mint-ratchet]]
-- [[state-and-roadmap]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]
 

@@ -10,7 +10,7 @@ tags:
   - compiler
 related:
   - "[[compiler-fuzzing-csmith-and-csmithedge]]"
-  - "[[differential-testing]]"
+  - "[[wiki/sources/differential-testing|differential-testing]]"
   - "[[differential-testing-flow]]"
   - "[[test-surface]]"
   - "[[research-hardening-futuruna-into-a-professional-language]]"
@@ -33,7 +33,7 @@ Even mature compilers keep shipping wrong-code bugs. Fixed suites and hand-writt
 
 ## Futuruna Implication
 
-Futuruna has a documented differential lane in [[differential-testing]]. The
+Futuruna has a documented differential lane in [[wiki/sources/differential-testing|differential-testing]]. The
 professional shape is now explicit: replay checked-in minimized repros, run
 seeded stress generation, and promote real failures into permanent corpus cases.
 The next improvement is reducer quality and broader language-aware generation.

@@ -11,7 +11,7 @@ tags:
 
 ## Last Updated
 
-2026-07-18. Second-wave repo docs are now linked into the vault: [[differential-testing]], [[canary-suite]], [[language-reference]], [[milestone-docs]], [[language-surface]], and [[differential-testing-flow]].
+2026-07-18. Second-wave repo docs are now linked into the vault: [[wiki/sources/differential-testing|differential-testing]], [[wiki/sources/canary-suite|canary-suite]], [[language-reference]], [[milestone-docs]], [[language-surface]], and [[differential-testing-flow]].
 
 2026-07-18. Strategic milestone tracking now lives in [[board]] as an Obsidian Kanban board with Now / Next / Later / Done lanes. Operationally, milestones sit above td epics; the Kanban surfaces what's shipping right now versus queued versus shelved.
 
@@ -35,20 +35,20 @@ tags:
 
 ## Recent Changes
 
-- Created: [[overview]], [[repo-map]], [[current-state]], [[compiler-pipeline]], [[proof-kernel]], [[test-surface]], [[verification-lanes]], [[mint-ratchet]], [[repo-docs]], [[vault-conventions]]
-- Created: [[getting-started]], [[dashboard]], [[comparisons/_index]], [[WIKI]]
+- Created: [[overview]], [[repo-map]], [[current-state]], [[compiler-pipeline]], [[wiki/modules/proof-kernel|proof-kernel]], [[test-surface]], [[verification-lanes]], [[mint-ratchet]], [[repo-docs]], [[vault-conventions]]
+- Created: [[getting-started]], [[dashboard]], [[wiki/comparisons/_index|comparisons/_index]], [[wiki/workflows|Wiki workflows]]
 - Created indexes for modules, decisions, dependencies, flows, concepts, entities, thesis, gaps, questions, sources, and meta
 - Added shared Obsidian config for `bases`, `canvas`, and optional community plugins
 - Added Obsidian CSS snippet `vault-colors`
-- Ingested core repo docs into [[state-and-roadmap]], [[proof-kernel-spec]], [[verified-bootstrap-doc]], [[mint-gate]], and [[canary-matrix]]
-- Added thesis note [[verified-bootstrap]] and expanded the main seed notes around it
+- Ingested core repo docs into [[wiki/sources/state-and-roadmap|state-and-roadmap]], [[proof-kernel-spec]], [[verified-bootstrap-doc]], [[wiki/sources/mint-gate|mint-gate]], and [[wiki/sources/canary-matrix|canary-matrix]]
+- Added thesis note [[wiki/thesis/verified-bootstrap|verified-bootstrap]] and expanded the main seed notes around it
 - Added source notes [[kotlin-evolution-and-compatibility]], [[rust-testing-and-stability]], [[swift-source-compatibility-and-governance]], [[alive2-translation-validation]], and [[compiler-fuzzing-csmith-and-csmithedge]]
 - Added concepts [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], and [[translation-validation]]
 - Added entities [[Kotlin]], [[Rust]], and [[Swift]]
-- Added repo policy doc `docs/compatibility-policy.md` and source note [[compatibility-policy]]
-- Added `docs/feature-stages.md`, source note [[feature-stages]], and a feature-stage block in CLI help
+- Added repo policy doc `docs/compatibility-policy.md` and source note [[wiki/sources/compatibility-policy|compatibility-policy]]
+- Added `docs/feature-stages.md`, source note [[wiki/sources/feature-stages|feature-stages]], and a feature-stage block in CLI help
 - Added `docs/compatibility-guides/` and source note [[compatibility-guides]]
-- Ingested second-wave repo docs into [[differential-testing]], [[canary-suite]], [[language-reference]], and [[milestone-docs]]
+- Ingested second-wave repo docs into [[wiki/sources/differential-testing|differential-testing]], [[wiki/sources/canary-suite|canary-suite]], [[language-reference]], and [[milestone-docs]]
 - Added seed notes [[language-surface]] and [[differential-testing-flow]]
 
 ## Active Threads

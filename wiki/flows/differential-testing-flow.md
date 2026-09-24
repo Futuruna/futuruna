@@ -9,7 +9,7 @@ tags:
   - compiler
   - differential
 related:
-  - "[[differential-testing]]"
+  - "[[wiki/sources/differential-testing|differential-testing]]"
   - "[[compiler-differential-testing]]"
   - "[[verification-lanes]]"
   - "[[test-surface]]"
@@ -38,6 +38,6 @@ This replays minimized corpus cases and runs seeded stress generation.
 
 ## Lane Boundary
 
-Use this lane for unknown-bug search. Use [[expectation-suites]] for exact
+Use this lane for unknown-bug search. Use [[wiki/sources/expectation-suites|expectation-suites]] for exact
 diagnostic or phase contracts, canaries for realistic authored workflows, and
 downstream canaries for local-library consumer behavior.

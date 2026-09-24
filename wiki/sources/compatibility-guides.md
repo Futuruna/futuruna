@@ -11,8 +11,8 @@ tags:
   - compatibility
   - release-notes
 related:
-  - "[[compatibility-policy]]"
-  - "[[feature-stages]]"
+  - "[[wiki/sources/compatibility-policy|compatibility-policy]]"
+  - "[[wiki/sources/feature-stages|feature-stages]]"
   - "[[repo-docs]]"
 ---
 
@@ -34,7 +34,7 @@ compatibility guides make that policy durable over time for users.
 
 ## Best Companion Notes
 
-- [[compatibility-policy]]
-- [[feature-stages]]
+- [[wiki/sources/compatibility-policy|compatibility-policy]]
+- [[wiki/sources/feature-stages|feature-stages]]
 - [[compatibility-discipline]]
 

@@ -12,8 +12,8 @@ updated: 2026-07-18
 related:
   - "[[verification-lanes]]"
   - "[[current-state]]"
-  - "[[mint-gate]]"
-  - "[[canary-matrix]]"
+  - "[[wiki/sources/mint-gate|mint-gate]]"
+  - "[[wiki/sources/canary-matrix|canary-matrix]]"
 ---
 
 # Mint Ratchet
@@ -28,8 +28,8 @@ Futuruna should treat semantic quality as a ratchet:
 
 ## Operational Meaning
 
-- [[mint-gate]] defines the smallest blocking health claim.
-- [[canary-matrix]] grows the realistic workflow surface over time.
+- [[wiki/sources/mint-gate|mint-gate]] defines the smallest blocking health claim.
+- [[wiki/sources/canary-matrix|canary-matrix]] grows the realistic workflow surface over time.
 - contributor review should ask which lane proves the change is safe, not merely whether it “seems fine”.
 
 ## Consequences

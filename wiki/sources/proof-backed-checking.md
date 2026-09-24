@@ -11,9 +11,9 @@ tags:
   - proof
   - compiler
 related:
-  - "[[verified-bootstrap]]"
-  - "[[proof-kernel]]"
-  - "[[state-and-roadmap]]"
+  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
+  - "[[wiki/modules/proof-kernel|proof-kernel]]"
+  - "[[wiki/sources/state-and-roadmap|state-and-roadmap]]"
   - "[[alive2-translation-validation]]"
 ---
 
@@ -62,7 +62,7 @@ under control.
 
 ## Companion Notes
 
-- [[verified-bootstrap]]
-- [[proof-kernel]]
-- [[state-and-roadmap]]
+- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
+- [[wiki/modules/proof-kernel|proof-kernel]]
+- [[wiki/sources/state-and-roadmap|state-and-roadmap]]
 - [[alive2-translation-validation]]
