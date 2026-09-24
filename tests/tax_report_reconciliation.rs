@@ -315,6 +315,134 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
 }
 
 #[test]
+fn partial_transfers_expose_residual_bounds_without_filling_missing_observations() {
+    let fields = [
+        "statsligt_personfradrag_øre",
+        "kommunalt_personfradrag_øre",
+        "kirkeligt_personfradrag_øre",
+        "negativ_kapitalindkomst_øre",
+    ];
+    let amounts = [100000_i64, 200000, 0, 80000];
+    // Independent 2023 bounds: 48,000 * 12.06%, unknown spouse municipality,
+    // no church tax, and 100,000 * 8% less the observed own credit of 800 DKK.
+    let ceilings = [Some(578880_i64), None, Some(0), Some(720000)];
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    let mut add = |name: String, mask: usize, required: i64, complete: bool| {
+        let mut input = baseline();
+        let mut known = 0;
+        let mut ceiling = Some(0);
+        for (index, field) in fields.iter().enumerate() {
+            if mask & (1 << index) != 0 {
+                input["ægtefællenedslag"][field] = Value::Null;
+                ceiling = ceiling.zip(ceilings[index]).map(|(a, b)| a + b);
+            } else {
+                known += amounts[index];
+            }
+        }
+        input["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(9820000 + required);
+        input["skat"]["poster_uden_ægtefællenedslag_komplette"] = json!(complete);
+        let residual = required - known;
+        let possible = residual >= 0 && ceiling.is_none_or(|limit| residual <= limit);
+        let status = if complete && !possible {
+            "Modstrid"
+        } else {
+            "Ufuldstændig"
+        };
+        cases.push(json!({"case_id":name,"input":input}));
+        expected.push((name, residual, ceiling, possible, complete, status));
+    };
+    // One missing municipality line must not hide that the known credits
+    // already exceed the required total by one ore.
+    add("known-exceeds-total".into(), 2, 179999, true);
+    for mask in 1..16 {
+        add(format!("missing-mask-{mask}"), mask, 380000, true);
+    }
+    for (name, mask, known, cap) in [
+        ("state", 1, 280000, 578880),
+        ("church", 4, 380000, 0),
+        ("capital", 8, 300000, 720000),
+        ("state-and-capital", 9, 200000, 1298880),
+    ] {
+        for delta in [-1, 0, 1] {
+            add(
+                format!("{name}-cap-{delta}"),
+                mask,
+                known + cap + delta,
+                true,
+            );
+        }
+    }
+    for residual in [-1, 0, 1] {
+        add(
+            format!("unknown-municipal-cap-{residual}"),
+            2,
+            180000 + residual,
+            true,
+        );
+    }
+    add(
+        "incomplete-does-not-infer-negative-residual".into(),
+        2,
+        179999,
+        false,
+    );
+    add(
+        "incomplete-does-not-infer-cap-conflict".into(),
+        1,
+        858881,
+        false,
+    );
+
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    template["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-partial-transfers-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let output = invoke(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), expected.len());
+    for (case, (name, residual, ceiling, possible, complete, status)) in
+        results.iter().zip(expected)
+    {
+        assert_eq!(case["case_id"], name);
+        let result = &case["result"];
+        assert_eq!(result["status"]["$variant"], status, "{name}: {result}");
+        assert_eq!(result["uafhængig_skatteberegning_udført"], false);
+        assert!(!result["uafklaret"].as_array().unwrap().is_empty());
+        let total = control(result, "Samlet ægtefællenedslag i beregnet skat");
+        // A necessary residual is not an observation or permission to complete it.
+        assert_eq!(total["oplyst"], Value::Null, "{name}");
+        assert_eq!(total["difference"], Value::Null, "{name}");
+        assert_eq!(total["status"]["$variant"], "IkkeOplyst", "{name}");
+        let residual_name = "Nødvendig sum af ikke-oplyste ægtefællenedslag";
+        if complete {
+            let bound = condition(result, residual_name);
+            assert_eq!(bound["enhed"], "øre", "{name}");
+            assert_eq!(bound["nødvendigt_beløb"], residual, "{name}");
+            assert_eq!(bound["mindst"], 0, "{name}");
+            assert_eq!(bound["højst"], json!(ceiling), "{name}");
+            assert_eq!(bound["inden_for_kontrollerede_grænser"], possible, "{name}");
+        } else {
+            assert_eq!(total["forventet"], Value::Null, "{name}");
+            assert!(!result["nødvendige_forudsætninger"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|bound| bound["navn"] == residual_name));
+        }
+    }
+}
+
+#[test]
 fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
     let mut empty = baseline();
     empty["skatteår"] = json!(2026);

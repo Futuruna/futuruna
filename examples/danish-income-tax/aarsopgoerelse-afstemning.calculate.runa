@@ -131,6 +131,21 @@
     | None -> []
     | Some(beløb) -> [rapport_forudsætning("Nødvendig samlet skattenedsættelse fra ægtefælle", "øre", beløb, maksimum, ægtefælle_mulig, "Residual mellem alle oplyste øvrige skatteposter og rapportens beregnede skat. Identificerer kun summen, ikke fordelingen eller ægtefællens faktiske forhold. Forudsætter at ingen andre skatteposter mangler.")]
 }
+-- En delvist oplyst sum kan stadig være umulig: alle fire overførte nedslag
+-- er ikke-negative skatteværdier efter PSL §§ 9–11. Træk kun observationer
+-- fra residualet; udfyld aldrig en manglende observation med det afledte krav.
+# RapportNedslagMedLoft(oplyst: Heltal?, loft: Heltal?)
+| rapport_uoplyste_nedslag_forudsætning(skat: RapportSkat, nedslag: List(RapportNedslagMedLoft), ægtefælle_mulig: Boolsk) -> match rapport_nødvendigt_skattenedslag(skat) {
+    | None -> []
+    | Some(samlet) -> {
+        = uoplyste = filter(nedslag, |n: RapportNedslagMedLoft| n.oplyst == None)
+        = oplyst_sum = foldl(nedslag, 0, |sum: Heltal, n: RapportNedslagMedLoft| match n.oplyst { | None -> sum | Some(beløb) -> sum + beløb })
+        = maksimum = foldl(uoplyste, Some(0), |sum: Heltal?, n: RapportNedslagMedLoft| rapport_option_plus(sum, n.loft))
+        hvis length(uoplyste) == 0 { [] } ellers {
+            [rapport_forudsætning("Nødvendig sum af ikke-oplyste ægtefællenedslag", "øre", samlet - oplyst_sum, maksimum, ægtefælle_mulig, "Nødvendigt samlet nedslag minus summen af de oplyste overførsler. Beløbet skal kunne dækkes af netop de manglende poster og deres kontrollerede lofter. Et negativt restbeløb viser, at de kendte overførsler allerede er for store. Ved én manglende post er beløbet nødvendigt for netop den post; ved flere er fordelingen ukendt. Afledt betingelse, ikke observation eller dokumenteret fradragsret.")]
+        }
+    }
+}
 | rapport_resterende_kapitalloft(n: RapportÆgtefællenedslag, fælles_maksimum_øre: Heltal) -> match n.eget_negativ_kapitalindkomstnedslag_øre { | None -> fælles_maksimum_øre | Some(eget) -> fælles_maksimum_øre - eget }
 | rapport_egen_kapital_forudsætning(n: RapportÆgtefællenedslag, maksimum_øre: Heltal) -> match n.eget_negativ_kapitalindkomstnedslag_øre {
     | None -> []
@@ -209,7 +224,13 @@ Beløbet benævnes »restskat«.
         rapport_nedslagsforudsætning("Ubrugt kirkelig personfradragsværdi fra ægtefælle", input.ægtefællenedslag.kirkeligt_personfradrag_øre, kirkemaks, ægtefælle_mulig),
         rapport_negativ_kapital_forudsætning(input.ægtefællenedslag, kapitalmaks, kapitalsats, ægtefælle_mulig),
         rapport_egen_kapital_forudsætning(input.ægtefællenedslag, kapitalmaks),
-        rapport_nødvendigt_nedslag_forudsætning(input.skat, rapport_option_plus(Some(statsmaks + rapport_resterende_kapitalloft(input.ægtefællenedslag, kapitalmaks)), rapport_option_plus(kommunemaks, kirkemaks)), ægtefælle_mulig)
+        rapport_nødvendigt_nedslag_forudsætning(input.skat, rapport_option_plus(Some(statsmaks + rapport_resterende_kapitalloft(input.ægtefællenedslag, kapitalmaks)), rapport_option_plus(kommunemaks, kirkemaks)), ægtefælle_mulig),
+        rapport_uoplyste_nedslag_forudsætning(input.skat, [
+            RapportNedslagMedLoft(input.ægtefællenedslag.statsligt_personfradrag_øre, Some(statsmaks)),
+            RapportNedslagMedLoft(input.ægtefællenedslag.kommunalt_personfradrag_øre, kommunemaks),
+            RapportNedslagMedLoft(input.ægtefællenedslag.kirkeligt_personfradrag_øre, kirkemaks),
+            RapportNedslagMedLoft(input.ægtefællenedslag.negativ_kapitalindkomst_øre, Some(rapport_resterende_kapitalloft(input.ægtefællenedslag, kapitalmaks)))
+            ], ægtefælle_mulig)
         ], |krav: List(AfstemningsForudsætning)| krav)
     = modstrid = any(kontroller, |k: AfstemningsKontrol| k.status == Afviger) || any(forudsætninger, |f: AfstemningsForudsætning| f.inden_for_kontrollerede_grænser == Falskt)
     = ufuldstændig = any(kontroller, |k: AfstemningsKontrol| k.status == IkkeOplyst)

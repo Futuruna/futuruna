@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const args = process.argv.slice(2);
 if (args.length !== 1 || args[0] === '--help') {
   console.log('Usage: node examples/danish-income-tax/afstemning-demo.mjs PATH_TO_RUNA');
-  console.log('Tre fiktive rapporter, ingen personlige dokumenter. Brug den compiler, der bestod kompatibilitetstjekket.');
+  console.log('Fire fiktive rapporter, ingen personlige dokumenter. Brug den compiler, der bestod kompatibilitetstjekket.');
   process.exit(args.length === 1 && args[0] === '--help' ? 0 : 1);
 }
 const binary = args[0].includes('/') || args[0].includes('\\') ? resolve(args[0]) : args[0];
@@ -69,11 +69,15 @@ for (const field of ['statsligt_personfradrag_øre', 'kommunalt_personfradrag_ø
 }
 const conflict = structuredClone(baseline);
 conflict.ægtefællenedslag.statsligt_personfradrag_øre = 100001;
+const partialConflict = structuredClone(baseline);
+partialConflict.ægtefællenedslag.kommunalt_personfradrag_øre = null;
+partialConflict.skat.poster_uden_ægtefællenedslag[0].beløb_øre = 9999999;
 const envelope = run(['template', model, '--format', 'json']);
 envelope.cases = [
   { case_id: 'betinget-match', input: baseline },
   { case_id: 'manglende-overførselslinjer', input: missing },
   { case_id: 'en-øre-forskel', input: conflict },
+  { case_id: 'modstrid-med-manglende-linje', input: partialConflict },
 ];
 const inputPath = save('cases.json', envelope);
 const output = run(['call', model, '--input', inputPath]);
@@ -81,7 +85,7 @@ save('results.json', output);
 assert.deepEqual(output.diagnostics, []);
 assert.deepEqual(output.results.map(({ case_id }) => case_id), envelope.cases.map(({ case_id }) => case_id));
 assert.deepEqual(output.results.map(({ result }) => result.status.$variant),
-  ['BetingetAfstemt', 'Ufuldstændig', 'Modstrid']);
+  ['BetingetAfstemt', 'Ufuldstændig', 'Modstrid', 'Modstrid']);
 
 function named(rows, name) {
   const matches = rows.filter((row) => row.navn === name);
@@ -91,6 +95,7 @@ function named(rows, name) {
 const lossName = 'Nødvendigt indkomstfradrag fra ægtefælle';
 const creditName = 'Nødvendig samlet skattenedsættelse fra ægtefælle';
 const creditControl = 'Samlet ægtefællenedslag i beregnet skat';
+const residualName = 'Nødvendig sum af ikke-oplyste ægtefællenedslag';
 const missingResult = output.results[1].result;
 assert.equal(named(missingResult.kontroller, 'Indkomstbro og ægtefælleunderskud').oplyst, null);
 assert.equal(named(missingResult.kontroller, creditControl).oplyst, null);
@@ -98,6 +103,13 @@ assert.equal(named(missingResult.kontroller, creditControl).difference, null);
 assert.equal(named(output.results[2].result.kontroller, creditControl).difference, 1);
 assert.equal(named(output.results[0].result.nødvendige_forudsætninger,
   'Ubrugt kommunal personfradragsværdi fra ægtefælle').højst, null);
+const partialResult = output.results[3].result;
+const partialResidual = named(partialResult.nødvendige_forudsætninger, residualName);
+assert.equal(partialResidual.nødvendigt_beløb, -1);
+assert.equal(partialResidual.inden_for_kontrollerede_grænser, false);
+assert.equal(partialResidual.højst, null);
+assert.equal(named(partialResult.kontroller, creditControl).oplyst, null);
+assert.equal(named(partialResult.kontroller, creditControl).difference, null);
 
 // Show exact model units: no floating-point currency conversion or tax logic.
 const number = new Intl.NumberFormat('da-DK', { maximumFractionDigits: 0 });
@@ -108,7 +120,7 @@ function amount(value, unit) {
 }
 console.log('FIKTIV BETINGET AFSTEMNING — ikke uafhængig skatteberegning eller skatterådgivning.');
 console.log('Beløbene er nødvendige betingelser, ikke dokumentation for ægtefællens faktiske forhold.');
-console.log('Ægtefællens kommune og samlivsbetingelse er ukendte i alle tre eksempler.');
+console.log('Ægtefællens kommune og samlivsbetingelse er ukendte i alle fire eksempler.');
 for (const { case_id, result } of output.results) {
   assert.equal(result.uafhængig_skatteberegning_udført, false);
   assert.ok(result.uafklaret.length > 0);
@@ -116,11 +128,16 @@ for (const { case_id, result } of output.results) {
   const credit = named(result.nødvendige_forudsætninger, creditName);
   assert.equal(loss.nødvendigt_beløb, 12000);
   assert.equal(loss.enhed, 'DKK');
-  assert.equal(credit.nødvendigt_beløb, 380000);
+  assert.equal(credit.nødvendigt_beløb, case_id === 'modstrid-med-manglende-linje' ? 179999 : 380000);
   assert.equal(credit.enhed, 'øre');
   console.log(`\n${case_id}: ${result.status.$variant}`);
   for (const condition of [loss, credit]) {
     console.log(`  ${condition.navn}: ${amount(condition.nødvendigt_beløb, condition.enhed)}`);
+  }
+  for (const condition of result.nødvendige_forudsætninger.filter((row) => row.navn === residualName)) {
+    console.log(`  ${condition.navn}: ${amount(condition.nødvendigt_beløb, condition.enhed)}`);
+    console.log(`    Mindst: ${amount(condition.mindst, condition.enhed)}; højst: ${amount(condition.højst, condition.enhed)}; inden for kontrollerede grænser: ${condition.inden_for_kontrollerede_grænser ? 'ja' : 'nej'}`);
+    console.log(`    ${condition.forklaring}`);
   }
   for (const check of result.kontroller.filter((row) => row.status.$variant !== 'Stemmer')) {
     console.log(`  ${check.navn}: ${check.status.$variant}`);
@@ -128,4 +145,4 @@ for (const { case_id, result } of output.results) {
   }
   console.log(`  ${result.uafklaret.length} forbehold bevares i results.json; status er ikke en godkendelse af skatteforholdene.`);
 }
-console.log(`\nTre fiktive cases kontrolleret. Fulde input, kontroller, grænser og forbehold: ${evidence}`);
+console.log(`\nFire fiktive cases kontrolleret. Fulde input, kontroller, grænser og forbehold: ${evidence}`);

@@ -38,11 +38,14 @@ absolutte sti i `RUNA_BIN`, som bestod kompatibilitetstjekket:
 node examples/danish-income-tax/afstemning-demo.mjs "$RUNA_BIN"
 ```
 
-Demonstrationen kører tre fiktive rapporter gennem den kompakte model: én med
+Demonstrationen kører fire fiktive rapporter gennem den kompakte model: én med
 betinget match, én med manglende overførselslinjer og én med en forskel på én
-øre. I alle tre er ægtefællens kommune og samlivsbetingelse ukendte. Modellen
-viser stadig det nødvendige indkomstfradrag på 12.000 DKK og det nødvendige
-samlede skattenedslag på 380.000 øre (3.800 DKK). Manglende observationer vises
+øre samt én, hvor en manglende linje ikke kan forklare for store kendte
+overførsler. I alle fire er ægtefællens kommune og samlivsbetingelse ukendte.
+De første tre viser det nødvendige indkomstfradrag på 12.000 DKK og det
+nødvendige samlede skattenedslag på 380.000 øre (3.800 DKK). Det fjerde viser
+en modstrid, selv om det kommunale nedslag ikke er oplyst: de kendte overførsler
+er allerede én øre for store. Manglende observationer vises
 som **ukendt**, ikke nul. Tallene er ikke beregnet af JavaScript eller en LLM;
 JavaScript kalder Futuruna, kontrollerer de fiktive forventninger og viser svaret.
 
@@ -111,6 +114,34 @@ If complete other tax lines sum to 102,000 DKK and reported assessed tax is
 98,200 DKK, the four excluded spouse credits must total **3,800 DKK**. Their
 individual allocation remains unknown unless separately observed. Missing
 printed transfer lines do not prevent outputting this required sum.
+
+### Når kun nogle overførselslinjer er kendt
+
+Modellen viser også **Nødvendig sum af ikke-oplyste ægtefællenedslag**:
+det nødvendige samlede nedslag minus de faktisk oplyste overførsler. Hvis kun
+én af de fire poster mangler, er dette det beløb, netop den post skulle have.
+Hvis flere mangler, er deres fordeling fortsat ukendt. Resultatet indsættes
+aldrig som en observation; sammenligningen forbliver ufuldstændig, medmindre
+der allerede er en modstrid.
+
+Et fiktivt eksempel: Rapportens øvrige skatteposter kræver samlet 1.799,99 DKK
+i overførte nedslag. De kendte nedslag er 1.000 DKK fra staten, 0 DKK fra
+kirken og 800 DKK for negativ kapitalindkomst. Det kommunale nedslag er ukendt.
+Det skulle derfor være −0,01 DKK. Det er en **Modstrid**, ikke blot manglende
+oplysninger: et ikke-negativt overført nedslag kan ikke forklare forskellen.
+
+Den øvre grænse summerer kun lofterne for de manglende poster. Ukendt kommune
+giver derfor stadig et ukendt loft, hvis det kommunale nedslag mangler. Hvis
+det kommunale beløb derimod er oplyst og kun det statslige mangler, kan det
+statslige loft kontrolleres uden at kende ægtefællens kommune. Ingen residual
+udledes, hvis de øvrige skatteposter ikke er bekræftet komplette eller den
+beregnede skat er ukendt. Kendt nul og ukendt holdes adskilt.
+
+Dette er nødvendige regnebetingelser for de eksisterende overførselsregler,
+ikke nye fradrag eller dokumentation for ægtefællens forhold.
+[Skattestyrelsens vejledning om ægtefællers skatteberegning](https://info.skat.dk/data.aspx?oid=1976883).
+
+### Status and checked bounds
 
 The output distinguishes:
 
@@ -203,6 +234,12 @@ interest rates or payment schedules are inferred.
 
 ### Existing templates
 
+The partial-transfer check adds a named necessary condition, not a new input
+field. Consumers should find conditions by name, not assume a fixed list length
+or position. Recalculate saved results: some previously incomplete reports now
+show a contradiction already implied by their known transfers. A missing line
+remains missing even when its necessary amount can be determined.
+
 The confirmed-empty correction updates field-help metadata, which is included
 in the contract fingerprint. If an older envelope or workbook is rejected,
 regenerate a template and carry over reviewed observations; do not edit the
@@ -229,7 +266,8 @@ does not independently recompute individual tax lines, resolve other spouse
 mechanisms, or prove a complete household solution. Use `runa call` for typed
 report inputs. The compact report model also passes native `runa check`;
 `tests/tax_report_native_test.runa` compares complete interpreted and native
-outputs for 16 fictional reports, including missing observations, one-øre
+outputs for 21 fictional reports, including partial-transfer residual bounds,
+missing observations, one-øre
 contradictions, spouse transfers, both settlement routes and unsupported years.
 This is not a native-coverage claim for the larger `personskat.calculate.runa`
 model.
