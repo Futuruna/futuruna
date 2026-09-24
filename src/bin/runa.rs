@@ -52879,7 +52879,11 @@ impl RustCodegen {
                             self.copy_vars.insert(name.clone());
                         }
                     }
-                    let pat = self.emit_match_arm_pattern(&arm.pat, refined_subject, &scrutinee_ty);
+                    let (pat, literal_guard) = self.emit_match_arm_with_literal_guards(
+                        arm,
+                        refined_subject,
+                        &scrutinee_ty,
+                    );
                     // Build guard: combine user guard + boxed pattern guards
                     let user_guard = arm.guard.as_ref().map(|g| self.emit_expr(g));
                     let box_guard = self.emit_boxed_pattern_guard(&arm.pat);
@@ -52889,6 +52893,7 @@ impl RustCodegen {
                         (None, Some(b)) => format!(" if {}", b),
                         (None, None) => String::new(),
                     };
+                    let full_guard = Self::prepend_match_literal_guard(literal_guard, full_guard);
                     // Collect boxed bindings that need deref
                     // In &self methods, skip unboxing — can't move out of reference.
                     // Rust auto-derefs &Box<T> → &T for method calls.
@@ -54968,13 +54973,17 @@ impl RustCodegen {
                 let mut out = format!("{}match {} {{\n", ind, match_subject);
                 self.indent += 1;
                 for arm in arms {
-                    let pat_str =
-                        self.emit_match_arm_pattern(&arm.pat, refined_subject, &scrutinee_ty);
+                    let (pat_str, literal_guard) = self.emit_match_arm_with_literal_guards(
+                        arm,
+                        refined_subject,
+                        &scrutinee_ty,
+                    );
                     let guard_str = arm
                         .guard
                         .as_ref()
                         .map(|g| format!(" if {}", self.emit_expr(g)))
                         .unwrap_or_default();
+                    let guard_str = Self::prepend_match_literal_guard(literal_guard, guard_str);
                     out.push_str(&format!("{}{}{} => {{\n", self.ind(), pat_str, guard_str));
                     self.indent += 1;
                     // Deref boxed bindings in match arms (Rc/Box recursive fields)
@@ -55821,6 +55830,79 @@ impl RustCodegen {
             }
         }
         self.emit_pattern_match_with_expected_ty(pat, expected_ty)
+    }
+
+    fn emit_match_arm_with_literal_guards(
+        &self,
+        arm: &MatchArm,
+        refined_subject: bool,
+        expected_ty: &FirTy,
+    ) -> (String, Option<String>) {
+        fn has_string_literal(pat: &Pat) -> bool {
+            match pat {
+                Pat::Lit(Literal::Str(_)) => true,
+                Pat::Con(_, args) => args.iter().any(has_string_literal),
+                Pat::NamedCon(_, fields) => fields.iter().any(|(_, p)| has_string_literal(p)),
+                Pat::As(inner, _) => has_string_literal(inner),
+                _ => false,
+            }
+        }
+        if !has_string_literal(&arm.pat) {
+            return (
+                self.emit_match_arm_pattern(&arm.pat, refined_subject, expected_ty),
+                None,
+            );
+        }
+
+        // Rust cannot match an owned String against a string literal pattern.
+        // Bind each text payload and compare it before evaluating a user guard.
+        // Keep the subject and ordinary bindings in their existing owned/borrowed
+        // form, including nested constructors and the tail-call lowering path.
+        fn lower(pat: &Pat, used: &mut BTreeSet<String>, guards: &mut Vec<String>) -> Pat {
+            match pat {
+                Pat::Lit(Literal::Str(value)) => {
+                    let name = fresh_generated_rust_name("__fut_string_pattern", used);
+                    guards.push(format!("{}.as_str() == {:?}", name, value));
+                    Pat::Var(name)
+                }
+                Pat::Con(name, args) => Pat::Con(
+                    name.clone(),
+                    args.iter().map(|p| lower(p, used, guards)).collect(),
+                ),
+                Pat::NamedCon(name, fields) => Pat::NamedCon(
+                    name.clone(),
+                    fields
+                        .iter()
+                        .map(|(field, p)| (field.clone(), lower(p, used, guards)))
+                        .collect(),
+                ),
+                Pat::As(inner, name) => Pat::As(Box::new(lower(inner, used, guards)), name.clone()),
+                _ => pat.clone(),
+            }
+        }
+
+        let mut used = self.local_bindings.clone();
+        collect_pattern_binding_names(&arm.pat, &mut used);
+        let mut references = BTreeMap::new();
+        count_var_uses(&arm.body, &mut references);
+        if let Some(guard) = &arm.guard {
+            count_var_uses(guard, &mut references);
+        }
+        used.extend(references.into_keys());
+        let mut guards = Vec::new();
+        let pat = lower(&arm.pat, &mut used, &mut guards);
+        (
+            self.emit_match_arm_pattern(&pat, refined_subject, expected_ty),
+            (!guards.is_empty()).then(|| guards.join(" && ")),
+        )
+    }
+
+    fn prepend_match_literal_guard(literal: Option<String>, existing: String) -> String {
+        match literal {
+            Some(literal) if existing.is_empty() => format!(" if {literal}"),
+            Some(literal) => format!(" if ({literal}) && ({})", &existing[4..]),
+            None => existing,
+        }
     }
 
     fn emit_pattern_binding(&self, pat: &Pat) -> String {
@@ -63293,6 +63375,14 @@ assert_with_message(true, message())
     fn interpret_test_file(path: &std::path::Path) -> String {
         let source = std::fs::read_to_string(path).expect("read test file");
         interpret_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
+    }
+
+    #[test]
+    fn string_literal_match_preserves_nested_guards_ownership_and_tail_calls() {
+        let source = include_str!("../../tests/differential/corpus/string_literal_match.runa");
+        let expected = "[1, 2, 3, 4, 0]\nfirst\nsecond\nother\nother\n[7, -1, -1, -1]\n3\n4\n-1\nscrutinee\nguard\n7";
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
     }
 
     #[test]
