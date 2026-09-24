@@ -104,11 +104,15 @@ the uncertainty. The model cannot validate a description it has not received.
 
 ## Run and read the result
 
-Keep invoice documents and filled templates outside the checkout:
+First complete the [tax-audit runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check).
+Keep `RUNA_BIN` set to the exact absolute compiler path that passed it; the
+original v0.2.0 download lacks required calculation-safety fixes. Do not
+switch back to a different compiler from your PATH. Keep invoice documents
+and filled templates outside the checkout:
 
 ```sh
-runa template examples/danish-income-tax/boligjob.calculate.runa --format json --output PRIVATE_WORK_DIR/boligjob.json
-runa call examples/danish-income-tax/boligjob.calculate.runa --input PRIVATE_WORK_DIR/boligjob.json --output PRIVATE_WORK_DIR/boligjob-results.json
+"$RUNA_BIN" template examples/danish-income-tax/boligjob.calculate.runa --format json --output PRIVATE_WORK_DIR/boligjob.json
+"$RUNA_BIN" call examples/danish-income-tax/boligjob.calculate.runa --input PRIVATE_WORK_DIR/boligjob.json --output PRIVATE_WORK_DIR/boligjob-results.json
 ```
 
 In the component output, inspect `input_gyldigt` and each post's conditions and
@@ -148,8 +152,8 @@ An overall launch/conformance sign-off remains separate.
 Focused regression commands:
 
 ```sh
-runa check examples/danish-income-tax/boligjob.calculate.runa
-runa run tests/personskat_boligjob_rules_test.runa
-cargo test --quiet --test personskat_boligjob -j 1
-cargo test --quiet --test personskat_validity -j 1
+"$RUNA_BIN" check examples/danish-income-tax/boligjob.calculate.runa
+"$RUNA_BIN" run tests/personskat_boligjob_rules_test.runa
+FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" cargo test --quiet --test personskat_boligjob -j 1
+FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" cargo test --quiet --test personskat_validity -j 1
 ```
