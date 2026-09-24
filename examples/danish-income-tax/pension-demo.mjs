@@ -77,6 +77,16 @@ baseline.lønmodtager.pension.udbetalingsoplysninger = {
 }; // Explicitly confirmed absence in this fictional person only.
 baseline.lønmodtager.ligningsfradrag.enlig_forsørger = variant('IntetEkstraBørnetilskud');
 baseline.lønmodtager.ligningsfradrag.boligjob = variant('IngenBoligjobudgifter');
+// Declared fictional treaty-residence fact, not inferred from Copenhagen.
+// One false condition excludes the foreign-income exception; the other two
+// may remain unknown. Never copy this assertion into a real person's case.
+baseline.lønmodtager.ligningsfradrag.arbejdsfradrag_udland = {
+  $variant: 'IngenUdlandsudelukkelseIFællesForhold',
+  dbo_hjemmehørende_udland_i_nogen_periode: false,
+  noget_arbejde_udført_udland: null,
+  nogen_udenlandsk_arbejdsgiver: null,
+  kildereference: 'Fiktiv person: DBO-hjemmehørende i Danmark hele året',
+};
 assert.deepEqual(baseline.ægtefælle, variant('UdenÆgtefælle'));
 
 const specifications = [
@@ -191,5 +201,20 @@ assert.deepEqual(summary.sammenligninger.map((row) => [
   [0, null, null],
 ]);
 save('summary.json', summary);
-console.log(JSON.stringify(summary.sammenligninger, null, 2));
-console.log(`Eight fictional cases passed. Full inputs, outputs and qualifications: ${evidence}`);
+const kroner = new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'DKK' });
+const amount = (ore) => kroner.format(Math.abs(ore) / 100);
+console.log('Fiktivt pensionseksempel, 2026. Beregnet med forbehold — ikke personlig rådgivning.');
+for (const row of summary.sammenligninger) {
+  const label = `${row.før} → ${row.efter}`;
+  if (row.mindre_modelleret_skat_øre === null) {
+    console.log(`${label}: Ingen sammenligning — nødvendige fradragsoplysninger er uafklarede.`);
+    continue;
+  }
+  const contribution = row.indbetalingsændring_øre;
+  const saving = row.mindre_modelleret_skat_øre;
+  const cash = row.mindre_frie_midler_efter_skat_øre;
+  const taxChange = saving === 0 ? 'uændret skat' : `${amount(saving)} ${saving > 0 ? 'mindre' : 'mere'} modelleret skat`;
+  console.log(`${label}: ${amount(contribution)} ${contribution >= 0 ? 'mere' : 'mindre'} indbetalt; ${taxChange}; ${amount(cash)} ${cash >= 0 ? 'færre' : 'flere'} frie midler.`);
+}
+console.log('Skatteændring er ikke nødvendigvis ændret tilbagebetaling. Fremtidig pensionsskat, afkast, omkostninger og ydelser er ikke medregnet.');
+console.log(`Otte fiktive sager kontrolleret. Input, resultater, summary.json og forbehold: ${evidence}`);

@@ -469,8 +469,11 @@ software blot for dette valgfrie eksempel uden brugerens accept.
 Eksemplets person er født 1. januar 1990, har 600.000 kr. i kontant bruttoløn
 i 2026, bor i København, betaler ikke kirkeskat og har ingen ægtefælle,
 ejendom, anden indkomst, pensionsudbetalinger eller andre fradragsudgifter.
-Alle tomme grene er udtrykkelige **fiktive fravalg**, ikke rigtige personers
-manglende oplysninger.
+Personen er også udtrykkeligt DBO-hjemmehørende i Danmark hele året. Det er
+en særskilt fiktiv oplysning, ikke noget scriptet udleder af adressen.
+De øvrige fravalg er udtrykkelige **fiktive forudsætninger**. De to øvrige
+udlandsbetingelser står som uoplyste, fordi de ikke kan ændre denne afgrænsning.
+Brug ikke eksemplets forudsætninger som standardværdier for en rigtig person.
 
 Scriptet viser mindre/mere privat indbetaling, en separat fast
 arbejdsgiverordning og en sag med uoplyste udgifter. Det kører med én arbejder
@@ -478,7 +481,12 @@ og gemmer input, fulde resultater, kontraktfingeraftryk og en kort opsummering
 i en ny midlertidig mappe uden for projektet. Det ændrer ingen eksisterende
 filer. Den sidste sag skal have manglende sammenligningsbeløb, ikke nul skat.
 
-Det observerede resultat med modellen den 22. september 2026:
+Terminalen viser danske kronebeløb og retningen: mere/mindre indbetalt,
+mere/mindre skat og flere/færre frie midler. `summary.json` bevarer de
+maskinlæsbare ørebeløb, gyldighed og forbehold. En uafklaret sag giver ingen
+sammenligning, ikke en skatteændring på nul.
+
+Det observerede resultat, genkørt med modellen den 25. september 2026:
 
 | Ændring af årets private indbetaling | Ændring i modelleret skat | Ændring i frie midler efter skat |
 | --- | ---: | ---: |
