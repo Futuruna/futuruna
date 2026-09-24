@@ -70,6 +70,24 @@ uncovered future year. These helpers do not expand the canonical 2023–2026
 input boundary, and guarded low-level calculation helpers still require their
 stated preconditions.
 
+## Union-fee taxpayer status
+
+This is an individual assessment, not a company tax return. With active
+union-fee records, `Ll13JuridiskPerson` fails the control at
+`lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus`, including
+under the active spouse prefix. The deduction summary is invalid and the final
+comparison amount is withheld; diagnostic component amounts are not usable tax.
+An empty fee section stays neutral. The shared LL §13 model still supports
+legal persons, and the individual self-employed branch is not removed.
+
+The status describes the taxpayer, not whoever paid the bill. An employer's
+payment does not turn an employee into a legal person or establish entitlement
+to the uncapped branch. Check the actual taxpayer status and any employment
+income treatment; do not switch status just to obtain a matching deduction.
+See [DJV C.A.4.3.1.3](https://info.skat.dk/data.aspx?oid=2061770), including the
+company-paid membership example, and the source text in
+[the LL §13 model](ligningsloven-kontingenter-gaver.runa).
+
 ## Foreign-employment allocation
 
 The required `lønmodtager.ligningsfradrag.arbejdsfradrag_udland` input starts
@@ -89,8 +107,10 @@ See [LBK 1500/2025, §§9 J–9 L](https://www.lovtidende.dk/api/pdf/250970) and
 
 The component result exposes the before/excluded/after amounts and controls.
 Source truth, treaty residence, foreign relief and complete tax coverage remain
-separate questions. The existing whole-krone deduction projection is unchanged;
-independent confirmation of administrative rounding remains open (`td-64197d`).
+separate questions. [External rounding observations](skatdk-fradrag-oere-ekstern.md)
+now support the whole-øre projection before upward whole-krone rounding in
+selected 2025/2026 cases, with two explicit disagreements and unverified older
+years. This is not a claim of complete administrative conformance.
 The [part-year entry](personskat-par14.calculate.runa) also preserves and
 reconciles the exclusion before recomputing annual deductions; check its own
 `input_gyldigt` rather than using a diagnostic scalar total.

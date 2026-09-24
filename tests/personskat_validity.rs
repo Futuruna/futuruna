@@ -71,6 +71,129 @@ fn single_parent(year: i64, quarters: &[i64]) -> Value {
 }
 
 #[test]
+fn union_fee_taxpayer_status_matches_the_individual_assessment() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut baseline = envelope["cases"][0]["input"].clone();
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    baseline["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
+    baseline["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
+    baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    baseline["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
+        json!({"$variant":"IntetEkstraBørnetilskud"});
+    baseline["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"] =
+        foreign_employment::no_exclusion();
+    baseline["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+        json!({"$variant":"IngenBoligjobudgifter"});
+    // Fictional documented fees, not a deduction copied from an assessment.
+    let fees = |year, status: &str, active| {
+        json!({
+            "skatteyderstatus":{"$variant":status},
+            "kontingenter": if active { vec![json!({
+                "identifikation":"fictional-annual-fee", "forening_identifikation":"fictional-union",
+                "indkomstår":year,
+                "periode":{"fra_dato":{"år":year,"måned":1,"dag":1},
+                    "til_dato":{"år":year,"måned":12,"dag":31}},
+                "foreningsart":{"$variant":"Ll13Fagforening"},
+                "betalt_kontingent_kroner":10000,
+                "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner":10000,
+                "foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser":true,
+                "skatteyder_hører_til_erhvervsgruppen":true,
+                "indberetningsstatus":{"$variant":"Ll13IndberettetEfterSkatteindberetningslov31"}
+            })] } else { vec![] }
+        })
+    };
+    let mut cases = Vec::new();
+    for year in [2023, 2024, 2025, 2026] {
+        let mut input = baseline.clone();
+        input["lønmodtager"]["skatteår"] = json!(year);
+        input["lønmodtager"]["ligningsfradrag"]["faglige_kontingenter"] =
+            fees(year, "Ll13Lønmodtager", true);
+        cases.push(json!({"case_id":format!("employee-{year}"),"input":input}));
+    }
+    for (id, status, active) in [
+        ("company", "Ll13JuridiskPerson", true),
+        ("inactive-company", "Ll13JuridiskPerson", false),
+        ("self-employed", "Ll13SelvstændigtErhvervsdrivende", true),
+        ("spouse-company", "Ll13JuridiskPerson", true),
+    ] {
+        let mut input = baseline.clone();
+        input["lønmodtager"]["skatteår"] = json!(2026);
+        if id == "spouse-company" {
+            input["ægtefælle"] = spouse(&input);
+            input["ægtefælle"]["fakta"]["lønmodtager"]["ligningsfradrag"]["faglige_kontingenter"] =
+                fees(2026, status, active);
+        } else {
+            input["lønmodtager"]["ligningsfradrag"]["faglige_kontingenter"] =
+                fees(2026, status, active);
+        }
+        cases.push(json!({"case_id":id,"input":input}));
+    }
+    envelope["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-union-person-status-{}.json",
+        std::process::id()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), 8);
+    for row in results {
+        let id = row["case_id"].as_str().unwrap();
+        let r = &row["result"];
+        let invalid = id == "company" || id == "spouse-company";
+        let gate = &r["vurdering"];
+        println!(
+            "{id}: valid={}, fees={}, comparison={}",
+            gate["alle_kontroller_gyldige"],
+            r["ligningsfradrag"]["faglige_kontingenter_fradrag_anvendt_kroner"],
+            gate["slutskat_til_sammenligning_øre"]
+        );
+        assert_eq!(gate["alle_kontroller_gyldige"], !invalid, "{id}: {gate}");
+        assert_eq!(gate["samlet_modeldækning_bekræftet"], false);
+        if invalid {
+            assert_eq!(gate["slutskat_til_sammenligning_øre"], Value::Null);
+            let prefix = if id == "spouse-company" {
+                "ægtefælle.MedÆgtefælle.fakta."
+            } else {
+                ""
+            };
+            let expected_path = format!(
+                "{prefix}lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus"
+            );
+            assert!(
+                gate["fejl"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["sti"] == expected_path),
+                "{id}: {gate}"
+            );
+            let deductions = if id == "spouse-company" {
+                &r["ægtefælle"]["grundlag"]["ligningsfradrag"]
+            } else {
+                &r["ligningsfradrag"]
+            };
+            assert_eq!(deductions["alle_input_gyldige"], false);
+        } else {
+            let expected = match id {
+                "employee-2023" => 6000,
+                "self-employed" => 10000,
+                "inactive-company" => 0,
+                _ => 7000,
+            };
+            assert_eq!(
+                r["ligningsfradrag"]["faglige_kontingenter_fradrag_anvendt_kroner"], expected,
+                "{id}"
+            );
+            assert!(gate["slutskat_til_sammenligning_øre"].is_number());
+        }
+    }
+}
+
+#[test]
 fn unsupported_year_stops_before_tax_evaluation_with_actionable_diagnostic() {
     let mut template = run(&["template", MODEL, "--format", "json"]);
     template["cases"][0]["input"]["lønmodtager"]["skatteår"] = json!(2027);
