@@ -56,7 +56,7 @@ jobs:
       - name: Tax-audit runtime and setup safeguards
         run: |
           RUNA_BIN="$PWD/target/release/runa" bash scripts/tax-audit-preflight.sh
-          node --test tests/tax_audit_setup.test.mjs
+          node --test tests/tax_audit_setup.test.mjs tests/pension_demo_input.test.mjs
 
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/
