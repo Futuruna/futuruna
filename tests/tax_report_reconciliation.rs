@@ -188,13 +188,13 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
     });
     add("different-spouse-municipality", "BetingetAfstemt", &|v| {
         v["ægtefællens_kommune"] = json!({"$variant": "Ballerup"});
-        v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1224000);
-        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(11224000);
+        v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1137600);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(11137600);
     });
-    add("known-spouse-municipal-cap", "Modstrid", &|v| {
+    add("recipient-municipal-cap", "Modstrid", &|v| {
         v["ægtefællens_kommune"] = json!({"$variant": "Ballerup"});
-        v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1224001);
-        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(11224001);
+        v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1137601);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(11137601);
     });
     add("duplicate-tax-posts", "UgyldigtRapportinput", &|v| {
         let post = v["skat"]["poster_uden_ægtefællenedslag"][0].clone();
@@ -284,14 +284,14 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
             get("year-2023"),
             "Ubrugt kommunal personfradragsværdi fra ægtefælle"
         )["højst"],
-        Value::Null
+        1137600
     );
     assert_eq!(
         condition(
             get("different-spouse-municipality"),
             "Ubrugt kommunal personfradragsværdi fra ægtefælle"
         )["højst"],
-        1224000
+        1137600
     );
     assert_eq!(
         control(
@@ -315,6 +315,198 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
 }
 
 #[test]
+fn recipient_rates_and_combined_local_lines_match_official_synthetic_reports() {
+    // Official anonymous 2025 calculator, observed 2026-09-25. Fictional married
+    // adults born 1990: recipient Copenhagen, salary 400,000; spouse Ballerup,
+    // no income, no church membership. No other income/deductions/payments.
+    // The church-member recipient's printed municipal allowance includes church.
+    // Sources and exact displayed rows: aarsopgoerelse-afstemning.md.
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    let mut add = |name: &str, church: bool, status: &str, edit: &dyn Fn(&mut Value)| {
+        let mut input = baseline();
+        let local = if church { 1253880 } else { 1212600 };
+        let assessed = if church { 11548858 } else { 11378698 };
+        input["skatteår"] = json!(2025);
+        input["betaler_kirkeskat"] = json!(church);
+        // Intentionally conceal the known fictional spouse facts from this
+        // conditional report audit; its bounds must not require their report.
+        input["indkomstbro"] = json!({
+            "personlig_indkomst_kroner":368000, "kapitalindkomst_kroner":0,
+            "ligningsmæssige_fradrag_kroner":52100, "skattepligtig_indkomst_kroner":315900,
+            "øvrige_indkomstreguleringer_kroner":0, "oplyst_ægtefælleunderskud_kroner":0
+        });
+        input["ægtefællenedslag"] = json!({
+            "statsligt_personfradrag_øre":619716,
+            "kommunalt_personfradrag_øre":null, "kirkeligt_personfradrag_øre":null,
+            "kommunalt_og_kirkeligt_personfradrag_øre":local,
+            "negativ_kapitalindkomst_øre":0, "eget_negativ_kapitalindkomstnedslag_øre":0
+        });
+        let mut lines = vec![
+            json!({"navn":"AM-bidrag", "beløb_øre":3200000}),
+            json!({"navn":"Bundskat", "beløb_øre":4419680}),
+            json!({"navn":"Kommuneskat", "beløb_øre":7423650}),
+            json!({"navn":"Eget personfradrag, stat", "beløb_øre":-619716}),
+            json!({"navn":"Eget personfradrag, kommune og kirke", "beløb_øre":-local}),
+        ];
+        if church {
+            lines.push(json!({"navn":"Kirkeskat", "beløb_øre":252720}));
+        }
+        input["skat"]["poster_uden_ægtefællenedslag"] = json!(lines);
+        input["skat"]["oplyst_beregnet_skat_øre"] = json!(assessed);
+        input["betaling"] = json!({
+            "oplyst_forskudsskat_øre":0, "oplyst_beregnet_skat_øre":assessed,
+            "oplyst_overskydende_skat_øre":null, "korrektioner_til_udbetaling":[],
+            "korrektioner_komplette":true, "oplyst_udbetaling_kroner":null,
+            "restskat":{"oplyst_restskat_øre":assessed, "tillæg_til_slutskat":[],
+                "tillæg_til_slutskat_komplette":true}
+        });
+        edit(&mut input);
+        cases.push(json!({"case_id":name, "input":input}));
+        expected.push((name.to_owned(), status.to_owned(), local, assessed));
+    };
+    for (church, name) in [(false, "official-no-church"), (true, "official-church")] {
+        add(name, church, "BetingetAfstemt", &|_| {});
+        add(
+            &format!("{name}-known-spouse"),
+            church,
+            "BetingetAfstemt",
+            &|v| {
+                v["ægtefællens_kommune"] = json!({"$variant":"Ballerup"});
+            },
+        );
+        add(&format!("{name}-cap-plus-ore"), church, "Modstrid", &|v| {
+            let n = &mut v["ægtefællenedslag"]["kommunalt_og_kirkeligt_personfradrag_øre"];
+            *n = json!(n.as_i64().unwrap() + 1);
+            // Keep all arithmetic comparisons equal: only the bound may fail.
+            v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(3200001);
+        });
+    }
+    add("no-cohabitation", true, "Modstrid", &|v| {
+        v["gift_samlevende_ved_årets_udløb"] = json!(false);
+    });
+    for field in ["kommunalt_personfradrag_øre", "kirkeligt_personfradrag_øre"] {
+        add(
+            &format!("duplicate-{field}"),
+            true,
+            "UgyldigtRapportinput",
+            &|v| {
+                v["ægtefællenedslag"][field] = json!(0);
+            },
+        );
+    }
+    add("combined-zero", true, "BetingetAfstemt", &|v| {
+        v["ægtefællenedslag"]["kommunalt_og_kirkeligt_personfradrag_øre"] = json!(0);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(3200000 - 1253880);
+    });
+    add("combined-negative", true, "Modstrid", &|v| {
+        v["ægtefællenedslag"]["kommunalt_og_kirkeligt_personfradrag_øre"] = json!(-1);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(3200000 - 1253881);
+    });
+    add(
+        "combined-overflow-bound",
+        true,
+        "UgyldigtRapportinput",
+        &|v| {
+            v["ægtefællenedslag"]["kommunalt_og_kirkeligt_personfradrag_øre"] = json!(i64::MAX);
+        },
+    );
+    add(
+        "combined-known-state-missing",
+        true,
+        "Ufuldstændig",
+        &|v| {
+            v["ægtefællenedslag"]["statsligt_personfradrag_øre"] = Value::Null;
+        },
+    );
+    add(
+        "combined-known-state-cap-plus-ore",
+        true,
+        "Modstrid",
+        &|v| {
+            v["ægtefællenedslag"]["statsligt_personfradrag_øre"] = Value::Null;
+            v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(3200001);
+        },
+    );
+    add(
+        "separate-church-at-recipient-cap",
+        true,
+        "BetingetAfstemt",
+        &|v| {
+            v["ægtefællens_kommune"] = json!({"$variant":"Ballerup"});
+            v["ægtefællenedslag"]["kommunalt_og_kirkeligt_personfradrag_øre"] = Value::Null;
+            v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1212600);
+            v["ægtefællenedslag"]["kirkeligt_personfradrag_øre"] = json!(41280);
+        },
+    );
+
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    template["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-recipient-rates-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let output = invoke(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), expected.len());
+    for (case, (name, status, local, assessed)) in results.iter().zip(expected) {
+        assert_eq!(case["case_id"], name);
+        let result = &case["result"];
+        assert_eq!(result["status"]["$variant"], status, "{name}: {result}");
+        assert_eq!(result["uafhængig_skatteberegning_udført"], false);
+        if status == "UgyldigtRapportinput" {
+            assert_eq!(result["kontroller"], json!([]));
+            continue;
+        }
+        assert_eq!(
+            control(result, "Restskat før renter og procenttillæg")["forventet"],
+            assessed
+        );
+        if name == "separate-church-at-recipient-cap" {
+            assert_eq!(
+                condition(result, "Ubrugt kirkelig personfradragsværdi fra ægtefælle")["højst"],
+                41280
+            );
+        } else {
+            assert_eq!(
+                condition(
+                    result,
+                    "Ubrugt kommunal og kirkelig personfradragsværdi fra ægtefælle samlet"
+                )["højst"],
+                local
+            );
+            assert!(!result["nødvendige_forudsætninger"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |c| c["navn"] == "Ubrugt kirkelig personfradragsværdi fra ægtefælle"
+                        || c["navn"] == "Ubrugt kommunal personfradragsværdi fra ægtefælle"
+                ));
+        }
+        let sum = control(result, "Samlet ægtefællenedslag i beregnet skat");
+        if name.starts_with("combined-known-state-") {
+            assert_eq!(sum["oplyst"], Value::Null);
+            let residual = condition(result, "Nødvendig sum af ikke-oplyste ægtefællenedslag");
+            assert_eq!(residual["højst"], 619716);
+            assert_eq!(
+                residual["nødvendigt_beløb"],
+                if status == "Modstrid" { 619717 } else { 619716 }
+            );
+        } else {
+            assert_eq!(sum["difference"], 0, "{name}");
+        }
+    }
+}
+
+#[test]
 fn partial_transfers_expose_residual_bounds_without_filling_missing_observations() {
     let fields = [
         "statsligt_personfradrag_øre",
@@ -323,9 +515,9 @@ fn partial_transfers_expose_residual_bounds_without_filling_missing_observations
         "negativ_kapitalindkomst_øre",
     ];
     let amounts = [100000_i64, 200000, 0, 80000];
-    // Independent 2023 bounds: 48,000 * 12.06%, unknown spouse municipality,
+    // Independent 2023 bounds: 48,000 * 12.06%, recipient municipality 23.70%,
     // no church tax, and 100,000 * 8% less the observed own credit of 800 DKK.
-    let ceilings = [Some(578880_i64), None, Some(0), Some(720000)];
+    let ceilings = [Some(578880_i64), Some(1137600), Some(0), Some(720000)];
     let mut cases = Vec::new();
     let mut expected = Vec::new();
     let mut add = |name: String, mask: usize, required: i64, complete: bool| {
@@ -360,6 +552,8 @@ fn partial_transfers_expose_residual_bounds_without_filling_missing_observations
     }
     for (name, mask, known, cap) in [
         ("state", 1, 280000, 578880),
+        ("municipal", 2, 180000, 1137600),
+        ("state-and-municipal", 3, 80000, 1716480),
         ("church", 4, 380000, 0),
         ("capital", 8, 300000, 720000),
         ("state-and-capital", 9, 200000, 1298880),
@@ -375,7 +569,7 @@ fn partial_transfers_expose_residual_bounds_without_filling_missing_observations
     }
     for residual in [-1, 0, 1] {
         add(
-            format!("unknown-municipal-cap-{residual}"),
+            format!("unknown-spouse-known-municipal-cap-{residual}"),
             2,
             180000 + residual,
             true,
