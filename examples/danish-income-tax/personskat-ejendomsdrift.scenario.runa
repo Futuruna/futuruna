@@ -121,16 +121,16 @@ Futuruna.
         | _ -> Falskt
     }
 }
-| personskat_ejendomsdrift_udelukket_kategori_er_gyldig_og_synlig: personskat_ejendomsdrift_2026_udelukket_ejerlejlighed_fakta -> {
+| personskat_ejendomsdrift_udelukket_kategori_tilbageholder_sammenligning: personskat_ejendomsdrift_2026_udelukket_ejerlejlighed_fakta -> {
     = resultat = personskat_ejendomsdrift_scenarie_resultat(2026, personskat_ejendomsdrift_2026_udelukket_ejerlejlighed_fakta)
-    resultat.kapitalindkomst.alle_input_gyldige && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
+    resultat.kapitalindkomst.alle_input_gyldige == Falskt && resultat.vurdering.slutskat_til_sammenligning_øre == None && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
         | BeregnetEjendomsdriftEfterPar4Nr6(_, _, _, par4_resultat) -> par4_resultat.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr6 && par4_resultat.omfattet_af_ejendomsskattelov_par3 && par4_resultat.omfattet_af_kapitalindkomst == Falskt && par4_resultat.ikke_omfattet_af_par4_nr6_kroner == 16000
         | _ -> Falskt
     }
 }
 | personskat_ejendomsdrift_erhvervsudlejning_afskaerer_synligt: personskat_ejendomsdrift_2026_erhvervsudlejet_fakta -> {
     = resultat = personskat_ejendomsdrift_scenarie_resultat(2026, personskat_ejendomsdrift_2026_erhvervsudlejet_fakta)
-    resultat.kapitalindkomst.alle_input_gyldige && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
+    resultat.kapitalindkomst.alle_input_gyldige == Falskt && resultat.vurdering.slutskat_til_sammenligning_øre == None && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
         | BeregnetEjendomsdriftEfterPar4Nr6(_, _, _, par4_resultat) -> par4_resultat.omfattet_af_ejendomsskattelov_par3 == Falskt && par4_resultat.omfattet_af_kapitalindkomst == Falskt && par4_resultat.ikke_omfattet_af_par4_nr6_kroner == 20000
         | _ -> Falskt
     }
@@ -138,6 +138,6 @@ Futuruna.
 
 ? personskat_ejendomsdrift_2026_landzone_afledes_fra_kildefakta
 ? personskat_ejendomsdrift_2027_underskud_og_nummerering_afledes
-? personskat_ejendomsdrift_udelukket_kategori_er_gyldig_og_synlig
+? personskat_ejendomsdrift_udelukket_kategori_tilbageholder_sammenligning
 ? personskat_ejendomsdrift_erhvervsudlejning_afskaerer_synligt
 --@end:personskat_ejendomsdrift_scenarier--

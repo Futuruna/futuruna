@@ -51,6 +51,12 @@ valg af beregningsvej.
 
 ## Model-owned validity assessment
 
+Et ejendomsresultat, som ikke omfattes af PSL § 4, stk. 1, nr. 6, er heller
+ikke automatisk skattefrit. Et ikke-nul beløb i denne forkerte indgang
+tilbageholder års- og delårssammenligningen, også for en beregnet ægtefælle.
+Se [ejendomsvejledningen](personskat-ejendomsdrift.md); ret indkomstruten ud fra
+kilderne, ikke ejendommens faktiske anvendelse for at opnå et resultat.
+
 Honorarer og anden B-indkomst kræver også den rigtige indgang. Løn og
 virksomhedsindtægt indsat i honorarlisten bliver ikke automatisk flyttet
 eller skattefri; den samlede sammenligning tilbageholdes. Se

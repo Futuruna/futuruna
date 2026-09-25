@@ -1881,46 +1881,46 @@
     help = Some("Angiv bruttobeløbet. Futuruna udleder, om det fradrages i kapitalindkomst, flyttes til personlig indkomst eller afskæres."),
     unit = Some("kr./år")
 )
-= personskat_felt_ejendomsdrift = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsdrift.$variant",
+= personskat_felt_ejendomsdrift = TypetBeregningsfelt(
+    path = refof(PersonskatEjendomsdriftInput::$variant),
     label = "Driftsresultat fra bolig eller fritidsejendom",
     question = Some("Har du et overskud eller underskud fra en bolig, et fritidshus eller en lignende ejendom?"),
-    help = Some("Futuruna bruger ejendommens faktiske kategori og anvendelse til at afgøre, om resultatet er kapitalindkomst efter personskattelovens § 4, stk. 1, nr. 6."),
+    help = Some("Denne gren behandler kun PSL § 4, stk. 1, nr. 6, ikke enhver lejeindtægt. Et ikke-nul resultat uden for bestemmelsen tilbageholder årsberegningens sammenligning; udelukkelsen beviser ikke skattefrihed, og beløbet flyttes ikke automatisk til personlig indkomst. Bevar kildefakta og afklar den rigtige indkomstrute. Se personskat-ejendomsdrift.md."),
     unit = None
 )
-= personskat_felt_ejendomsdrift_kategori = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
+= personskat_felt_ejendomsdrift_kategori = TypetBeregningsfelt(
+    path = refof(PersonskatEjendomsdriftInput::MedEjendomsdriftEfterPar4Nr6::fakta::kategori),
     label = "Ejendomstype for driftsresultatet",
     question = Some("Hvilken kategori efter ejendomsskattelovens § 3 tilhører ejendommen?"),
     help = Some("Kategorien afgør den lovbestemte hjemmel og følger automatisk nummereringen før eller fra 2027."),
     unit = None
 )
-= personskat_felt_ejendomsdrift_beliggenhed = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
+= personskat_felt_ejendomsdrift_beliggenhed = TypetBeregningsfelt(
+    path = refof(PersonskatEjendomsdriftInput::MedEjendomsdriftEfterPar4Nr6::fakta::beliggenhed),
     label = "Ejendommens beliggenhed",
     question = Some("Ligger ejendommen i Danmark eller i udlandet, på Færøerne eller i Grønland?"),
     help = Some("Ejendomsskattelovens § 3, stk. 2, udvider udvalgte kategorier til ejendomme uden for Danmark."),
     unit = None
 )
-= personskat_felt_ejendomsdrift_erhvervsudlejning = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.erhvervsmæssigt_udlejet",
+= personskat_felt_ejendomsdrift_erhvervsudlejning = TypetBeregningsfelt(
+    path = refof(PersonskatEjendomsdriftInput::MedEjendomsdriftEfterPar4Nr6::fakta::erhvervsmæssigt_udlejet),
     label = "Erhvervsmæssig udlejning",
     question = Some("Blev ejendommen udlejet erhvervsmæssigt i indkomståret?"),
-    help = Some("Erhvervsmæssigt udlejede ejendomme er ikke omfattet af ejendomsværdiskat efter ejendomsskattelovens § 3, stk. 3."),
+    help = Some("ESL § 3, stk. 3, udelukker erhvervsmæssig udlejning fra ejendomsværdiskat, ikke fra indkomstskat. Overskud fra erhvervsmæssig udlejning af ejerbolig hører som udgangspunkt til personlig indkomst med AM-bidrag. Skift ikke anvendelse for at få et resultat; afklar virksomhedsgrundlaget særskilt og medtag beløbet præcis én gang. Se personskat-ejendomsdrift.md."),
     unit = None
 )
-= personskat_felt_ejendomsdrift_saerlige_betingelser = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt",
+= personskat_felt_ejendomsdrift_saerlige_betingelser = TypetBeregningsfelt(
+    path = refof(PersonskatEjendomsdriftInput::MedEjendomsdriftEfterPar4Nr6::fakta::særlige_betingelser_for_nr6_til_nr8_opfyldt),
     label = "Særlige ejerboligbetingelser opfyldt",
     question = Some("Er de særlige vurderings-, meddelelses- og historiske betingelser opfyldt, hvis ejendomskategorien kræver dem?"),
     help = Some("Feltet er kun materielt for ejerlejligheder og boligfællesskaber omfattet af de særlige regler i § 3, stk. 1, nr. 6-8 før 2027."),
     unit = None
 )
-= personskat_felt_ejendomsdrift_beloeb = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.overskud_eller_underskud_kroner",
+= personskat_felt_ejendomsdrift_beloeb = TypetBeregningsfelt(
+    path = refof(PersonskatEjendomsdriftInput::MedEjendomsdriftEfterPar4Nr6::fakta::overskud_eller_underskud_kroner),
     label = "Årets overskud eller underskud fra ejendommen",
     question = Some("Hvad er årets samlede overskud eller underskud fra ejendommen?"),
-    help = Some("Angiv overskud som et positivt beløb og underskud som et negativt beløb. Futuruna afgør derefter, om beløbet hører til kapitalindkomsten."),
+    help = Some("Angiv det kildeunderbyggede skattemæssige driftsresultat: overskud positivt, underskud negativt, ikke automatisk bruttolejen eller en bankoverførsel. Denne gren opgør ikke fradragsberettigede driftsudgifter. Et ikke-nul beløb uden for PSL § 4, stk. 1, nr. 6, tilbageholder sammenligningen; det slettes eller omklassificeres ikke. Nul kræver et afklaret nulresultat. Medtag ikke beløbet igen i en anden gren. Se personskat-ejendomsdrift.md."),
     unit = Some("kr./år")
 )
 = personskat_felt_ejendomsskatter = TypetBeregningsfelt(
@@ -12537,7 +12537,13 @@
         DependencySource(value = ligningsloven_lbk1500_par17c),
     )
 )
-= personskat_meta_ejendomsdrift = Beregningsmeta(
+= personskat_ejendomsdrift_vejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://skat.dk/borger/bolig-og-ejendomme/udlejning-af-bolig/du-udlejer-en-bolig-som-du-ikke-selv-bor-i",
+    identifier = "Skattestyrelsen: erhvervsmæssig ejerboligudlejning, personlig indkomst og AM; andre udlejningsformer kræver særskilt klassifikation",
+    hentet_dato = "2026-09-25"
+)
+= personskat_ejendomsdrift_ruteforbehold = "Et ikke-nul ejendomsresultat uden for PSL § 4, stk. 1, nr. 6, er ikke automatisk skattefrit. Sammenligningen tilbageholdes, indtil beløbet er placeret i den korrekte understøttede indkomstrute præcis én gang. Bevar kildefakta; nul og ændret ejendomskategori må ikke bruges til at skjule beløbet. Se personskat-ejendomsdrift.md."
+= personskat_meta_ejendomsdrift = TypetBeregningsmeta(
     felter = [
         personskat_felt_ejendomsdrift,
         personskat_felt_ejendomsdrift_kategori,
@@ -12554,8 +12560,11 @@
         AmendmentSource(value = personskatteloven_lov615_par4_nr6),
         DependencySource(value = ejendomsskatteloven_lov678_par3),
         AmendmentSource(value = ejendomsskatteloven_lov615_par3_aendring),
+        Guidance(value = personskat_ejendomsdrift_vejledning),
+        Warning(value = personskat_ejendomsdrift_ruteforbehold),
     )
 )
+--@label:PersonskatEjendomsdriftInput::meta:personskat_meta_ejendomsdrift--
 = personskat_meta_ejendomsskatter = TypetBeregningsmeta(
     felter = [
         personskat_felt_ejendomsskatter,
@@ -14294,7 +14303,6 @@
     kapitalindkomst = (
         personskat_metadata_finansielle_poster,
         personskat_metadata_kapitalomkostninger,
-        personskat_meta_ejendomsdrift,
         personskat_metadata_fremleje,
         personskat_metadata_fremlejeform,
     ),
@@ -17115,6 +17123,12 @@ fraflytningen."
     | BeregnetEjendomsdriftEfterPar4Nr6(_, _, par4_input, _) -> [par4_stk1_nr6_kapitalpost(par4_input)]
     | _ -> []
 }
+-- En komponent må vise, at § 4, stk. 1, nr. 6 ikke gælder. Årsberegningen
+-- må derimod ikke godkende et ikke-nul beløb, som ikke indgår i nogen indkomst.
+| personskat_ejendomsdrift_kan_sammensættes(resultat: PersonskatEjendomsdriftResultat) -> match resultat {
+    | IngenEjendomsdriftEfterPar4Nr6 -> Sandt
+    | BeregnetEjendomsdriftEfterPar4Nr6(_, _, _, par4_resultat) -> par4_resultat.ikke_omfattet_af_par4_nr6_kroner == 0
+}
 
 | personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QLejer
 | exception andelshaverrolle_til_ligningslov15q personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QAndelshaver under rolle == PersonskatUdlejendeAndelshaver
@@ -17259,7 +17273,7 @@ fraflytningen."
     | særlige_kapitalposter_gyldige() -> særlige_postidentifikationer_entydige() && personskat_par4_særlige_postresultater_gyldige(særlige_kapitalpostresultater())
     | omkostningsresultater() -> map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostningsresultat(input.omkostninger, omkostning, skatteår))
     | omkostninger_gyldige() -> all(omkostningsresultater(), |resultat: PersonskatKapitalomkostningsresultat| resultat.input_gyldigt)
-    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && virksomhedskapital_input_gyldigt() && pbl53a_input_gyldigt() && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && fremleje_input_gyldigt() && finansielle_poster_gyldige() && særlige_kapitalposter_gyldige() && omkostninger_gyldige()
+    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && virksomhedskapital_input_gyldigt() && pbl53a_input_gyldigt() && personskat_ejendomsdrift_kan_sammensættes(ejendomsdrift_resultat()) && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && fremleje_input_gyldigt() && finansielle_poster_gyldige() && særlige_kapitalposter_gyldige() && omkostninger_gyldige()
     | ligningslov6_resultat() -> personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
     | ligningslov6_resultat_anvendt() -> personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_resultat() -> personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -17352,7 +17366,7 @@ fraflytningen."
             særlige_postidentifikationer_entydige = særlige_postidentifikationer_er_entydige,
             særlige_kapitalposter_gyldige = særlige_kapitalposter_er_gyldige,
             omkostninger_gyldige = omkostninger_er_gyldige,
-            alle_input_gyldige = alle_input_er_gyldige,
+            alle_input_gyldige = alle_input_er_gyldige && personskat_ejendomsdrift_kan_sammensættes(ejendomsdrift),
             ligningslov6_resultat = ligningslov6,
             ligningslov6a_resultat = ligningslov6a,
             rente_resultat = renteresultat,
@@ -19419,6 +19433,7 @@ fraflytningen."
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.ambl_par2_stk1_nr5_årsgrundlag", gyldig = grundlag.pension.ambl_par2_stk1_nr5_resultat.input_gyldigt, forklaring = "Arbejdsgiverens pensionsindbetalinger skal have gyldige kilder, år og årsrammer."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension", gyldig = grundlag.pension.udbetalingsresultat.aktuelle_input_gyldige && grundlag.pension.udbetalingsresultat.foregående_input_gyldige, forklaring = "Aktuelle og foregående pensionsudbetalingsgrundlag skal være gyldige."),
         PersonskatInputkontrol(sti = præfiks + "kapitalindkomst", gyldig = grundlag.kapitalindkomst.alle_input_gyldige, forklaring = "Renter, kapitalposter, virksomhedsordninger, udlejning, ejendomsavance og kursgevinst skal opfylde deres samlede domænekontroller."),
+        PersonskatInputkontrol(sti = præfiks + "kapitalindkomst.ejendomsdrift", gyldig = personskat_ejendomsdrift_kan_sammensættes(grundlag.kapitalindkomst.ejendomsdrift_resultat), forklaring = personskat_ejendomsdrift_ruteforbehold),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.personlig_indkomst.ordinære_forhold", gyldig = grundlag.selvstændig_arbejdsmarkedsbidrag.input_gyldigt, forklaring = "Selvstændiges bidragsgrundlag, ordning og kildeinput skal passe sammen."),
         PersonskatInputkontrol(sti = præfiks + "aktieavance", gyldig = grundlag.aktieavance.alle_input_gyldige, forklaring = "Aktive aktieforløb, kildeidentiteter og tabs-/fradragssamordning skal være gyldige."),
         PersonskatInputkontrol(sti = præfiks + "udenlandske_sociale_bidrag", gyldig = personskat_udenlandske_sociale_bidrag_input_gyldigt(grundlag.udenlandske_sociale_bidrag), forklaring = "Aktive udenlandske socialbidrag skal have gyldige fakta og forenelig skattepligt."),
