@@ -350,6 +350,24 @@ The latter matched six independently observed 2025 cases through total tax;
 no interest formula correction was needed. These fictional observations do not
 establish universal or historical conformance.
 
+The subsequent [four married-household observations](../examples/danish-income-tax/skatdk-rentefradrag-ekstern.md#ægtepar-særskilte-observationer-for-begge-personer)
+did find a canonical composition error: with 20,000 DKK positive capital income
+and a spouse's larger negative capital income, bundskat omitted the PSL6(3)
+offset and total tax was 2,402 DKK too high. Both exact-øre and legacy whole-krone
+composition now call the existing source rule, preserving original capital
+income for municipal tax and PSL11. The [offline regression](../tests/personskat_married_interest.test.mjs)
+checks each person's gated amount, bundskat, municipal tax and used interest
+credit against the separately observed specifications. It also checks the
+zero-income spouse's outgoing loss, personal allowance and unused PSL11 credit.
+After the correction all eight separately assessed people match the recorded
+tax amounts to the øre, without changing the expected amounts or source facts.
+The [small boundary regression](../tests/personskat_bundskat_spouse_test.runa)
+covers partial/full offset, the cohabitation condition and unchanged own facts.
+This is an annual-tax correction, not evidence for the separate part-year
+capital contexts and scaling, which remain under investigation (`td-fd0cba`).
+Input types and rates are unchanged; affected saved annual results need to be
+recalculated, without changing the source facts.
+
 The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
 add two 2025 official-form matches (ordinary ATP below the employment-deduction
 cap, and lifetime pension plus ATP) and four unresolved employer-rate pension

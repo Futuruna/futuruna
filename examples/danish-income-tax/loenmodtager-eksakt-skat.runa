@@ -108,7 +108,7 @@ skatteberegningen.
         aktieindkomst_indgår_i_skattepligtig_indkomst = aktieindkomst_indgår_i_skattepligtig_indkomst(),
         cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
     )).skattepligtig_indkomst_kroner - penge_positivt_beløb(par13_forhold.egne_tidligere_underskud_kroner) - indgående_par13_indkomstfradrag_kroner()
-    | bundskat_øre() -> lønmodtager_eksakt_skat_øre(bundskat_grundlag_fixture(input), nationalparametre_for(input.skatteår).bundskat_basispoint)
+    | bundskat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_bundskat_grundlag_med_skatteforhold(input, skatteforhold), nationalparametre_for(input.skatteår).bundskat_basispoint)
     | par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, nationalparametre_for(input.skatteår).topskat_basispoint) under input.skatteår < 2026
     | exception reform_par7_mellemskat_eksakt par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_reform_mellemskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, lønmodtager_par7_reform_mellemskat_resultat(input).sats_basispoint) under input.skatteår >= 2026
     | par7a_skat_øre() -> {

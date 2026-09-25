@@ -6,6 +6,10 @@ til øren, også omkring 50.000 kr. i negativ nettokapitalindkomst og ved lav
 indkomst. Der var **ikke behov for en formelrettelse**. Kontrollen er nu en
 fast regressionstest.
 
+Den særskilte ægtefællekontrol nedenfor fandt derimod en manglende
+§ 6, stk. 3-modregning i den kanoniske beregning. Den er nu forbundet
+til den allerede kodede lovregel; de oprindelige enligeberegninger ændres ikke.
+
 ## Hvilke beløb skal ind i modellen?
 
 Begynd med årsoversigten og din egen andel. Banker og realkreditinstitutter
@@ -106,6 +110,69 @@ på 8.000 kr. består. Det er derfor forkert at love en fast skattebesparelse
 for enhver ekstra krone i renteudgift. Forskellen kan ikke i sig selv
 begrunde at låne mere.
 
+## Ægtepar: særskilte observationer for begge personer
+
+Den 25. september 2026 blev fire yderligere **fiktive ægtepar** indtastet
+i samme anonyme 2025-beregner. Begge personer har den ovenstående profil,
+men er gift og samlevende ved årets udløb; løn og renter varierer som vist.
+Der er ingen tidligere underskud, særlige lempelser eller forskudsbetalinger.
+Beløbene er personernes allerede afklarede andele, ikke en anbefaling om
+at omfordele renter. Andre valgfrie beløbsfelter var blanke.
+
+Løn, renteudgift og renteindtægt blev indtastet i rubrik 11/42/31 for A
+og formularfelterne 211/242/231 for B. Begge specifikationer blev hentet
+separat (`hop`: skatteyder A, `bip`: ægtefælle B). Tabellen gengiver
+**observeret beregnet skat inklusive AM**, ikke restskat inklusive tillæg.
+Alle beløb i denne tabel er **DKK**; testens forventninger bruger hele øre.
+
+| Tilfælde | Løn A / B | Renteudgift A / B | Renteindtægt A / B | Skat A | Skat B |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fælles grænse + 1 kr. | 600.000 / 200.000 | 100.001 / 0 | 0 / 0 | 180.444,30 | 57.234,24 |
+| Begge har negativ nettokapitalindkomst | 600.000 / 200.000 | 60.000 / 40.000 | 0 / 0 | 193.044,54 | 44.634,24 |
+| Positiv kapitalindkomst hos B | 600.000 / 200.000 | 100.001 / 0 | 0 / 20.000 | 182.044,22 | 61.934,24 |
+| B kan ikke selv udnytte nedslaget | 600.000 / 0 | 0 / 40.000 | 0 / 0 | 181.021,38 | 0,00 |
+
+Observationerne undersøger forskellige dele af
+[PSL § 6 og §§ 10–13](https://www.retsinformation.dk/eli/lta/2021/1284):
+
+- I første række bruger A 8.000 kr. i § 11-nedslag. I anden række er
+  nedslaget fordelt med 4.800 kr. hos A og 3.200 kr. hos B.
+- I tredje række reducerer B's positive kapitalindkomst grundlaget for A's
+  § 11-nedslag; det udnyttede nedslag er 6.400,08 kr. B's bundskat før
+  personfradrag er fortsat 22.098,40 kr.; specifikationen viser modregning
+  af B's positive kapitalindkomst med A's negative kapitalindkomst.
+- I sidste række overføres B's underskud på 40.000 kr. til A. A's
+  skattepligtige indkomst er derfor 453.500 kr. Specifikationen viser også
+  overført personfradragsværdi på 6.197,16 kr. i bundskat og 12.126 kr.
+  i kommuneskat samt 3.200 kr. i uudnyttet § 11-nedslag. B's skat er nul.
+
+Den [fokuserede ægtepartest](../../tests/personskat_married_interest.test.mjs)
+bruger otte kanoniske beregninger, én for hver person i hvert par, så begge
+personers eksakte sammenligningsbeløb og gyldighed kontrolleres. Den bevarer
+også de observerede bundskatter, kommuneskatter og udnyttede nedslag som
+uafhængige forventninger. Ingen forventet skat eller overførsel indgår som
+input. Modellen skal selv beregne overførslerne.
+
+Kontrollen fandt en konkret fejl i tredje række: B's bundskat før
+personfradrag var 24.500,40 kr. i modellen mod 22.098,40 kr. i
+specifikationen. Den kanoniske sammensætning brugte ikke den eksisterende
+§ 6, stk. 3-regel om ægtefællens negative kapitalindkomst. Samlet skat
+blev derfor 64.336,24 kr. i stedet for 61.934,24 kr. Rettelsen forbinder
+lovreglen i både øreberegningen og den ældre helkroneopdeling; den ændrer
+ikke rentefakta eller kommuneskattegrundlaget for at opnå et match.
+Efter rettelsen stemmer alle otte personers beregnede skat, bundskat,
+kommuneskat og udnyttede § 11-nedslag med de registrerede specifikationer
+til øren. De forventede beløb er ikke ændret.
+
+Denne faste test bytter de to personers fuldstændigt beskrevne fakta;
+parrets øvrige input er neutrale. Den er **ikke** en generel adapter til at
+bytte ægtefæller i personlige sager med personbundne tab, lempelser eller
+betalingsoplysninger. Ukendte ægtefællefakta bliver ikke kendte gennem
+testen, og observationerne dækker ikke forskellige kommuner, separation,
+delår, udenlandske forhold eller grøn check.
+Delårsmodellens særskilte kapitalgrundlag og ægtefællekontekst undersøges
+fortsat (`td-fd0cba`); denne årsberegning dokumenterer ikke deres korrekthed.
+
 ## Reproduktion og afgrænsning
 
 Den [kanoniske integrationstest](../../tests/personskat_pension_timing.rs)
@@ -119,8 +186,9 @@ Brug den verificerede compiler fra
 
 ```sh
 FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" cargo test --quiet --test personskat_pension_timing ordinary_interest_offsets_match_official_2025_calculator -- --exact --nocapture
+FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" node --test tests/personskat_married_interest.test.mjs
 ```
 
-Testen kører offline med én beregningsarbejder. Observationerne validerer
+Testene kører offline med én beregningsarbejder. Observationerne validerer
 ikke alle lånetyper, ægtefælleoverførsler, delår, andre år eller en hel
 personlig årsopgørelse. Forskningssoftware, ikke individuel skatterådgivning.

@@ -1,0 +1,51 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / loenmodtager_beregning
+
+-- Kildebestemmelsen er PSL § 6, stk. 3. Dette er kompositionsgrænser,
+-- ikke nye eksterne observationer. Egen kapitalindkomst må ikke omskrives.
+| bundskat_par_input(år: Heltal, kapital: Heltal) -> LønmodtagerInput(
+    skatteår = år,
+    kommune = København,
+    bruttoløn_kroner = 200000,
+    øvrig_personlig_indkomst_kroner = 0,
+    nettokapitalindkomst_kroner = kapital,
+    ligningsmæssige_fradrag_kroner = 0,
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
+    pensionsfradrag = lønmodtager_uden_pensionsfradrag(Dato(år = 1990, måned = 1, dag = 1)),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| bundskat_par_forhold(ægtefællekapital: Heltal, samliv: Boolsk) -> LønmodtagerSkatteforhold(
+    aktieindkomst_kroner = 0,
+    ægtefælle_aktieindkomst_kroner = 0,
+    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = samliv,
+    ægtefælle_nettokapitalindkomst_kroner = ægtefællekapital,
+    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = samliv,
+    cfc_indkomst_kroner = 0,
+    par8c_status = IkkePar8cOmfattet,
+    personfradrag_skattepligt = FuldtSkattepligtigHerILandet,
+    personfradrag_valg_dato_yyyymmdd = 0,
+    personfradrag_omvalg_dato_yyyymmdd = 0
+)
+| bundskat_par_grænse(år: Heltal, egen: Heltal, ægtefælle: Heltal, samliv: Boolsk, forventet: Heltal) -> lønmodtager_bundskat_grundlag_med_skatteforhold(bundskat_par_input(år, egen), bundskat_par_forhold(ægtefælle, samliv)) == forventet
+
+= bundskat_par_grænser = [
+    bundskat_par_grænse(2025, 20000, -100001, Sandt, 184000),
+    bundskat_par_grænse(2025, 20000, -100001, Falskt, 204000),
+    bundskat_par_grænse(2025, 20000, -19999, Sandt, 184001),
+    bundskat_par_grænse(2025, 20000, -20000, Sandt, 184000),
+    bundskat_par_grænse(2025, 20000, -20001, Sandt, 184000),
+    bundskat_par_grænse(2025, 20000, 0, Sandt, 204000),
+    bundskat_par_grænse(2025, 20000, 10000, Sandt, 204000),
+    bundskat_par_grænse(2025, 0, -100001, Sandt, 184000),
+    bundskat_par_grænse(2025, -20000, -100001, Sandt, 184000),
+    bundskat_par_grænse(2026, 20000, -100001, Sandt, 184000)
+]
+| bundskat_par_modregning_holder: bundskat_par_grænser -> all(bundskat_par_grænser, |gyldig: Boolsk| gyldig)
+= bundskat_par_positiv_input = bundskat_par_input(2025, 20000)
+| bundskat_par_egen_kapital_bevares: bundskat_par_positiv_input -> bundskat_par_positiv_input.nettokapitalindkomst_kroner == 20000
+| bundskat_par_enlig_uændret: bundskat_par_positiv_input -> lønmodtager_bundskat_grundlag_med_skatteforhold(bundskat_par_positiv_input, lønmodtager_standard_skatteforhold()) == bundskat_grundlag_fixture(bundskat_par_positiv_input)
+
+? bundskat_par_modregning_holder
+? bundskat_par_egen_kapital_bevares
+? bundskat_par_enlig_uændret

@@ -292,6 +292,18 @@ af den personlige indkomst med tillæg af positiv nettokapitalindkomst.
 
 | bundskat_grundlag_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + lønmodtager_positiv_nettokapitalindkomst(input)
 | bundskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(bundskat_grundlag_fixture(input), nationalparametre_for(input.skatteår).bundskat_basispoint)
+-- PSL § 6, stk. 3: brug den eksisterende kildebestemmelse, når samlivet
+-- og ægtefællens kapitalindkomst er afledt. Personens egen kapitalindkomst
+-- bevares til kommuneskat og § 11; modregningen gælder kun bundskattegrundlaget.
+| lønmodtager_bundskat_grundlag_med_skatteforhold(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> bundskat_grundlag_efter_ægtefællekapitalmodregning(
+    personlig_indkomst_efter_am(input),
+    Par6ÆgtefælleKapitalModregningInput(
+        gift = skatteforhold.kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb,
+        samlevende_ved_årets_udløb = skatteforhold.kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb,
+        positiv_nettokapitalindkomst_kroner = lønmodtager_positiv_nettokapitalindkomst(input),
+        ægtefælle_negativ_nettokapitalindkomst_kroner = skatteforhold.ægtefælle_nettokapitalindkomst_kroner
+    )
+)
 
 ----
 § 7. Skatten efter § 5, nr. 2, udgør 15 pct. af den personlige indkomst med
@@ -783,7 +795,7 @@ nedsat med de overskydende procenter.
         almindelig_skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_kroner()
     )
     | ligningsfradrag() -> lønmodtager_ligningsfradrag(input)
-    | bundskat_før_personfradrag_kroner() -> bundskat_før_personfradrag(input)
+    | bundskat_før_personfradrag_kroner() -> skat_i_kroner(lønmodtager_bundskat_grundlag_med_skatteforhold(input, skatteforhold), nationalparametre_for(input.skatteår).bundskat_basispoint)
     | mellemskat_før_personfradrag_kroner() -> mellemskat_før_personfradrag(input)
     | topskat_før_personfradrag_kroner() -> topskat_før_personfradrag(input)
     | toptopskat_før_personfradrag_kroner() -> toptopskat_før_personfradrag(input)
