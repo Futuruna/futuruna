@@ -56,6 +56,7 @@ const baseline = {
   },
   betaling: {
     oplyst_forskudsskat_øre: 9900000, oplyst_beregnet_skat_øre: 9820000,
+    tillæg_til_slutskat: [], tillæg_til_slutskat_komplette: true,
     oplyst_overskydende_skat_øre: 80000,
     korrektioner_til_udbetaling: [{ navn: 'Fiktiv oplyst godtgørelse', beløb_øre: 1234 }],
     korrektioner_komplette: true, oplyst_udbetaling_kroner: 812, restskat: null,
