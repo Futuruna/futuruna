@@ -264,6 +264,36 @@ offsets or payment dates. The refund route leaves negative post-correction
 settlements incomplete; it does not silently turn them into a debt calculation.
 [Kildeskatteloven §§ 60, 62 and 62 A](https://www.retsinformation.dk/eli/lta/2024/460).
 
+## Additions before either refund or tax owed
+
+Both routes use the same balance: **prepaid tax minus assessed tax and its
+separately reported additions**. Under KSL §§ 61(1) and 62(1), those additions
+include carried restskat and the specified PBL § 25 A(5)–(9) charges. They can
+reduce a refund, eliminate it, or leave tax owed. This is distinct from offsets
+made *after* calculating overskydende skat.
+[Skattestyrelsen, A.B.4.1.2.2.3](https://info.skat.dk/data.aspx?oid=2169091),
+checked September 25, 2026.
+
+Record these positive, uniquely named øre amounts in
+`betaling.tillæg_til_slutskat`. Set
+`betaling.tillæg_til_slutskat_komplette` to `true` only after reviewing that
+section, including when there are no additions. An empty list with `false`
+means unknown, not zero: neither settlement nor payout is calculated. The
+generated template starts with `false`.
+
+For a fictional report with 98,200 DKK assessed tax, 99,000 DKK prepaid tax and
+a separately reported 500 DKK carried tax amount, the surplus is **300 DKK**,
+not 800 DKK. A further, separately reported 100 DKK pension charge would leave
+200 DKK. A reported payout correction of +12.34 DKK then gives 212 DKK after
+whole-krone truncation. This illustrates arithmetic, not entitlement to those
+charges or that correction. Do not invent a balancing charge from a difference.
+
+Keep assessed tax unchanged in both `skat` and `betaling`. Do not enter an
+addition again if it is already included in assessed tax, and do not put the
+same addition in `korrektioner_til_udbetaling`. Those corrections cover later
+reported movements such as a previous refund, not additions that determine the
+initial surplus.
+
 ## Reports with tax owed (restskat)
 
 Set `betaling.restskat` to an object instead of `null` to reconcile the
@@ -272,13 +302,13 @@ with reported assessed tax of 98,200 DKK and prepaid tax of 90,000 DKK:
 
 ```json
 {
-  "oplyst_restskat_øre": 820000,
+  "restskat": {"oplyst_restskat_øre": 820000},
   "tillæg_til_slutskat": [],
   "tillæg_til_slutskat_komplette": true
 }
 ```
 
-This is only the `betaling.restskat` object, not a complete input document.
+These are fields inside `betaling`, not a complete input document.
 It is a synthetic example. A complete empty addition list is a positive
 confirmation that there are no additions, not a default for missing facts.
 Use `false` when completeness is unknown; use `null` for an unknown reported
@@ -291,7 +321,7 @@ The check is:
 
 Under KSL § 61(1), additions at this stage include carried restskat and the
 specified pension tax. Record their positive øre amounts with unique names in
-`tillæg_til_slutskat` **only when they are separate from the reported assessed
+`betaling.tillæg_til_slutskat` **only when they are separate from the reported assessed
 tax**. For instance, a separately reported 500 DKK carried amount gives a
 principal of 8,700 DKK in this example. Do not double-count an included amount.
 Keep the same current assessed-tax amount in `skat` and `betaling`; the existing
@@ -322,6 +352,17 @@ interest rates or payment schedules are inferred.
 
 ### Existing templates
 
+The shared-additions correction moves `tillæg_til_slutskat` and
+`tillæg_til_slutskat_komplette` from `betaling.restskat` directly into
+`betaling`; `restskat` now contains only `oplyst_restskat_øre`. This is a
+Preview source/input-contract change. Regenerate the template and transfer
+reviewed observations, keeping any unknown completeness as `false`. For older
+refund inputs, review the additions before choosing `[]` and `true`; their
+absence from the old contract did not establish that there were none. Update
+authored `RapportBetaling` and `RapportRestskat` constructors as well. Do not
+change stored schema hashes to bypass migration. Recalculate saved results;
+the old refund check did not account for these additions.
+
 The partial-transfer check adds a named necessary condition, not a new input
 field. Consumers should find conditions by name, not assume a fixed list length
 or position. Recalculate saved results: some previously incomplete reports now
@@ -342,8 +383,9 @@ including the earlier-refund correction. Existing JSON records may omit the
 optional field after migration to the current envelope. Saved results are
 historical evidence, not automatically recalculated with the new contract.
 
-The focused regression checks both routes, including the one-øre debt boundary,
-missing amounts/additions, mixed-route rejection and the existing refund cases:
+The focused regression checks both routes, including the one-øre boundary
+where additions turn a refund into debt, missing amounts/additions,
+mixed-route rejection and separate payout corrections:
 
 ```sh
 CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 cargo test --quiet --test tax_report_reconciliation
@@ -358,7 +400,8 @@ outputs for 21 fictional reports, including partial-transfer residual bounds,
 missing observations, one-øre
 contradictions, spouse transfers, both settlement routes and unsupported years.
 This is not a native-coverage claim for the larger `personskat.calculate.runa`
-model.
+model. Additional native invariants cover shared additions, unknown
+completeness and the refund/debt boundary without changing the 21-report set.
 
 ### Parameter lookup coverage
 

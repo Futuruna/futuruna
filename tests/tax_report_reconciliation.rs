@@ -52,6 +52,8 @@ fn baseline() -> Value {
         "betaling": {
             "oplyst_forskudsskat_øre": 9900000,
             "oplyst_beregnet_skat_øre": 9820000,
+            "tillæg_til_slutskat": [],
+            "tillæg_til_slutskat_komplette": true,
             "oplyst_overskydende_skat_øre": 80000,
             "korrektioner_til_udbetaling": [{"navn": "Oplyst godtgørelse", "beløb_øre": 1234}],
             "korrektioner_komplette": true,
@@ -356,10 +358,10 @@ fn recipient_rates_and_combined_local_lines_match_official_synthetic_reports() {
         input["skat"]["oplyst_beregnet_skat_øre"] = json!(assessed);
         input["betaling"] = json!({
             "oplyst_forskudsskat_øre":0, "oplyst_beregnet_skat_øre":assessed,
+            "tillæg_til_slutskat":[], "tillæg_til_slutskat_komplette":true,
             "oplyst_overskydende_skat_øre":null, "korrektioner_til_udbetaling":[],
             "korrektioner_komplette":true, "oplyst_udbetaling_kroner":null,
-            "restskat":{"oplyst_restskat_øre":assessed, "tillæg_til_slutskat":[],
-                "tillæg_til_slutskat_komplette":true}
+            "restskat":{"oplyst_restskat_øre":assessed}
         });
         edit(&mut input);
         cases.push(json!({"case_id":name, "input":input}));
@@ -658,6 +660,7 @@ fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
     });
     empty["betaling"] = json!({
         "oplyst_forskudsskat_øre":0, "oplyst_beregnet_skat_øre":0,
+        "tillæg_til_slutskat":[], "tillæg_til_slutskat_komplette":true,
         "oplyst_overskydende_skat_øre":0, "korrektioner_til_udbetaling":[],
         "korrektioner_komplette":true, "oplyst_udbetaling_kroner":0, "restskat":null
     });
@@ -710,10 +713,7 @@ fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
     let debt = |v: &mut Value| {
         v["betaling"]["oplyst_overskydende_skat_øre"] = Value::Null;
         v["betaling"]["oplyst_udbetaling_kroner"] = Value::Null;
-        v["betaling"]["restskat"] = json!({
-            "oplyst_restskat_øre":0, "tillæg_til_slutskat":[],
-            "tillæg_til_slutskat_komplette":true
-        });
+        v["betaling"]["restskat"] = json!({"oplyst_restskat_øre":0});
     };
     add("debt-confirmed-empty", "BetingetAfstemt", &debt);
     add("debt-unconfirmed-empty", "Ufuldstændig", &|v| {
@@ -782,20 +782,200 @@ fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
 }
 
 #[test]
+fn refund_additions_precede_corrections_and_never_default_unknowns_to_zero() {
+    // KSL 62(1): 99,000 prepaid - (98,200 tax + 500 carried tax + 100
+    // pension charge) = 200 DKK surplus; a separate reported 12.34 correction
+    // gives 212 whole DKK. None of these observations is inferred from output.
+    let mut ordinary = baseline();
+    ordinary["betaling"]["tillæg_til_slutskat"] = json!([
+        {"navn":"Fiktiv overført restskat", "beløb_øre":50000},
+        {"navn":"Fiktiv PBL § 25 A-afgift", "beløb_øre":10000}
+    ]);
+    ordinary["betaling"]["oplyst_overskydende_skat_øre"] = json!(20000);
+    ordinary["betaling"]["oplyst_udbetaling_kroner"] = json!(212);
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
+        let mut input = ordinary.clone();
+        edit(&mut input);
+        cases.push(json!({"case_id":name,"input":input}));
+        expected.push((name.to_owned(), status.to_owned()));
+    };
+    for year in 2023..=2026 {
+        add(
+            &format!("refund-additions-{year}"),
+            "BetingetAfstemt",
+            &|v| {
+                v["skatteår"] = json!(year);
+            },
+        );
+    }
+    add("one-ore-error", "Modstrid", &|v| {
+        v["betaling"]["oplyst_overskydende_skat_øre"] = json!(20001);
+    });
+    add("unknown-additions", "Ufuldstændig", &|v| {
+        v["betaling"]["tillæg_til_slutskat_komplette"] = json!(false);
+    });
+    add("unconfirmed-empty", "Ufuldstændig", &|v| {
+        v["betaling"]["tillæg_til_slutskat"] = json!([]);
+        v["betaling"]["tillæg_til_slutskat_komplette"] = json!(false);
+    });
+    add("confirmed-empty", "BetingetAfstemt", &|v| *v = baseline());
+    add("unknown-corrections", "Ufuldstændig", &|v| {
+        v["betaling"]["korrektioner_komplette"] = json!(false);
+    });
+    add("unknown-refund-observation", "Ufuldstændig", &|v| {
+        v["betaling"]["oplyst_overskydende_skat_øre"] = Value::Null;
+    });
+    for field in ["oplyst_beregnet_skat_øre", "oplyst_forskudsskat_øre"] {
+        add(field, "Ufuldstændig", &|v| {
+            v["betaling"][field] = Value::Null
+        });
+    }
+    add("assessed-tax-cross-check", "Modstrid", &|v| {
+        v["skat"]["oplyst_beregnet_skat_øre"] = json!(9820001);
+    });
+    for (name, additions) in [
+        (
+            "negative-addition",
+            json!([{"navn":"Tillæg","beløb_øre":-1}]),
+        ),
+        ("unnamed-addition", json!([{"navn":" ","beløb_øre":1}])),
+        (
+            "overflow-addition",
+            json!([{"navn":"Tillæg","beløb_øre":i64::MAX}]),
+        ),
+        (
+            "duplicate-additions",
+            json!([
+                {"navn":"Tillæg","beløb_øre":1}, {"navn":" Tillæg ","beløb_øre":1}
+            ]),
+        ),
+    ] {
+        add(name, "UgyldigtRapportinput", &|v| {
+            v["betaling"]["tillæg_til_slutskat"] = additions.clone();
+        });
+    }
+    for (addition, surplus) in [(79999, 1), (80000, 0), (80001, -1)] {
+        let status = if surplus < 0 {
+            "Modstrid"
+        } else {
+            "BetingetAfstemt"
+        };
+        add(&format!("boundary-{surplus}"), status, &|v| {
+            v["betaling"]["tillæg_til_slutskat"] = json!([{"navn":"Tillæg","beløb_øre":addition}]);
+            v["betaling"]["korrektioner_til_udbetaling"] = json!([]);
+            v["betaling"]["oplyst_overskydende_skat_øre"] = json!(surplus.max(0));
+            v["betaling"]["oplyst_udbetaling_kroner"] = json!(0);
+        });
+    }
+    add(
+        "additions-turn-surplus-into-debt",
+        "BetingetAfstemt",
+        &|v| {
+            v["betaling"]["tillæg_til_slutskat"] = json!([{"navn":"Tillæg","beløb_øre":80001}]);
+            v["betaling"]["korrektioner_til_udbetaling"] = json!([]);
+            v["betaling"]["oplyst_overskydende_skat_øre"] = Value::Null;
+            v["betaling"]["oplyst_udbetaling_kroner"] = Value::Null;
+            v["betaling"]["restskat"] = json!({"oplyst_restskat_øre":1});
+        },
+    );
+
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    assert_eq!(
+        template["cases"][0]["input"]["betaling"]["tillæg_til_slutskat_komplette"],
+        false
+    );
+    template["cases"] = json!(cases);
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-report-refund-additions-{}.json",
+        std::process::id()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let output = invoke(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), expected.len());
+    for (case, (name, status)) in results.iter().zip(expected) {
+        assert_eq!(case["case_id"], name);
+        assert_eq!(
+            case["result"]["status"]["$variant"], status,
+            "{name}: {case}"
+        );
+        assert_eq!(case["result"]["uafhængig_skatteberegning_udført"], false);
+    }
+    let get = |name: &str| &results.iter().find(|r| r["case_id"] == name).unwrap()["result"];
+    let surplus = "Overskydende skat før godtgørelse og tidligere udbetaling";
+    let payout = "Udbetaling efter oplyste korrektioner og hele kroner";
+    assert_eq!(
+        control(get("refund-additions-2026"), surplus)["forventet"],
+        20000
+    );
+    assert_eq!(
+        control(get("refund-additions-2026"), payout)["forventet"],
+        212
+    );
+    assert_eq!(control(get("one-ore-error"), surplus)["difference"], 1);
+    for name in [
+        "unknown-additions",
+        "unconfirmed-empty",
+        "oplyst_beregnet_skat_øre",
+        "oplyst_forskudsskat_øre",
+    ] {
+        for check in [surplus, payout] {
+            assert_eq!(control(get(name), check)["forventet"], Value::Null);
+            assert_eq!(control(get(name), check)["difference"], Value::Null);
+        }
+    }
+    assert_eq!(
+        control(get("unknown-corrections"), surplus)["forventet"],
+        20000
+    );
+    assert_eq!(
+        control(get("unknown-corrections"), payout)["forventet"],
+        Value::Null
+    );
+    assert_eq!(
+        control(get("unknown-refund-observation"), surplus)["oplyst"],
+        Value::Null
+    );
+    assert_eq!(
+        control(get("unknown-refund-observation"), surplus)["forventet"],
+        20000
+    );
+    for amount in [0, 1, -1] {
+        assert_eq!(
+            control(get(&format!("boundary-{amount}")), surplus)["forventet"],
+            amount
+        );
+    }
+    assert_eq!(
+        control(get("boundary--1"), payout)["forventet"],
+        Value::Null
+    );
+    assert_eq!(
+        control(
+            get("additions-turn-surplus-into-debt"),
+            "Restskat før renter og procenttillæg"
+        )["forventet"],
+        1
+    );
+}
+
+#[test]
 fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
     let mut ordinary = baseline();
     ordinary["betaling"] = json!({
         "oplyst_forskudsskat_øre": 9000000,
         "oplyst_beregnet_skat_øre": 9820000,
+        "tillæg_til_slutskat": [],
+        "tillæg_til_slutskat_komplette": true,
         "oplyst_overskydende_skat_øre": null,
         "korrektioner_til_udbetaling": [],
         "korrektioner_komplette": false,
         "oplyst_udbetaling_kroner": null,
-        "restskat": {
-            "oplyst_restskat_øre": 820000,
-            "tillæg_til_slutskat": [],
-            "tillæg_til_slutskat_komplette": true
-        }
+        "restskat": {"oplyst_restskat_øre": 820000}
     });
     let mut cases = Vec::new();
     let mut expected = Vec::new();
@@ -820,10 +1000,10 @@ fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
         v["betaling"]["oplyst_forskudsskat_øre"] = Value::Null;
     });
     add("debt-unknown-additions", "Ufuldstændig", &|v| {
-        v["betaling"]["restskat"]["tillæg_til_slutskat_komplette"] = json!(false);
+        v["betaling"]["tillæg_til_slutskat_komplette"] = json!(false);
     });
     add("debt-carried-tax", "BetingetAfstemt", &|v| {
-        v["betaling"]["restskat"]["tillæg_til_slutskat"] =
+        v["betaling"]["tillæg_til_slutskat"] =
             json!([{"navn": "Oplyst overført restskat", "beløb_øre": 50000}]);
         v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(870000);
     });
@@ -859,11 +1039,11 @@ fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
             json!([{"navn": "Tidligere udbetalt", "beløb_øre": -50000}]);
     });
     add("negative-addition", "UgyldigtRapportinput", &|v| {
-        v["betaling"]["restskat"]["tillæg_til_slutskat"] =
+        v["betaling"]["tillæg_til_slutskat"] =
             json!([{"navn": "Negativt tillæg", "beløb_øre": -1}]);
     });
     add("duplicate-additions", "UgyldigtRapportinput", &|v| {
-        v["betaling"]["restskat"]["tillæg_til_slutskat"] = json!([
+        v["betaling"]["tillæg_til_slutskat"] = json!([
             {"navn": "Samme tillæg", "beløb_øre": 1},
             {"navn": " Samme tillæg ", "beløb_øre": 1}
         ]);
@@ -872,7 +1052,7 @@ fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
         v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(i64::MAX);
     });
     add("overflow-addition", "UgyldigtRapportinput", &|v| {
-        v["betaling"]["restskat"]["tillæg_til_slutskat"] =
+        v["betaling"]["tillæg_til_slutskat"] =
             json!([{"navn": "For stort tillæg", "beløb_øre": i64::MAX}]);
     });
 
