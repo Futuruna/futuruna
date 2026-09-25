@@ -70,6 +70,155 @@ fn single_parent(year: i64, quarters: &[i64]) -> Value {
             "berettiget":true,"modtaget":true,"kildereference":"synthetic-benefit-record"})).collect::<Vec<_>>()})
 }
 
+#[test]
+fn commuting_rejects_negative_bridge_counts_and_impossible_calendar_days() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut baseline = fictional_spouse_rates_input(&envelope);
+    baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
+    baseline["lønmodtager"]["skatteår"] = json!(2026);
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    let bridge_fields = [
+        "storebælt_bil_motorcykel_passager",
+        "storebælt_kollektiv_passager",
+        "øresund_bil_motorcykel_passager",
+        "øresund_kollektiv_passager",
+    ];
+    // Year, travel days, bridge counts, spouse route, expected deduction.
+    // Expectations use the existing annual nearest-krone LL9C projection;
+    // these domain tests do not establish SKAT rounding conformance.
+    let fixtures = [
+        ("zero", 2026, 0, [0, 0, 0, 0], false, Some(0)),
+        ("ordinary-365", 2026, 365, [0, 0, 0, 0], false, Some(35869)),
+        ("bridges", 2026, 220, [1, 1, 1, 1], false, Some(21802)),
+        (
+            "negative-storebaelt-car",
+            2026,
+            220,
+            [-1, 0, 0, 0],
+            false,
+            None,
+        ),
+        (
+            "negative-storebaelt-rail",
+            2026,
+            220,
+            [0, -1, 0, 0],
+            false,
+            None,
+        ),
+        (
+            "negative-oresund-car",
+            2026,
+            220,
+            [0, 0, -1, 0],
+            false,
+            None,
+        ),
+        (
+            "negative-oresund-rail",
+            2026,
+            220,
+            [0, 0, 0, -1],
+            false,
+            None,
+        ),
+        ("ordinary-366", 2026, 366, [0, 0, 0, 0], false, None),
+        ("leap-366", 2024, 366, [0, 0, 0, 0], false, Some(25302)),
+        ("leap-367", 2024, 367, [0, 0, 0, 0], false, None),
+        (
+            "spouse-negative-oresund-rail",
+            2026,
+            220,
+            [0, 0, 0, -1],
+            true,
+            None,
+        ),
+    ];
+    envelope["cases"] = json!(fixtures
+        .iter()
+        .map(|(id, year, days, bridges, active_spouse, _)| {
+            let mut input = baseline.clone();
+            input["lønmodtager"]["skatteår"] = json!(year);
+            let mut route = commuting(*days);
+            for (field, count) in bridge_fields.iter().zip(bridges) {
+                route["broer"][*field] = json!(count);
+            }
+            route["broer"]["dokumenteret_og_afholdt_af_skattepligtige"] = json!(true);
+            if *active_spouse {
+                input["ægtefælle"] = spouse(&input);
+                input["ægtefælle"]["fakta"]["lønmodtager"]["ligningsfradrag"]["befordring"]
+                    ["forhold"] = json!([route]);
+            } else {
+                input["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] = json!([route]);
+            }
+            json!({"case_id":id, "input":input})
+        })
+        .collect::<Vec<_>>());
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-commuting-validity-{}.json",
+        std::process::id()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().unwrap();
+    assert_eq!(results.len(), fixtures.len());
+    for row in results {
+        println!(
+            "{}: valid={}, comparison={}",
+            row["case_id"],
+            row["result"]["vurdering"]["alle_kontroller_gyldige"],
+            row["result"]["vurdering"]["slutskat_til_sammenligning_øre"]
+        );
+    }
+    for (row, (id, _, _, _, active_spouse, deduction)) in results.iter().zip(fixtures) {
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        assert_eq!(
+            gate["alle_kontroller_gyldige"],
+            deduction.is_some(),
+            "{id}: {gate}"
+        );
+        let deductions = if active_spouse {
+            &result["ægtefælle"]["grundlag"]["ligningsfradrag"]
+        } else {
+            &result["ligningsfradrag"]
+        };
+        if let Some(expected) = deduction {
+            assert!(gate["slutskat_til_sammenligning_øre"].is_number());
+            assert_eq!(
+                deductions["befordring"]["samlet_ligningsfradrag_kroner"], expected,
+                "{id}: {deductions}"
+            );
+        } else {
+            assert_eq!(gate["slutskat_til_sammenligning_øre"], Value::Null);
+            assert_eq!(deductions["befordring"]["alle_input_gyldige"], false);
+            let prefix = if active_spouse {
+                "ægtefælle.MedÆgtefælle.fakta."
+            } else {
+                ""
+            };
+            assert!(
+                gate["fejl"].as_array().unwrap().iter().any(|error| {
+                    error["sti"] == format!("{prefix}lønmodtager.ligningsfradrag.befordring")
+                        && error["forklaring"]
+                            .as_str()
+                            .unwrap()
+                            .contains("bropassager")
+                        && error["forklaring"]
+                            .as_str()
+                            .unwrap()
+                            .contains("kalenderdage")
+                }),
+                "{id}: {gate}"
+            );
+        }
+    }
+}
+
 fn fictional_spouse_rates_input(envelope: &Value) -> Value {
     // Fictional source facts matching SKAT's anonymous 2025 calculator.
     // No reported deduction or tax amount is inserted into the input.

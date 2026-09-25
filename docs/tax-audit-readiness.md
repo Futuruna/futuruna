@@ -54,6 +54,12 @@ recipient-rate spouse allowance/loss transfers. See the
 [foreign-allocation tests](../tests/personskat_foreign_canonical.rs), and
 [report tests](../tests/tax_report_reconciliation.rs).
 
+The canonical commuting checks now reject every negative bridge-crossing
+count and travel-day counts exceeding the income year's calendar length,
+including for an active spouse. The [commuting input guide](../examples/danish-income-tax/personskat-validity.md#commuting-input-checks)
+distinguishes these validity checks from actual travel evidence and coverage
+of the extra low-income deduction.
+
 The latest targeted conformance additions include
 [pension deduction rounding](../examples/danish-income-tax/skatdk-pensionsfradrag-ekstern.md)
 and [ordinary interest deductions](../examples/danish-income-tax/skatdk-rentefradrag-ekstern.md).
@@ -63,6 +69,11 @@ establish universal or historical conformance.
 
 ## Limits to keep visible
 
+- Commuting phaseout income needs further source-fact composition (`td-b8013e`):
+  statutory unemployment/sickness/maternity payments are not all represented
+  by the current salary/AM-addition basis. Annual self-employment adjustments
+  also need tracing. Do not claim the extra low-income commuting deduction is
+  independently verified for those profiles or substitute all non-AM income.
 - Three observed 2026 **one-krone deduction differences**, at exact-one-øre
   intermediate boundaries, remain unexplained (`td-68c9d3`).
   [The amounts and profiles are recorded](../examples/danish-income-tax/skatdk-fradrag-oere-ekstern.md#kendte-afvigelser--ikke-match).
