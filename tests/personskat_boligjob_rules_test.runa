@@ -30,3 +30,45 @@
 ? boligjob_ydelsers_virkningstid
 ? boligjob_fordelingsbudget
 ? boligjob_arbejdsdatodækning
+
+-- Fiktiv rengøring i december 2024 betalt i marts 2025. Udførerens alder
+-- følger arbejdsåret, selv om køberens fradrag henføres til betalingsåret.
+> boligjob_privatpost(udfører_født_år: Heltal) -> Ll8VPost {
+    Ll8VPost(
+        betaling = Ll8VBetalingsfakta(
+            identifikation = "fiktiv-linje",
+            kildereference = "fiktiv-serviceerklæring",
+            betalingsreference = "fiktiv-overførsel",
+            boligreference = "fiktiv-helårsbolig",
+            ydelse = Ll8VRengøring,
+            arbejdsdato = Dato(år = 2024, måned = 12, dag = 1),
+            betalingsdato = Dato(år = 2025, måned = 3, dag = 1),
+            land = Ll8VDanmark,
+            eksisterende_bolig = Ll8VJa,
+            leverandør = Ll8VPrivatperson(fødselsdato = Dato(år = udfører_født_år, måned = 12, dag = 31), fuld_skattepligt_i = Ll8VDanskRegistrering),
+            betalt_arbejdsløn_øre = 300000,
+            betalte_materialer_kørsel_m_v_øre = 0,
+            betalingsform = Ll8VKontooverførsel,
+            arbejdsbilag_med_påkrævede_oplysninger = Ll8VJa,
+            betalingsbilag = Ll8VJa,
+            offentligt_tilskud = Ll8VNej,
+            samme_udgift_fradraget_efter_andre_regler = Ll8VNej,
+            børnepasning_skattefri_efter_par7æ = Ll8VNej,
+            udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer = Ll8VNej,
+            betalerreference = "fiktiv-person",
+            andele = [Ll8VAndel(personreference = "fiktiv-person", arbejdsløn_øre = 300000)],
+            særligt_forhold = Ll8VAlmindeligUdgift
+        ),
+        boligforhold = Ll8VHelårsbolig(fast_bopæl_ved_arbejdet = Ll8VJa, individuel_råderet_og_vedligeholdelsesret = Ll8VJa),
+        fællesøkonomi_med_betalende_ægtefælle_eller_samlever = Ll8VUoplyst,
+        indberettet_med_leverandøroplysninger = Ll8VJa
+    )
+}
+= boligjob_ung_udfører = ll8v_postresultat(2025, Dato(år = 1980, måned = 1, dag = 1), "fiktiv-person", Ll8VFuldtSkattepligtig, boligjob_privatpost(2007))
+= boligjob_voksen_udfører = ll8v_postresultat(2025, Dato(år = 1980, måned = 1, dag = 1), "fiktiv-person", Ll8VFuldtSkattepligtig, boligjob_privatpost(2006))
+= boligjob_ung_holder = boligjob_ung_udfører.input_gyldigt && boligjob_ung_udfører.fradragsår == 2025 && boligjob_ung_udfører.betingelser_opfyldt == Falskt && boligjob_ung_udfører.medregnet_før_årsloft_øre == 0
+= boligjob_voksen_holder = boligjob_voksen_udfører.input_gyldigt && boligjob_voksen_udfører.betingelser_opfyldt && boligjob_voksen_udfører.medregnet_før_årsloft_øre == 300000
+| boligjob_sen_betaling_ændrer_ikke_udførers_alderskrav: boligjob_ung_holder -> boligjob_ung_holder
+| boligjob_18_ved_arbejdsårets_udløb_er_nok: boligjob_voksen_holder -> boligjob_voksen_holder
+? boligjob_sen_betaling_ændrer_ikke_udførers_alderskrav
+? boligjob_18_ved_arbejdsårets_udløb_er_nok
