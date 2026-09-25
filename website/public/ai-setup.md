@@ -342,6 +342,12 @@ when a required field cannot express the unresolved fact, stop the independent
 comparison and explain what is missing. Do not change the fact to make validation
 pass. The conditional report route can still answer its narrower questions.
 
+For a worked source-to-field record, read
+`examples/danish-income-tax/fra-bilag-til-input.md`. Its runnable fictional
+example shows wage/pension/ATP allocation, repeated interest observations and
+two different missing-fact stops. It is an authored mapping exercise, not an
+automatic PDF importer or proof of general AI transcription reliability.
+
 For both taxpayer and spouse, distinguish the ordinary wage basis from a total
 salary package, net bank payment and the report's total personal income. Follow
 the wage field's pension/ATP exclusions; do not subtract an amount again when
