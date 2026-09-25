@@ -70,6 +70,13 @@ uncovered future year. These helpers do not expand the canonical 2023–2026
 input boundary, and guarded low-level calculation helpers still require their
 stated preconditions.
 
+The municipality check establishes that a rate exists, not that the supplied
+municipality is legally the right one. `lønmodtager.kommune` and the active
+spouse's corresponding field mean the **tax municipality for the income year**,
+not necessarily current residence. The ordinary rule uses residence on
+September 5 of the preceding year; exceptions need their own facts. See the
+[Danish moving-house example and source](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
+
 ## Union-fee taxpayer status
 
 This is an individual assessment, not a company tax return. With active

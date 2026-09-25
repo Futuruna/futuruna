@@ -286,9 +286,9 @@
 )
 = personskat_felt_kommune = Beregningsfelt(
     path = "lønmodtager.kommune",
-    label = "Bopælskommune",
-    question = Some("Hvilken kommune bor du i?"),
-    help = Some("Kommunen bestemmer kommuneskatten og er relevant for kirkeskatten."),
+    label = "Skattekommune for indkomståret",
+    question = Some("Hvilken kommune er din skattekommune for indkomståret?"),
+    help = Some("Hovedreglen er kommunen, hvor du havde bopæl den 5. september året før indkomståret, ikke nødvendigvis din nuværende bopælskommune. Kommunen vælges efter disse fakta, men satsen er indkomstårets. Afklar særregler ved tilflytning fra udlandet, flere bopæle, institutionsophold eller skibsophold efter kommuneskattelovens § 2. En kendt kommunekode bekræfter ikke, at kommunen er juridisk korrekt valgt."),
     unit = None
 )
 = personskat_felt_bruttoløn = Beregningsfelt(
@@ -1270,6 +1270,13 @@
     question = Some("Hvor meget modtog din ægtefælle i almindelig løn før skat i hele indkomståret?"),
     help = Some("Angiv ægtefællens løn før arbejdsmarkedsbidrag, skat og personlige fradrag."),
     unit = Some("kr./år")
+)
+= personskat_felt_ægtefælle_kommune = Beregningsfelt(
+    path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::lønmodtager::kommune),
+    label = "Ægtefællens skattekommune for indkomståret",
+    question = Some("Hvilken kommune er ægtefællens skattekommune for indkomståret?"),
+    help = Some("Hovedreglen er ægtefællens bopæl den 5. september året før indkomståret, ikke nødvendigvis den nuværende bopæl eller din egen skattekommune. Satsen er indkomstårets. Afklar særregler ved tilflytning fra udlandet, flere bopæle, institutionsophold eller skibsophold efter kommuneskattelovens § 2. Gæt ikke ved manglende oplysninger; rapportafstemningen kan bruges uden ægtefællens kommune."),
+    unit = None
 )
 = personskat_felt_ægtefælle_renteindtægter = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::kapitalindkomst::renter::renteindtægter_kroner),
@@ -12356,6 +12363,7 @@
         Field(value = personskat_felt_ægtefælle_samliv),
         Field(value = personskat_felt_ægtefælle_kildeskat25a_fordelinger),
         Field(value = personskat_felt_ægtefælle_bruttoløn),
+        Field(value = personskat_felt_ægtefælle_kommune),
         Field(value = personskat_felt_ægtefælle_renteindtægter),
         Field(value = personskat_felt_ægtefælle_renteudgifter),
         Field(value = personskat_felt_ægtefælle_alder),

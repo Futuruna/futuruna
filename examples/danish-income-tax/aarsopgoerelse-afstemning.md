@@ -60,6 +60,10 @@ Keep the PDFs, transcriptions, and results in a private directory **outside the
 checkout**. Replace `PRIVATE_WORK_DIR` below with its actual path, and keep
 `RUNA_BIN` set to the exact absolute path that passed the check. From the repo:
 
+Oplys **rapportens skattekommune for indkomståret**, ikke automatisk din
+nuværende bopælskommune. Afstemningen efterprøver ikke valget ud fra
+bopælsfakta. Se [flytteeksemplet og hovedreglen](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
+
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
 # Fill the generated cases with report observations, preserving $futuruna.
