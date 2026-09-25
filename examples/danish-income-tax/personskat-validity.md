@@ -51,6 +51,11 @@ valg af beregningsvej.
 
 ## Model-owned validity assessment
 
+Finansielle indkomstposter uden for den valgte nr. 5 a/5 b-gren er ikke
+automatisk skattefri. Ikke-nul beløb tilbageholder sammenligningen; afklarede
+udgifter uden fradragsret behandles anderledes. Se
+[vejledningen til finansielle poster](personskat-finansielle-poster.md).
+
 Et ejendomsresultat, som ikke omfattes af PSL § 4, stk. 1, nr. 6, er heller
 ikke automatisk skattefrit. Et ikke-nul beløb i denne forkerte indgang
 tilbageholder års- og delårssammenligningen, også for en beregnet ægtefælle.

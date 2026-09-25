@@ -20,6 +20,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | Does child maintenance belong in my calculation or my child's? | [Maintenance recipient guide](../examples/danish-income-tax/personskat-underholdsbidrag.md) | Separates payer, assessed child and adult alimony; inconsistent child-recipient birth dates withhold comparison, including for spouses. It does not authenticate identities. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
 | Where does my rental operating result belong? | [Property-income routing](../examples/danish-income-tax/personskat-ejendomsdrift.md) | Nonzero amounts outside the selected PSL4(1)(6) branch withhold comparison; exclusion is not tax exemption or automatic reclassification. |
+| Does a financial payment belong in this income branch? | [Financial-post routing](../examples/danish-income-tax/personskat-finansielle-poster.md) | Nonzero income outside the selected PSL4(1)(5a)/(5b) branch withholds comparison; legitimate zero expense deductions remain distinct. |
 | Did Danish tax liability begin or end during the year? | [Part-year intake and assessment](../examples/danish-income-tax/personskat-delaar.md) | Explicit liability periods and source treatment; the final part-year assessment, not a nested ordinary amount, controls comparison. Fewer months worked do not themselves establish part-year liability. |
 | How do ferry or flight tickets combine with a short road commute? | [Ferry/flight guide](../examples/danish-income-tax/personskat-faerge-og-fly.md) | Deducts the unused daily 24-km threshold from documented ticket costs, preserving source expense and exact-øre trace. Requires correctly grouped travel days. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
@@ -178,6 +179,22 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 | F8: hosted setup and delivered source differ | Public delivery still pending | Read-only check on September 25: [hosted guide](https://futuruna.com/ai-setup.md) lacked the runtime check, spouse-free review and pension walkthrough. [Latest public release](https://github.com/Futuruna/futuruna/releases/tag/v0.2.0) was still v0.2.0, published September 19. Source delivery is not binary or website publication. |
 
 ## Further correctness work already delivered
+
+The [financial-income routing safeguard](../examples/danish-income-tax/personskat-finansielle-poster.md)
+addresses two reproduced omissions: a fictional 15,000 DKK investment-certificate
+gain and a 9,000 DKK payment from an unlisted intermediary each left annual tax
+unchanged at 211,944.54 DKK with a valid comparison. Canonical intake now requires
+nonzero income to be covered by the selected PSL4(1)(5a)/(5b) branch; underlying
+law exclusions and source facts remain intact. This is a composition boundary,
+not a finding that every excluded amount is taxable or an automatic alternative
+classification. The precise financial-list control propagates to the taxpayer,
+spouse and both part-year bases. Lawful zero deductions under nr7 and covered
+personal reclassification under stk6 remain supported.
+[Focused fictional cases](../tests/personskat_financial_route.test.mjs) distinguish
+these outcomes and check projected source-linked guidance for both persons.
+Fresh schemas/templates are required after the metadata change; input types
+are unchanged. These cases do not establish document-reading accuracy or
+independent official-calculator conformance.
 
 The [property-income routing safeguard](../examples/danish-income-tax/personskat-ejendomsdrift.md)
 closes another reproduced silent omission: a fictional 20,000 DKK commercial
