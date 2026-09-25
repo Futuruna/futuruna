@@ -1,0 +1,6 @@
+@ sprog da
+
+@ importer ./personskat - folkepension
+
+@ calculate("Folkepension: skattepligtig pension og skattefri tillæg")
+| vurder_folkepension(fakta: PersonskatFolkepensionFakta) -> personskat_folkepension_resultat(fakta)
