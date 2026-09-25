@@ -63,7 +63,7 @@ function baseline(input) {
     nogen_udenlandsk_arbejdsgiver: null, kildereference: 'syntetisk-DK-helår',
   });
   // Empty/default branches are declared absent for this fictional person only.
-  assert.deepEqual(p.ægtefælle, variant('UdenÆgtefælle'));
+  p.ægtefælle = variant('UdenÆgtefælle');
   p.årsopgørelse = variant('MedEksaktÅrsopgørelse', {
     overført_restskat_mv_øre: 0, øvrig_pensionsbeskatningsafgift_øre: 0,
     kreditter: Object.fromEntries(creditNames.map(n => [`${n}_øre`, 0])),
@@ -218,6 +218,33 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
     assert.equal(byId.get(id).grøn_check.beregning, null, id);
   }
   console.log(`Validated ${cases.length} integrated cases and two legacy comparisons.`);
+});
+
+test('spouse basis reaches the integrated green-check comparison and settlement', {
+  skip: binary ? false : 'set FUTURUNA_MODEL_TEST_RUNA; no compiler build or network',
+}, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'futuruna-green-check-spouse-'));
+  console.log(`Fictional spouse-basis wrapper evidence: ${directory}`);
+  const envelope = run(['template', model, '--entry', entry, '--format', 'json']);
+  assert.deepEqual(envelope.cases[0].input.personskat.ægtefælle, variant('ÆgtefællegrundlagUoplyst'));
+  const base = baseline(envelope.cases[0].input);
+  const missing = structuredClone(base); missing.personskat.ægtefælle = variant('ÆgtefællegrundlagUoplyst');
+  envelope.cases = [{ case_id: 'known-no-spouse', input: base }, { case_id: 'unknown-spouse-basis', input: missing }];
+  const file = join(directory, 'cases.json');
+  writeFileSync(file, JSON.stringify(envelope), { flag: 'wx', mode: 0o600 });
+  const output = run(['call', model, '--entry', entry, '--input', file]);
+  writeFileSync(join(directory, 'results.json'), JSON.stringify(output), { flag: 'wx', mode: 0o600 });
+  assert.deepEqual(output.diagnostics, []);
+  assert.deepEqual(output.results.map(row => row.case_id), envelope.cases.map(row => row.case_id));
+  const [known, unresolved] = output.results.map(row => row.result);
+  assert.equal(known.vurdering.alle_kontroller_gyldige, true);
+  assert.ok(Number.isSafeInteger(known.vurdering.slutskat_til_sammenligning_øre));
+  assert.equal(known.grøn_check.beregning.samlet_kredit_øre, 128500);
+  assert.equal(known.årsopgørelse.input.slutskat_øre, known.vurdering.slutskat_til_sammenligning_øre);
+  assert.equal(unresolved.vurdering.slutskat_til_sammenligning_øre, null);
+  assert.equal(unresolved.grøn_check.beregning, null);
+  assert.equal(unresolved.årsopgørelse, null);
+  assert.ok(unresolved.vurdering.fejl.some(f => f.sti === 'personskat.ægtefælle.$variant'));
 });
 
 test('church status reaches the integrated green-check comparison and settlement', {

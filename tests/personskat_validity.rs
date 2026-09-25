@@ -223,6 +223,7 @@ fn fictional_spouse_rates_input(envelope: &Value) -> Value {
     // Fictional source facts matching SKAT's anonymous 2025 calculator.
     // No reported deduction or tax amount is inserted into the input.
     let mut baseline = envelope["cases"][0]["input"].clone();
+    baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["skatteår"] = json!(2025);
     baseline["lønmodtager"]["kommune"] = json!({"$variant":"København"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(400000);
@@ -1315,6 +1316,7 @@ fn spouse_allowance_uses_recipient_rates_from_source_facts() {
 fn union_fee_taxpayer_status_matches_the_individual_assessment() {
     let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let mut baseline = envelope["cases"][0]["input"].clone();
+    baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     baseline["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     baseline["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
@@ -1474,6 +1476,7 @@ fn unsupported_year_stops_before_tax_evaluation_with_actionable_diagnostic() {
 fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
     let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let mut input = envelope["cases"][0]["input"].clone();
+    input["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
@@ -1558,6 +1561,7 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
 fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     let mut template = run(&["template", MODEL, "--format", "json"]);
     let mut ordinary = template["cases"][0]["input"].clone();
+    ordinary["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     assert_eq!(
         ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"]["$variant"],
         "EkstraBørnetilskudUoplyst"

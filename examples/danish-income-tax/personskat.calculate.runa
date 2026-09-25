@@ -263,7 +263,8 @@
 # PersonskatPar13aPersonÅrsresultat(indkomstår: Heltal, gældskilder: List(PersonskatPar13aGældskilde), kildegrundlag_gyldigt: Boolsk, nedsættelse: Par13aNedsættelseResultat, fremført_underskud_ultimo_kroner: Heltal, aktieavancetab_ultimo_kroner: Heltal, kursgevinsttab_ultimo_kroner: Heltal, ejendomsavancetab_ultimo_kroner: Heltal, negativ_aktieskat_ultimo_kroner: Heltal, negativ_aktieskat_trancher_ultimo: List(PersonskatNegativAktieskatTranche))
 # PersonskatPar13aParÅrsresultat(indkomstår: Heltal, hovedperson: PersonskatPar13aPersonÅrsresultat, ægtefælle: Option(PersonskatPar13aPersonÅrsresultat), hovedpersons_underskud_nedsat_efter_stk2_kroner: Heltal, ægtefælles_underskud_nedsat_efter_stk2_kroner: Heltal, stk2_nedsættelser_stabile: Boolsk, alle_kildegrundlag_gyldige: Boolsk)
 # PersonskatPersonFakta(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta)
-# PersonskatÆgtefælleInput = UdenÆgtefælle | MedÆgtefælle(fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk, kildeskat25a_fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta))
+-- Uoplyst er en inputstatus, ikke en civilstand eller en antagelse om nulindkomst.
+# PersonskatÆgtefælleInput = ÆgtefællegrundlagUoplyst | UdenÆgtefælle | MedÆgtefælle(fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk, kildeskat25a_fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta))
 # PersonskatPersonGrundlagResultat(arbejdsfradrag_udland: PersonskatArbejdsfradragUdlandsresultat, enligforsørgerfradrag: Ligningslov9JEnligResultat, fakta: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigÅrsresultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatÆgtefælleEksaktBeregningResultat = IngenEksaktÆgtefælleberegning | BeregnetEksaktÆgtefælle(skat: LønmodtagerEksaktBeregning)
@@ -1245,11 +1246,11 @@
     help = None,
     unit = None
 )
-= personskat_felt_ægtefælle = Beregningsfelt(
-    path = pathof(PersonskatInput::ægtefælle::$variant),
+= personskat_felt_ægtefælle = TypetBeregningsfelt(
+    path = refof(PersonskatÆgtefælleInput::$variant),
     label = "Ægtefælleforhold",
     question = Some("Hvilket ægtefælleforhold gjaldt for personen i indkomståret?"),
-    help = Some("Vælg ud fra dokumenterede ægtefælleforhold. Felter under MedÆgtefælle aktiveres kun, når dette valg bruges; deres synlighed i projektmappen gør dem ikke i sig selv påkrævede."),
+    help = Some("ÆgtefællegrundlagUoplyst er standarden, når ægtefælleforholdet eller de nødvendige ægtefællefakta er uafklarede. En manglende årsopgørelse er ikke dokumentation for UdenÆgtefælle eller nul indkomst. Vælg UdenÆgtefælle kun ved afklaret fravær af ægtefælle i beregningsgrundlaget; vælg MedÆgtefælle med underbyggede personfakta og årets samlivsforhold, ikke gættede nuller. Uoplyst grundlag tilbageholder den uafhængige sammenligning. Uden ægtefællens dokumenter kan aarsopgoerelse-afstemning.md stadig kontrollere udvalgt rapportaritmetik og vise nødvendige overførsler, men disse er ikke verificerede ægtefællefakta. Felter under MedÆgtefælle aktiveres kun ved dette valg."),
     unit = None
 )
 = personskat_felt_ægtefælle_samliv = Beregningsfelt(
@@ -12384,9 +12385,23 @@
         AmendmentSource(value = kulbrinteskattelov_par21_lov1564),
     )
 )
-= personskat_metadata_ægtefællegrundlag = PersonskatMetadata(
+= personskat_ægtefællevejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://skat.dk/borger/forskudsopgoerelse/aegteskab-skilsmisse-og-skat",
+    identifier = "Skattestyrelsen: ægteskab, skilsmisse og automatiske overførsler mellem ægtefæller",
+    hentet_dato = "2026-09-25"
+)
+= personskat_metadata_ægtefællevalg = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_ægtefælle),
+        Source(value = personskatteloven_2021_1284),
+        AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
+        Guidance(value = personskat_ægtefællevejledning),
+        Warning(value = personskat_ægtefællegrundlag_forbehold),
+    )
+)
+--@label:PersonskatÆgtefælleInput::meta:personskat_metadata_ægtefællevalg--
+= personskat_metadata_ægtefællegrundlag = PersonskatMetadata(
+    attachments = (
         Field(value = personskat_felt_ægtefælle_samliv),
         Field(value = personskat_felt_ægtefælle_kildeskat25a_fordelinger),
         Field(value = personskat_felt_ægtefælle_kommune),
@@ -16543,10 +16558,11 @@ fraflytningen."
     )
 }
 | personskat_aktieavance_parresultat(hovedpersons_input: PersonskatAktieavanceInput, hovedpersons_skatteår: Heltal, ægtefælle_input: PersonskatÆgtefælleInput) -> match ægtefælle_input {
+    | ÆgtefællegrundlagUoplyst -> PersonskatAktieavanceParResultat(par_gyldigt = Sandt, hovedperson = personskat_aktieavance_resultat(hovedpersons_input, hovedpersons_skatteår), ægtefælle = IngenÆgtefælleAktieavance)
     | UdenÆgtefælle -> PersonskatAktieavanceParResultat(par_gyldigt = Sandt, hovedperson = personskat_aktieavance_resultat(hovedpersons_input, hovedpersons_skatteår), ægtefælle = IngenÆgtefælleAktieavance)
     | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, _) -> personskat_aktieavance_parresultat_fra_personer(hovedpersons_input, hovedpersons_skatteår, ægtefælle_fakta.aktieavance, ægtefælle_fakta.lønmodtager.skatteår, samlevende_ved_indkomstårets_udløb)
 }
-| personskat_ægtefælle_skatteår(input: PersonskatÆgtefælleInput, hovedpersons_skatteår: Heltal) -> match input { | UdenÆgtefælle -> hovedpersons_skatteår | MedÆgtefælle(fakta, _, _) -> fakta.lønmodtager.skatteår }
+| personskat_ægtefælle_skatteår(input: PersonskatÆgtefælleInput, hovedpersons_skatteår: Heltal) -> match input { | ÆgtefællegrundlagUoplyst -> hovedpersons_skatteår | UdenÆgtefælle -> hovedpersons_skatteår | MedÆgtefælle(fakta, _, _) -> fakta.lønmodtager.skatteår }
 | personskat_ægtefælle_særlige_resultater(parresultat: PersonskatAktieavanceParResultat) -> match parresultat.ægtefælle { | IngenÆgtefælleAktieavance -> [] | BeregnetÆgtefælleAktieavance(resultat) -> resultat.særlige_resultater }
 | personskat_aktieavance_parresultat_med_særlige_resultater(parresultat: PersonskatAktieavanceParResultat, hovedpersons_skatteår: Heltal, ægtefælles_skatteår: Heltal, hovedpersons_særlige_resultater: List(PersonskatSærligtAktieaktivResultat), ægtefælles_særlige_resultater: List(PersonskatSærligtAktieaktivResultat)) -> {
     = hovedperson = personskat_aktieavance_resultat_med_særlige_resultater(parresultat.hovedperson, hovedpersons_skatteår, hovedpersons_særlige_resultater)
@@ -16650,18 +16666,21 @@ fraflytningen."
     | MedKursgevinst(fakta) -> match fakta.ægtefælles_skatteyder_identifikation { | Some(identifikation) -> identifikation | None -> "" }
 }
 | personskat_kgl_par32_ægtefælles_input(input: PersonskatÆgtefælleInput) -> match input {
+    | ÆgtefællegrundlagUoplyst -> UdenKursgevinst
     | UdenÆgtefælle -> UdenKursgevinst
     | MedÆgtefælle(fakta, _, _) -> fakta.kapitalindkomst.kursgevinst
 }
 | personskat_kgl_par32_ægtefælles_ejendomsavance_input(input: PersonskatÆgtefælleInput) -> match input {
+    | ÆgtefællegrundlagUoplyst -> UdenEjendomsavance
     | UdenÆgtefælle -> UdenEjendomsavance
     | MedÆgtefælle(fakta, _, _) -> fakta.kapitalindkomst.ejendomsavance
 }
 | personskat_kgl_par32_samlevende(input: PersonskatÆgtefælleInput) -> match input {
+    | ÆgtefællegrundlagUoplyst -> Falskt
     | UdenÆgtefælle -> Falskt
     | MedÆgtefælle(_, samlevende, _) -> samlevende
 }
-| personskat_kgl_par32_har_ægtefælle(input: PersonskatÆgtefælleInput) -> match input { | UdenÆgtefælle -> Falskt | MedÆgtefælle(_, _, _) -> Sandt }
+| personskat_kgl_par32_har_ægtefælle(input: PersonskatÆgtefælleInput) -> match input { | ÆgtefællegrundlagUoplyst -> Falskt | UdenÆgtefælle -> Falskt | MedÆgtefælle(_, _, _) -> Sandt }
 | personskat_kgl_par32_modpartsidentifikation(hovedpersons_identifikation: Tekst, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælles_kursgevinst: PersonskatKursgevinstInput) -> hvis personskat_kgl_par32_har_ægtefælle(ægtefælle_input) { personskat_kgl_skatteyder_identifikation(ægtefælles_kursgevinst) } ellers { hovedpersons_identifikation + "::uden-aegtefaelle" }
 | personskat_kgl_par32_identiteter_gyldige(hovedpersons_kursgevinst: PersonskatKursgevinstInput, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælles_kursgevinst: PersonskatKursgevinstInput) -> {
     = hovedperson = personskat_kgl_skatteyder_identifikation(hovedpersons_kursgevinst)
@@ -17956,6 +17975,7 @@ fraflytningen."
     )
 }
 | personskat_ksl25a_parresultat(input: PersonskatInput) -> match input.ægtefælle {
+    | ÆgtefællegrundlagUoplyst -> personskat_ksl25a_tom_parresultat()
     | UdenÆgtefælle -> personskat_ksl25a_tom_parresultat()
     | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, fordelinger) -> hvis length(fordelinger) == 0 {
         personskat_ksl25a_tom_parresultat()
@@ -18081,6 +18101,7 @@ fraflytningen."
     input_gyldigt = personlig_indkomst.alle_input_gyldige
 )
 | personskat_kapitalafkastordning_ægtefællekontekst(input: PersonskatInput, kildeskat25a: PersonskatKsl25AParResultat) -> match input.ægtefælle {
+    | ÆgtefællegrundlagUoplyst -> None
     | UdenÆgtefælle -> None
     | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, _) -> hvis samlevende_ved_indkomstårets_udløb && input.lønmodtager.skatteår == ægtefælle_fakta.lønmodtager.skatteår {
         Some(personskat_kapitalafkastordning_personkontekst(
@@ -18358,46 +18379,48 @@ fraflytningen."
     | IngenÆgtefælleAktieavance -> personskat_aktieavance_resultat(ægtefælle_fakta.aktieavance, ægtefælle_fakta.lønmodtager.skatteår)
     | BeregnetÆgtefælleAktieavance(resultat) -> resultat
 }
+| personskat_parberegning_uden_ægtefælle(hovedgrundlag: PersonskatPersonGrundlagResultat) -> {
+    = aktieindkomst_parår = personskat_aktieindkomst_parårsresultat(
+        hovedgrundlag.fakta.lønmodtager.skatteår,
+        hovedgrundlag.fakta.lønmodtager.skatteår,
+        hovedgrundlag.individuelle_skatteforhold,
+        lønmodtager_standard_skatteforhold(),
+        Falskt
+    )
+    = hovedskatteforhold = personskat_skatteforhold_med_aktieindkomster_og_ægtefælle(
+        hovedgrundlag.individuelle_skatteforhold,
+        aktieindkomst_parår.egen_aktieindkomst_efter_ægtefællemodregning_kroner,
+        0,
+        0,
+        Falskt
+    )
+    = par13_forhold = personskat_par13_forhold_uden_ægtefælle_med_par13a(
+        hovedgrundlag.fakta.underskudsforhold,
+        hovedgrundlag.fakta.lønmodtager.skatteår,
+        personskat_par13a_nedsættelsesbeløb_for(hovedgrundlag)
+    )
+    = hovedskat = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+        hovedgrundlag.lønmodtager_input,
+        hovedskatteforhold,
+        par13_forhold
+    )
+    = hovedskat_eksakt = beregn_lønmodtager_eksakt(
+        hovedgrundlag.lønmodtager_input,
+        hovedskatteforhold,
+        par13_forhold
+    )
+    PersonskatParberegningResultat(
+        hovedskat = hovedskat,
+        hovedskat_eksakt = hovedskat_eksakt,
+        hovedskatteforhold = hovedskatteforhold,
+        ægtefælle = IngenÆgtefælleberegning,
+        ægtefælle_eksakt = IngenEksaktÆgtefælleberegning,
+        aktieindkomst_parår = aktieindkomst_parår
+    )
+}
 | personskat_parberegning_med_par32_og_ksl25a_og_par13a_stk2(hovedgrundlag: PersonskatPersonGrundlagResultat, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælle_aktieavance: PersonskatÆgtefælleAktieavanceResultat, ægtefælle_par32: PersonskatKursgevinstPar32PersonKontekst, kildeskat25a: PersonskatKsl25AParResultat, hovedpersons_stk2_nedsættelse_kroner: Heltal, ægtefælles_stk2_nedsættelse_kroner: Heltal) -> match ægtefælle_input {
-    | UdenÆgtefælle -> {
-        = aktieindkomst_parår = personskat_aktieindkomst_parårsresultat(
-            hovedgrundlag.fakta.lønmodtager.skatteår,
-            hovedgrundlag.fakta.lønmodtager.skatteår,
-            hovedgrundlag.individuelle_skatteforhold,
-            lønmodtager_standard_skatteforhold(),
-            Falskt
-        )
-        = hovedskatteforhold = personskat_skatteforhold_med_aktieindkomster_og_ægtefælle(
-            hovedgrundlag.individuelle_skatteforhold,
-            aktieindkomst_parår.egen_aktieindkomst_efter_ægtefællemodregning_kroner,
-            0,
-            0,
-            Falskt
-        )
-        = par13_forhold = personskat_par13_forhold_uden_ægtefælle_med_par13a(
-            hovedgrundlag.fakta.underskudsforhold,
-            hovedgrundlag.fakta.lønmodtager.skatteår,
-            personskat_par13a_nedsættelsesbeløb_for(hovedgrundlag)
-        )
-        = hovedskat = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
-            hovedgrundlag.lønmodtager_input,
-            hovedskatteforhold,
-            par13_forhold
-        )
-        = hovedskat_eksakt = beregn_lønmodtager_eksakt(
-            hovedgrundlag.lønmodtager_input,
-            hovedskatteforhold,
-            par13_forhold
-        )
-        PersonskatParberegningResultat(
-            hovedskat = hovedskat,
-            hovedskat_eksakt = hovedskat_eksakt,
-            hovedskatteforhold = hovedskatteforhold,
-            ægtefælle = IngenÆgtefælleberegning,
-            ægtefælle_eksakt = IngenEksaktÆgtefælleberegning,
-            aktieindkomst_parår = aktieindkomst_parår
-        )
-    }
+    | ÆgtefællegrundlagUoplyst -> personskat_parberegning_uden_ægtefælle(hovedgrundlag)
+    | UdenÆgtefælle -> personskat_parberegning_uden_ægtefælle(hovedgrundlag)
     | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, _) -> {
         = hovedperson_kapitalafkastordningskontekst = hvis samlevende_ved_indkomstårets_udløb && hovedgrundlag.fakta.lønmodtager.skatteår == ægtefælle_fakta.lønmodtager.skatteår {
             Some(personskat_kapitalafkastordning_personkontekst(hovedgrundlag.personlig_indkomst, hovedgrundlag.fakta.kapitalindkomst.virksomhedskapital))
@@ -19412,6 +19435,7 @@ fraflytningen."
 }
 > personskat_boligjob_parfordeling_gyldig(input: PersonskatInput) -> Boolsk {
     match input.ægtefælle {
+        | ÆgtefællegrundlagUoplyst -> Sandt
         | UdenÆgtefælle -> Sandt
         | MedÆgtefælle(fakta, _, _) -> ll8v_parfordeling_gyldig(input.lønmodtager.ligningsfradrag.boligjob, fakta.lønmodtager.ligningsfradrag.boligjob)
     }
@@ -19537,6 +19561,7 @@ fraflytningen."
         personskat_person_inputkontroller(hovedgrundlag, "", input.lønmodtager.skatteår),
         personskat_ægtefælle_inputkontroller(parberegning.ægtefælle, input.lønmodtager.skatteår)
         ), [
+            PersonskatInputkontrol(sti = "ægtefælle.$variant", gyldig = personskat_ægtefællegrundlag_afklaret(input.ægtefælle), forklaring = personskat_ægtefællegrundlag_forbehold),
             PersonskatInputkontrol(sti = "lønmodtager.ligningsfradrag.boligjob.fordeling", gyldig = personskat_boligjob_parfordeling_gyldig(input), forklaring = "Fælles boligjobbetalinger skal have samme kildefakta og andele hos begge personer; personreferencer skal være forskellige."),
             PersonskatInputkontrol(sti = "ægtefælle", gyldig = samlet_hovedpersonsregulering_input_gyldigt, forklaring = "Virksomhedsfordeling efter KSL § 25 A og øvrige personreguleringer skal være gyldige."),
             PersonskatInputkontrol(sti = "aktieavance", gyldig = aktieavance_par.par_gyldigt && parberegning.aktieindkomst_parår.input_gyldigt, forklaring = "Husstandens aktieindkomstgrundlag og samordning skal være gyldige."),
@@ -19778,11 +19803,16 @@ fraflytningen."
 | beregn_personskat(input: PersonskatInput) -> {
     personskat_kontrollér_beregningsår(input.lønmodtager.skatteår, "lønmodtager.skatteår")
     match input.ægtefælle {
+        | ÆgtefællegrundlagUoplyst -> ()
         | UdenÆgtefælle -> ()
         | MedÆgtefælle(fakta, _, _) -> personskat_kontrollér_beregningsår(fakta.lønmodtager.skatteår, "ægtefælle.MedÆgtefælle.fakta.lønmodtager.skatteår")
     }
     personskat_beregning_resultat(input)
 }
+
+-- De uoplyste grene beregner kun diagnostiske mellemresultater uden påståede
+-- ægtefællefakta. Originalvalget bevares til denne kontrol og sammensætningerne.
+| personskat_ægtefællegrundlag_afklaret(input: PersonskatÆgtefælleInput) -> match input { | ÆgtefællegrundlagUoplyst -> Falskt | UdenÆgtefælle -> Sandt | MedÆgtefælle(_, _, _) -> Sandt }
 
 -- Modelafgrænsning, ikke en regel om borgerens skattepligt. Afvis før nogen
 -- årsparametre eller skattebeløb evalueres; brug aldrig et andet års satser.

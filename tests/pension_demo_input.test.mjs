@@ -29,7 +29,7 @@ test('pension demo supplies explicit fictional facts instead of unknown template
           boligjob: { $variant: 'BoligjobUoplyst' },
         },
       },
-      ægtefælle: { $variant: 'UdenÆgtefælle' },
+      ægtefælle: { $variant: 'ÆgtefællegrundlagUoplyst' },
     } }],
   };
   writeFileSync(binary, `#!${process.execPath}

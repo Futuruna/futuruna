@@ -46,6 +46,7 @@ test('canonical recurring gifts cap each agreement once and withhold inconsisten
   };
   const envelope = run(['template', model, '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // Explicit fictional whole-year Danish resident, adult employee in Copenhagen,
   // no church, property, other income, losses, pension/ATP or other deductions.
   // Empty template branches mean absence ONLY for this invented person.

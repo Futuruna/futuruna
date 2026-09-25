@@ -54,8 +54,8 @@
     }
 }
 > personskat_grøn_check_samliv_foreneligt(samliv: PersonskatGrønCheckSamliv, input: PersonskatÆgtefælleInput) -> Boolsk {
-    = samlevende = match input { | UdenÆgtefælle -> Falskt | MedÆgtefælle(_, ved_årets_udløb, _) -> ved_årets_udløb }
-    match samliv {
+    = samlevende = match input { | ÆgtefællegrundlagUoplyst -> Falskt | UdenÆgtefælle -> Falskt | MedÆgtefælle(_, ved_årets_udløb, _) -> ved_årets_udløb }
+    personskat_ægtefællegrundlag_afklaret(input) && match samliv {
         | GrønCheckIkkeSamlevendeVedÅrsslut -> samlevende == Falskt
         | GrønCheckSamlevendeHeleÅret -> samlevende
         | _ -> Falskt

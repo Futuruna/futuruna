@@ -31,6 +31,7 @@ test('employee expense shares distinguish invalid facts from no entitlement for 
   };
   const envelope = run(['template', model, '--entry', 'beregn_personskat', '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // Explicit invented adult, whole-year Danish employee; no other income,
   // pensions/ATP, property, losses or deductions. Never infer these absences
   // from a real person's template or from an absent report line.

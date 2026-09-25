@@ -95,7 +95,41 @@ not independently establish entitlement. For source-derived green check and its
 settlement effect, use the additive
 [Personskat with green check](personskat-groen-check.md) entry. It retains the
 canonical checks and withholds the settlement when its extra facts are unknown,
-unsupported or inconsistent. The existing entry's input/output types are unchanged.
+unsupported or inconsistent. It is a separate entry, not a replacement for the
+ordinary calculation.
+
+## Manglende ægtefælleoplysninger er ikke ingen ægtefælle
+
+`ægtefælle` begynder nu med `ÆgtefællegrundlagUoplyst`. Bevar dette valg,
+når forholdet eller de nødvendige ægtefællefakta ikke er afklaret. Det er en
+oplysningsstatus, ikke en ny civilstand. En manglende årsopgørelse betyder
+hverken ingen ægtefælle, nul ægtefælleindkomst eller ingen overførsler.
+
+Vælg `UdenÆgtefælle` ud fra afklarede forhold, ikke fordi den anden persons
+dokumenter mangler. `MedÆgtefælle` kræver de relevante personfakta og
+samlivsforhold for indkomståret. Skattestyrelsens
+[vejledning om ægteskab og skat](https://skat.dk/borger/forskudsopgoerelse/aegteskab-skilsmisse-og-skat)
+beskriver overførsler mellem ægtefæller; modellens kildeanker henviser også
+til personskatteloven og ændringsloven. Oplysningskontrollen ændrer ikke
+disse skatteregler eller deres beregningsformler.
+
+Uoplyst grundlag giver en fejl ved `ægtefælle.$variant` og et `null`
+sammenligningsbeløb. Øvrige beløb er kun diagnostik uden rekonstruerede
+ægtefællefakta. Kontrollen bevares både i delårsberegningens periode- og
+dokumenterede helårsgrundlag og i den integrerede grøn-check-beregning,
+som også tilbageholder kredit og betalingsafregning.
+
+Du kan stadig bruge den [betingede rapportgennemgang](aarsopgoerelse-afstemning.md)
+uden ægtefællens årsopgørelse. Den viser, hvad udvalgte rapportbeløb kræver,
+ikke hvad ægtefællens faktiske indkomst og fradrag var. Brug aldrig dens
+udledte overførsler som uafhængige input til Personskat.
+
+**Preview-migration:** Lav en frisk skabelon; typen og metadata ændrer
+kontrakthashen. Bevar tidligere `UdenÆgtefælle`/`MedÆgtefælle` kun efter
+kontrol mod kildefakta. Udskift ikke blot hash, og migrér ikke ukendte forhold
+til fravær. Eksisterende `.runa`-matches over typen skal håndtere den nye
+variant. En angivet afklaret variant dokumenterer ikke i sig selv sandhed
+eller fuldstændighed; modellen kan stadig ikke opdage enhver manglende fakta.
 
 ## Which checks are combined
 

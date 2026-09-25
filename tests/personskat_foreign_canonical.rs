@@ -138,6 +138,7 @@ fn spouse(facts: &Value) -> Value {
 }
 
 fn ordinary_facts(mut ordinary: Value) -> Value {
+    ordinary["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     assert_eq!(
         ordinary["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"]["$variant"],
         "ArbejdsfradragUdlandUoplyst"

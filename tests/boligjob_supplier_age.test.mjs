@@ -116,6 +116,7 @@ test('canonical supplier-age correction reaches taxpayer and spouse without inva
   const save = evidence();
   const envelope = run(['template', canonical, '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // Every absent branch describes this invented whole-year Danish adult only.
   // Empty template values are not evidence of absence for a real taxpayer.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 600000,

@@ -45,6 +45,7 @@ test('ferry/flight expense loses only the unused daily threshold, including spou
   };
   const envelope = run(['template', model, '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // All absences below are invented source facts, never assumptions for real users.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 600000,
     kommune: variant('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });

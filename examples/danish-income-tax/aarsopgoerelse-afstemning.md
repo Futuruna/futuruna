@@ -22,6 +22,12 @@ verified facts. Matching the report this way would be circular. Necessary
 conditions are not a proof that a legally valid household with those facts
 exists, and neither workflow certifies the underlying documents.
 
+The independent calculation now has an explicit `ÆgtefællegrundlagUoplyst`
+default. It withholds comparison when spouse information is unavailable,
+without preventing this conditional review. Do not switch it to
+`UdenÆgtefælle` simply to obtain a number; see the
+[input and migration guide](personskat-validity.md#manglende-ægtefælleoplysninger-er-ikke-ingen-ægtefælle).
+
 ## Run the compact review
 
 First run the [tax-audit runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check)

@@ -224,6 +224,7 @@ test('fresh canonical output retains valid, unknown, spouse and failed-year case
   assert.ifError(template.error); assert.equal(template.status, 0, template.stderr);
   const envelope = JSON.parse(template.stdout);
   const input = envelope.cases[0].input;
+  input.ægtefælle = variant('UdenÆgtefælle'); // Explicit fictional absence.
   // Explicit fictional adult, whole-year Denmark, no spouse, church, property,
   // capital income, losses, ATP/pension payments or other deductions. Empty
   // template branches describe this invented person ONLY, never missing data.

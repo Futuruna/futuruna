@@ -51,6 +51,7 @@ test('labour-hire age must describe the canonical taxpayer, including a spouse',
   };
   const envelope = run(['template', model, '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // Remaining empty branches describe only this explicitly invented profile.
   Object.assign(base.lønmodtager, { bruttoløn_kroner: 0, kommune: v('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(base.lønmodtager.pension, { atp: v('IngenAtpIndbetalinger'),
