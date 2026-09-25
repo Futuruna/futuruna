@@ -22,6 +22,7 @@
             "Gyldige kontroller betyder kun, at de anførte modelkontroller er bestået; de bekræfter ikke kildefakta, fuldstændig indberetning eller samlet retlig korrekthed.",
             "En mulig beløbssammenligning gælder den modellerede del. Samlet modeldækning skal vurderes særskilt; ukendte fakta må ikke erstattes med nul.",
             "Afrunding af arbejdsfradrag bygger på udvalgte 2025/2026-observationer. Der er kendte uafklarede afvigelser på én krone i fradrag i SKATs 2026-forskudsberegner; ældre års praksis er ikke uafhængigt verificeret. En difference er ikke i sig selv en fejl i årsopgørelsen. Ingen tolerance udligner forskellen; se skatdk-fradrag-oere-ekstern.md.",
+            "Arbejdsgiveradministreret ratepension: to fiktive indtastninger i den anonyme 2025-årsberegners offentlige formular afviger fra modellens ekstra pensionsfradrag og samlede skat. Årsagen er uafklaret; dette er ikke dokumentation for en fejl i en virkelig årsopgørelse. Flyt ikke ratebidrag til andre felter eller ændr kildefakta for at få et match; se skatdk-arbejdsgiverpension-ekstern.md.",
             "Boligjobfradrag beregnes fra dokumenterede betalingsfakta. Forsikringsfordeling, forudbetaling og ældre arbejdsår kræver stadig særskilt vurdering; ydelsesklassifikation og kildefakta skal underbygges før en samlet rapportkonklusion."
         ]
     )

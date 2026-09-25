@@ -178,7 +178,8 @@ export function verifyResults(output) {
       assert.equal(a.slutskat_til_sammenligning_øre, 19619430, 'skatdk-rentefradrag-ekstern.md, 600000/51001/1000');
       assert.equal(r.skat.nettokapitalindkomst_kroner, -50001);
     } else {
-      // Source-model checks only; this is NOT independent total-tax conformance.
+      // Source-model checks only. The literal 2025 employer-rate form inputs
+      // disagree; see skatdk-arbejdsgiverpension-ekstern.md. Do not fit inputs.
       assert.ok(Number.isSafeInteger(a.slutskat_til_sammenligning_øre));
       assert.equal(r.skat.personlig_indkomst_efter_am_kroner, 552000);
       assert.equal(r.arbejdsfradrag_udland.grundlag.grundlag_før_udlandsafgrænsning_kroner, 653000);
@@ -220,7 +221,9 @@ export function finishFictionalDemo(evidence, held) {
     slutskat_til_sammenligning_øre: result.vurdering.slutskat_til_sammenligning_øre,
     evidence: case_id === 'privat-rate' || case_id === 'egne-renter'
       ? 'Match med tidligere registreret offentlig 2025-beregner; ikke en ny ekstern observation.'
-      : 'Modelregression, ikke uafhængigt verificeret samlet skat.',
+      : case_id === 'arbejdsgiver-atp'
+        ? 'Uafklaret afvigelse fra den offentlige 2025-formular for arbejdsgiverrate; se skatdk-arbejdsgiverpension-ekstern.md.'
+        : 'Modelregression af ukendte fakta; ikke ekstern konformitet.',
   }));
   saveEvidence(evidence, 'summary.json', { fictional: true, cases: rows, held_before_call: held });
   console.log('Fiktiv bilagsgennemgang, 2025. Beregnet med forbehold — ikke en godkendt årsopgørelse.');
@@ -229,6 +232,7 @@ export function finishFictionalDemo(evidence, held) {
     ? 'Intet sammenligningsbeløb: ATP-oplysninger mangler.'
     : `${money.format(row.slutskat_til_sammenligning_øre / 100)} modelleret skat.`}`);
   console.log('renteandel-uoplyst: Ikke indsendt; egen andel skal afklares.');
+  console.log('arbejdsgiver-atp: Uafklaret ekstern afvigelse; ret ikke kildefakta for at få et match. Se skatdk-arbejdsgiverpension-ekstern.md.');
   console.log(`Fire beregnede sager og én tilbageholdt sag kontrolleret. Fuld visning med alle forbehold: ${join(evidence, 'resultat.txt')}`);
   return output;
 }

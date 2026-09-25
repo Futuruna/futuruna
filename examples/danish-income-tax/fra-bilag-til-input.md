@@ -112,7 +112,12 @@ Der foretages ingen ny ekstern observation ved kørsel. Forventningerne
 læses aldrig ind som personfakta. Arbejdsgiver-/ATP-profilen kontrollerer
 fordelingen af løn, pension og ATP gennem den eksisterende model, herunder
 arbejdsfradragsgrundlag 653.000 kr. og ekstra pensionsfradrag 5.852 kr.; dens
-samlede skat er **ikke** en uafhængigt bekræftet SKAT-observation.
+samlede skat er **ikke** et bekræftet eksternt match. En efterfølgende
+[kontrol af den offentlige 2025-formular](skatdk-arbejdsgiverpension-ekstern.md)
+gav 211.866,52 kr. mod modellens 210.569,32 kr. for ratepension/ATP-profilen.
+Afvigelsen er uafklaret og vises nu i demoens korte oversigt samt modellens
+forbehold. En særskilt livrenteprofil matcher; det giver ikke ret til at
+omklassificere demoens dokumenterede ratepension for at få samme resultat.
 Beløbene er skat inklusive løn-AM før betalingsafregning, ikke en lovet
 tilbagebetaling eller et beløb, der skal indbetales.
 
