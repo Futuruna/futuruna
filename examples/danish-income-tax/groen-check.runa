@@ -44,6 +44,10 @@ Stk. 4. For ægtefæller finder personskattelovens § 7, stk. 6, anvendelse ved 
 
 § 5. Kompensationen til personer med børn efter § 1, stk. 2, ydes til personer, der ved indkomstårets udløb har ret til at få udbetalt børne- og ungeydelse, jf. § 4 i lov om en børne- og ungeydelse. I tilfælde, hvor hele børne- og ungeydelsen for et barn udbetales til én modtager, jf. § 4, stk. 1, 3. pkt., eller stk. 2, 5-8 eller 10, i lov om en børne- og ungeydelse, ydes kompensation med det dobbelte af beløbene pr. barn i § 1, stk. 2.
 ----
+-- § 5, nyt 3. pkt., indsat ved lov 1642/2025 § 3, nr. 4, fra 1. januar 2026.
+----
+I tilfælde, hvor børne- og ungeydelsen for et barn udbetales delvis til barnet selv, jf. § 4, stk. 6, i lov om en børne- og ungeydelse, ydes kompensationen med det dobbelte af beløbene pr. barn i § 1, stk. 2, til den forældremyndighedsindehaver, som modtager den resterende del af børne- og ungeydelsen for barnet.
+----
 
 --@begin:grøn_check_regler--
 # GrønCheckSatser(pensionist_kroner: Heltal, aftrapningsgrænse_kroner: Heltal, tillægsgrænse_kroner: Heltal)
@@ -61,8 +65,8 @@ Stk. 4. For ægtefæller finder personskattelovens § 7, stk. 6, anvendelse ved 
 # GrønCheckÅrsforløb = GrønCheckOrdinærtHelår | GrønCheckAndetÅrsforløb | GrønCheckÅrsforløbUkendt
 # GrønCheckPerson(fødselsdato: Dato, skattepligt_den_1_januar: GrønCheckSkattepligt, forskerordning: Boolsk?, modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb: Boolsk?, årsforløb: GrønCheckÅrsforløb, kildereference: Tekst)
 # GrønCheckIndkomst(personlig_indkomst_efter_am_kroner: Heltal, pbl16_tillæg_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, kildereference: Tekst)
--- Kun nettokapitalindkomsten er nødvendig, når fælles kapital ikke overstiger
--- det dobbelte grundbeløb. Ægtefællens komplette årsopgørelse kræves ikke.
+-- Den dækkede ægtefællegren kræver begge individuelle kapitalindkomster under
+-- eller lig grundbeløbet; fælles kapital alene er ikke tilstrækkeligt (td-5f8fb4).
 # GrønCheckÆgtefælle = GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut | GrønCheckSamlevendeHelår(ægtefælles_nettokapitalindkomst_kroner: Heltal, kildereference: Tekst) | GrønCheckAndetÆgtefælleforløb | GrønCheckÆgtefælleforholdUkendt
 # GrønCheckBarnOphold = GrønCheckBarnIDanmark | GrønCheckBarnKortvarigtUdland | GrønCheckBarnUddannelsesophold | GrønCheckBarnAndetUdland | GrønCheckBarnOpholdUkendt
 # GrønCheckBørneydelse = GrønCheckIngenBørneydelse | GrønCheckHalvBørneydelse | GrønCheckHelBørneydelse | GrønCheckRestEfterYdelseTilBarnet | GrønCheckBørneydelseUkendt
@@ -129,11 +133,27 @@ Stk. 4. For ægtefæller finder personskattelovens § 7, stk. 6, anvendelse ved 
         }
         | _ -> []
     }
-    = børn = hvis any(grøn_check_børn(i.børneforhold), |b: GrønCheckBarn| b.børneydelse_ved_årets_udløb == GrønCheckRestEfterYdelseTilBarnet) { ["Ydelse delvis til barnet selv: særskilt hjemmel fra 2026, men samspillet med § 5-loftet er endnu ikke afklaret (td-6d49ab). Intet sammenligningsbeløb udstedes."] } ellers { [] }
+    = berettigede_børn = filter(grøn_check_børn(i.børneforhold), |b: GrønCheckBarn| grøn_check_barn_berettiget(b, i.skatteår))
+    = børn = hvis i.skatteår < 2026 && any(grøn_check_børn(i.børneforhold), |b: GrønCheckBarn| b.børneydelse_ved_årets_udløb == GrønCheckRestEfterYdelseTilBarnet) {
+        ["Ydelse delvis til barnet selv: den særskilte regel gælder først fra 2026; brug ikke denne gren for tidligere år."]
+    } ellers hvis grøn_check_børnebeløb_øre(berettigede_børn, i.skatteår, Falskt) != grøn_check_børnebeløb_øre(berettigede_børn, i.skatteår, Sandt) {
+        ["Ydelse delvis til barnet selv: de to læsninger af § 5-loftet giver forskellige børnebeløb (td-6d49ab). Intet sammenligningsbeløb udstedes; en rapportobservation afgør ikke fortolkningen."]
+    } ellers { [] }
     concat(person, concat(ægtefælle, børn))
 }
 > grøn_check_barn_berettiget(b: GrønCheckBarn, år: Heltal) -> Boolsk {
     dato_før_eller_lig_med(b.fødselsdato, Dato(år = år, måned = 1, dag = 1)) && b.fødselsdato.år + 18 > år && b.ophold_den_1_januar != GrønCheckBarnAndetUdland && b.ophold_den_1_januar != GrønCheckBarnOpholdUkendt && b.har_indgået_ægteskab_den_1_januar == Some(Falskt) && b.anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar == Some(Falskt) && b.børneydelse_ved_årets_udløb != GrønCheckIngenBørneydelse && b.børneydelse_ved_årets_udløb != GrønCheckBørneydelseUkendt
+}
+> grøn_check_dobbeltbarn(b: GrønCheckBarn, år: Heltal) -> Boolsk {
+    b.børneydelse_ved_årets_udløb == GrønCheckHelBørneydelse || (år >= 2026 && b.børneydelse_ved_årets_udløb == GrønCheckRestEfterYdelseTilBarnet)
+}
+-- § 5-loftet henviser stadig til 2. pkt. Den nye 3. pkt.-gren har sikkert
+-- dobbelt enkeltbeløb, men dens loftsforhøjelse er åben (td-6d49ab).
+-- Udsted kun beløb, når begge loftslæsninger giver samme resultat FØR aftrapning.
+> grøn_check_børnebeløb_øre(børn: List(GrønCheckBarn), år: Heltal, rest_forhøjer_loft: Boolsk) -> Heltal {
+    = dobbelt = length(filter(børn, |b: GrønCheckBarn| grøn_check_dobbeltbarn(b, år)))
+    = loftsbørn = length(filter(børn, |b: GrønCheckBarn| b.børneydelse_ved_årets_udløb == GrønCheckHelBørneydelse || (rest_forhøjer_loft && grøn_check_dobbeltbarn(b, år))))
+    grøn_check_min(120 * (length(børn) + dobbelt), 240 + 120 * grøn_check_min(loftsbørn, 2)) * 100
 }
 -- Halve øre bevares til sidst. Administrativ projektion: positivt restbeløb
 -- afrundet til nærmeste øre, halv op (eksterne 2025-observationer i guiden).
@@ -146,8 +166,8 @@ Stk. 4. For ægtefæller finder personskattelovens § 7, stk. 6, anvendelse ved 
     = kapital = match i.ægtefælle { | GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut -> grøn_check_plus(g.nettokapitalindkomst_kroner - nationalparametre_for(i.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner) | _ -> 0 }
     = indkomst = g.personlig_indkomst_efter_am_kroner + g.pbl16_tillæg_kroner + kapital
     = børn = filter(grøn_check_børn(i.børneforhold), |b: GrønCheckBarn| adgang && grøn_check_barn_berettiget(b, i.skatteår))
-    = dobbelt = length(filter(børn, |b: GrønCheckBarn| b.børneydelse_ved_årets_udløb == GrønCheckHelBørneydelse))
-    = børn_før = grøn_check_min(120 * (length(børn) + dobbelt), 240 + 120 * grøn_check_min(dobbelt, 2)) * 100
+    = dobbelt = length(filter(børn, |b: GrønCheckBarn| grøn_check_dobbeltbarn(b, i.skatteår)))
+    = børn_før = grøn_check_børnebeløb_øre(børn, i.skatteår, Falskt)
     = pensionist_før = hvis adgang && pensionist { s.pensionist_kroner * 100 } ellers { 0 }
     = børnegrænse = s.aftrapningsgrænse_kroner + hvis pensionist { 11667 } ellers { 0 }
     = voksen = grøn_check_aftrappet_øre(pensionist_før, indkomst, s.aftrapningsgrænse_kroner)

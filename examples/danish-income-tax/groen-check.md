@@ -115,6 +115,32 @@ ikke. Korte udlandsophold og kvalificerende uddannelsesophold har § 1, stk. 3's
 undtagelse. Henvisningen til serviceloven ændres til barnets lov fra 2024 efter
 [lov 753/2023 § 38](https://www.retsinformation.dk/eli/lta/2023/753).
 
+Fra 2026 giver `GrønCheckRestEfterYdelseTilBarnet` også dobbelt enkeltbeløb:
+forældremyndighedsindehaveren skal have ret til resten, når Udbetaling Danmark
+har afgjort, at en del udbetales til barnet. Det følger af
+[lov 1642/2025 § 3, nr. 4, og § 10](https://www.retsinformation.dk/eli/lta/2025/1642)
+og forklares i [L 22, bemærkningerne til § 3, nr. 4](https://www.retsinformation.dk/eli/ft/202512L00022).
+Får barnet hele ydelsen, vælges ingen ydelse for forælderen — ikke hel ydelse.
+
+Loftets henvisning til § 5, 2. pkt., er ikke ændret til også at nævne det nye
+3. pkt. Modellen afgør ikke denne fortolkning. Den beregner beløbet både uden
+og med loftsforhøjelse for rest-modtagerens børn og kræver **samme beløb før
+indkomstaftrapning**. Ellers tilbageholdes beregningen. Eksempler uden andre
+berettigede børn:
+
+| Ydelsesret i 2026 | Uden/med den omtvistede loftsforhøjelse | Resultat før aftrapning |
+| --- | --- | --- |
+| Resten for ét barn | 240 / 240 DKK | 240 DKK |
+| Resten for ét barn og halv ydelse for et andet | 240 / 360 DKK | Tilbageholdt |
+| Resten for to børn | 240 / 480 DKK | Tilbageholdt |
+| Hel ydelse for to børn og resten for et tredje | 480 / 480 DKK | 480 DKK |
+
+Dette er en afgrænset modeludvidelse, ikke en afklaring af loftet eller en
+eksternt observeret 2026-beregning. Ukendte børnefakta tilbageholder stadig
+beløbet. Rest-alternativet tilbageholdes for 2023–2025. Typer og felter er
+uændrede; tidligere tilbageholdte, nu loftsuafhængige 2026-sager kan få beløb.
+Generér en frisk kontraktskabelon ved overgang til den opdaterede model.
+
 Loven giver procentreglen. Den administrative øreprojektion er en særskilt
 implementeringsbeslutning: restbeløbet efter aftrapning afrundes til nærmeste
 øre, halv op. Beregningen bevarer halve øre i heltal frem til projektionen;
@@ -162,9 +188,20 @@ FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/green_chec
   peger på fælles overskydende kapital hos den højeste personlige indkomst
   (her 5.200 DKK og 615 DKK resterende kredit i begge tilfælde). Vi har ikke
   forklaret forskellen og ændrer ikke lovmodellen for at få et match.
+  En yderligere kontrol med 60.000/0 DKK kapital og samme personlige indkomster
+  gav 435 DKK, selv om den fælles kapital er under 104.800 DKK. Kvitteringen
+  bekræfter gift-profil og begge indkomsttal. Derfor er fælles kapital under
+  dobbeltgrænsen ikke nok til at ophæve sikkerhedsgrænsen. Ved 60.000/60.000 DKK
+  kapital gav beregneren også 435 DKK; fællesreglen ville her give 0 DKK.
+  [Ministeriets historiske oversigt fra 2022](https://svmn.dk/tal-og-metode/satser/skattehistorik/groen-check-en-historisk-oversigt)
+  beskriver også den fælles kapitalregel; den er ikke en kilde til de aktuelle
+  satser. [Beregnerens begrænsningsside](https://info.skat.dk/SKAT.aspx?oID=170595&layout=2503),
+  kontrolleret 25. september 2026, forklarer ikke denne forskel. De nye
+  regressioner sikrer fortsat tilbageholdelse, ikke et match med 435 DKK.
 - Når ydelsen delvis udbetales til barnet selv, er samspillet mellem den nye
   § 5, 3. pkt., og loftets henvisning til 2. pkt. uafklaret (`td-6d49ab`).
+  Fra 2026 beregnes kun de ovenfor beskrevne loftsuafhængige tilfælde.
   Vælg det særskilte alternativ; ommærk ikke forløbet som en almindelig hel
-  ydelse for at få et beløb.
+  ydelse for at få et beløb. En oplyst rapportkredit vælger ikke fortolkningen.
 - Historisk og universel administrativ øreoverensstemmelse er ikke bevist.
   Personskats eksisterende afregnings-/renteregler genprøves ikke af modulet.

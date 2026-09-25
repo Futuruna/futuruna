@@ -78,6 +78,38 @@ add('whole-child', i => { young(i); i.børneforhold.børn = [child('a', 'GrønCh
 add('three-half-children-cap', i => { young(i); i.børneforhold.børn = ['a','b','c'].map(id => child(id)); }, 24000);
 add('mixed-children-cap', i => { young(i); i.børneforhold.børn = [child('a','GrønCheckHelBørneydelse'),child('b'),child('c')]; }, 36000);
 add('three-whole-children-cap', i => { young(i); i.børneforhold.børn = ['a','b','c'].map(id => child(id,'GrønCheckHelBørneydelse')); }, 48000);
+// The 2026 remainder-recipient amount is sourced; its cap uplift is unresolved.
+// Accept only cap-independent pre-phaseout amounts, never an observed choice.
+const remainder = id => child(id, 'GrønCheckRestEfterYdelseTilBarnet');
+const whole = id => child(id, 'GrønCheckHelBørneydelse');
+const remainderCase = (i, children) => { young(i); i.skatteår = 2026; i.børneforhold.børn = children; };
+add('2026-remainder-only-child', i => remainderCase(i, [remainder('a')]), 24000, undefined,
+  { berettigede_børn: 1, børn_med_dobbeltydelse: 1, børn_før_aftrapning_øre: 24000 });
+add('2026-remainder-pensioner', i => { i.skatteår = 2026; i.børneforhold.børn = [remainder('a')]; }, 139500);
+add('2026-remainder-first-phaseout', i => { remainderCase(i, [remainder('a')]); income(i, 498201); }, 23993);
+add('2026-remainder-saturated-whole-cap', i => remainderCase(i, [whole('a'), whole('b'), remainder('c')]), 48000,
+  undefined, { børn_med_dobbeltydelse: 3 });
+add('2026-remainder-order-independent', i => remainderCase(i, [remainder('c'), whole('b'), whole('a')]), 48000);
+add('2026-remainder-ineligible-does-not-change-cap', i => {
+  const b = remainder('c'); b.fødselsdato = date(2008);
+  remainderCase(i, [child('a'), child('b'), b]);
+}, 24000, undefined, { berettigede_børn: 2, børn_med_dobbeltydelse: 0 });
+add('2026-remainder-unknown-fact', i => {
+  const b = remainder('a'); b.anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar = null;
+  remainderCase(i, [b]);
+}, null, 'GrønCheckUfuldstændig');
+for (const [id, children] of [
+  ['two-remainders', [remainder('a'), remainder('b')]],
+  ['remainder-and-half', [remainder('a'), child('b')]],
+  ['remainder-and-whole', [remainder('a'), whole('b')]],
+]) add(`2026-${id}-cap-unresolved`, i => {
+  remainderCase(i, children); i.oplyst_samlet_grøn_check_øre = 24000;
+}, null, 'GrønCheckUdenForDækning');
+for (const year of [2023, 2024, 2025]) {
+  add(`${year}-remainder-not-in-force`, i => {
+    remainderCase(i, [remainder('a')]); i.skatteår = year;
+  }, null, 'GrønCheckUdenForDækning');
+}
 for (const [id, edit] of [
   ['turns-18-this-year', b => { b.fødselsdato = date(2007,12,31); }],
   ['born-after-january-first', b => { b.fødselsdato = date(2025,1,2); }],
@@ -111,7 +143,10 @@ for (const [id, edit] of [
   ['partial-marriage', i => { i.ægtefælle = variant('GrønCheckAndetÆgtefælleforløb'); }],
   ['spouse-capital', i => { spouse(i, 110000); income(i,475300); }],
   ['own-spousal-capital', i => { spouse(i,0); income(i,475300); i.indkomst.nettokapitalindkomst_kroner = 110000; }],
-  ['special-child-recipient', i => { i.skatteår=2026; i.børneforhold.børn=[child('a','GrønCheckRestEfterYdelseTilBarnet')]; }],
+  // Recorded SKAT result 435 DKK, with spouse PI 200000 (not a compact input).
+  // Joint capital is below the double allowance: that alone cannot lift the guard.
+  ['spousal-capital-below-joint-allowance', i => { spouse(i,0); income(i,475300); i.indkomst.nettokapitalindkomst_kroner = 60000; i.oplyst_samlet_grøn_check_øre = 43500; }],
+  ['both-spouses-individual-capital-excess', i => { spouse(i,60000); income(i,475300); i.indkomst.nettokapitalindkomst_kroner = 60000; i.oplyst_samlet_grøn_check_øre = 43500; }],
 ]) add(id, edit, null, 'GrønCheckUdenForDækning');
 for (const [id, edit] of [
   ['invalid-date', i => { i.person.fødselsdato = date(1950,2,30); }],

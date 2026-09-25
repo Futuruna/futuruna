@@ -133,6 +133,13 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
   add('capital-removes-supplement', i => { i.personskat.kapitalindkomst.renter.renteindtægter_kroner = 55000; }, 100500);
   add('known-young-zero', i => { i.personskat.lønmodtager.pension.fødselsdato = date(1990); }, 0);
   add('child-whole', i => { i.personskat.lønmodtager.pension.fødselsdato = date(1990); i.grøn_check_fakta.børneforhold.børn = [child()]; }, 24000);
+  const remainderChild = i => {
+    i.personskat.lønmodtager.skatteår = 2026;
+    i.personskat.lønmodtager.pension.fødselsdato = date(1990);
+    const b = child(); b.børneydelse_ved_årets_udløb = variant('GrønCheckRestEfterYdelseTilBarnet');
+    i.grøn_check_fakta.børneforhold.børn = [b];
+  };
+  add('2026-child-remainder-cap-independent', remainderChild, 24000);
   add('observed-credit-does-not-control-result', i => { i.oplyst_samlet_grøn_check_øre = 1; });
   add('debt-becomes-refund', i => { i.personskat.årsopgørelse.kreditter.a_skat_og_am_indeholdt_øre = tax - 10000; i.personskat.årsopgørelse.afregningsfakta = refund(2025); });
   add('2023-interest-excludes-credit', i => {
@@ -148,6 +155,12 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
   add('spouse-derived-capital', i => { spouse(i); i.personskat.ægtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner = 30000; });
   for (const [id, edit] of [
     ['unknown-children', i => { i.grøn_check_fakta.børneforhold = variant('GrønCheckBørnUoplyst'); }],
+    ['2026-child-remainder-cap-unresolved', i => {
+      remainderChild(i); const b = child(); b.lokal_reference = 'barn-2';
+      i.grøn_check_fakta.børneforhold.børn.push(b);
+      i.oplyst_samlet_grøn_check_øre = 36000;
+    }],
+    ['2025-child-remainder-not-in-force', i => { remainderChild(i); i.personskat.lønmodtager.skatteår = 2025; }],
     ['unknown-researcher', i => { i.grøn_check_fakta.forskerordning = null; }],
     ['unknown-pbl16', i => { i.grøn_check_fakta.pbl16_tillæg_kroner = null; }],
     ['positive-pbl16', i => { i.grøn_check_fakta.pbl16_tillæg_kroner = 100; }],
@@ -199,7 +212,7 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
   assert.equal(partial.overskydende_skat_øre, 15500);
   assert.equal(partial.godtgørelsesgrundlag_øre, 0);
   assert.equal(partial.godtgørelse_øre, 0);
-  for (const id of ['unknown-children', 'unknown-researcher', 'unknown-pbl16', 'canonical-missing-facts', 'spouse-positive-capital-unresolved']) {
+  for (const id of ['unknown-children', 'unknown-researcher', 'unknown-pbl16', 'canonical-missing-facts', 'spouse-positive-capital-unresolved', '2026-child-remainder-cap-unresolved', '2025-child-remainder-not-in-force']) {
     assert.equal(byId.get(id).grøn_check.beregning, null, id);
   }
   console.log(`Validated ${cases.length} integrated cases and two legacy comparisons.`);
