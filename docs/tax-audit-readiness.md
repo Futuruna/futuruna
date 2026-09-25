@@ -209,13 +209,21 @@ establish universal or historical conformance.
 
 The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
 add two 2025 official-form matches (ordinary ATP below the employment-deduction
-cap, and lifetime pension plus ATP) and two unresolved employer-rate pension
-disagreements. The latter differ by 5,520 DKK in extra pension deduction and
-1,297.20 DKK in tax, not a rounding tolerance. Public HTTP form submissions
-and restored inputs were inspected; a fresh graphical-browser reproduction
-and explanation remain open (`td-0e5d15`). No formula was changed to fit the
-observations. Canonical caveats and the source demo expose the disagreement;
-the [offline regression](../tests/tax_employer_pension_conformance.test.mjs)
+cap, and lifetime pension plus ATP) and four unresolved employer-rate pension
+disagreements. All four differ by 5,520 DKK in extra pension deduction.
+Three high-wage profiles differ by 1,297.20 DKK in tax; a new low-wage profile
+also differs by 6,150 DKK in employment deduction and 2,742.45 DKK in tax.
+A combined private/employer profile reaches the shared 65,500 DKK cap but
+the public form's extra deduction reflects only the private contribution.
+Two separate over-cap submissions returned validation errors, not tax results;
+they show that the server uses the employer-rate field for the shared cap.
+The guide preserves their inputs separately, without claiming excess-payment
+conformance. Public HTTP form submissions, restored inputs and selected client
+submit handlers were inspected; a fresh graphical-browser reproduction and
+explanation remain open (`td-0e5d15`). No formula was changed to fit the
+observations. Canonical caveats now mention the employment-deduction gap too;
+the source demo retains its original rate/ATP disagreement.
+The [offline regression](../tests/tax_employer_pension_conformance.test.mjs)
 keeps matches, disagreements and an invalid ATP control distinct.
 
 ## Limits to keep visible
