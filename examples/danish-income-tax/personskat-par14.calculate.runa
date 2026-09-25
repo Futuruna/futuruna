@@ -199,21 +199,21 @@ https://info.skat.dk/data.aspx?oid=1977389
             path = refof(PersonskatPar14Kilde::omregningsmetode::$variant),
             label = "Metode til helårsbeløb",
             question = Some("Skal beløbet omregnes forholdsmæssigt, bevares som engangsbeløb eller erstattes af et dokumenteret retvisende helårsbeløb?"),
-            help = Some("Løbende beløb omregnes efter periodens faktiske kalenderdage; engangsbeløb bevares uændret."),
+            help = Some("Løbende beløb omregnes efter periodens faktiske kalenderdage; engangsbeløb bevares uændret. Par14Aktieindkomst er ikke løn: hver kildes aktieindkomst skal indgå uændret, uden dagfaktor eller et andet hypotetisk helårsbeløb. Vælg Par14UændretEngangsbeløb, eller dokumentér samme beløb; se PSL § 14 og personskat-delaar.md."),
             unit = None
         ),
         TypetBeregningsfelt(
             path = refof(PersonskatPar14Kilde::omregningsmetode::Par14DokumenteretRetvisendeHelårsbeløb::helårsbeløb_kroner),
             label = "Dokumenteret retvisende helårsbeløb",
             question = Some("Hvilket helårsbeløb giver et dokumenteret retvisende billede af denne kilde?"),
-            help = Some("Udfyld kun ved metoden for dokumenteret retvisende helårsbeløb."),
+            help = Some("Udfyld kun ved metoden for dokumenteret retvisende helårsbeløb. For Par14Aktieindkomst skal beløbet være det samme som kildens delårsbeløb; en dokumenteret værdi gør ikke aktieindkomst til en indkomst, der skal helårsomregnes."),
             unit = Some("kr.")
         ),
         TypetBeregningsfelt(
             path = refof(PersonskatPar14Kilde::faktisk_helårsbeløb_kroner),
             label = "Faktisk beløb i hele året",
-            question = Some("Hvad var det faktiske beløb fra denne kilde i hele indkomståret, også uden for dansk skattepligt?"),
-            help = Some("Feltet er påkrævet, når § 14, stk. 2-valget anvendes, og kan ellers udelades."),
+            question = Some("Hvad er kildens beløb til det faktiske årsgrundlag efter § 14, stk. 2? Vedrører kilden aktieindkomst, som ikke skal omregnes?"),
+            help = Some("Feltet er påkrævet, når § 14, stk. 2-valget anvendes, og kan ellers udelades. For almindelig skattepligtig, personlig og kapitalindkomst medtages det faktiske beløb også uden for dansk skattepligt. Par14Aktieindkomst indgår derimod uændret med kildens delårsbeløb; valget gør ikke udenlandske aktiebeløb uden for perioden til dansk aktieindkomst. Afklar særskilt skattepligt og kildeklassifikation, og ret ikke dokumenterede beløb for at få et match. Se personskat-delaar.md."),
             unit = Some("kr.")
         )
     ],
@@ -278,6 +278,9 @@ https://info.skat.dk/data.aspx?oid=1977389
 } ellers {
     personskat_par14_faktisk_helårsbeløb_for_felt(kilder, felt)
 }
+-- PSL § 14 omregner almindelig, personlig og kapitalindkomst, ikke aktieindkomst.
+-- Kontroller hver kilde: modsatrettede omregninger må ikke skjules i en sum.
+| personskat_par14_aktiekilde_uændret(kilde: PersonskatPar14Kilde, skattepligtsdage: Heltal, skatteår: Heltal, valg: Par14ValgResultat) -> kilde.beregningsfelt != Par14Aktieindkomst || personskat_par14_valgt_helårsbeløb_for_felt([kilde], Par14Aktieindkomst, skattepligtsdage, skatteår, valg) == kilde.delårsbeløb_kroner
 | personskat_par14_ll9j_kilde_gyldig(kilde: PersonskatPar14Kilde) -> kilde.delårsbeløb_kroner >= 0 && (match kilde.faktisk_helårsbeløb_kroner { | Some(beløb) -> beløb >= 0 | None -> Sandt }) && (match kilde.omregningsmetode { | Par14DokumenteretRetvisendeHelårsbeløb(beløb) -> beløb >= 0 | _ -> Sandt })
 | personskat_par14_kilde_gyldig(kilde: PersonskatPar14Kilde) -> kilde.identifikation != "" && (kilde.beregningsfelt != Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst || personskat_par14_ll9j_kilde_gyldig(kilde))
 -- Én særskilt afgrænsningsrække pr. udelukket post. Samme sum med andre
@@ -498,7 +501,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         valg_afgivet_ved_oplysninger = input.valg_afgivet_ved_oplysninger,
         omvalg_dato = input.omvalg_dato
     ))
-    | kilder_gyldige() -> personskat_par14_kilder_gyldige(input.kilder, valg())
+    | kilder_gyldige() -> personskat_par14_kilder_gyldige(input.kilder, valg()) && all(input.kilder, |kilde: PersonskatPar14Kilde| personskat_par14_aktiekilde_uændret(kilde, skattepligtsdage(), skatteår(), valg()))
     | kilder_afstemt_med_personskat() -> personskat_par14_kilder_afstemt_med_delårsinput(input.kilder, delårsinput(), skatteforhold(), delårs_dis_personlig_indkomst_kroner()) && personskat_par14_ll9j_kilder_afstemt(input.kilder, delårsresultat().arbejdsfradrag_udland, input.helårsgrundlag)
     | bruger_dokumenteret_helårsgrundlag() -> match input.helårsgrundlag {
         | AfledtFraIdentificeredeKilder -> Falskt
@@ -571,6 +574,10 @@ https://info.skat.dk/data.aspx?oid=1977389
     )
     | helårspositiv_aktieindkomstskat() -> personskat_positiv_aktieindkomstskat(skatteår(), helårsaktieskatteforhold())
     | helårsendelig_aktieindkomstskat_øre() -> personskat_endelig_aktieindkomstskat_øre(skatteår(), helårspositiv_aktieindkomstskat())
+    | helårsendelig_aktieindkomstskat_kontrol_øre() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> helårsendelig_aktieindkomstskat_øre()
+        | DokumenteretHelårsPersonskat(_) -> helårsresultat().endelig_aktieindkomstskat_øre
+    }
     | endelig_aktieindkomstskat_komponent() -> personskat_par14_skattekomponent(
         Par14EndeligAktieindkomstskat,
         helårsendelig_aktieindkomstskat_øre(),
@@ -648,7 +655,7 @@ https://info.skat.dk/data.aspx?oid=1977389
     | statslig_ordinær_skat_før_skatteloftsnedslag_øre() -> lønmodtager_eksakte_statslige_skatter(komponenter_efter_par11_og_par14())
     | kommunal_og_kirkelig_skat_efter_par11_og_par14_øre() -> lønmodtager_eksakte_kommunale_og_kirkelige_skatter(komponenter_efter_par11_og_par14())
     | samlet_skatteloftsnedslag_øre() -> par14_samlet_delårsskat_for_komponenter_øre(skatteloftsnedslag())
-    | helårsskattekomponenter_afstemt() -> par14_samlet_helårsskat_for_komponenter_øre(statslige_skattekomponenter()) == lønmodtager_eksakte_statslige_skatter(helårsberegning_eksakt().efter_personfradrag) + helårsendelig_aktieindkomstskat_øre() && par14_samlet_helårsskat_for_komponenter_øre(kommunale_og_kirkelige_skattekomponenter()) == lønmodtager_eksakte_kommunale_og_kirkelige_skatter(helårsberegning_eksakt().efter_personfradrag) && par14_samlet_helårsskat_for_komponenter_øre(skatteloftsnedslag()) == helårsberegning_eksakt().skatteloft.samlet_nedslag_øre && helårs_par11_afstemt()
+    | helårsskattekomponenter_afstemt() -> par14_samlet_helårsskat_for_komponenter_øre(statslige_skattekomponenter()) == lønmodtager_eksakte_statslige_skatter(helårsberegning_eksakt().efter_personfradrag) + helårsendelig_aktieindkomstskat_kontrol_øre() && par14_samlet_helårsskat_for_komponenter_øre(kommunale_og_kirkelige_skattekomponenter()) == lønmodtager_eksakte_kommunale_og_kirkelige_skatter(helårsberegning_eksakt().efter_personfradrag) && par14_samlet_helårsskat_for_komponenter_øre(skatteloftsnedslag()) == helårsberegning_eksakt().skatteloft.samlet_nedslag_øre && helårs_par11_afstemt()
     | ligningslov33_skattekomponenter() -> LønmodtagerEksakteSkattekomponenter(
         par6_skat_øre = personskat_par14_skattekomponent(Par14Bundskat, helårsberegning_eksakt().efter_par13.par6_skat_øre, delårs_bundskattegrundlag_kroner(), helårs_bundskattegrundlag_kroner()).delårsskat_øre,
         par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_par13.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
@@ -811,7 +818,7 @@ https://info.skat.dk/data.aspx?oid=1977389
     | inputkontroller() -> [
         PersonskatInputkontrol(sti = "skattepligtsperiode", gyldig = periode_gyldig(), forklaring = "Periodens datoer og år skal være gyldige og svare til den oplyste indtræden eller ophør af skattepligt."),
         PersonskatInputkontrol(sti = "valg_afgivet_ved_oplysninger", gyldig = valg().input_gyldigt, forklaring = "Skattepligtsændring, § 14-valg og eventuel omvalgsdato skal opfylde modellens betingelser for indkomståret."),
-        PersonskatInputkontrol(sti = "kilder", gyldig = kilder_gyldige(), forklaring = "Identificerede kilder skal være entydige og gyldige. Valg af faktisk helårsindkomst kræver oplyste faktiske helårsbeløb; ukendt er ikke nul."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = kilder_gyldige(), forklaring = "Identificerede kilder skal være entydige og gyldige. Valg af faktisk helårsindkomst kræver oplyste faktiske helårsbeløb; ukendt er ikke nul. Hver kildes aktieindkomst skal indgå uændret uden helårsomregning, også ved § 14, stk. 2-valget. Afklar kilde og metode; ret ikke fakta for at opnå et match."),
         PersonskatInputkontrol(sti = "kilder", gyldig = kilder_afstemt_med_personskat(), forklaring = "Kildernes delårsbeløb og eventuelle udlandsafgrænsninger skal stemme med Personskat-grundlaget. Ret ikke dokumenterede beløb blot for at opnå et match."),
         PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold. Begge grundlag skal angive samme ægtefællestatus og samliv ved indkomstårets udløb; en aktiv ægtefælle skal vedrøre samme skatteår. Afklar modstridende fakta, ikke det forventede skattebeløb."),
         PersonskatInputkontrol(sti = "personskat", gyldig = kanonisk_beregning_understøttet(), forklaring = "Den kanoniske delårs- og helårssammensætning skal være understøttet. Se delårsresultatets domænekontroller og eventuelt det dokumenterede helårsgrundlag; et beregneligt mellemtrin er ikke en endelig delårskonklusion."),

@@ -398,6 +398,19 @@ explains this distinction. These fictional 2025 arrival-year composition
 checks do not establish independent part-year conformance, spouse identity,
 or all share-loss/foreign-income combinations.
 
+The [share-source conversion regression](../tests/personskat_partyear_share_conversion.test.mjs)
+then reproduced another accepted discrepancy: applying the generic day factor
+to a fictional 100,000 DKK dividend raised total tax by 5,020.89 DKK. Changed
+documented/actual share amounts were accepted too. Each own share source must
+now retain its amount in the selected PSL14 basis; a conflicting conversion
+withholds comparison instead of rewriting facts. Per-source checks also reject
+opposite conversions that cancel in the aggregate. The source-choice metadata
+explains the share-income exception, including the actual-income election.
+Documented annual low-rate share tax is additionally checked against its
+canonical annual result rather than the same reconstruction on both sides.
+These are source-backed consistency checks, not independent administrative
+part-year conformance or proof of all spouse/foreign share-income treatments.
+
 The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
 add two 2025 official-form matches (ordinary ATP below the employment-deduction
 cap, and lifetime pension plus ATP) and four unresolved employer-rate pension

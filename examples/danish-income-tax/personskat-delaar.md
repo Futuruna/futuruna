@@ -128,6 +128,41 @@ Aktieindkomst, der er et engangsbeløb i skattepligtsperioden, indgår uændret 
 helårsgrundlaget; opskalér ikke automatisk efter antal dage. Se
 [C.F.1.6.2.2](https://info.skat.dk/data.aspx?oid=1977389).
 
+### Aktieindkomst skal ikke omregnes som løn
+
+PSL § 14, stk. 1–3, omhandler almindelig skattepligtig indkomst, personlig
+indkomst og kapitalindkomst. Egen aktieindkomst er en særskilt indkomstform
+efter § 4 a og må ikke få et højere hypotetisk årsbeløb via dagomregning.
+Hver `Par14Aktieindkomst`-kilde skal derfor bevare sit delårsbeløb i det
+valgte beregningsgrundlag. Brug `Par14UændretEngangsbeløb`; et dokumenteret
+helårsbeløb kan også bruges, når det er samme beløb. Kontrollen gælder hver
+kilde, så modsatrettede omregninger ikke kan skjule hinanden i en sum.
+
+Ved valget efter § 14, stk. 2, skal `faktisk_helårsbeløb_kroner` fortsat
+oplyses for hver kilde. For aktiekilden er det samme uændrede beløb, ikke
+en tilføjelse af udenlandske aktieindtægter uden for skattepligtsperioden.
+Valget af faktisk indkomst udvider ikke i sig selv den danske skattepligt
+for aktier. Er sådanne beløb faktisk relevante, skal deres skattepligt og
+kilder afklares særskilt; de må ikke presses ind i denne omregningsrække.
+Bevar dokumenterne og ret ikke faktiske beløb for at få input accepteret.
+En uforenelig omregning tilbageholder sammenligningen med en forklaring
+under `kilder`; modellen retter ikke automatisk input.
+
+Et fiktivt eksempel med 100.000 kr. aktieindkomst i 184 skattepligtsdage
+i 2025 viste før rettelsen en accepteret modelskat på 103.236,05 kr. ved
+dagomregning mod 98.215,16 kr. med uændret aktieindkomst. Skat af selve
+aktiebeløbet er her 31.875 kr. uden øvrige aktiereduktioner. Den fulde
+modelskat er ikke en uafhængigt observeret SKAT-beregning.
+[Regressionskontrollen](../../tests/personskat_partyear_share_conversion.test.mjs)
+beskriver alle fiktive fakta og afprøver afledte og dokumenterede grundlag,
+valg af faktisk indkomst samt modsatrettede kildeomregninger.
+
+For et dokumenteret helårsgrundlag sammenlignes den rekonstruerede lave
+aktieskat også med det kanoniske helårsresultats egen aktieskat. Det er en
+intern sammensætningskontrol, ikke et uafhængigt administrativt facit.
+Dette afgør ikke alle ægtefælleforløb, udenlandske aktiers skattepligt eller
+fraflytningsbeskatning.
+
 Samliv **ved indkomstårets udløb** er én og samme oplysning i delårs- og
 helårsgrundlaget. Modstridende ja/nej, en ægtefælle der mangler i det ene
 grundlag, eller en aktiv ægtefælles forkerte skatteår afviser sammenligningen.
@@ -185,6 +220,8 @@ ret ikke kun `schema_hash`. Vurderingsgrænsen alene ændrede ikke skatteformler
 eller rå beløb. Den efterfølgende kapitalrettelse ovenfor ændrer derimod
 berørte delårsresultater og § 11-forklaringer. Aktierettelsen ændrer også
 berørt aktieskat, og modstridende ægtefællegrundlag kan nu afvises.
+Omregning af aktieindkomst til et ændret årsbeløb afvises nu også, selv når
+det ændrede beløb stemmer med et separat dokumenteret helårsgrundlag.
 Genberegn gemte resultater uden
 at rette kildebeløbene. Inputtyper og satser er uændrede. Tidligere ugyldige
 nulbeløb bliver ikke godkendte resultater ved migreringen.
