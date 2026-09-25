@@ -106,7 +106,7 @@
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = pension,
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 | personskat_pension_input(pension: PersonskatPensionsInput) -> PersonskatInput(
     lønmodtager = personskat_pension_lønmodtager(pension),

@@ -49,7 +49,7 @@ lovbestemte indkomstkategori.
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
+        kirkeskat = IngenKirkeskatHeleÅret
     ),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = ll7n_scenarie_aktieavance(poster),

@@ -123,7 +123,7 @@ retained case count and need not sum to the global mechanism count.
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = context.personfradrag_alder_status,
-    betaler_kirkeskat = context.betaler_kirkeskat
+    kirkeskat = hvis context.betaler_kirkeskat { KirkeskatHeleÅret } ellers { IngenKirkeskatHeleÅret }
 )
 
 | personskat_200k_audit_input(

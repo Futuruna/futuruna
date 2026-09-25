@@ -148,7 +148,7 @@ calculation. This file is a bounded model audit, not individual tax advice.
         personskat_200k_profiles_fødselsdato(state.profile, state.scope)
     ),
     personfradrag_alder_status = state.profile.personfradrag_alder_status,
-    betaler_kirkeskat = state.profile.betaler_kirkeskat
+    kirkeskat = hvis state.profile.betaler_kirkeskat { KirkeskatHeleÅret } ellers { IngenKirkeskatHeleÅret }
 )
 
 | personskat_200k_profiles_input(

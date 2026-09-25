@@ -42,6 +42,9 @@ Kirkemedlemskab en del af året er ikke det samme som delårsskattepligt.
 Denne indgang tilføjer ingen medlemsperioder; PSL § 14 må ikke bruges til
 at efterligne en ind-/udmeldelse. Afklar også kirkeskatten for året og
 en eventuel ægtefælle; se [kirkeskattegrænsen](personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
+`KirkeskatUoplyst` og `KirkeskatEnDelAfÅret` i Personskat-grundlaget
+tilbageholder også den yderste delårssammenligning. Det gælder både
+delårsgrundlaget og et særskilt dokumenteret helårsgrundlag.
 
 ## Fra gennemgåede fakta til input
 

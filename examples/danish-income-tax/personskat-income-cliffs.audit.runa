@@ -142,7 +142,7 @@ components of the final-tax calculation.
     ),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = profil.betaler_kirkeskat
+    kirkeskat = hvis profil.betaler_kirkeskat { KirkeskatHeleÅret } ellers { IngenKirkeskatHeleÅret }
 )
 
 | personskat_indkomstklint_input(profil: PersonskatIndkomstklintProfil, bruttoløn_kroner: Heltal) -> PersonskatInput(

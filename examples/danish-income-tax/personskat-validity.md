@@ -158,13 +158,18 @@ angiver, at en udmeldt person kun betaler for medlemsdelen af året. Kilderne
 er gennemgået 25. september 2026; de fastlægger ikke her den præcise
 periodiserings- og afrundingsalgoritme.
 
-Det nuværende `lønmodtager.betaler_kirkeskat` er kun et boolsk felt:
+`lønmodtager.kirkeskat` har nu fire udtrykkelige statusser:
 
-- `true`: afklaret kirkeskat hele indkomståret.
-- `false`: afklaret ingen kirkeskat hele indkomståret, **ikke ukendt**.
-- Ind-/udmeldelse i året eller uafklaret status: feltet kan ikke udtrykke
-  fakta. Afvent en understøttet beregningsvej før uafhængig sammenligning
-  af samlet skat; vælg ikke den værdi, der giver det nærmeste rapportbeløb.
+| Status | Betydning og modelresultat |
+| --- | --- |
+| `KirkeskatUoplyst` | Ikke afklaret; sammenligningsbeløbet tilbageholdes. Dette er skabelonens startværdi, ikke ingen kirkeskat. |
+| `IngenKirkeskatHeleÅret` | Afklaret ingen kirkeskat hele indkomståret; den eksisterende beregning uden kirkeskat bruges. |
+| `KirkeskatHeleÅret` | Afklaret kirkeskat hele indkomståret; den eksisterende helårsberegning bruges. |
+| `KirkeskatEnDelAfÅret` | Kendt delårsforhold, men periodiseringen er endnu ikke modelleret; sammenligningsbeløbet tilbageholdes. |
+
+Ind-/udmeldelse i året må ikke omklassificeres til en helårsstatus for at
+opnå det nærmeste rapportbeløb. En tilbageholdt sammenligning betyder ikke
+skattefrihed eller en fejl i årsopgørelsen.
 
 Et beløb på nul er ikke i sig selv bevis for ingen kirkeskattepligt:
 indkomstgrundlag og personfradrag påvirker også beløbet. Brug ikke ændret
@@ -172,17 +177,30 @@ indkomst, skattekommune eller sats til at efterligne en medlemsperiode.
 [Delårsskattepligt efter PSL § 14](personskat-delaar.md) er en anden
 problemstilling og tilføjer ikke medlemsperioder til denne model.
 
-Den genererede vejledning og resultatets `forbehold` fremhæver grænsen.
-Der er **ikke** tilføjet en automatisk kontrol: modellen modtager ingen
-medlemsdatoer og kan derfor stadig returnere `BeregnetMedForbehold`, hvis
-et forkert boolsk svar indtastes. Ved
+Kontrollen ved `lønmodtager.kirkeskat` og den tilsvarende aktive ægtefællesti
+tilbageholder nu sammenligningen mekanisk for uoplyst status og delårsforhold.
+Status bevares ved ægtefællefordeling og i § 14-forløbet; den afledte
+grøn-check-indgang tilbageholder også sin betalingsafregning. Modellen
+autentificerer stadig ikke dokumenterne eller opdager en urigtigt oplyst
+helårsstatus. Ved
 [betinget rapportafstemning](aarsopgoerelse-afstemning.md) kan de oplyste
 tal stadig undersøges, men kirkeloftet er kun en helårs-overgrænse og
 godkender ikke periodens faktiske nedslag.
 
-Metadataændringen ændrer kontraktens fingeraftryk. Generér en frisk
-skabelon og overfør gennemgåede kildefakta; ret ikke blot `schema_hash`.
-Feltets type og skatteformlerne er uændrede.
+### Migrering fra det boolske felt
+
+Dette er en ændring af Preview-inputkontrakten: `betaler_kirkeskat` er
+erstattet af `kirkeskat`, også for en ægtefælle og i indlejrede Personskat-input.
+Generér en frisk skabelon og overfør gennemgåede kildefakta; ret ikke blot
+`schema_hash`. JSON angiver fx `"kirkeskat": {"$variant": "KirkeskatHeleÅret"}`.
+Det gamle boolske felt afvises af den nye kontrakt.
+
+Et tidligere `true` eller `false` må kun oversættes til den tilsvarende
+helårsstatus, hvis fakta faktisk var afklaret for hele indkomståret. Var det
+en skabelonværdi eller et gæt, bruges `KirkeskatUoplyst`; gjaldt det en del af
+året, bruges `KirkeskatEnDelAfÅret`. Skatteformlerne for de to understøttede
+helårsstatusser er uændrede. Lavniveaumodulets boolske input og den særskilte
+betingede rapportafstemnings `betaler_kirkeskat` er ikke ændret.
 
 ## Særlige DIS-skattepligtspositioner
 

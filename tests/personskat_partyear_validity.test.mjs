@@ -15,7 +15,9 @@ const model = 'examples/danish-income-tax/personskat-par14.calculate.runa';
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build, network or personal files.' };
 const v = $variant => ({ $variant });
 function run(args) {
-  const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 600000,
+  // Cold contract validation can exceed ten wall-clock minutes on the shared
+  // 8 GB host. Assertions and the single calculation worker remain unchanged.
+  const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 1200000,
     maxBuffer: 64 * 1024 * 1024, env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' } });
   assert.ifError(p.error); assert.equal(p.status, 0, p.stderr);
   return JSON.parse(p.stdout);
@@ -49,6 +51,8 @@ test('part-year comparison uses the final assessment, never a nested ordinary am
     ['period-mismatch', x => { x.skattepligtsperiode.fra_dato.dag = 2; }],
     ['actual-annual-unknown', x => { x.valg_afgivet_ved_oplysninger = true; }],
     ['atp-unknown', x => { x.personskat.lønmodtager.pension.atp = v('AtpUoplyst'); }],
+    ['church-unknown', x => { x.personskat.lønmodtager.kirkeskat = v('KirkeskatUoplyst'); }],
+    ['church-part-year', x => { x.personskat.lønmodtager.kirkeskat = v('KirkeskatEnDelAfÅret'); }],
   ];
   envelope.cases = edits.map(([case_id, edit]) => { const input = structuredClone(baseline); edit(input); return { case_id, input }; });
   const output = run(['call', model, '--entry', 'beregn_personskat_delår', '--input', save(evidence, 'cases.json', envelope)]);
@@ -83,6 +87,10 @@ test('part-year comparison uses the final assessment, never a nested ordinary am
     if (case_id === 'source-mismatch') {
       assert.equal(r.delårsresultat.vurdering.alle_kontroller_gyldige, true,
         'a valid intermediate result must not override failed part-year reconciliation');
+    }
+    if (case_id.startsWith('church-')) {
+      assert.ok(r.delårsresultat.vurdering.fejl.some(f => f.sti === 'lønmodtager.kirkeskat'));
+      assert.equal(r.delårsresultat.vurdering.slutskat_til_sammenligning_øre, null);
     }
   }
 });

@@ -89,7 +89,7 @@ etableringskontoloven.runa og kapitel-01-indkomst.runa.
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 | personskat_etbl_personfakta(bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput) -> PersonskatPersonFakta(
     lønmodtager = personskat_etbl_lønmodtager(bruttoløn_kroner, personlig_indkomst),

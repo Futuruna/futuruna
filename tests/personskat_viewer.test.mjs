@@ -228,7 +228,7 @@ test('fresh canonical output retains valid, unknown, spouse and failed-year case
   // capital income, losses, ATP/pension payments or other deductions. Empty
   // template branches describe this invented person ONLY, never missing data.
   Object.assign(input.lønmodtager, { skatteår: 2026, bruttoløn_kroner: 300000,
-    kommune: variant('København'), betaler_kirkeskat: false });
+    kommune: variant('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(input.lønmodtager.pension, { fødselsdato: { år: 1990, måned: 1, dag: 1 },
     atp: variant('IngenAtpIndbetalinger'), udbetalingsoplysninger: { for_året_komplette: true, for_foregående_år_komplette: true } });
   Object.assign(input.lønmodtager.ligningsfradrag, {

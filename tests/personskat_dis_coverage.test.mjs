@@ -56,7 +56,7 @@ test('unsupported special DIS positions explain withheld canonical comparisons',
   const envelope = run(['template', model, '--format', 'json']);
   const base = envelope.cases[0].input;
   // Explicitly fictional absence of unrelated facts, not real-report defaults.
-  Object.assign(base.lønmodtager, { bruttoløn_kroner: 0, kommune: v('København'), betaler_kirkeskat: false });
+  Object.assign(base.lønmodtager, { bruttoløn_kroner: 0, kommune: v('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(base.lønmodtager.pension, { atp: v('IngenAtpIndbetalinger'),
     udbetalingsoplysninger: { for_året_komplette: true, for_foregående_år_komplette: true } });
   Object.assign(base.lønmodtager.ligningsfradrag, {

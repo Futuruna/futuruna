@@ -35,7 +35,7 @@ test('employee expense shares distinguish invalid facts from no entitlement for 
   // pensions/ATP, property, losses or deductions. Never infer these absences
   // from a real person's template or from an absent report line.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 600000,
-    kommune: variant('København'), betaler_kirkeskat: false });
+    kommune: variant('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(base.lønmodtager.pension, { fødselsdato: { år: 1980, måned: 1, dag: 1 },
     atp: variant('IngenAtpIndbetalinger'),
     udbetalingsoplysninger: { for_året_komplette: true, for_foregående_år_komplette: true } });

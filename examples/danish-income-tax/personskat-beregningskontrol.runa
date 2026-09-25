@@ -7,7 +7,7 @@
 # PersonskatBeregningsstatus = UgyldigtBeregningsgrundlag | BeregnetMedForbehold
 # PersonskatBeregningsvurdering(status: PersonskatBeregningsstatus, alle_kontroller_gyldige: Boolsk, slutskat_til_sammenligning_øre: Heltal?, samlet_modeldækning_bekræftet: Boolsk, kontroller: List(PersonskatInputkontrol), fejl: List(PersonskatInputkontrol), forbehold: List(Tekst))
 
-= personskat_kirkeskat_forbehold = "Kirkeskat kræver afklaring for indkomståret, ikke medlemskab i dag. Det boolske felt kan ikke repræsentere ukendt status eller medlemskab en del af året, heller ikke for en ægtefælle. Modellen opdager ikke disse forhold automatisk og periodiserer ikke medlemskab; PSL § 14 løser ikke denne mangel. Ved sådanne forhold må samlet skat ikke bruges som uafhængig sammenligning. Se personskat-validity.md."
+= personskat_kirkeskat_forbehold = "Kirkeskat kræver afklaring for indkomståret, ikke medlemskab i dag. KirkeskatUoplyst og KirkeskatEnDelAfÅret tilbageholder sammenligningen, også for en aktiv ægtefælle. Modellen beregner endnu ikke medlemsperioder; PSL § 14 løser ikke denne mangel. En angivet helårsstatus bekræfter ikke dokumenternes sandhed. Se personskat-validity.md."
 
 > personskat_beregningsvurdering(kontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> PersonskatBeregningsvurdering {
     = fejl = filter(kontroller, |kontrol: PersonskatInputkontrol| kontrol.gyldig == Falskt)

@@ -105,7 +105,7 @@ These constructors encode declared audit facts, not replacement tax formulas.
     ligningsfradrag = personskat_350k_commuter_ligningsfradrag(state.profil),
     pension = personskat_350k_commuter_ingen_pension(state.profil.fødselsdato),
     personfradrag_alder_status = state.profil.personfradrag_alder_status,
-    betaler_kirkeskat = state.profil.betaler_kirkeskat
+    kirkeskat = hvis state.profil.betaler_kirkeskat { KirkeskatHeleÅret } ellers { IngenKirkeskatHeleÅret }
 )
 
 | personskat_350k_commuter_input(

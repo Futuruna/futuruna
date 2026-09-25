@@ -30,7 +30,7 @@
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = pension,
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 | personskat_ambl_par2_nr5_input(pension: PersonskatPensionsInput) -> PersonskatInput(
     lønmodtager = personskat_ambl_par2_nr5_lønmodtager(pension),

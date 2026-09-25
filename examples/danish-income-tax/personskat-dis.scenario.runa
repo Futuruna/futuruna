@@ -38,7 +38,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 | personskat_dis_input_med_ægtefælle(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput, ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(
     lønmodtager = personskat_dis_lønmodtager(bruttoløn_kroner, sømandsbeskatning),
@@ -159,7 +159,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
+        kirkeskat = IngenKirkeskatHeleÅret
     ),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),

@@ -244,7 +244,7 @@ indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
         ),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
+        kirkeskat = IngenKirkeskatHeleÅret
     ),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),

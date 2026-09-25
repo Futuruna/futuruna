@@ -20,7 +20,7 @@ Futuruna selv afleder fradrag, kapitalindkomst og ugyldige metodevalg.
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
+        kirkeskat = IngenKirkeskatHeleÅret
     ),
     kapitalindkomst = PersonskatKapitalindkomstInput(
         renter = PersonskatRenteInput(

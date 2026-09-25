@@ -77,7 +77,7 @@ fn commuting_rejects_negative_bridge_counts_and_impossible_calendar_days() {
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["skatteår"] = json!(2026);
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
-    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     let bridge_fields = [
         "storebælt_bil_motorcykel_passager",
         "storebælt_kollektiv_passager",
@@ -238,7 +238,8 @@ fn fictional_spouse_rates_input(envelope: &Value) -> Value {
         json!({"$variant":"IngenBoligjobudgifter"});
     baseline["ægtefælle"] = spouse(&baseline);
     baseline["ægtefælle"]["fakta"]["lønmodtager"]["kommune"] = json!({"$variant":"Ballerup"});
-    baseline["ægtefælle"]["fakta"]["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["ægtefælle"]["fakta"]["lønmodtager"]["kirkeskat"] =
+        json!({"$variant": "IngenKirkeskatHeleÅret"});
     baseline
 }
 
@@ -248,7 +249,7 @@ fn public_early_pensions_preserve_old_exemptions_and_separate_atp_bases() {
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
-    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     baseline["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1960);
     let payment = |id: &str, kind: &str, amount: i64| {
         json!({
@@ -491,7 +492,7 @@ fn folkepension_and_exempt_supplements_preserve_tax_and_pension_deduction_bases(
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
-    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     baseline["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1955,"måned":1,"dag":1});
     let payment = |id: &str, art: &str, amount: i64| {
         json!({"$variant":"PersonskatFolkepensionsudbetaling", "fakta":{
@@ -719,7 +720,7 @@ fn su_grants_and_loans_reach_canonical_tax_without_wage_deductions() {
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
-    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     let su = |id: &str, art: &str, year: i64, amount: i64| {
         json!({
             "$variant":"PersonskatUddannelsesstøtte", "fakta":{
@@ -905,7 +906,7 @@ fn commuting_income_uses_benefit_sources_and_annual_business_basis() {
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["skatteår"] = json!(2026);
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(300000);
-    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     baseline["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] = json!([commuting(220)]);
     let benefit = |art: Value| {
         json!({"$variant":"PersonskatLovbestemteDagpenge", "fakta":{
@@ -1226,8 +1227,8 @@ fn spouse_loss_uses_recipient_rates_from_source_facts() {
     envelope["cases"] =
         json!(expectations.iter().map(|(church, donor_church, _, _)| {
         let mut input = baseline.clone();
-        input["lønmodtager"]["betaler_kirkeskat"] = json!(church);
-        input["ægtefælle"]["fakta"]["lønmodtager"]["betaler_kirkeskat"] = json!(donor_church);
+        input["lønmodtager"]["kirkeskat"] = json!({"$variant": if *church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
+        input["ægtefælle"]["fakta"]["lønmodtager"]["kirkeskat"] = json!({"$variant": if *donor_church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
         json!({"case_id":format!("loss-recipient-{church}-donor-{donor_church}"),"input":input})
     }).collect::<Vec<_>>());
     let path =
@@ -1285,8 +1286,8 @@ fn spouse_allowance_uses_recipient_rates_from_source_facts() {
         .iter()
         .map(|(church, donor_church, wage, _)| {
             let mut input = baseline.clone();
-            input["lønmodtager"]["betaler_kirkeskat"] = json!(church);
-            input["ægtefælle"]["fakta"]["lønmodtager"]["betaler_kirkeskat"] = json!(donor_church);
+            input["lønmodtager"]["kirkeskat"] = json!({"$variant": if *church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
+            input["ægtefælle"]["fakta"]["lønmodtager"]["kirkeskat"] = json!({"$variant": if *donor_church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
             input["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(wage);
             json!({"case_id":format!("recipient-{church}-donor-{donor_church}-{wage}"),"input":input})
         })

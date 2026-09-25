@@ -9,7 +9,7 @@ function constructionTemplate() {
   return { $futuruna: { schema_hash: 'construction-only-not-a-real-contract' }, cases: [{
     case_id: 'placeholder', input: {
       lønmodtager: {
-        skatteår: 0, bruttoløn_kroner: 0, kommune: v('København'), betaler_kirkeskat: false,
+        skatteår: 0, bruttoløn_kroner: 0, kommune: v('København'), kirkeskat: { $variant: 'KirkeskatUoplyst' },
         pension: { fødselsdato: { år: 0, måned: 0, dag: 0 }, atp: v('AtpUoplyst'),
           pbl18_indbetalinger: [], udbetalingsoplysninger: { for_året_komplette: false, for_foregående_år_komplette: false } },
         ligningsfradrag: { enlig_forsørger: v('EkstraBørnetilskudUoplyst'), boligjob: v('BoligjobUoplyst'),
