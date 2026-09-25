@@ -88,6 +88,12 @@ unsupported or inconsistent. The existing entry's input/output types are unchang
 
 ## Which checks are combined
 
+Payroll-funded group-life premiums and the bounded PBL19/PBL56 aggregate now
+require a documented gross amount for employment/job deductions, separately
+from net personal income. Unknown gross withholds comparison for taxpayer and
+spouse; it is not silently treated as zero. See the
+[group-life input and migration guide](personskat-gruppeliv.md).
+
 The canonical calculation combines explicit domain summaries for dates/year and
 municipality, personal income, commuting and deductions, pension contributions
 and payments, capital income, self-employed AM contributions, shares, foreign

@@ -92,6 +92,19 @@ the separate spouse/settlement calculations. No tax formula changed.
 
 ## Further correctness work already delivered
 
+The [payroll group-life correction](../examples/danish-income-tax/personskat-gruppeliv.md)
+adds the documented gross premium to employment/job deduction bases while
+retaining net personal income, no second AM charge and no extra pension
+deduction for this insurance. A reproduced 2025 low-wage case previously
+accepted a deduction 123 DKK too low and tax 28.91 DKK too high. Unknown gross
+now withholds the canonical comparison for both this route and the bounded
+PBL19/PBL56 aggregate, including spouses. The new optional source field requires
+a fresh template; generated help distinguishes payroll from pension-bonus
+funding and warns against overlapping pension/report totals. Two recorded
+anonymous public-form observations and focused [canonical coverage](../tests/personskat_group_life.test.mjs)
+test the correction; this is not automatic report classification or coverage
+of bonus-financed premiums.
+
 The [labour-hire age regression](../tests/personskat_labour_hire_age.test.mjs)
 closes an input-consistency gap: a separate labour-hire age can no longer
 contradict the canonical taxpayer's birth date while retaining a comparison.

@@ -21,21 +21,28 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::$variant),
     label = "Arbejdsgiverbetalt ydelse",
     question = Some("Hvilken retlig type arbejdsgiverbetalt ydelse fremgår af kildematerialet?"),
-    help = Some("Vælg den præcise retlige type, når kilden dokumenterer den. Brug den afgrænsede PBL § 19/PBL § 56-samlepost, når kilden kun viser det samlede indberettede beløb."),
+    help = Some("Vælg den præcise retlige type, når kilden dokumenterer den. GruppelivSomUadskiltDelAfPbl19Ordning gælder løntræk med allerede indeholdt AM, fx eIndkomst felt 91; ikke gruppeliv finansieret af pensionsbonus i felt 38, indtægtsart 37. Brug kun den afgrænsede PBL § 19/PBL § 56-samlepost for de understøttede lønfinansierede, ikke-fradragsberettigede indskud. En rubrik 347-total kan også indeholde rateoverskud og må ikke ukritisk kopieres. Se personskat-gruppeliv.md."),
     unit = None
 )
 = personskat_personlig_indkomst_felt_direkte_gruppeliv = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::DirekteArbejdsgiverbetaltGruppeliv::præmie_før_arbejdsmarkedsbidrag_kroner),
     label = "Direkte arbejdsgiverbetalt gruppeliv før AM-bidrag",
     question = Some("Hvor stor gruppelivspræmie betalte arbejdsgiveren direkte før arbejdsmarkedsbidrag?"),
-    help = Some("Denne type er A-indkomst og AM-bidragspligtig. Brug kun feltet, når kilden viser direkte betaling til gruppelivsforsikringen."),
+    help = Some("Denne type er A-indkomst og AM-bidragspligtig. Brug kun feltet, når kilden viser direkte betaling til gruppelivsforsikringen, og beløbet ikke allerede er med i lønfeltet. Ellers tælles samme løn og AM to gange."),
     unit = Some("kr./år")
 )
 = personskat_personlig_indkomst_felt_pbl19_gruppeliv = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::GruppelivSomUadskiltDelAfPbl19Ordning::personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
     label = "Gruppeliv i PBL § 19-ordning efter AM-bidrag",
     question = Some("Hvor stor personlig indkomst er indberettet for gruppeliv, der er en uadskilt del af en arbejdsgiveradministreret pensionsordning?"),
-    help = Some("Forsikringsselskabet har allerede indeholdt arbejdsmarkedsbidrag. Beløbet må derfor ikke lægges i et nyt AM-grundlag."),
+    help = Some("Brug den dokumenterede nettoværdi af lønfinansieret gruppeliv efter pensionsinstituttets AM, ikke hele pensionsindbetalingen eller en ukendt rubrik 347-fordeling. Beløbet er personlig indkomst uden nyt AM og giver ikke ekstra pensionsfradrag. Angiv også dokumenteret brutto til beskæftigelses- og jobfradrag. Præmien må ikke samtidig indgå i en anden pensionspost; pensionsbonus følger ikke denne løntræksgren. Se personskat-gruppeliv.md."),
+    unit = Some("kr./år")
+)
+= personskat_personlig_indkomst_felt_pbl19_gruppeliv_før_am = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::GruppelivSomUadskiltDelAfPbl19Ordning::præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner),
+    label = "Lønfinansieret gruppeliv før allerede indeholdt AM-bidrag",
+    question = Some("Hvad er den dokumenterede gruppelivspræmie før pensionsinstituttets indeholdelse af AM?"),
+    help = Some("Brutto bruges kun i beskæftigelses- og jobfradragsgrundlaget, ikke til nyt AM eller ekstra pensionsfradrag. Bevar null ved ukendt brutto; Personskat tilbageholder da sammenligningsbeløbet. Udled ikke beløbet ved netto/0,92. Hvis en pensionsoversigt samler pension og forsikring, kræves en dokumenteret opdeling, så gruppeliv ikke tælles to gange. Se personskat-gruppeliv.md."),
     unit = Some("kr./år")
 )
 = personskat_personlig_indkomst_felt_pbl19_pension_arbejdsgiverrelation = TypetBeregningsfelt(
@@ -70,14 +77,14 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56::indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner),
     label = "Pensions- og gruppelivssamlepost før indeholdt AM-bidrag",
     question = Some("Hvilket samlet bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?"),
-    help = Some("Brug feltet, når en indberetning samler arbejdsgiveradministreret aldersopsparing, gruppeliv eller andre afgrænsede undtagelser uden at oplyse den præcise fordeling."),
+    help = Some("Kun dokumenteret lønfinansieret, ikke-fradragsberettiget aldersopsparing/gruppeliv mv., ikke almindelig bortseelsesberettiget pension, pensionsbonus eller rateoverskud beregnet fra pensionslisten. Brutto kræves til beskæftigelses- og jobfradrag. Bevar null ved ukendt; sammenligningen tilbageholdes. Brug ikke netto/0,92 eller samme beløb både her og i andre pensionsposter. Se personskat-gruppeliv.md."),
     unit = Some("kr./år")
 )
 = personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_efter_am = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56::indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
     label = "Pensions- og gruppelivssamlepost efter indeholdt AM-bidrag",
     question = Some("Hvilket samlet beløb efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?"),
-    help = Some("Beløbet medregnes i personlig indkomst uden et nyt AM-bidrag. Angiv ikke en mere præcis pensionsart, end kilden dokumenterer."),
+    help = Some("Beløbet medregnes i personlig indkomst uden nyt AM eller ekstra pensionsfradrag. Angiv ikke en mere præcis pensionsart, end kilden dokumenterer. En samlet rubrik 347 er ikke tilstrækkelig, hvis den også omfatter fx rateoverskud, der allerede beregnes fra andre pensionsposter. Se personskat-gruppeliv.md."),
     unit = Some("kr./år")
 )
 = personskat_personlig_indkomst_felt_pbl19_pension_kapitalstatus = TypetBeregningsfelt(
@@ -554,6 +561,7 @@
         personskat_personlig_indkomst_felt_arbejdsgiverydelse_art,
         personskat_personlig_indkomst_felt_direkte_gruppeliv,
         personskat_personlig_indkomst_felt_pbl19_gruppeliv,
+        personskat_personlig_indkomst_felt_pbl19_gruppeliv_før_am,
         personskat_personlig_indkomst_felt_pbl19_pension_arbejdsgiverrelation,
         personskat_personlig_indkomst_felt_pbl19_pension_ordning,
         personskat_personlig_indkomst_felt_pbl19_pension_før_am,
@@ -693,6 +701,8 @@
         DependencySource(value = børnebidragsloven_lbk773_par19),
         DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
         Guidance(value = skat_gruppeliv_vejledning),
+        Guidance(value = skat_gruppeliv_eindkomst_20260925),
+        Guidance(value = skat_gruppeliv_rubrik347_20260925),
         Guidance(value = skat_honorar_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_vejledning),
         Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),

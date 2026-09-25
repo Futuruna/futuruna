@@ -28,6 +28,16 @@
     identifier = "Den juridiske vejledning C.A.10.4.3.10: Gruppelivsforsikring",
     hentet_dato = "2026-08-03"
 )
+= skat_gruppeliv_eindkomst_20260925 = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2045911",
+    identifier = "eIndkomst 8.5, felt 91: lønfinansieret gruppeliv indgår i beskæftigelsesfradrag; pensionsbonus i felt 38, indtægtsart 37, gør ikke",
+    hentet_dato = "2026-09-25"
+)
+= skat_gruppeliv_rubrik347_20260925 = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2134461",
+    identifier = "Rubrik 347: arbejdsgiveradministrerede ikke-fradragsberettigede indskud, efter allerede indeholdt AM; den viste rategrænse bruges ikke som årsparameter",
+    hentet_dato = "2026-09-25"
+)
 = skat_honorar_vejledning = PersonskatPersonligIndkomstKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1976769",
     identifier = "Den juridiske vejledning C.A.3.1.2: Honorar",
@@ -48,6 +58,8 @@
         DependencySource(value = søbl5_til8_bek940),
         DependencySource(value = søbl5_til8_ligningslov7u_lbk1500),
         Guidance(value = skat_gruppeliv_vejledning),
+        Guidance(value = skat_gruppeliv_eindkomst_20260925),
+        Guidance(value = skat_gruppeliv_rubrik347_20260925),
     )
 )
 
@@ -107,7 +119,7 @@ nævnt i § 29 A, stk. 1.
 ----
 
 --@begin:personskat_arbejdsgiverydelser--
-# PersonskatArbejdsgiverydelse = DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner: Heltal) | GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | ArbejdsgiveradministreretPensionEfterPbl19(fakta: Pbl19ArbejdsgiverindbetalingFakta) | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal) | UklassificeretArbejdsgiverbetaltYdelse(beskrivelse: Tekst, beløb_kroner: Heltal)
+# PersonskatArbejdsgiverydelse = DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner: Heltal) | GruppelivSomUadskiltDelAfPbl19Ordning(præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | ArbejdsgiveradministreretPensionEfterPbl19(fakta: Pbl19ArbejdsgiverindbetalingFakta) | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal) | UklassificeretArbejdsgiverbetaltYdelse(beskrivelse: Tekst, beløb_kroner: Heltal)
 # PersonskatArbejdsgiverydelseFakta(identifikation: Tekst, indkomstår: Heltal, ydelse: PersonskatArbejdsgiverydelse)
 # PersonskatArbejdsgiverydelseAmKlassifikation = AnsættelsesvederlagEfterPar2Stk1Nr1 | GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag | PensionEfterPbl19MedAlleredeIndeholdtArbejdsmarkedsbidrag(resultat: Pbl19ArbejdsgiverindbetalingResultat) | SamlepostEfterPbl19EllerPbl56MedAlleredeIndeholdtArbejdsmarkedsbidrag | NaturalieOmfattetAfPar2Stk2(resultat: ArbejdsmarkedsbidragNaturaliaResultat) | IkkeUnderstøttetArbejdsgiverydelseAmKlassifikation
 # PersonskatArbejdsgiverydelseBeregning(fakta: PersonskatArbejdsgiverydelseFakta, am_klassifikation: PersonskatArbejdsgiverydelseAmKlassifikation, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_ydelsen: Par3PersonligIndkomstResultat, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
@@ -121,7 +133,7 @@ nævnt i § 29 A, stk. 1.
 )
 | personskat_arbejdsgiverydelse_beløb_kroner(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(beløb_kroner) -> beløb_kroner
-    | GruppelivSomUadskiltDelAfPbl19Ordning(beløb_kroner) -> beløb_kroner
+    | GruppelivSomUadskiltDelAfPbl19Ordning(_, beløb_kroner) -> beløb_kroner
     | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner
     | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, beløb_kroner) -> beløb_kroner
     | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(_, beløb_kroner) -> beløb_kroner
@@ -135,10 +147,24 @@ nævnt i § 29 A, stk. 1.
     | Some(bruttobeløb_kroner) -> bruttobeløb_kroner
     | None -> 0
 }
+-- LL §§ 9 J/K anvender AM-grundlaget, mens PBL § 56-præmien indgår netto i
+-- personlig indkomst uden nyt AM og uden LL § 9 L-fradrag. Nettobeløbet alene
+-- kan opgøre den personlige indkomst, men afklarer ikke arbejdsfradraget.
+| personskat_arbejdsgiverydelse_arbejdsfradragsgrundlag_afklaret(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
+    | GruppelivSomUadskiltDelAfPbl19Ordning(bruttobeløb, nettobeløb) -> match bruttobeløb {
+        | Some(beløb) -> beløb >= nettobeløb && nettobeløb >= 0
+        | None -> Falskt
+    }
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(bruttobeløb, nettobeløb) -> match bruttobeløb {
+        | Some(beløb) -> beløb >= nettobeløb && nettobeløb >= 0
+        | None -> Falskt
+    }
+    | _ -> Sandt
+}
 | personskat_arbejdsgiverydelse_grundfakta_gyldige(fakta: PersonskatArbejdsgiverydelseFakta) -> fakta.identifikation != "" && personskat_arbejdsgiverydelse_beløb_kroner(fakta.ydelse) >= 0
 | personskat_arbejdsgiverydelse_understøttet(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(_) -> Sandt
-    | GruppelivSomUadskiltDelAfPbl19Ordning(_) -> Sandt
+    | GruppelivSomUadskiltDelAfPbl19Ordning(bruttobeløb, nettobeløb) -> personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_gyldigt(bruttobeløb, nettobeløb)
     | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).input_gyldigt
     | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(bruttobeløb, nettobeløb_kroner) -> personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_gyldigt(bruttobeløb, nettobeløb_kroner)
     | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art, beløb_kroner) -> arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
@@ -150,7 +176,7 @@ nævnt i § 29 A, stk. 1.
 }
 | personskat_arbejdsgiverydelse_am_klassifikation(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(_) -> AnsættelsesvederlagEfterPar2Stk1Nr1
-    | GruppelivSomUadskiltDelAfPbl19Ordning(_) -> GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag
+    | GruppelivSomUadskiltDelAfPbl19Ordning(_, _) -> GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag
     | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> PensionEfterPbl19MedAlleredeIndeholdtArbejdsmarkedsbidrag(resultat = pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår))
     | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, _) -> SamlepostEfterPbl19EllerPbl56MedAlleredeIndeholdtArbejdsmarkedsbidrag
     | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art, beløb_kroner) -> NaturalieOmfattetAfPar2Stk2(resultat = arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
@@ -180,12 +206,13 @@ nævnt i § 29 A, stk. 1.
     | _ -> 0
 }
 | personskat_arbejdsgiverydelse_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
+    | GruppelivSomUadskiltDelAfPbl19Ordning(bruttobeløb, _) -> personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_kroner(bruttobeløb)
     | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner
     | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(bruttobeløb, _) -> personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_kroner(bruttobeløb)
     | _ -> 0
 }
 | personskat_arbejdsgiverydelse_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
-    | GruppelivSomUadskiltDelAfPbl19Ordning(beløb_kroner) -> beløb_kroner
+    | GruppelivSomUadskiltDelAfPbl19Ordning(_, beløb_kroner) -> beløb_kroner
     | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner
     | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, beløb_kroner) -> beløb_kroner
     | _ -> 0
