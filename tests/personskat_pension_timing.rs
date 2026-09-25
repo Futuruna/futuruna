@@ -105,6 +105,7 @@ fn fictional_input() -> (Value, Value) {
     let envelope = run(&["template", MODEL, "--format", "json"]);
     let mut input = envelope["cases"][0]["input"].clone();
     // Fictional resident employee, no church tax/spouse/other income/deductions.
+    input["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     input["lønmodtager"]["skatteår"] = json!(2026);
     input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     input["lønmodtager"]["kommune"] = json!({"$variant":"København"});

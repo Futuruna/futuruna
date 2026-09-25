@@ -44,6 +44,7 @@ test('child-maintenance recipient must match the assessed person, not merely the
   };
   const envelope = run(['template', model, '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // Invented whole-year Danish resident in Copenhagen; no church, other income,
   // property, losses, pension/ATP or other deductions. Template absence is a
   // fictional fact here, never a default for an actual taxpayer.

@@ -16,7 +16,7 @@ function constructionTemplate() {
           arbejdsfradrag_udland: v('ArbejdsfradragUdlandUoplyst') },
       },
       kapitalindkomst: { renter: { renteindtægter_kroner: 0, renteudgifter_kroner: 0 } },
-      ægtefælle: v('UdenÆgtefælle'),
+      ægtefælle: v('ÆgtefællegrundlagUoplyst'),
     },
   }] };
 }
@@ -60,6 +60,9 @@ test('construction keeps source facts, repeated observations and unknowns distin
   assert.deepEqual(held[0].unavailable_documents, ['A', 'R']);
   for (const row of ledger) {
     assert.equal(row.baseline_confirmation, 'F:4', 'other defaults describe only the explicit fictional baseline');
+    const relationship = row.mappings.find(m => m.path === 'ægtefælle');
+    assert.deepEqual(relationship?.value, v('UdenÆgtefælle'));
+    assert.deepEqual(relationship.sources, ['F:4'], 'absence is a sourced fictional fact');
     for (const mapping of row.mappings) {
       assert.deepEqual(mapping.path.split('.').reduce((o, k) => o[k], byId[row.case_id]), mapping.value);
       assert.ok(mapping.explanation.length > 0 && mapping.sources.length > 0);

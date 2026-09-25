@@ -87,7 +87,7 @@ baseline.lønmodtager.ligningsfradrag.arbejdsfradrag_udland = {
   nogen_udenlandsk_arbejdsgiver: null,
   kildereference: 'Fiktiv person: DBO-hjemmehørende i Danmark hele året',
 };
-assert.deepEqual(baseline.ægtefælle, variant('UdenÆgtefælle'));
+baseline.ægtefælle = variant('UdenÆgtefælle'); // Explicit fictional fact, not a template default.
 
 const specifications = [
   ['uden-pension', 0, false],

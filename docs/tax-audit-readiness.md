@@ -31,6 +31,17 @@ No LLM evaluates these rules at runtime. A person or assistant supplies and
 classifies source facts; Futuruna executes the arithmetic and logic. Do not
 turn inferred report residuals into supposedly independent input facts.
 
+Canonical spouse intake now distinguishes unavailable facts from no spouse.
+Fresh templates select `ÆgtefællegrundlagUoplyst`; this withholds independent
+comparison, including the period/documented annual basis in PSL14 and integrated
+green-check settlement. Shared typed guidance reaches those wrappers and routes
+missing documents to conditional report review without inventing spouse income.
+The [focused regression](../tests/tax_spouse_input.test.mjs) checks actual
+templates, projected sources, supported controls and unresolved inputs.
+This does not authenticate an asserted known relationship or implement additional
+marriage/separation rules. Existing tax formulas and conditional reconciliation
+are unchanged; [fresh templates are required](../examples/danish-income-tax/personskat-validity.md#manglende-ægtefælleoplysninger-er-ikke-ingen-ægtefælle).
+
 Church-tax intake now refers to the income year, with shared taxpayer/spouse
 guidance and official source traces. Canonical `lønmodtager.kirkeskat` now
 distinguishes unknown, no-year, whole-year and part-year status. Unknown and

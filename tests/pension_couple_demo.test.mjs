@@ -25,7 +25,7 @@ function template() {
         arbejdsfradrag_udland: v('ArbejdsfradragUdlandUoplyst') },
     },
     kapitalindkomst: { renter: { renteindtægter_kroner: 0, renteudgifter_kroner: 0 } },
-    ægtefælle: v('UdenÆgtefælle'), negativ_aktieskat_fremførsel: {}, ligningslov33: {}, årsopgørelse: {},
+    ægtefælle: v('ÆgtefællegrundlagUoplyst'), negativ_aktieskat_fremførsel: {}, ligningslov33: {}, årsopgørelse: {},
   } }] };
 }
 function outputFixture() {

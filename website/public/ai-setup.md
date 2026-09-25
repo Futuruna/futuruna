@@ -308,6 +308,13 @@ facts. A spouse's Annual Tax Report may help, but its absence must not prevent a
 useful review. Do not repeatedly request unavailable documents or invent the
 missing values.
 
+The independent input defaults to `ægtefælle: ÆgtefællegrundlagUoplyst`.
+Retain it when either the relationship or the necessary spouse facts are
+unresolved; it withholds the independent comparison. Missing documents do not
+justify `UdenÆgtefælle` or a spouse filled with zero amounts. Use the conditional
+review below instead. The [spouse-input guide](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-validity.md#manglende-ægtefælleoplysninger-er-ikke-ingen-ægtefælle)
+explains the alternatives and fresh-template migration.
+
 First establish whether Danish tax liability applied throughout the income year
 or began/ended during it, including for a calculated spouse. Months worked are
 not the same as months of tax liability. The ordinary entry has no liability

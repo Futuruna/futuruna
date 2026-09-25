@@ -61,6 +61,7 @@ test('ordinary interest totals keep sign validation and existing netting results
   const save = evidence();
   const envelope = run(['template', model, '--format', 'json']);
   const base = envelope.cases[0].input;
+  base.ægtefælle = { $variant: 'UdenÆgtefælle' }; // Explicit fictional absence.
   // Explicitly invented absence of other facts, not permission to use zero
   // placeholders when reading a real report with missing facts.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 600000,

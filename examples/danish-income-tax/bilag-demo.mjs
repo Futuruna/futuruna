@@ -63,7 +63,7 @@ export function buildFictionalCases(template, documents = sources) {
       noget_arbejde_udført_udland: null, nogen_udenlandsk_arbejdsgiver: null,
       kildereference: 'F:5 — fiktivt afklaret DBO-hjemsted',
     }), ['F:5'], 'Dokumenteret nej til DBO-udlandsbetingelsen; de to øvrige tests behøves ikke.');
-    assert.deepEqual(input.ægtefælle, v('UdenÆgtefælle'));
+    put('ægtefælle', v('UdenÆgtefælle'), ['F:4'], 'Fiktivt bekræftet ingen ægtefælle, ikke et skabelonvalg.');
     ledger.push({ case_id, baseline_confirmation: 'F:4', mappings, excluded_sources: [] });
     return { input, put, record: ledger.at(-1) };
   }
