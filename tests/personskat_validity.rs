@@ -243,6 +243,249 @@ fn fictional_spouse_rates_input(envelope: &Value) -> Value {
 }
 
 #[test]
+fn public_early_pensions_preserve_old_exemptions_and_separate_atp_bases() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut baseline = fictional_spouse_rates_input(&envelope);
+    baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
+    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1960);
+    let payment = |id: &str, kind: &str, amount: i64| {
+        json!({
+            "$variant":"PersonskatSocialpensionsudbetaling", "fakta":{
+                "identifikation":id,"indkomstår":2025,"kildereference":"fictional-public-pension-notice",
+                "art":{"$variant":kind},"indkomst_før_skat_kroner":amount,
+                "ordinær_dansk_udbetaling_uden_korrektioner":true
+            }
+        })
+    };
+    let fixtures = [
+        "old",
+        "old-exempt",
+        "new",
+        "senior",
+        "early",
+        "job",
+        "public-atp",
+        "commuter",
+        "spouse",
+        "unknown-kind",
+        "scope-unknown",
+        "wrong-year",
+        "negative",
+        "missing-source",
+        "duplicate",
+        "atp-unknown",
+        "spouse-invalid",
+    ];
+    envelope["cases"] = json!(fixtures.iter().map(|id| {
+        let mut input = baseline.clone();
+        let kind = match *id {
+            "senior" => "SocialSeniorpension",
+            "early" => "SocialTidligPension",
+            _ => "SocialFørtidspensionEfterNyeRegler",
+        };
+        let mut posts = vec![payment("pension", kind, 180000)];
+        match *id {
+            "old" => posts = vec![
+                payment("basic", "GammelFørtidspensionGrundbeløb", 80000),
+                payment("supplement", "GammelFørtidspensionPensionstillæg", 60000),
+                payment("incapacity", "GammelFørtidspensionErhvervsudygtighedsbeløb", 40000),
+                payment("invalidity", "GammelFørtidspensionInvaliditetsbeløb", 30000),
+            ],
+            "old-exempt" => posts = [
+                "GammelFørtidspensionInvaliditetsbeløb", "GammelFørtidspensionInvaliditetsydelse",
+                "GammelFørtidspensionFørtidsbeløb", "GammelFørtidspensionEkstraTillægsydelse",
+                "GammelFørtidspensionBistandsOgPlejetillæg", "GammelFørtidspensionPersonligtTillæg",
+                "GammelFørtidspensionHelbredstillæg", "GammelFørtidspensionTillægEfterPar62",
+            ].iter().map(|kind| payment(kind, kind, 1000)).collect(),
+            "job" => input["lønmodtager"]["bruttoløn_kroner"] = json!(100000),
+            "public-atp" => input["lønmodtager"]["pension"]["atp"] = json!({
+                "$variant":"OplysteAtpIndbetalinger","oplysninger_for_året_komplette":true,
+                "poster":[
+                    {"identifikation":"atp","indkomstår":2025,"kildereference":"fictional-atp",
+                     "grundlag":{"$variant":"AtpOffentligYdelsePar19Stk2"},
+                     "indberettet_før_am_kroner":5000,"indberettet_efter_am_kroner":4600},
+                    {"identifikation":"supp","indkomstår":2025,"kildereference":"fictional-supp",
+                     "grundlag":{"$variant":"AtpSupplerendeArbejdsmarkedspensionPar19Stk4"},
+                     "indberettet_før_am_kroner":5000,"indberettet_efter_am_kroner":4600},
+                    {"identifikation":"mandatory","indkomstår":2025,"kildereference":"fictional-mandatory",
+                     "grundlag":{"$variant":"AtpObligatoriskPensionPar19Stk4"},
+                     "indberettet_før_am_kroner":800,"indberettet_efter_am_kroner":800}
+                ]
+            }),
+            "commuter" => {
+                input["lønmodtager"]["skatteår"] = json!(2026);
+                input["lønmodtager"]["bruttoløn_kroner"] = json!(300000);
+                input["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] = json!([commuting(220)]);
+                posts[0]["fakta"]["indkomstår"] = json!(2026);
+            }
+            "unknown-kind" => posts[0]["fakta"]["art"] = json!({"$variant":"SocialpensionsartUoplystEllerUdenForModellen"}),
+            "scope-unknown" | "spouse-invalid" => posts[0]["fakta"]["ordinær_dansk_udbetaling_uden_korrektioner"] = json!(false),
+            "wrong-year" => posts[0]["fakta"]["indkomstår"] = json!(2024),
+            "negative" => posts[0]["fakta"]["indkomst_før_skat_kroner"] = json!(-1),
+            "missing-source" => posts[0]["fakta"]["kildereference"] = json!(" "),
+            "duplicate" => posts.push(posts[0].clone()),
+            "atp-unknown" => input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"AtpUoplyst"}),
+            _ => {}
+        }
+        input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["forenings_og_arbejdsløshedsydelser"] = json!(posts);
+        if id.starts_with("spouse") {
+            input["ægtefælle"] = spouse(&input);
+            input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["forenings_og_arbejdsløshedsydelser"] = json!([]);
+        }
+        json!({"case_id":id,"input":input})
+    }).collect::<Vec<_>>());
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-socialpension-{}.json",
+        std::process::id()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let rows = output["results"].as_array().unwrap();
+    assert_eq!(rows.len(), fixtures.len());
+    for (index, (row, id)) in rows.iter().zip(fixtures).enumerate() {
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        let valid = index < 9;
+        println!(
+            "{id}: valid={}, tax={}",
+            gate["alle_kontroller_gyldige"], gate["slutskat_til_sammenligning_øre"]
+        );
+        assert_eq!(gate["alle_kontroller_gyldige"], valid, "{id}: {gate}");
+        if !valid {
+            assert_eq!(gate["slutskat_til_sammenligning_øre"], Value::Null);
+            let error_path = match id {
+                "atp-unknown" => "lønmodtager.pension.atp",
+                "spouse-invalid" => "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst",
+                _ => "lønmodtager.personlig_indkomst",
+            };
+            assert!(
+                gate["fejl"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["sti"] == error_path),
+                "{id}: {gate}"
+            );
+            continue;
+        }
+        assert!(gate["slutskat_til_sammenligning_øre"].is_number());
+        let person = if id == "spouse" {
+            &result["ægtefælle"]["grundlag"]
+        } else {
+            result
+        };
+        let income = if id == "old-exempt" { 0 } else { 180000 };
+        assert_eq!(
+            person["personlig_indkomst"]["personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner"],
+            income,
+            "{id}"
+        );
+        let posts = person["personlig_indkomst"]["ordinære_forhold"]
+            ["forenings_og_arbejdsløshedsydelser"]
+            .as_array()
+            .unwrap();
+        let exempt: i64 = posts
+            .iter()
+            .map(|p| p["resultat"]["skattefrit_beløb_kroner"].as_i64().unwrap())
+            .sum();
+        assert_eq!(
+            exempt,
+            match id {
+                "old" => 30000,
+                "old-exempt" => 8000,
+                _ => 0,
+            },
+            "{id}"
+        );
+        let wage = match id {
+            "job" => 100000,
+            "commuter" => 300000,
+            _ => 0,
+        };
+        assert_eq!(
+            person["ligningsfradrag"]["befordring"]["aftrapningsindkomst_kroner"], wage,
+            "{id}"
+        );
+        assert_eq!(
+            person["ligningsfradrag"]["befordring"]["aftrapningsindkomst_afklaret"], true,
+            "{id}"
+        );
+        assert_eq!(
+            person["ligningsfradrag"]["befordring"]["lavindkomsttillæg_kroner"],
+            if id == "commuter" { 13836 } else { 0 },
+            "{id}"
+        );
+        assert_eq!(
+            person["pension"]["udbetalingsresultat"]
+                ["samlet_modregningspligtig_pbl20_i_året_kroner"],
+            0,
+            "{id}"
+        );
+        let tax = if id == "spouse" {
+            &result["ægtefælle"]["skat"]["indkomstgrundlag"]
+        } else {
+            &result["skat"]
+        };
+        let deductions = if id == "spouse" {
+            &result["ægtefælle"]["skat"]["ligningsfradrag"]
+        } else {
+            &result["skat"]
+        };
+        assert_eq!(
+            tax["personlig_indkomst_efter_am_kroner"],
+            income + wage * 92 / 100,
+            "{id}"
+        );
+        assert_eq!(tax["arbejdsmarkedsbidrag_kroner"], wage * 8 / 100, "{id}");
+        assert_eq!(
+            deductions["beskæftigelsesfradrag_kroner"],
+            match id {
+                "job" => 12300,
+                "commuter" => 38250,
+                _ => 0,
+            },
+            "{id}"
+        );
+        assert_eq!(
+            deductions["ekstra_pensionsfradrag_kroner"],
+            if id == "public-atp" { 3200 } else { 0 },
+            "{id}"
+        );
+        assert_eq!(
+            person["pension"]["atp_resultat"]["arbejdsfradragsgrundlag_kroner"], 0,
+            "{id}"
+        );
+        // Independent anonymous 2025 calculator observations on 2026-09-25,
+        // born 1960, Copenhagen, unmarried, no church, public pension selected.
+        // Rubrik 16A pension 180000; optional wage 100000. Before green check.
+        // Old-regime split and the other social-pension kinds are model checks;
+        // the public calculator does not independently classify those components.
+        if matches!(id, "new" | "job") {
+            assert_eq!(
+                tax["almindelig_skattepligtig_indkomst_kroner"],
+                if id == "job" { 259700 } else { 180000 },
+                "{id}"
+            );
+            assert_eq!(
+                result["hovedskat_eksakt"]["før_nedsættelser"]["kommuneskat_øre"],
+                if id == "job" { 6102950 } else { 4230000 },
+                "{id}"
+            );
+            assert_eq!(
+                gate["slutskat_til_sammenligning_øre"],
+                if id == "job" { 8337354 } else { 4559484 },
+                "{id}"
+            );
+        }
+    }
+}
+
+#[test]
 fn folkepension_and_exempt_supplements_preserve_tax_and_pension_deduction_bases() {
     let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let mut baseline = fictional_spouse_rates_input(&envelope);
