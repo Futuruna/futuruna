@@ -186,6 +186,17 @@ See [DJV C.A.4.3.1.3](https://info.skat.dk/data.aspx?oid=2061770), including the
 company-paid membership example, and the source text in
 [the LL §13 model](ligningsloven-kontingenter-gaver.runa).
 
+## Child-maintenance recipient
+
+Child-maintenance receipts have a separate recipient check at
+`lønmodtager.personlig_indkomst.underholdsbidrag`: when `Bidragsmodtager` and
+`Barn` are selected, the child's full birth date must match the assessed
+person's own birth date. A parent receiving funds on the child's behalf is not
+thereby the taxable child. The same check applies to an active spouse; payer
+and adult-alimony routes remain distinct. Matching dates are a necessary
+consistency condition, not proof of identity. See the
+[Danish maintenance guide](personskat-underholdsbidrag.md).
+
 ## Recurring-gift agreements
 
 The control `lønmodtager.ligningsfradrag.gaver` also checks that LL §12

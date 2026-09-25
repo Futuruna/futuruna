@@ -1,0 +1,60 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / ligningsloven - par10 - par11 - underhold
+
+-- Fiktive kildefakta. Disse kontroller afprøver modtagersammenhæng, ikke
+-- identitetsbevis eller alle øvrige betingelser for fradrag og beskatning.
+| prøve_barn(dato: Dato) -> Barn(fakta = Ligningslov10Og11BarnFakta(
+    fødselsdato = dato, bopæl = HosDenAndenForælder,
+    forsørger_eller_bidragspligt_over_for_det_offentlige = Sandt
+))
+| prøve_bidrag(rolle: Ligningslov10Og11Bidragsrolle, modtager: Ligningslov10Og11Modtager) -> Ligningslov10Og11BidragFakta(
+    identifikation = "fiktivt-bidrag", indkomstår = 2025, rolle = rolle,
+    retsgrundlag = Separation(fastsat_eller_ændret_efter_lovens_ikrafttrædelse = Sandt),
+    modtager_identifikation = "fiktiv-modtager", modtager = modtager,
+    fastsættelse = FastsatAfOffentligMyndighed,
+    bidragsart = LøbendeUnderholdsbidrag(beløbsgrundlag = HeleForfaldsmånedensBidrag),
+    betalingsvej = BetaltTilDenBidragsberettigede, restancestatus = OrdinærBetaling,
+    forfaldsdato = Dato(år = 2025, måned = 3, dag = 1),
+    betalingsdato = Dato(år = 2025, måned = 3, dag = 1),
+    beløb_kroner = 3000, betalt_af_bidragsyderen_selv = Sandt
+)
+= barnedato = Dato(år = 2012, måned = 6, dag = 10)
+= forældredato = Dato(år = 1980, måned = 1, dag = 1)
+= modtaget = prøve_bidrag(Bidragsmodtager, prøve_barn(barnedato))
+
+= forælder_afvist = ligningslov10_11_modtager_svarer_til_fødselsdato(modtaget, forældredato) == Falskt
+| barnets_indkomst_er_ikke_forælderens: forælder_afvist -> forælder_afvist
+? barnets_indkomst_er_ikke_forælderens
+
+= barnet_accepteret = ligningslov10_11_modtager_svarer_til_fødselsdato(modtaget, barnedato)
+| barnets_egen_opgørelse_kan_anvendes: barnet_accepteret -> barnet_accepteret
+? barnets_egen_opgørelse_kan_anvendes
+
+= andre_datoer = [Dato(år = 2012, måned = 6, dag = 11), Dato(år = 2012, måned = 7, dag = 10), Dato(år = 2011, måned = 6, dag = 10)]
+= andre_afvist = all(andre_datoer, |dato: Dato| ligningslov10_11_modtager_svarer_til_fødselsdato(modtaget, dato) == Falskt)
+| hele_fødselsdatoen_skal_passe: andre_afvist -> andre_afvist
+? hele_fødselsdatoen_skal_passe
+
+= ugyldig_dato = Dato(år = 0, måned = 0, dag = 0)
+= ugyldige_afvist = ligningslov10_11_modtager_svarer_til_fødselsdato(modtaget, ugyldig_dato) == Falskt && ligningslov10_11_modtager_svarer_til_fødselsdato(prøve_bidrag(Bidragsmodtager, prøve_barn(ugyldig_dato)), ugyldig_dato) == Falskt
+| to_ukendte_datoer_er_ikke_et_match: ugyldige_afvist -> ugyldige_afvist
+? to_ukendte_datoer_er_ikke_et_match
+
+= betalt = prøve_bidrag(Bidragsyder(modtageridentitet_oplyst = Sandt), prøve_barn(barnedato))
+= yder_accepteret = ligningslov10_11_modtager_svarer_til_fødselsdato(betalt, forældredato)
+| yderen_er_ikke_barnet: yder_accepteret -> yder_accepteret
+? yderen_er_ikke_barnet
+
+= ægtefællebidrag = prøve_bidrag(Bidragsmodtager, ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen = Falskt))
+= ægtefælle_accepteret = ligningslov10_11_modtager_svarer_til_fødselsdato(ægtefællebidrag, forældredato)
+| ægtefællebidrag_er_en_anden_modtagerart: ægtefælle_accepteret -> ægtefælle_accepteret
+? ægtefællebidrag_er_en_anden_modtagerart
+
+= tom_accepteret = ligningslov10_11_modtagere_svarer_til_fødselsdato(Ligningslov10Og11Årsinput(bidrag = []), forældredato)
+| ingen_bidrag_giver_ingen_modtagerkonflikt: tom_accepteret -> tom_accepteret
+? ingen_bidrag_giver_ingen_modtagerkonflikt
+
+= blandet_afvist = ligningslov10_11_modtagere_svarer_til_fødselsdato(Ligningslov10Og11Årsinput(bidrag = [betalt, ægtefællebidrag, modtaget]), forældredato) == Falskt
+| alle_modtagerrækker_kontrolleres: blandet_afvist -> blandet_afvist
+? alle_modtagerrækker_kontrolleres
