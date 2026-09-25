@@ -602,8 +602,17 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 }
 | pbl18_årsindeksvalg_gyldigt(indeksvalg: Pbl18Indeksvalg) -> all(indeksvalg.fradragsvalgte_kontraktbidrag_kroner, |bidrag: Heltal| bidrag >= 0)
 | pbl18_årsselvstændig_overskud_gyldigt(input: Pbl18SelvstændigOverskudInput) -> input.skattepligtigt_overskud_før_vsl22b_kroner >= 0 && input.renteudgifter_kroner >= 0 && input.kurstab_kroner >= 0 && input.renteindtægter_kroner >= 0 && input.udbytteindtægter_kroner >= 0 && input.kursgevinster_kroner >= 0 && input.udelukkede_afståelsesindkomster_kroner >= 0
-| pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && betaling.forfaldsår > 0 && betaling.betalingsår > 0 && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
-| pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0
+-- PBL § 18, stk. 1, og § 19, stk. 1: årstallene kan udelukke en
+-- fristoplysning, men kan ikke afgøre betalingsdagen i det efterfølgende år.
+-- Træk fra det positive betalingsår frem for at lægge til forfaldsåret.
+| pbl18_årsbetaling_frister_konsistente(betaling: Pbl18Årsbetaling) -> betaling.forfaldsår > 0 && betaling.betalingsår > 0 && hvis betaling.betalt_senest_bankjusteret_1_april_efter_forfald { betaling.betalingsår - 1 <= betaling.forfaldsår } ellers { betaling.betalingsår > betaling.forfaldsår }
+| pbl18_par15a_placering_passer_til_ordning(ordning: Pbl18Ordning, placering: Pbl18Par15AFradragsplacering) -> match placering {
+    | Pbl18IkkePar15APlacering -> Sandt
+    | Pbl18Par15AIndbetalingsår -> pbl18_ordning_er_par15a(ordning)
+    | Pbl18Par15AAfståelsesår(_, _) -> pbl18_ordning_er_par15a(ordning)
+}
+| pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && pbl18_årsbetaling_frister_konsistente(betaling) && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
+| pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl18_par15a_placering_passer_til_ordning(indbetaling.ordning, indbetaling.betaling.par15a_fradragsplacering) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0
 | pbl18_årsidentifikation_unik(indbetalinger: List(Pbl18Årsindbetaling), indbetaling: Pbl18Årsindbetaling) -> length(filter(indbetalinger, |anden: Pbl18Årsindbetaling| anden.identifikation == indbetaling.identifikation)) == 1
 | pbl18_årsvalgte_indekskontrakter(indbetalinger: List(Pbl18Årsindbetaling)) -> foldl(indbetalinger, 0, |antal: Heltal, indbetaling: Pbl18Årsindbetaling| antal + hvis indbetaling.ordning == Pbl18Indeksordning { length(indbetaling.indeksvalg.fradragsvalgte_kontraktbidrag_kroner) } ellers { 0 })
 | pbl18_årsindbetaling_indeksgrundlag_gyldigt(indbetaling: Pbl18Årsindbetaling) -> match indbetaling.indeksordningsgrundlag {

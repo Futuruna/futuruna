@@ -1,0 +1,34 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / pensionsbeskatningsloven
+
+| tidsbetaling(forfald: Heltal, betaling: Heltal, rettidig: Boolsk) -> Pbl18Årsbetaling(
+    beløb_kroner = 40000,
+    forfaldsår = forfald,
+    betalingsår = betaling,
+    betalt_senest_bankjusteret_1_april_efter_forfald = rettidig,
+    hidrører_fra_par22e_tilbagebetaling = Falskt,
+    par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+    arbejdsmarkedsbidrag_kroner = 0
+)
+
+| samme_år_er_før_fristen() -> pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2025, 2025, Sandt)) && pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2025, 2025, Falskt)) == Falskt
+| næste_år_kræver_faktisk_fristoplysning() -> pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2024, 2025, Sandt)) && pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2024, 2025, Falskt))
+| to_år_efter_er_efter_fristen() -> pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2023, 2025, Sandt)) == Falskt && pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2023, 2025, Falskt))
+| tidligere_betaling_er_ikke_automatisk_ugyldig() -> pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2025, 2024, Sandt)) && pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2025, 2024, Falskt)) == Falskt
+| år_skal_være_positive() -> pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(0, 2025, Sandt)) == Falskt && pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(2025, 0, Sandt)) == Falskt
+| største_år_giver_ikke_overløb() -> pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, tidsbetaling(9223372036854775807, 9223372036854775807, Sandt))
+| almindelige_ordninger_kan_ikke_vælge_par15a() -> pbl18_par15a_placering_passer_til_ordning(Pbl18Rateforsikring, Pbl18IkkePar15APlacering) && pbl18_par15a_placering_passer_til_ordning(Pbl18Rateforsikring, Pbl18Par15AIndbetalingsår) == Falskt && pbl18_par15a_placering_passer_til_ordning(Pbl18Rateopsparing, Pbl18Par15AAfståelsesår(2024, Sandt)) == Falskt
+| par15a_bevarer_sine_valg() -> pbl18_par15a_placering_passer_til_ordning(Pbl18Par15ARateordning, Pbl18Par15AIndbetalingsår) && pbl18_par15a_placering_passer_til_ordning(Pbl18Par15ALøbendeUdbetaling, Pbl18Par15AAfståelsesår(2024, Sandt)) && pbl18_par15a_placering_passer_til_ordning(Pbl18Par15ARateordning, Pbl18IkkePar15APlacering)
+
+= tidskontroller = [
+    samme_år_er_før_fristen(),
+    næste_år_kræver_faktisk_fristoplysning(),
+    to_år_efter_er_efter_fristen(),
+    tidligere_betaling_er_ikke_automatisk_ugyldig(),
+    år_skal_være_positive(),
+    største_år_giver_ikke_overløb(),
+    almindelige_ordninger_kan_ikke_vælge_par15a(),
+    par15a_bevarer_sine_valg()
+]
+| pensionstidskontroller_holder: tidskontroller -> all(tidskontroller, |gyldig: Boolsk| gyldig)
+? pensionstidskontroller_holder
