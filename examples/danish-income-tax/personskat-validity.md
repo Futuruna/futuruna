@@ -146,9 +146,16 @@ These aggregate records do not establish whether travel dates overlap. For
 multiple workplaces on the same day, use the legally relevant daily total;
 do not count the same travel twice or apply the 24-km exclusion twice.
 
-These checks change acceptance of invalid facts, not the input/result types.
-Correct affected source facts and recalculate saved results. Do not substitute
-zero or shorten a claimed period merely to make the checks pass.
+For ferry/flight travel, enter the full documented ticket expense and only the
+land kilometres. The model subtracts any unused daily 24-km threshold from the
+ticket expense. See the [Danish ferry/flight guide](personskat-faerge-og-fly.md)
+for day grouping, source examples and the exact-øre result trace.
+
+The calendar-day and negative-count checks change acceptance of invalid facts,
+not the input/result types. The later ferry/flight correction adds result-trace
+fields and changes the contract fingerprint. Regenerate affected templates,
+correct source facts and recalculate saved results. Do not substitute zero or
+shorten a claimed period merely to make the checks pass.
 
 The extra low-income deduction now composes documented Danish unemployment
 benefits, G-days, sickness benefits and maternity benefits, preserving the
