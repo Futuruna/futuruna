@@ -22,7 +22,7 @@ og kroner med to decimaler samt udvalgte indkomst- og fradragsbeløb i DKK.
 Delbeløbene kan overlappe; de skal ikke summeres. **Slutskat er ikke restskat
 eller en udbetaling**, og visningen sammenligner ikke med et observeret beløb
 i årsopgørelsen. Alle kontroller og forbehold fra `vurdering` bevares.
-Kontrollernes forklaringer er faste modeltekster, som også kan beskrive et
+Kontrollernes forklaringer er modeltekster, som også kan beskrive et
 fejlscenarie ved en bestået kontrol. Læs kontrollens status som dens udfald.
 En aktiv ægtefælle indgår i modelkontrollerne, men ægtefællens egne tal,
 betalingsafregningen og den fulde detailberegning findes fortsat i JSON.
@@ -129,6 +129,40 @@ spouse's corresponding field mean the **tax municipality for the income year**,
 not necessarily current residence. The ordinary rule uses residence on
 September 5 of the preceding year; exceptions need their own facts. See the
 [Danish moving-house example and source](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
+
+## Særlige DIS-skattepligtspositioner
+
+En skattepligtsposition kan være lovlig og have et beregneligt delresultat,
+uden at den kan indgå i den kanoniske årsopgørelsessammenligning.
+Aktiv DIS-fritagelse ved begrænset skattepligt, kulbrinteskattepligt og
+dødsbolempelse er endnu ikke understøttet i denne sammenligning. Det gælder
+også for en aktiv ægtefælle. Den eksisterende kontrol tilbageholder beløbet;
+forklaringen ved `lønmodtager.personlig_indkomst.sømandsbeskatning` angiver nu
+udtrykkeligt, at det er en modelbegrænsning, ikke i sig selv en fejl i
+kildefakta eller årsopgørelsen.
+
+Et fiktivt kulbrinteeksempel med 100.000 kr. og en konsistent voksenalder
+har et beregneligt AM-delbeløb på 8.000 kr. og et nulresultat efter den
+modellerede § 5 b-lempelse. Alligevel er det kanoniske sammenligningsbeløb
+`null`, ikke nul. En modstridende alder kunne ændre AM-delbeløbet, men
+omgik **ikke** den eksisterende dækningskontrol. Denne undersøgelse har
+derfor ikke ført til en ny alderskontrol eller ændrede skatteformler.
+
+Bevar den faktiske skattepligtsposition. Vælg ikke fuld skattepligt eller
+fjern en indkomst alene for at få en beregning til at bestå. De rå
+komponenttal er diagnostik; de udgør ikke en valideret fuld årsopgørelse.
+En afgrænset [betinget rapportafstemning](aarsopgoerelse-afstemning.md) kan
+stadig være relevant for de regnestykker, den dækker, men den verificerer
+ikke den manglende særregimeberegning.
+
+Lovgrundlaget for positionerne findes i
+[SØBL §§ 5 og 5 b](https://www.retsinformation.dk/eli/lta/2023/1181/pdf) og
+[kulbrinteskattelovens § 21, stk. 2](https://www.retsinformation.dk/eli/lta/2025/477/pdf).
+Begrænsningen ovenfor tilhører modellen, ikke loven. Kilder kontrolleret
+25. september 2026. Den [fokuserede regression](../../tests/personskat_dis_coverage.test.mjs)
+kontrollerer hovedperson, ægtefælle, aldersmodstrid og en almindelig sag samt
+fire genererede felters vejledning og kildespor. Forny Preview-skabeloner
+efter metadataændringen; indkomsttyper og gyldighedsbeslutninger er uændrede.
 
 ## Commuting input checks
 
