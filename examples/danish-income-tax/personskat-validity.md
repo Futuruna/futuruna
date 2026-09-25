@@ -1,5 +1,51 @@
 # Read the calculation status before comparing tax totals
 
+## Læs dit gemte resultat på dansk
+
+Når du har udfyldt kildefakta og kørt den kanoniske beregning med den compiler,
+der bestod [runtime-tjekket](../../website/public/ai-setup.md#tax-audit-runtime-check),
+kan du læse resultatet lokalt. Kræver allerede installeret Node.js 18 eller nyere:
+
+```sh
+# Gem personlige filer uden for projektmappen.
+"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/cases.json --output PRIVATE_WORK_DIR/results.json
+node examples/danish-income-tax/personskat-resultat.mjs PRIVATE_WORK_DIR/results.json
+```
+
+Visningen starter med et overblik over **alle** sager. Ugyldige sager viser
+fejlede inputstier og forklaringer, men ingen diagnostiske beløb som brugbar
+skat. Manglende beløb bliver aldrig til nul. Sager, der slet ikke kunne
+beregnes, beholder deres diagnostik, også når andre sager lykkedes.
+
+For beregnede sager vises modellens tilladte sammenligningsbeløb i eksakte øre
+og kroner med to decimaler samt udvalgte indkomst- og fradragsbeløb i DKK.
+Delbeløbene kan overlappe; de skal ikke summeres. **Slutskat er ikke restskat
+eller en udbetaling**, og visningen sammenligner ikke med et observeret beløb
+i årsopgørelsen. Alle kontroller og forbehold fra `vurdering` bevares.
+Kontrollernes forklaringer er faste modeltekster, som også kan beskrive et
+fejlscenarie ved en bestået kontrol. Læs kontrollens status som dens udfald.
+En aktiv ægtefælle indgår i modelkontrollerne, men ægtefællens egne tal,
+betalingsafregningen og den fulde detailberegning findes fortsat i JSON.
+
+Programmet er en læsevisning: ingen netværk, filændringer, LLM eller ny
+skatteberegning. Det kontrollerer den understøttede ydre resultatstruktur,
+vurderingens interne sammenhæng og de viste beløb, ikke alle underfelter i den
+fulde beregning. Ukendte ydre felter, vurderingsfelter og statusser afvises,
+ligesom gentagne JSON-felter og beløb, der ikke er eksakte heltal.
+Kontrakthashen vises, men kontrolleres ikke mod den aktuelle model. Et gammelt
+eller ændret resultat bliver ikke aktuelt eller autentisk ved at blive vist.
+Bevar original JSON og kildehenvisninger; output kan være personfølsomt.
+
+Exitkode **0** betyder kun *beregnet med forbehold*, **2** betyder mindst én
+ugyldig sag eller beregningsdiagnostik, og **1** betyder afvist fil/format.
+Ved kode 1 vises ingen delvis succesrapport. Ingen kode godkender skatteforhold.
+Filer over 16 MiB afvises; beregn mindre batches frem for at slette forbehold.
+Denne visning understøtter kun `beregn_personskat`, ikke den separate
+[grøn-check-beregning](personskat-groen-check.md) eller
+[betingede rapportafstemning](aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
+
+## Model-owned validity assessment
+
 `beregn_personskat` returns `vurdering` alongside its existing breakdown. This
 is a model-owned validity assessment, not a compiler guess based on Boolean
 field names. The same checks apply to the taxpayer and an active spouse.
