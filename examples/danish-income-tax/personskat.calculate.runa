@@ -14994,7 +14994,7 @@
     | UdenLigningslov9D -> ll9d_ikke_omfattet_resultat_for(skatteår)
     | MedLigningslov9D(ll9d_input, skattefrit_tilskud) -> hvis personskat_ll9d_input_gyldigt(fakta, skatteår) { ll9d_resultat(ll9d_input, personskat_ll9d_betalingsforhold(fakta, ll9d_input, skattefrit_tilskud)) } ellers { ll9d_ikke_omfattet_resultat_for(skatteår) }
 }
-| personskat_befordringsgrundfakta_gyldige(fakta: PersonskatBefordringsfradragFakta) -> fakta.identifikation != "" && fakta.befordringsmål_identifikation != "" && fakta.arbejdsdage >= 0 && fakta.arbejdsdage <= 366 && fakta.daglige_befordringskilometer >= 0 && fakta.broer.storebælt_bil_motorcykel_passager >= 0 && fakta.broer.storebælt_kollektiv_passager >= 0 && fakta.broer.øresund_bil_motorcykel_passager >= 0 && fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner >= 0
+| personskat_befordringsgrundfakta_gyldige(fakta: PersonskatBefordringsfradragFakta) -> fakta.identifikation != "" && fakta.befordringsmål_identifikation != "" && fakta.arbejdsdage >= 0 && fakta.arbejdsdage <= 366 && fakta.daglige_befordringskilometer >= 0 && fakta.broer.storebælt_bil_motorcykel_passager >= 0 && fakta.broer.storebælt_kollektiv_passager >= 0 && fakta.broer.øresund_bil_motorcykel_passager >= 0 && fakta.broer.øresund_kollektiv_passager >= 0 && fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner >= 0
 | personskat_befordringsidentifikationer_entydige(input: PersonskatBefordringsfradragInput) -> length(distinct(map(input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation))) == length(input.forhold) && all(input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation != "")
 | personskat_arbejdsgiverbetalt_befordring_for_hele_strækningen(input: PersonskatArbejdsgiverbetaltBefordring) -> input != UdenArbejdsgiverbetaltBefordring
 | personskat_arbejdsgiverbetalt_befordring_am_bidragspligtig(input: PersonskatArbejdsgiverbetaltBefordring) -> input == ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen
@@ -15016,7 +15016,7 @@
 )
 | personskat_befordringsfradragsforhold_resultat(fakta: PersonskatBefordringsfradragFakta, lønmodtager: PersonskatLønmodtagerInput, aftrapningsindkomst_kroner: Heltal) -> {
     = skatteår_understøttet = personskat_ll9c_skatteår_understøttet(lønmodtager.skatteår)
-    = grundfakta_gyldige = personskat_befordringsgrundfakta_gyldige(fakta)
+    = grundfakta_gyldige = personskat_befordringsgrundfakta_gyldige(fakta) && fakta.arbejdsdage <= personskat_indkomstårets_dage(lønmodtager.skatteår)
     = ligningslov9d_input_gyldigt = personskat_ll9d_input_gyldigt(fakta, lønmodtager.skatteår)
     hvis skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt {
         = ligningslov9d_resultat = personskat_ll9d_resultat(fakta, lønmodtager.skatteår)
@@ -19320,6 +19320,7 @@ fraflytningen."
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.udbetalingsoplysninger.for_foregående_år_komplette", gyldig = grundlag.pension.oplysningsstatus.foregående_oplysninger_tilstrækkelige, forklaring = "Sidste års pensionsudbetalinger er uafklarede og kan ændre det ekstra pensionsfradrag. Oplys dokumenterede § 20-udbetalinger, herunder sportspension, eller bekræft efter gennemgang, at sidste års oplysninger er komplette. Ukendt er ikke nul."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.personlig_indkomst", gyldig = grundlag.personlig_indkomst.alle_input_gyldige, forklaring = "Personlig indkomst og aktive underliggende kilder skal opfylde deres domænekontroller."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.erhvervsbefordring", gyldig = grundlag.erhvervsbefordring.alle_input_gyldige, forklaring = "Kørselsfakta, identiteter, rækkefølge og godtgørelser skal være gyldige."),
+        PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.befordring", gyldig = grundlag.ligningsfradrag.befordring.alle_input_gyldige, forklaring = "Kontrollér hvert befordringsforhold: arbejdsdage må ikke overstige indkomstårets kalenderdage; kilometer, alle fire slags bropassager og dokumenterede udgifter må ikke være negative. Identifikationer skal være entydige, og eventuelle § 9 D-fakta skal passe sammen. Se ligningsfradrag.befordring.forholdsresultater. Brug faktiske rejsedage; flere ture samme dag er ikke flere arbejdsdage."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag", gyldig = grundlag.ligningsfradrag.alle_input_gyldige, forklaring = "Aktive fradragsforhold og deres samordning skal opfylde domænernes kontroller."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.pbl18_indbetalinger", gyldig = grundlag.pension.pbl18_årsresultat.input_gyldigt, forklaring = "PBL § 18-årsgrundlag, indbetalinger, fradragsvalg og ordningsvilkår skal være gyldige."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.ambl_par2_stk1_nr5_årsgrundlag", gyldig = grundlag.pension.ambl_par2_stk1_nr5_resultat.input_gyldigt, forklaring = "Arbejdsgiverens pensionsindbetalinger skal have gyldige kilder, år og årsrammer."),

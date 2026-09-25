@@ -84,6 +84,35 @@ not necessarily current residence. The ordinary rule uses residence on
 September 5 of the preceding year; exceptions need their own facts. See the
 [Danish moving-house example and source](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
 
+## Commuting input checks
+
+`lønmodtager.ligningsfradrag.befordring` rejects negative counts for all four
+bridge/transport combinations, including Øresund public transport. Negative
+counts are invalid facts, not zero crossings. Each commuting record must have
+between zero and the income year's number of calendar days: 366 is possible in
+2024, but not in 2023, 2025 or 2026. The active spouse gets the same checks and
+its own prefixed diagnostic. Invalid facts withhold the final comparison amount.
+
+This calendar bound is not an allowance to claim every day. Use actual travel
+days, excluding home-working, holiday and sick days; see
+[SKAT's commuting guidance](https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag).
+These aggregate records do not establish whether travel dates overlap. For
+multiple workplaces on the same day, use the legally relevant daily total;
+do not count the same travel twice or apply the 24-km exclusion twice.
+
+These checks change acceptance of invalid facts, not the input/result types.
+Correct affected source facts and recalculate saved results. Do not substitute
+zero or shorten a claimed period merely to make the checks pass.
+
+The income composition for the extra low-income commuting deduction remains
+under review (`td-b8013e`): the current salary/AM-addition basis does not compose
+all the statutory benefits named in
+[LL §9 C(4)](https://www.retsinformation.dk/eli/lta/2025/1500).
+Do not treat a passing commuting-input check as independent verification of
+that extra deduction for benefit recipients or of the annual self-employment
+adjustments. Private insurance and other non-AM income are not interchangeable
+with the benefits specifically named by the law.
+
 ## Union-fee taxpayer status
 
 This is an individual assessment, not a company tax return. With active
