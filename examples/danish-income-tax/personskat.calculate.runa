@@ -1271,20 +1271,6 @@
     help = Some("Hovedreglen er ægtefællens bopæl den 5. september året før indkomståret, ikke nødvendigvis den nuværende bopæl eller din egen skattekommune. Satsen er indkomstårets. Afklar særregler ved tilflytning fra udlandet, flere bopæle, institutionsophold eller skibsophold efter kommuneskattelovens § 2. Gæt ikke ved manglende oplysninger; rapportafstemningen kan bruges uden ægtefællens kommune."),
     unit = None
 )
-= personskat_felt_ægtefælle_renteindtægter = Beregningsfelt(
-    path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::kapitalindkomst::renter::renteindtægter_kroner),
-    label = "Ægtefællens renteindtægter",
-    question = Some("Hvor store renteindtægter havde din ægtefælle i indkomståret?"),
-    help = Some("Beløbet indgår i ægtefællens kapitalindkomst og kan påvirke overførsler mellem ægtefællerne."),
-    unit = Some("kr./år")
-)
-= personskat_felt_ægtefælle_renteudgifter = Beregningsfelt(
-    path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::kapitalindkomst::renter::renteudgifter_kroner),
-    label = "Ægtefællens renteudgifter",
-    question = Some("Hvor store renteudgifter havde din ægtefælle i indkomståret?"),
-    help = Some("Beløbet indgår i ægtefællens kapitalindkomst; Futuruna udleder selv et eventuelt underskud og uudnyttet nedslag."),
-    unit = Some("kr./år")
-)
 = personskat_felt_ægtefælle_alder = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::lønmodtager::personfradrag_alder_status),
     label = "Ægtefællens aldersstatus for personfradrag",
@@ -1829,18 +1815,18 @@
     help = Some("Kirkeskat beregnes kun, når dette felt er sandt."),
     unit = None
 )
-= personskat_felt_renteindtægter = Beregningsfelt(
-    path = "kapitalindkomst.renter.renteindtægter_kroner",
-    label = "Årets renteindtægter",
-    question = Some("Hvor store renteindtægter har du i indkomståret?"),
-    help = Some("Angiv den samlede positive renteindtægt, der indgår i kapitalindkomsten."),
+= personskat_felt_renteindtægter = TypetBeregningsfelt(
+    path = refof(PersonskatRenteInput::renteindtægter_kroner),
+    label = "Personens renteindtægter før modregning",
+    question = Some("Hvor stor er denne persons egen renteindtægt i indkomståret, før renteudgifter modregnes?"),
+    help = Some("Angiv personens egen andel som et ikke-negativt beløb i kroner, ikke husstandens samlede indtægt. Medtag samme indtægt én gang, også når den står både i bankoversigten og årsopgørelsen. Indtast udgifter separat uden at modregne dem først. Næringsstatus og særregler skal afklares fra kilderne. Et ukendt beløb må ikke erstattes af nul; nul betyder bekræftet ingen indtægt. Se examples/danish-income-tax/skatdk-rentefradrag-ekstern.md."),
     unit = Some("kr./år")
 )
-= personskat_felt_renteudgifter = Beregningsfelt(
-    path = "kapitalindkomst.renter.renteudgifter_kroner",
-    label = "Årets renteudgifter",
-    question = Some("Hvor store fradragsberettigede renteudgifter har du i indkomståret?"),
-    help = Some("Angiv den samlede renteudgift, der indgår i kapitalindkomsten."),
+= personskat_felt_renteudgifter = TypetBeregningsfelt(
+    path = refof(PersonskatRenteInput::renteudgifter_kroner),
+    label = "Personens fradragsberettigede renteudgifter",
+    question = Some("Hvor stor er denne persons egen afklarede andel af årets fradragsberettigede renteudgifter, angivet positivt?"),
+    help = Some("Angiv personens egen andel som positivt beløb i kroner, ikke afdrag, hele låneydelsen eller skatteværdien. Tæl hver udgift én gang, selv om både bankoversigt og årsopgørelse viser den. Rubrik 41 og 42 indeholder normalt indberettede renter; rubrik 44 kan også indeholde provisioner, som kræver særskilt klassifikation i finansielle_poster. Hold renteindtægter og LL §§ 6/6 A-fradrag adskilt fra dette beløb. Gæt ikke en ægtefælleandel eller et ukendt beløb; nul kræver bekræftet fravær. Summen beviser ikke hæftelse, fradragsret eller betalingshistorik. Afklar restancer og udenlandske forhold særskilt. Se examples/danish-income-tax/skatdk-rentefradrag-ekstern.md."),
     unit = Some("kr./år")
 )
 = personskat_felt_finansielle_poster = TypetBeregningsfelt(
@@ -12409,8 +12395,6 @@
         Field(value = personskat_felt_ægtefælle_samliv),
         Field(value = personskat_felt_ægtefælle_kildeskat25a_fordelinger),
         Field(value = personskat_felt_ægtefælle_kommune),
-        Field(value = personskat_felt_ægtefælle_renteindtægter),
-        Field(value = personskat_felt_ægtefælle_renteudgifter),
         Field(value = personskat_felt_ægtefælle_alder),
         Field(value = personskat_felt_ægtefælle_kirkeskat),
         Source(value = personskatteloven_2021_1284),
@@ -12494,13 +12478,20 @@
         DependencySource(value = kommuneskatteloven_2019_935),
     )
 )
+= personskat_rentefakta_vejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-renter",
+    identifier = "Skattestyrelsen: renteudgifter, indberetning, egen andel og særskilt klassifikation",
+    hentet_dato = "2026-09-25"
+)
 = personskat_metadata_renteindtægter = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_renteindtægter),
         Field(value = personskat_felt_renteudgifter),
         Source(value = personskatteloven_2021_1284),
+        Guidance(value = personskat_rentefakta_vejledning),
     )
 )
+--@label:PersonskatRenteInput::meta:personskat_metadata_renteindtægter--
 = personskat_metadata_finansielle_poster = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_finansielle_poster),
@@ -14279,7 +14270,6 @@
         personskat_meta_ejendomsskatter,
     ),
     kapitalindkomst = (
-        personskat_metadata_renteindtægter,
         personskat_metadata_finansielle_poster,
         personskat_metadata_kapitalomkostninger,
         personskat_meta_ejendomsdrift,

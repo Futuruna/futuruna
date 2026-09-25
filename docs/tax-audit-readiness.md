@@ -40,6 +40,13 @@ pension/ATP boundaries and source traces, guarded against renewed drift by the
 input guidance; it does not prove that an AI classifies an arbitrary report
 correctly or that every missing fact is mechanically detectable.
 
+The ordinary-interest fields now share source-backed guidance for taxpayer and
+spouse as well: own share, positive expense amounts, no duplicated sources and
+separate income/expense totals. The [generated-input regression](../tests/tax_interest_input.test.mjs)
+also checks existing sign validation and recorded ordinary netting results.
+It does not detect duplicated documents behind a supplied aggregate; see the
+[interest input boundary](../examples/danish-income-tax/skatdk-rentefradrag-ekstern.md#vejledning-i-det-genererede-input).
+
 Saved conditional results can also be read through the
 [local Danish result viewer](../examples/danish-income-tax/aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
 It retains every check, necessary amount, caveat and failed-case diagnostic;
