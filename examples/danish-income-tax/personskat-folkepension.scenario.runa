@@ -1,0 +1,17 @@
+@ sprog da
+
+@ importer ./personskat - folkepension
+
+| folkepension_scenarie(art: PersonskatFolkepensionArt, år: Heltal, beløb: Heltal, afklaret: Boolsk, identifikation: Tekst, kilde: Tekst) -> personskat_folkepension_resultat(PersonskatFolkepensionFakta(identifikation = identifikation, indkomstår = år, kildereference = kilde, art = art, beløb_før_skat_kroner = beløb, ordinær_dansk_udbetaling_uden_korrektioner = afklaret))
+= folkepension_skattepligtige = map([FolkepensionGrundbeløb, FolkepensionPensionstillæg, FolkepensionÆldrecheck], |art: PersonskatFolkepensionArt| folkepension_scenarie(art, 2025, 10000, Sandt, "syntetisk", "bilag"))
+= folkepension_skattefri = map([FolkepensionPersonligtTillægEfterPar14, FolkepensionVarmetillægEfterPar14, FolkepensionHelbredstillægEfterPar14A], |art: PersonskatFolkepensionArt| folkepension_scenarie(art, 2025, 10000, Sandt, "syntetisk", "bilag"))
+= folkepension_ugyldige = [folkepension_scenarie(FolkepensionsartUoplystEllerUdenForModellen, 2025, 0, Sandt, "syntetisk", "bilag"), folkepension_scenarie(FolkepensionGrundbeløb, 2027, 10000, Sandt, "syntetisk", "bilag"), folkepension_scenarie(FolkepensionGrundbeløb, 2025, -1, Sandt, "syntetisk", "bilag"), folkepension_scenarie(FolkepensionHelbredstillægEfterPar14A, 2025, 10000, Falskt, "syntetisk", "bilag"), folkepension_scenarie(FolkepensionGrundbeløb, 2025, 10000, Sandt, " ", "bilag"), folkepension_scenarie(FolkepensionGrundbeløb, 2025, 10000, Sandt, "syntetisk", " ")]
+| folkepension_skattepligtige_poster: folkepension_skattepligtige -> all(folkepension_skattepligtige, |r: PersonskatFolkepensionResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 10000 && r.skattefrit_tillæg_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == Some(0))
+| folkepension_skattefri_tillæg: folkepension_skattefri -> all(folkepension_skattefri, |r: PersonskatFolkepensionResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 0 && r.skattefrit_tillæg_kroner == 10000 && r.ll9c_aftrapningsindkomst_kroner == Some(0))
+| folkepension_ukendt_er_ikke_skattefri: folkepension_ugyldige -> all(folkepension_ugyldige, |r: PersonskatFolkepensionResultat| r.input_gyldigt == Falskt && r.personlig_indkomst_uden_am_kroner == 0 && r.skattefrit_tillæg_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == None)
+| folkepension_understøttede_år: folkepension_skattepligtige -> all([2023, 2024, 2025, 2026], |år: Heltal| folkepension_scenarie(FolkepensionGrundbeløb, år, 10000, Sandt, "syntetisk", "bilag").input_gyldigt)
+
+? folkepension_skattepligtige_poster
+? folkepension_skattefri_tillæg
+? folkepension_ukendt_er_ikke_skattefri
+? folkepension_understøttede_år
