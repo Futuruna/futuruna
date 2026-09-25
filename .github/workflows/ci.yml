@@ -56,6 +56,7 @@ jobs:
       - name: Tax-audit runtime and setup safeguards
         run: |
           RUNA_BIN="$PWD/target/release/runa" bash scripts/tax-audit-preflight.sh
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" python3 -m unittest discover -s scripts/tests -p 'test_calculation_input_guide.py'
           ./target/release/runa tests/personskat_recurring_gifts_test.runa
           ./target/release/runa run tests/personskat_recurring_gifts_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_audit_setup.test.mjs tests/pension_demo_input.test.mjs tests/tax_report_viewer.test.mjs tests/personskat_viewer.test.mjs tests/tax_municipality.test.mjs tests/green_check.test.mjs tests/personskat_green_check.test.mjs

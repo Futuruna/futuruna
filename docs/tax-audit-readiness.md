@@ -41,6 +41,16 @@ pension/ATP boundaries and source traces, guarded against renewed drift by the
 input guidance; it does not prove that an AI classifies an arbitrary report
 correctly or that every missing fact is mechanically detectable.
 
+The [read-only input navigator](../scripts/calculation-input-guide.py) makes the
+large generated contract usable one branch at a time, including type choices,
+collection/optional context and exact field/ancestor metadata. It preserves
+referenced sources and keeps unannotated fields visible; pagination and separate
+root-metadata access are explicit. The [focused regression](../scripts/tests/test_calculation_input_guide.py)
+checks a fresh canonical Personskat schema, taxpayer/spouse wage help and expense
+warnings, as well as malformed inputs. This improves access to the interview
+contract; it neither fills facts nor validates legal coverage, schema authenticity
+or arbitrary AI document interpretation. See the [navigation instructions](reference/calculations.md#inspect-one-input-branch).
+
 The [senior](../examples/danish-income-tax/ligningsloven-par9j-senior.md) and
 [single-parent](../examples/danish-income-tax/ligningsloven-par9j-enlig.md)
 deduction guides now describe the current øre-truncation/krone-ceiling convention
