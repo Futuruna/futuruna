@@ -71,6 +71,15 @@ the separate spouse/settlement calculations. No tax formula changed.
 
 ## Further correctness work already delivered
 
+The [Boligjob supplier-age regression](../tests/boligjob_supplier_age.test.mjs)
+corrects a cross-year eligibility error: delayed payment no longer makes work
+by a private supplier under 18 at work-year-end deductible. The claimant's own
+age condition remains separate. Compact and canonical checks cover taxpayer,
+spouse and typed supplier guidance; see the
+[invoice guide](../examples/danish-income-tax/boligjob.md#private-udførere-arbejdsår-er-ikke-altid-fradragsår).
+This tests the source-backed year distinction, not supplier identity or invoice
+authenticity, and does not resolve the existing rounding/coverage limitations.
+
 Employee-expense work-use shares below zero or above 100% now invalidate the
 facts instead of silently producing a valid zero deduction. The control covers
 taxpayer and spouse while retaining zero use and ordinary ineligibility as

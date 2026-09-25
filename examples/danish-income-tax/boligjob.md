@@ -31,6 +31,30 @@ no green handyman deduction. The new service categories also require work from
 2025. Appliance repairs are a time-limited category through 2027; that does not
 extend the calculation's verified annual-cap coverage past 2026.
 
+### Private udførere: arbejdsår er ikke altid fradragsår
+
+En privat udfører skal være fyldt 18 år ved udgangen af **arbejdsåret**.
+Vurderingen må ikke flyttes til betalingsåret, blot fordi betalingen sker senere.
+Køberens alderskrav er fortsat knyttet til indkomståret for fradraget.
+Kilde kontrolleret 25. september 2026:
+[SKATs krav til private udførere](https://skat.dk/borger/fradrag/servicefradrag/salg-af-serviceydelser-med-servicefradrag-privatperson).
+
+Fiktivt eksempel: Rengøring udført i december 2024 af en person født i
+december 2007 opfylder ikke udførerens alderskrav. En betaling på 3.000 kr.
+i marts 2025 giver derfor ikke servicefradrag, selv om udføreren bliver 18
+i 2025. En udfører født i december 2006 opfylder derimod alderskravet for
+2024, også når fødselsdagen ligger efter selve arbejdsdagen. De øvrige
+betingelser skal stadig være opfyldt.
+
+I output er en kendt for ung udfører **gyldige fakta uden fradragsret**, ikke
+uafklarede oplysninger. Se betingelsen om leverandørens alder ved arbejdsårets
+udløb. En ukendt leverandør eller ugyldig fødselsdato tilbageholder derimod
+beregningsgrundlaget. Indtast udførerens dato, ikke køberens, og opdel arbejde
+på tværs af år. Alderskontrollen gælder også i den kanoniske beregning og for
+en aktiv ægtefælle.
+
+### Work-date coverage
+
 Work from April 1, 2022 through 2026 can be reviewed when paid in the supported
 payment range (2023–2027); the annual calculation still covers only 2023–2026.
 The lower work-date boundary follows BEK 391/2022 § 14(2), checked September 22,
@@ -136,8 +160,15 @@ regressions do not depend on fractional rounding.
 
 ## Migration and unfinished coverage
 
-This adds a required field to the Preview calculation input. Regenerate
-templates and migrate confirmed facts, not fingerprints. Existing fictional
+The supplier-age correction adds no input fields, but changes the Preview
+metadata fingerprint. Regenerate templates and transfer reviewed facts without
+editing their dates or stored hashes. Old results for delayed payments to a
+private supplier must be recalculated; a later birthday cannot establish
+eligibility for earlier work. This does not change caps or payment-year routing.
+
+The original Boligjob integration added a required field to the Preview
+calculation input. Regenerate templates and migrate confirmed facts, not
+fingerprints. Existing fictional
 no-deduction constructors explicitly use `IngenBoligjobudgifter`; that is not an
 appropriate automatic choice for private cases.
 

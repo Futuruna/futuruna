@@ -4,7 +4,8 @@
 
 # Ll8VKilde(url: Tekst, identifier: Tekst, kontrolleret: Tekst)
 = ll8v_kilde = Ll8VKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 8 V og bilag 1; lov 109/2024 og lov 95/2025", kontrolleret = "2026-09-21")
-= ll8v_kildemeta = Source(value = ll8v_kilde)
+= ll8v_privatleverandør_kilde = Ll8VKilde(url = "https://skat.dk/borger/fradrag/servicefradrag/salg-af-serviceydelser-med-servicefradrag-privatperson", identifier = "Skattestyrelsen: private udføreres alderskrav ved arbejdsårets afslutning", kontrolleret = "2026-09-25")
+= ll8v_kildemeta = Metadata(attachments = (Source(value = ll8v_kilde), Guidance(value = ll8v_privatleverandør_kilde)))
 --@label:ll8v::meta:ll8v_kildemeta--
 ----
 Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter, der er
@@ -154,6 +155,9 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
         | Ll8VPrivatperson(født, skattepligt) -> dato_gyldig(født) && født.år <= år && skattepligt != Ll8VUoplystRegistrering
     }
 }
+-- Her er år arbejdsåret: en senere betaling kan flytte fradragsåret,
+-- men gør ikke en for ung privat udfører berettiget med tilbagevirkende kraft.
+-- Kilde: ll8v_privatleverandør_kilde. Køberens alder vurderes særskilt.
 > ll8v_leverandør_omfattet(leverandør: Ll8VLeverandør, land: Ll8VLand, udenlandsk_adgang: Boolsk, kategori: Ll8VKategori, år: Heltal) -> Boolsk {
     match leverandør {
         | Ll8VVirksomhed(registrering, udenlandsk, rut) -> ll8v_registrering_omfattet(registrering, land, udenlandsk_adgang) && (land != Ll8VDanmark || udenlandsk == Ll8VNej || rut == Ll8VJa)
@@ -178,7 +182,7 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
     = fradragsår = ll8v_fradragsår(b.arbejdsdato, b.betalingsdato)
     = fritid = ll8v_fritidsbolig(post.boligforhold)
     = udenlandsk_adgang = (fritid && b.land != Ll8VDanmark || skattepligt == Ll8VGrænsegænger) && ll8v_land_udveksler(b.land)
-    = afklaret = b.ydelse != Ll8VUafklaretYdelse && ll8v_land_afklaret(b.land) && ll8v_bolig_afklaret(post.boligforhold) && ll8v_leverandør_afklaret(b.leverandør, b.land, år) && b.betalingsform != Ll8VUoplystBetaling && b.arbejdsbilag_med_påkrævede_oplysninger != Ll8VUoplyst && b.betalingsbilag != Ll8VUoplyst && b.offentligt_tilskud != Ll8VUoplyst && b.samme_udgift_fradraget_efter_andre_regler != Ll8VUoplyst && b.udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer != Ll8VUoplyst && post.indberettet_med_leverandøroplysninger != Ll8VUoplyst && (b.betalerreference == person || post.fællesøkonomi_med_betalende_ægtefælle_eller_samlever != Ll8VUoplyst) && (kategori != Ll8VGrønIstandsættelse || b.eksisterende_bolig != Ll8VUoplyst) && (b.ydelse != Ll8VBørnepasning && b.ydelse != Ll8VAfhentningAfBørn || b.børnepasning_skattefri_efter_par7æ != Ll8VUoplyst) && b.særligt_forhold != Ll8VUoplystSærligtForhold
+    = afklaret = b.ydelse != Ll8VUafklaretYdelse && ll8v_land_afklaret(b.land) && ll8v_bolig_afklaret(post.boligforhold) && ll8v_leverandør_afklaret(b.leverandør, b.land, b.arbejdsdato.år) && b.betalingsform != Ll8VUoplystBetaling && b.arbejdsbilag_med_påkrævede_oplysninger != Ll8VUoplyst && b.betalingsbilag != Ll8VUoplyst && b.offentligt_tilskud != Ll8VUoplyst && b.samme_udgift_fradraget_efter_andre_regler != Ll8VUoplyst && b.udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer != Ll8VUoplyst && post.indberettet_med_leverandøroplysninger != Ll8VUoplyst && (b.betalerreference == person || post.fællesøkonomi_med_betalende_ægtefælle_eller_samlever != Ll8VUoplyst) && (kategori != Ll8VGrønIstandsættelse || b.eksisterende_bolig != Ll8VUoplyst) && (b.ydelse != Ll8VBørnepasning && b.ydelse != Ll8VAfhentningAfBørn || b.børnepasning_skattefri_efter_par7æ != Ll8VUoplyst) && b.særligt_forhold != Ll8VUoplystSærligtForhold
     = gyldigt = afklaret && ll8v_arbejdsdato_dækket(b.arbejdsdato) && dato_gyldig(b.betalingsdato) && b.betalingsdato.år >= 2023 && b.betalingsdato.år <= 2027 && dato_før_eller_lig_med(b.arbejdsdato, b.betalingsdato) && trim(b.identifikation) != "" && trim(b.kildereference) != "" && trim(b.betalingsreference) != "" && trim(b.boligreference) != "" && ll8v_fordeling_gyldig(b) && length(filter(b.andele, |andel: Ll8VAndel| andel.personreference == person)) == 1 && b.særligt_forhold == Ll8VAlmindeligUdgift
     = skattepligtig = skattepligt == Ll8VFuldtSkattepligtig || skattepligt == Ll8VGrænsegænger || skattepligt == Ll8VBegrænsetSkattepligtig && fritid && b.land == Ll8VDanmark
     = bopælsland = fritid || b.land == Ll8VDanmark || skattepligt == Ll8VGrænsegænger
@@ -189,7 +193,7 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
         Ll8VBetingelse(navn = "Ydelse og arbejdets virkningstid", opfyldt = ll8v_arbejdsår_omfattet(b.ydelse, b.arbejdsdato.år)),
         Ll8VBetingelse(navn = "Bopæl, råderet, ejerskab og udlejning", opfyldt = ll8v_bolig_omfattet(post.boligforhold, kategori)),
         Ll8VBetingelse(navn = "Oplysningsudveksling med Danmark", opfyldt = ll8v_land_udveksler(b.land)),
-        Ll8VBetingelse(navn = "Leverandørens registrering, alder og RUT", opfyldt = ll8v_leverandør_omfattet(b.leverandør, b.land, udenlandsk_adgang, kategori, år)),
+        Ll8VBetingelse(navn = "Leverandørens registrering, alder ved arbejdsårets udløb og RUT", opfyldt = ll8v_leverandør_omfattet(b.leverandør, b.land, udenlandsk_adgang, kategori, b.arbejdsdato.år)),
         Ll8VBetingelse(navn = "Elektronisk betaling, ikke kontanter eller check", opfyldt = (b.betalingsform == Ll8VKontooverførsel || b.betalingsform == Ll8VKortEllerMobilbetaling)),
         Ll8VBetingelse(navn = "Arbejdsbilag med påkrævede oplysninger", opfyldt = b.arbejdsbilag_med_påkrævede_oplysninger == Ll8VJa),
         Ll8VBetingelse(navn = "Dokumentation for gennemført betaling", opfyldt = b.betalingsbilag == Ll8VJa),
@@ -270,6 +274,15 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
     ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
 )
 --@label:Ll8VBetalingsfakta::meta:ll8vbetalingsfakta_meta--
+= ll8vleverandør_meta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ll8VLeverandør::$variant), label = "Udføreren af arbejdet", question = Some("Blev arbejdet udført af en virksomhed eller en privatperson, eller er udføreren uafklaret?"), help = Some("En privatperson kan kun udføre omfattede serviceydelser, ikke grønne håndværksydelser. Vælg uoplyst frem for at gætte, hvis kilden ikke afklarer leverandøren."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VLeverandør::Ll8VPrivatperson::fødselsdato::år), label = "Den private udførers fødselsår", question = Some("Hvilket år er den private person, som udførte arbejdet, født?"), help = Some("Dette er udføreren, ikke køberen. Udføreren skal være fyldt 18 ved arbejdsårets udløb; en senere betaling flytter ikke alderskravet. Fødselsdatoen skal være afklaret fra kilden. Brug Ll8VUoplystLeverandør, hvis oplysningerne mangler, ikke en opdigtet dato."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(Ll8VLeverandør::Ll8VPrivatperson::fødselsdato::måned), label = "Den private udførers fødselsmåned", question = Some("Hvilken måned er den private udfører født?"), help = Some("Oplys udførerens dokumenterede fødselsmåned; kopier ikke køberens dato, og gæt ikke manglende dele."), unit = Some("måned")),
+        TypetBeregningsfelt(path = refof(Ll8VLeverandør::Ll8VPrivatperson::fødselsdato::dag), label = "Den private udførers fødselsdag", question = Some("Hvilken dag i måneden er den private udfører født?"), help = Some("Oplys udførerens dokumenterede fødselsdag; en umulig eller uoplyst dato er ikke bevis for alderskravet."), unit = Some("dag"))
+    ], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll8v_kilde), Guidance(value = ll8v_privatleverandør_kilde))
+)
+--@label:Ll8VLeverandør::meta:ll8vleverandør_meta--
 = ll8vandel_meta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(path = refof(Ll8VAndel::personreference), label = "Modtagerens lokale nøgle", question = Some("Hvem vedrører denne andel?"), help = Some("Skal svare præcist til personens lokale nøgle, ikke CPR."), unit = None),
