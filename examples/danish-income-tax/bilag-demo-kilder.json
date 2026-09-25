@@ -1,0 +1,86 @@
+{
+  "fiktivt": true,
+  "beskrivelse": "Opdigtede, manuelt klassificerede kildeuddrag. Ikke rigtige dokumenter, automatisk PDF-import eller en skabelon for en virkelig persons fakta. Beløb er hele kroner; linje-id'er er lokale referencer, ikke officielle rubriknumre.",
+  "dokumenter": {
+    "F": {
+      "titel": "Fiktiv samtale og gennemgang af øvrige forhold, fælles for eksemplerne",
+      "linjer": {
+        "1": { "tekst": "Indkomståret er 2025.", "værdi": 2025 },
+        "2": { "tekst": "Født 1. januar 1990.", "værdi": { "år": 1990, "måned": 1, "dag": 1 } },
+        "3": { "tekst": "Skattekommune København, kommunenummer 101; ikke kirkeskattepligtig.", "værdi": 101 },
+        "4": { "tekst": "Udtrykkeligt opdigtet fravær efter gennemgang: ingen ægtefælle, børn/ekstra børnetilskud, ejendom, virksomhed, aktier, andre finansielle poster, offentlige ydelser, B-indkomst, personalegoder, tab, gaver, kontingenter, befordrings-, rejse-, service/håndværker- eller øvrige fradragsudgifter. Kun de særskilt beskrevne løn-, pensions-, ATP- og renteposter findes. Der beregnes ikke betalingsafregning, grøn check eller tilbagebetaling. Dette bekræfter kun de fiktive eksemplers tomme/irrelevante grene, aldrig en virkelig persons skabelonværdier.", "værdi": true },
+        "5": { "tekst": "Fuldt skattepligtig og DBO-hjemmehørende i Danmark hele 2025. Ingen udenlandske forhold.", "værdi": true },
+        "6": { "tekst": "Alle pensionsudbetalinger i 2025 og 2024 gennemgået: ingen.", "værdi": true }
+      }
+    },
+    "L": {
+      "titel": "Lønspecifikation, privat-pensions- og renteeksemplet",
+      "linjer": {
+        "1": { "tekst": "Årets almindelige løn før AM og skat. Ingen andre indkomstarter i dette beløb.", "værdi": 600000, "enhed": "kr./år" },
+        "2": { "tekst": "Ingen arbejdsgiveradministreret pension eller ATP i denne fiktive profil; alle kilder gennemgået.", "værdi": true }
+      }
+    },
+    "P": {
+      "titel": "Privat pensionsoversigt og vilkår, 2025",
+      "linjer": {
+        "1": { "tekst": "Ejerens egen indbetaling fra private midler til en dansk PBL §11 A-rateopsparing. Ikke en løntrukket indbetaling.", "værdi": 40001, "enhed": "kr./år" },
+        "2": { "tekst": "Forfald og betaling i 2025. Ejeren er fradragsretshaver og opfylder PBL §54-personkredsen. Ingen tilbagebetaling efter §22 E, udenlandsk overførsel eller afgiftsberigtigelse, §15 A/B-, indeks- eller særlig ordning, tidligere ufratrukne bidrag eller tiårsfordeling. Ingen indeholdt AM på denne private betaling.", "værdi": true }
+      }
+    },
+    "B": {
+      "titel": "Bankens årsoversigt, 2025; almindeligt dansk fælles banklån med en anden end en ægtefælle",
+      "linjer": {
+        "1": { "tekst": "Hele lånets betalte renter i året; ikke ydelsen eller låntagerens egen andel.", "værdi": 102002, "enhed": "kr./år" },
+        "2": { "tekst": "Årets afdrag på hovedstolen. Ikke renter.", "værdi": 20000, "enhed": "kr./år" },
+        "3": { "tekst": "Personens egne renteindtægter på separat konto.", "værdi": 1000, "enhed": "kr./år" },
+        "4": { "tekst": "Ingen restance, provisioner, næring, udenlandske forhold eller særfradrag efter LL §§6/6 A. Ordinært fradragsberettigede renter i dette fiktive eksempel.", "værdi": true }
+      }
+    },
+    "A": {
+      "titel": "Låneaftale og afklaret fordeling, 2025",
+      "linjer": {
+        "1": { "tekst": "Personens dokumenterede andel af renterne på B-lånet; ikke antaget ud fra antal låntagere.", "værdi": 50, "enhed": "%" }
+      }
+    },
+    "R": {
+      "titel": "Uddrag af fiktiv årsopgørelse, renteeksemplet",
+      "linjer": {
+        "1": { "tekst": "Renteudgift, rubrik 42. Samme lån og år som B:1, allerede personens egen andel. Ingen yderligere udgift.", "værdi": 51001, "enhed": "kr./år" }
+      }
+    },
+    "E": {
+      "titel": "Arbejdsgiverens årsoversigt, 2025; separat løn/pension/ATP-eksempel",
+      "linjer": {
+        "1": { "tekst": "Kontant løn før fradrag af egen pensionsandel og eget ATP-bidrag.", "værdi": 621000, "enhed": "kr./år" },
+        "2": { "tekst": "Eget bidrag over lønnen til arbejdsgiveradministreret rateopsparing.", "værdi": 20000, "enhed": "kr./år" },
+        "3": { "tekst": "Eget ATP-bidrag trukket over lønnen.", "værdi": 1000, "enhed": "kr./år" },
+        "4": { "tekst": "Indberettet ordinær løn før AM og skat, efter E:2 og E:3. Ingen personalegoder eller andre indkomstarter i beløbet.", "værdi": 600000, "enhed": "kr./år" },
+        "5": { "tekst": "Arbejdsgiverens bidrag til samme rateopsparing som E:2; ikke inklusive medarbejderens andel.", "værdi": 30000, "enhed": "kr./år" }
+      }
+    },
+    "EP": {
+      "titel": "Pensionsinstituttets årsoversigt og vilkår, 2025",
+      "linjer": {
+        "1": { "tekst": "Samlet bruttoindbetaling til samme arbejdsgiveradministrerede rateopsparing som E:2 og E:5.", "værdi": 50000, "enhed": "kr./år" },
+        "2": { "tekst": "Indeholdt AM-bidrag af EP:1, oplyst særskilt.", "værdi": 4000, "enhed": "kr./år" },
+        "3": { "tekst": "Indbetaling efter indeholdt AM; ikke en yderligere indbetaling.", "værdi": 46000, "enhed": "kr./år" },
+        "4": { "tekst": "Almindelig dansk PBL §11 A-rateopsparing hos nuværende arbejdsgiver med bortseelsesret. Ejeren opfylder PBL §54-personkredsen; forfald og betaling i 2025. Ingen tilbagebetaling efter §22 E, afgiftsberigtigelse, udenlandsk overførsel, §15 A/B-, indeks- eller særlig ordning, tidligere ufratrukne bidrag eller tiårsfordeling. Ingen anden pension og ingen privat indbetaling.", "værdi": true }
+      }
+    },
+    "T": {
+      "titel": "Supplerende ATP-oplysninger, 2025; illustrative årsbeløb, ikke en ATP-satstabel",
+      "linjer": {
+        "1": { "tekst": "eIndkomst felt 46: samlet ATP-bidrag, medarbejder og arbejdsgiver tilsammen.", "værdi": 3000, "enhed": "kr./år" },
+        "2": { "tekst": "Dokumenteret ATP-indbetaling efter AM.", "værdi": 2760, "enhed": "kr./år" },
+        "3": { "tekst": "Alle årets ATP-kilder gennemgået. Kun ordinær arbejdsgiver-ATP efter PBL §19, stk. 1; ingen offentlig ATP, SUPP eller obligatorisk pension. Ikke med i EP:1.", "værdi": true }
+      }
+    },
+    "U": {
+      "titel": "To selvstændige manglende-fakta-varianter",
+      "linjer": {
+        "1": { "tekst": "Arbejdsgivervarianten uden T: de samlede ATP-oplysninger og nettoindbetalingen mangler. E:3 er stadig kendt. Gang ikke medarbejderens beløb op til et gættet samlet bidrag.", "værdi": null },
+        "2": { "tekst": "Rentevarianten uden A og R: kun bankens samlede lån er oplyst. Personens fradragsberettigede andel er uafklaret.", "værdi": null }
+      }
+    }
+  }
+}

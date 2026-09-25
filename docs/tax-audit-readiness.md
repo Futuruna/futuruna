@@ -47,6 +47,19 @@ also checks existing sign validation and recorded ordinary netting results.
 It does not detect duplicated documents behind a supplied aggregate; see the
 [interest input boundary](../examples/danish-income-tax/skatdk-rentefradrag-ekstern.md#vejledning-i-det-genererede-input).
 
+The [worked source-to-input rehearsal](../examples/danish-income-tax/fra-bilag-til-input.md)
+adds explicitly fictional source excerpts, an authored field mapping with line
+references, generated guidance and canonical output. It separates private
+pension from payroll pension, employee ATP from total ATP, and repeated bank/
+report observations from additional interest. Two resolved profiles use recorded
+independent 2025 expectations; employer pension/ATP uses model checks only.
+Unknown ATP is submitted with its explicit variant and withholds the comparison;
+unknown interest share is held before submission because the amount field cannot
+represent unknown. The [regression](../tests/tax_source_input.test.mjs) also
+rejects contradictory source totals and unrepresentable fractional kroner in
+this fixed example. This is not a general document importer or an evaluation of
+arbitrary AIs reading real reports. No tax formula or contract type changed.
+
 Saved conditional results can also be read through the
 [local Danish result viewer](../examples/danish-income-tax/aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
 It retains every check, necessary amount, caveat and failed-case diagnostic;
