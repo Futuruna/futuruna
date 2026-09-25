@@ -163,6 +163,7 @@
         betalingsår = 2026,
         betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
         hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par22e_genindbetaling = None,
         par15a_fradragsplacering = Pbl18IkkePar15APlacering,
         arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
     ),

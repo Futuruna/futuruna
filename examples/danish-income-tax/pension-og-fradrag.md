@@ -306,10 +306,11 @@ kildetal og årstal omskrives ikke. Det gælder også en beregnet ægtefælle.
 
 Ukendt betalingsfrist må ikke blive `false`. Afklar bilaget før den uafhængige
 beregning, hvis den påkrævede boolske oplysning ikke kan besvares. Kontrollen
-beviser ikke en betalingsdato, en ordningsklassifikation, særlig godkendelse
-eller korrekt behandling af tilbagebetaling efter § 22 E. Den bevarer de
-eksisterende regler for lovlige tidsforløb; en post uden fradrag i det aktuelle
-år er ikke i sig selv ugyldig.
+beviser ikke en betalingsdato, en ordningsklassifikation eller særlig
+godkendelse. [Tilbagebetaling og genindbetaling efter § 22 E](personskat-pensionskorrektion.md)
+har nu særskilte dokumenterede fakta og beregnede korrektionsfrister; et ja/nej
+alene er utilstrækkeligt. En post uden fradrag i det aktuelle år er ikke i sig
+selv ugyldig.
 
 **Migration:** Generer frisk schema/skabelon, da de fælles spørgsmål og
 kildespor ændrer kontrakthashen. Gennemgå tidligere gemte tidsoplysninger ud

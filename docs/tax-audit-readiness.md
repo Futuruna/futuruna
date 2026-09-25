@@ -1,6 +1,6 @@
 # Danish tax-audit readiness
 
-Evidence snapshot: **25 September 2026**; named commits below identify earlier
+Evidence snapshot: **26 September 2026**; named commits below identify earlier
 closeouts, with subsequent focused model corrections described separately.
 This records the original launch findings and their disposition, not a claim
 that arbitrary Danish tax returns are fully verified. Typed calculations remain
@@ -179,6 +179,25 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 | F8: hosted setup and delivered source differ | Public delivery still pending | Read-only check on September 25: [hosted guide](https://futuruna.com/ai-setup.md) lacked the runtime check, spouse-free review and pension walkthrough. [Latest public release](https://github.com/Futuruna/futuruna/releases/tag/v0.2.0) was still v0.2.0, published September 19. Source delivery is not binary or website publication. |
 
 ## Further correctness work already delivered
+
+The [pension re-payment regression](../tests/personskat_pension_redeposit.test.mjs)
+addresses a reproduced acceptance gap: a correction Boolean previously sufficed
+without original-payment or refund evidence. PBL22E now has optional typed
+source facts, calculated 30-day/19-January deadlines and shared refund-amount
+checks. Timely bank re-payments can retain the original deduction year without
+rewriting the actual payment year. Ordinary insurance due-year precedence and
+ordinary late re-payment treatment remain distinct. Missing, contradictory,
+late-refund or overallocated facts withhold comparison for taxpayer/spouse.
+A fictional 40,000 DKK private correction produces the same 196,612.54 DKK tax
+as the ordinary control; splitting that refund does not create another allowance.
+The [guide](../examples/danish-income-tax/personskat-pensionskorrektion.md)
+and shared generated metadata explain gross/AM amounts, original remainders,
+source identities and migration. [Component checks](../tests/personskat_pension_redeposit_test.runa)
+cover calendar edges and year selection. These are source-model checks, not
+new independent administrative observations, payroll correction, general
+refund-chain support or full special-plan conformance. Those combinations
+remain explicit follow-up `td-9597b1`; approved bank-year handling remains
+`td-fa5e6d`. Fresh templates and review of affected facts are required.
 
 The [pension payment-year regression](../tests/personskat_pension_payment_year.test.mjs)
 reproduces accepted contradictory deadline facts and ordinary plans using §15A

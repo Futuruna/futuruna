@@ -1,0 +1,90 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / pensionsbeskatningsloven
+
+| korrektion(oprindelig: Dato, tilbage: Dato, ny: Dato, oprindeligt_beløb: Heltal, tilbagebetalt_beløb: Heltal, art: Pbl22EOrdningsart, til_indbetaler: Boolsk, kilde: Tekst) -> Pbl22EGenindbetalingsfakta(
+    tilbagebetaling = Pbl22ETilbagebetalingsfakta(
+        identifikation = "tilbage-1", kildereference = kilde,
+        oprindelig_indbetaling_identifikation = "oprindelig-1",
+        oprindelig_ordning = art, oprindelig_indbetalingsdato = oprindelig,
+        oprindeligt_indbetalt_brutto_kroner = oprindeligt_beløb,
+        tilbagebetalingsdato = tilbage, tilbagebetalt_brutto_kroner = tilbagebetalt_beløb,
+        tilbagebetalt_til_indbetaleren = til_indbetaler
+    ),
+    genindbetalingsdato = ny
+)
+| datokorrektion(oprindelig: Dato, tilbage: Dato, ny: Dato) -> korrektion(oprindelig, tilbage, ny, 40000, 40000, Pbl22ERateopsparing, Sandt, "fiktivt bilag")
+| testbetaling(fakta: Pbl22EGenindbetalingsfakta?, hidrører: Boolsk, forfaldsår: Heltal, placering: Pbl18Par15AFradragsplacering) -> Pbl18Betaling(
+    beløb_kroner = 40000, forfaldsår = forfaldsår, betalingsår = 2026,
+    betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+    hidrører_fra_par22e_tilbagebetaling = hidrører, par22e_genindbetaling = fakta,
+    par15a_fradragsplacering = placering, arbejdsgiverindbetalinger_kroner = 0,
+    arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+)
+= december = Dato(år = 2025, måned = 12, dag = 22)
+= januar5 = Dato(år = 2026, måned = 1, dag = 5)
+= januar19 = Dato(år = 2026, måned = 1, dag = 19)
+= januar20 = Dato(år = 2026, måned = 1, dag = 20)
+= rettidig = datokorrektion(december, januar5, januar19)
+= sen = datokorrektion(december, januar5, januar20)
+| testårsbetaling(april: Boolsk) -> Pbl18Årsbetaling(
+    beløb_kroner = 40000, forfaldsår = 2025, betalingsår = 2026,
+    betalt_senest_bankjusteret_1_april_efter_forfald = april,
+    hidrører_fra_par22e_tilbagebetaling = Sandt, par22e_genindbetaling = Some(rettidig),
+    par15a_fradragsplacering = Pbl18Par15AIndbetalingsår, arbejdsmarkedsbidrag_kroner = 0
+)
+= særlig_post = Pbl18Årsindbetaling(
+    identifikation = "ny-15a-betaling", ordning = Pbl18Par15ARateordning,
+    indbetalingskilde = Pbl18EgenIndbetaling, fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = testårsbetaling(Sandt), fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = 40000,
+    særligt_ordningsgrundlag = Pbl18Par15AIndbetalingsgrundlag(ordning_identifikation = "plan-1", afståelse_identifikation = "salg-1"),
+    begrænsninger = Pbl18Begrænsninger(pbl54_personkreds_opfyldt = Sandt, afgiftspligt_for_hele_ordningen_indtrådt = Falskt, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt)
+)
+= grænser = [
+    pbl22e_tilbagebetalingsfrist(december) == januar19,
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2025, måned = 12, dag = 31)) == januar19,
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2025, måned = 12, dag = 19)) == Dato(år = 2026, måned = 1, dag = 18),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2025, måned = 7, dag = 1)) == Dato(år = 2025, måned = 7, dag = 31),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2025, måned = 1, dag = 3)) == Dato(år = 2025, måned = 2, dag = 2),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2024, måned = 2, dag = 1)) == Dato(år = 2024, måned = 3, dag = 2),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2025, måned = 2, dag = 1)) == Dato(år = 2025, måned = 3, dag = 3),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2020, måned = 12, dag = 31)) == dato_ugyldig(),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 9999, måned = 12, dag = 31)) == dato_ugyldig(),
+    pbl22e_tilbagebetalingsfrist(Dato(år = 2025, måned = 2, dag = 29)) == dato_ugyldig(),
+    pbl22e_genindbetaling_gyldig(rettidig, 2026, 40000),
+    pbl22e_genindbetaling_gyldig(datokorrektion(Dato(år = 2025, måned = 7, dag = 1), Dato(år = 2025, måned = 7, dag = 31), Dato(år = 2025, måned = 7, dag = 31)), 2025, 40000),
+    pbl22e_genindbetaling_gyldig(datokorrektion(Dato(år = 2025, måned = 7, dag = 1), Dato(år = 2025, måned = 8, dag = 1), Dato(år = 2025, måned = 8, dag = 1)), 2025, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(sen, 2026, 40000),
+    pbl22e_genindbetaling_rettidig(rettidig),
+    pbl22e_genindbetaling_rettidig(sen) == Falskt,
+    pbl22e_genindbetaling_gyldig(rettidig, 2025, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(rettidig, 2026, 40001) == Falskt,
+    pbl22e_genindbetaling_gyldig(rettidig, 2026, 0) == Falskt,
+    pbl22e_genindbetaling_gyldig(datokorrektion(december, januar20, januar20), 2026, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(datokorrektion(december, januar19, januar5), 2026, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(datokorrektion(januar5, december, januar19), 2026, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(korrektion(december, januar5, januar19, 40000, 40001, Pbl22ERateopsparing, Sandt, "bilag"), 2026, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(korrektion(december, januar5, januar19, 40000, 40000, Pbl22EUoplystOrdning, Sandt, "bilag"), 2026, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(korrektion(december, januar5, januar19, 40000, 40000, Pbl22ERateopsparing, Falskt, "bilag"), 2026, 40000) == Falskt,
+    pbl22e_genindbetaling_gyldig(korrektion(december, januar5, januar19, 40000, 40000, Pbl22ERateopsparing, Sandt, ""), 2026, 40000) == Falskt,
+    pbl22e_oplysning_gyldig(Falskt, None, 2026, 40000),
+    pbl22e_oplysning_gyldig(Sandt, None, 2026, 40000) == Falskt,
+    pbl22e_oplysning_gyldig(Falskt, Some(rettidig), 2026, 40000) == Falskt,
+    pbl22e_indbetalingsår(Sandt, Some(rettidig), 2026, 40000) == 2025,
+    pbl22e_indbetalingsår(Sandt, Some(sen), 2026, 40000) == 2026,
+    pbl18_fradragsår(Pbl18Rateopsparing, testbetaling(Some(rettidig), Sandt, 2025, Pbl18IkkePar15APlacering)) == 2025,
+    pbl18_fradragsår(Pbl18Rateopsparing, testbetaling(Some(sen), Sandt, 2025, Pbl18IkkePar15APlacering)) == 2026,
+    pbl18_fradragsår(Pbl18Rateforsikring, testbetaling(Some(sen), Sandt, 2025, Pbl18IkkePar15APlacering)) == 2025,
+    pbl18_fradragsår(Pbl18Rateforsikring, testbetaling(Some(rettidig), Sandt, 2026, Pbl18IkkePar15APlacering)) == 2026,
+    pbl18_fradragsår(Pbl18Par15ARateordning, testbetaling(Some(rettidig), Sandt, 2025, Pbl18Par15AIndbetalingsår)) == 2025,
+    pbl18_fradragsår(Pbl18Par15ARateordning, testbetaling(Some(rettidig), Sandt, 2025, Pbl18Par15AAfståelsesår(fradragsår = 2025, indbetalt_senest_1_juli_efterfølgende = Sandt))) == 2025,
+    pbl18_fradragsår(Pbl18Par15BRateopsparing, testbetaling(Some(rettidig), Sandt, 2025, Pbl18IkkePar15APlacering)) == 2025,
+    pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, testårsbetaling(Sandt)),
+    pbl18_årsbetaling_gyldig(Pbl18EgenIndbetaling, testårsbetaling(Falskt)) == Falskt,
+    pbl18_årsindbetaling_fradragsår(særlig_post) == 2025,
+    pbl18_par15a_seneste_aktuelle_indbetalingsår([særlig_post]) == 2026
+]
+| korrektionens_grænser: grænser -> all(grænser, |gyldig: Boolsk| gyldig)
+? korrektionens_grænser
