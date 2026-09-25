@@ -268,6 +268,12 @@ ikke et forslag til standardvalg i en virkelig sag.
 
 ### Hvis arbejdsgiveren har indbetalt over rategrænsen
 
+En rubrik 347-linje kan også indeholde **gruppeliv**, ikke kun rateoverskud.
+For lønfinansieret gruppeliv bruges dokumenteret brutto til arbejdsfradrag
+og netto til personlig indkomst, uden nyt AM eller ekstra pensionsfradrag.
+Se [gruppelivsguiden og skabelonændringen](personskat-gruppeliv.md), før en
+samlet pensions-/forsikringsoversigt fordeles på flere inputposter.
+
 Den fælles grænse for almindelig ratepension og ophørende livrente gælder
 **efter indeholdt AM-bidrag**, på tværs af ordninger. Arbejdsgiverbidrag har
 prioritet over private bidrag. Overskud fra arbejdsgiverordningen er personlig

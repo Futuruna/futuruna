@@ -147,7 +147,7 @@
     )
     ]), 2025)
 = personskat_ordinaer_gruppeliv_efter_am_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
-    personskat_ordinaer_scenario_arbejdsgiverydelse("gruppeliv-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
+    personskat_ordinaer_scenario_arbejdsgiverydelse("gruppeliv-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner = Some(551), personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
     ], []), 2025)
 = personskat_ordinaer_gruppeliv_direkte_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("gruppeliv-direkte", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000))
@@ -213,7 +213,7 @@
     ], []), 2025)
 = personskat_ordinaer_dubleret_ydelse_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("samme-id", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000)),
-    personskat_ordinaer_scenario_arbejdsgiverydelse("samme-id", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
+    personskat_ordinaer_scenario_arbejdsgiverydelse("samme-id", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner = Some(551), personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
     ], []), 2025)
 = personskat_ordinaer_negativ_ydelse_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("negativ", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = -1))
@@ -356,7 +356,7 @@
 | personskat_ordinaer_scenario_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> resultat.aftrapningsindkomst_kroner
 
 = personskat_ordinaer_canonical_gruppeliv_efter_am = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
-    personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
+    personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner = Some(551), personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
     ], []))
 = personskat_ordinaer_canonical_honorar = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input_med_arbejdsvederlag([personskat_ordinaer_honorar]))
 = personskat_ordinaer_canonical_gruppeliv_direkte = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
