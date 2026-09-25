@@ -33,6 +33,13 @@ A successful CLI exit means execution and serialization succeeded, not that
 the domain assessment is valid. JSON and XLSX expose the same status and nullable
 comparison amount. Do not replace an absent comparison amount with zero.
 
+The ordinary entry accepts an externally supplied green-check credit; this does
+not independently establish entitlement. For source-derived green check and its
+settlement effect, use the additive
+[Personskat with green check](personskat-groen-check.md) entry. It retains the
+canonical checks and withholds the settlement when its extra facts are unknown,
+unsupported or inconsistent. The existing entry's input/output types are unchanged.
+
 ## Which checks are combined
 
 The canonical calculation combines explicit domain summaries for dates/year and
