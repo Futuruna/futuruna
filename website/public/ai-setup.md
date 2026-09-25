@@ -349,6 +349,15 @@ successful CLI execution into a claim that the tax calculation is valid.
 that all relevant facts and deductions are covered. Preserve the stated coverage
 qualifications and never substitute zero for a missing comparison amount.
 
+For a local Danish summary, save canonical output as JSON (`--output
+PRIVATE_WORK_DIR/personskat-results.json`) and, if Node.js 18 or newer is
+already installed, run `node examples/danish-income-tax/personskat-resultat.mjs
+PRIVATE_WORK_DIR/personskat-results.json`. It retains every assessment control,
+caveat and case diagnostic and withholds invalid amounts. This read-only view
+does not authenticate output, compare against the taxpayer's report, or replace
+the detailed spouse and payment-settlement results. See the validity guide for
+scope and exit codes; do not treat a zero exit code as tax approval.
+
 Help the user trace differences back to inputs and rules, and report
 uncertainties clearly. `schema`, `template`, and `call` are Preview features,
 and this tax model remains an active research project.

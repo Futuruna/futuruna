@@ -462,6 +462,17 @@ beregnes en skatteforskel. Heller ikke ved at erstatte `null` med nul.
 `BeregnetMedForbehold` tillader en sammenligning af den modellerede del; det
 beviser ikke, at alle relevante forhold er dækket.
 
+Du kan læse begge sagers gemte output med den
+[lokale danske resultatvisning](personskat-validity.md#læs-dit-gemte-resultat-på-dansk)
+(kræver allerede installeret Node.js 18 eller nyere):
+
+```sh
+node examples/danish-income-tax/personskat-resultat.mjs PRIVATE_WORK_DIR/pension-results.json
+```
+
+Den viser status, udvalgte beløb og alle vurderingens kontroller/forbehold,
+men beregner ikke en før/efter-forskel eller rådighedsbeløb for dig.
+
 Et brugbart svar viser:
 
 | Beløb | Hvor kommer det fra? |

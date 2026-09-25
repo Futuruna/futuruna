@@ -33,6 +33,14 @@ It retains every check, necessary amount, caveat and failed-case diagnostic;
 it is a read-only presentation, not a second tax calculator or an authenticity
 check of saved output.
 
+Canonical `beregn_personskat` output now has its own
+[local Danish summary](../examples/danish-income-tax/personskat-validity.md#læs-dit-gemte-resultat-på-dansk).
+It leads with validity, withholds diagnostic amounts for invalid cases, retains
+all assessment controls/caveats and every case diagnostic, and shows selected
+main-person amounts with exact units. It does not validate every nested result,
+authenticate the saved file, compare with observed report amounts, or summarize
+the separate spouse/settlement calculations. No tax formula changed.
+
 ## Original findings: source closeout
 
 “Implemented” below concerns the named defect, not all tax-law coverage.
