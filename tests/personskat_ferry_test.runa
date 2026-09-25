@@ -1,0 +1,68 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / ligningsloven_fradrag
+
+-- Fiktive ensartede rejsedage. SKATs eksempler i C.A.4.3.3.1.3 er pr. dag;
+-- 100 dage bevarer deres ørebeløb som hele kroner uden afrundingstvivl.
+| færge_prøve(år: Heltal, dage: Heltal, vejkm: Heltal, udgift: Heltal, yderkommune: Boolsk, godtgjort: Boolsk, nødvendig: Boolsk) -> Ligningslov9CInput(
+    skatteår = år,
+    arbejdsdage = dage,
+    daglige_befordringskilometer = vejkm,
+    bopæl_i_yderkommune_eller_lille_ø = yderkommune,
+    aftrapningsindkomst_kroner = 600000,
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    modtaget_skattefri_befordringsgodtgørelse_for_strækning = godtgjort,
+    modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+    par9d = ll9d_ikke_omfattet_resultat_for(år),
+    fradrag_udelukket_folketingshverv_m_v = Falskt,
+    fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = Falskt,
+    broer = ll9c_ingen_bropassager(),
+    særlig_transport = Ligningslov9CSærligTransport(
+        faktisk_dokumenteret_udgift_kroner = udgift,
+        geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten = nødvendig
+    )
+)
+| færge_prøve_beløb(år: Heltal, vejkm: Heltal, udgift: Heltal) -> ll9c_befordringsfradrag_resultat(færge_prøve(år, 100, vejkm, udgift, Falskt, Falskt, Sandt)).grundfradrag_før_lavindkomsttillæg_kroner
+
+= officielle_eksempler = færge_prøve_beløb(2025, 16, 12000) == 10216 && færge_prøve_beløb(2025, 34, 12000) == 14230 && færge_prøve_beløb(2026, 0, 9000) == 1392 && færge_prøve_beløb(2026, 16, 12000) == 9464 && færge_prøve_beløb(2026, 32, 12000) == 14536 && færge_prøve_beløb(2026, 54, 29500) == 39010 && færge_prøve_beløb(2026, 16, 29500) == 26964
+| færge_og_fly_følger_officielle_eksempler: officielle_eksempler -> officielle_eksempler
+? færge_og_fly_følger_officielle_eksempler
+
+= tærskel = færge_prøve_beløb(2025, 23, 12000) == 11777 && færge_prøve_beløb(2025, 24, 12000) == 12000 && færge_prøve_beløb(2026, 23, 12000) == 11683 && færge_prøve_beløb(2026, 24, 12000) == 12000
+| første_24_km_modregnes_kun_en_gang: tærskel -> tærskel
+? første_24_km_modregnes_kun_en_gang
+
+= historiske_satser = færge_prøve_beløb(2023, 16, 12000) == 10248 && færge_prøve_beløb(2024, 16, 12000) == 10216
+| tidligere_år_bruger_egne_satser: historiske_satser -> historiske_satser
+? tidligere_år_bruger_egne_satser
+
+= nulgrænse = færge_prøve_beløb(2025, 16, 1000) == 0 && færge_prøve_beløb(2026, 0, 0) == 0 && færge_prøve_beløb(2026, 16, 2536) == 0 && færge_prøve_beløb(2026, 16, 2537) == 1 && færge_prøve_beløb(2026, 34, 0) == 3170
+| ingen_negativ_billetfradragsrest: nulgrænse -> nulgrænse
+? ingen_negativ_billetfradragsrest
+
+= undtagelser = ll9c_særlig_transportfradrag_kroner(færge_prøve(2026, 100, 16, 12000, Falskt, Sandt, Sandt)) == 0 && ll9c_særlig_transportfradrag_kroner(færge_prøve(2026, 100, 16, 12000, Falskt, Falskt, Falskt)) == 0
+| godtgjort_eller_ikke_nødvendig_transport_giver_ikke_billetfradrag: undtagelser -> undtagelser
+? godtgjort_eller_ikke_nødvendig_transport_giver_ikke_billetfradrag
+
+-- § 9 C, stk. 3's yderkommunetillæg gælder befordring OVER 24 km.
+-- Bundgrænsen i stk. 2 anvender den almindelige sats, også her.
+= yderkommune = ll9c_særlig_transportfradrag_kroner(færge_prøve(2026, 100, 16, 12000, Sandt, Falskt, Sandt)) == 9464 && ll9c_befordringsfradrag_resultat(færge_prøve(2026, 100, 34, 12000, Sandt, Falskt, Sandt)).grundfradrag_før_lavindkomsttillæg_kroner == 15510
+| yderkommunetillæg_ændrer_ikke_bundgrænsen: yderkommune -> yderkommune
+? yderkommunetillæg_ændrer_ikke_bundgrænsen
+
+= eksisterende = ll9c_2026_60km_resultat.afstandsfradrag_kroner == 23166 && ll9c_2026_60km_resultat.særlig_transportfradrag_kroner == 0
+| almindelig_kørsel_bevares: eksisterende -> eksisterende
+? almindelig_kørsel_bevares
+
+= spor = ll9c_befordringsfradrag_resultat(færge_prøve(2026, 1, 16, 120, Falskt, Falskt, Sandt))
+= præcist_spor = spor.særlig_transport_resterende_bundgrænse_øre == 2536 && spor.særlig_transportfradrag_øre == 9464 && spor.særlig_transportfradrag_kroner == 95 && spor.særlig_transport_kilder == [LigningslovLbk1500Af2025Par9C, Ll9cDenJuridiskeVejledning2026_2CA43313]
+| billetsporet_bevarer_øre_før_eksisterende_årsafrunding: præcist_spor -> præcist_spor
+? billetsporet_bevarer_øre_før_eksisterende_årsafrunding
+
+= ingen_rejse = ll9c_særlig_transportfradrag_kroner(færge_prøve(2026, 0, 16, 12000, Falskt, Falskt, Sandt)) == 0
+| billetkøb_uden_rejsedage_giver_ikke_fradrag: ingen_rejse -> ingen_rejse
+? billetkøb_uden_rejsedage_giver_ikke_fradrag
+
+= uændret_bro_og_lang_rute = ll9c_2026_storebælt_resultat.afstandsfradrag_kroner == 106319 && ll9c_2026_storebælt_resultat.brofradrag_kroner == 44660 && ll9c_2026_storebælt_resultat.samlet_befordringsfradrag_kroner == 150979 && ll9c_2026_særlig_transport_resultat.særlig_transportfradrag_kroner == 5000 && ll9c_2026_særlig_transport_resultat.samlet_befordringsfradrag_kroner == 28166 && ll9c_2026_arbejdsplads_par9d_bro_resultat.samlet_befordringsfradrag_kroner == 1100
+| eksisterende_bro_og_par9d_samordning_bevares: uændret_bro_og_lang_rute -> uændret_bro_og_lang_rute
+? eksisterende_bro_og_par9d_samordning_bevares

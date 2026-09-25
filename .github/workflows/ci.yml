@@ -62,6 +62,9 @@ jobs:
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_recurring_gifts.test.mjs
           ./target/release/runa tests/personskat_maintenance_recipient_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_maintenance_recipient.test.mjs
+          ./target/release/runa tests/personskat_ferry_test.runa
+          ./target/release/runa run tests/personskat_ferry_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_ferry.test.mjs
 
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/

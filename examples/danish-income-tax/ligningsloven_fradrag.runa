@@ -1248,6 +1248,11 @@ stk. 5.
     identifier = "Den juridiske vejledning 2026-2, C.A.4.3.3.2.4",
     hentet_dato = "2026-08-10"
 )
+= ligningsloven_vejledning_par9c_færge_fly = LigningslovFradragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061740",
+    identifier = "Den juridiske vejledning 2026-2, C.A.4.3.3.1.3, færge- og flytransport, eksempel 1-5",
+    hentet_dato = "2026-09-25"
+)
 = ligningsloven_skm2019_292_lsr = LigningslovFradragKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2286985",
     identifier = "SKM2019.292.LSR",
@@ -1297,6 +1302,7 @@ stk. 5.
         RateSource(value = ligningsloven_par9c_beloebsgraenser_2024_2025),
         RateSource(value = ligningsloven_par9c_beloebsgraenser_2025_2026),
         Guidance(value = ligningsloven_vejledning_par9d),
+        Guidance(value = ligningsloven_vejledning_par9c_færge_fly),
         Practice(value = ligningsloven_skm2019_292_lsr),
         Guidance(value = ligningsloven_vejledning_par9c_fri_befordring),
         Guidance(value = ligningsloven_vejledning_par9c_frikort_offentlig_befordring),
@@ -1656,8 +1662,14 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
 § 9 D for disse særlige udgifter.
 ----
 
+= ligningsloven_færge_fly_metadata = Guidance(value = ligningsloven_vejledning_par9c_færge_fly)
+--@label:ligningsloven_færge_fly_bundgrænse::meta:ligningsloven_færge_fly_metadata--
+----
+I disse tilfælde foretages begrænsningen i fradraget fortrinsvis i fradraget for yderligere transport.
+----
+
 --@begin:ligningsloven_par9c_par9d--
-# Ligningslov9CKilde = LigningslovLbk1500Af2025Par9C | SkatteraadetBek1449Af2022Par1Til3 | SkatteraadetBek1312Af2023Par1Til3 | SkatteraadetBek1189Af2024Par1Til3 | SkatteraadetBek1333Af2025Par1Til3 | LigningslovLov109Af2024Par1Nr7Til9 | Lov616Af2026Par1 | SkatteministerietPsl20Beloebsgraenser2023_2024 | SkatteministerietPsl20Beloebsgraenser2024_2025 | SkatteministerietPsl20Beloebsgraenser2025_2026 | SkatDkKoerselsfradrag2026
+# Ligningslov9CKilde = LigningslovLbk1500Af2025Par9C | SkatteraadetBek1449Af2022Par1Til3 | SkatteraadetBek1312Af2023Par1Til3 | SkatteraadetBek1189Af2024Par1Til3 | SkatteraadetBek1333Af2025Par1Til3 | LigningslovLov109Af2024Par1Nr7Til9 | Lov616Af2026Par1 | SkatteministerietPsl20Beloebsgraenser2023_2024 | SkatteministerietPsl20Beloebsgraenser2024_2025 | SkatteministerietPsl20Beloebsgraenser2025_2026 | SkatDkKoerselsfradrag2026 | Ll9cDenJuridiskeVejledning2026_2CA43313
 # Ligningslov9CBefordringsformål = IndtægtsgivendeArbejdsplads | SuUddannelsessted | AndetBefordringsformål
 # Ligningslov9CBroPassager(storebælt_bil_motorcykel_passager: Heltal, storebælt_kollektiv_passager: Heltal, øresund_bil_motorcykel_passager: Heltal, øresund_kollektiv_passager: Heltal, dokumenteret_og_afholdt_af_skattepligtige: Boolsk)
 # Ligningslov9CSærligTransport(faktisk_dokumenteret_udgift_kroner: Heltal, geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten: Boolsk)
@@ -1673,7 +1685,7 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
 # Ligningslov9DResultat(input_gyldigt: Boolsk, omfattet_af_par9d: Boolsk, betalingsforhold: Ligningslov9DBetalingsforhold, betalingsforhold_gyldigt: Boolsk, fradragsbetingelser_opfyldt: Boolsk, afskærer_par9c_stk1_8: Boolsk, afskærer_par9c_stk10: Boolsk, normal_befordringsudgift_kroner: Heltal, normal_befordringsudgift_over_2000_kroner: Heltal, faktisk_befordringsudgift_kroner: Heltal, skattefrit_servicelovstilskud_kroner: Heltal, egen_afholdt_faktisk_befordringsudgift_kroner: Heltal, faktisk_udgift_over_normal_kroner: Heltal, fradrag_før_skattefrit_tilskud_kroner: Heltal, fradrag_kroner: Heltal, normal_befordringsudgift_kilde: Ligningslov9DKilde, faktisk_befordringsudgift_kilde: Ligningslov9DKilde)
 # Ligningslov9CInput(skatteår: Heltal, arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, aftrapningsindkomst_kroner: Heltal, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, par9d: Ligningslov9DResultat, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # Ligningslov9CSatser(skatteår: Heltal, almindelig_op_til_120_øre_pr_km: Heltal, almindelig_over_120_øre_pr_km: Heltal, yderkommune_op_til_120_øre_pr_km: Heltal, yderkommune_over_120_øre_pr_km: Heltal, lavindkomst_tillæg_basispoint: Heltal, lavindkomst_aftrapning_basispoint_pr_1000: Heltal, lavindkomst_maks_kroner: Heltal, lavindkomst_indkomstgrænse_kroner: Heltal, almindelig_satskilder: List(Ligningslov9CKilde), yderkommune_satskilder: List(Ligningslov9CKilde), lavindkomst_satskilder: List(Ligningslov9CKilde))
-# Ligningslov9CResultat(berettiget_til_ordinært_fradrag: Boolsk, daglige_fradragsberettigede_kilometer: Heltal, op_til_120_kilometer_pr_dag: Heltal, over_120_kilometer_pr_dag: Heltal, op_til_120_øre_pr_km: Heltal, over_120_øre_pr_km: Heltal, afstandsfradrag_kroner: Heltal, særlig_transportfradrag_kroner: Heltal, brofradrag_kroner: Heltal, grundfradrag_før_lavindkomsttillæg_kroner: Heltal, lavindkomst_tillæg_kroner: Heltal, fri_befordring_skattepligtig_værdi_kroner: Heltal, samlet_befordringsfradrag_kroner: Heltal, almindelig_satskilder: List(Ligningslov9CKilde), yderkommune_satskilder: List(Ligningslov9CKilde), lavindkomst_satskilder: List(Ligningslov9CKilde))
+# Ligningslov9CResultat(berettiget_til_ordinært_fradrag: Boolsk, daglige_fradragsberettigede_kilometer: Heltal, op_til_120_kilometer_pr_dag: Heltal, over_120_kilometer_pr_dag: Heltal, op_til_120_øre_pr_km: Heltal, over_120_øre_pr_km: Heltal, afstandsfradrag_kroner: Heltal, særlig_transport_resterende_bundgrænse_øre: Heltal, særlig_transportfradrag_øre: Heltal, særlig_transportfradrag_kroner: Heltal, særlig_transport_kilder: List(Ligningslov9CKilde), brofradrag_kroner: Heltal, grundfradrag_før_lavindkomsttillæg_kroner: Heltal, lavindkomst_tillæg_kroner: Heltal, fri_befordring_skattepligtig_værdi_kroner: Heltal, samlet_befordringsfradrag_kroner: Heltal, almindelig_satskilder: List(Ligningslov9CKilde), yderkommune_satskilder: List(Ligningslov9CKilde), lavindkomst_satskilder: List(Ligningslov9CKilde))
 
 | ll9c_ingen_bropassager() -> Ligningslov9CBroPassager(
     storebælt_bil_motorcykel_passager = 0,
@@ -1916,8 +1928,17 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
 | ll9c_dagligt_afstandsfradrag_øre(input: Ligningslov9CInput) -> ll9c_op_til_120_kilometer_pr_dag(input) * ll9c_op_til_120_øre_pr_km(input) + ll9c_over_120_kilometer_pr_dag(input) * ll9c_over_120_øre_pr_km(input)
 | ll9c_afstandsfradrag_kroner(input: Ligningslov9CInput) -> 0
 | exception ll9c_ordinær_afstand_giver_fradrag ll9c_afstandsfradrag_kroner(input: Ligningslov9CInput) -> ll9c_øre_afrundet_til_kroner(ll9c_dagligt_afstandsfradrag_øre(input) * ligningslov_positivt_beløb(input.arbejdsdage)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
-| ll9c_særlig_transportfradrag_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_færge_fly_lignende_faktisk_udgift ll9c_særlig_transportfradrag_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.særlig_transport.faktisk_dokumenteret_udgift_kroner) under ll9c_ordinært_befordringsfradrag_berettiget(input) && input.særlig_transport.geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten == Sandt
+--@begin:ligningsloven_færge_fly_bundgrænse--
+-- Landkilometer udelukker færgens/flyets strækning. Rækken skal omfatte
+-- ensartede rejsedage; den fulde billetudgift er et kildefaktum, ikke et fradrag.
+-- Stk. 3's yderkommunetillæg gælder over 24 km, ikke stk. 2's bundgrænse.
+| ll9c_særlig_transport_berettiget(input: Ligningslov9CInput) -> ll9c_ordinært_befordringsfradrag_berettiget(input) && input.arbejdsdage > 0 && input.særlig_transport.geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten
+| ll9c_særlig_transport_resterende_bundgrænse_øre(input: Ligningslov9CInput) -> 0
+| exception ll9c_resterende_daglig_bundgrænse ll9c_særlig_transport_resterende_bundgrænse_øre(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(24 - ligningslov_positivt_beløb(input.daglige_befordringskilometer)) * ll9c_satser_for(input.skatteår).almindelig_op_til_120_øre_pr_km * input.arbejdsdage under ll9c_særlig_transport_berettiget(input)
+| ll9c_særlig_transportfradrag_øre(input: Ligningslov9CInput) -> 0
+| exception ll9c_færge_fly_lignende_faktisk_udgift ll9c_særlig_transportfradrag_øre(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(ligningslov_positivt_beløb(input.særlig_transport.faktisk_dokumenteret_udgift_kroner) * 100 - ll9c_særlig_transport_resterende_bundgrænse_øre(input)) under ll9c_særlig_transport_berettiget(input)
+| ll9c_særlig_transportfradrag_kroner(input: Ligningslov9CInput) -> ll9c_øre_afrundet_til_kroner(ll9c_særlig_transportfradrag_øre(input))
+--@end:ligningsloven_færge_fly_bundgrænse--
 | ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> 0
 | exception ll9c_dokumenterede_brofradrag ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.broer.storebælt_bil_motorcykel_passager) * 110 + ligningslov_positivt_beløb(input.broer.storebælt_kollektiv_passager) * 15 + ligningslov_positivt_beløb(input.broer.øresund_bil_motorcykel_passager) * 50 + ligningslov_positivt_beløb(input.broer.øresund_kollektiv_passager) * 8 under ll9c_bropassagefradrag_berettiget(input) && input.broer.dokumenteret_og_afholdt_af_skattepligtige == Sandt
 | ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input: Ligningslov9CInput) -> ll9c_afstandsfradrag_kroner(input) + ll9c_særlig_transportfradrag_kroner(input) + ll9c_brofradrag_kroner(input)
@@ -1950,7 +1971,10 @@ indkomståret 2017, kan hun alene få befordringsfradrag efter ligningslovens
     op_til_120_øre_pr_km = ll9c_op_til_120_øre_pr_km(input),
     over_120_øre_pr_km = ll9c_over_120_øre_pr_km(input),
     afstandsfradrag_kroner = ll9c_afstandsfradrag_kroner(input),
+    særlig_transport_resterende_bundgrænse_øre = ll9c_særlig_transport_resterende_bundgrænse_øre(input),
+    særlig_transportfradrag_øre = ll9c_særlig_transportfradrag_øre(input),
     særlig_transportfradrag_kroner = ll9c_særlig_transportfradrag_kroner(input),
+    særlig_transport_kilder = [LigningslovLbk1500Af2025Par9C, Ll9cDenJuridiskeVejledning2026_2CA43313],
     brofradrag_kroner = ll9c_brofradrag_kroner(input),
     grundfradrag_før_lavindkomsttillæg_kroner = ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input),
     lavindkomst_tillæg_kroner = ll9c_lavindkomst_tillæg_kroner(input),

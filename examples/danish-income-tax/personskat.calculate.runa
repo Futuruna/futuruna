@@ -1674,9 +1674,49 @@
     path = "lønmodtager.ligningsfradrag.befordring.forhold",
     label = "Befordringsforhold til arbejde eller uddannelse",
     question = Some("Hvilke befordringsforhold til arbejde eller uddannelse havde du i indkomståret?"),
-    help = Some("Opret én række pr. arbejds- eller uddannelsessted og strækning. Den opdeling gør det muligt at anvende de rette regler og bevare transport til andre formål ved samordning."),
+    help = Some("Opret rækker for grupper af ensartede rejsedage og bevar arbejds- eller uddannelsesstedets identifikation til samordning. Landtransport og færge/fly samme dag hører til samme række. Ved flere arbejdssteder samme dag skal det retligt relevante daglige total bruges; anvend ikke 24-km-bundgrænsen flere gange. Se personskat-faerge-og-fly.md."),
     unit = None
 )
+= personskat_befordring_rejsedage_meta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(
+            path = refof(PersonskatBefordringsfradragFakta::arbejdsdage),
+            label = "Faktiske rejsedage for rækken",
+            question = Some("Hvor mange dage foretog du den transport, som denne række beskriver?"),
+            help = Some("Brug faktiske rejsedage, ikke feriedage, sygedage eller hjemmearbejdsdage. Flere ture samme dag er én dag. Ved færge/fly skal dage, daglige landkilometer og billetudgift vedrøre samme gruppe af ensartede rejsedage. Opdel forskellige daglige rejsemønstre uden at tælle samme dag to gange; se personskat-faerge-og-fly.md."),
+            unit = Some("dage/år")
+        ),
+        TypetBeregningsfelt(
+            path = refof(PersonskatBefordringsfradragFakta::daglige_befordringskilometer),
+            label = "Daglig landtransport frem og tilbage",
+            question = Some("Hvor mange kilometer er dagens samlede normale landtransport mellem hjem og arbejds- eller uddannelsessted?"),
+            help = Some("Medregn landtransport før og efter færge/fly, men ikke færgens eller flyets kilometer. Oplys hele landafstanden, også under 24 km; modellen anvender bundgrænsen. Landtransport og billetudgift for samme rejsedag hører til samme række."),
+            unit = Some("km/dag")
+        ),
+        TypetBeregningsfelt(
+            path = refof(PersonskatBefordringsfradragFakta::særlig_transport::faktisk_dokumenteret_udgift_kroner),
+            label = "Dokumenterede færge-/flybilletter før bundgrænse",
+            question = Some("Hvad var den samlede dokumenterede billetudgift for rækkens faktiske rejsedage i indkomståret?"),
+            help = Some("Oplys den fulde dokumenterede udgift før bundgrænse, ikke årsopgørelsens fradrag. Ved under 24 km daglig landtransport trækker modellen den resterende bundgrænse fra billetudgiften, dog højst til nul. Brug ensartede dage pr. række; forskellige billetpriser omkring nulgrænsen må ikke skjules i et gennemsnit. Se personskat-faerge-og-fly.md."),
+            unit = Some("kr./år for rækkens dage")
+        ),
+        TypetBeregningsfelt(
+            path = refof(PersonskatBefordringsfradragFakta::særlig_transport::geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten),
+            label = "Nødvendig færge-/flytransport efter § 9 C",
+            question = Some("Kræver geografiske forhold, tidsforbrug og økonomisk rimelighed denne færge-/flytransport?"),
+            help = Some("Vurder betingelserne i LL § 9 C, stk. 1, ud fra ruten og dokumentationen. En købt billet alene godtgør ikke fradragsretten. Uafklarede forhold skal undersøges, ikke sættes til sandt for at få et bestemt fradrag."),
+            unit = None
+        )
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9c_par9d),
+        Guidance(value = ligningsloven_vejledning_par9c_færge_fly),
+    )
+)
+--@label:PersonskatBefordringsfradragFakta::meta:personskat_befordring_rejsedage_meta--
+
 = personskat_felt_befordring_identifikation = Beregningsfelt(
     path = "lønmodtager.ligningsfradrag.befordring.forhold.identifikation",
     label = "Befordringsforholdets identifikation",

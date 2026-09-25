@@ -19,6 +19,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | Are my recurring donations capped correctly when paid in instalments? | [Gift-agreement review](../examples/danish-income-tax/personskat-gaver.md) | Ordinary LL §12 payments share one limit per identified agreement before the common income ceiling. Missing/conflicting agreement facts or unconfirmed ordinary payment history withhold comparisons. |
 | Does child maintenance belong in my calculation or my child's? | [Maintenance recipient guide](../examples/danish-income-tax/personskat-underholdsbidrag.md) | Separates payer, assessed child and adult alimony; inconsistent child-recipient birth dates withhold comparison, including for spouses. It does not authenticate identities. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
+| How do ferry or flight tickets combine with a short road commute? | [Ferry/flight guide](../examples/danish-income-tax/personskat-faerge-og-fly.md) | Deducts the unused daily 24-km threshold from documented ticket costs, preserving source expense and exact-øre trace. Requires correctly grouped travel days. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
 | Do my benefits affect the extra commuting deduction? | [Danish benefit review](../examples/danish-income-tax/personskat-dagpenge.md) | Separates personal income without wage AM from LL §9 C income; ordinary statutory benefits and explicit exclusions also compose into Personskat. |
 | How do SU and a part-time job enter my tax? | [SU and student-job review](../examples/danish-income-tax/personskat-su.md) | Ordinary Danish grants enter personal income without wage AM or employment deductions; loan disbursements remain outside income. Corrections and foreign circumstances are explicitly outside this compact route. |
@@ -74,6 +75,18 @@ count and travel-day counts exceeding the income year's calendar length,
 including for an active spouse. The [commuting input guide](../examples/danish-income-tax/personskat-validity.md#commuting-input-checks)
 distinguishes these validity checks from actual travel evidence and coverage
 of the extra low-income deduction.
+
+The ferry/flight correction is guarded by [component examples and boundaries](../tests/personskat_ferry_test.runa)
+and [canonical cases](../tests/personskat_ferry.test.mjs), including a spouse and
+the annual low-income supplement. For 100 days with 16 road km and 120 DKK
+tickets per day, the previous 12,000 DKK deduction becomes 10,216 DKK in 2025
+or 9,464 DKK in 2026. Current official guidance supplies these daily examples;
+this does not independently establish annual rounding or heterogeneous-day
+allocation. The rural-threshold interpretation is explicit in the guide.
+Verification: ten component assertions pass in interpreted and native execution;
+seven canonical cases pass, with eight projected question/help/source checks
+covering both taxpayer and spouse. Percentage-supplement truncation remains the
+existing model convention, not a newly verified official rounding result.
 
 Recurring-gift regression checks reproduce and fix an over-deduction: two
 6,000 DKK payments under one 10,000 DKK annual agreement previously produced
