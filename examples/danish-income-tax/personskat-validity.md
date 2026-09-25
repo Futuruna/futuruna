@@ -51,6 +51,12 @@ valg af beregningsvej.
 
 ## Model-owned validity assessment
 
+Honorarer og anden B-indkomst kræver også den rigtige indgang. Løn og
+virksomhedsindtægt indsat i honorarlisten bliver ikke automatisk flyttet
+eller skattefri; den samlede sammenligning tilbageholdes. Se
+[honorarvejledningen](personskat-honorar.md) om kildefakta, bruttobeløb,
+udgifter og dobbelt medregning.
+
 `beregn_personskat` returns `vurdering` alongside its existing breakdown. This
 is a model-owned validity assessment, not a compiler guess based on Boolean
 field names. The same checks apply to the taxpayer and an active spouse.
