@@ -21,6 +21,7 @@
             "Ved ugyldigt beregningsgrundlag er alle øvrige beløb diagnostik, ikke et resultat til sammenligning med årsopgørelsen.",
             "Gyldige kontroller betyder kun, at de anførte modelkontroller er bestået; de bekræfter ikke kildefakta, fuldstændig indberetning eller samlet retlig korrekthed.",
             "En mulig beløbssammenligning gælder den modellerede del. Samlet modeldækning skal vurderes særskilt; ukendte fakta må ikke erstattes med nul.",
+            "Afrunding af arbejdsfradrag bygger på udvalgte 2025/2026-observationer. Der er kendte uafklarede afvigelser på én krone i fradrag i SKATs 2026-forskudsberegner; ældre års praksis er ikke uafhængigt verificeret. En difference er ikke i sig selv en fejl i årsopgørelsen. Ingen tolerance udligner forskellen; se skatdk-fradrag-oere-ekstern.md.",
             "Boligjobfradrag beregnes fra dokumenterede betalingsfakta. Forsikringsfordeling, forudbetaling og ældre arbejdsår kræver stadig særskilt vurdering; ydelsesklassifikation og kildefakta skal underbygges før en samlet rapportkonklusion."
         ]
     )

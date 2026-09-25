@@ -63,12 +63,15 @@ establish universal or historical conformance.
 
 ## Limits to keep visible
 
-- Two 2026 **one-krone deduction differences**, at exact-one-øre intermediate
-  boundaries, remain unexplained (`td-68c9d3`).
+- Three observed 2026 **one-krone deduction differences**, at exact-one-øre
+  intermediate boundaries, remain unexplained (`td-68c9d3`).
   [The amounts and profiles are recorded](../examples/danish-income-tax/skatdk-fradrag-oere-ekstern.md#kendte-afvigelser--ikke-match).
   Do not introduce a tolerance, adjust source facts or declare a taxpayer's
   return wrong to hide them. Earlier-year administrative rounding also needs
   independent evidence (`td-3f1c08`).
+  The canonical result's `vurdering.forbehold` now includes this limitation;
+  amounts and validity are unchanged. It is not a tolerance or an explanation
+  of every small difference.
 - The full Personskat native-codegen path remains incomplete (`td-124b83`).
   `template`/`call` is the tested canonical tax-input path. Native checks of
   smaller components do not establish native support for the entire graph.

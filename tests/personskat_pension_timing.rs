@@ -339,6 +339,56 @@ fn ordinary_salary_matches_external_skat_rounding_and_tax_amounts() {
 }
 
 #[test]
+fn calculation_output_preserves_known_rounding_uncertainty_without_tolerance() {
+    let (envelope, mut ordinary) = fictional_input();
+    ordinary["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([]);
+    ordinary["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
+        json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
+    let mut boundary = ordinary.clone();
+    boundary["lønmodtager"]["bruttoløn_kroner"] = json!(100604);
+    let results = calculate(
+        envelope,
+        vec![
+            json!({"case_id":"ordinary","input":ordinary}),
+            json!({"case_id":"known-rounding-difference","input":boundary}),
+        ],
+    );
+    assert_eq!(results.len(), 2);
+    for row in &results {
+        let gate = &row["result"]["vurdering"];
+        assert_eq!(gate["status"]["$variant"], "BeregnetMedForbehold", "{row}");
+        assert_eq!(gate["samlet_modeldækning_bekræftet"], false);
+        assert_eq!(
+            gate["slutskat_til_sammenligning_øre"],
+            row["result"]["slutskat_øre"]
+        );
+        let warning = gate["forbehold"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .find(|text| text.contains("Afrunding af arbejdsfradrag"))
+            .expect("known uncertainty must travel with canonical output");
+        assert!(warning.contains("Ingen tolerance"));
+        assert!(warning.contains("ældre års praksis"));
+        println!(
+            "{}: tax={} ore; {}",
+            row["case_id"], gate["slutskat_til_sammenligning_øre"], warning
+        );
+    }
+    // Existing ordinary calculation stays unchanged. For the boundary, retain
+    // the exact model result, not SKAT's observed 12,827 DKK deduction.
+    assert_eq!(
+        results[0]["result"]["vurdering"]["slutskat_til_sammenligning_øre"],
+        20872564
+    );
+    assert_eq!(
+        results[1]["result"]["skat"]["beskæftigelsesfradrag_kroner"],
+        12828
+    );
+}
+
+#[test]
 fn supplementary_deductions_and_sub_ore_cases_match_official_tax_components() {
     // Public fictional observations, not expectations computed by Futuruna.
     // See skatdk-fradrag-oere-ekstern.md. Tax is BEFORE green-check/prepayment
