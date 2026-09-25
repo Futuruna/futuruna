@@ -33,6 +33,26 @@ En ukendt ægtefælleandel skal ikke erstattes med et gæt. Brug
 ene årsopgørelse foreligger, og hold den adskilt fra en selvstændig
 genberegning af husstanden. Modellen ændrer intet i TastSelv.
 
+### Vejledning i det genererede input
+
+De to rentefelter har nu fælles typet metadata for hovedperson og ægtefælle.
+`runa schema` viser spørgsmål, enhed, kilde og hjælp om egen andel, fortegn,
+dobbeltregistrering og adskillelse af indtægt og udgift. Rubrik 44 kan også
+rumme provisioner; dens total er derfor ikke automatisk et rentebeløb til
+dette felt. Afklar sådanne poster via `kapitalindkomst.finansielle_poster`.
+LL §§ 6/6 A-fradrag har ligeledes egne input og må ikke tælles med igen.
+
+Dette er inputvejledning, ikke en ny kontrol af bilagene. Et forkert positivt
+årsbeløb kan stadig passere; et ukendt beløb skal afklares før den kanoniske
+beregning. Nul er kun til bekræftet fravær. De eksisterende kontroller afviser
+negative indtægts- og udgiftsbeløb, også for en aktiv ægtefælle.
+
+Metadataændringen ændrer Preview-kontraktens fingerprint, ikke dens datatyper
+eller skatteformler. Generér en ny skabelon og overfør gennemgåede kildefakta;
+ret ikke et gammelt hash. Den [fokuserede test](../../tests/tax_interest_input.test.mjs)
+kontrollerer alle fire genererede felter samt nul, fortegn og den eksisterende
+netting af separate indtægter og udgifter med fiktive fakta.
+
 ## Fiktive fakta og aflæste resultater
 
 Kilde: [SKATs anonyme årsberegner for 2025](https://www.tastselv.skat.dk/borger/beregn2025/profil.do).
