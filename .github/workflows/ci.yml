@@ -72,6 +72,8 @@ jobs:
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_church_input.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_spouse_input.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_interest_input.test.mjs
+          ./target/release/runa tests/personskat_bundskat_spouse_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_married_interest.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_source_input.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/pension_couple_demo.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_validity.test.mjs
