@@ -16,6 +16,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | Do my report's figures fit together without spouse documents? | [Conditional report review](../examples/danish-income-tax/aarsopgoerelse-afstemning.md) | Selected arithmetic, necessary transfers and checked limits; not independently verified spouse facts. |
 | What changes if I pay more or less into a pension? | [Pension walkthrough](../examples/danish-income-tax/pension-og-fradrag.md) | Modeled tax and available-cash differences from explicitly supplied facts; unknown facts can withhold comparisons. |
 | Could an invoice qualify for a service/handyman deduction? | [Invoice review](../examples/danish-income-tax/boligjob.md) | Supported factual conditions, allocation and annual limits; not automatic document authentication. |
+| Are my recurring donations capped correctly when paid in instalments? | [Gift-agreement review](../examples/danish-income-tax/personskat-gaver.md) | Ordinary LL §12 payments share one limit per identified agreement before the common income ceiling. Missing/conflicting agreement facts or unconfirmed ordinary payment history withhold comparisons. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
 | Do my benefits affect the extra commuting deduction? | [Danish benefit review](../examples/danish-income-tax/personskat-dagpenge.md) | Separates personal income without wage AM from LL §9 C income; ordinary statutory benefits and explicit exclusions also compose into Personskat. |
@@ -72,6 +73,15 @@ count and travel-day counts exceeding the income year's calendar length,
 including for an active spouse. The [commuting input guide](../examples/danish-income-tax/personskat-validity.md#commuting-input-checks)
 distinguishes these validity checks from actual travel evidence and coverage
 of the extra low-income deduction.
+
+Recurring-gift regression checks reproduce and fix an over-deduction: two
+6,000 DKK payments under one 10,000 DKK annual agreement previously produced
+12,000 DKK before the general ceiling. The [component checks](../tests/personskat_recurring_gifts_test.runa)
+and [eight canonical cases](../tests/personskat_recurring_gifts.test.mjs) now
+verify agreement-level caps, separate agreements and invalid-fact propagation,
+including spouses and projected input help. This is a source-backed model
+correction, not independent official-calculator conformance. New required
+agreement facts require [template migration](../examples/danish-income-tax/personskat-gaver.md#eksisterende-input-skal-gennemgås-igen).
 
 The latest targeted conformance additions include
 [pension deduction rounding](../examples/danish-income-tax/skatdk-pensionsfradrag-ekstern.md)

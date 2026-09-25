@@ -1933,6 +1933,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             100000,
             personskat_calculate_gavemodtager_2025("modtager-par12", LlGaveAlmenvelgørendeØkonomiskTrængte, LlGaveGodkendtEfterPar12(godkendelsesår = 2025)),
             Ll12BindendeLøbendeYdelse(
+                aftale_identifikation = "fiktiv-aftale",
+                ordinært_betalingsforløb_bekræftet = Sandt,
                 ydelsesfastsættelse = Ll12FastÅrligtBeløb,
                 forfalden_årlig_ydelse_efter_aftalen_kroner = 100000,
                 aftale_skriftlig = Sandt,

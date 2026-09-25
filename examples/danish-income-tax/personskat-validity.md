@@ -186,6 +186,19 @@ See [DJV C.A.4.3.1.3](https://info.skat.dk/data.aspx?oid=2061770), including the
 company-paid membership example, and the source text in
 [the LL §13 model](ligningsloven-kontingenter-gaver.runa).
 
+## Recurring-gift agreements
+
+The control `lønmodtager.ligningsfradrag.gaver` also checks that LL §12
+payments identify their agreement and confirm the supported ordinary payment
+history. Split payments share one annual agreement limit; inconsistent agreement
+or recipient facts withhold the comparison, including for an active spouse.
+The new `par12_aftaler` result explains the grouping and cap. Per-payment
+provisional amounts are not additive annual deductions. Regenerate templates
+and review the two new required facts; do not invent agreement identities or
+silently confirm an unknown payment history. See the
+[Danish gift guide](personskat-gaver.md) for sources, migration and the boundary
+for arrears/aconto and other special histories.
+
 ## Foreign-employment allocation
 
 The required `lønmodtager.ligningsfradrag.arbejdsfradrag_udland` input starts

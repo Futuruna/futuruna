@@ -287,13 +287,14 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
 # LigningslovGavemodtagerFakta(identifikation: Tekst, hjemsted: LigningslovGavemodtagerHjemsted, formål: LigningslovGavemodtagerFormål, godkendelse: LigningslovGavemodtagerGodkendelse, likvidationsprovenu_til_anden_velgørende_forening: Boolsk)
 # Ligningslov12Ydelsesfastsættelse = Ll12FastÅrligtBeløb | Ll12ProcentdelAfIndkomst
 # Ligningslov12Aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år: Heltal) | Ll12SåLængeYderenLever
-# LigningslovGaveart = Ll8AAlmindeligGave(fradraget_efter_par8s: Boolsk) | Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2: Boolsk) | Ll12BindendeLøbendeYdelse(ydelsesfastsættelse: Ligningslov12Ydelsesfastsættelse, forfalden_årlig_ydelse_efter_aftalen_kroner: Heltal, aftale_skriftlig: Boolsk, ingen_modydelse: Boolsk, aftalevarighed: Ligningslov12Aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves: Boolsk, navn_og_cpr_på_aftalen: Boolsk) | LlGaveKontingentEllerVarekøb
+# LigningslovGaveart = Ll8AAlmindeligGave(fradraget_efter_par8s: Boolsk) | Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2: Boolsk) | Ll12BindendeLøbendeYdelse(aftale_identifikation: Tekst, ordinært_betalingsforløb_bekræftet: Boolsk, ydelsesfastsættelse: Ligningslov12Ydelsesfastsættelse, forfalden_årlig_ydelse_efter_aftalen_kroner: Heltal, aftale_skriftlig: Boolsk, ingen_modydelse: Boolsk, aftalevarighed: Ligningslov12Aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves: Boolsk, navn_og_cpr_på_aftalen: Boolsk) | LlGaveKontingentEllerVarekøb
 # LigningslovGaveFakta(identifikation: Tekst, indkomstår: Heltal, betalt_beløb_kroner: Heltal, modtager: LigningslovGavemodtagerFakta, indberettet_efter_skatteindberetningslov26: Boolsk, art: LigningslovGaveart)
 # LigningslovGaveÅrsinput(gaver: List(LigningslovGaveFakta))
 # Ligningslov12Indkomstgrundlag = UdenLigningslov12Indkomstgrundlag | MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal)
 # LigningslovGavehjemmel = LlIngenGavehjemmel | LlPar8AGavefradrag | LlPar8HForskningsgavefradrag | LlPar12LøbendeYdelsesfradrag
 # LigningslovGaveResultat(fakta: LigningslovGaveFakta, input_gyldigt: Boolsk, modtagerhjemsted_opfyldt: Boolsk, modtagerformål_opfyldt: Boolsk, godkendelse_opfyldt: Boolsk, indberetning_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: LigningslovGavehjemmel, fradragsgrundlag_før_årsloft_kroner: Heltal)
-# LigningslovGaveÅrsresultat(indkomstår: Heltal, input: LigningslovGaveÅrsinput, indkomstgrundlag: Ligningslov12Indkomstgrundlag, gaveresultater: List(LigningslovGaveResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, par12_indkomstgrundlag_tilgængeligt: Boolsk, alle_input_gyldige: Boolsk, par8a_fradrag_før_loft_kroner: Heltal, par8a_årsloft_kroner: Heltal, par8a_fradrag_kroner: Heltal, par8h_fradrag_kroner: Heltal, par12_fradrag_før_loft_kroner: Heltal, par12_årsloft_kroner: Heltal, par12_fradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+# Ligningslov12Aftaleårsresultat(aftale_identifikation: Tekst, modtager_identifikation: Tekst, betalingsidentifikationer: List(Tekst), aftalefakta_konsistente: Boolsk, input_gyldigt: Boolsk, betalt_i_året_kroner: Heltal, forfalden_årlig_ydelse_kroner: Heltal, fradragsberettiget_betalt_kroner: Heltal, fradragsgrundlag_før_årsloft_kroner: Heltal)
+# LigningslovGaveÅrsresultat(indkomstår: Heltal, input: LigningslovGaveÅrsinput, indkomstgrundlag: Ligningslov12Indkomstgrundlag, gaveresultater: List(LigningslovGaveResultat), par12_aftaler: List(Ligningslov12Aftaleårsresultat), par12_aftaler_gyldige: Boolsk, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, par12_indkomstgrundlag_tilgængeligt: Boolsk, alle_input_gyldige: Boolsk, par8a_fradrag_før_loft_kroner: Heltal, par8a_årsloft_kroner: Heltal, par8a_fradrag_kroner: Heltal, par8h_fradrag_kroner: Heltal, par12_fradrag_før_loft_kroner: Heltal, par12_årsloft_kroner: Heltal, par12_fradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
 | ligningslov_gave_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2023 || indkomstår == 2024 || indkomstår == 2025 || indkomstår == 2026
 | ligningslov_gavemodtager_hjemsted_opfyldt(hjemsted: LigningslovGavemodtagerHjemsted) -> hjemsted == LlGaveDanmark || hjemsted == LlGaveAndetEUEØSLand
@@ -373,6 +374,27 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1, finder § 8 A ikke anvendelse.
     )
 )
 
+= skat_ligningslov12_aftalesamordning_20260925 = LigningslovKontingentGaveKildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-gaver-og-bidrag-til-velgoerende-foreninger",
+    identifier = "Skattestyrelsen: Særlige regler hvis du binder dig for 10 år; betaling under og over aftalebeløbet",
+    hentet_dato = "2026-09-25",
+    ændringsstatus = "Betalinger afstemmes mod aftalens beløb. Overbetaling omklassificeres ikke automatisk; underbetaling og særlige forløb kræver deres egne fakta. Sammenholdt med DJV C.A.4.3.5.1, især betalt/forfaldent og aconto; eksisterende lovtekst bevaret."
+)
+= juridisk_vejledning_ligningslov12_generelt_20260925 = LigningslovKontingentGaveKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061726",
+    identifier = "Den juridiske vejledning 2026-1, C.A.4.3.5.1: Generelt om løbende ydelser",
+    hentet_dato = "2026-09-25",
+    ændringsstatus = "Krav om reel forpligtelse, forfald og betaling samt særskilt behandling af aconto og restancer begrunder den eksplicitte afgrænsning af det ordinære betalingsforløb. Ingen udvidelse af den citerede lovtekst."
+)
+= ligningsloven_par12_aftalesamordning_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par12_stk1_til4),
+        Guidance(value = skat_ligningslov12_aftalesamordning_20260925),
+        Guidance(value = juridisk_vejledning_ligningslov12_generelt_20260925),
+        Guidance(value = juridisk_vejledning_ligningslov12),
+    )
+)
+
 --@label:ligningsloven_par12_bindende_gaver::meta:ligningsloven_par12_metadata--
 ----
 § 12. Udgifter til løbende ydelser, som den skattepligtige ensidigt har
@@ -439,11 +461,11 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
     | Ll12SåLængeYderenLever -> Sandt
 }
 | ligningslov12_aftalebetingelser_opfyldt(art: LigningslovGaveart) -> match art {
-    | Ll12BindendeLøbendeYdelse(_, forfalden_årlig_ydelse_efter_aftalen_kroner, aftale_skriftlig, ingen_modydelse, aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves, navn_og_cpr_på_aftalen) -> forfalden_årlig_ydelse_efter_aftalen_kroner >= 0 && aftale_skriftlig && ingen_modydelse && ligningslov12_aftalevarighed_opfyldt(aftalevarighed) && aftalen_kan_ikke_uden_videre_ophæves && navn_og_cpr_på_aftalen
+    | Ll12BindendeLøbendeYdelse(_, _, _, forfalden_årlig_ydelse_efter_aftalen_kroner, aftale_skriftlig, ingen_modydelse, aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves, navn_og_cpr_på_aftalen) -> forfalden_årlig_ydelse_efter_aftalen_kroner >= 0 && aftale_skriftlig && ingen_modydelse && ligningslov12_aftalevarighed_opfyldt(aftalevarighed) && aftalen_kan_ikke_uden_videre_ophæves && navn_og_cpr_på_aftalen
     | _ -> Falskt
 }
 | ligningslov12_forfalden_årlig_ydelse_kroner(art: LigningslovGaveart) -> match art {
-    | Ll12BindendeLøbendeYdelse(_, forfalden_årlig_ydelse_efter_aftalen_kroner, _, _, _, _, _) -> penge_positivt_beløb(forfalden_årlig_ydelse_efter_aftalen_kroner)
+    | Ll12BindendeLøbendeYdelse(_, _, _, forfalden_årlig_ydelse_efter_aftalen_kroner, _, _, _, _, _) -> penge_positivt_beløb(forfalden_årlig_ydelse_efter_aftalen_kroner)
     | _ -> 0
 }
 | ligningslov12_indkomstgrundlag_tilgængeligt(indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> match indkomstgrundlag {
@@ -457,13 +479,29 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
 | ligningslov12_årsloft_kroner(indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> penge_største_beløb(penge_beløb_gange_basispoint_kroner(ligningslov12_indkomstgrundlag_kroner(indkomstgrundlag), 1500), 15000)
 --@end::ligningsloven_par12_bindende_gaver--
 
+-- Identifikation og betalingsforløb er kildefakta, ikke afledt af skattebeløbet.
+-- Almindelige betalinger under årets samme forpligtelse deler ét aftaleloft.
+-- Aconto, tidligere års restancer og særlige aftaleforløb kræver særskilt model.
+| ligningslov12_aftale_identifikation(art: LigningslovGaveart) -> match art {
+    | Ll12BindendeLøbendeYdelse(identifikation, _, _, _, _, _, _, _, _) -> identifikation
+    | _ -> ""
+}
+| ligningslov12_art_input_gyldigt(art: LigningslovGaveart) -> match art {
+    | Ll12BindendeLøbendeYdelse(identifikation, ordinært, _, forfalden, _, _, _, _, _) -> trim(identifikation) != "" && identifikation == trim(identifikation) && ordinært && forfalden >= 0
+    | _ -> Sandt
+}
+| ligningslov12_er_løbende_ydelse(art: LigningslovGaveart) -> match art {
+    | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _, _, _) -> Sandt
+    | _ -> Falskt
+}
+
 --@begin::ligningsloven_gavefradrag_samordning--
 # LigningslovGaveSag(indkomstår: Heltal, fakta: LigningslovGaveFakta) {
-    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0 && fakta.modtager.identifikation != ""
+    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0 && fakta.modtager.identifikation != "" && ligningslov12_art_input_gyldigt(fakta.art)
     | modtagerhjemsted_opfyldt() -> ligningslov_gavemodtager_hjemsted_opfyldt(fakta.modtager.hjemsted)
     | er_par8a() -> match fakta.art { | Ll8AAlmindeligGave(_) -> Sandt | _ -> Falskt }
     | er_par8h() -> match fakta.art { | Ll8HForskningsgave(_) -> Sandt | _ -> Falskt }
-    | er_par12() -> match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _) -> Sandt | _ -> Falskt }
+    | er_par12() -> match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _, _, _) -> Sandt | _ -> Falskt }
     | fradraget_efter_par8s() -> match fakta.art { | Ll8AAlmindeligGave(fradraget) -> fradraget | _ -> Falskt }
     | interesseforbundet_efter_par2() -> match fakta.art { | Ll8HForskningsgave(interesseforbundet) -> interesseforbundet | _ -> Falskt }
     | modtagerformål_opfyldt() -> Falskt
@@ -502,19 +540,51 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
 
 | ligningslov_gave_resultat(indkomstår: Heltal, fakta: LigningslovGaveFakta) -> LigningslovGaveSag(indkomstår, fakta).resultat()
 | ligningslov_gave_identifikationer_entydige(gaver: List(LigningslovGaveFakta)) -> length(distinct(map(gaver, |fakta: LigningslovGaveFakta| fakta.identifikation))) == length(gaver) && all(gaver, |fakta: LigningslovGaveFakta| fakta.identifikation != "")
-| ligningslov_gave_har_par12(gaver: List(LigningslovGaveFakta)) -> any(gaver, |fakta: LigningslovGaveFakta| match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _) -> Sandt | _ -> Falskt })
+| ligningslov_gave_har_par12(gaver: List(LigningslovGaveFakta)) -> any(gaver, |fakta: LigningslovGaveFakta| match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _, _, _) -> Sandt | _ -> Falskt })
 | ligningslov_gave_par12_indkomstgrundlag_tilgængeligt(gaver: List(LigningslovGaveFakta), indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> ligningslov_gave_har_par12(gaver) == Falskt || ligningslov12_indkomstgrundlag_tilgængeligt(indkomstgrundlag)
 | ligningslov_gave_fradrag_for_hjemmel_kroner(resultater: List(LigningslovGaveResultat), hjemmel: LigningslovGavehjemmel) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: LigningslovGaveResultat| sum_kroner + hvis resultat.hjemmel == hjemmel { resultat.fradragsgrundlag_før_årsloft_kroner } ellers { 0 })
 | ligningslov_gave_betalt_kroner(gaver: List(LigningslovGaveFakta)) -> foldl(gaver, 0, |sum_kroner: Heltal, fakta: LigningslovGaveFakta| sum_kroner + penge_positivt_beløb(fakta.betalt_beløb_kroner))
+
+-- Betalingsrækkerne viser hver sit foreløbige grundlag. Det samlede § 12-
+-- grundlag kommer fra aftalerne, aldrig fra summen af de foreløbige rækker.
+-- Hjælperen kaldes kun for aftalereferencer fundet i de givne § 12-rækker.
+--@label:ligningslov12_aftaleårsresultat::meta:ligningsloven_par12_aftalesamordning_metadata--
+| ligningslov12_aftaleårsresultat(aftale_id: Tekst, resultater: List(LigningslovGaveResultat)) -> {
+    = poster = filter(resultater, |r: LigningslovGaveResultat| ligningslov12_er_løbende_ydelse(r.fakta.art) && ligningslov12_aftale_identifikation(r.fakta.art) == aftale_id)
+    = første = head(poster)
+    = konsistente = all(poster, |r: LigningslovGaveResultat| r.fakta.art == første.fakta.art && r.fakta.modtager == første.fakta.modtager && r.fakta.indkomstår == første.fakta.indkomstår)
+    = gyldigt = konsistente && all(poster, |r: LigningslovGaveResultat| r.input_gyldigt)
+    = betalt = foldl(poster, 0, |sum: Heltal, r: LigningslovGaveResultat| sum + penge_positivt_beløb(r.fakta.betalt_beløb_kroner))
+    = berettiget_betalt = foldl(poster, 0, |sum: Heltal, r: LigningslovGaveResultat| sum + hvis r.fradragsberettiget { r.fakta.betalt_beløb_kroner } ellers { 0 })
+    = forfalden = ligningslov12_forfalden_årlig_ydelse_kroner(første.fakta.art)
+    Ligningslov12Aftaleårsresultat(
+        aftale_identifikation = aftale_id,
+        modtager_identifikation = første.fakta.modtager.identifikation,
+        betalingsidentifikationer = map(poster, |r: LigningslovGaveResultat| r.fakta.identifikation),
+        aftalefakta_konsistente = konsistente,
+        input_gyldigt = gyldigt,
+        betalt_i_året_kroner = betalt,
+        forfalden_årlig_ydelse_kroner = forfalden,
+        fradragsberettiget_betalt_kroner = berettiget_betalt,
+        fradragsgrundlag_før_årsloft_kroner = hvis gyldigt { penge_mindste_beløb(berettiget_betalt, forfalden) } ellers { 0 }
+    )
+}
+| ligningslov12_aftaleårsresultater(resultater: List(LigningslovGaveResultat)) -> {
+    = aftaler = distinct(map(filter(resultater, |r: LigningslovGaveResultat| ligningslov12_er_løbende_ydelse(r.fakta.art)), |r: LigningslovGaveResultat| ligningslov12_aftale_identifikation(r.fakta.art)))
+    map(aftaler, |aftale_id: Tekst| ligningslov12_aftaleårsresultat(aftale_id, resultater))
+}
+
 | ligningslov_gave_årsresultat(indkomstår: Heltal, input: LigningslovGaveÅrsinput, indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> {
     = gaveresultater = map(input.gaver, |fakta: LigningslovGaveFakta| ligningslov_gave_resultat(indkomstår, fakta))
+    = par12_aftaler = ligningslov12_aftaleårsresultater(gaveresultater)
+    = par12_aftaler_gyldige = all(par12_aftaler, |r: Ligningslov12Aftaleårsresultat| r.input_gyldigt)
     = skatteår_understøttet = length(input.gaver) == 0 || ligningslov_gave_skatteår_understøttet(indkomstår)
     = identifikationer_entydige = ligningslov_gave_identifikationer_entydige(input.gaver)
     = par12_indkomstgrundlag_tilgængeligt = ligningslov_gave_par12_indkomstgrundlag_tilgængeligt(input.gaver, indkomstgrundlag)
-    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && par12_indkomstgrundlag_tilgængeligt && all(gaveresultater, |resultat: LigningslovGaveResultat| resultat.input_gyldigt)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && par12_indkomstgrundlag_tilgængeligt && par12_aftaler_gyldige && all(gaveresultater, |resultat: LigningslovGaveResultat| resultat.input_gyldigt)
     = par8a_fradrag_før_loft_kroner = ligningslov_gave_fradrag_for_hjemmel_kroner(gaveresultater, LlPar8AGavefradrag)
     = par8h_fradrag_før_loft_kroner = ligningslov_gave_fradrag_for_hjemmel_kroner(gaveresultater, LlPar8HForskningsgavefradrag)
-    = par12_fradrag_før_loft_kroner = ligningslov_gave_fradrag_for_hjemmel_kroner(gaveresultater, LlPar12LøbendeYdelsesfradrag)
+    = par12_fradrag_før_loft_kroner = foldl(par12_aftaler, 0, |sum: Heltal, r: Ligningslov12Aftaleårsresultat| sum + r.fradragsgrundlag_før_årsloft_kroner)
     = par8a_fradrag_kroner = hvis alle_input_gyldige { penge_mindste_beløb(par8a_fradrag_før_loft_kroner, ligningslov8a_årsloft_kroner(indkomstår)) } ellers { 0 }
     = par8h_fradrag_kroner = hvis alle_input_gyldige { par8h_fradrag_før_loft_kroner } ellers { 0 }
     = par12_årsloft_kroner = hvis par12_indkomstgrundlag_tilgængeligt { ligningslov12_årsloft_kroner(indkomstgrundlag) } ellers { 0 }
@@ -525,6 +595,8 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
         input = input,
         indkomstgrundlag = indkomstgrundlag,
         gaveresultater = gaveresultater,
+        par12_aftaler = par12_aftaler,
+        par12_aftaler_gyldige = par12_aftaler_gyldige,
         skatteår_understøttet = skatteår_understøttet,
         identifikationer_entydige = identifikationer_entydige,
         par12_indkomstgrundlag_tilgængeligt = par12_indkomstgrundlag_tilgængeligt,

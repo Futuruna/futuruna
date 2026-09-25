@@ -163,6 +163,8 @@
         ll_scenario_modtager(LlGaveGodkendtEfterPar12(godkendelsesår = 2025), LlGaveAlmenvelgørendeØkonomiskTrængte),
         Sandt,
         Ll12BindendeLøbendeYdelse(
+            aftale_identifikation = "fiktiv-aftale",
+            ordinært_betalingsforløb_bekræftet = Sandt,
             ydelsesfastsættelse = Ll12FastÅrligtBeløb,
             forfalden_årlig_ydelse_efter_aftalen_kroner = 20000,
             aftale_skriftlig = Sandt,
@@ -217,6 +219,8 @@
     ll_scenario_modtager(LlGaveGodkendtEfterPar12(godkendelsesår = 2025), LlGaveAlmennyttigtTilStørreKreds),
     Sandt,
     Ll12BindendeLøbendeYdelse(
+        aftale_identifikation = "fiktiv-aftale",
+        ordinært_betalingsforløb_bekræftet = Sandt,
         ydelsesfastsættelse = Ll12FastÅrligtBeløb,
         forfalden_årlig_ydelse_efter_aftalen_kroner = 15000,
         aftale_skriftlig = Sandt,
@@ -227,6 +231,8 @@
     )
     )]), MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner = 200000, positiv_nettokapitalindkomst_kroner = 0))
 = ll12_livsvarig_aftale = Ll12BindendeLøbendeYdelse(
+    aftale_identifikation = "fiktiv-aftale",
+    ordinært_betalingsforløb_bekræftet = Sandt,
     ydelsesfastsættelse = Ll12ProcentdelAfIndkomst,
     forfalden_årlig_ydelse_efter_aftalen_kroner = 12000,
     aftale_skriftlig = Sandt,
@@ -236,6 +242,8 @@
     navn_og_cpr_på_aftalen = Sandt
 )
 = ll12_niårig_aftale = Ll12BindendeLøbendeYdelse(
+    aftale_identifikation = "fiktiv-aftale",
+    ordinært_betalingsforløb_bekræftet = Sandt,
     ydelsesfastsættelse = Ll12FastÅrligtBeløb,
     forfalden_årlig_ydelse_efter_aftalen_kroner = 12000,
     aftale_skriftlig = Sandt,
