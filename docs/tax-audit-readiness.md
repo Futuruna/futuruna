@@ -120,6 +120,11 @@ establish universal or historical conformance.
 - The full Personskat native-codegen path remains incomplete (`td-124b83`).
   `template`/`call` is the tested canonical tax-input path. Native checks of
   smaller components do not establish native support for the entire graph.
+  The personal-allowance §§10–13 import now has explicit closed branch coverage;
+  [focused regressions](../tests/personfradrag_domain_test.runa) preserve the
+  historical base amounts, supported annual amounts and missing-year rejection,
+  alongside native spouse-allowance transfer checks. No tax rate or compiler
+  totality policy was changed by this repair.
 - The full workbook's width and special invoice cases remain the explicit
   limits in F4/F5, not reasons to withhold the compact supported workflows.
 - The original v0.2.0 download predates required safety fixes. Passing the small
