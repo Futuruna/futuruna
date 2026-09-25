@@ -25,6 +25,21 @@ function save(directory, name, value) {
   return path;
 }
 
+test('report church-tax intake uses the report year and labels the loose membership-period bound', enabled, () => {
+  const schema = run(['schema', model, '--format', 'compact-json']);
+  const fields = schema.field_metadata.filter(f => f.path === 'betaler_kirkeskat');
+  assert.equal(fields.length, 1);
+  const field = fields[0];
+  assert.match(field.question, /rapportens indkomstår/);
+  for (const phrase of ['hele eller en del af året', 'Ukendt status må ikke blive false',
+    'nulbeløb', 'helårs-overgrænse', 'ikke medlemskab i dag']) assert.ok(field.help.includes(phrase), phrase);
+  const sources = schema.source_groups[field.source_group].map(id => schema.source_objects[id]);
+  for (const url of ['https://www.borger.dk/kultur-og-fritid/medlemskab-af-folkekirken',
+    'https://www.dst.dk/da/Statistik/dokumentation/Times/personindkomst/kiskat']) {
+    assert.ok(sources.some(s => s.role === 'guidance' && JSON.stringify(s).includes(url)), url);
+  }
+});
+
 test('report row fields retain context-specific signs, units, questions and source warnings', enabled, () => {
   const schema = run(['schema', model, '--format', 'compact-json']);
   const contexts = [
@@ -113,6 +128,10 @@ test('fictional signed rows reach reconciliation and keep mistakes or unknowns v
   for (const { case_id, result } of output.results) {
     assert.equal(result.status.$variant, expected.get(case_id), case_id);
     assert.equal(result.uafhængig_skatteberegning_udført, false);
+    if (result.status.$variant !== 'UgyldigtRapportinput') {
+      assert.ok(result.uafklaret.some(w => w.includes('helårs-overgrænse')
+        && w.includes('ikke medlemskab i dag') && w.includes('beviser ikke ret til nedslaget')));
+    }
     expected.delete(case_id);
   }
   assert.equal(expected.size, 0);

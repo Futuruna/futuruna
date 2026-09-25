@@ -1,0 +1,16 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / personskat - beregningskontrol
+
+= kirkeskat_vurdering = personskat_beregningsvurdering([
+    PersonskatInputkontrol(sti = "fiktiv_kontrol", gyldig = Sandt, forklaring = "Fiktiv kontrol, ikke kildefakta.")
+    ], 12345)
+= kirkeskat_ugyldig = personskat_beregningsvurdering([
+    PersonskatInputkontrol(sti = "fiktiv_kontrol", gyldig = Falskt, forklaring = "Fiktiv fejl.")
+    ], 12345)
+
+| kirkeskat_forbehold_bevares: kirkeskat_vurdering -> any(kirkeskat_vurdering.forbehold, |tekst: Tekst| tekst == personskat_kirkeskat_forbehold) && any(kirkeskat_ugyldig.forbehold, |tekst: Tekst| tekst == personskat_kirkeskat_forbehold)
+| kirkeskat_forbehold_er_ikke_en_ny_kontrol: kirkeskat_vurdering -> kirkeskat_vurdering.status == BeregnetMedForbehold && kirkeskat_vurdering.slutskat_til_sammenligning_øre == Some(12345) && kirkeskat_vurdering.samlet_modeldækning_bekræftet == Falskt && kirkeskat_ugyldig.slutskat_til_sammenligning_øre == None
+
+? kirkeskat_forbehold_bevares
+? kirkeskat_forbehold_er_ikke_en_ny_kontrol

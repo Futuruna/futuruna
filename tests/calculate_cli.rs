@@ -2079,7 +2079,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Dato for meddelelse om aktieindkomstfradrag",
             "Dato for omgørelse af aktieindkomstfradrag",
             "Aldersstatus for personfradrag",
-            "Kirkeskat",
+            "Personens kirkeskat for indkomståret",
             "Årets renteindtægter",
             "Årets renteudgifter",
             "Driftsresultat fra bolig eller fritidsejendom",

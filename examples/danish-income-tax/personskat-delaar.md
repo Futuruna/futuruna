@@ -38,6 +38,11 @@ skattepligt må ikke presses ind i én periode. Ægtefælle-/underskudsforløb k
 kræve et særskilt dokumenteret helårsgrundlag; en gyldig simpel lønsag beviser
 ikke dækning af sådanne sammensatte sager.
 
+Kirkemedlemskab en del af året er ikke det samme som delårsskattepligt.
+Denne indgang tilføjer ingen medlemsperioder; PSL § 14 må ikke bruges til
+at efterligne en ind-/udmeldelse. Afklar også kirkeskatten for året og
+en eventuel ægtefælle; se [kirkeskattegrænsen](personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
+
 ## Fra gennemgåede fakta til input
 
 Brug den compiler, der bestod [runtime-tjekket](../../website/public/ai-setup.md#tax-audit-runtime-check),
