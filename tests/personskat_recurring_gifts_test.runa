@@ -1,0 +1,122 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / ligningsloven - kontingenter - gaver
+
+-- Fiktive betalinger under samme årsforpligtelse. Ingen personlige bilag.
+| prøve_gave_med_fakta(betalings_id: Tekst, aftale_id: Tekst, modtager_id: Tekst, år: Heltal, betalt: Heltal, forfalden: Heltal, ordinært: Boolsk, indberettet: Boolsk) -> LigningslovGaveFakta(
+    identifikation = betalings_id,
+    indkomstår = år,
+    betalt_beløb_kroner = betalt,
+    modtager = LigningslovGavemodtagerFakta(
+        identifikation = modtager_id,
+        hjemsted = LlGaveDanmark,
+        formål = LlGaveAlmenvelgørendeØkonomiskTrængte,
+        godkendelse = LlGaveGodkendtEfterPar12(godkendelsesår = år),
+        likvidationsprovenu_til_anden_velgørende_forening = Sandt
+    ),
+    indberettet_efter_skatteindberetningslov26 = indberettet,
+    art = Ll12BindendeLøbendeYdelse(
+        aftale_identifikation = aftale_id,
+        ordinært_betalingsforløb_bekræftet = ordinært,
+        ydelsesfastsættelse = Ll12FastÅrligtBeløb,
+        forfalden_årlig_ydelse_efter_aftalen_kroner = forfalden,
+        aftale_skriftlig = Sandt,
+        ingen_modydelse = Sandt,
+        aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år = 10),
+        aftalen_kan_ikke_uden_videre_ophæves = Sandt,
+        navn_og_cpr_på_aftalen = Sandt
+    )
+)
+| prøve_gave(betalings_id: Tekst, betalt: Heltal) -> prøve_gave_med_fakta(betalings_id, "fiktiv-aftale", "fiktiv-forening", 2025, betalt, 10000, Sandt, Sandt)
+| prøve_årsresultat(gaver: List(LigningslovGaveFakta), indkomst: Heltal) -> ligningslov_gave_årsresultat(2025,
+    LigningslovGaveÅrsinput(gaver = gaver),
+    MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner = indkomst, positiv_nettokapitalindkomst_kroner = 0)
+)
+
+= samlet = prøve_årsresultat([prøve_gave("betaling-1", 6000), prøve_gave("betaling-2", 6000)], 300000)
+= helt = prøve_årsresultat([prøve_gave("hel-betaling", 12000)], 300000)
+= omvendt = prøve_årsresultat([prøve_gave("betaling-2", 6000), prøve_gave("betaling-1", 6000)], 300000)
+= samme_aftale_opfyldt = samlet.alle_input_gyldige && samlet.par12_fradrag_før_loft_kroner == 10000 && samlet.samlet_fradrag_kroner == 10000 && samlet.ikke_fradraget_kroner == 2000 && helt.samlet_fradrag_kroner == samlet.samlet_fradrag_kroner && omvendt.samlet_fradrag_kroner == samlet.samlet_fradrag_kroner
+| aftalens_årsbeløb_anvendes_kun_en_gang: samme_aftale_opfyldt -> samme_aftale_opfyldt
+? aftalens_årsbeløb_anvendes_kun_en_gang
+
+= spor = head(samlet.par12_aftaler)
+= spor_opfyldt = length(samlet.par12_aftaler) == 1 && spor.aftale_identifikation == "fiktiv-aftale" && spor.modtager_identifikation == "fiktiv-forening" && spor.betalingsidentifikationer == ["betaling-1", "betaling-2"] && spor.betalt_i_året_kroner == 12000 && spor.forfalden_årlig_ydelse_kroner == 10000 && spor.fradragsberettiget_betalt_kroner == 12000 && spor.fradragsgrundlag_før_årsloft_kroner == 10000
+| aftalen_bevarer_betalinger_og_forklarer_begrænsning: spor_opfyldt -> spor_opfyldt
+? aftalen_bevarer_betalinger_og_forklarer_begrænsning
+
+= særskilte = prøve_årsresultat([
+    prøve_gave("betaling-1", 6000),
+    prøve_gave_med_fakta("betaling-2", "anden-aftale", "fiktiv-forening", 2025, 6000, 10000, Sandt, Sandt)
+    ], 300000)
+= to_aftaler_opfyldt = særskilte.alle_input_gyldige && length(særskilte.par12_aftaler) == 2 && særskilte.samlet_fradrag_kroner == 12000
+| samme_modtager_kan_have_flere_reelle_aftaler: to_aftaler_opfyldt -> to_aftaler_opfyldt
+? samme_modtager_kan_have_flere_reelle_aftaler
+
+= fælles_loft = prøve_årsresultat([
+    prøve_gave("betaling-1", 12000),
+    prøve_gave_med_fakta("betaling-2", "anden-aftale", "fiktiv-forening", 2025, 12000, 10000, Sandt, Sandt)
+    ], 0)
+= fælles_loft_opfyldt = fælles_loft.alle_input_gyldige && fælles_loft.par12_fradrag_før_loft_kroner == 20000 && fælles_loft.par12_årsloft_kroner == 15000 && fælles_loft.samlet_fradrag_kroner == 15000
+| fælles_indkomstloft_anvendes_efter_aftaleloft: fælles_loft_opfyldt -> fælles_loft_opfyldt
+? fælles_indkomstloft_anvendes_efter_aftaleloft
+
+= kun_indberettet = prøve_årsresultat([
+    prøve_gave("betaling-1", 6000),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "fiktiv-forening", 2025, 6000, 10000, Sandt, Falskt)
+    ], 300000)
+= indberettet_opfyldt = kun_indberettet.alle_input_gyldige && kun_indberettet.samlet_fradrag_kroner == 6000 && head(kun_indberettet.par12_aftaler).betalt_i_året_kroner == 12000 && head(kun_indberettet.par12_aftaler).fradragsberettiget_betalt_kroner == 6000
+| ikke_indberettet_er_ikke_automatisk_fradrag: indberettet_opfyldt -> indberettet_opfyldt
+? ikke_indberettet_er_ikke_automatisk_fradrag
+
+= ugyldige_ændringer = [
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "fiktiv-forening", 2025, 6000, 11000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "anden-forening", 2025, 6000, 10000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "fiktiv-forening", 2024, 6000, 10000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "fiktiv-forening", 2025, -1, 10000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "fiktiv-forening", 2025, 6000, -1, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale", "fiktiv-forening", 2025, 6000, 10000, Falskt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "", "fiktiv-forening", 2025, 6000, 10000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "   ", "fiktiv-forening", 2025, 6000, 10000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", " fiktiv-aftale", "fiktiv-forening", 2025, 6000, 10000, Sandt, Sandt),
+    prøve_gave_med_fakta("betaling-2", "fiktiv-aftale ", "fiktiv-forening", 2025, 6000, 10000, Sandt, Sandt),
+    prøve_gave("betaling-1", 6000)
+]
+= ugyldige_resultater = map(ugyldige_ændringer, |f: LigningslovGaveFakta| prøve_årsresultat([prøve_gave("betaling-1", 6000), f], 300000))
+= ugyldige_opfyldt = all(ugyldige_resultater, |r: LigningslovGaveÅrsresultat| r.alle_input_gyldige == Falskt && r.samlet_fradrag_kroner == 0)
+| manglende_modstridende_eller_særlige_fakta_er_ikke_nulret: ugyldige_opfyldt -> ugyldige_opfyldt
+? manglende_modstridende_eller_særlige_fakta_er_ikke_nulret
+
+= årskontroller = map([2023, 2024, 2025, 2026], |år: Heltal| ligningslov_gave_årsresultat(år,
+    LigningslovGaveÅrsinput(gaver = [
+        prøve_gave_med_fakta("betaling-1", "aftale", "forening", år, 6000, 10000, Sandt, Sandt),
+        prøve_gave_med_fakta("betaling-2", "aftale", "forening", år, 6000, 10000, Sandt, Sandt)
+    ]),
+    MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner = 300000, positiv_nettokapitalindkomst_kroner = 0)
+))
+= år_opfyldt = all(årskontroller, |r: LigningslovGaveÅrsresultat| r.alle_input_gyldige && r.samlet_fradrag_kroner == 10000)
+| aftaleloft_er_fælles_for_de_understøttede_år: år_opfyldt -> år_opfyldt
+? aftaleloft_er_fælles_for_de_understøttede_år
+
+= nul = prøve_årsresultat([prøve_gave("nulbetaling", 0)], 300000)
+= tom = prøve_årsresultat([], 300000)
+= nul_opfyldt = nul.alle_input_gyldige && nul.samlet_fradrag_kroner == 0 && tom.alle_input_gyldige && length(tom.par12_aftaler) == 0
+| kendt_nul_og_ingen_aftaler_forbliver_gyldige: nul_opfyldt -> nul_opfyldt
+? kendt_nul_og_ingen_aftaler_forbliver_gyldige
+
+-- De øvrige gavetyper kræver ikke en § 12-aftale og deler ikke dens loft.
+= almindelig = LigningslovGaveFakta(
+    identifikation = "almindelig", indkomstår = 2025, betalt_beløb_kroner = 25000,
+    modtager = LigningslovGavemodtagerFakta(
+        identifikation = "fiktiv-forening", hjemsted = LlGaveDanmark,
+        formål = LlGaveAlmenvelgørendeØkonomiskTrængte,
+        godkendelse = LlGaveGodkendtEfterPar8A(godkendelsesår = 2025),
+        likvidationsprovenu_til_anden_velgørende_forening = Sandt
+    ),
+    indberettet_efter_skatteindberetningslov26 = Sandt,
+    art = Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
+)
+= blandet = prøve_årsresultat([almindelig, prøve_gave("betaling-1", 6000), prøve_gave("betaling-2", 6000)], 300000)
+= blandet_opfyldt = blandet.alle_input_gyldige && blandet.par8a_fradrag_kroner == 19000 && blandet.par12_fradrag_kroner == 10000 && blandet.samlet_fradrag_kroner == 29000
+| almindelig_gave_beholder_sit_eget_loft: blandet_opfyldt -> blandet_opfyldt
+? almindelig_gave_beholder_sit_eget_loft

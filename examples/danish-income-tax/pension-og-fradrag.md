@@ -561,7 +561,7 @@ kontroller om de allerede er medtaget. Køb ikke noget alene fordi ordet
 | Fagforening og A-kasse | Årets indbetalinger opdelt efter art, udbyder og allerede indberettede beløb. |
 | Renter | Årsoversigt, faktisk renteudgift og egen hæftelse/andel; ikke lånets afdrag. Se [input og ekstern kontrol](skatdk-rentefradrag-ekstern.md). |
 | Service eller grønt håndværk | Arbejdets art/dato, faktura, løn/materialer, betaling, bolig og eventuel fordeling. Start gerne med den [lille fakturaberegning](boligjob.md). |
-| Gaver | Modtager, godkendelsesgrundlag, kvittering og indberetning. |
+| Gaver | Modtager, godkendelsesgrundlag, kvittering og indberetning. Bindende løbende ydelser kræver også aftalereference og årets samlede forpligtelse; [delbetalinger deler aftaleloftet](personskat-gaver.md). |
 | Enlig forsørger | Oplysninger om ekstra børnetilskud og relevante kvartaler, ikke alene civilstand. Se [kildemodellen](ligningsloven-par9j-enlig.md). |
 | Arbejdsrejser eller andre arbejdsudgifter | Arbejdssted, periode, udgiftstype, bilag og arbejdsgiverens betaling/godtgørelse; undersøg den specifikke regel. |
 

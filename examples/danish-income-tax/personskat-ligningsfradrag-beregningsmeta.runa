@@ -482,7 +482,7 @@
     path = refof(LigningslovGaveÅrsinput::gaver),
     label = "Gaver og bindende løbende ydelser",
     question = Some("Hvilke gaver eller bindende løbende ydelser er betalt i indkomståret?"),
-    help = Some("Opret én række pr. gave og bevar modtagerens godkendelses- og indberetningsfakta."),
+    help = Some("Opret én række pr. betaling og bevar godkendelses- og indberetningsfakta. Delbetalinger under samme § 12-aftale skal dele aftaleidentifikation og årets samlede aftalebeløb; de får ikke hvert sit aftaleloft."),
     unit = None
 )
 = personskat_gave_felt_identifikation = TypetBeregningsfelt(
@@ -611,11 +611,25 @@
     help = None,
     unit = None
 )
+= personskat_gave_felt_aftaleidentifikation = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::aftale_identifikation),
+    label = "Den bindende aftales identifikation",
+    question = Some("Hvilken bindende aftale hører betalingen til?"),
+    help = Some("Brug samme stabile reference for alle årets betalinger under samme aftale. Forskellige aftaler skal have forskellige referencer, også hos samme modtager. Ingen indledende eller afsluttende mellemrum. Referencen er ikke betalings-id og behøver ikke indeholde CPR."),
+    unit = None
+)
+= personskat_gave_felt_ordinært_forløb = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::ordinært_betalingsforløb_bekræftet),
+    label = "Ordinært betalingsforløb under årets reelle forpligtelse er bekræftet",
+    question = Some("Er der kun tale om betalinger under årets fortsat reelle forpligtelse, uden tidligere års restancer, aconto eller andre særlige aftaleforløb?"),
+    help = Some("Bekræft kun efter kildegennemgang. False betyder uafklaret eller uden for denne model, ikke ingen fradragsret. Procentaftalers aconto og efterregulering samt tidligere års restancer kræver særskilt vurdering. Et beløb ud over årets aftaleloft bliver ikke automatisk en § 8 A-gave."),
+    unit = None
+)
 = personskat_gave_felt_forfalden_ydelse = TypetBeregningsfelt(
     path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::forfalden_årlig_ydelse_efter_aftalen_kroner),
     label = "Forfalden årlig ydelse efter aftalen",
     question = Some("Hvilket beløb er forfaldet efter den bindende aftale for indkomståret?"),
-    help = None,
+    help = Some("Oplys årets samlede forfaldne forpligtelse under aftalen på hver delbetaling, ikke kun denne betalings andel. Beløbet og øvrige aftalefakta skal være ens for samme aftale; modellen anvender aftaleloftet én gang. Medtag ikke tidligere års restancer eller aconto i denne ordinære gren."),
     unit = Some("kr./år")
 )
 = personskat_gave_felt_skriftlig = TypetBeregningsfelt(
@@ -682,6 +696,8 @@
         personskat_gave_felt_par8s,
         personskat_gave_felt_interesseforbundet,
         personskat_gave_felt_ydelsesfastsættelse,
+        personskat_gave_felt_aftaleidentifikation,
+        personskat_gave_felt_ordinært_forløb,
         personskat_gave_felt_forfalden_ydelse,
         personskat_gave_felt_skriftlig,
         personskat_gave_felt_ingen_modydelse,
@@ -696,6 +712,8 @@
         Source(value = ligningsloven_lbk1500_par8a),
         Source(value = ligningsloven_lbk1500_par8h),
         Source(value = ligningsloven_lbk1500_par12_stk1_til4),
+        Guidance(value = skat_ligningslov12_aftalesamordning_20260925),
+        Guidance(value = juridisk_vejledning_ligningslov12_generelt_20260925),
         Guidance(value = skat_gavefradrag_vejledning),
         Guidance(value = juridisk_vejledning_ligningslov12),
         Guidance(value = skat_ligningslov12_indberetningsvejledning),
