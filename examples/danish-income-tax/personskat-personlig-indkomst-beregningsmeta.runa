@@ -234,7 +234,7 @@
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag),
     label = "Underholds- og børnebidrag",
     question = Some("Hvilke betalte eller modtagne underholds- og børnebidrag vedrører personen i indkomståret?"),
-    help = Some("Opret én række pr. forfaldent månedsbidrag eller særligt bidrag. Flere betalinger for samme barn og måned skal samles i én række."),
+    help = Some("Opret én række pr. forfaldent månedsbidrag eller særligt bidrag. Flere betalinger for samme barn og måned skal samles i én række. Modtaget børnebidrag vedrører barnets skatteopgørelse, ikke en forælders opgørelse alene fordi pengene går ind på forælderens konto."),
     unit = None
 )
 = personskat_underhold_felt_identifikation = TypetBeregningsfelt(
@@ -254,8 +254,8 @@
 = personskat_underhold_felt_rolle = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::rolle::$variant),
     label = "Personens rolle i bidraget",
-    question = Some("Betaler eller modtager personen dette bidrag?"),
-    help = None,
+    question = Some("Er personen bidragsyder eller den skattemæssige modtager af bidraget?"),
+    help = Some("Bidragsmodtager sammen med Barn betyder, at denne skatteopgørelse vedrører barnet selv. En forælder, der tager imod børnebidrag på barnets vegne, er ikke derved den skattemæssige modtager. Brug barnets egen opgørelse og faktiske fødselsdato; ens datoer er nødvendige, men beviser ikke identitet. Ægtefællebidrag til personen selv bruger ægtefællevarianten."),
     unit = None
 )
 = personskat_underhold_felt_modtageridentitet_oplyst = TypetBeregningsfelt(
@@ -697,6 +697,7 @@
         Guidance(value = skat_underholdsbidrag_børn_vejledning),
         Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
+        Guidance(value = skat_børnebidrag_modtagerskat_20260925),
         Guidance(value = skat_børnebidrag_fødsel_vejledning),
         Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
         ParameterSource(value = børnebidragsloven_satser_2025),

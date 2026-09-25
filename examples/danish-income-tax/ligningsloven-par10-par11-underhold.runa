@@ -382,6 +382,34 @@ tilsvarende anvendelse.
 }
 --@end:ligningsloven_par10_par11_underholdsbidrag--
 
+= skat_børnebidrag_modtagerskat_20260925 = Ligningslov10Og11KildeInfo(
+    url = "https://skat.dk/borger/fradrag/boernebidrag-og-aegtefaellebidrag/fradrag-for-boernebidrag",
+    identifier = "Skattestyrelsen: Barnet modtager mere end normalbidrag",
+    hentet_dato = "2026-09-25",
+    ændringsstatus = "Vejledningen henfører det skattepligtige børnebidrag til barnet og barnets årsopgørelse. Fødselsdatosammenhæng ved sammensætning er en modelkontrol, ikke identitetsbevis. Eksisterende lovtekst bevaret."
+)
+= ligningsloven_underhold_modtagersammenhæng_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par10_par11),
+        Guidance(value = skat_børnebidrag_modtagerskat_20260925),
+    )
+)
+
+-- Ved modtagerbeskatning af et barn skal personopgørelsen vedrøre barnet,
+-- ikke en forælder, som modtager pengene på barnets vegne. Datoen er kun en
+-- nødvendig sammenhængskontrol; ens fødselsdatoer beviser ikke identitet.
+-- Yderens fødselsdato skal derimod ikke være barnets fødselsdato.
+--@label:ligningslov10_11_modtager_svarer_til_fødselsdato::meta:ligningsloven_underhold_modtagersammenhæng_metadata--
+| ligningslov10_11_modtager_svarer_til_fødselsdato(fakta: Ligningslov10Og11BidragFakta, skatteyders_fødselsdato: Dato) -> hvis ligningslov10_11_bidragsyder(fakta.rolle) {
+    Sandt
+} ellers {
+    match fakta.modtager {
+        | Barn(barn) -> dato_gyldig(skatteyders_fødselsdato) && dato_gyldig(barn.fødselsdato) && barn.fødselsdato == skatteyders_fødselsdato
+        | ÆgtefælleEllerTidligereÆgtefælle(_) -> Sandt
+    }
+}
+| ligningslov10_11_modtagere_svarer_til_fødselsdato(input: Ligningslov10Og11Årsinput, skatteyders_fødselsdato: Dato) -> all(input.bidrag, |fakta: Ligningslov10Og11BidragFakta| ligningslov10_11_modtager_svarer_til_fødselsdato(fakta, skatteyders_fødselsdato))
+
 = ligningsloven_underholdsbidrag_praksis_metadata = Metadata(
     attachments = (
         Guidance(value = skat_underholdsbidrag_børn_vejledning),

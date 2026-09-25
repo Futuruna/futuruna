@@ -17,6 +17,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | What changes if I pay more or less into a pension? | [Pension walkthrough](../examples/danish-income-tax/pension-og-fradrag.md) | Modeled tax and available-cash differences from explicitly supplied facts; unknown facts can withhold comparisons. |
 | Could an invoice qualify for a service/handyman deduction? | [Invoice review](../examples/danish-income-tax/boligjob.md) | Supported factual conditions, allocation and annual limits; not automatic document authentication. |
 | Are my recurring donations capped correctly when paid in instalments? | [Gift-agreement review](../examples/danish-income-tax/personskat-gaver.md) | Ordinary LL §12 payments share one limit per identified agreement before the common income ceiling. Missing/conflicting agreement facts or unconfirmed ordinary payment history withhold comparisons. |
+| Does child maintenance belong in my calculation or my child's? | [Maintenance recipient guide](../examples/danish-income-tax/personskat-underholdsbidrag.md) | Separates payer, assessed child and adult alimony; inconsistent child-recipient birth dates withhold comparison, including for spouses. It does not authenticate identities. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
 | Do my benefits affect the extra commuting deduction? | [Danish benefit review](../examples/danish-income-tax/personskat-dagpenge.md) | Separates personal income without wage AM from LL §9 C income; ordinary statutory benefits and explicit exclusions also compose into Personskat. |
@@ -82,6 +83,14 @@ verify agreement-level caps, separate agreements and invalid-fact propagation,
 including spouses and projected input help. This is a source-backed model
 correction, not independent official-calculator conformance. New required
 agreement facts require [template migration](../examples/danish-income-tax/personskat-gaver.md#eksisterende-input-skal-gennemgås-igen).
+
+Child-maintenance recipient checks now reject a birth-date contradiction
+between an assessed person and a child entered as that person's maintenance
+recipient. Before correction, a fictional parent was incorrectly accepted with
+1,397 DKK of the child's income. [Focused checks](../tests/personskat_maintenance_recipient.test.mjs)
+cover correct child/payer/alimony routes and main/spouse contradictions. This
+is input-consistency evidence, not identity authentication; see the
+[role and migration guide](../examples/danish-income-tax/personskat-underholdsbidrag.md).
 
 The latest targeted conformance additions include
 [pension deduction rounding](../examples/danish-income-tax/skatdk-pensionsfradrag-ekstern.md)
