@@ -19,6 +19,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | Are my recurring donations capped correctly when paid in instalments? | [Gift-agreement review](../examples/danish-income-tax/personskat-gaver.md) | Ordinary LL §12 payments share one limit per identified agreement before the common income ceiling. Missing/conflicting agreement facts or unconfirmed ordinary payment history withhold comparisons. |
 | Does child maintenance belong in my calculation or my child's? | [Maintenance recipient guide](../examples/danish-income-tax/personskat-underholdsbidrag.md) | Separates payer, assessed child and adult alimony; inconsistent child-recipient birth dates withhold comparison, including for spouses. It does not authenticate identities. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
+| Where does my rental operating result belong? | [Property-income routing](../examples/danish-income-tax/personskat-ejendomsdrift.md) | Nonzero amounts outside the selected PSL4(1)(6) branch withhold comparison; exclusion is not tax exemption or automatic reclassification. |
 | Did Danish tax liability begin or end during the year? | [Part-year intake and assessment](../examples/danish-income-tax/personskat-delaar.md) | Explicit liability periods and source treatment; the final part-year assessment, not a nested ordinary amount, controls comparison. Fewer months worked do not themselves establish part-year liability. |
 | How do ferry or flight tickets combine with a short road commute? | [Ferry/flight guide](../examples/danish-income-tax/personskat-faerge-og-fly.md) | Deducts the unused daily 24-km threshold from documented ticket costs, preserving source expense and exact-øre trace. Requires correctly grouped travel days. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
@@ -177,6 +178,20 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 | F8: hosted setup and delivered source differ | Public delivery still pending | Read-only check on September 25: [hosted guide](https://futuruna.com/ai-setup.md) lacked the runtime check, spouse-free review and pension walkthrough. [Latest public release](https://github.com/Futuruna/futuruna/releases/tag/v0.2.0) was still v0.2.0, published September 19. Source delivery is not binary or website publication. |
 
 ## Further correctness work already delivered
+
+The [property-income routing safeguard](../examples/danish-income-tax/personskat-ejendomsdrift.md)
+closes another reproduced silent omission: a fictional 20,000 DKK commercial
+property profit was excluded by PSL4(1)(6), yet the annual comparison remained
+valid and unchanged from the no-property baseline. Nonzero excluded gains or
+losses now invalidate annual composition with a precise taxpayer/spouse input
+path, including both bases of PSL14. The root-law component keeps its correct
+non-applicability and source facts. Six source-linked interview fields now
+follow the reusable type instead of appearing only on the main input.
+[Focused coverage](../tests/personskat_property_route.test.mjs) distinguishes
+supported amounts, confirmed zero, misplaced amounts and separately supplied
+ordinary business facts. No automatic document classification, new expense
+entitlement or independent official-calculator conformance is established.
+Metadata changes require fresh templates; input types are unchanged.
 
 The [honorarium intake safeguard](../examples/danish-income-tax/personskat-honorar.md)
 closes a reproduced silent omission: 50,000 DKK entered in the fee list but
