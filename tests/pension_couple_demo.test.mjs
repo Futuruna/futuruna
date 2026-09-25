@@ -18,7 +18,7 @@ function template() {
   return { $futuruna: { schema_hash: hash }, cases: [{ case_id: 'template', input: {
     ...Object.fromEntries(personFactFields.map(key => [key, {}])),
     lønmodtager: {
-      skatteår: 0, bruttoløn_kroner: 0, kommune: v('København'), betaler_kirkeskat: false,
+      skatteår: 0, bruttoløn_kroner: 0, kommune: v('København'), kirkeskat: { $variant: 'KirkeskatUoplyst' },
       pension: { fødselsdato: { år: 0, måned: 0, dag: 0 }, atp: v('AtpUoplyst'), pbl18_indbetalinger: [],
         udbetalingsoplysninger: { for_året_komplette: false, for_foregående_år_komplette: false } },
       ligningsfradrag: { enlig_forsørger: v('EkstraBørnetilskudUoplyst'), boligjob: v('BoligjobUoplyst'),

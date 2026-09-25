@@ -145,7 +145,7 @@ fn ordinary_facts(mut ordinary: Value) -> Value {
     ordinary["lønmodtager"]["skatteår"] = json!(2026);
     ordinary["lønmodtager"]["kommune"] = json!({"$variant":"København"});
     ordinary["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
-    ordinary["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    ordinary["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     ordinary["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     ordinary["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
     ordinary["lønmodtager"]["pension"]["udbetalingsoplysninger"] =

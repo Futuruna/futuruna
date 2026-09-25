@@ -7,7 +7,7 @@
       "linjer": {
         "1": { "tekst": "Indkomståret er 2025.", "værdi": 2025 },
         "2": { "tekst": "Født 1. januar 1990.", "værdi": { "år": 1990, "måned": 1, "dag": 1 } },
-        "3": { "tekst": "Skattekommune København, kommunenummer 101; ikke kirkeskattepligtig.", "værdi": 101 },
+        "3": { "tekst": "Skattekommune København, kommunenummer 101; afklaret ikke kirkeskattepligtig hele indkomståret 2025.", "værdi": 101 },
         "4": { "tekst": "Udtrykkeligt opdigtet fravær efter gennemgang: ingen ægtefælle, børn/ekstra børnetilskud, ejendom, virksomhed, aktier, andre finansielle poster, offentlige ydelser, B-indkomst, personalegoder, tab, gaver, kontingenter, befordrings-, rejse-, service/håndværker- eller øvrige fradragsudgifter. Kun de særskilt beskrevne løn-, pensions-, ATP- og renteposter findes. Der beregnes ikke betalingsafregning, grøn check eller tilbagebetaling. Dette bekræfter kun de fiktive eksemplers tomme/irrelevante grene, aldrig en virkelig persons skabelonværdier.", "værdi": true },
         "5": { "tekst": "Fuldt skattepligtig og DBO-hjemmehørende i Danmark hele 2025. Ingen udenlandske forhold.", "værdi": true },
         "6": { "tekst": "Alle pensionsudbetalinger i 2025 og 2024 gennemgået: ingen.", "værdi": true }

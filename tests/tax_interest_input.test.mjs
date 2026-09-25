@@ -64,7 +64,7 @@ test('ordinary interest totals keep sign validation and existing netting results
   // Explicitly invented absence of other facts, not permission to use zero
   // placeholders when reading a real report with missing facts.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 600000,
-    kommune: v('København'), betaler_kirkeskat: false });
+    kommune: v('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(base.lønmodtager.pension, { fødselsdato: { år: 1990, måned: 1, dag: 1 },
     atp: v('IngenAtpIndbetalinger'),
     udbetalingsoplysninger: { for_året_komplette: true, for_foregående_år_komplette: true } });

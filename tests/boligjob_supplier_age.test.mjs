@@ -119,7 +119,7 @@ test('canonical supplier-age correction reaches taxpayer and spouse without inva
   // Every absent branch describes this invented whole-year Danish adult only.
   // Empty template values are not evidence of absence for a real taxpayer.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 600000,
-    kommune: v('København'), betaler_kirkeskat: false });
+    kommune: v('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(base.lønmodtager.pension, { fødselsdato: date(1980), atp: v('IngenAtpIndbetalinger'),
     udbetalingsoplysninger: { for_året_komplette: true, for_foregående_år_komplette: true } });
   Object.assign(base.lønmodtager.ligningsfradrag, {

@@ -79,7 +79,7 @@ delafståelse gennem beregn_personskat. Scenariet er ikke lovtekst.
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 = personskat_par27_input = PersonskatInput(
     lønmodtager = personskat_par27_lønmodtager,

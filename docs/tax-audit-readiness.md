@@ -32,11 +32,24 @@ classifies source facts; Futuruna executes the arithmetic and logic. Do not
 turn inferred report residuals into supposedly independent input facts.
 
 Church-tax intake now refers to the income year, with shared taxpayer/spouse
-guidance and official source traces. The Boolean contract still cannot encode
-unknown or part-year membership; output reservations now say so explicitly.
-This is an intake correction, not automatic detection or implemented membership
-proration. Conditional report review retains a full-year upper bound, not an
-exact period-specific entitlement. See the [coverage boundary](../examples/danish-income-tax/personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
+guidance and official source traces. Canonical `lønmodtager.kirkeskat` now
+distinguishes unknown, no-year, whole-year and part-year status. Unknown and
+part-year cases mechanically withhold the independent comparison for the
+taxpayer or an active spouse, including the part-year composition. This does
+not authenticate an asserted whole-year status or implement membership
+proration. The compact conditional report input remains separate and retains
+a full-year upper bound, not exact period-specific entitlement. See the
+[coverage boundary and Preview input migration](../examples/danish-income-tax/personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
+
+The [church-status regression](../tests/tax_church_input.test.mjs) checks real
+templates, source-linked input guidance, supported whole-year controls and
+rejected legacy/malformed inputs. It also checks that an unresolved taxpayer
+or spouse in a separately documented annual basis cannot bypass the final
+part-year assessment. [Green-check coverage](../tests/personskat_green_check.test.mjs)
+retains the same boundary through credit calculation and settlement. These are
+model and intake-contract checks, not independent period-tax conformance or
+validation of an AI's reading of a real document. Fresh templates are required;
+personal records are not automatically migrated.
 
 The first-use overview now distinguishes required source classification,
 template placeholders and enumerated validity checks from complete coverage.

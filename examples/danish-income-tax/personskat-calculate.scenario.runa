@@ -20,7 +20,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 = personskat_calculate_input = PersonskatInput(
     lønmodtager = personskat_calculate_lønmodtager,
@@ -117,7 +117,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 
 = personskat_calculate_ll6_input = Ligningslov6KurstabInput(
@@ -1625,7 +1625,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
+        kirkeskat = IngenKirkeskatHeleÅret
     ),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
@@ -1955,7 +1955,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ligningsfradrag = personskat_calculate_ligningsfradrag_2025,
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 = personskat_calculate_ligningsfradrag_2025_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_ligningsfradrag_2025))
 

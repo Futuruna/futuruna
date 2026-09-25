@@ -48,7 +48,7 @@ test('child-maintenance recipient must match the assessed person, not merely the
   // property, losses, pension/ATP or other deductions. Template absence is a
   // fictional fact here, never a default for an actual taxpayer.
   Object.assign(base.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 300000,
-    kommune: variant('København'), betaler_kirkeskat: false });
+    kommune: variant('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   Object.assign(base.lønmodtager.pension, { fødselsdato: { år: 1980, måned: 1, dag: 1 },
     atp: variant('IngenAtpIndbetalinger'), udbetalingsoplysninger: { for_året_komplette: true, for_foregående_år_komplette: true } });
   Object.assign(base.lønmodtager.ligningsfradrag, { boligjob: variant('IngenBoligjobudgifter'),

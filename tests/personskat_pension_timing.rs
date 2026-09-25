@@ -108,7 +108,7 @@ fn fictional_input() -> (Value, Value) {
     input["lønmodtager"]["skatteår"] = json!(2026);
     input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     input["lønmodtager"]["kommune"] = json!({"$variant":"København"});
-    input["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    input["lønmodtager"]["kirkeskat"] = json!({"$variant": "IngenKirkeskatHeleÅret"});
     input["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
         json!({"$variant":"IntetEkstraBørnetilskud"});
     input["lønmodtager"]["ligningsfradrag"]["arbejdsfradrag_udland"] =

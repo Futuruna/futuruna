@@ -51,7 +51,7 @@ export function buildFictionalCases(template, documents = sources) {
     }
     put('lønmodtager.skatteår', year, ['F:1'], 'Indkomstår, ikke dokumentets udskriftsår.');
     put('lønmodtager.kommune', v('København'), ['F:3'], 'Afklaret skattekommune, ikke gættet nuværende bopæl.');
-    put('lønmodtager.betaler_kirkeskat', false, ['F:3'], 'Udtrykkeligt fravær af kirkeskat.');
+    put('lønmodtager.kirkeskat', v('IngenKirkeskatHeleÅret'), ['F:3'], 'Udtrykkeligt afklaret fravær af kirkeskat hele indkomståret.');
     put('lønmodtager.pension.fødselsdato', value('F:2'), ['F:2'], 'Personens dato, også relevant uden pension.');
     put('lønmodtager.pension.udbetalingsoplysninger', {
       for_året_komplette: true, for_foregående_år_komplette: true,

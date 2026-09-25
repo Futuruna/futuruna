@@ -4,6 +4,7 @@
 @ importer ./metadata
 @ importer ./ligningsloven - par8v - boligjob
 @ importer ./personskat - beregningskontrol
+@ importer ./personskat - kirkeskat
 @ importer ./source - status
 @ importer ./kalenderdato
 @ importer ./loenmodtager_beregning
@@ -164,7 +165,7 @@
 # PersonskatPensionsInput(fødselsdato: Dato, udbetalingsoplysninger: PersonskatPensionsudbetalingsoplysninger, atp: PersonskatAtpInput, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl14b_årsgrundlag: Pbl14BÅrsgrundlag, ambl_par2_stk1_nr5_årsgrundlag: AmblPar2Nr5Årsgrundlag, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl14b_resultat: Pbl14BÅrsresultat, aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner: Heltal, samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_året_kroner: Heltal, modregnet_efter_ligningslov9l_i_året_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
 # PersonskatPensionsResultat(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, oplysningsstatus: PersonskatPensionsOplysningsstatus, pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, atp_resultat: PersonskatAtpResultat, arbejdsgiverydelser_resultat: PersonskatPensionsArbejdsgiverydelserResultat, arbejdsgiver_rate_resultat: Pbl19RateÅrsresultat, ambl_par2_stk1_nr5_resultat: AmblPar2Nr5Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
-# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
+# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, kirkeskat: PersonskatKirkeskatStatus)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
 # PersonskatFastsættelsesproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
@@ -1803,10 +1804,10 @@
     unit = None
 )
 = personskat_felt_kirkeskat = TypetBeregningsfelt(
-    path = refof(PersonskatLønmodtagerInput::betaler_kirkeskat),
+    path = refof(PersonskatLønmodtagerInput::kirkeskat),
     label = "Personens kirkeskat for indkomståret",
-    question = Some("Var denne person omfattet af kirkeskat hele indkomståret, eller slet ikke?"),
-    help = Some("Afklar det valgte indkomstår for denne person, også for en ægtefælle; medlemskab i dag er ikke nok. true betyder kirkeskat hele året, false betyder afklaret ingen kirkeskat hele året. Et kirkeskattebeløb på nul beviser ikke manglende skattepligt, da indkomst og personfradrag også påvirker beløbet. Ved ukendt status eller ind-/udmeldelse i året må der ikke gættes true/false eller sammenlignes samlet skat via denne indgang. Modellen har ikke medlemsperioder; PSL § 14 er ikke en erstatning for dem. Ændr ikke indkomst, kommune eller sats for at efterligne en periode. Se examples/danish-income-tax/personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag."),
+    question = Some("Var denne person omfattet af kirkeskat hele indkomståret, en del af året, slet ikke, eller er det uafklaret?"),
+    help = Some("Afklar det valgte indkomstår for denne person, også for en ægtefælle; medlemskab i dag er ikke nok. Vælg KirkeskatHeleÅret eller IngenKirkeskatHeleÅret kun ved afklarede helårsforhold. Et kirkeskattebeløb på nul beviser ikke manglende kirkeskattepligt, da indkomst og personfradrag også påvirker beløbet. KirkeskatUoplyst og KirkeskatEnDelAfÅret tilbageholder den samlede skattesammenligning; de betyder ikke skattefrihed. Modellen beregner endnu ikke medlemsperioder; PSL § 14 er ikke en erstatning for dem. Ændr ikke indkomst, kommune eller sats for at efterligne en periode. Se examples/danish-income-tax/personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag."),
     unit = None
 )
 = personskat_felt_renteindtægter = TypetBeregningsfelt(
@@ -17477,7 +17478,7 @@ fraflytningen."
         -- ville trække 8 % fra unges grundlag trods AMBL § 1, stk. 2.
         pensionsfradrag = lønmodtager_uden_pensionsfradrag(input.lønmodtager.pension.fødselsdato),
         personfradrag_alder_status = input.lønmodtager.personfradrag_alder_status,
-        betaler_kirkeskat = input.lønmodtager.betaler_kirkeskat
+        betaler_kirkeskat = personskat_kirkeskat_til_helårsberegning(input.lønmodtager.kirkeskat)
     )
     | personlig_indkomst_før_pensionsfradrag_kroner() -> penge_positivt_beløb(personlig_indkomst_efter_am(lønmodtager_før_pensionsfradrag()))
     | årsinput() -> Pbl18Årsinput(
@@ -17623,7 +17624,7 @@ fraflytningen."
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
     pensionsfradrag = pension.lønmodtager_pensionsfradrag,
     personfradrag_alder_status = input.personfradrag_alder_status,
-    betaler_kirkeskat = input.betaler_kirkeskat
+    betaler_kirkeskat = personskat_kirkeskat_til_helårsberegning(input.kirkeskat)
 )
 | personskat_skatteforhold_med_cfc(forhold: LønmodtagerSkatteforhold, cfc: PersonskatCfcResultat) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.aktieindkomst_kroner,
@@ -18006,7 +18007,7 @@ fraflytningen."
     ligningsfradrag = input.ligningsfradrag,
     pension = input.pension,
     personfradrag_alder_status = input.personfradrag_alder_status,
-    betaler_kirkeskat = input.betaler_kirkeskat
+    kirkeskat = input.kirkeskat
 )
 | personskat_ksl25a_personfakta(fakta: PersonskatPersonFakta, regulering: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk) -> PersonskatPersonFakta(
     lønmodtager = personskat_ksl25a_lønmodtager_input(fakta.lønmodtager, regulering, input_gyldigt),
@@ -19374,6 +19375,7 @@ fraflytningen."
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.enlig_forsørger", gyldig = grundlag.enligforsørgerfradrag.input_gyldigt, forklaring = "Årets ekstra børnetilskud skal være afklaret med gyldige kvartaler og kildereferencer; uoplyst er ikke nul. Se enligforsørgerfradrag.fejl."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.skatteår", gyldig = grundlag.fakta.lønmodtager.skatteår == indkomstår && skatteår_understøttet(indkomstår), forklaring = "Personens indkomstår skal være understøttet og stemme med husstandens beregningsår."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.kommune", gyldig = kommune_indkomstskat_understøttet_i_år(indkomstår, grundlag.fakta.lønmodtager.kommune), forklaring = "Kommunens indkomstskatteparametre skal være dækket for året."),
+        PersonskatInputkontrol(sti = præfiks + "lønmodtager.kirkeskat", gyldig = personskat_kirkeskat_status_understøttet(grundlag.fakta.lønmodtager.kirkeskat), forklaring = "Kirkeskat skal være afklaret for indkomståret. Uoplyst status og kirkeskat en del af året tilbageholder sammenligningen; medlemsperioder er endnu ikke modelleret. Det er en modelgrænse, ikke en afgørelse om skattefrihed. Vælg ikke helårsstatus alene for at få et resultat."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.fødselsdato", gyldig = grundlag.pension.pensionsalder_resultat.input_gyldigt && grundlag.fakta.lønmodtager.pension.fødselsdato.år <= indkomstår, forklaring = "Fødselsdatoen skal være en gyldig dato senest i indkomståret; nul er ikke en ukendt dato."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.udbetalingsoplysninger.for_året_komplette", gyldig = grundlag.pension.oplysningsstatus.aktuelle_oplysninger_komplette, forklaring = "Afklar alle årets udbetalinger i pensionsgrundlaget, også sportspension og feriemidler efter PBL § 14 B. Bekræft kun fuldstændighed efter gennemgang; en tom liste betyder ikke i sig selv, at der ingen udbetalinger var."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.udbetalingsoplysninger.for_foregående_år_komplette", gyldig = grundlag.pension.oplysningsstatus.foregående_oplysninger_tilstrækkelige, forklaring = "Sidste års pensionsudbetalinger er uafklarede og kan ændre det ekstra pensionsfradrag. Oplys dokumenterede § 20-udbetalinger, herunder sportspension, eller bekræft efter gennemgang, at sidste års oplysninger er komplette. Ukendt er ikke nul."),

@@ -68,7 +68,7 @@ const baseline = envelope.cases[0].input;
 // Empty/default branches describe this invented person ONLY, never missing data.
 Object.assign(baseline.lønmodtager, {
   skatteår: 2026, bruttoløn_kroner: 600000,
-  kommune: variant('København'), betaler_kirkeskat: false,
+  kommune: variant('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' },
 });
 baseline.lønmodtager.pension.fødselsdato = { år: 1990, måned: 1, dag: 1 };
 baseline.lønmodtager.pension.atp = { $variant: "IngenAtpIndbetalinger" };

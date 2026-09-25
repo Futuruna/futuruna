@@ -1,0 +1,13 @@
+@ sprog da
+
+-- Inputstatus og modeldækning, ikke en ny regel om kirkeligt medlemskab.
+-- Den almindelige beregning har endnu ikke medlemsperioder eller en
+-- kildeverificeret periodiseringsregel. Ukendt må ikke blive kendt fravær.
+-- Kilder om år og medlemsperiode findes i personskat_metadata_kirkeskat.
+# PersonskatKirkeskatStatus = KirkeskatUoplyst | IngenKirkeskatHeleÅret | KirkeskatHeleÅret | KirkeskatEnDelAfÅret
+
+| personskat_kirkeskat_status_understøttet(status: PersonskatKirkeskatStatus) -> status == IngenKirkeskatHeleÅret || status == KirkeskatHeleÅret
+
+-- Bro til det eksisterende lavniveaumodul. For uoplyst/delår er beløbene
+-- alene diagnostik; den kanoniske vurdering skal tilbageholde sammenligning.
+| personskat_kirkeskat_til_helårsberegning(status: PersonskatKirkeskatStatus) -> status == KirkeskatHeleÅret

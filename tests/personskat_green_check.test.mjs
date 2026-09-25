@@ -12,6 +12,13 @@ const model = 'examples/danish-income-tax/personskat-groen-check.calculate.runa'
 const entry = 'beregn_personskat_med_grøn_check';
 const canonical = 'examples/danish-income-tax/personskat.calculate.runa';
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
+function run(args) {
+  // Cold Personskat validation can exceed ten minutes on the shared 8 GB
+  // host; retain a single calculation worker and all assertions.
+  const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 1200000,
+    maxBuffer: 32 * 1024 * 1024, env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' } });
+  assert.ifError(p.error); assert.equal(p.status, 0, p.stderr); return JSON.parse(p.stdout);
+}
 const variant = ($variant, fields = {}) => ({ $variant, ...fields });
 const date = (år) => ({ år, måned: 1, dag: 1 });
 const creditNames = ['a_skat_og_am_indeholdt', 'par68_indbetalt', 'b_skat_betalt',
@@ -45,7 +52,7 @@ const pensionPayment = () => ({
 function baseline(input) {
   const p = input.personskat;
   Object.assign(p.lønmodtager, { skatteår: 2025, bruttoløn_kroner: 300000,
-    kommune: variant('København'), betaler_kirkeskat: false });
+    kommune: variant('København'), kirkeskat: { $variant: 'IngenKirkeskatHeleÅret' } });
   p.lønmodtager.pension.fødselsdato = date(1950);
   p.lønmodtager.pension.atp = variant('IngenAtpIndbetalinger');
   p.lønmodtager.pension.udbetalingsoplysninger = { for_året_komplette: true, for_foregående_år_komplette: true };
@@ -101,11 +108,6 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
     const path = join(directory, name);
     writeFileSync(path, `${JSON.stringify(value)}\n`, { mode: 0o600, flag: 'wx' });
     return path;
-  };
-  const run = args => {
-    const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 600000,
-      maxBuffer: 32 * 1024 * 1024, env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' } });
-    assert.ifError(p.error); assert.equal(p.status, 0, p.stderr); return JSON.parse(p.stdout);
   };
   console.log(`Synthetic canonical green-check evidence: ${directory}`);
   const envelope = run(['template', model, '--entry', entry, '--format', 'json']);
@@ -216,4 +218,47 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
     assert.equal(byId.get(id).grøn_check.beregning, null, id);
   }
   console.log(`Validated ${cases.length} integrated cases and two legacy comparisons.`);
+});
+
+test('church status reaches the integrated green-check comparison and settlement', {
+  skip: binary ? false : 'set FUTURUNA_MODEL_TEST_RUNA; no compiler build or network',
+}, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'futuruna-green-check-church-'));
+  console.log(`Fictional church-status wrapper evidence: ${directory}`);
+  const envelope = run(['template', model, '--entry', entry, '--format', 'json']);
+  const base = baseline(envelope.cases[0].input), cases = [];
+  for (const withSpouse of [false, true]) {
+    for (const status of ['IngenKirkeskatHeleÅret', 'KirkeskatHeleÅret', 'KirkeskatUoplyst', 'KirkeskatEnDelAfÅret']) {
+      const input = structuredClone(base);
+      if (withSpouse) spouse(input);
+      const person = withSpouse ? input.personskat.ægtefælle.fakta : input.personskat;
+      person.lønmodtager.kirkeskat = variant(status);
+      cases.push({ case_id: `${withSpouse ? 'spouse' : 'main'}-${status}`, input,
+        valid: status === 'IngenKirkeskatHeleÅret' || status === 'KirkeskatHeleÅret',
+        path: `personskat.${withSpouse ? 'ægtefælle.MedÆgtefælle.fakta.' : ''}lønmodtager.kirkeskat` });
+    }
+  }
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  const file = join(directory, 'cases.json');
+  writeFileSync(file, JSON.stringify(envelope), { flag: 'wx', mode: 0o600 });
+  const output = run(['call', model, '--entry', entry, '--input', file]);
+  writeFileSync(join(directory, 'results.json'), JSON.stringify(output), { flag: 'wx', mode: 0o600 });
+  assert.deepEqual(output.diagnostics, []);
+  assert.deepEqual(output.results.map(row => row.case_id), cases.map(c => c.case_id));
+  for (const [i, { case_id, result: r }] of output.results.entries()) {
+    const { valid, path } = cases[i];
+    assert.equal(r.vurdering.alle_kontroller_gyldige, valid, case_id);
+    assert.equal(r.vurdering.kontroller.find(c => c.sti === path)?.gyldig, valid, path);
+    if (valid) {
+      assert.ok(Number.isSafeInteger(r.vurdering.slutskat_til_sammenligning_øre), case_id);
+      assert.equal(r.grøn_check.beregning.samlet_kredit_øre, 128500, case_id);
+      assert.equal(r.årsopgørelse.input.kreditter.energiafgiftskompensation_øre, 128500, case_id);
+      assert.equal(r.årsopgørelse.input.slutskat_øre, r.vurdering.slutskat_til_sammenligning_øre, case_id);
+    } else {
+      assert.equal(r.vurdering.slutskat_til_sammenligning_øre, null, case_id);
+      assert.equal(r.grøn_check.beregning, null, case_id);
+      assert.equal(r.årsopgørelse, null, case_id);
+      assert.ok(r.vurdering.fejl.some(f => f.sti === path), case_id);
+    }
+  }
 });

@@ -53,7 +53,7 @@ indkomstklassifikation og skatteberegning deterministisk.
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
+        kirkeskat = IngenKirkeskatHeleÅret
     ),
     kapitalindkomst = PersonskatKapitalindkomstInput(
         renter = PersonskatRenteInput(

@@ -36,7 +36,7 @@
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_underhold_scenarie_pension(fødselsdato),
     personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
+    kirkeskat = IngenKirkeskatHeleÅret
 )
 | personskat_underhold_scenarie_input_med_fødselsdato(underholdsbidrag: Ligningslov10Og11Årsinput, fødselsdato: Dato) -> PersonskatInput(
     lønmodtager = personskat_underhold_scenarie_lønmodtager(underholdsbidrag, fødselsdato),

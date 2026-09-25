@@ -6481,7 +6481,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "lønmodtager.personfradrag_alder_status",
                         Data::String("Fyldt18EllerGift".to_string()),
                     ),
-                    ("lønmodtager.betaler_kirkeskat", Data::Bool(false)),
+                    ("lønmodtager.kirkeskat", Data::String("IngenKirkeskatHeleÅret".to_string())),
                     (
                         "kapitalindkomst.renter.renteindtægter_kroner",
                         Data::String("0".to_string()),
@@ -7654,8 +7654,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("Fyldt18EllerGift".to_string()),
             ),
             (
-                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.betaler_kirkeskat",
-                Data::Bool(false),
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.kirkeskat",
+                Data::String("IngenKirkeskatHeleÅret".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteindtægter_kroner",
@@ -12481,7 +12481,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }
             },
             "personfradrag_alder_status": { "$variant": "Fyldt18EllerGift" },
-            "betaler_kirkeskat": false
+            "kirkeskat": { "$variant": "IngenKirkeskatHeleÅret" }
         },
         "kapitalindkomst": {
             "renter": {
@@ -14405,7 +14405,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     }
                 },
                 "personfradrag_alder_status": { "$variant": "Fyldt18EllerGift" },
-                "betaler_kirkeskat": false
+                "kirkeskat": { "$variant": "IngenKirkeskatHeleÅret" }
             },
             "kapitalindkomst": {
                 "renter": {
