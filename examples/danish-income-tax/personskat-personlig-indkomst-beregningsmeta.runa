@@ -176,9 +176,33 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::skattepligtig_værdi_kroner),
     label = "Arbejdsvederlagets skattepligtige værdi",
     question = Some("Hvad er vederlagets skattepligtige værdi i indkomståret?"),
-    help = Some("For penge angives bruttovederlaget før arbejdsmarkedsbidrag og uden modregning af udgifter eller allerede betalt B-skat. Naturalier kræver deres skattemæssigt opgjorte værdi. Denne gren har ikke et særskilt honorarudgiftsfelt; en sag med udgifter kræver yderligere afklaring, ikke et nettobeløb her. Samme vederlag må kun medregnes én gang. Se personskat-honorar.md."),
+    help = Some("For penge angives bruttovederlaget før arbejdsmarkedsbidrag og uden modregning af udgifter eller allerede betalt B-skat. Naturalier kræver deres skattemæssigt opgjorte værdi. Brug honorarudgiftsfeltet udgifter særskilt; et nettobeløb her reducerer AM-grundlaget forkert. Samme vederlag må kun medregnes én gang. Ved fælles udgifter samles årets samme honoraraktivitet i én dokumenteret bruttoopgørelse. Se personskat-honorar.md."),
     unit = Some("kr./år")
 )
+
+= personskat_honorarudgifter_inputmeta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::$variant), label = "Er honorarudgifterne afklaret?", question = Some("Kender du alle udgifter knyttet til årets vederlag, eller er de uoplyste?"), help = Some("Uoplyst er ikke nul. Brug Oplyst med tom liste og fuldstændige=true kun efter bekræftet ingen udgifter. Saml samme honoraraktivitets årsvederlag ved fælles udgifter; fratræk ikke udgifter i bruttofeltet. Se personskat-honorar.md."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterOplyst::fuldstændige), label = "Honorarudgifter gennemgået", question = Some("Er alle udgiftsposter for denne honoraropgørelse gennemgået og medtaget?"), help = Some("Bekræft først efter bilagsgennemgang. Uafklarede udgifter, afskrivninger, satsberegnet kørsel og erstatninger må ikke udelades for at få et resultat. Se personskat-honorar.md."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterOplyst::poster), label = "Udgifter til honoraraktiviteten", question = Some("Hvilke særskilte udgifter fremgår af bilagene?"), help = Some("Brug én udgift én gang, ikke både bilag og rubrik 29 som nye poster. Lønmodtagerudgifter, private pensionsindbetalinger og skat hører ikke til her. Se personskat-honorar.md."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [],
+    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Warning(value = honorarudgifter_dækningsgrænse))
+)
+--@label:PersonskatPersonligtArbejdsvederlagFakta::meta:personskat_honorarudgifter_inputmeta--
+
+= personskat_honorarudgift_inputmeta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::identifikation), label = "Udgiftens bilagsreference", question = Some("Hvilken stabil bilagsreference identificerer udgiften?"), help = Some("Entydig på tværs af personens honorarrækker. Omdøb ikke dubletter; forskellige referencer beviser ikke forskellige udgifter."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::indkomstår), label = "Udgiftens indkomstår", question = Some("Hvilket indkomstår skal udgiften henføres til?"), help = Some("Samme år som vederlagsopgørelsen. Tidligere års udgifter og omperiodisering kræver særskilt behandling."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::art), label = "Udgiftens art", question = Some("Er det en almindelig løbende udgift ved honoraret, en privat udgift, en anden udgift eller uafklaret?"), help = Some("Løbende egne udgifter kræver dokumenteret tilknytning. Privat giver nul fradrag; Anden eller Uoplyst tilbageholder sammenligningen. Afskrivning, satsberegnet kørsel, erstatning og udenlandske særregler er ikke almindelige udgifter i denne gren."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::egen_udgift_kroner), label = "Egen udgift i årets honoraraktivitet", question = Some("Hvad er din dokumenterede egen udgift efter refusion og efter udskillelse af privat andel?"), help = Some("Positivt beløb i hele kroner. Bevar brutto, privat andel og refusion i bilagsoversigten. Ikke årsopgørelsens samlede rubrik 29, AM-bidrag eller B-skat. Modellen reducerer personlig indkomst, ikke brutto-AM eller arbejdsfradragsgrundlag. Se personskat-honorar.md."), unit = Some("kr./år")),
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::dokumenteret), label = "Udgiften er dokumenteret", question = Some("Understøtter bilag beløbet og din egen udgiftsandel?"), help = Some("En beregnet difference til årsopgørelsen er ikke dokumentation."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::vedrører_vederlaget), label = "Tilknytning til honoraret", question = Some("Er udgiften afholdt for at erhverve, sikre eller vedligeholde denne honorarindtægt?"), help = Some("Afklar faktisk tilknytning; privat brug eller arbejde som lønmodtager må ikke få honorarfradrag."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::ikke_fratrukket_andetsteds), label = "Ingen dobbelt fradragsføring", question = Some("Er det bekræftet, at samme udgift ikke allerede er fratrukket i andre poster eller indkomstbeløb?"), help = Some("Kontrollér også lønmodtagerudgifter, virksomhed, erhvervsbefordring og andre honorarrækker. Feltet er en kildebekræftelse, ikke dokumentautentifikation."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [],
+    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Warning(value = honorarudgifter_dækningsgrænse))
+)
+--@label:PersonskatHonorarudgiftFakta::meta:personskat_honorarudgift_inputmeta--
 
 = personskat_personlig_indkomst_felt_virksomhed_id = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::identifikation),

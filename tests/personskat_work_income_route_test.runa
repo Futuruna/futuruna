@@ -2,7 +2,7 @@
 
 @ importer ../examples / danish - income - tax / personskat - personlig - indkomst - kildefakta
 
-| vederlagsfakta(id: Tekst, forhold: PersonskatPersonligtArbejdsvederlagsforhold, beløb: Heltal) -> PersonskatPersonligtArbejdsvederlagFakta(identifikation = id, indkomstår = 2025, forhold = forhold, vederlagsform = PsArbejdsvederlagIPenge, skattepligtig_værdi_kroner = beløb)
+| vederlagsfakta(id: Tekst, forhold: PersonskatPersonligtArbejdsvederlagsforhold, beløb: Heltal) -> PersonskatPersonligtArbejdsvederlagFakta(identifikation = id, indkomstår = 2025, forhold = forhold, vederlagsform = PsArbejdsvederlagIPenge, skattepligtig_værdi_kroner = beløb, udgifter = PsHonorarudgifterOplyst(poster = [], fuldstændige = Sandt))
 | vederlagsår(poster: List(PersonskatPersonligtArbejdsvederlagFakta)) -> personskat_ordinær_personlig_indkomst_resultat(PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser = [], personlige_arbejdsvederlag = poster, virksomheder_uden_virksomhedsordning = [], forenings_og_arbejdsløshedsydelser = []), 2025)
 
 = honorar = vederlagsfakta("fiktivt-honorar", PsArbejdeUdenAnsættelse, 50000)

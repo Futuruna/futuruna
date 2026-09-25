@@ -142,7 +142,8 @@ test('fee intake preserves classification, gross income and separate tax payment
   const sample = JSON.parse(feeGuide.match(/```json\n([\s\S]*?)\n```/)[1]);
   assert.equal(sample.forhold.$variant, 'PsArbejdeUdenAnsættelse');
   assert.equal(sample.skattepligtig_værdi_kroner, 50000);
-  for (const phrase of ['kun et rækkeuddrag', 'ikke et særskilt honorarudgiftsfelt',
+  assert.deepEqual(sample.udgifter, { $variant: 'PsHonorarudgifterOplyst', poster: [], fuldstændige: true });
+  for (const phrase of ['kun et rækkeuddrag', 'modelgrænse, ikke et juridisk fradragsloft',
     'Indtast ikke blot et nettohonorar']) {
     assert.ok(feeGuide.replace(/\s+/g, ' ').includes(phrase), phrase);
   }

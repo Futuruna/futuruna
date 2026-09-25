@@ -25,7 +25,8 @@
     indkomstår = indkomstår,
     forhold = forhold,
     vederlagsform = vederlagsform,
-    skattepligtig_værdi_kroner = skattepligtig_værdi_kroner
+    skattepligtig_værdi_kroner = skattepligtig_værdi_kroner,
+    udgifter = PsHonorarudgifterOplyst(poster = [], fuldstændige = Sandt)
 )
 | personskat_ordinaer_scenario_foreningsydelse(identifikation: Tekst, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> PersonskatForeningsydelseEfterLigningslov13(fakta = Ligningslov13ForeningsydelseFakta(
     identifikation = identifikation,

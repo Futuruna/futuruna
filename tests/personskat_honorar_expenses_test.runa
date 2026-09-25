@@ -1,0 +1,30 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - honorarudgifter
+
+| udgift(id: Tekst, år: Heltal, beløb: Heltal, art: PersonskatHonorarudgiftsart, dokumenteret: Boolsk, tilknytning: Boolsk, ikke_andetsteds: Boolsk) -> PersonskatHonorarudgiftFakta(identifikation = id, indkomstår = år, art = art, egen_udgift_kroner = beløb, dokumenteret = dokumenteret, vedrører_vederlaget = tilknytning, ikke_fratrukket_andetsteds = ikke_andetsteds)
+| almindelig(beløb: Heltal) -> udgift("bilag-1", 2025, beløb, PsHonorarLøbendeUdgift, Sandt, Sandt, Sandt)
+| oplyst(poster: List(PersonskatHonorarudgiftFakta)) -> PsHonorarudgifterOplyst(poster = poster, fuldstændige = Sandt)
+= ingen = personskat_honorarudgifter_resultat(oplyst([]), 2025)
+| kendt_tom_liste_er_nul: ingen -> ingen.alle_input_gyldige && ingen.fradrag_i_personlig_indkomst_kroner == 0
+? kendt_tom_liste_er_nul
+= almindelige = personskat_honorarudgifter_resultat(oplyst([almindelig(10000)]), 2025)
+| dokumenteret_udgift_uden_lønmodtagerbundgrænse: almindelige -> almindelige.alle_input_gyldige && almindelige.fradrag_i_personlig_indkomst_kroner == 10000 && personskat_honorarudgifter_resultat(oplyst([almindelig(1)]), 2025).fradrag_i_personlig_indkomst_kroner == 1
+? dokumenteret_udgift_uden_lønmodtagerbundgrænse
+= private = personskat_honorarudgifter_resultat(oplyst([udgift("privat", 2025, 1000, PsHonorarPrivatUdgift, Falskt, Falskt, Sandt)]), 2025)
+| privat_er_kendt_uden_fradrag: private -> private.alle_input_gyldige && private.fradrag_i_personlig_indkomst_kroner == 0
+? privat_er_kendt_uden_fradrag
+= fejlposter = [almindelig(-1), udgift("", 2025, 1, PsHonorarLøbendeUdgift, Sandt, Sandt, Sandt), udgift("år", 2024, 1, PsHonorarLøbendeUdgift, Sandt, Sandt, Sandt), udgift("bilag", 2025, 1, PsHonorarLøbendeUdgift, Falskt, Sandt, Sandt), udgift("sammenhæng", 2025, 1, PsHonorarLøbendeUdgift, Sandt, Falskt, Sandt), udgift("dobbelt", 2025, 1, PsHonorarLøbendeUdgift, Sandt, Sandt, Falskt), udgift("anden", 2025, 1, PsHonorarAndenUdgift, Sandt, Sandt, Sandt), udgift("uoplyst", 2025, 1, PsHonorarUdgiftUoplyst, Sandt, Sandt, Sandt)]
+| fejl_bliver_ikke_godkendt_nul: fejlposter -> all(fejlposter, |post: PersonskatHonorarudgiftFakta| personskat_honorarudgifter_resultat(oplyst([post]), 2025).alle_input_gyldige == Falskt)
+? fejl_bliver_ikke_godkendt_nul
+= uoplyst = personskat_honorarudgifter_resultat(PsHonorarudgifterUoplyst, 2025)
+| manglende_og_ufuldstændige_fakta_tilbageholdes: uoplyst -> uoplyst.alle_input_gyldige == Falskt && personskat_honorarudgifter_resultat(PsHonorarudgifterOplyst(poster = [], fuldstændige = Falskt), 2025).alle_input_gyldige == Falskt
+? manglende_og_ufuldstændige_fakta_tilbageholdes
+= dublet = personskat_honorarudgifter_resultat(oplyst([almindelig(1), almindelig(1)]), 2025)
+| dublet_afvises: dublet -> dublet.alle_input_gyldige == Falskt && dublet.identifikationer_entydige == Falskt
+? dublet_afvises
+= netto_nul = oplyst([almindelig(46000)])
+| negativ_netto_er_dækningsgrænse_ikke_klipning: netto_nul -> personskat_honorarudgifter_netto_dækket(netto_nul, 50000, 2025, 35) && personskat_honorarudgifter_netto_dækket(oplyst([almindelig(46001)]), 50000, 2025, 35) == Falskt && personskat_honorarudgifter_resultat(oplyst([almindelig(46001)]), 2025).fradrag_i_personlig_indkomst_kroner == 46001
+? negativ_netto_er_dækningsgrænse_ikke_klipning
+= ung_udgift = oplyst([udgift("ung", 2026, 50000, PsHonorarLøbendeUdgift, Sandt, Sandt, Sandt)])
+| ungdoms_am_følger_året_og_alderen: ung_udgift -> personskat_honorarudgifter_netto_dækket(ung_udgift, 50000, 2026, 17) && personskat_honorarudgifter_netto_dækket(ung_udgift, 50000, 2026, 18) == Falskt && personskat_honorarudgifter_netto_dækket(netto_nul, 50000, 2025, 17)
+? ungdoms_am_følger_året_og_alderen

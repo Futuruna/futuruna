@@ -14,6 +14,7 @@
 @ importer ./personskat - folkepension
 @ importer ./personskat - socialpension
 @ importer ./personskat - gruppeliv - bonus
+@ importer ./personskat - honorarudgifter
 @ importer ./personskat - par3 - erhvervsposter - kildefakta
 @ importer ./soemandsbeskatningsloven - par5 - par8
 
@@ -307,8 +308,8 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
 --@begin:personskat_personligt_arbejdsvederlag--
 # PersonskatPersonligtArbejdsvederlagsforhold = PsArbejdeUdenAnsættelse | PsArbejdeIAnsættelse | PsSelvstændigtArbejde
 # PersonskatPersonligtArbejdsvederlagsform = PsArbejdsvederlagIPenge | PsArbejdsvederlagINaturalie(art: ArbejdsmarkedsbidragNaturaliaArt)
-# PersonskatPersonligtArbejdsvederlagFakta(identifikation: Tekst, indkomstår: Heltal, forhold: PersonskatPersonligtArbejdsvederlagsforhold, vederlagsform: PersonskatPersonligtArbejdsvederlagsform, skattepligtig_værdi_kroner: Heltal)
-# PersonskatPersonligtArbejdsvederlagBeregning(fakta: PersonskatPersonligtArbejdsvederlagFakta, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_vederlaget: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag: ArbejdsmarkedsbidragLønmodtagerGrundlagResultat)
+# PersonskatPersonligtArbejdsvederlagFakta(identifikation: Tekst, indkomstår: Heltal, forhold: PersonskatPersonligtArbejdsvederlagsforhold, vederlagsform: PersonskatPersonligtArbejdsvederlagsform, skattepligtig_værdi_kroner: Heltal, udgifter: PersonskatHonorarudgifter)
+# PersonskatPersonligtArbejdsvederlagBeregning(fakta: PersonskatPersonligtArbejdsvederlagFakta, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_vederlaget: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag: ArbejdsmarkedsbidragLønmodtagerGrundlagResultat, honorarudgifter: PersonskatHonorarudgiftsresultat)
 # PersonskatPersonligtArbejdsvederlagResultat = UgyldigtPersonligtArbejdsvederlag(fakta: PersonskatPersonligtArbejdsvederlagFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | PersonligtArbejdsvederlagUdenForPar2Stk1Nr2(fakta: PersonskatPersonligtArbejdsvederlagFakta) | BeregnetPersonligtArbejdsvederlag(beregning: PersonskatPersonligtArbejdsvederlagBeregning)
 
 | personskat_personligt_arbejdsvederlagsform_gyldig(form: PersonskatPersonligtArbejdsvederlagsform) -> match form {
@@ -319,7 +320,7 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
         nævnt_i_par2_stk1 = Sandt
     )).par2_stk2_art_omfattet
 }
-| personskat_personligt_arbejdsvederlag_grundfakta_gyldige(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.skattepligtig_værdi_kroner >= 0 && personskat_personligt_arbejdsvederlagsform_gyldig(fakta.vederlagsform)
+| personskat_personligt_arbejdsvederlag_grundfakta_gyldige(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.skattepligtig_værdi_kroner >= 0 && personskat_personligt_arbejdsvederlagsform_gyldig(fakta.vederlagsform) && personskat_honorarudgifter_resultat(fakta.udgifter, fakta.indkomstår).alle_input_gyldige
 | personskat_personligt_arbejdsvederlag_omfattet_af_par2_stk1_nr2(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> fakta.forhold == PsArbejdeUdenAnsættelse
 | personskat_personligt_arbejdsvederlag_par3_indkomstpost(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> Par3Indkomstpost(
     indgår_i_skattepligtig_indkomst = Sandt,
@@ -350,7 +351,8 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
         fakta = fakta,
         par3_indkomstpost = par3_indkomstpost(),
         par3_indkomstresultat_for_vederlaget = par3_personlig_indkomst_resultat(personskat_tomt_par3_personlig_indkomst_input([par3_indkomstpost()], [])),
-        arbejdsmarkedsbidrag = arbejdsmarkedsbidrag_lønmodtager_grundlag_resultat(personskat_personligt_arbejdsvederlag_am_input(fakta))
+        arbejdsmarkedsbidrag = arbejdsmarkedsbidrag_lønmodtager_grundlag_resultat(personskat_personligt_arbejdsvederlag_am_input(fakta)),
+        honorarudgifter = personskat_honorarudgifter_resultat(fakta.udgifter, skatteår)
     )
     | resultat() -> hvis identifikation_unik == Falskt || skatteår_matcher() == Falskt || grundfakta_gyldige() == Falskt {
         UgyldigtPersonligtArbejdsvederlag(
@@ -384,6 +386,14 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
 | personskat_personligt_arbejdsvederlag_resultat_am_grundlag_kroner(resultat: PersonskatPersonligtArbejdsvederlagResultat) -> match resultat {
     | BeregnetPersonligtArbejdsvederlag(beregning) -> beregning.arbejdsmarkedsbidrag.grundlag_kroner
     | _ -> 0
+}
+| personskat_personligt_arbejdsvederlag_udgiftsfradrag_kroner(resultat: PersonskatPersonligtArbejdsvederlagResultat) -> match resultat {
+    | BeregnetPersonligtArbejdsvederlag(beregning) -> beregning.honorarudgifter.fradrag_i_personlig_indkomst_kroner
+    | _ -> 0
+}
+| personskat_honorarudgiftsidentifikationer_entydige(fakta: List(PersonskatPersonligtArbejdsvederlagFakta)) -> {
+    = ider = flat_map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| map(personskat_honorarudgiftsposter(post.udgifter), |udgift: PersonskatHonorarudgiftFakta| udgift.identifikation))
+    length(distinct(ider)) == length(ider)
 }
 --@end:personskat_personligt_arbejdsvederlag--
 
@@ -723,7 +733,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | personlige_arbejdsvederlag() -> personskat_personligt_arbejdsvederlag_resultater(input.personlige_arbejdsvederlag, skatteår, personlige_arbejdsvederlagsidentifikationer_entydige())
     | virksomheder() -> personskat_virksomhed_resultater(input.virksomheder_uden_virksomhedsordning, skatteår, virksomhedsidentifikationer_entydige())
     | forenings_og_arbejdsløshedsydelser() -> personskat_forenings_og_arbejdsløshedsydelse_resultater(input.forenings_og_arbejdsløshedsydelser, skatteår, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige())
-    | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(personlige_arbejdsvederlag(), personskat_personligt_arbejdsvederlag_kan_sammensættes) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
+    | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(personlige_arbejdsvederlag(), personskat_personligt_arbejdsvederlag_kan_sammensættes) && personskat_honorarudgiftsidentifikationer_entydige(input.personlige_arbejdsvederlag) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
     | selvstændig_personlig_indkomst_før_fremførsel_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_kroner(resultat))
     | selvstændig_biblioteksafgift_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_biblioteksafgift_kroner(resultat))
     | selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))
@@ -780,7 +790,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + arbejdsudleje_ordinært_am_grundlag_kroner() + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner + sømandsbeskatning().samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner,
         arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner,
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = ordinære_forhold().personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + underholdsbidrag().samlet_personlig_indkomst_kroner + børnebidragslov19_bidrag().samlet_personlig_indkomst_kroner + sømandsbeskatning().samlet_dis_personlig_indkomst_kroner,
-        fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()) + arbejdsudleje_ordinært_personligt_fradrag_kroner(),
+        fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()) + arbejdsudleje_ordinært_personligt_fradrag_kroner() + foldl(ordinære_forhold().personlige_arbejdsvederlag, 0, |sum: Heltal, post: PersonskatPersonligtArbejdsvederlagResultat| sum + personskat_personligt_arbejdsvederlag_udgiftsfradrag_kroner(post)),
         ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto()) + underholdsbidrag().samlet_ligningsmæssigt_fradrag_kroner + børnebidragslov19_bidrag().samlet_ligningsmæssigt_fradrag_kroner,
         endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner = arbejdsudleje_endeligt_am_kroner(),
         endelig_arbejdsudlejeskat_kroner = arbejdsudleje_endelig_indkomstskat_kroner(),
@@ -789,4 +799,29 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 }
 
 | personskat_personlig_indkomst_resultat(input: PersonskatPersonligIndkomstInput, skatteår: Heltal) -> PersonskatPersonligIndkomstSag(input, skatteår).resultat()
+| personskat_honorarudgifter_for_person_dækket(poster: List(PersonskatPersonligtArbejdsvederlagFakta), skatteår: Heltal, alder_ved_årets_udløb: Heltal) -> personskat_honorarudgiftsidentifikationer_entydige(poster) && all(poster, |post: PersonskatPersonligtArbejdsvederlagFakta| personskat_honorarudgifter_netto_dækket(post.udgifter, post.skattepligtig_værdi_kroner, skatteår, alder_ved_årets_udløb))
+-- År/alder kommer fra den kanoniske person, ikke en ny brugeroplyst AM-sats.
+-- Gyldigheden følger med til bl.a. delårsberegning og ægtefællesammensætning.
+| personskat_personlig_indkomst_resultat_for_person(input: PersonskatPersonligIndkomstInput, skatteår: Heltal, alder_ved_årets_udløb: Heltal) -> {
+    = resultat = personskat_personlig_indkomst_resultat(input, skatteår)
+    PersonskatPersonligIndkomstResultat(
+        input = resultat.input,
+        etableringskonto = resultat.etableringskonto,
+        ordinære_forhold = resultat.ordinære_forhold,
+        arbejdsudleje = resultat.arbejdsudleje,
+        arbejdsudlejeidentifikationer_entydige = resultat.arbejdsudlejeidentifikationer_entydige,
+        underholdsbidrag = resultat.underholdsbidrag,
+        børnebidragslov19_bidrag = resultat.børnebidragslov19_bidrag,
+        sømandsbeskatning = resultat.sømandsbeskatning,
+        alle_input_gyldige = resultat.alle_input_gyldige && personskat_honorarudgifter_for_person_dækket(input.ordinære_forhold.personlige_arbejdsvederlag, skatteår, alder_ved_årets_udløb),
+        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
+        arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = resultat.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner,
+        personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner,
+        fradrag_i_personlig_indkomst_kroner = resultat.fradrag_i_personlig_indkomst_kroner,
+        ligningsmæssigt_fradrag_kroner = resultat.ligningsmæssigt_fradrag_kroner,
+        endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner = resultat.endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner,
+        endelig_arbejdsudlejeskat_kroner = resultat.endelig_arbejdsudlejeskat_kroner,
+        samlet_endelig_arbejdsudlejebeskatning_kroner = resultat.samlet_endelig_arbejdsudlejebeskatning_kroner
+    )
+}
 --@end:personskat_personlig_indkomst_kildefakta--

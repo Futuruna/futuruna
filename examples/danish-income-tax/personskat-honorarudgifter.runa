@@ -1,0 +1,45 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./arbejdsmarkedsbidragsloven
+
+# HonorarudgiftKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= honorarudgifter_djv = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2048532", identifier = "C.C.1.2.3: brutto-AM, personlig nettoindkomst og forbehold om SKM2025.490.ØLR", hentet_dato = "2026-09-25")
+= honorarudgifter_skat = HonorarudgiftKilde(url = "https://skat.dk/erhverv/egen-virksomhed/afklar-virksomhedens-skatteforhold", identifier = "Honorarmodtager: dokumenterede udgifter, rubrik 29/felt 425", hentet_dato = "2026-09-25")
+= honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter i årets honoraraktivitet. Afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR underkender kildeartsbegrænsning; dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Ukendt er ikke nul."
+= honorarudgifter_meta = Metadata(attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Warning(value = honorarudgifter_dækningsgrænse)))
+
+--@label:personskat_honorarudgifter::meta:honorarudgifter_meta--
+----
+Der skal betales arbejdsmarkedsbidrag af bruttovederlaget
+----
+-- C.C.1.2.3, uddrag. Udgifter reducerer derfor ikke AM-grundlaget.
+--@begin:personskat_honorarudgifter--
+# PersonskatHonorarudgiftsart = PsHonorarLøbendeUdgift | PsHonorarPrivatUdgift | PsHonorarAndenUdgift | PsHonorarUdgiftUoplyst
+# PersonskatHonorarudgiftFakta(identifikation: Tekst, indkomstår: Heltal, art: PersonskatHonorarudgiftsart, egen_udgift_kroner: Heltal, dokumenteret: Boolsk, vedrører_vederlaget: Boolsk, ikke_fratrukket_andetsteds: Boolsk)
+# PersonskatHonorarudgifter = PsHonorarudgifterUoplyst | PsHonorarudgifterOplyst(poster: List(PersonskatHonorarudgiftFakta), fuldstændige: Boolsk)
+# PersonskatHonorarudgiftsresultat(input: PersonskatHonorarudgifter, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
+
+| personskat_honorarudgift_gyldig(post: PersonskatHonorarudgiftFakta, skatteår: Heltal) -> post.identifikation != "" && post.indkomstår == skatteår && post.egen_udgift_kroner >= 0 && (post.art == PsHonorarPrivatUdgift || (post.art == PsHonorarLøbendeUdgift && post.dokumenteret && post.vedrører_vederlaget && post.ikke_fratrukket_andetsteds))
+| personskat_honorarudgift_fradrag_kroner(post: PersonskatHonorarudgiftFakta) -> hvis post.art == PsHonorarLøbendeUdgift { post.egen_udgift_kroner } ellers { 0 }
+| personskat_honorarudgiftsposter(input: PersonskatHonorarudgifter) -> match input {
+    | PsHonorarudgifterUoplyst -> []
+    | PsHonorarudgifterOplyst(poster, _) -> poster
+}
+| personskat_honorarudgifter_resultat(input: PersonskatHonorarudgifter, skatteår: Heltal) -> {
+    = poster = personskat_honorarudgiftsposter(input)
+    = entydige = length(distinct(map(poster, |post: PersonskatHonorarudgiftFakta| post.identifikation))) == length(poster)
+    = komplette = match input { | PsHonorarudgifterUoplyst -> Falskt | PsHonorarudgifterOplyst(_, fuldstændige) -> fuldstændige }
+    = gyldige = skatteår > 0 && komplette && entydige && all(poster, |post: PersonskatHonorarudgiftFakta| personskat_honorarudgift_gyldig(post, skatteår))
+    PersonskatHonorarudgiftsresultat(input = input, identifikationer_entydige = entydige, alle_input_gyldige = gyldige, fradrag_i_personlig_indkomst_kroner = hvis gyldige { foldl(poster, 0, |sum: Heltal, post: PersonskatHonorarudgiftFakta| sum + personskat_honorarudgift_fradrag_kroner(post)) } ellers { 0 })
+}
+
+-- En dækningskontrol, ikke et skattemæssigt loft: beløbet klippes aldrig.
+-- Saml årets vederlag og omkostninger fra samme aktivitet i én kildeopgørelse.
+| personskat_honorarudgifter_netto_dækket(input: PersonskatHonorarudgifter, brutto_kroner: Heltal, skatteår: Heltal, alder_ved_årets_udløb: Heltal) -> {
+    = resultat = personskat_honorarudgifter_resultat(input, skatteår)
+    = sats = arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(skatteår = skatteår, alder_ved_indkomstårets_udløb = alder_ved_årets_udløb))
+    = am = penge_beløb_gange_basispoint_kroner(brutto_kroner, sats)
+    resultat.alle_input_gyldige && brutto_kroner >= 0 && alder_ved_årets_udløb >= 0 && resultat.fradrag_i_personlig_indkomst_kroner <= brutto_kroner - am
+}
+--@end:personskat_honorarudgifter--

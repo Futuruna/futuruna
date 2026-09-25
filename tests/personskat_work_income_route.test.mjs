@@ -20,6 +20,7 @@ const setRows = (input, values) => { input.lønmodtager.personlig_indkomst.ordin
 const fee = (relation = 'PsArbejdeUdenAnsættelse', id = 'fiktivt-vederlag') => ({
   identifikation: id, indkomstår: 2025, forhold: v(relation),
   vederlagsform: v('PsArbejdsvederlagIPenge'), skattepligtig_værdi_kroner: 50000,
+  udgifter: { $variant: 'PsHonorarudgifterOplyst', poster: [], fuldstændige: true },
 });
 function run(args) {
   const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 600000,
