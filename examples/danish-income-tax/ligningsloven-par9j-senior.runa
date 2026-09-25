@@ -9,7 +9,18 @@
     identifier = "§ 2, nr. 4 og § 8, stk. 4: LL § 9 J, stk. 5-6 fra indkomståret 2026",
     hentet_dato = "2026-09-21"
 ))
---@label:ll9j_senior::meta:ll9j_senior_kilde--
+= ll9j_senior_satser_2026 = Ligningslov9JSeniorKilde(
+    url = "https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag",
+    identifier = "Seniorfradrag 2026: 1,4 pct., højst 6.100 kr., to indkomstår før pensionsåret. Udvidelsen til fem år er fortsat omtalt som ikke vedtaget.",
+    hentet_dato = "2026-09-25"
+)
+= ll9j_senior_metadata = Metadata(attachments = (
+    ll9j_senior_kilde,
+    RateSource(value = ll9j_senior_satser_2026),
+    Assumption(value = "Procentproduktet afkortes til hele øre og oprundes derefter til kroner med årets loft. Modelkonvention fra udvalgte 2026-beregnercases, ikke en udtrykkelig afrundingsbestemmelse i loven; se skatdk-fradrag-oere-ekstern.md."),
+    Warning(value = "En kendt seniorafvigelse på én krone ved et nøjagtigt én-øre-mellemtrin er uafklaret. Beregnerobservationer beviser ikke fuld overensstemmelse med årsopgørelser. Forslag om andre satser eller perioder er ikke gældende input til denne model."),
+))
+--@label:ll9j_senior::meta:ll9j_senior_metadata--
 ----
 Stk. 5. Personer, der er omfattet af stk. 1, kan i hvert af de 2 seneste
 indkomstår før det indkomstår, hvor folkepensionsalderen nås, jf. § 1 a i lov

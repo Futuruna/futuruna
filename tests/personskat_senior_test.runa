@@ -15,6 +15,7 @@
     seniorgrænse(2026, 1962, 600000, Sandt, 0),
     seniorgrænse(2026, 1963, 600000, Sandt, 0),
     seniorgrænse(2026, 1960, 100000, Sandt, 1400),
+    seniorgrænse(2026, 1960, 100001, Sandt, 1401),
     seniorgrænse(2026, 1960, 435643, Sandt, 6099),
     seniorgrænse(2026, 1960, 435644, Sandt, 6100),
     seniorgrænse(2026, 1960, 435714, Sandt, 6100),

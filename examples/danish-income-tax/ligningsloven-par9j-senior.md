@@ -18,9 +18,12 @@ Sources checked on September 21, 2026:
 - [SKAT eligibility and rate guidance](https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag).
 - [Official regulated annual limits](https://svmn.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven).
 
-The proposed five-year extension is not encoded. SKAT's current guidance says
-it has not been enacted. For reproducibility, the source module retains the
-enacted two-year provision and identifies the verified 2026 limit.
+The proposed five-year extension is not encoded. SKAT's guidance was checked
+again on September 25, 2026 and still says it has not been enacted.
+The [minister's August 10 reply](https://www.ft.dk/samling/20252/almdel/BEU/bilag/72/3167643.pdf)
+also describes intended reintroduction, not enactment. For reproducibility, the
+source module retains the enacted two-year provision and identifies the
+verified 2026 limit.
 
 ## Result and migration
 
@@ -42,25 +45,40 @@ Continue to check [the canonical validity assessment](personskat-validity.md).
 
 ## Remaining boundaries
 
-The whole-krone projection follows the existing ordinary LL § 9 J model:
-fractional positive deduction kroner are discarded. The source checks above
-establish the rate, cap and eligibility, not a separate administrative rounding
-rule. Independent confirmation of that projection remains a launch follow-up.
+The current model truncates the positive percentage product to whole øre,
+then rounds that amount **up** to whole kroner, retaining the annual cap.
+It does not simply discard fractional kroner. For example, a 2026 basis of
+100,001 DKK gives a modeled senior deduction of 1,401 DKK, not 1,400 DKK.
+This convention is inferred from selected public-calculator observations;
+the legal sources above establish the rate, cap and eligibility, not a separate
+administrative rounding rule. A known one-krone senior disagreement remains
+explicit in the [rounding evidence](skatdk-fradrag-oere-ekstern.md#kendte-afvigelser--ikke-match).
 The capped regression's tax delta does not depend on fractional rounding.
 
-This does not extend the canonical model's year/jurisdiction support or fix its
-existing limitations in foreign-employer fact routing. It reuses the current
-ordinary employment-deduction basis, including modeled self-employed income;
+This does not extend the canonical model's year/jurisdiction support. It reuses
+the current ordinary employment-deduction basis, including modeled self-employed
+income and [source-specific foreign-employment allocation](beskaeftigelsesfradrag.md);
 it is not a new audit of every income category. The
 [single-parent deduction](ligningsloven-par9j-enlig.md) is composed separately
 and requires benefit facts. [Service and handyman deductions](boligjob.md) use
 their own invoice facts and retain explicit coverage boundaries.
 
-Focused checks:
+## Trace the rule and its qualifications
+
+The source anchor now attaches the enacted provision, the dated 2026 rate
+guidance, the rounding assumption and the known limitation as separate typed
+roles. Use the compiler that passed the
+[runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check):
 
 ```sh
-runa check examples/danish-income-tax/ligningsloven-par9j-senior.runa
-runa run tests/personskat_senior_test.runa
-runa examples/danish-income-tax/ligningsloven-par9l.scenario.runa
-cargo test --quiet --test personskat_validity -j 1
+"$RUNA_BIN" meta --json examples/danish-income-tax/ligningsloven-par9j-senior.runa
+"$RUNA_BIN" meta --json --role rate_source examples/danish-income-tax/ligningsloven-par9j-senior.runa
+"$RUNA_BIN" check examples/danish-income-tax/ligningsloven-par9j-senior.runa
+"$RUNA_BIN" tests/personskat_senior_test.runa
 ```
+
+Read `assumption` and `warning` alongside `source` and `rate_source`; metadata
+does not turn an observed convention into law. The
+[metadata regression](../../tests/tax_supplementary_metadata.test.mjs) checks
+the actual index, not merely the presence of comments. No rate, eligibility or
+tax formula changed in this metadata/guidance correction.
