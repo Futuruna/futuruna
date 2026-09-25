@@ -1,0 +1,21 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / personskat - gruppeliv - bonus
+
+| bonuspræmie_scenarie(finansiering: PersonskatGruppelivFinansiering, år: Heltal, beløb: Heltal, afklaret: Boolsk, id: Tekst, kilde: Tekst) -> personskat_gruppeliv_bonus_resultat(PersonskatGruppelivBonusFakta(identifikation = id, indkomstår = år, kildereference = kilde, finansiering = finansiering, præmie_kroner = beløb, ordinær_dansk_præmie_uden_korrektioner = afklaret))
+= bonuspræmie = bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, 920, Sandt, "fiktiv-præmie", "bilag:3")
+= bonuspræmie_nul = bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, 0, Sandt, "fiktiv-nul", "bilag:3")
+= bonuspræmie_forkerte_grene = map([GruppelivsfinansieringUoplystEllerUdenForModellen, GruppelivBetaltAfLøntræk, GruppelivBetaltAfBonusFraSelveForsikringen], |gren: PersonskatGruppelivFinansiering| bonuspræmie_scenarie(gren, 2025, 920, Sandt, "fiktiv", "bilag:3"))
+= bonuspræmie_ugyldige = [bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2022, 920, Sandt, "fiktiv", "bilag:3"), bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2027, 920, Sandt, "fiktiv", "bilag:3"), bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, -1, Sandt, "fiktiv", "bilag:3"), bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, 920, Falskt, "fiktiv", "bilag:3"), bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, 920, Sandt, " ", "bilag:3"), bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, 920, Sandt, "fiktiv", " ")]
+
+| bonuspræmie_personlig_indkomst: bonuspræmie -> bonuspræmie.input_gyldigt && bonuspræmie.personlig_indkomst_uden_am_kroner == 920 && bonuspræmie.ll9c_aftrapningsindkomst_kroner == Some(0) && bonuspræmie.fakta.præmie_kroner == 920
+| bonuspræmie_bekræftet_nul: bonuspræmie_nul -> bonuspræmie_nul.input_gyldigt && bonuspræmie_nul.personlig_indkomst_uden_am_kroner == 0 && bonuspræmie_nul.ll9c_aftrapningsindkomst_kroner == Some(0)
+| bonuspræmie_ingen_omklassifikation: bonuspræmie_forkerte_grene -> all(bonuspræmie_forkerte_grene, |r: PersonskatGruppelivBonusResultat| r.input_gyldigt == Falskt && r.personlig_indkomst_uden_am_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == None)
+| bonuspræmie_ugyldigt_er_ikke_skattefrit: bonuspræmie_ugyldige -> all(bonuspræmie_ugyldige, |r: PersonskatGruppelivBonusResultat| r.input_gyldigt == Falskt && r.personlig_indkomst_uden_am_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == None)
+| bonuspræmie_understøttede_år: bonuspræmie -> all([2023, 2024, 2025, 2026], |år: Heltal| bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, år, 920, Sandt, "fiktiv", "bilag:3").input_gyldigt)
+
+? bonuspræmie_personlig_indkomst
+? bonuspræmie_bekræftet_nul
+? bonuspræmie_ingen_omklassifikation
+? bonuspræmie_ugyldigt_er_ikke_skattefrit
+? bonuspræmie_understøttede_år

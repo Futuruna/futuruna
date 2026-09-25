@@ -719,16 +719,16 @@
 
 = personskat_ydelsesudbetaling_felt_samling = TypetBeregningsfelt(
     path = refof(PersonskatOrdinærPersonligIndkomstInput::forenings_og_arbejdsløshedsydelser),
-    label = "Offentlig pension, SU, dagpenge og øvrige dækkede ydelser",
-    question = Some("Har personen modtaget folkepension, førtids-/senior-/tidlig pension, særskilte tillæg, SU, arbejdsløshedsdagpenge, G-dage, syge- eller barselsdagpenge, foreningsydelser eller privat lønsikring?"),
-    help = Some("Opret én række for hver særskilt udbetaling og retligt identificerbar del. Brug PersonskatFolkepensionsudbetaling for dansk folkepension, PersonskatSocialpensionsudbetaling for dækket førtids-/senior-/tidlig pension, PersonskatUddannelsesstøtte for SU og PersonskatLovbestemteDagpenge for dagpenge. Samme beløb må ikke også stå i løn eller PBL § 20-pension. Adskil skattepligtige og skattefri dele. Eventuelle ATP/SUPP-fakta oplyses særskilt; SU har ikke ATP."),
+    label = "Offentlig pension, SU, dagpenge og øvrige dækkede poster uden AM",
+    question = Some("Har personen modtaget folkepension, førtids-/senior-/tidlig pension, særskilte tillæg, SU, arbejdsløshedsdagpenge, G-dage, syge- eller barselsdagpenge, foreningsydelser, privat lønsikring eller fået gruppeliv betalt af pensionsbonus?"),
+    help = Some("Opret én række for hver særskilt post og retligt identificerbar del. Brug PersonskatFolkepensionsudbetaling for dansk folkepension, PersonskatSocialpensionsudbetaling for dækket førtids-/senior-/tidlig pension, PersonskatUddannelsesstøtte for SU og PersonskatLovbestemteDagpenge for dagpenge. PersonskatGruppelivFraPensionsbonus er præmier fra bonus på fradragsberettiget pension, ikke løntræk eller bonus fra selve forsikringen; se personskat-gruppeliv.md. Samme beløb må ikke også stå i løn eller PBL § 20-pension. Adskil skattepligtige og skattefri dele. Eventuelle ATP/SUPP-fakta oplyses særskilt; SU har ikke ATP."),
     unit = None
 )
 = personskat_ydelsesudbetaling_felt_hjemmel = TypetBeregningsfelt(
     path = refof(PersonskatForeningsOgArbejdsløshedsydelseFakta::$variant),
-    label = "Udbetalingens lovgren",
-    question = Some("Er dette ordinær dansk folkepension/tillæg, førtids-/senior-/tidlig pension, SU, dagpenge, en foreningsydelse efter LL § 13 eller arbejdsløshedsforsikring efter PBL § 49?"),
-    help = Some("Vælg efter ordningens lovgrundlag og dokumentation, ikke årsopgørelsens samlelinje. Den generelle A-kassevariant under PBL § 49 afklarer ikke indkomstgrundlaget for ekstra kørselsfradrag; dokumenterede danske arbejdsløshedsdagpenge har en særskilt gren."),
+    label = "Postens lovgren",
+    question = Some("Er dette ordinær dansk folkepension/tillæg, førtids-/senior-/tidlig pension, SU, dagpenge, en foreningsydelse efter LL § 13, arbejdsløshedsforsikring efter PBL § 49 eller gruppeliv betalt af pensionsbonus?"),
+    help = Some("Vælg efter ordningens lovgrundlag og dokumentation, ikke årsopgørelsens samlelinje. Den generelle A-kassevariant under PBL § 49 afklarer ikke indkomstgrundlaget for ekstra kørselsfradrag; dokumenterede danske arbejdsløshedsdagpenge har en særskilt gren. PersonskatGruppelivFraPensionsbonus kræver dokumenteret bonus på fradragsberettiget pension, ikke løntræk/felt 91; se personskat-gruppeliv.md."),
     unit = None
 )
 

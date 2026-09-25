@@ -105,6 +105,20 @@ anonymous public-form observations and focused [canonical coverage](../tests/per
 test the correction; this is not automatic report classification or coverage
 of bonus-financed premiums.
 
+A separate [pension-bonus group-life route](../examples/danish-income-tax/personskat-gruppeliv.md#gruppeliv-betalt-af-pensionsbonus)
+now accepts documented premiums funded by bonus on a deductible pension,
+without treating them as payroll, new pension deposits or pension payouts.
+It adds personal income without AM or employment/job/extra-pension deductions.
+Unknown financing, payroll financing, bonus from the insurance itself, invalid
+source facts, duplicate identifiers and year mismatch withhold comparison;
+taxpayer and spouse receive the same source-backed interview fields and a
+targeted explanation. The new variant requires a fresh contract/template.
+This does not classify an aggregate annual-report line automatically or resolve
+all insurance ownership/bonus cases. The [component](../tests/personskat_group_bonus_test.runa)
+and [canonical regression](../tests/personskat_group_bonus.test.mjs) distinguish
+legal source classification from the two recorded 2025 public-form observations
+of non-AM group-life income without work deductions.
+
 The [labour-hire age regression](../tests/personskat_labour_hire_age.test.mjs)
 closes an input-consistency gap: a separate labour-hire age can no longer
 contradict the canonical taxpayer's birth date while retaining a comparison.

@@ -1,0 +1,49 @@
+@ sprog da
+
+@ importer ./metadata
+
+# PersonskatGruppelivBonusKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= personskat_gruppeliv_bonus_lov = PersonskatGruppelivBonusKilde(url = "https://www.retsinformation.dk/eli/lta/2024/1243", identifier = "PBL § 56, stk. 1 og 3: gruppelivspræmier betalt af pensionskassen", hentet_dato = "2026-09-25")
+= personskat_gruppeliv_bonus_vejledning = PersonskatGruppelivBonusKilde(url = "https://info.skat.dk/data.aspx?oid=2048498", identifier = "DJV C.A.10.4.3.10: personlig indkomst uden AM; præmiens år og særskilte bonus-/ejerforhold", hentet_dato = "2026-09-25")
+= personskat_gruppeliv_bonus_indberetning = PersonskatGruppelivBonusKilde(url = "https://info.skat.dk/data.aspx?oid=2045911", identifier = "eIndkomst 8.5: bonus på fradragsberettiget pension, felt 38/indtægtsart 37, ikke beskæftigelsesfradrag", hentet_dato = "2026-09-25")
+= personskat_gruppeliv_bonus_fradrag = PersonskatGruppelivBonusKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 9 C, stk. 4 og §§ 9 J–9 L: denne præmie er hverken arbejdsindkomst eller fradragsberettiget pensionsindbetaling", hentet_dato = "2026-09-25")
+= personskat_gruppeliv_bonus_metadata = Metadata(attachments = (Source(value = personskat_gruppeliv_bonus_lov), Guidance(value = personskat_gruppeliv_bonus_vejledning), Guidance(value = personskat_gruppeliv_bonus_indberetning), Source(value = personskat_gruppeliv_bonus_fradrag)))
+
+--@label:personskat_gruppeliv_bonus::meta:personskat_gruppeliv_bonus_metadata--
+----
+Beløb, der ydes ved, at forsikringspræmier m.v. betales af en anden end ejeren af forsikringen m.v., skal medregnes ved opgørelsen af ejerens skattepligtige indkomst.
+----
+-- PBL § 56, stk. 1, 1. pkt. Kun den nedenfor bekræftede ordinære gren:
+-- en gruppelivspræmie betalt af bonus på en fradragsberettiget pension.
+-- Ikke løntræk, udbetaling af pension/forsikringssum, tilbagebetalt præmie
+-- eller bonus fra selve gruppelivsforsikringen; de sidste ejer-/bonusforhold
+-- kan have et andet resultat. Ingen slutning om skattepligt for al bonus.
+-- Ingen ny AM, LL §§ 9 J–9 L-fradragsbasis eller LL § 9 C-aftrapningsindkomst.
+--@begin:personskat_gruppeliv_bonus--
+# PersonskatGruppelivFinansiering = GruppelivsfinansieringUoplystEllerUdenForModellen | GruppelivBetaltAfBonusPåFradragsberettigetPension | GruppelivBetaltAfLøntræk | GruppelivBetaltAfBonusFraSelveForsikringen
+# PersonskatGruppelivBonusFakta(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, finansiering: PersonskatGruppelivFinansiering, præmie_kroner: Heltal, ordinær_dansk_præmie_uden_korrektioner: Boolsk)
+# PersonskatGruppelivBonusResultat(fakta: PersonskatGruppelivBonusFakta, input_gyldigt: Boolsk, personlig_indkomst_uden_am_kroner: Heltal, ll9c_aftrapningsindkomst_kroner: Option(Heltal))
+
+| personskat_gruppeliv_bonus_input_gyldigt(fakta: PersonskatGruppelivBonusFakta) -> trim(fakta.identifikation) != "" && trim(fakta.kildereference) != "" && fakta.indkomstår >= 2023 && fakta.indkomstår <= 2026 && fakta.præmie_kroner >= 0 && fakta.ordinær_dansk_præmie_uden_korrektioner && fakta.finansiering == GruppelivBetaltAfBonusPåFradragsberettigetPension
+| personskat_gruppeliv_bonus_resultat(fakta: PersonskatGruppelivBonusFakta) -> PersonskatGruppelivBonusResultat(
+    fakta = fakta,
+    input_gyldigt = personskat_gruppeliv_bonus_input_gyldigt(fakta),
+    personlig_indkomst_uden_am_kroner = hvis personskat_gruppeliv_bonus_input_gyldigt(fakta) { fakta.præmie_kroner } ellers { 0 },
+    ll9c_aftrapningsindkomst_kroner = hvis personskat_gruppeliv_bonus_input_gyldigt(fakta) { Some(0) } ellers { None }
+)
+--@end:personskat_gruppeliv_bonus--
+
+= personskat_gruppeliv_bonus_felter = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(PersonskatGruppelivBonusFakta::identifikation), label = "Gruppelivspræmiens identifikation", question = Some("Hvilken entydig reference identificerer denne præmie?"), help = Some("Én post pr. særskilt præmie. Den samme præmie i pensionsoversigten og årsopgørelsen er ikke to indkomster."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatGruppelivBonusFakta::indkomstår), label = "Året præmien vedrører", question = Some("Hvilket år vedrører gruppelivspræmien?"), help = Some("2023–2026, samme år som beregningen. Saml ikke tidligere års præmier i det år, meddelelsen blev modtaget."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(PersonskatGruppelivBonusFakta::kildereference), label = "Kilde til præmie og finansiering", question = Some("Hvilket bilag fra pensionsudbyderen dokumenterer præmien, året, den forsikrede og finansieringen?"), help = Some("Brug en lokal side-/linjereference, ikke CPR. Årsopgørelsens samlelinje eller en beregnet restdifference beviser ikke finansieringen."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatGruppelivBonusFakta::finansiering::$variant), label = "Hvordan blev gruppelivet finansieret?", question = Some("Er præmien betalt af bonus på en fradragsberettiget pensionsordning, løntræk eller bonus fra selve forsikringen — eller er det uoplyst?"), help = Some("Kun GruppelivBetaltAfBonusPåFradragsberettigetPension beregnes her: eIndkomst felt 38, indtægtsart 37, uden arbejdsfradrag. Løntræk bruger den særskilte arbejdsgiverydelse/felt 91. Bonus fra selve forsikringen har andre ejer- og skatteregler. Uoplyst eller forkert gren tilbageholder sammenligningen; omklassificér ikke for at få et tal. Se personskat-gruppeliv.md."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatGruppelivBonusFakta::præmie_kroner), label = "Bonusfinansieret gruppelivspræmie", question = Some("Hvad er årets dokumenterede præmie til gruppeliv betalt af denne pensionsbonus?"), help = Some("Hele kroner før indkomstskat; ikke pensionssaldo, bonus i alt, forsikringssum eller nettopensionsudbetaling. Ingen AM skal beregnes eller bruttogøres her. Samme beløb må ikke også indgå i løn, arbejdsgiverydelser, PBL18-indbetalinger eller PBL20-udbetalinger. Se personskat-gruppeliv.md."), unit = Some("kr./år")),
+        TypetBeregningsfelt(path = refof(PersonskatGruppelivBonusFakta::ordinær_dansk_præmie_uden_korrektioner), label = "Ordinær bonusfinansieret præmie afklaret", question = Some("Er dette en ordinær dansk gruppelivspræmie til den beskattede person, uden udland, tilbagebetaling, ejer-/begunstigelsesskifte eller omperiodisering?"), help = Some("Bekræft efter bilagsgennemgang. Falsk betyder uafklaret/uden for denne gren, ikke nul indkomst. Forsikringsudbetalinger og ejerafhængig bonus fra selve forsikringen omfattes ikke."), unit = None)
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Source(value = personskat_gruppeliv_bonus_lov), Guidance(value = personskat_gruppeliv_bonus_vejledning), Guidance(value = personskat_gruppeliv_bonus_indberetning), Source(value = personskat_gruppeliv_bonus_fradrag))
+)
+--@label:PersonskatGruppelivBonusFakta::meta:personskat_gruppeliv_bonus_felter--
