@@ -104,14 +104,23 @@ These checks change acceptance of invalid facts, not the input/result types.
 Correct affected source facts and recalculate saved results. Do not substitute
 zero or shorten a claimed period merely to make the checks pass.
 
-The income composition for the extra low-income commuting deduction remains
-under review (`td-b8013e`): the current salary/AM-addition basis does not compose
-all the statutory benefits named in
+The extra low-income deduction now composes documented Danish unemployment
+benefits, G-days, sickness benefits and maternity benefits, preserving the
+B-income and voluntary-insurance exclusions in
 [LL §9 C(4)](https://www.retsinformation.dk/eli/lta/2025/1500).
-Do not treat a passing commuting-input check as independent verification of
-that extra deduction for benefit recipients or of the annual self-employment
-adjustments. Private insurance and other non-AM income are not interchangeable
-with the benefits specifically named by the law.
+It also reuses the annual AMBL §§4–5 business basis, not a sum of each business's
+positive amount. See the [Danish benefit guide](personskat-dagpenge.md) for the
+new source-fact variant and its compact calculation.
+
+`aftrapningsindkomst_afklaret` distinguishes an established income basis from
+a known lower bound; `lavindkomsttillæg_afklaret` separately establishes whether
+the deduction can be determined. An unclassified positive generic A-kasse
+payment, or missing sickness/maternity exclusion facts, withholds the final
+comparison if it could change the extra deduction. With no eligible commuting
+basis, or a deduction already fully phased out by known income, zero can be
+established without guessing. Private insurance and other non-AM income are
+not interchangeable with statutory benefits. These are source-model tests,
+not independent verification against every official benefit/business profile.
 
 ## Union-fee taxpayer status
 

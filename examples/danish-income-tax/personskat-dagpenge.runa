@@ -1,0 +1,70 @@
+@ sprog da
+
+@ importer ./metadata
+
+# PersonskatDagpengeKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= personskat_dagpenge_ll9c_kilde = PersonskatDagpengeKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 9 C, stk. 4, indkomstarter; 2026-satsændringen i LOV 616/2026 ændrer ikke denne afgrænsning", hentet_dato = "2026-09-25")
+= personskat_dagpenge_psl3_kilde = PersonskatDagpengeKilde(url = "https://www.retsinformation.dk/eli/lta/2021/1284", identifier = "PSL § 3, stk. 1", hentet_dato = "2026-09-25")
+= personskat_dagpenge_personlig_kilde = PersonskatDagpengeKilde(url = "https://info.skat.dk/data.aspx?oid=2061678", identifier = "DJV C.A.2.2.1: dagpenge er personlig indkomst", hentet_dato = "2026-09-25")
+= personskat_dagpenge_am_kilde = PersonskatDagpengeKilde(url = "https://skat.dk/borger/am-bidrag", identifier = "Dagpenge er ikke AM-bidragspligtige", hentet_dato = "2026-09-25")
+= personskat_dagpenge_atp_kilde = PersonskatDagpengeKilde(url = "https://info.skat.dk/data.aspx?oid=2048235", identifier = "DJV C.A.10.2.1.1.2.4: ATP-bortseelse efter PBL § 19, stk. 1 og 2", hentet_dato = "2026-09-25")
+= personskat_dagpenge_gdage_kilde = PersonskatDagpengeKilde(url = "https://skat.dk/erhverv/ansatte-og-loen/indberet-loen-eindkomst/skat-af-ansattes-loen", identifier = "Barselsdagpenge og G-dage: A-skat, ikke AM; løn under barsel er løn", hentet_dato = "2026-09-25")
+= personskat_dagpenge_metadata = Metadata(attachments = (Source(value = personskat_dagpenge_ll9c_kilde), Source(value = personskat_dagpenge_psl3_kilde), Guidance(value = personskat_dagpenge_personlig_kilde), Guidance(value = personskat_dagpenge_am_kilde), Guidance(value = personskat_dagpenge_gdage_kilde)))
+
+--@label:personskat_dagpenge::meta:personskat_dagpenge_metadata--
+----
+Personlig indkomst omfatter alle de indkomster, der indgår i den
+skattepligtige indkomst, og som ikke er kapitalindkomst.
+----
+-- PSL § 3, stk. 1. LL § 9 C, stk. 4's fulde indkomstafgrænsning er bevaret
+-- ved kildeankeret ligningsloven_par9c_par9d i ligningsloven_fradrag.runa.
+-- Kun dokumenterede danske dagpenge til modtageren. Ingen beregning af ret
+-- til ydelsen, udenlandsk beskatning, tilbagebetaling eller omperiodisering.
+-- Beløbet er indkomst før skat efter eventuel bortseelse for ATP, ikke
+-- bankens nettoudbetaling. ATP-fakta behandles særskilt i pensionsmodellen.
+--@begin:personskat_dagpenge--
+# PersonskatDagpengeArt = DagpengeartUoplystEllerUdenForModellen | ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov | GDageEfterDanskArbejdsløshedsforsikringslov84 | SygedagpengeEfterDanskSygedagpengelov(erstatter_b_indkomst: Option(Boolsk), frivillig_sikring_efter_par45: Option(Boolsk)) | BarselsdagpengeEfterDanskBarselslov(erstatter_b_indkomst: Option(Boolsk))
+# PersonskatDagpengeFakta(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, art: PersonskatDagpengeArt, indkomst_før_skat_kroner: Heltal)
+# PersonskatDagpengeResultat(fakta: PersonskatDagpengeFakta, input_gyldigt: Boolsk, personlig_indkomst_uden_am_kroner: Heltal, ll9c_aftrapningsindkomst_kroner: Option(Heltal))
+
+| personskat_dagpenge_input_gyldigt(fakta: PersonskatDagpengeFakta) -> trim(fakta.identifikation) != "" && trim(fakta.kildereference) != "" && fakta.indkomstår >= 2023 && fakta.indkomstår <= 2026 && fakta.indkomst_før_skat_kroner >= 0 && fakta.art != DagpengeartUoplystEllerUdenForModellen
+| personskat_dagpenge_ll9c_omfattet(art: PersonskatDagpengeArt) -> match art {
+    | ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov -> Some(Sandt)
+    | GDageEfterDanskArbejdsløshedsforsikringslov84 -> Some(Sandt)
+    | SygedagpengeEfterDanskSygedagpengelov(b_indkomst, frivillig) -> hvis b_indkomst == Some(Sandt) || frivillig == Some(Sandt) { Some(Falskt) } ellers { hvis b_indkomst == Some(Falskt) && frivillig == Some(Falskt) { Some(Sandt) } ellers { None } }
+    | BarselsdagpengeEfterDanskBarselslov(b_indkomst) -> match b_indkomst { | Some(erstatter) -> Some(erstatter == Falskt) | None -> None }
+    | DagpengeartUoplystEllerUdenForModellen -> None
+}
+| personskat_dagpenge_ll9c_beløb(fakta: PersonskatDagpengeFakta) -> hvis personskat_dagpenge_input_gyldigt(fakta) == Falskt { None } ellers {
+    hvis fakta.indkomst_før_skat_kroner == 0 { Some(0) } ellers {
+        match personskat_dagpenge_ll9c_omfattet(fakta.art) {
+            | Some(Sandt) -> Some(fakta.indkomst_før_skat_kroner)
+            | Some(Falskt) -> Some(0)
+            | None -> None
+        }
+    }
+}
+| personskat_dagpenge_resultat(fakta: PersonskatDagpengeFakta) -> PersonskatDagpengeResultat(
+    fakta = fakta,
+    input_gyldigt = personskat_dagpenge_input_gyldigt(fakta),
+    personlig_indkomst_uden_am_kroner = hvis personskat_dagpenge_input_gyldigt(fakta) { fakta.indkomst_før_skat_kroner } ellers { 0 },
+    ll9c_aftrapningsindkomst_kroner = personskat_dagpenge_ll9c_beløb(fakta)
+)
+--@end:personskat_dagpenge--
+
+= personskat_dagpenge_felter = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::identifikation), label = "Dagpengepostens identifikation", question = Some("Hvilken entydig identifikation har denne post?"), help = Some("Samme udbetaling må kun stå én gang, også på tværs af PBL § 49 og denne dagpengegren."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::indkomstår), label = "Dagpengenes indkomstår", question = Some("Hvilket indkomstår henføres beløbet til?"), help = Some("Brug dokumenteret skattemæssig periodisering; modellen løser ikke omperiodisering eller tilbagebetaling."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::kildereference), label = "Kilde til dagpengeoplysninger", question = Some("Hvilket udbetalingsbilag eller hvilken indberetning dokumenterer posten?"), help = Some("En lokal reference er nok. Oplys ikke CPR. En beløbsdifference i årsopgørelsen er ikke kildefakta."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::art::$variant), label = "Dagpengenes lovgrundlag", question = Some("Er dette danske arbejdsløshedsdagpenge, G-dage, sygedagpenge eller barselsdagpenge?"), help = Some("Vælg kun efter dokumentationen. Løn under sygdom/barsel er løn; arbejdsgiverrefusion er ikke modtagerens ekstra indkomst. Privat lønsikring bruger PBL § 49-grenen. Andre ydelser, efterløn og udenlandske ordninger er ikke denne dagpengegren."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::indkomst_før_skat_kroner), label = "Dagpengeindkomst før skat", question = Some("Hvilket indkomstbeløb før skat er dokumenteret for denne dagpengepost?"), help = Some("Brug beløbet efter eventuel ATP-bortseelse, men før A-skat; ikke bankens nettoudbetaling. ATP-indbetalinger oplyses særskilt i pension.atp og må ikke trækkes fra dette beløb igen. Blandede indkomstarter skal opdeles."), unit = Some("kr./år")),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::art::SygedagpengeEfterDanskSygedagpengelov::erstatter_b_indkomst), label = "Sygedagpengene erstatter B-indkomst", question = Some("Erstatter sygedagpengene B-indkomst?"), help = Some("Bevar null ved ukendt. B-indkomst-erstatning er undtaget fra LL § 9 C's aftrapningsgrundlag, men er stadig personlig indkomst uden AM."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::art::SygedagpengeEfterDanskSygedagpengelov::frivillig_sikring_efter_par45), label = "Frivillig dagpengesikring efter § 45", question = Some("Ydes sygedagpengene som frivillig sikring efter sygedagpengelovens § 45?"), help = Some("Bevar null ved ukendt. Denne lovbestemte sikring er ikke det samme som privat lønsikring."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatDagpengeFakta::art::BarselsdagpengeEfterDanskBarselslov::erstatter_b_indkomst), label = "Barselsdagpengene erstatter B-indkomst", question = Some("Erstatter barselsdagpengene B-indkomst?"), help = Some("Bevar null ved ukendt. Det ændrer aftrapningsgrundlaget, ikke om beløbet er personlig indkomst."), unit = None)
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Source(value = personskat_dagpenge_ll9c_kilde), Guidance(value = personskat_dagpenge_personlig_kilde), Guidance(value = personskat_dagpenge_am_kilde), Guidance(value = personskat_dagpenge_atp_kilde))
+)
+--@label:PersonskatDagpengeFakta::meta:personskat_dagpenge_felter--
