@@ -169,7 +169,7 @@ https://info.skat.dk/data.aspx?oid=1977389
             path = pathof(PersonskatPar14Input::helårsgrundlag::$variant),
             label = "Grundlag for den kanoniske helårsberegning",
             question = Some("Kan helårsberegningen afledes alene af de identificerede beløb, eller skal et komplet dokumenteret Personskat-grundlag for hele året anvendes?"),
-            help = Some("Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Se personskat-delaar.md."),
+            help = Some("Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Samliv ved indkomstårets udløb skal være samme oplysning i begge grundlag. Se personskat-delaar.md."),
             unit = None
         )
     ],
@@ -192,7 +192,7 @@ https://info.skat.dk/data.aspx?oid=1977389
             path = refof(PersonskatPar14Kilde::delårsbeløb_kroner),
             label = "Beløb i skattepligtsperioden",
             question = Some("Hvor stort var beløbet i den danske skattepligtsperiode?"),
-            help = Some("Beløbet skal tilsammen med de øvrige kilder afstemme det kanoniske Personskat-grundlag."),
+            help = Some("Beløbet skal tilsammen med de øvrige kilder afstemme det kanoniske Personskat-grundlag. Par14Aktieindkomst angiver egen aktieindkomst før PSL § 8 a-ægtefællemodregning, ikke det modregnede skattegrundlag. Bevar kildebeløbene; modellen beregner selv ægtefællemodregning og grundbeløbsoverførsel. Aktieindkomst, der er et engangsbeløb, bevares uden forholdsmæssig opskalering; se personskat-delaar.md."),
             unit = Some("kr.")
         ),
         TypetBeregningsfelt(
@@ -377,6 +377,16 @@ https://info.skat.dk/data.aspx?oid=1977389
     personfradrag_omvalg_dato_yyyymmdd = forhold.personfradrag_omvalg_dato_yyyymmdd
 )
 | personskat_par14_uden_ægtefælle(input: PersonskatÆgtefælleInput) -> match input { | UdenÆgtefælle -> Sandt | _ -> Falskt }
+-- Begge grundlag beskriver samme indkomstårs udløb, ikke hver sin periodes
+-- civilstand. Kontrollen beviser ikke ægtefællens identitet eller samliv.
+| personskat_par14_ægtefælleforhold_forenelige(delår: PersonskatÆgtefælleInput, helår: PersonskatÆgtefælleInput, skatteår: Heltal) -> match delår {
+    | UdenÆgtefælle -> personskat_par14_uden_ægtefælle(helår)
+    | ÆgtefællegrundlagUoplyst -> Falskt
+    | MedÆgtefælle(delårsfakta, delårssamliv, _) -> match helår {
+        | MedÆgtefælle(helårsfakta, helårssamliv, _) -> delårssamliv == helårssamliv && delårsfakta.lønmodtager.skatteår == skatteår && helårsfakta.lønmodtager.skatteår == skatteår
+        | _ -> Falskt
+    }
+}
 | personskat_par14_standardunderskud(input: PersonskatUnderskudsforholdInput) -> match input { | StandardUnderskudsforhold -> Sandt | _ -> Falskt }
 | personskat_par14_udenlandske_sociale_bidrag_gyldige(resultat: PersonskatUdenlandskeSocialeBidragResultat) -> match resultat {
     | IngenUdenlandskeSocialeBidragEfterLigningslov8M -> Sandt
@@ -459,10 +469,22 @@ https://info.skat.dk/data.aspx?oid=1977389
     }
 }
 
+-- Kildeafstemningen ovenfor bruger egen aktieindkomst før PSL § 8 a.
+-- Skattekomponenterne skal derimod bruge den samme modregning og ægtefælles
+-- grundbeløb som den kanoniske skat, uden at omskrive kilderne.
+| personskat_par14_aktieskatteforhold(forhold: LønmodtagerSkatteforhold, parår: AktieindkomstParÅrsskatResultat) -> personskat_skatteforhold_med_aktieindkomster_og_ægtefælle(
+    forhold,
+    parår.egen_aktieindkomst_efter_ægtefællemodregning_kroner,
+    parår.ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner,
+    forhold.ægtefælle_nettokapitalindkomst_kroner,
+    parår.input.samlevende_ved_årets_udløb
+)
+
 # PersonskatPar14BeregningSag(input: PersonskatPar14Input) {
     | skatteår() -> input.personskat.lønmodtager.skatteår
     | delårsresultat() -> beregn_personskat(input.personskat)
     | skatteforhold() -> personskat_par14_skatteforhold_med_kapital(input.personskat, delårsresultat())
+    | aktieskatteforhold() -> personskat_par14_aktieskatteforhold(skatteforhold(), delårsresultat().aktieindkomst_parår)
     | delårsinput() -> personskat_par14_delårsinput(delårsresultat(), input.personskat)
     | delårs_bundskattegrundlag_kroner() -> personskat_par14_bundskattegrundlag_med_skatteforhold_kroner(delårsinput(), skatteforhold())
     | helårs_bundskattegrundlag_kroner() -> personskat_par14_bundskattegrundlag_med_skatteforhold_kroner(helårsinput(), helårsskatteforhold())
@@ -495,6 +517,10 @@ https://info.skat.dk/data.aspx?oid=1977389
         | AfledtFraIdentificeredeKilder -> personskat_par14_skatteforhold_med_valgte_helårsbeløb(skatteforhold(), input.kilder, skattepligtsdage(), skatteår(), valg())
         | DokumenteretHelårsPersonskat(personskat) -> personskat_par14_skatteforhold_med_kapital(personskat, helårsresultat())
     }
+    | helårsaktieskatteforhold() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> helårsskatteforhold()
+        | DokumenteretHelårsPersonskat(_) -> personskat_par14_aktieskatteforhold(helårsskatteforhold(), helårsresultat().aktieindkomst_parår)
+    }
     | helårsberegning() -> match input.helårsgrundlag {
         | AfledtFraIdentificeredeKilder -> beregn_lønmodtager_med_skatteforhold(helårsinput(), helårsskatteforhold())
         | DokumenteretHelårsPersonskat(_) -> helårsresultat().skat
@@ -512,7 +538,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         = kilder_afstemt = personskat_par14_kilder_afstemt_med_valgt_helår(input.kilder, helårsinput(), helårsskatteforhold(), helårs_dis_personlig_indkomst_kroner(), skattepligtsdage(), valg())
         = dokumenteret_resultat_gyldigt = match input.helårsgrundlag {
             | AfledtFraIdentificeredeKilder -> Sandt
-            | DokumenteretHelårsPersonskat(_) -> personskat_par14_resultatgrundlag_gyldigt(helårsresultat()) && personskat_par14_resultat_afstemt(helårsresultat()) && personskat_par14_ll9j_helårskilder_afstemt(input.kilder, helårsresultat().arbejdsfradrag_udland, skattepligtsdage(), skatteår(), valg())
+            | DokumenteretHelårsPersonskat(personskat) -> personskat_par14_ægtefælleforhold_forenelige(input.personskat.ægtefælle, personskat.ægtefælle, skatteår()) && personskat_par14_resultatgrundlag_gyldigt(helårsresultat()) && personskat_par14_resultat_afstemt(helårsresultat()) && personskat_par14_ll9j_helårskilder_afstemt(input.kilder, helårsresultat().arbejdsfradrag_udland, skattepligtsdage(), skatteår(), valg())
         }
         grundstruktur_forenelig && kilder_afstemt && dokumenteret_resultat_gyldigt
     }
@@ -543,20 +569,20 @@ https://info.skat.dk/data.aspx?oid=1977389
             metode = Par14DokumenteretRetvisendeHelårsbeløb(helårsbeløb_kroner = helårsberegning().nettokapitalindkomst_kroner)
         )]
     )
-    | helårspositiv_aktieindkomstskat() -> personskat_positiv_aktieindkomstskat(skatteår(), helårsskatteforhold())
+    | helårspositiv_aktieindkomstskat() -> personskat_positiv_aktieindkomstskat(skatteår(), helårsaktieskatteforhold())
     | helårsendelig_aktieindkomstskat_øre() -> personskat_endelig_aktieindkomstskat_øre(skatteår(), helårspositiv_aktieindkomstskat())
     | endelig_aktieindkomstskat_komponent() -> personskat_par14_skattekomponent(
         Par14EndeligAktieindkomstskat,
         helårsendelig_aktieindkomstskat_øre(),
-        personskat_par14_positiv_aktieindkomst_kroner(skatteforhold()),
-        personskat_par14_positiv_aktieindkomst_kroner(helårsskatteforhold())
+        personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()),
+        personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())
     )
     | statslige_skattekomponenter() -> [
         personskat_par14_skattekomponent(Par14Bundskat, helårsberegning_eksakt().efter_personfradrag.par6_skat_øre, delårs_bundskattegrundlag_kroner(), helårs_bundskattegrundlag_kroner()),
         personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_personfradrag.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())),
         personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().efter_personfradrag.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())),
         personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().efter_personfradrag.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())),
-        personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_personfradrag.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(skatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsskatteforhold())),
+        personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_personfradrag.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())),
         personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().efter_personfradrag.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())),
         personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().efter_personfradrag.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())),
         endelig_aktieindkomstskat_komponent()
@@ -574,7 +600,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_personfradrag.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
         par7a_skat_øre = personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().efter_personfradrag.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())).delårsskat_øre,
         par8_skat_øre = personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().efter_personfradrag.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())).delårsskat_øre,
-        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_personfradrag.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(skatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsskatteforhold())).delårsskat_øre,
+        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_personfradrag.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())).delårsskat_øre,
         cfc_indkomstskat_øre = personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().efter_personfradrag.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())).delårsskat_øre,
         par8c_skat_øre = personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().efter_personfradrag.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
         kommuneskat_øre = personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().efter_personfradrag.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
@@ -628,7 +654,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_par13.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
         par7a_skat_øre = personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().efter_par13.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())).delårsskat_øre,
         par8_skat_øre = personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().efter_par13.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())).delårsskat_øre,
-        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_par13.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(skatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsskatteforhold())).delårsskat_øre,
+        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_par13.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())).delårsskat_øre,
         cfc_indkomstskat_øre = personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().efter_par13.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())).delårsskat_øre,
         par8c_skat_øre = personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().efter_par13.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
         kommuneskat_øre = personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().efter_par13.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
@@ -639,7 +665,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().før_nedsættelser.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
         par7a_skat_øre = personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().før_nedsættelser.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())).delårsskat_øre,
         par8_skat_øre = personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().før_nedsættelser.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())).delårsskat_øre,
-        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().før_nedsættelser.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(skatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsskatteforhold())).delårsskat_øre,
+        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().før_nedsættelser.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())).delårsskat_øre,
         cfc_indkomstskat_øre = personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().før_nedsættelser.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())).delårsskat_øre,
         par8c_skat_øre = personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().før_nedsættelser.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
         kommuneskat_øre = personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().før_nedsættelser.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
@@ -718,7 +744,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         skattepligtig_indkomst_kroner = personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat),
         personlig_indkomst_kroner = personskat_par14_personligt_grundlag_kroner(delårsinput()),
         positiv_kapitalindkomst_kroner = personskat_par14_positivt_kapitalgrundlag_kroner(delårsinput()),
-        aktieindkomst_kroner = personskat_par14_positiv_aktieindkomst_kroner(skatteforhold()),
+        aktieindkomst_kroner = personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()),
         cfc_indkomst_kroner = personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()),
         arbejdsmarkedsbidragsgrundlag_kroner = penge_positivt_beløb(delårsinput().bruttoløn_kroner),
         skattekomponenter_efter_par13 = ligningslov33_skattekomponenter(),
@@ -787,7 +813,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         PersonskatInputkontrol(sti = "valg_afgivet_ved_oplysninger", gyldig = valg().input_gyldigt, forklaring = "Skattepligtsændring, § 14-valg og eventuel omvalgsdato skal opfylde modellens betingelser for indkomståret."),
         PersonskatInputkontrol(sti = "kilder", gyldig = kilder_gyldige(), forklaring = "Identificerede kilder skal være entydige og gyldige. Valg af faktisk helårsindkomst kræver oplyste faktiske helårsbeløb; ukendt er ikke nul."),
         PersonskatInputkontrol(sti = "kilder", gyldig = kilder_afstemt_med_personskat(), forklaring = "Kildernes delårsbeløb og eventuelle udlandsafgrænsninger skal stemme med Personskat-grundlaget. Ret ikke dokumenterede beløb blot for at opnå et match."),
-        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold."),
+        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold. Begge grundlag skal angive samme ægtefællestatus og samliv ved indkomstårets udløb; en aktiv ægtefælle skal vedrøre samme skatteår. Afklar modstridende fakta, ikke det forventede skattebeløb."),
         PersonskatInputkontrol(sti = "personskat", gyldig = kanonisk_beregning_understøttet(), forklaring = "Den kanoniske delårs- og helårssammensætning skal være understøttet. Se delårsresultatets domænekontroller og eventuelt det dokumenterede helårsgrundlag; et beregneligt mellemtrin er ikke en endelig delårskonklusion."),
         PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsskattekomponenter_afstemt(), forklaring = "Helårets skattekomponenter skal afstemme før forholdsmæssig nedsættelse."),
         PersonskatInputkontrol(sti = "kilder", gyldig = par14_kerne_gyldig(), forklaring = "Omregningsgrundlag, skattekomponenter, skatteloft, kapitalnedslag og eventuel DIS skal opfylde alle § 14-kernens kontroller."),

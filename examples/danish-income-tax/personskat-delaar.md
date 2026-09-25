@@ -106,8 +106,39 @@ Den rettede modelskat er 72.286,83 kr. mod tidligere 72.547,66 kr.
 [Kontrollen](../../tests/personskat_partyear_capital.test.mjs) angiver resten
 af de fiktive fakta og kontrollerer også § 11-grundlag samt to uændrede
 kontrolforløb. Dette er en kildebaseret modelkontrol, ikke en uafhængig
-delårsberegning fra SKAT. Aktieindkomst og modstridende samlivsfakta mellem
-delårs- og helårsgrundlag er særskilte åbne kontrolpunkter (`td-c5777c`).
+delårsberegning fra SKAT.
+
+## Aktieindkomst: kildebeløb og skattegrundlag er forskellige
+
+`Par14Aktieindkomst` i kildelisten skal afstemme personens egen beregnede
+aktieindkomst **før PSL § 8 a-ægtefællemodregning**. Er egen aktieindkomst
+100.000 kr. og ægtefællens −40.000 kr., er kildens beløb stadig 100.000 kr.,
+selv om det positive skattegrundlag efter modregning er 60.000 kr. Registrér
+ægtefællens egne dokumenterede aktiefakta særskilt; opfind ikke et tab ud fra
+skatten på årsopgørelsen. Kildeartsbegrænsede tab efter ABL § 13 A er ikke
+automatisk negativ aktieindkomst efter PSL § 8 a.
+
+Skatteberegningen bruger derefter hvert grundlags kanoniske ægtefællemodregning
+og overførsel af uudnyttet grundbeløb efter
+[PSL § 8 a, stk. 4 og 6](https://www.retsinformation.dk/eli/lta/2021/1284).
+Eksempelvis giver 100.000 kr. positiv aktieindkomst og en kvalificerende
+ægtefælle uden aktieindkomst 27.000 kr. aktieskat i 2025, før eventuelle andre
+reduktioner og kreditter. Se [SKATs satser og tabsvejledning](https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-aktier).
+Aktieindkomst, der er et engangsbeløb i skattepligtsperioden, indgår uændret i
+helårsgrundlaget; opskalér ikke automatisk efter antal dage. Se
+[C.F.1.6.2.2](https://info.skat.dk/data.aspx?oid=1977389).
+
+Samliv **ved indkomstårets udløb** er én og samme oplysning i delårs- og
+helårsgrundlaget. Modstridende ja/nej, en ægtefælle der mangler i det ene
+grundlag, eller en aktiv ægtefælles forkerte skatteår afviser sammenligningen.
+Det forbyder ikke ændret civilstand i løbet af året: feltet spørger ikke om
+samliv på periodens første dag. Kontrollen beviser heller ikke personernes
+identitet eller de juridiske betingelser for skattemæssigt samliv.
+
+[Den fokuserede regression](../../tests/personskat_partyear_shares.test.mjs)
+omfatter to grundbeløbsoverførsler, delvis og fuld modregning af et dokumenteret
+unoteret aktietab, to kontrolforløb og fire modstridende ægtefællegrundlag.
+Det er kildebaserede modelkontroller, ikke uafhængige administrative delårsresultater.
 
 ## Læs den yderste vurdering
 
@@ -152,6 +183,8 @@ Vurderingen og inputvejledningen ændrer kontraktens fingeraftryk.
 Generér en frisk delårsskabelon og overfør de samme gennemgåede kildefakta;
 ret ikke kun `schema_hash`. Vurderingsgrænsen alene ændrede ikke skatteformler
 eller rå beløb. Den efterfølgende kapitalrettelse ovenfor ændrer derimod
-berørte delårsresultater og § 11-forklaringer; genberegn gemte resultater uden
+berørte delårsresultater og § 11-forklaringer. Aktierettelsen ændrer også
+berørt aktieskat, og modstridende ægtefællegrundlag kan nu afvises.
+Genberegn gemte resultater uden
 at rette kildebeløbene. Inputtyper og satser er uændrede. Tidligere ugyldige
 nulbeløb bliver ikke godkendte resultater ved migreringen.

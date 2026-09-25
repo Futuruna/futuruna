@@ -382,9 +382,21 @@ consistent with the already-used amounts. Single-person and no-cohabitation
 controls remain unchanged. The test also checks source-linked generated input
 help: spouse annual amounts must not be guessed or copied from the period.
 These are source-model checks, not independent official part-year observations
-or broad couple coverage. Share-income context and inconsistent relationship
-facts across the two bases remain under review (`td-c5777c`). See the
+or broad couple coverage. See the
 [input and migration guide](../examples/danish-income-tax/personskat-delaar.md).
+
+The [adjacent share-income regression](../tests/personskat_partyear_shares.test.mjs)
+reproduces four accepted but inconsistent share-tax cases. The part-year path
+now keeps source reconciliation before PSL8a spouse offsets separate from the
+net share-tax context, including transferred thresholds. Previously an unused
+spouse threshold could leave 8,775 DKK of low-rate tax uncounted, while a fully
+offset 20,000 DKK share amount could incorrectly retain 5,400 DKK tax. The
+documented annual basis must also agree on spouse presence, year-end cohabitation
+and the spouse's tax year; contradictory facts withhold the comparison instead
+of producing a usable zero or ordinary total. Generated source guidance
+explains this distinction. These fictional 2025 arrival-year composition
+checks do not establish independent part-year conformance, spouse identity,
+or all share-loss/foreign-income combinations.
 
 The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
 add two 2025 official-form matches (ordinary ATP below the employment-deduction
