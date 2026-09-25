@@ -118,6 +118,7 @@ export function renderPersonskatOutput(envelope) {
     details.push('', `Sag: ${visible(row.case_id)}`, `Indkomstår i output: ${r.skat.skatteår}`, statuses[status]);
     if (valid) {
       details.push(`Modelleret slutskat til sammenligning: ${amount(r.vurdering.slutskat_til_sammenligning_øre, 'øre')}`,
+        '  Kun hovedpersonens skat, ikke summen af begge ægtefællers skat.',
         '  Kun den modellerede del. Dette er ikke restskat, overskydende skat eller en udbetaling.',
         '  Ingen sammenligning med et observeret beløb i din årsopgørelse er udført her.',
         'Udvalgte indkomster og fradrag — delbeløb kan overlappe; summér ikke denne liste:');

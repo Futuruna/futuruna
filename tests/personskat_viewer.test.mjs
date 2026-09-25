@@ -123,6 +123,7 @@ test('spouse and settlement presence never silently become a household or refund
   resultOf(source).ægtefælle = variant('BeregnetÆgtefælle', { fakta: {}, grundlag: {}, skat: {}, samlevende_ved_indkomstårets_udløb: true });
   resultOf(source).årsopgørelse = variant('BeregnetÅrsopgørelse', { input: {}, resultat: {}, afregning: {} });
   const output = render(source);
+  assert.match(output.text, /Kun hovedpersonens skat, ikke summen af begge ægtefællers skat/);
   assert.match(output.text, /ægtefællens egne tal vises ikke/);
   assert.match(output.text, /ikke vist eller valideret i denne oversigt/);
 });

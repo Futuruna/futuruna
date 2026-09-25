@@ -253,6 +253,14 @@ and show the contribution, allowed deduction, modeled tax change and change in
 available cash separately. Unknown spouse facts must not become fixed assumed
 transfers in a new scenario.
 
+The canonical comparison amount is the assessed person's tax, not a household
+total. When answering for both spouses, evaluate before and after with each
+person as the assessed person, keeping their facts consistent across cases;
+require all four valid comparison amounts before summing the changes. An
+unchanged own tax can conceal a spouse's tax change. Do not blindly swap fields:
+person-bound losses, relief and allocations need their own review. The pension
+guide includes a runnable fictional couple; it is not a general household importer.
+
 Do not interpret an empty pension payout list as confirmed absence. Complete
 `lønmodtager.pension.udbetalingsoplysninger` only from reviewed facts. Follow
 `pension.oplysningsstatus` to ask about prior-year payouts only when further

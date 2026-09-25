@@ -96,6 +96,19 @@ main-person amounts with exact units. It does not validate every nested result,
 authenticate the saved file, compare with observed report amounts, or summarize
 the separate spouse/settlement calculations. No tax formula changed.
 
+The pension walkthrough now distinguishes the assessed person's comparison
+amount from the household's tax change. A [four-case fictional couple](../examples/danish-income-tax/pension-og-fradrag.md#din-skat-og-husstandens-skat-er-ikke-det-samme)
+has unchanged own tax but a 3,833 DKK modeled spouse saving when private
+contributions increase by 10,000 DKK. The household's modeled cash reduction
+is 6,167 DKK, not 10,000 DKK. All four gated main-person amounts are required;
+missing spouse facts cannot be replaced by fixed inferred transfers. The
+[runnable example](../examples/danish-income-tax/pension-par-demo.mjs) preserves
+all assessments and warnings, while [focused coverage](../tests/pension_couple_demo.test.mjs)
+checks mirrored inputs, unchanged pay and withheld comparisons. These are
+canonical model observations, not new external tax conformance. Arbitrary
+role-swapping of personal cases, including pair-level losses/relief, is not
+implemented or implied. No tax formula or input contract changed.
+
 ## Original findings: source closeout
 
 “Implemented” below concerns the named defect, not all tax-law coverage.
