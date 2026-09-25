@@ -9,7 +9,9 @@ Dette er en **delberegning ud fra oplyste indkomsttal og kildefakta**, ikke en
 uafhængig genberegning af hele skatten eller dokumentautentifikation. Den er
 additiv og ændrer **ikke automatisk** Personskats årsopgørelse eller den
 [betingede rapportafstemning](aarsopgoerelse-afstemning.md).
-Automatisk kobling til afledt indkomst og slutopgørelse er fortsat `td-4dfe72`.
+Vil du genberegne fra Personskats indkomst- og fradragsfakta, så brug den
+[særskilte samlede indgang](personskat-groen-check.md). Den udleder indkomst,
+indsætter kreditten én gang og kontrollerer den endelige slutopgørelse.
 Modellen er researchsoftware; beregningskontrakterne er Preview.
 
 ## Kør lokalt

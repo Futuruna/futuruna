@@ -1,0 +1,140 @@
+@ sprog da
+@ importer ./personskat.calculate
+@ importer ./groen - check
+
+-- Additiv helårsgrænse: den eksisterende PersonskatInput ændres ikke.
+-- Beløb til grøn check kommer fra Personskat, ikke fra rapportens konklusion.
+# PersonskatGrønCheckSamliv = GrønCheckSamlivUoplyst | GrønCheckIkkeSamlevendeVedÅrsslut | GrønCheckSamlevendeHeleÅret | GrønCheckSamlivKunDelAfÅret
+# PersonskatGrønCheckFakta(skattepligt_den_1_januar: GrønCheckSkattepligt, forskerordning: Boolsk?, modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb: Boolsk?, årsforløb: GrønCheckÅrsforløb, samliv: PersonskatGrønCheckSamliv, pbl16_tillæg_kroner: Heltal?, børneforhold: GrønCheckBørneforhold, kildereference: Tekst)
+# PersonskatGrønCheckInput(personskat: PersonskatInput, grøn_check_fakta: PersonskatGrønCheckFakta, oplyst_samlet_grøn_check_øre: Heltal?)
+# PersonskatGrønCheckResultat(vurdering: PersonskatBeregningsvurdering, grøn_check_grundlag: GrønCheckInput, grøn_check: GrønCheckResultat, årsopgørelse: PersonskatÅrsopgørelseResultat?, forbehold: List(Tekst))
+
+= personskat_grøn_check_meta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::personskat::årsopgørelse::$variant), label = "Personskats årsopgørelse", question = None, help = Some("Samme fakta som i personskat.calculate.runa. Vælg MedEksaktÅrsopgørelse. Grøn check og dens godtgørelsesudelukkelse skal stå som 0 her, fordi denne indgang udleder dem. Det er ikke en antagelse om manglende fakta."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::skattepligt_den_1_januar), label = "Skattepligt 1. januar", question = Some("Var du fuldt skattepligtig til Danmark 1. januar?"), help = Some("Ukendt er et selvstændigt valg. Denne samlede indgang dækker kun ordinære helår med fuld skattepligt, ikke migration eller grænsegængere."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::forskerordning), label = "Forskerskatteordning", question = Some("Har du valgt beskatning efter KSL §§ 48 E–F?"), help = Some("false betyder kendt nej; null betyder ukendt. Samlet forskerbeskatning er ikke dækket af denne indgang."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb), label = "Offentlig tidlig pension ved årets udløb", question = Some("Modtog du førtids-, senior- eller tidlig pension ved årets udløb?"), help = Some("Efter socialpensionslovene, ikke blot privat pensionsudbetaling. Folkepensionsalderen udledes allerede af fødselsdatoen i Personskat. Ukendt kan angives som null."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::årsforløb), label = "Årets skatteforløb", question = None, help = Some("Ordinært helår uden migration eller dødsfald. Et delår må ikke indtastes som helår for at få et beløb."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::samliv), label = "Skattemæssigt samliv med ægtefælle", question = Some("Var I skattemæssigt samlevende hele året, kun en del af året eller ikke ved årets udløb?"), help = Some("Kontrolleres mod Personskats ægtefællefakta. Ukendt må ikke erstattes af ugift. Ægtefællens nettokapitalindkomst udledes fra de allerede oplyste kildefakta; et rapporttal skal ikke indtastes igen."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::pbl16_tillæg_kroner), label = "Eventuelt PBL § 16-tillæg", question = Some("Er der et tillæg for fradragne eller bortseede kapitalpensionsbeløb efter PBL § 16?"), help = Some("0 kun ved kendt intet tillæg; null ved ukendt. Personskats almindelige PSL § 7-beregning modellerer 0. Et positivt tillæg kræver særskilt modeldækning og tilbageholder derfor hele denne afstemning; det sættes ikke stiltiende til nul."), unit = Some("DKK")),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::børneforhold::$variant), label = "Børneforhold", question = Some("Kendes alle børne- og ydelsesforhold?"), help = Some("Uoplyst er ikke ingen børn. OplysteBørn kræver en fuldstændig liste og kilde, også når listen er tom. Børne-/ungeydelse er ikke ekstra børnetilskud til enlige forsørgere. Se groen-check.md for barnets ophold og ydelsesret."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::kildereference), label = "Kilde til supplerende fakta", question = None, help = Some("Lokal reference til bekræftede fakta, ikke CPR-nummer. Referencen autentificerer ikke dokumentet."), unit = None),
+        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::oplyst_samlet_grøn_check_øre), label = "Rapportens grønne check, valgfri", question = None, help = Some("Samlet observation for pensionistbeløb, børn og tillæg i øre. Bruges kun til sammenligning, aldrig til at bestemme kreditten. null ved ukendt."), unit = Some("øre"))
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = grøn_check_kilder),
+        Source(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2024/460", identifier = "KSL § 60 og § 62, stk. 2: grøn check indgår én gang, uden procentgodtgørelse", kontrolleret = "2026-09-25")),
+        Warning(value = "Forskningsmodel med afgrænset dækning. Ændrer ikke den gamle indgang eller en eksisterende rapportafstemning automatisk.")
+    )
+)
+
+-- Afregningsretningen kan skifte, når grøn check tilføjes. Beregn derfor først
+-- den kanoniske skat uden betalingsafregning, og prøv de oprindelige fakta mod
+-- den endelige slutopgørelse. Ingen modelkontrol filtreres væk.
+> personskat_grøn_check_uden_afregning(input: PersonskatInput) -> PersonskatInput {
+    = årsopgørelse = match input.årsopgørelse {
+        | MedEksaktÅrsopgørelse(rest, afgift, kreditter, al40c, _) -> MedEksaktÅrsopgørelse(overført_restskat_mv_øre = rest, øvrig_pensionsbeskatningsafgift_øre = afgift, kreditter = kreditter, afskrivningslov40c_acontoskat = al40c, afregningsfakta = UdenSlutopgørelsesafregning)
+        | _ -> input.årsopgørelse
+    }
+    PersonskatInput(lønmodtager = input.lønmodtager, kapitalindkomst = input.kapitalindkomst, aktieavance = input.aktieavance, udenlandske_sociale_bidrag = input.udenlandske_sociale_bidrag, cfc = input.cfc, skatteforhold = input.skatteforhold, underskudsforhold = input.underskudsforhold, ægtefælle = input.ægtefælle, ejendomsskatter = input.ejendomsskatter, negativ_aktieskat_fremførsel = input.negativ_aktieskat_fremførsel, ligningslov33 = input.ligningslov33, årsopgørelse = årsopgørelse)
+}
+
+> personskat_grøn_check_samliv(samliv: PersonskatGrønCheckSamliv, ægtefælle: PersonskatÆgtefælleBeregningResultat) -> GrønCheckÆgtefælle {
+    match samliv {
+        | GrønCheckSamlivUoplyst -> GrønCheckÆgtefælleforholdUkendt
+        | GrønCheckSamlivKunDelAfÅret -> GrønCheckAndetÆgtefælleforløb
+        | GrønCheckIkkeSamlevendeVedÅrsslut -> GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut
+        | GrønCheckSamlevendeHeleÅret -> match ægtefælle {
+            | IngenÆgtefælleberegning -> GrønCheckÆgtefælleforholdUkendt
+            | BeregnetÆgtefælle(_, grundlag, _, _) -> GrønCheckSamlevendeHelår(ægtefælles_nettokapitalindkomst_kroner = grundlag.lønmodtager_input.nettokapitalindkomst_kroner, kildereference = "Afledt af Personskats ægtefællegrundlag; kildefakta skal være fuldstændige.")
+        }
+    }
+}
+> personskat_grøn_check_samliv_foreneligt(samliv: PersonskatGrønCheckSamliv, input: PersonskatÆgtefælleInput) -> Boolsk {
+    = samlevende = match input { | UdenÆgtefælle -> Falskt | MedÆgtefælle(_, ved_årets_udløb, _) -> ved_årets_udløb }
+    match samliv {
+        | GrønCheckIkkeSamlevendeVedÅrsslut -> samlevende == Falskt
+        | GrønCheckSamlevendeHeleÅret -> samlevende
+        | _ -> Falskt
+    }
+}
+> personskat_grøn_check_grundlag(input: PersonskatGrønCheckInput, skat: PersonskatBeregningResultat) -> GrønCheckInput {
+    = f = input.grøn_check_fakta
+    GrønCheckInput(
+        skatteår = input.personskat.lønmodtager.skatteår,
+        person = Some(GrønCheckPerson(fødselsdato = input.personskat.lønmodtager.pension.fødselsdato, skattepligt_den_1_januar = f.skattepligt_den_1_januar, forskerordning = f.forskerordning, modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb = f.modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb, årsforløb = f.årsforløb, kildereference = f.kildereference)),
+        indkomst = match f.pbl16_tillæg_kroner {
+            | None -> None
+            | Some(tillæg) -> hvis skat.vurdering.alle_kontroller_gyldige {
+                Some(GrønCheckIndkomst(personlig_indkomst_efter_am_kroner = skat.skat.personlig_indkomst_efter_am_kroner, pbl16_tillæg_kroner = tillæg, nettokapitalindkomst_kroner = skat.skat.nettokapitalindkomst_kroner, kildereference = "Afledt af Personskats kanoniske indkomstberegning, ikke rapportens beløb."))
+            } ellers { None }
+        },
+        ægtefælle = personskat_grøn_check_samliv(f.samliv, skat.ægtefælle),
+        børneforhold = f.børneforhold,
+        oplyst_samlet_grøn_check_øre = input.oplyst_samlet_grøn_check_øre
+    )
+}
+
+> personskat_grøn_check_afregning(input: PersonskatÅrsopgørelseInput) -> KildeskatSlutopgørelseAfregningsfakta {
+    match input { | MedEksaktÅrsopgørelse(_, _, _, _, fakta) -> fakta | _ -> UdenSlutopgørelsesafregning }
+}
+> personskat_grøn_check_eksterne_felter_tomme(input: PersonskatÅrsopgørelseInput) -> Boolsk {
+    match input {
+        | MedEksaktÅrsopgørelse(_, _, kreditter, _, fakta) -> kreditter.energiafgiftskompensation_øre == 0 && match fakta { | AfregnOverskydendeSkat(f) -> f.modsvarer_energiafgiftskompensation_øre == 0 | _ -> Sandt }
+        | _ -> Falskt
+    }
+}
+> personskat_grøn_check_kreditter(k: KildeskatPar60KreditterØre, grøn_check_øre: Heltal) -> KildeskatPar60KreditterØre {
+    KildeskatPar60KreditterØre(a_skat_og_am_indeholdt_øre = k.a_skat_og_am_indeholdt_øre, par68_indbetalt_øre = k.par68_indbetalt_øre, b_skat_betalt_øre = k.b_skat_betalt_øre, udbytteskat_modregningsberettiget_øre = k.udbytteskat_modregningsberettiget_øre, frivillig_indbetaling_par59_øre = k.frivillig_indbetaling_par59_øre, virksomhedsordning_beløb_øre = k.virksomhedsordning_beløb_øre, personskattelov_par8a_stk5_beløb_øre = k.personskattelov_par8a_stk5_beløb_øre, afskrivningslov_acontoskat_øre = k.afskrivningslov_acontoskat_øre, am_lov_par6_beløb_øre = k.am_lov_par6_beløb_øre, seniornedslag_øre = k.seniornedslag_øre, energiafgiftskompensation_øre = grøn_check_øre, tilbagebetalt_par55_øre = k.tilbagebetalt_par55_øre)
+}
+
+-- KSL § 62, stk. 2, sidste pkt.; kilden er også bevaret i slutopgoerelse.runa.
+-- Kun grøn-check-delen af godtgørelsesudelukkelsen udledes her. Øvrige
+-- afregningsfakta bevares og kontrolleres af den eksisterende KSL-model.
+> personskat_grøn_check_afregning_med_kredit(fakta: KildeskatSlutopgørelseAfregningsfakta, grøn_check_øre: Heltal, overskydende_skat_øre: Heltal) -> KildeskatSlutopgørelseAfregningsfakta {
+    match fakta {
+        | AfregnOverskydendeSkat(f) -> AfregnOverskydendeSkat(fakta = KildeskatOverskydendeAfregningEksaktFakta(indkomstår = f.indkomstår, modsvarer_par59_indbetaling_øre = f.modsvarer_par59_indbetaling_øre, tilbagebetalt_rente_par59_øre = f.tilbagebetalt_rente_par59_øre, modsvarer_seniornedslag_øre = f.modsvarer_seniornedslag_øre, modsvarer_energiafgiftskompensation_øre = grøn_check_min(grøn_check_øre, overskydende_skat_øre), restancer_personlig_skat_med_morarenter_øre = f.restancer_personlig_skat_med_morarenter_øre, tilbagebetaling_efter_1_september = f.tilbagebetaling_efter_1_september, påbegyndte_måneder_efter_1_september = f.påbegyndte_måneder_efter_1_september))
+        | _ -> fakta
+    }
+}
+> personskat_grøn_check_slutopgørelse(skat: PersonskatÅrsopgørelseResultat, fakta: KildeskatSlutopgørelseAfregningsfakta, grøn_check_øre: Heltal, indkomstår: Heltal) -> PersonskatÅrsopgørelseResultat {
+    match skat {
+        | IngenÅrsopgørelse -> IngenÅrsopgørelse
+        | BeregnetÅrsopgørelse(i, _, _) -> {
+            = input = KildeskatSlutopgørelseEksaktInput(slutskat_øre = i.slutskat_øre, overført_restskat_mv_øre = i.overført_restskat_mv_øre, pensionsbeskatningsafgift_øre = i.pensionsbeskatningsafgift_øre, kreditter = personskat_grøn_check_kreditter(i.kreditter, grøn_check_øre))
+            = resultat = kildeskat_slutopgørelse_eksakt_resultat(input)
+            = afregning = hvis personskat_afregningsfakta_matcher_indkomstår(fakta, indkomstår) {
+                kildeskat_slutopgørelse_afregning(resultat, personskat_grøn_check_afregning_med_kredit(fakta, grøn_check_øre, resultat.overskydende_skat_øre))
+            } ellers { AfregningsfaktaMatcherIkkeSlutopgørelse }
+            BeregnetÅrsopgørelse(input = input, resultat = resultat, afregning = afregning)
+        }
+    }
+}
+
+--@label:beregn_personskat_med_grøn_check::meta:personskat_grøn_check_meta--
+@ calculate("Dansk personskat med kildeafledt grøn check")
+> beregn_personskat_med_grøn_check(input: PersonskatGrønCheckInput) -> PersonskatGrønCheckResultat {
+    = skat = beregn_personskat(personskat_grøn_check_uden_afregning(input.personskat))
+    = grundlag = personskat_grøn_check_grundlag(input, skat)
+    = grøn = vurder_grøn_check_input(grundlag)
+    = f = input.grøn_check_fakta
+    = kontroller = concat(map(skat.vurdering.kontroller, |k: PersonskatInputkontrol| PersonskatInputkontrol(sti = "personskat." + k.sti, gyldig = k.gyldig, forklaring = k.forklaring)), [
+        PersonskatInputkontrol(sti = "grøn_check_fakta", gyldig = f.skattepligt_den_1_januar == GrønCheckFuldSkattepligt && f.forskerordning == Some(Falskt) && f.årsforløb == GrønCheckOrdinærtHelår && personskat_angivne_skatteforhold(input.personskat.skatteforhold).personfradrag_skattepligt == FuldtSkattepligtigHerILandet, forklaring = "Denne samlede indgang kræver ordinært helår, fuld skattepligt og ingen forskerskatteordning. Delår, migration, dødsår og forskerbeskatning kræver særskilt beregning."),
+        PersonskatInputkontrol(sti = "grøn_check_fakta.pbl16_tillæg_kroner", gyldig = f.pbl16_tillæg_kroner == Some(0), forklaring = "Personskats almindelige PSL § 7-grundlag dækker kun kendt nul PBL § 16-tillæg. Ukendt eller et positivt tillæg må ikke skjules i en samlet skatteberegning."),
+        PersonskatInputkontrol(sti = "grøn_check_fakta.samliv", gyldig = personskat_grøn_check_samliv_foreneligt(f.samliv, input.personskat.ægtefælle), forklaring = "Samlivsforløbet skal være kendt, dækket og foreneligt med Personskats ægtefællefakta."),
+        PersonskatInputkontrol(sti = "personskat.årsopgørelse", gyldig = personskat_grøn_check_eksterne_felter_tomme(input.personskat.årsopgørelse), forklaring = "Vælg MedEksaktÅrsopgørelse. Ekstern energiafgiftskompensation_øre og modsvarer_energiafgiftskompensation_øre skal være 0; begge udledes her. Rapportens beløb hører kun til observationen."),
+        PersonskatInputkontrol(sti = "grøn_check_fakta", gyldig = grøn.beregning != None, forklaring = "Grøn check skal kunne beregnes af kendte, dækkede kildefakta. Se grøn_check.uafklaret; ukendt er ikke nul.")
+    ])
+    = foreløbig_vurdering = personskat_beregningsvurdering(kontroller, skat.slutskat_øre)
+    = årsopgørelse = hvis foreløbig_vurdering.alle_kontroller_gyldige {
+        match grøn.beregning {
+            | None -> None
+            | Some(b) -> Some(personskat_grøn_check_slutopgørelse(skat.årsopgørelse, personskat_grøn_check_afregning(input.personskat.årsopgørelse), b.samlet_kredit_øre, input.personskat.lønmodtager.skatteår))
+        }
+    } ellers { None }
+    = vurdering = personskat_beregningsvurdering(concat(kontroller, [PersonskatInputkontrol(sti = "personskat.årsopgørelse.afregningsfakta", gyldig = match årsopgørelse { | None -> Sandt | Some(a) -> personskat_afregning_input_gyldigt(a) }, forklaring = "Betalingsafregningen skal matche indkomstår, endelig restskat/overskydende skat og KSL-modellens faktakontroller efter grøn check.")]), skat.slutskat_øre)
+    PersonskatGrønCheckResultat(vurdering = vurdering, grøn_check_grundlag = grundlag, grøn_check = grøn, årsopgørelse = hvis vurdering.alle_kontroller_gyldige { årsopgørelse } ellers { None }, forbehold = ["Personskat beregner indkomsten; grøn check ændrer kreditterne, ikke slutskatten før kreditter. Hele årsopgørelsen tilbageholdes ved fejl, manglende fakta eller udækket gren.", "En afvigelse fra rapportens observerede grønne check ændrer ikke den beregnede kredit. Det er en forskel, der skal undersøges, ikke en bevist fejl hos Skattestyrelsen.", "Kun grøn-check-delen af KSL § 62-godtgørelsesgrundlaget udledes. Øvrige betalinger, restancer og udelukkelser skal være dokumenterede, og deres samlede retlige dækning vurderes særskilt.", "Forskningssoftware, ikke individuel skatterådgivning. Se også vurdering.forbehold og grøn_check.forbehold."])
+}

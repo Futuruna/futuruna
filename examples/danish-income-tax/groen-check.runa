@@ -14,7 +14,7 @@
     AmendmentSource(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1642", identifier = "§§ 3 og 10: mellemskat og ydelse delvis til barnet fra 2026", kontrolleret = "2026-09-25")),
     ParameterSource(value = GrønCheckKilde(url = "https://svmn.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2023-2024", identifier = "§ 2-grænser 2023–2024", kontrolleret = "2026-09-25")),
     ParameterSource(value = GrønCheckKilde(url = "https://skat.dk/borger/fradrag/groen-check", identifier = "§ 2-grænser 2025–2026 og borgervejledning", kontrolleret = "2026-09-25")),
-    Warning(value = "Indkomsttal og ydelsesfakta leveres af brugeren; kildehenvisninger er ikke dokumentautentifikation. Ingen automatisk indsættelse i Personskat endnu.")
+    Warning(value = "Indkomsttal og ydelsesfakta kræver kildegrundlag; kildehenvisninger er ikke dokumentautentifikation. Den kompakte indgang indsætter ikke automatisk kreditter. Brug personskat-groen-check.calculate.runa til den særskilte kildeafledte helårsberegning.")
 ))
 
 --@label:grøn_check_regler::meta:grøn_check_kilder--

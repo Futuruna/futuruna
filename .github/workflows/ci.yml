@@ -56,7 +56,7 @@ jobs:
       - name: Tax-audit runtime and setup safeguards
         run: |
           RUNA_BIN="$PWD/target/release/runa" bash scripts/tax-audit-preflight.sh
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_audit_setup.test.mjs tests/pension_demo_input.test.mjs tests/tax_report_viewer.test.mjs tests/tax_municipality.test.mjs tests/green_check.test.mjs
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_audit_setup.test.mjs tests/pension_demo_input.test.mjs tests/tax_report_viewer.test.mjs tests/tax_municipality.test.mjs tests/green_check.test.mjs tests/personskat_green_check.test.mjs
 
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/
