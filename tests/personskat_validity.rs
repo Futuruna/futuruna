@@ -243,6 +243,191 @@ fn fictional_spouse_rates_input(envelope: &Value) -> Value {
 }
 
 #[test]
+fn su_grants_and_loans_reach_canonical_tax_without_wage_deductions() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut baseline = fictional_spouse_rates_input(&envelope);
+    baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
+    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    let su = |id: &str, art: &str, year: i64, amount: i64| {
+        json!({
+            "$variant":"PersonskatUddannelsesstøtte", "fakta":{
+                "identifikation":id, "indkomstår":year, "kildereference":"fictional-SU-record",
+                "art":{"$variant":art}, "beløb_før_skat_kroner":amount,
+                "uden_udlandsforhold_og_korrektioner":true
+            }
+        })
+    };
+    let fixtures = [
+        "stipend",
+        "job-and-stipend",
+        "loan",
+        "stipend-and-loan",
+        "commuter",
+        "spouse",
+        "unknown-kind",
+        "negative",
+        "wrong-year",
+        "missing-source",
+        "scope-unknown",
+        "duplicate",
+        "spouse-invalid",
+    ];
+    envelope["cases"] = json!(fixtures
+        .iter()
+        .map(|id| {
+            let mut input = baseline.clone();
+            let mut grant = su("grant", "SuStipendiumEfterDanskSuLov", 2025, 80000);
+            match *id {
+                "job-and-stipend" => input["lønmodtager"]["bruttoløn_kroner"] = json!(100000),
+                "commuter" => {
+                    input["lønmodtager"]["skatteår"] = json!(2026);
+                    input["lønmodtager"]["bruttoløn_kroner"] = json!(300000);
+                    input["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] =
+                        json!([commuting(220)]);
+                    grant["fakta"]["indkomstår"] = json!(2026);
+                    grant["fakta"]["beløb_før_skat_kroner"] = json!(100000);
+                }
+                "unknown-kind" => {
+                    grant["fakta"]["art"] = json!({"$variant":"SuUoplystEllerUdenForModellen"})
+                }
+                "negative" => grant["fakta"]["beløb_før_skat_kroner"] = json!(-1),
+                "wrong-year" => grant["fakta"]["indkomstår"] = json!(2024),
+                "missing-source" => grant["fakta"]["kildereference"] = json!(" "),
+                "scope-unknown" | "spouse-invalid" => {
+                    grant["fakta"]["uden_udlandsforhold_og_korrektioner"] = json!(false)
+                }
+                _ => {}
+            }
+            let posts = match *id {
+                "loan" => vec![su("loan", "SuLånEfterDanskSuLov", 2025, 30000)],
+                "stipend-and-loan" => vec![grant, su("loan", "SuLånEfterDanskSuLov", 2025, 30000)],
+                "duplicate" => vec![grant, su("grant", "SuLånEfterDanskSuLov", 2025, 30000)],
+                _ => vec![grant],
+            };
+            input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
+                ["forenings_og_arbejdsløshedsydelser"] = json!(posts);
+            if id.starts_with("spouse") {
+                input["ægtefælle"] = spouse(&input);
+                input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
+                    ["forenings_og_arbejdsløshedsydelser"] = json!([]);
+            }
+            json!({"case_id":id, "input":input})
+        })
+        .collect::<Vec<_>>());
+    let path = std::env::temp_dir().join(format!("futuruna-su-{}.json", std::process::id()));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let rows = output["results"].as_array().unwrap();
+    assert_eq!(rows.len(), fixtures.len());
+    for (row, id) in rows.iter().zip(fixtures) {
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        let valid = matches!(
+            id,
+            "stipend" | "job-and-stipend" | "loan" | "stipend-and-loan" | "commuter" | "spouse"
+        );
+        println!(
+            "{id}: valid={}, tax={}",
+            gate["alle_kontroller_gyldige"], gate["slutskat_til_sammenligning_øre"]
+        );
+        assert_eq!(gate["alle_kontroller_gyldige"], valid, "{id}: {gate}");
+        if !valid {
+            assert_eq!(gate["slutskat_til_sammenligning_øre"], Value::Null);
+            let prefix = if id == "spouse-invalid" {
+                "ægtefælle.MedÆgtefælle.fakta."
+            } else {
+                ""
+            };
+            let path = format!("{prefix}lønmodtager.personlig_indkomst");
+            assert!(
+                gate["fejl"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["sti"] == path),
+                "{id}: {gate}"
+            );
+            continue;
+        }
+        assert!(gate["slutskat_til_sammenligning_øre"].is_number());
+        let person = if id == "spouse" {
+            &result["ægtefælle"]["grundlag"]
+        } else {
+            result
+        };
+        let grant_amount = match id {
+            "loan" => 0,
+            "commuter" => 100000,
+            _ => 80000,
+        };
+        assert_eq!(
+            person["personlig_indkomst"]["personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner"],
+            grant_amount,
+            "{id}"
+        );
+        let wage = match id {
+            "job-and-stipend" => 100000,
+            "commuter" => 300000,
+            _ => 0,
+        };
+        let commute = &person["ligningsfradrag"]["befordring"];
+        assert_eq!(commute["aftrapningsindkomst_kroner"], wage, "{id}");
+        assert_eq!(commute["aftrapningsindkomst_afklaret"], true, "{id}");
+        assert_eq!(
+            commute["lavindkomsttillæg_kroner"],
+            if id == "commuter" { 13836 } else { 0 },
+            "{id}"
+        );
+        if id != "spouse" {
+            assert_eq!(
+                result["skat"]["arbejdsmarkedsbidrag_kroner"],
+                wage * 8 / 100,
+                "{id}"
+            );
+            assert_eq!(
+                result["skat"]["personlig_indkomst_efter_am_kroner"],
+                wage * 92 / 100 + grant_amount,
+                "{id}"
+            );
+            assert_eq!(
+                result["skat"]["beskæftigelsesfradrag_kroner"],
+                match id {
+                    "job-and-stipend" => 12300,
+                    "commuter" => 38250,
+                    _ => 0,
+                },
+                "{id}"
+            );
+        }
+        // Independent anonymous SKAT annual-calculator observations, 2026-09-25.
+        // Copenhagen 2025, born 1990, unmarried, no church/pension/ATP/other facts.
+        // Before green check, advance payments and settlement additions.
+        // Adding a loan must preserve the stipend-only observation; that case
+        // is a model regression, not a third external calculator observation.
+        let official = match id {
+            "stipend" | "stipend-and-loan" => Some((80000, 1880000, 1008484)),
+            "job-and-stipend" => Some((159700, 3752950, 4786354)),
+            _ => None,
+        };
+        if let Some((taxable, municipal, tax)) = official {
+            assert_eq!(
+                result["skat"]["almindelig_skattepligtig_indkomst_kroner"], taxable,
+                "{id}"
+            );
+            assert_eq!(
+                result["hovedskat_eksakt"]["før_nedsættelser"]["kommuneskat_øre"], municipal,
+                "{id}"
+            );
+            assert_eq!(gate["slutskat_til_sammenligning_øre"], tax, "{id}");
+        }
+    }
+}
+
+#[test]
 fn commuting_income_uses_benefit_sources_and_annual_business_basis() {
     let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let mut baseline = fictional_spouse_rates_input(&envelope);

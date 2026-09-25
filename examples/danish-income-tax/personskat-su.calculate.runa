@@ -1,0 +1,6 @@
+@ sprog da
+
+@ importer ./personskat - su
+
+@ calculate("SU: stipendium, lån og personlig indkomst")
+| vurder_su(fakta: PersonskatSuFakta) -> personskat_su_resultat(fakta)

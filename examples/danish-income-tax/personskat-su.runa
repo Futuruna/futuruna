@@ -1,0 +1,47 @@
+@ sprog da
+
+@ importer ./metadata
+
+# PersonskatSuKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= personskat_su_skat_kilde = PersonskatSuKilde(url = "https://www.su.dk/su/naar-du-faar-su/skat", identifier = "SU er skattepligtig; intet AM-bidrag eller ATP", hentet_dato = "2026-09-25")
+= personskat_su_personlig_kilde = PersonskatSuKilde(url = "https://info.skat.dk/data.aspx?oid=2061678", identifier = "DJV C.A.2.2.1 / PSL § 3: stipendier fra SU-styrelsen er personlig indkomst", hentet_dato = "2026-09-25")
+= personskat_su_lån_kilde = PersonskatSuKilde(url = "https://info.skat.dk/data.aspx?oid=1924995", identifier = "SKM2011.81.BR: lån er ikke indkomst, jf. SL § 5, litra c; låneforhold kræver dokumentation", hentet_dato = "2026-09-25")
+= personskat_su_ll9c_kilde = PersonskatSuKilde(url = "https://info.skat.dk/data.aspx?oid=2061745", identifier = "DJV C.A.4.3.3.2.3 / LL § 9 C, stk. 4: SU er ikke i aftrapningsgrundlaget", hentet_dato = "2026-09-25")
+= personskat_su_metadata = Metadata(attachments = (Guidance(value = personskat_su_skat_kilde), Guidance(value = personskat_su_personlig_kilde), Source(value = personskat_su_lån_kilde), Guidance(value = personskat_su_ll9c_kilde)))
+
+--@label:personskat_su::meta:personskat_su_metadata--
+----
+Du betaler ikke arbejdsmarkedsbidrag eller ATP af din SU.
+----
+-- Citat: su.dk, Skat / Arbejdsmarkedsbidrag og ATP. Kun dokumenterede
+-- danske SU-beløb uden udlandsforhold, tilbagebetaling eller omperiodisering.
+-- Stipendier omfatter dokumenterede skattepligtige tillæg efter SU-loven.
+-- Ingen beregning af SU-ret, fribeløb, lånegæld, renter eller tilbagebetaling.
+--@begin:personskat_su--
+# PersonskatSuArt = SuUoplystEllerUdenForModellen | SuStipendiumEfterDanskSuLov | SuLånEfterDanskSuLov
+# PersonskatSuFakta(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, art: PersonskatSuArt, beløb_før_skat_kroner: Heltal, uden_udlandsforhold_og_korrektioner: Boolsk)
+# PersonskatSuResultat(fakta: PersonskatSuFakta, input_gyldigt: Boolsk, personlig_indkomst_uden_am_kroner: Heltal, låneudbetaling_uden_for_indkomst_kroner: Heltal, ll9c_aftrapningsindkomst_kroner: Option(Heltal))
+| personskat_su_input_gyldigt(fakta: PersonskatSuFakta) -> trim(fakta.identifikation) != "" && trim(fakta.kildereference) != "" && fakta.indkomstår >= 2023 && fakta.indkomstår <= 2026 && fakta.beløb_før_skat_kroner >= 0 && fakta.uden_udlandsforhold_og_korrektioner && fakta.art != SuUoplystEllerUdenForModellen
+| personskat_su_resultat(fakta: PersonskatSuFakta) -> PersonskatSuResultat(
+    fakta = fakta,
+    input_gyldigt = personskat_su_input_gyldigt(fakta),
+    personlig_indkomst_uden_am_kroner = hvis personskat_su_input_gyldigt(fakta) && fakta.art == SuStipendiumEfterDanskSuLov { fakta.beløb_før_skat_kroner } ellers { 0 },
+    låneudbetaling_uden_for_indkomst_kroner = hvis personskat_su_input_gyldigt(fakta) && fakta.art == SuLånEfterDanskSuLov { fakta.beløb_før_skat_kroner } ellers { 0 },
+    ll9c_aftrapningsindkomst_kroner = hvis personskat_su_input_gyldigt(fakta) { Some(0) } ellers { None }
+)
+--@end:personskat_su--
+
+= personskat_su_felter = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(PersonskatSuFakta::identifikation), label = "SU-postens identifikation", question = Some("Hvilken entydig identifikation har denne post?"), help = Some("Opdel stipendium og lån. Oplys samme udbetaling én gang; omdøb ikke dubletter."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatSuFakta::indkomstår), label = "SU-indkomstår", question = Some("Hvilket år vedrører den dokumenterede post?"), help = Some("2023–2026. Korrektioner og tilbagebetalinger kræver særskilt behandling."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(PersonskatSuFakta::kildereference), label = "SU-kildereference", question = Some("Hvilken SU-meddelelse, udbetalingsoversigt eller indberetning dokumenterer beløb og art?"), help = Some("En lokal reference er nok; indtast ikke CPR. Skattens beregnede restbeløb er ikke en kilde."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatSuFakta::art::$variant), label = "SU-stipendium eller SU-lån", question = Some("Er beløbet stipendium eller lån efter den danske SU-lov?"), help = Some("Stipendium omfatter dokumenterede skattepligtige SU-tillæg. Lån er ikke indkomst. Andre legater, lønnet ph.d.-ansættelse, skoleydelse og udenlandsk støtte kræver andre regler. Uafklaret må ikke blive til lån eller nul."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatSuFakta::beløb_før_skat_kroner), label = "Årets SU-beløb før skat", question = Some("Hvilket beløb før A-skat er dokumenteret for denne post?"), help = Some("Brug årets beløb i hele kroner, ikke månedsbeløbet eller bankens nettoudbetaling. Et lån står særskilt med årets udbetaling, ikke restgæld, renter eller afdrag."), unit = Some("kr./år")),
+        TypetBeregningsfelt(path = refof(PersonskatSuFakta::uden_udlandsforhold_og_korrektioner), label = "Ordinær dansk SU-post afklaret", question = Some("Er det afklaret, at posten er uden udlandsforhold, tilbagebetaling eller omperiodisering?"), help = Some("Bekræft kun efter gennemgang. Falsk bevarer sagen uden for denne afgrænsede model; udlandsforhold og korrektioner må ikke skjules ved at tilpasse beløbet."), unit = None)
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Guidance(value = personskat_su_skat_kilde), Guidance(value = personskat_su_personlig_kilde), Source(value = personskat_su_lån_kilde), Guidance(value = personskat_su_ll9c_kilde))
+)
+--@label:PersonskatSuFakta::meta:personskat_su_felter--
