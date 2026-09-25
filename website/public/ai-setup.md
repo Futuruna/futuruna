@@ -338,6 +338,12 @@ income; those classifications there withhold the annual comparison. Establish
 the actual relationship, use each source amount once, and keep gross fees
 separate from expenses and prepaid B-tax. A report box or the word "freelance"
 does not establish the legal category. Never relabel income to make it pass.
+The required `udgifter` field keeps documented ordinary costs separate from
+gross AM income. Use its unknown variant until reviewed; an empty, confirmed
+list means known no costs. Do not copy a box-29 total in addition to its source
+receipts. Unsupported costs or negative-net activities withhold comparison;
+that coverage boundary is not a legal denial of the deduction. See the guide
+before choosing the expense category or confirming completeness.
 
 For an independent calculation with supported source facts, inspect the contract
 and generate input. JSON is convenient for an AI-assisted interview; XLSX is an

@@ -146,7 +146,21 @@ including for a calculated spouse and the part-year flow. Correct-route fee
 arithmetic is unchanged. [Focused coverage](../tests/personskat_work_income_route.test.mjs)
 checks misplaced and mixed routes, duplicate identifiers, year mismatch and
 projected source guidance. This does not classify documents, detect duplicates
-under different identifiers or add a general honorarium-expense model.
+under different identifiers.
+
+The [honorarium expense route](../examples/danish-income-tax/personskat-honorar.md)
+now separates documented ordinary costs from gross AM income, with explicit
+unknown/complete facts and per-cost source guidance. A fictional 50,000 DKK fee
+with 10,000 DKK costs previously had no explicit expense route: netting the fee
+incorrectly lowered AM by 800 DKK. The separate cost now reduces personal income
+without changing AM or employment/job deduction bases. Duplicate identifiers
+across fee rows and unsupported facts withhold comparison. The coverage guard
+also reaches spouse and part-year composition; it does not cap a legal deduction.
+Loss-making activities and special costs remain `td-e2c310`: C.C.1.2.3 flags
+SKM2025.490.ØLR against source-income restriction, so the model does not assume
+the old restriction settles their treatment. New required expense facts need
+fresh templates. [Focused checks](../tests/personskat_honorar_expenses.test.mjs)
+are canonical model evidence, not independent official-calculator conformance.
 
 The [payroll group-life correction](../examples/danish-income-tax/personskat-gruppeliv.md)
 adds the documented gross premium to employment/job deduction bases while

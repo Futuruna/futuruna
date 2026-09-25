@@ -32,7 +32,12 @@ For et dokumenteret almindeligt pengehonorar uden udgifter er en række fx:
   "indkomstår": 2025,
   "forhold": { "$variant": "PsArbejdeUdenAnsættelse" },
   "vederlagsform": { "$variant": "PsArbejdsvederlagIPenge" },
-  "skattepligtig_værdi_kroner": 50000
+  "skattepligtig_værdi_kroner": 50000,
+  "udgifter": {
+    "$variant": "PsHonorarudgifterOplyst",
+    "poster": [],
+    "fuldstændige": true
+  }
 }
 ```
 
@@ -62,12 +67,66 @@ automatisk erstatte gennemgåede kildefakta.
   variant. [Betinget rapportafstemning](aarsopgoerelse-afstemning.md) kan
   stadig undersøge rapportens egne tal uden at bevise klassifikationen.
 
-Har honoraret tilknyttede udgifter, er den enkle række ikke et komplet
-grundlag. Den har ikke et særskilt honorarudgiftsfelt. Indtast ikke blot et
-nettohonorar: det ville også ændre modellens AM-grundlag. Flyt heller ikke
-udgiften til et vilkårligt lønmodtagerfradrag for at opnå samme slutbeløb.
-Udgiftsbehandlingen kræver særskilt kilde- og modelafklaring. Naturalier,
-udenlandske forhold og korrektioner kræver tilsvarende deres relevante regler.
+## Udgifter holdes adskilt fra bruttovederlaget
+
+Indtast ikke blot et nettohonorar: det ville også ændre modellens AM-grundlag.
+Feltet `udgifter` behandler nu dokumenterede løbende egne udgifter ved
+honoraraktiviteten. Fradraget reducerer personlig indkomst, ikke AM-grundlaget
+eller beskæftigelses-/jobfradragsgrundlaget. Det er ikke et lønmodtagerfradrag
+med bundgrænse. Se [C.C.1.2.3](https://info.skat.dk/data.aspx?oid=2048532) og
+[SKATs honorarmodtagervejledning](https://skat.dk/erhverv/egen-virksomhed/afklar-virksomhedens-skatteforhold).
+
+For ovenstående fiktive honorar kan `udgifter` fx erstattes med:
+
+```json
+{
+  "$variant": "PsHonorarudgifterOplyst",
+  "poster": [{
+    "identifikation": "fiktivt-materialebilag-1",
+    "indkomstår": 2025,
+    "art": { "$variant": "PsHonorarLøbendeUdgift" },
+    "egen_udgift_kroner": 10000,
+    "dokumenteret": true,
+    "vedrører_vederlaget": true,
+    "ikke_fratrukket_andetsteds": true
+  }],
+  "fuldstændige": true
+}
+```
+
+Beløbet er den gennemgåede egen udgift efter refusion og udskillelse af privat
+andel. Bevar opdelingen i bilagsoversigten; modellen autentificerer den ikke.
+En kendt privat udgift (`PsHonorarPrivatUdgift`) giver nul fradrag. Andre eller
+uafklarede udgiftstyper tilbageholder sammenligningen, ikke et godkendt nul.
+En rubrik 29-total er en observation til sammenligning, ikke automatisk en ny
+udgift oven i bilagene. AM-bidrag og allerede betalt B-skat er ikke udgifter her.
+
+Saml samme aktivitets årsvederlag i én dokumenteret bruttoopgørelse, når
+udgifterne er fælles. Bland ikke selvstændige aktiviteter. Brug én stabil
+reference pr. udgift og medtag den kun én gang, også på tværs af honorarrækker
+og andre fradragsgrene. Gentagne id'er i honorarrækker afvises mekanisk;
+forskellige id'er er ikke bevis på, at bilagene er forskellige.
+
+Vælg `PsHonorarudgifterUoplyst`, når udgifterne ikke er afklaret. En tom liste
+med `fuldstændige: true` betyder **bekræftet ingen udgifter**, ikke manglende
+bilag. En skabelon eller en manglende rapportlinje er ikke sådan bekræftelse.
+
+Den almindelige gren dækker ikke afskrivninger, satsberegnet kørsel,
+erstatninger, udenlandske særregler eller omperiodisering. Den tilbageholder
+også sammenligningen, hvis udgifterne overstiger vederlaget efter den
+alders- og årsbestemte AM-beregning. Det er en **modelgrænse, ikke et juridisk
+fradragsloft**: C.C.1.2.3 henviser til SKM2025.490.ØLR, som underkender
+kildeartsbegrænsning, og varsler et styresignal. Modellen hverken klipper
+udgiften, nægter generel fradragsret eller beregner underskudsfremførsel.
+Disse tilfælde kræver særskilt behandling; ændr ikke fakta for at få et match.
+
+I et voksent fiktivt 2025-tilfælde med 600.000 kr. løn, 50.000 kr. honorar og
+10.000 kr. understøttede udgifter skal AM fortsat være 52.000 kr., mens
+personlig indkomst efter AM og disse udgifter bliver 588.000 kr. At skrive
+40.000 kr. i bruttofeltet ville i stedet give AM på 51.200 kr. og personlig
+indkomst på 588.800 kr. [Den kanoniske regression](../../tests/personskat_honorar_expenses.test.mjs)
+kontrollerer denne forskel samt ægtefælle- og delårsforløb. Det er ikke
+uafhængig kontrol mod en officiel beregner eller en rigtig årsopgørelse.
 
 ## Læs vurderingen, ikke kun en nulpost
 
@@ -98,8 +157,10 @@ ikke uafhængig verifikation af en virkelig årsopgørelse.
 
 ## Eksisterende input
 
-Gyldighed og vejledning ændres, men ikke skatteformler eller inputtyper.
-Den nye metadata ændrer kontraktens fingeraftryk: generér frisk skabelon og
-overfør gennemgåede fakta, ikke blot et nyt `schema_hash`.
+Honorarposter har nu det krævede felt `udgifter`. Generér frisk skabelon og
+overfør gennemgåede fakta, ikke blot et nyt `schema_hash`. Migrér ikke automatisk
+gamle poster til ingen udgifter; brug Uoplyst, indtil bilagene er gennemgået.
+Gamle poster med bekræftet ingen udgifter beholder deres indkomst-/AM-beløb;
+understøttede udgifter får nu særskilt fradrag i personlig indkomst.
 Et tidligere gyldigt resultat med indkomst i den forkerte gren skal genåbnes;
 nulbidraget fra komponenten må ikke bruges som dokumentation for skattefrihed.
