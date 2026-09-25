@@ -326,11 +326,12 @@
     help = Some("Brug samme identifikation på alle indkomstperioder og årsdriftsoplysninger, der vedrører det samme skib."),
     unit = None
 )
+= personskat_dis_kanonisk_dækningsgrænse = "Den kanoniske Personskat-sammenligning understøtter ikke den valgte særlige DIS-skattepligtsposition: kulbrinteskattepligt, begrænset skattepligtsfritagelse eller dødsbolempelse. Det er en modelbegrænsning, ikke i sig selv en fejl i kildefakta eller årsopgørelsen. Særskilte komponenttal er ikke en fuld årsopgørelsesberegning. Bevar den faktiske skattepligtsposition; skift ikke kategori eller fjern indkomst for at få et sammenligningsbeløb. Se personskat-validity.md#særlige-dis-skattepligtspositioner."
 = personskat_felt_dis_skattepligt = TypetBeregningsfelt(
     path = refof(Søbl5Til8Indkomstfakta::person::skattepligt::$variant),
     label = "Skattepligtsposition for sømandsindkomsten",
     question = Some("Hvilken dansk skattepligtsposition havde personen for denne indkomst?"),
-    help = Some("§§ 5-8 skelner mellem fuld skattepligt, begrænset skattepligt, kulbrinteskattepligt og andre positioner."),
+    help = Some("§§ 5-8 skelner mellem fuld skattepligt, begrænset skattepligt, kulbrinteskattepligt og andre positioner. Ved en særlig fritagelses- eller lempelsesposition gælder: " + personskat_dis_kanonisk_dækningsgrænse),
     unit = None
 )
 = personskat_felt_dis_kulbrinteskattegrundlag = TypetBeregningsfelt(
@@ -344,7 +345,7 @@
     path = refof(Kulbrinteskattelov21Stk2Kildefakta::personstatus::$variant),
     label = "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
     question = Some("Var personen uden for fuld skattepligt efter kildeskattelovens § 1?"),
-    help = Some("Feltet udfyldes kun for kulbrinteskattepligt efter § 21, stk. 2."),
+    help = Some("Feltet udfyldes kun for kulbrinteskattepligt efter § 21, stk. 2. " + personskat_dis_kanonisk_dækningsgrænse),
     unit = None
 )
 = personskat_felt_dis_kulbrinte_arbejdsgiverhjemting = TypetBeregningsfelt(
@@ -19349,6 +19350,13 @@ fraflytningen."
         alle_åbningsgrundlag_gyldige = resultat.alle_åbningsgrundlag_gyldige && personskat_negativ_aktieskat_årsresultat_konsistent(hovedperson) && personskat_negativ_aktieskat_option_årsresultat_konsistent(ægtefælle)
     )
 }
+> personskat_dis_kontrolforklaring(årsresultat: Søbl5Til8Årsresultat) -> Tekst {
+    hvis årsresultat.kanonisk_fuld_skattepligt_understøttet {
+        "DIS-lempelsens indkomst- og skattegrundlag skal være gyldigt i de relevante beløbsprojektioner."
+    } ellers {
+        personskat_dis_kanonisk_dækningsgrænse
+    }
+}
 -- Kontroller kun domænernes samlede gyldighed, ikke vilkårlige boolske felter.
 -- Samme kontrolpakke anvendes på hovedpersonen og en faktisk beregnet ægtefælle.
 > personskat_person_inputkontroller(grundlag: PersonskatPersonGrundlagResultat, præfiks: Tekst, indkomstår: Heltal) -> List(PersonskatInputkontrol) {
@@ -19385,7 +19393,7 @@ fraflytningen."
     match ægtefælle {
         | IngenÆgtefælleberegning -> []
         | BeregnetÆgtefælle(_, grundlag, skat, _) -> concat(personskat_person_inputkontroller(grundlag, "ægtefælle.MedÆgtefælle.fakta.", indkomstår), [
-            PersonskatInputkontrol(sti = "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning).input_gyldigt, forklaring = "Ægtefællens DIS-lempelse skal have gyldigt indkomst- og skattegrundlag.")
+            PersonskatInputkontrol(sti = "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning).input_gyldigt, forklaring = personskat_dis_kontrolforklaring(grundlag.personlig_indkomst.sømandsbeskatning))
         ])
     }
 }
@@ -19523,7 +19531,7 @@ fraflytningen."
             PersonskatInputkontrol(sti = "underskudsforhold", gyldig = underskudsår.alle_åbningsgrundlag_gyldige, forklaring = "Begge personers fremførte underskud skal have gyldige åbningsgrundlag."),
             PersonskatInputkontrol(sti = "underskudsforhold", gyldig = personskattelov13a.alle_kildegrundlag_gyldige && personskattelov13a.stk2_nedsættelser_stabile, forklaring = "Gældseftergivelsens kildegrundlag og nedsættelser før ægtefælleoverførsel skal være gyldige og stabile."),
             PersonskatInputkontrol(sti = "negativ_aktieskat_fremførsel", gyldig = negativ_aktieindkomstskat.input_gyldigt && negativ_aktieindkomstskat_eksakt.input_gyldigt && negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && tidligere_fremført_negativ_aktieindkomstskat_eksakt.input_gyldigt, forklaring = "Årets og fremført negativ aktieskat skal have gyldige modregnings- og åbningsgrundlag."),
-            PersonskatInputkontrol(sti = "lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = sømandsbeskatning.input_gyldigt && sømandsbeskatning_eksakt.input_gyldigt, forklaring = "DIS-lempelsens indkomst- og skattegrundlag skal være gyldigt i begge beløbsprojektioner."),
+            PersonskatInputkontrol(sti = "lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = sømandsbeskatning.input_gyldigt && sømandsbeskatning_eksakt.input_gyldigt, forklaring = personskat_dis_kontrolforklaring(hovedgrundlag.personlig_indkomst.sømandsbeskatning)),
             PersonskatInputkontrol(sti = "ejendomsskatter", gyldig = ejendomsskatter.alle_input_gyldige && ejendomsskatter.regelgrundlag_understøttet, forklaring = "Ejendomsfakta og regelgrundlag skal være gyldige og understøttede."),
             PersonskatInputkontrol(sti = "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter", gyldig = personskat_ægtefælle_ejendomsskat_input_gyldigt(ægtefælles_ejendomsskatter), forklaring = "En aktiv ægtefælles ejendomsfakta og regelgrundlag skal være gyldige og understøttede."),
             PersonskatInputkontrol(sti = "ligningslov33", gyldig = ligningslov33.input_gyldigt && ligningslov33a.input_gyldigt, forklaring = "Udenlandske lempelseskrav skal have gyldige kilder, år og personhenføringer."),

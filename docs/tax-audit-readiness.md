@@ -84,8 +84,16 @@ contradict the canonical taxpayer's birth date while retaining a comparison.
 The guard covers spouses and the ordinary-tax election; source-backed field
 help now identifies the single assessed person. Correct youth/adult rates are
 unchanged. This does not authenticate identity or establish external tax
-conformance; the analogous hydrocarbon-age path is tracked for separate
-reproduction as `td-f875ed`.
+conformance.
+
+The adjacent hydrocarbon investigation did **not** reproduce an accepted
+canonical comparison with a contradictory age: the existing special-DIS
+coverage gate already withholds the comparison, even for consistent facts.
+The [coverage regression](../tests/personskat_dis_coverage.test.mjs) now protects
+that boundary, while generated help and main/spouse diagnostics explain the
+unsupported annual composition explicitly. Component readiness and a zero
+component tax are not annual-tax approval. No hydrocarbon age guard or tax
+formula was changed; see the [coverage explanation](../examples/danish-income-tax/personskat-validity.md#særlige-dis-skattepligtspositioner).
 
 The [Boligjob supplier-age regression](../tests/boligjob_supplier_age.test.mjs)
 corrects a cross-year eligibility error: delayed payment no longer makes work
