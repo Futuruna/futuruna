@@ -13,6 +13,7 @@
 @ importer ./personskat - su
 @ importer ./personskat - folkepension
 @ importer ./personskat - socialpension
+@ importer ./personskat - gruppeliv - bonus
 @ importer ./personskat - par3 - erhvervsposter - kildefakta
 @ importer ./soemandsbeskatningsloven - par5 - par8
 
@@ -599,8 +600,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 --@end:personskat_ordinaer_virksomhedsindkomst--
 
 --@begin:personskat_personlig_indkomst_kildefakta--
-# PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) | PersonskatLovbestemteDagpenge(fakta: PersonskatDagpengeFakta) | PersonskatUddannelsesstøtte(fakta: PersonskatSuFakta) | PersonskatFolkepensionsudbetaling(fakta: PersonskatFolkepensionFakta) | PersonskatSocialpensionsudbetaling(fakta: PersonskatSocialpensionFakta)
-# PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat) | BeregnetLovbestemteDagpenge(resultat: PersonskatDagpengeResultat) | BeregnetUddannelsesstøtte(resultat: PersonskatSuResultat) | BeregnetFolkepensionsudbetaling(resultat: PersonskatFolkepensionResultat) | BeregnetSocialpensionsudbetaling(resultat: PersonskatSocialpensionResultat)
+# PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) | PersonskatLovbestemteDagpenge(fakta: PersonskatDagpengeFakta) | PersonskatUddannelsesstøtte(fakta: PersonskatSuFakta) | PersonskatFolkepensionsudbetaling(fakta: PersonskatFolkepensionFakta) | PersonskatSocialpensionsudbetaling(fakta: PersonskatSocialpensionFakta) | PersonskatGruppelivFraPensionsbonus(fakta: PersonskatGruppelivBonusFakta)
+# PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat) | BeregnetLovbestemteDagpenge(resultat: PersonskatDagpengeResultat) | BeregnetUddannelsesstøtte(resultat: PersonskatSuResultat) | BeregnetFolkepensionsudbetaling(resultat: PersonskatFolkepensionResultat) | BeregnetSocialpensionsudbetaling(resultat: PersonskatSocialpensionResultat) | BeregnetGruppelivFraPensionsbonus(resultat: PersonskatGruppelivBonusResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
 # PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, selvstændig_personlig_indkomst_før_fremførsel_kroner: Heltal, selvstændig_biblioteksafgift_kroner: Heltal, selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner: Heltal, selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, arbejdsudleje: List(KildeskattelovArbejdsudlejeInput), underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
@@ -631,6 +632,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | PersonskatUddannelsesstøtte(ydelse) -> ydelse.identifikation
     | PersonskatFolkepensionsudbetaling(ydelse) -> ydelse.identifikation
     | PersonskatSocialpensionsudbetaling(ydelse) -> ydelse.identifikation
+    | PersonskatGruppelivFraPensionsbonus(ydelse) -> ydelse.identifikation
 }
 | personskat_forenings_og_arbejdsløshedsydelse_indkomstår(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta) -> match fakta {
     | PersonskatForeningsydelseEfterLigningslov13(ydelse) -> ydelse.indkomstår
@@ -639,6 +641,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | PersonskatUddannelsesstøtte(ydelse) -> ydelse.indkomstår
     | PersonskatFolkepensionsudbetaling(ydelse) -> ydelse.indkomstår
     | PersonskatSocialpensionsudbetaling(ydelse) -> ydelse.indkomstår
+    | PersonskatGruppelivFraPensionsbonus(ydelse) -> ydelse.indkomstår
 }
 | personskat_forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(fakta: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)) -> length(distinct(map(fakta, personskat_forenings_og_arbejdsløshedsydelse_identifikation))) == length(fakta)
 | personskat_arbejdsgiverydelse_resultater(fakta: List(PersonskatArbejdsgiverydelseFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |post: PersonskatArbejdsgiverydelseFakta| personskat_arbejdsgiverydelse_resultat(post, skatteår, identifikationer_entydige))
@@ -659,6 +662,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         | PersonskatUddannelsesstøtte(ydelse) -> BeregnetUddannelsesstøtte(resultat = personskat_su_resultat(ydelse))
         | PersonskatFolkepensionsudbetaling(ydelse) -> BeregnetFolkepensionsudbetaling(resultat = personskat_folkepension_resultat(ydelse))
         | PersonskatSocialpensionsudbetaling(ydelse) -> BeregnetSocialpensionsudbetaling(resultat = personskat_socialpension_resultat(ydelse))
+        | PersonskatGruppelivFraPensionsbonus(ydelse) -> BeregnetGruppelivFraPensionsbonus(resultat = personskat_gruppeliv_bonus_resultat(ydelse))
     }
 }
 | personskat_forenings_og_arbejdsløshedsydelse_resultater(fakta: List(PersonskatForeningsOgArbejdsløshedsydelseFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |ydelse: PersonskatForeningsOgArbejdsløshedsydelseFakta| personskat_forenings_og_arbejdsløshedsydelse_resultat(ydelse, skatteår, identifikationer_entydige))
@@ -669,7 +673,13 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | BeregnetUddannelsesstøtte(kilde) -> kilde.input_gyldigt
     | BeregnetFolkepensionsudbetaling(kilde) -> kilde.input_gyldigt
     | BeregnetSocialpensionsudbetaling(kilde) -> kilde.input_gyldigt
+    | BeregnetGruppelivFraPensionsbonus(kilde) -> kilde.input_gyldigt
     | _ -> Falskt
+}
+| personskat_gruppeliv_bonuspost_gyldig(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match resultat {
+    | BeregnetGruppelivFraPensionsbonus(kilde) -> kilde.input_gyldigt
+    | UgyldigForeningsEllerArbejdsløshedsydelse(fakta, _, _) -> match fakta { | PersonskatGruppelivFraPensionsbonus(_) -> Falskt | _ -> Sandt }
+    | _ -> Sandt
 }
 | personskat_forenings_og_arbejdsløshedsydelse_skattepligtigt_beløb_kroner(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match resultat {
     | BeregnetForeningsydelseEfterLigningslov13(kilde) -> hvis kilde.kan_sammensættes { kilde.skattepligtigt_beløb_kroner } ellers { 0 }
@@ -678,6 +688,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | BeregnetUddannelsesstøtte(kilde) -> kilde.personlig_indkomst_uden_am_kroner
     | BeregnetFolkepensionsudbetaling(kilde) -> kilde.personlig_indkomst_uden_am_kroner
     | BeregnetSocialpensionsudbetaling(kilde) -> kilde.personlig_indkomst_uden_am_kroner
+    | BeregnetGruppelivFraPensionsbonus(kilde) -> kilde.personlig_indkomst_uden_am_kroner
     | _ -> 0
 }
 
@@ -689,6 +700,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | BeregnetUddannelsesstøtte(kilde) -> kilde.ll9c_aftrapningsindkomst_kroner
     | BeregnetFolkepensionsudbetaling(kilde) -> kilde.ll9c_aftrapningsindkomst_kroner
     | BeregnetSocialpensionsudbetaling(kilde) -> kilde.ll9c_aftrapningsindkomst_kroner
+    | BeregnetGruppelivFraPensionsbonus(kilde) -> kilde.ll9c_aftrapningsindkomst_kroner
     | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(kilde) -> hvis kilde.kan_sammensættes == Falskt { None } ellers { hvis kilde.skattepligtigt_beløb_kroner == 0 || kilde.fakta.art == Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring { Some(0) } ellers { None } }
     | BeregnetForeningsydelseEfterLigningslov13(kilde) -> hvis kilde.kan_sammensættes { Some(0) } ellers { None }
     | _ -> None
