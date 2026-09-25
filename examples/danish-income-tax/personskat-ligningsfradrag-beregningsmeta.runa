@@ -93,7 +93,7 @@
     path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1DriftsmiddelAfskrivning::erhvervsmæssig_andel_basispoint),
     label = "Driftsmidlets erhvervsmæssige andel",
     question = Some("Hvor stor en andel af driftsmidlets beregnede afskrivning vedrører arbejdet?"),
-    help = Some("Angiv basispoint: 100,00 % skrives som 10000, og 60,00 % som 6000."),
+    help = Some("Angiv et heltal fra 0 til 10000 basispoint: 50 % skrives som 5000, 60 % som 6000 og 100 % som 10000. Brug den underbyggede erhvervsmæssige andel af den samlede brug, ikke afskrivningssatsen. Futuruna anvender andelen på den oplyste afskrivning; reducer ikke beløbet med samme andel først. Negative andele eller andele over 100 % er inputfejl. 0 betyder afklaret ingen erhvervsmæssig brug, ikke ukendt. Kan andelen ikke afklares, skal den uafhængige sammenligning vente."),
     unit = Some("basispoint")
 )
 = personskat_ll9_stk1_felt_repræsentation_indtægtspåvirkning = TypetBeregningsfelt(
@@ -121,7 +121,7 @@
     path = refof(Ligningslov9Stk1Årsinput::udgifter::afholdt_eller_beregnet_beløb_kroner),
     label = "Afholdt eller beregnet lønmodtagerudgift",
     question = Some("Hvor stort er det afholdte udgiftsbeløb eller den beregnede afskrivning?"),
-    help = None,
+    help = Some("Oplys udgiften før arbejdsgiverens refusion og den fælles bundgrænse. For driftsmidler oplyses årets beregnede afskrivning før erhvervsandel, ikke automatisk hele købsprisen; afskrivningsgrundlag og adgang til afskrivning skal være afklaret særskilt. Futuruna trækker refusionen fra og anvender andel og bundgrænse. Årsopgørelsens rubrik 58 er allerede efter bundgrænsen og må ikke genbruges som rå udgift. Et rapportfradrag uden de nødvendige udgiftsfakta er ikke et uafhængigt beregningsgrundlag. Se personskat-validity.md#øvrige-lønmodtagerudgifter."),
     unit = Some("kr./år")
 )
 = personskat_ll9_stk1_felt_refusion = TypetBeregningsfelt(

@@ -175,6 +175,41 @@ established without guessing. Private insurance and other non-AM income are
 not interchangeable with statutory benefits. These are source-model tests,
 not independent verification against every official benefit/business profile.
 
+## Øvrige lønmodtagerudgifter
+
+Kontrollen `lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter` gælder også
+en aktiv ægtefælle. En negativ erhvervsandel eller en andel over 100 % er
+ugyldige fakta og tilbageholder sammenligningsbeløbet. Det er ikke det samme
+som en gyldig udgift uden fradragsret: 0 % erhvervsbrug eller almindeligt tøj
+kan give nul fradrag uden at gøre input ugyldigt. De oprindelige fakta bevares;
+en ugyldig række må ikke blot ignoreres for at få et årsresultat.
+
+Ved AI-assisteret indtastning:
+
+- Andelen er i basispoint: 50 % er `5000`, ikke `50`. Brug en underbygget
+  brugsandel, ikke afskrivningssatsen. Ukendt er ikke 0 %.
+- Driftsmiddelbeløbet er årets beregnede afskrivning **før erhvervsandel**,
+  ikke automatisk købsprisen. Denne gren efterprøver ikke hele
+  afskrivningsopgørelsen eller dokumenterer, at aktivet er fradragsberettiget.
+- Oplys beløb før refusion og den fælles bundgrænse; modellen foretager disse
+  reduktioner. Rubrik 58 på årsopgørelsen er allerede efter bundgrænsen.
+  Kopiér ikke det nettobeløb ind som en rå udgift, og udled ikke kildefakta
+  baglæns fra det fradrag, der skal efterprøves.
+
+Fiktivt eksempel uden refusion: 20.000 kr. i beregnet afskrivning med 50 %
+erhvervsbrug giver 10.000 kr. før bundgrænsen og 2.700 kr. efter 2025-grænsen
+på 7.300 kr., når der ikke er andre omfattede udgifter. Indtast altså `20000`
+og `5000`, ikke `10000` eller rubrikbeløbet `2700` som afskrivning.
+Se [SKATs vejledning om øvrige lønmodtagerudgifter](https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/arbejdstoej-faglitteratur-og-kurser-med-mere)
+og [den kildeforbundne model](ligningsloven-par9-loenmodtagerudgifter.runa).
+
+Der tilføjes ikke nye obligatoriske inputfelter. Den ændrede felthjælp ændrer
+dog kontrakthashen: generér en ny skabelon og overfør gennemgåede fakta.
+Ret aldrig en umulig eller ukendt andel til en vilkårlig gyldig værdi for at
+få beregningen til at fortsætte. Med kun rapportens beløb kan den
+[betingede afstemning](aarsopgoerelse-afstemning.md) stadig være relevant;
+den erstatter ikke de manglende udgiftsfakta.
+
 ## Union-fee taxpayer status
 
 This is an individual assessment, not a company tax return. With active
