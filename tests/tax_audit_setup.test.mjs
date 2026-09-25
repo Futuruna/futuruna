@@ -99,3 +99,20 @@ test('ordinary tax guides keep compiler commands on the checked binary', () => {
       `${name}: do not silently switch to a PATH compiler`);
   }
 });
+
+test('first-use tax guidance distinguishes source facts, placeholders and model coverage', () => {
+  const overview = readFileSync(join(root, 'examples/danish-income-tax/website-overblik.md'), 'utf8');
+  const setupText = guide.replace(/\s+/g, ' ');
+  for (const text of ['Template values are placeholders', 'A missing line is not proof of zero',
+    'stop the independent comparison', 'source_groups', '--format compact-json',
+    'personskat-cases.json', 'personskat-validity.md']) {
+    assert.ok(setupText.includes(text), `AI setup: ${text}`);
+  }
+  for (const text of ['Preview', 'BeregnetMedForbehold', 'UgyldigtBeregningsgrundlag',
+    'BetingetAfstemt', 'pladsholdere', 'klassifikation', 'docs/tax-audit-readiness.md',
+    'runtime-tjekket']) {
+    assert.ok(overview.includes(text), `overview: ${text}`);
+  }
+  assert.ok(!overview.includes('publiceringskonformiteten er verificeret'));
+  assert.ok(!overview.includes('en AI skal ikke selv konkludere, hvilken paragraf eller skatteart der gælder'));
+});

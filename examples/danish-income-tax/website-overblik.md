@@ -55,14 +55,18 @@ kirkeskat, Kildeskatteloven, Ligningsloven, aktie- og kapitalindkomst,
 
 Futurunas offentlige beregningsregel `beregn_personskat` samler disse dele i
 én typet regelgraf. Inputtet består så vidt muligt af observerbare kildefakta:
-beløb, datoer, ejerforhold, dispositioner og dokumenterede valg. Borgeren eller
-en AI skal ikke selv konkludere, hvilken paragraf eller skatteart der gælder.
-Det udleder reglerne.
+beløb, datoer, ejerforhold, dispositioner og dokumenterede valg. Nogle grene
+kræver også en eksplicit klassifikation, fx pensionsordningens eller en
+udbetalings retlige type. Et menneske eller en AI skal kunne begrunde det valg
+i kildematerialet; modellen udleder ikke alle klassifikationer fra en PDF.
+Uafklarede forhold skal undersøges eller forblive ukendte, ikke gættes.
 
 Regelgrafen fører fakta gennem de juridiske mellemresultater og frem til en
-ørenøjagtig slutskat og, når de nødvendige forudbetalinger er oplyst, en
-årsopgørelse. Ufuldstændige eller modstridende fakta fejler lukket i stedet for
-at blive udfyldt med en skjult skattemæssig antagelse.
+slutskat i eksakte øreenheder og, når de nødvendige forudbetalinger er oplyst,
+en årsopgørelse. De modellerede inputkontroller kan tilbageholde
+sammenligningsbeløbet ved ugyldige eller uafklarede fakta. De opdager ikke
+automatisk enhver udeladt indkomst, forkert klassifikation eller usand oplysning.
+Eksakte enheder beviser heller ikke, at alle myndighedens afrundinger er gengivet.
 
 Korpusset omfatter også de dele af andre love, som den kanoniske beregning
 afhænger af. Det betyder ikke, at dansk skatteret bliver statisk: nye
@@ -88,10 +92,19 @@ udfylder arbejdsbogen. AI'en må gerne hjælpe med at læse dokumenter og stille
 opfølgende spørgsmål, men den skal ikke gætte skatten. Futuruna ejer
 valideringen, regelfølgen og beregningen.
 
+Skabelonens nulbeløb, tomme lister og første valgmuligheder er pladsholdere,
+ikke bekræftede fakta. Brug kontraktens spørgsmål, hjælp, enheder og
+kildehenvisninger til at afklare de relevante felter. Kendt nul og ukendt er
+forskellige ting; hvis feltet ikke kan udtrykke den aktuelle usikkerhed, må
+en udfyldt skabelon ikke præsenteres som en uafhængig beregning af personens skat.
+
 Der er bevidst ingen automatisk PDF-importør. Et menneske eller en AI
-transskriberer kildefakta; myndighedens beregnede resultat bruges kun som en
-uafhængig kontrol. Derefter kan den samme udfyldte sag køres igen, auditeres og
-forklares ud fra lovkoden.
+transskriberer kildefakta. I den uafhængige beregning bruges myndighedens
+beregnede resultat kun til sammenligning. Den særskilte betingede afstemning
+bruger derimod udtrykkeligt rapportens observationer og kan vise nødvendige
+overførsler; de må ikke bagefter behandles som uafhængigt dokumenterede fakta.
+Den samme udfyldte sag kan køres igen og forklares ud fra lovkoden og de
+angivne forbehold.
 
 ## Eksempel: offentlig beregning fra Skattestyrelsen
 
@@ -131,13 +144,24 @@ klassifikationer og usædvanlige regelkaskader.
 
 ## Status
 
-Den første publicerbare Personskat-model består af 352 Futuruna-filer, heraf
-185 scenariefiler og 38 auditfiler. Den kanoniske kontrakt dækker både
-hovedperson og ægtefælle, relationelle kildefakta og den samlede
-slutopgørelse. De kendte beløbsmæssige huller i det nuværende korpus er
-implementeret, og publiceringskonformiteten er verificeret. Det løbende arbejde
-efter en udgivelse er kildevedligeholdelse samt udvidelse til nye eller endnu
-ikke modellerede retsforhold.
+Den kanoniske kontrakt omfatter hovedperson og ægtefælle, relationelle
+kildefakta og en slutopgørelse for dækkede forhold. Beregningsgrænsefladen
+`@ calculate` samt `schema`, `template` og `call` er Preview, og skattemodellen
+er forskningssoftware. De konkrete scenarier ovenfor er afgrænset evidens,
+ikke verifikation af vilkårlige danske årsopgørelser.
+
+Læs altid resultatets `vurdering`. `BeregnetMedForbehold` betyder, at de
+opregnede kontroller bestod, ikke at alle forhold eller regler er dækket.
+`UgyldigtBeregningsgrundlag` tilbageholder sammenligningsbeløbet; brug da ikke
+de øvrige tal som en pålidelig skat. Et `BetingetAfstemt` rapportresultat er
+heller ikke en uafhængig godkendelse.
+
+Den vedligeholdte [status for skatteaudit](https://github.com/Futuruna/futuruna/blob/main/docs/tax-audit-readiness.md)
+angiver verificerede forløb, afrundingsusikkerhed, kendte begrænsninger og
+offentlig leveringsstatus. Rettelser i repoet er ikke i sig selv en ny offentlig
+binær eller en opdateret hjemmeside. Brug den compiler, der består
+[runtime-tjekket](https://github.com/Futuruna/futuruna/blob/main/website/public/ai-setup.md#tax-audit-runtime-check),
+og generér input fra den samme modelversion.
 
 Futuruna-koden er den autoritative projektflade. Denne side opsummerer
 metoden og de verificerede resultater, men forsøger ikke at gengive hele

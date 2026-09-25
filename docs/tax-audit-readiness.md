@@ -30,6 +30,16 @@ No LLM evaluates these rules at runtime. A person or assistant supplies and
 classifies source facts; Futuruna executes the arithmetic and logic. Do not
 turn inferred report residuals into supposedly independent input facts.
 
+The first-use overview now distinguishes required source classification,
+template placeholders and enumerated validity checks from complete coverage.
+The [setup guide](../website/public/ai-setup.md) offers JSON input without a full
+workbook and requires unresolved facts to remain unresolved. Ordinary wage help
+is shared by taxpayer and spouse through typed metadata, with explicit
+pension/ATP boundaries and source traces, guarded against renewed drift by the
+[generated-contract test](../tests/tax_salary_metadata.test.mjs). This improves
+input guidance; it does not prove that an AI classifies an arbitrary report
+correctly or that every missing fact is mechanically detectable.
+
 Saved conditional results can also be read through the
 [local Danish result viewer](../examples/danish-income-tax/aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
 It retains every check, necessary amount, caveat and failed-case diagnostic;
