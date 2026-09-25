@@ -1,0 +1,40 @@
+@ sprog da
+
+@ importer ./personskat - dagpenge
+
+| dagpenge_scenarie(art: PersonskatDagpengeArt, beløb: Heltal, år: Heltal, kilde: Tekst) -> personskat_dagpenge_resultat(PersonskatDagpengeFakta(identifikation = "syntetisk-dagpenge", indkomstår = år, kildereference = kilde, art = art, indkomst_før_skat_kroner = beløb))
+= dagpenge_omfattede = map([
+    ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov,
+    GDageEfterDanskArbejdsløshedsforsikringslov84,
+    SygedagpengeEfterDanskSygedagpengelov(erstatter_b_indkomst = Some(Falskt), frivillig_sikring_efter_par45 = Some(Falskt)),
+    BarselsdagpengeEfterDanskBarselslov(erstatter_b_indkomst = Some(Falskt))
+    ], |art: PersonskatDagpengeArt| dagpenge_scenarie(art, 100000, 2026, "syntetisk-bilag"))
+= dagpenge_undtagne = map([
+    SygedagpengeEfterDanskSygedagpengelov(erstatter_b_indkomst = Some(Sandt), frivillig_sikring_efter_par45 = None),
+    SygedagpengeEfterDanskSygedagpengelov(erstatter_b_indkomst = None, frivillig_sikring_efter_par45 = Some(Sandt)),
+    BarselsdagpengeEfterDanskBarselslov(erstatter_b_indkomst = Some(Sandt))
+    ], |art: PersonskatDagpengeArt| dagpenge_scenarie(art, 100000, 2026, "syntetisk-bilag"))
+= dagpenge_uafklarede = map([
+    SygedagpengeEfterDanskSygedagpengelov(erstatter_b_indkomst = None, frivillig_sikring_efter_par45 = Some(Falskt)),
+    SygedagpengeEfterDanskSygedagpengelov(erstatter_b_indkomst = Some(Falskt), frivillig_sikring_efter_par45 = None),
+    BarselsdagpengeEfterDanskBarselslov(erstatter_b_indkomst = None)
+    ], |art: PersonskatDagpengeArt| dagpenge_scenarie(art, 100000, 2026, "syntetisk-bilag"))
+= dagpenge_ugyldige = [
+    dagpenge_scenarie(ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov, -1, 2026, "syntetisk-bilag"),
+    dagpenge_scenarie(ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov, 100000, 2027, "syntetisk-bilag"),
+    dagpenge_scenarie(ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov, 100000, 2026, " "),
+    dagpenge_scenarie(DagpengeartUoplystEllerUdenForModellen, 0, 2026, "syntetisk-bilag")
+]
+| dagpenge_omfattede_indgår_uden_am: dagpenge_omfattede -> all(dagpenge_omfattede, |r: PersonskatDagpengeResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 100000 && r.ll9c_aftrapningsindkomst_kroner == Some(100000))
+| dagpenge_undtagelser_er_stadig_personlig_indkomst: dagpenge_undtagne -> all(dagpenge_undtagne, |r: PersonskatDagpengeResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 100000 && r.ll9c_aftrapningsindkomst_kroner == Some(0))
+| dagpenge_ukendt_er_ikke_nul: dagpenge_uafklarede -> all(dagpenge_uafklarede, |r: PersonskatDagpengeResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 100000 && r.ll9c_aftrapningsindkomst_kroner == None)
+| dagpenge_ugyldige_giver_ingen_kendt_indkomst: dagpenge_ugyldige -> all(dagpenge_ugyldige, |r: PersonskatDagpengeResultat| r.input_gyldigt == Falskt && r.personlig_indkomst_uden_am_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == None)
+| dagpenge_nul_er_uafhængigt_af_undtagelsen: dagpenge_uafklarede -> all(dagpenge_uafklarede, |r: PersonskatDagpengeResultat| dagpenge_scenarie(r.fakta.art, 0, 2026, "syntetisk-bilag").ll9c_aftrapningsindkomst_kroner == Some(0))
+| dagpenge_dækkede_år: dagpenge_omfattede -> all([2023, 2024, 2025, 2026], |år: Heltal| dagpenge_scenarie(ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov, 100000, år, "syntetisk-bilag").input_gyldigt)
+
+? dagpenge_omfattede_indgår_uden_am
+? dagpenge_undtagelser_er_stadig_personlig_indkomst
+? dagpenge_ukendt_er_ikke_nul
+? dagpenge_ugyldige_giver_ingen_kendt_indkomst
+? dagpenge_nul_er_uafhængigt_af_undtagelsen
+? dagpenge_dækkede_år

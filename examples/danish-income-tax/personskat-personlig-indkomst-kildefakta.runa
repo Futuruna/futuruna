@@ -9,6 +9,7 @@
 @ importer ./metadata
 @ importer ./pensionsbeskatningsloven - par49 - 49b
 @ importer ./personskat - etableringskonto - kildefakta
+@ importer ./personskat - dagpenge
 @ importer ./personskat - par3 - erhvervsposter - kildefakta
 @ importer ./soemandsbeskatningsloven - par5 - par8
 
@@ -568,8 +569,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 --@end:personskat_ordinaer_virksomhedsindkomst--
 
 --@begin:personskat_personlig_indkomst_kildefakta--
-# PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta)
-# PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat)
+# PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) | PersonskatLovbestemteDagpenge(fakta: PersonskatDagpengeFakta)
+# PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat) | BeregnetLovbestemteDagpenge(resultat: PersonskatDagpengeResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
 # PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, selvstændig_personlig_indkomst_før_fremførsel_kroner: Heltal, selvstændig_biblioteksafgift_kroner: Heltal, selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner: Heltal, selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, arbejdsudleje: List(KildeskattelovArbejdsudlejeInput), underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
@@ -596,10 +597,12 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_forenings_og_arbejdsløshedsydelse_identifikation(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta) -> match fakta {
     | PersonskatForeningsydelseEfterLigningslov13(ydelse) -> ydelse.identifikation
     | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(ydelse) -> ydelse.identifikation
+    | PersonskatLovbestemteDagpenge(ydelse) -> ydelse.identifikation
 }
 | personskat_forenings_og_arbejdsløshedsydelse_indkomstår(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta) -> match fakta {
     | PersonskatForeningsydelseEfterLigningslov13(ydelse) -> ydelse.indkomstår
     | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(ydelse) -> ydelse.indkomstår
+    | PersonskatLovbestemteDagpenge(ydelse) -> ydelse.indkomstår
 }
 | personskat_forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(fakta: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)) -> length(distinct(map(fakta, personskat_forenings_og_arbejdsløshedsydelse_identifikation))) == length(fakta)
 | personskat_arbejdsgiverydelse_resultater(fakta: List(PersonskatArbejdsgiverydelseFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |post: PersonskatArbejdsgiverydelseFakta| personskat_arbejdsgiverydelse_resultat(post, skatteår, identifikationer_entydige))
@@ -616,19 +619,34 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     match fakta {
         | PersonskatForeningsydelseEfterLigningslov13(ydelse) -> BeregnetForeningsydelseEfterLigningslov13(resultat = ligningslov13_foreningsydelse_resultat(ydelse))
         | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(ydelse) -> BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat = pbl49_arbejdsløshedsforsikringsudbetaling_resultat(ydelse))
+        | PersonskatLovbestemteDagpenge(ydelse) -> BeregnetLovbestemteDagpenge(resultat = personskat_dagpenge_resultat(ydelse))
     }
 }
 | personskat_forenings_og_arbejdsløshedsydelse_resultater(fakta: List(PersonskatForeningsOgArbejdsløshedsydelseFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |ydelse: PersonskatForeningsOgArbejdsløshedsydelseFakta| personskat_forenings_og_arbejdsløshedsydelse_resultat(ydelse, skatteår, identifikationer_entydige))
 | personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match resultat {
     | BeregnetForeningsydelseEfterLigningslov13(kilde) -> kilde.kan_sammensættes
     | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(kilde) -> kilde.kan_sammensættes
+    | BeregnetLovbestemteDagpenge(kilde) -> kilde.input_gyldigt
     | _ -> Falskt
 }
 | personskat_forenings_og_arbejdsløshedsydelse_skattepligtigt_beløb_kroner(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match resultat {
     | BeregnetForeningsydelseEfterLigningslov13(kilde) -> hvis kilde.kan_sammensættes { kilde.skattepligtigt_beløb_kroner } ellers { 0 }
     | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(kilde) -> hvis kilde.kan_sammensættes { kilde.skattepligtigt_beløb_kroner } ellers { 0 }
+    | BeregnetLovbestemteDagpenge(kilde) -> kilde.personlig_indkomst_uden_am_kroner
     | _ -> 0
 }
+
+-- PBL § 49 alene afgør ikke, om en A-kasseydelse er udbetalt efter den
+-- danske arbejdsløshedsforsikringslov. Den gamle generelle gren bevares,
+-- men dens positive beløb må ikke blive til et sikkert nul i LL § 9 C.
+| personskat_ydelse_ll9c_indkomst(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match resultat {
+    | BeregnetLovbestemteDagpenge(kilde) -> kilde.ll9c_aftrapningsindkomst_kroner
+    | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(kilde) -> hvis kilde.kan_sammensættes == Falskt { None } ellers { hvis kilde.skattepligtigt_beløb_kroner == 0 || kilde.fakta.art == Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring { Some(0) } ellers { None } }
+    | BeregnetForeningsydelseEfterLigningslov13(kilde) -> hvis kilde.kan_sammensættes { Some(0) } ellers { None }
+    | _ -> None
+}
+| personskat_ydelse_ll9c_indkomst_afklaret(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match personskat_ydelse_ll9c_indkomst(resultat) { | Some(_) -> Sandt | None -> Falskt }
+| personskat_ydelse_ll9c_kendt_indkomst_kroner(resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat) -> match personskat_ydelse_ll9c_indkomst(resultat) { | Some(beløb) -> beløb | None -> 0 }
 
 # PersonskatOrdinærPersonligIndkomstSag(input: PersonskatOrdinærPersonligIndkomstInput, skatteår: Heltal) {
     | arbejdsgiverydelsesidentifikationer_entydige() -> personskat_arbejdsgiverydelsesidentifikationer_entydige(input.arbejdsgiverydelser)

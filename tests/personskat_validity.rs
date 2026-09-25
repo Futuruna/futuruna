@@ -243,6 +243,315 @@ fn fictional_spouse_rates_input(envelope: &Value) -> Value {
 }
 
 #[test]
+fn commuting_income_uses_benefit_sources_and_annual_business_basis() {
+    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut baseline = fictional_spouse_rates_input(&envelope);
+    baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
+    baseline["lønmodtager"]["skatteår"] = json!(2026);
+    baseline["lønmodtager"]["bruttoløn_kroner"] = json!(300000);
+    baseline["lønmodtager"]["betaler_kirkeskat"] = json!(false);
+    baseline["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] = json!([commuting(220)]);
+    let benefit = |art: Value| {
+        json!({"$variant":"PersonskatLovbestemteDagpenge", "fakta":{
+            "identifikation":"fictional-benefit", "indkomstår":2026,
+            "kildereference":"fictional-payment-record", "art":art,
+            "indkomst_før_skat_kroner":100000
+        }})
+    };
+    let sick = |b: Value, voluntary: Value| {
+        benefit(json!({
+            "$variant":"SygedagpengeEfterDanskSygedagpengelov",
+            "erstatter_b_indkomst":b, "frivillig_sikring_efter_par45":voluntary
+        }))
+    };
+    let parental = |b: Value| {
+        benefit(json!({"$variant":"BarselsdagpengeEfterDanskBarselslov", "erstatter_b_indkomst":b}))
+    };
+    let insurance = |art: &str| {
+        json!({"$variant":"PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49", "fakta":{
+            "identifikation":"fictional-benefit", "indkomstår":2026, "beløb_kroner":100000,
+            "art":{"$variant":art}, "skatteyderrelation":{"$variant":"Pbl49SkatteyderenErEjer"},
+            "undtagelse":{"$variant":"Ll30Og31UdenUndtagelse"}
+        }})
+    };
+    let unemployment =
+        benefit(json!({"$variant":"ArbejdsløshedsdagpengeEfterDanskArbejdsløshedsforsikringslov"}));
+    let mut wrong_year = unemployment.clone();
+    wrong_year["fakta"]["indkomstår"] = json!(2025);
+    // Source-law expectations, not observations of SKAT rounding:
+    // 220 * (55 - 24) * 3.17 = 21619.40 -> existing 21619 DKK projection.
+    // At 300000 the additional deduction is floor(21619 * .64) = 13836.
+    // At 400000 it is fully phased out. Benefits must not add AM or employment deduction.
+    // (ID, benefits, known income, income classified, deduction classified, valid, bonus.)
+    let fixtures = vec![
+        ("baseline", vec![], 300000, true, true, true, 13836),
+        (
+            "unemployment",
+            vec![unemployment.clone()],
+            400000,
+            true,
+            true,
+            true,
+            0,
+        ),
+        (
+            "g-days",
+            vec![benefit(
+                json!({"$variant":"GDageEfterDanskArbejdsløshedsforsikringslov84"}),
+            )],
+            400000,
+            true,
+            true,
+            true,
+            0,
+        ),
+        (
+            "sickness",
+            vec![sick(json!(false), json!(false))],
+            400000,
+            true,
+            true,
+            true,
+            0,
+        ),
+        (
+            "parental",
+            vec![parental(json!(false))],
+            400000,
+            true,
+            true,
+            true,
+            0,
+        ),
+        (
+            "sickness-b-income",
+            vec![sick(json!(true), Value::Null)],
+            300000,
+            true,
+            true,
+            true,
+            13836,
+        ),
+        (
+            "sickness-voluntary",
+            vec![sick(Value::Null, json!(true))],
+            300000,
+            true,
+            true,
+            true,
+            13836,
+        ),
+        (
+            "parental-b-income",
+            vec![parental(json!(true))],
+            300000,
+            true,
+            true,
+            true,
+            13836,
+        ),
+        (
+            "unknown-sickness",
+            vec![sick(Value::Null, json!(false))],
+            300000,
+            false,
+            false,
+            false,
+            0,
+        ),
+        (
+            "unknown-high-wage",
+            vec![sick(Value::Null, json!(false))],
+            400000,
+            false,
+            true,
+            true,
+            0,
+        ),
+        (
+            "legacy-akasse",
+            vec![insurance("Pbl49UdbetalingFraArbejdsløshedskasse")],
+            300000,
+            false,
+            false,
+            false,
+            0,
+        ),
+        (
+            "private-insurance",
+            vec![insurance(
+                "Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring",
+            )],
+            300000,
+            true,
+            true,
+            true,
+            13836,
+        ),
+        (
+            "wrong-year",
+            vec![wrong_year],
+            300000,
+            false,
+            false,
+            false,
+            0,
+        ),
+        (
+            "duplicate",
+            vec![unemployment.clone(), unemployment.clone()],
+            300000,
+            false,
+            false,
+            false,
+            0,
+        ),
+        (
+            "cross-branch-duplicate",
+            vec![
+                unemployment.clone(),
+                insurance("Pbl49UdbetalingFraArbejdsløshedskasse"),
+            ],
+            300000,
+            false,
+            false,
+            false,
+            0,
+        ),
+        ("spouse", vec![unemployment], 400000, true, true, true, 0),
+        ("business-netting", vec![], 300000, true, true, true, 13836),
+        ("business-carry", vec![], 300000, true, true, true, 13836),
+        (
+            "unknown-no-commute",
+            vec![parental(Value::Null)],
+            300000,
+            false,
+            true,
+            true,
+            0,
+        ),
+    ];
+    let business = |id: &str, revenue: i64, expense: i64| {
+        json!({
+            "identifikation":id, "indkomstår":2026,
+            "indtægter":[{"identifikation":format!("{id}-revenue"), "art":{"$variant":"OrdinærDriftsindtægt"}, "beløb_kroner":revenue}],
+            "udgifter":[{"identifikation":format!("{id}-expense"), "afgrænsning":{"$variant":"SelvstændigErhvervsindkomstUdgift"}, "beløb_kroner":expense}],
+            "ligningslovsfradrag_efter_par3_stk2_nr2":[], "erhvervsposter_efter_par3_stk2_nr4_til_10":[]
+        })
+    };
+    envelope["cases"] = json!(fixtures
+        .iter()
+        .map(|(id, benefits, _, _, _, _, _)| {
+            let mut input = baseline.clone();
+            if *id == "unknown-high-wage" {
+                input["lønmodtager"]["bruttoløn_kroner"] = json!(400000);
+            }
+            if *id == "unknown-no-commute" {
+                input["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] = json!([]);
+            }
+            input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
+                ["forenings_og_arbejdsløshedsydelser"] = json!(benefits);
+            if *id == "business-netting" {
+                input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
+                    ["virksomheder_uden_virksomhedsordning"] =
+                    json!([business("profit", 100000, 0), business("loss", 0, 100000)]);
+            }
+            if *id == "business-carry" {
+                input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
+                    ["virksomheder_uden_virksomhedsordning"] = json!([business("profit", 100000, 0)]);
+                input["kapitalindkomst"]["virksomhedskapital"]["selvstændig_arbejdsmarkedsbidrag"] = json!({
+                    "$variant":"AmblPar4UdenVirksomhedsordning", "fremført_negativ_personlig_indkomst":[{
+                        "identifikation":"fictional-prior-loss", "oprindelsesår":2025,
+                        "resterende_beløb_primo_kroner":100000,
+                        "oprindelse":{"$variant":"AmblFremførtNegativFraAndet"},
+                        "dokumentreference":"fictional-prior-income-loss-ledger"
+                    }]
+                });
+            }
+            if *id == "spouse" {
+                input["ægtefælle"] = spouse(&input);
+                input["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(300000);
+                input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
+                    ["forenings_og_arbejdsløshedsydelser"] = json!([]);
+            }
+            json!({"case_id":id, "input":input})
+        })
+        .collect::<Vec<_>>());
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-commuting-income-{}.json",
+        std::process::id()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let output = run(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let rows = output["results"].as_array().unwrap();
+    assert_eq!(rows.len(), fixtures.len());
+    for (row, (id, _, income, classified, bonus_classified, valid, bonus)) in
+        rows.iter().zip(fixtures)
+    {
+        assert_eq!(row["case_id"], id);
+        let result = &row["result"];
+        let gate = &result["vurdering"];
+        let person = if id == "spouse" {
+            &result["ægtefælle"]["grundlag"]
+        } else {
+            result
+        };
+        let commute = &person["ligningsfradrag"]["befordring"];
+        println!(
+            "{id}: income={}, classified={}, bonus={}, valid={}",
+            commute["aftrapningsindkomst_kroner"],
+            commute["aftrapningsindkomst_afklaret"],
+            commute["lavindkomsttillæg_kroner"],
+            gate["alle_kontroller_gyldige"]
+        );
+        assert_eq!(gate["alle_kontroller_gyldige"], valid, "{id}: {gate}");
+        assert_eq!(commute["aftrapningsindkomst_kroner"], income, "{id}");
+        assert_eq!(commute["aftrapningsindkomst_afklaret"], classified, "{id}");
+        assert_eq!(
+            commute["lavindkomsttillæg_afklaret"], bonus_classified,
+            "{id}"
+        );
+        assert_eq!(commute["lavindkomsttillæg_kroner"], bonus, "{id}");
+        if valid {
+            assert!(gate["slutskat_til_sammenligning_øre"].is_number());
+            if id != "spouse" {
+                let wage = if id == "unknown-high-wage" {
+                    400000
+                } else {
+                    300000
+                };
+                assert_eq!(
+                    result["skat"]["arbejdsmarkedsbidrag_kroner"],
+                    wage * 8 / 100,
+                    "{id}"
+                );
+                assert_eq!(
+                    result["skat"]["beskæftigelsesfradrag_kroner"],
+                    wage * 1275 / 10000,
+                    "{id}"
+                );
+                // The carry fixture tests AM/commuting composition, not the separate PSL loss ledger.
+                let benefit_income = if id == "baseline" || id == "business-netting" {
+                    0
+                } else {
+                    100000
+                };
+                assert_eq!(
+                    result["skat"]["personlig_indkomst_efter_am_kroner"],
+                    wage * 92 / 100 + benefit_income,
+                    "{id}"
+                );
+            }
+        } else {
+            assert_eq!(gate["slutskat_til_sammenligning_øre"], Value::Null);
+            assert!(gate["fejl"].as_array().unwrap().iter().any(|error| error["sti"] == "lønmodtager.personlig_indkomst.ordinære_forhold.forenings_og_arbejdsløshedsydelser"), "{id}: {gate}");
+        }
+    }
+}
+
+#[test]
 fn spouse_loss_uses_recipient_rates_from_source_facts() {
     let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let mut baseline = fictional_spouse_rates_input(&envelope);

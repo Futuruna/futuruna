@@ -708,16 +708,16 @@
 
 = personskat_ydelsesudbetaling_felt_samling = TypetBeregningsfelt(
     path = refof(PersonskatOrdinærPersonligIndkomstInput::forenings_og_arbejdsløshedsydelser),
-    label = "Ydelser fra faglige foreninger og arbejdsløshedsforsikring",
-    question = Some("Hvilke erstatninger eller ydelser har personen modtaget fra en faglig forening, A-kasse eller privat arbejdsløshedsforsikring?"),
-    help = Some("Opret én række for hver særskilt udbetaling og for hver retligt identificerbar del af en sammensat udbetaling."),
+    label = "Dagpenge, foreningsydelser og arbejdsløshedsforsikring",
+    question = Some("Har personen modtaget arbejdsløshedsdagpenge, G-dage, syge- eller barselsdagpenge, foreningsydelser eller privat lønsikring?"),
+    help = Some("Opret én række for hver særskilt udbetaling og retligt identificerbar del. Brug PersonskatLovbestemteDagpenge for de dækkede danske dagpenge. Samme udbetaling må ikke også stå i PBL § 49-grenen eller bruttolønnen. ATP-fakta oplyses særskilt."),
     unit = None
 )
 = personskat_ydelsesudbetaling_felt_hjemmel = TypetBeregningsfelt(
     path = refof(PersonskatForeningsOgArbejdsløshedsydelseFakta::$variant),
     label = "Udbetalingens lovgren",
-    question = Some("Er udbetalingen en medlemsydelse fra en faglig forening efter LL § 13 eller en arbejdsløshedsforsikringsudbetaling efter PBL § 49?"),
-    help = Some("Vælg efter den udbetalende ordning og dokumentationen, ikke efter årsopgørelsens samlelinje."),
+    question = Some("Er dette dækkede danske dagpenge, en foreningsydelse efter LL § 13 eller arbejdsløshedsforsikring efter PBL § 49?"),
+    help = Some("Vælg efter ordningens lovgrundlag og dokumentation, ikke årsopgørelsens samlelinje. Den generelle A-kassevariant under PBL § 49 afklarer ikke indkomstgrundlaget for ekstra kørselsfradrag; dokumenterede danske arbejdsløshedsdagpenge har en særskilt gren."),
     unit = None
 )
 

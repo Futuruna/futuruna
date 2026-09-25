@@ -497,14 +497,16 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     lønmodtager = personskat_sømandsfradrag_blandet_input().lønmodtager,
     erhvervsbefordring = personskat_sømandsfradrag_blandet_resultat.erhvervsbefordring,
     personlig_indkomst = personskat_sømandsfradrag_blandet_resultat.personlig_indkomst,
-    ligningslov12_indkomstgrundlag = personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.gaver.indkomstgrundlag
+    ligningslov12_indkomstgrundlag = personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.gaver.indkomstgrundlag,
+    selvstændig_arbejdsmarkedsbidrag = personskat_sømandsfradrag_blandet_resultat.selvstændig_arbejdsmarkedsbidrag
 )
 = personskat_sømandsfradrag_blandet_forkert_befordringstilknytning_resultat = personskat_ligningsfradrag_resultat(
     input = personskat_sømandsfradrag_blandet_ligningsfradrag_med_forkert_befordringstilknytning(),
     lønmodtager = personskat_sømandsfradrag_blandet_input().lønmodtager,
     erhvervsbefordring = personskat_sømandsfradrag_blandet_resultat.erhvervsbefordring,
     personlig_indkomst = personskat_sømandsfradrag_blandet_resultat.personlig_indkomst,
-    ligningslov12_indkomstgrundlag = personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.gaver.indkomstgrundlag
+    ligningslov12_indkomstgrundlag = personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.gaver.indkomstgrundlag,
+    selvstændig_arbejdsmarkedsbidrag = personskat_sømandsfradrag_blandet_resultat.selvstændig_arbejdsmarkedsbidrag
 )
 | personskat_sømandsfradrag_almindeligt_helår: personskat_sømandsfradrag_helår_almindeligt_resultat -> personskat_sømandsfradrag_helår_almindeligt_resultat.alle_input_gyldige && personskat_sømandsfradrag_helår_almindeligt_resultat.samlet_fradrag_kroner == 56900
 | personskat_sømandsfradrag_forhøjet_helår: personskat_sømandsfradrag_helår_forhøjet_resultat -> personskat_sømandsfradrag_helår_forhøjet_resultat.alle_input_gyldige && personskat_sømandsfradrag_helår_forhøjet_resultat.samlet_fradrag_kroner == 105000

@@ -1,6 +1,7 @@
 # Danish tax-audit readiness
 
-Evidence snapshot: **25 September 2026**, source through `9c4b281e`.
+Evidence snapshot: **25 September 2026**; named commits below identify earlier
+closeouts, with subsequent focused model corrections described separately.
 This records the original launch findings and their disposition, not a claim
 that arbitrary Danish tax returns are fully verified. Typed calculations remain
 [Preview](feature-stages.md); the tax corpus remains research software.
@@ -17,6 +18,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | Could an invoice qualify for a service/handyman deduction? | [Invoice review](../examples/danish-income-tax/boligjob.md) | Supported factual conditions, allocation and annual limits; not automatic document authentication. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
+| Do my benefits affect the extra commuting deduction? | [Danish benefit review](../examples/danish-income-tax/personskat-dagpenge.md) | Separates personal income without wage AM from LL §9 C income; ordinary statutory benefits and explicit exclusions also compose into Personskat. |
 
 No LLM evaluates these rules at runtime. A person or assistant supplies and
 classifies source facts; Futuruna executes the arithmetic and logic. Do not
@@ -69,11 +71,13 @@ establish universal or historical conformance.
 
 ## Limits to keep visible
 
-- Commuting phaseout income needs further source-fact composition (`td-b8013e`):
-  statutory unemployment/sickness/maternity payments are not all represented
-  by the current salary/AM-addition basis. Annual self-employment adjustments
-  also need tracing. Do not claim the extra low-income commuting deduction is
-  independently verified for those profiles or substitute all non-AM income.
+- Commuting phaseout income now composes ordinary statutory benefits and the
+  annual AMBL §§4–5 business result (`td-b8013e`). Generic A-kasse facts alone
+  do not establish the statutory classification. Unknown facts withhold a
+  comparison where they could alter the deduction; afterløn, other benefits,
+  foreign benefits and reperiodization are not added by this change. Focused
+  source-model regressions are not independent official-calculator conformance
+  for all benefit/business profiles.
 - Three observed 2026 **one-krone deduction differences**, at exact-one-øre
   intermediate boundaries, remain unexplained (`td-68c9d3`).
   [The amounts and profiles are recorded](../examples/danish-income-tax/skatdk-fradrag-oere-ekstern.md#kendte-afvigelser--ikke-match).
@@ -100,10 +104,11 @@ canary gates. Later model corrections have their own focused canonical and
 component checks; that earlier full gate is not a claim to have rerun every
 test on every later model revision. Known skips and ignored tests are not passes.
 
-This closeout adds documentation and a cheap setup regression, not compiler or
-tax semantics. It does not restart those expensive gates. Subsequent compiler
-changes still require the [contributor ratchet](../CONTRIBUTING.md); model or
-guide changes require checks proportionate to what actually changed.
+The original closeout added documentation and a cheap setup regression.
+Subsequent commuting corrections have targeted model tests, not a new full
+compiler-suite run. Compiler changes still require the
+[contributor ratchet](../CONTRIBUTING.md); model or guide changes require checks
+proportionate to what actually changed.
 
 Before public launch, align the guide and binaries with an approved candidate,
 verify that candidate under the release runbook, and keep the above coverage

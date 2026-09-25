@@ -12,6 +12,9 @@ mindre pensionsindbetaling?« eller »hvilke fradrag bør jeg undersøge?«.
 viser de relevante spørgsmål, en konkret før/efter-beregning og hvilke bilag
 der er nødvendige. Du behøver ikke begynde med hele skattearbejdsbogen.
 
+Har du både løn og dagpenge, viser [dagpenge og kørselsfradrag](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-dagpenge.md)
+en lille beregning med dokumenterede indkomstarter og synlige ukendte forhold.
+
 Mangler din ægtefælles oplysninger, kan du stadig
 [afstemme din egen årsopgørelse betinget](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/aarsopgoerelse-afstemning.md).
 Resultatet viser blandt andet, hvilke overførsler der skulle være til stede,
