@@ -219,6 +219,58 @@ and value data in its fingerprint. Definition file paths and line numbers stay
 in `runa meta --json` and do not make a portable calculation contract
 machine-dependent.
 
+### Inspect one input branch
+
+For a large contract, the repository's read-only Python 3 helper can inspect a
+fresh compact export without printing every field or expanding every source:
+
+```sh
+python3 scripts/calculation-input-guide.py schema.json
+python3 scripts/calculation-input-guide.py schema.json lønmodtager
+python3 scripts/calculation-input-guide.py schema.json lønmodtager.bruttoløn_kroner
+python3 scripts/calculation-input-guide.py schema.json 'ægtefælle.$variant'
+```
+
+The first command lists the input's immediate children. Follow a returned `path`
+to see its type, immediate children, explicit field metadata and referenced
+source objects. Unannotated fields remain visible with
+`has_explicit_metadata: false`; missing help does not mean an optional or
+irrelevant field. Selected ancestor metadata, including branch-discriminator
+guidance, stays in the view. Source-group order, repeated references and source
+objects are preserved, not summarized into new legal claims.
+
+`variant_guards` describes which alternative a payload belongs to; inspection
+does not select that alternative for a person. `containers` identifies lists,
+sets, string-keyed maps and optional values along the path. Collection paths
+describe each element, not a particular row. Optional descendants apply only
+when their enclosing value is present; workbook optional composites still use
+one JSON cell. These are schema-navigation paths, **not JSON Pointers into case
+data**. Use the normal generated template and input encoding when supplying facts.
+
+The default page contains at most 20 children. Follow `page.next_offset` with
+`--offset N` until it is `null`; `--limit` accepts 1–100. Whole-calculation
+metadata is separate, not silently treated as field-local or discarded:
+
+```sh
+python3 scripts/calculation-input-guide.py schema.json --root-metadata --limit 10
+python3 scripts/calculation-input-guide.py schema.json --root-metadata --limit 10 --offset 10
+```
+
+Review relevant root metadata and the model's coverage guide as well as field
+guidance. A focused view is not evidence that unrelated conditions are satisfied.
+The helper accepts regular compact-schema files up to 32 MiB and refuses output
+over 1 MiB instead of truncating it; choose a deeper path or smaller page. It
+rejects duplicate JSON keys, missing source references and nonexistent paths,
+and preserves exact integer metadata. Positional constructor payload navigation
+is explicitly unsupported; inspect its original type definition instead.
+
+This repository helper is not a new `runa` command, input adapter, completeness
+check or document importer. It does not authenticate the reported fingerprint,
+check legal correctness, execute rules, fill placeholders or write files. Its
+inspection output may evolve and cannot be submitted to `runa call`. Generate
+the schema locally from the trusted current model; `runa call` remains the
+authority for contract and case validation.
+
 ## Reuse Validated Contracts
 
 `schema`, `template`, and `call` persist successful contract validation in a

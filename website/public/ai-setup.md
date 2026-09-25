@@ -359,7 +359,26 @@ Use the field labels, questions, help, units, choices, and source traces in the 
 
 The compact schema retains all source information through `source_group`,
 `source_groups` and `source_objects`; resolve those references when explaining a
-field. It is a schema export, not the input envelope. If the user prefers a
+field. With Python 3 available, use the repository's read-only navigator instead
+of loading the whole Personskat schema into the conversation:
+
+```
+python3 scripts/calculation-input-guide.py PRIVATE_WORK_DIR/personskat-schema.json
+python3 scripts/calculation-input-guide.py PRIVATE_WORK_DIR/personskat-schema.json lønmodtager.bruttoløn_kroner
+python3 scripts/calculation-input-guide.py PRIVATE_WORK_DIR/personskat-schema.json ægtefælle
+```
+
+Follow returned paths and `page.next_offset`; omitted pages are not empty
+sections. The view retains relevant ancestor guidance and source references,
+shows alternative conditions and collection context, and marks missing explicit
+metadata. Read whole-calculation metadata with `--root-metadata` and pagination
+when relevant; it is not included in a field view. The navigator neither selects
+a person's alternatives nor validates their facts or the reported fingerprint.
+Use only a fresh trusted schema export. See `docs/reference/calculations.md` for
+limits and optional/composite encoding; no new software installation is needed
+if Python 3 is already present.
+
+The schema and navigation view are not the input envelope. If the user prefers a
 workbook, use `template --format xlsx` with an `.xlsx` output and the same
 selected compiler; follow the calculation guide for related tables and refresh.
 
