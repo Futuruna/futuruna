@@ -52,7 +52,8 @@ adds explicitly fictional source excerpts, an authored field mapping with line
 references, generated guidance and canonical output. It separates private
 pension from payroll pension, employee ATP from total ATP, and repeated bank/
 report observations from additional interest. Two resolved profiles use recorded
-independent 2025 expectations; employer pension/ATP uses model checks only.
+independent 2025 expectations. Employer rate pension/ATP has model checks
+but an unresolved external disagreement, recorded below.
 Unknown ATP is submitted with its explicit variant and withholds the comparison;
 unknown interest share is held before submission because the amount field cannot
 represent unknown. The [regression](../tests/tax_source_input.test.mjs) also
@@ -179,8 +180,22 @@ The latter matched six independently observed 2025 cases through total tax;
 no interest formula correction was needed. These fictional observations do not
 establish universal or historical conformance.
 
+The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
+add two 2025 official-form matches (ordinary ATP below the employment-deduction
+cap, and lifetime pension plus ATP) and two unresolved employer-rate pension
+disagreements. The latter differ by 5,520 DKK in extra pension deduction and
+1,297.20 DKK in tax, not a rounding tolerance. Public HTTP form submissions
+and restored inputs were inspected; a fresh graphical-browser reproduction
+and explanation remain open (`td-0e5d15`). No formula was changed to fit the
+observations. Canonical caveats and the source demo expose the disagreement;
+the [offline regression](../tests/tax_employer_pension_conformance.test.mjs)
+keeps matches, disagreements and an invalid ATP control distinct.
+
 ## Limits to keep visible
 
+- Employer-rate pension conformance with the anonymous 2025 form remains
+  unresolved (`td-0e5d15`, above). This is not evidence that an actual annual
+  assessment is wrong, nor grounds to move contributions to another field.
 - Commuting phaseout income now composes ordinary statutory benefits and the
   annual AMBL §§4–5 business result (`td-b8013e`). Generic A-kasse facts alone
   do not establish the statutory classification. Unknown facts withhold a

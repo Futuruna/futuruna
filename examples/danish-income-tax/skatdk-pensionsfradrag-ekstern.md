@@ -102,7 +102,11 @@ Anvendelsen i ældre år er en udtrykkelig modelantagelse, ikke uafhængigt
 verificeret historisk praksis eller en påstået lovændring i 2025.
 
 Private ratebidrag validerer ikke alle pensionsordninger, delår eller en
-hel personlig årsopgørelse. De to kendte 2026-afvigelser for **arbejdsfradrag**
+hel personlig årsopgørelse. Den særskilte
+[arbejdsgiverpensionskontrol](skatdk-arbejdsgiverpension-ekstern.md) har to
+2025-match og to uafklarede afvigelser for arbejdsgiverrate; de private
+rateobservationer her må ikke bruges som bevis for arbejdsgiverkonformitet.
+De tre kendte 2026-afvigelser for **arbejdsfradrag**
 i [den særskilte kontrol](skatdk-fradrag-oere-ekstern.md) er ikke løst her.
 
 Inputtyper ændres ikke. Genberegn berørte resultater fra de samme kildefakta;
