@@ -90,7 +90,7 @@ test('release workflow checks its staged artifact, not a replacement build', () 
 });
 
 test('ordinary tax guides keep compiler commands on the checked binary', () => {
-  for (const name of ['pension-og-fradrag.md', 'aarsopgoerelse-afstemning.md', 'boligjob.md']) {
+  for (const name of ['pension-og-fradrag.md', 'aarsopgoerelse-afstemning.md', 'boligjob.md', 'personskat-delaar.md']) {
     const text = readFileSync(join(root, 'examples/danish-income-tax', name), 'utf8');
     assert.ok(text.includes('tax-audit-runtime-check'), `${name}: link the runtime check`);
     const shell = [...text.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).join('\n');
@@ -115,4 +115,19 @@ test('first-use tax guidance distinguishes source facts, placeholders and model 
   }
   assert.ok(!overview.includes('publiceringskonformiteten er verificeret'));
   assert.ok(!overview.includes('en AI skal ikke selv konkludere, hvilken paragraf eller skatteart der gælder'));
+});
+
+test('tax intake separates liability periods from employment and final from intermediate amounts', () => {
+  const setupText = guide.replace(/\s+/g, ' ');
+  for (const phrase of ['Months worked are not the same as months of tax liability',
+    'personskat-delaar.md', 'Do not compare an ordinary or nested intermediate total',
+    'Unresolved liability facts must remain unresolved']) {
+    assert.ok(setupText.includes(phrase), phrase);
+  }
+  const partyear = readFileSync(join(root, 'examples/danish-income-tax/personskat-delaar.md'), 'utf8');
+  for (const phrase of ['vurdering.slutskat_til_sammenligning_øre', 'delårsresultat.vurdering',
+    'UgyldigtBeregningsgrundlag', 'BeregnetMedForbehold', 'ikke restskat',
+    'ikke en uafhængig', 'schema_hash']) {
+    assert.ok(partyear.replace(/\s+/g, ' ').includes(phrase), phrase);
+  }
 });

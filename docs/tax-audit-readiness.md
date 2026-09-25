@@ -19,6 +19,7 @@ and the exact compiler that passes its runtime check. Then choose the question:
 | Are my recurring donations capped correctly when paid in instalments? | [Gift-agreement review](../examples/danish-income-tax/personskat-gaver.md) | Ordinary LL §12 payments share one limit per identified agreement before the common income ceiling. Missing/conflicting agreement facts or unconfirmed ordinary payment history withhold comparisons. |
 | Does child maintenance belong in my calculation or my child's? | [Maintenance recipient guide](../examples/danish-income-tax/personskat-underholdsbidrag.md) | Separates payer, assessed child and adult alimony; inconsistent child-recipient birth dates withhold comparison, including for spouses. It does not authenticate identities. |
 | Does my own-source calculation agree with the report? | [Canonical validity assessment](../examples/danish-income-tax/personskat-validity.md) | Supported model calculations after input checks, with explicit coverage reservations. |
+| Did Danish tax liability begin or end during the year? | [Part-year intake and assessment](../examples/danish-income-tax/personskat-delaar.md) | Explicit liability periods and source treatment; the final part-year assessment, not a nested ordinary amount, controls comparison. Fewer months worked do not themselves establish part-year liability. |
 | How do ferry or flight tickets combine with a short road commute? | [Ferry/flight guide](../examples/danish-income-tax/personskat-faerge-og-fly.md) | Deducts the unused daily 24-km threshold from documented ticket costs, preserving source expense and exact-øre trace. Requires correctly grouped travel days. |
 | What explains my green-check credit? | [Compact green-check review](../examples/danish-income-tax/groen-check.md) or [Personskat-integrated calculation](../examples/danish-income-tax/personskat-groen-check.md) | The compact review uses supplied income; the integrated entry derives it from Personskat, inserts the credit once and excludes it from refund percentage compensation. Missing or unsupported facts withhold the integrated settlement. |
 | Do my benefits affect the extra commuting deduction? | [Danish benefit review](../examples/danish-income-tax/personskat-dagpenge.md) | Separates personal income without wage AM from LL §9 C income; ordinary statutory benefits and explicit exclusions also compose into Personskat. |
@@ -108,6 +109,16 @@ checks mirrored inputs, unchanged pay and withheld comparisons. These are
 canonical model observations, not new external tax conformance. Arbitrary
 role-swapping of personal cases, including pair-level losses/relief, is not
 implemented or implied. No tax formula or input contract changed.
+
+The separate part-year entry now has a final nullable comparison assessment
+based on its existing validity conditions. A fictional valid 2025 case gives
+103,831.01 DKK after PSL14 but 94,331.44 DKK in its ordinary intermediate result;
+a source mismatch leaves that intermediate valid while invalidating the final
+part-year result. The [regression](../tests/personskat_partyear_validity.test.mjs)
+guards the correct output level and generated source-linked warning. No tax
+formula, raw amount or existing validity condition changed. This does not infer
+tax liability, establish external conformance or cover arbitrary mixed periods;
+the ordinary entry still needs the correct intake route chosen explicitly.
 
 ## Original findings: source closeout
 

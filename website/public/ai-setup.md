@@ -308,7 +308,17 @@ facts. A spouse's Annual Tax Report may help, but its absence must not prevent a
 useful review. Do not repeatedly request unavailable documents or invent the
 missing values.
 
-When those facts are unavailable, use the separate conditional workflow in
+First establish whether Danish tax liability applied throughout the income year
+or began/ended during it, including for a calculated spouse. Months worked are
+not the same as months of tax liability. The ordinary entry has no liability
+dates and does not automatically apply PSL §14. For part-year facts, read
+`examples/danish-income-tax/personskat-delaar.md` and use the supported separate
+entry with explicit periods and source treatment. Do not compare an ordinary
+or nested intermediate total as though it were final part-year tax; use the
+part-year result's own `vurdering`. Unresolved liability facts must remain unresolved.
+
+When the facts needed for an independent calculation are unavailable, use the
+separate conditional workflow in
 `examples/danish-income-tax/aarsopgoerelse-afstemning.md`. Its
 `afstem_årsopgørelse` entry accepts selected observations from the user's own
 report and exposes the spouse transfers necessary for the income and tax totals

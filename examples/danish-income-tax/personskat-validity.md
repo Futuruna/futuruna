@@ -43,6 +43,11 @@ Filer over 16 MiB afvises; beregn mindre batches frem for at slette forbehold.
 Denne visning understøtter kun `beregn_personskat`, ikke den separate
 [grøn-check-beregning](personskat-groen-check.md) eller
 [betingede rapportafstemning](aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
+Den særskilte [delårsberegning](personskat-delaar.md) læses som JSON og har
+sin egen yderste `vurdering`. Dens indlejrede `delårsresultat.vurdering` er
+et mellemtrin, ikke den endelige delårskonklusion. Den almindelige indgang
+modtager ikke skattepligtsperiodens datoer; afklar derfor helår/delår før
+valg af beregningsvej.
 
 ## Model-owned validity assessment
 
