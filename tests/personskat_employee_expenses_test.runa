@@ -1,0 +1,59 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / ligningsloven - par9 - loenmodtagerudgifter
+
+-- Fiktive beløb. Afskrivningen er opgjort før erhvervsandel og LL § 9-bundgrænse.
+| udgiftsprøve_fakta(andel: Heltal) -> Ligningslov9Stk1Udgiftsfakta(
+    identifikation = "fiktivt-driftsmiddel",
+    indkomstår = 2025,
+    arbejdsforhold_identifikation = "fiktivt-arbejde",
+    udgiftsart = Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint = andel),
+    afholdt_eller_beregnet_beløb_kroner = 20000,
+    arbejdsgiver_refunderet_efter_regning_kroner = 0,
+    dokumentation = Ll9Stk1DokumenteretMedBilag
+)
+| udgiftsprøve_år(andel: Heltal) -> ligningslov9_stk1_årsresultat(2025, Ligningslov9Stk1Årsinput(
+    skatteyderstatus = Ll9Stk1Lønmodtager,
+    udgifter = [udgiftsprøve_fakta(andel)]
+))
+| udgiftsprøve_ugyldig(andel: Heltal) -> {
+    = resultat = udgiftsprøve_år(andel)
+    ligningslov9_stk1_input_gyldigt(udgiftsprøve_fakta(andel)) == Falskt && resultat.alle_input_gyldige == Falskt && head(resultat.udgiftsresultater).input_gyldigt == Falskt && resultat.samlet_fradrag_kroner == 0 && head(resultat.udgiftsresultater).fakta == udgiftsprøve_fakta(andel)
+}
+= ugyldige_andele = udgiftsprøve_ugyldig(-1) && udgiftsprøve_ugyldig(10001)
+| umulig_andel_er_ugyldige_fakta_ikke_nulfradrag: ugyldige_andele -> ugyldige_andele
+? umulig_andel_er_ugyldige_fakta_ikke_nulfradrag
+
+= nul = udgiftsprøve_år(0)
+| nul_er_gyldig_uden_fradragsret: nul -> nul.alle_input_gyldige && head(nul.udgiftsresultater).udgiftsart_omfattet == Falskt && nul.samlet_fradrag_kroner == 0
+? nul_er_gyldig_uden_fradragsret
+
+= mindste = udgiftsprøve_år(1)
+| en_basispoint_er_gyldig: mindste -> mindste.alle_input_gyldige && head(mindste.udgiftsresultater).udgiftsart_omfattet && mindste.samlet_fradragsgrundlag_før_bundgrænse_kroner == 2 && mindste.samlet_fradrag_kroner == 0
+? en_basispoint_er_gyldig
+
+= halv = udgiftsprøve_år(5000)
+| erhvervsandel_anvendes_før_bundgrænse: halv -> halv.alle_input_gyldige && halv.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10000 && halv.samlet_fradrag_kroner == 2700
+? erhvervsandel_anvendes_før_bundgrænse
+
+= næsten = udgiftsprøve_år(9999)
+= fuld = udgiftsprøve_år(10000)
+= øvre_grænser = næsten.alle_input_gyldige && næsten.samlet_fradrag_kroner == 12698 && fuld.alle_input_gyldige && fuld.samlet_fradrag_kroner == 12700
+| øvre_gyldige_grænser_bevares: øvre_grænser -> øvre_grænser
+? øvre_gyldige_grænser_bevares
+
+-- En ugyldig række må ikke forsvinde bag en gyldig række med positivt fradrag.
+= blandet = ligningslov9_stk1_årsresultat(2025, Ligningslov9Stk1Årsinput(
+    skatteyderstatus = Ll9Stk1Lønmodtager,
+    udgifter = [udgiftsprøve_fakta(-1), Ligningslov9Stk1Udgiftsfakta(
+        identifikation = "fiktiv-telefon",
+        indkomstår = 2025,
+        arbejdsforhold_identifikation = "fiktivt-arbejde",
+        udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+        afholdt_eller_beregnet_beløb_kroner = 20000,
+        arbejdsgiver_refunderet_efter_regning_kroner = 0,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+))
+| ugyldig_række_blokerer_årsfradrag: blandet -> blandet.alle_input_gyldige == Falskt && blandet.samlet_fradragsgrundlag_før_bundgrænse_kroner == 0 && blandet.samlet_fradrag_kroner == 0
+? ugyldig_række_blokerer_årsfradrag

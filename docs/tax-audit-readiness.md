@@ -71,6 +71,17 @@ the separate spouse/settlement calculations. No tax formula changed.
 
 ## Further correctness work already delivered
 
+Employee-expense work-use shares below zero or above 100% now invalidate the
+facts instead of silently producing a valid zero deduction. The control covers
+taxpayer and spouse while retaining zero use and ordinary ineligibility as
+valid facts. [Focused component boundaries](../tests/personskat_employee_expenses_test.runa)
+and [canonical/schema regression](../tests/personskat_employee_expenses.test.mjs)
+cover the validity gate and shared input guidance. The
+[input guide](../examples/danish-income-tax/personskat-validity.md#øvrige-lønmodtagerudgifter)
+also warns against reusing net box-58 deductions as raw expenses or applying the
+work-use share twice. This is a validity and input-guidance correction, not
+verification of an arbitrary asset's depreciation schedule or entitlement.
+
 Permanent coverage also protects fail-closed arithmetic/undefined rules,
 duplicate JSON rejection, pension payout timing/completeness, employer pension
 and ATP routing, foreign employment allocation, individual union-fee caps, and

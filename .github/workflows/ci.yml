@@ -66,6 +66,9 @@ jobs:
           ./target/release/runa run tests/personskat_ferry_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_ferry.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_salary_metadata.test.mjs
+          ./target/release/runa tests/personskat_employee_expenses_test.runa
+          ./target/release/runa run tests/personskat_employee_expenses_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_employee_expenses.test.mjs
 
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/

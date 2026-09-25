@@ -166,7 +166,13 @@ Bundgrænse for visse lønmodtagerfradrag
     | Ll9Stk1Repræsentation(_) -> ligningslov9_stk3_repraesentationsandel_basispoint()
     | _ -> 10000
 }
-| ligningslov9_stk1_input_gyldigt(fakta: Ligningslov9Stk1Udgiftsfakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.arbejdsforhold_identifikation != "" && fakta.afholdt_eller_beregnet_beløb_kroner >= 0 && fakta.arbejdsgiver_refunderet_efter_regning_kroner >= 0 && fakta.arbejdsgiver_refunderet_efter_regning_kroner <= fakta.afholdt_eller_beregnet_beløb_kroner
+-- En erhvervsandel er en del af den samlede brug. Umulige andele er
+-- inputfejl, ikke almindelig manglende fradragsret. Dokumenteret 0 % er gyldigt.
+| ligningslov9_stk1_udgiftsart_input_gyldig(udgiftsart: Ligningslov9Stk1Udgiftsart) -> match udgiftsart {
+    | Ll9Stk1DriftsmiddelAfskrivning(andel) -> andel >= 0 && andel <= 10000
+    | _ -> Sandt
+}
+| ligningslov9_stk1_input_gyldigt(fakta: Ligningslov9Stk1Udgiftsfakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.arbejdsforhold_identifikation != "" && ligningslov9_stk1_udgiftsart_input_gyldig(fakta.udgiftsart) && fakta.afholdt_eller_beregnet_beløb_kroner >= 0 && fakta.arbejdsgiver_refunderet_efter_regning_kroner >= 0 && fakta.arbejdsgiver_refunderet_efter_regning_kroner <= fakta.afholdt_eller_beregnet_beløb_kroner
 | ligningslov9_stk1_identifikationer_entydige(udgifter: List(Ligningslov9Stk1Udgiftsfakta)) -> length(distinct(map(udgifter, |fakta: Ligningslov9Stk1Udgiftsfakta| fakta.identifikation))) == length(udgifter)
 | ligningslov9_stk1_egen_udgift_kroner(fakta: Ligningslov9Stk1Udgiftsfakta) -> penge_positivt_beløb(fakta.afholdt_eller_beregnet_beløb_kroner - fakta.arbejdsgiver_refunderet_efter_regning_kroner)
 | ligningslov9_stk1_udgiftsresultat(indkomstår: Heltal, skatteyderstatus: Ligningslov9Stk1Skatteyderstatus, fakta: Ligningslov9Stk1Udgiftsfakta) -> {
