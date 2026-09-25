@@ -1,0 +1,17 @@
+@ sprog da
+
+@ importer ./personskat - su
+
+| su_scenarie(art: PersonskatSuArt, år: Heltal, beløb: Heltal, afklaret: Boolsk, kilde: Tekst) -> personskat_su_resultat(PersonskatSuFakta(identifikation = "syntetisk-su", indkomstår = år, kildereference = kilde, art = art, beløb_før_skat_kroner = beløb, uden_udlandsforhold_og_korrektioner = afklaret))
+= su_stipendium = su_scenarie(SuStipendiumEfterDanskSuLov, 2025, 80000, Sandt, "syntetisk-bilag")
+= su_lån = su_scenarie(SuLånEfterDanskSuLov, 2025, 30000, Sandt, "syntetisk-bilag")
+= su_ugyldige = [su_scenarie(SuUoplystEllerUdenForModellen, 2025, 0, Sandt, "bilag"), su_scenarie(SuStipendiumEfterDanskSuLov, 2027, 80000, Sandt, "bilag"), su_scenarie(SuStipendiumEfterDanskSuLov, 2025, -1, Sandt, "bilag"), su_scenarie(SuStipendiumEfterDanskSuLov, 2025, 80000, Falskt, "bilag"), su_scenarie(SuStipendiumEfterDanskSuLov, 2025, 80000, Sandt, " ")]
+| su_stipendium_er_personlig_indkomst: su_stipendium -> su_stipendium.input_gyldigt && su_stipendium.personlig_indkomst_uden_am_kroner == 80000 && su_stipendium.låneudbetaling_uden_for_indkomst_kroner == 0 && su_stipendium.ll9c_aftrapningsindkomst_kroner == Some(0)
+| su_lån_er_ikke_indkomst: su_lån -> su_lån.input_gyldigt && su_lån.personlig_indkomst_uden_am_kroner == 0 && su_lån.låneudbetaling_uden_for_indkomst_kroner == 30000 && su_lån.ll9c_aftrapningsindkomst_kroner == Some(0)
+| su_ukendt_og_ugyldigt_er_ikke_kendt_nul: su_ugyldige -> all(su_ugyldige, |r: PersonskatSuResultat| r.input_gyldigt == Falskt && r.personlig_indkomst_uden_am_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == None)
+| su_understøttede_år: su_stipendium -> all([2023, 2024, 2025, 2026], |år: Heltal| su_scenarie(SuStipendiumEfterDanskSuLov, år, 80000, Sandt, "bilag").input_gyldigt)
+
+? su_stipendium_er_personlig_indkomst
+? su_lån_er_ikke_indkomst
+? su_ukendt_og_ugyldigt_er_ikke_kendt_nul
+? su_understøttede_år

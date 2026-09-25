@@ -14,6 +14,8 @@ der er nødvendige. Du behøver ikke begynde med hele skattearbejdsbogen.
 
 Har du både løn og dagpenge, viser [dagpenge og kørselsfradrag](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-dagpenge.md)
 en lille beregning med dokumenterede indkomstarter og synlige ukendte forhold.
+For studerende adskiller [SU og studiejob](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-su.md)
+stipendium, lån og løn, så SU ikke får lønnens AM-bidrag og arbejdsfradrag.
 
 Mangler din ægtefælles oplysninger, kan du stadig
 [afstemme din egen årsopgørelse betinget](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/aarsopgoerelse-afstemning.md).
