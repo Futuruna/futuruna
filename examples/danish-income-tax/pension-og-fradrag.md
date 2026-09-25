@@ -134,6 +134,26 @@ skal derimod ikke trækkes fra lønfeltet. Lønoplysningerne er efter fradrag
 af ATP og eget arbejdsgiveradministreret pensionsbidrag.
 [Skattestyrelsens forklaring af AM-bidrag](https://skat.dk/borger/am-bidrag).
 
+Samme definition gælder for ægtefællens lønfelt. Kontraktens spørgsmål og hjælp
+kommer fra én typet metadata-definition for begge personer. Hvis lønlinjen
+allerede er efter egen ATP og bortseelsesberettiget pensionsandel, må du ikke
+trække dem fra endnu en gang. Brug heller ikke bankens nettoudbetaling eller
+årsopgørelsens samlede personlige indkomst som almindelig løn.
+
+Et rubriknummer er ikke en fuldstændig fordeling: lønindberetningens felt 13
+kan også indeholde fx skattepligtige personalegoder og godtgørelser. Hvis et
+beløb oplyses gennem en særskilt modelgren, må det ikke samtidig tælles med i
+det almindelige lønfelt; bevar dokumenteret opdeling, og udelad ikke et beløb
+uden at føre det til den relevante gren. Private pensionsbetalinger holdes
+adskilt fra denne afgrænsning. Afklar manglende detaljer frem for at tilpasse
+lønnen, så beregnet skat passer.
+[eIndkomstvejledningen 8.2, felt 13](https://info.skat.dk/data.aspx?oid=2233519).
+
+Metadataændringen ændrer kontraktens fingeraftryk, men ikke lønfeltets sti,
+datatype eller skatteformler. Generér en ny skabelon og overfør gennemgåede
+fakta; redigér ikke det gamle fingeraftryk. Ægtefællens tidligere kortere
+felttekst er ikke grundlag for at bruge en anden løndefinition.
+
 En almindelig arbejdsgiverbetalt livsvarig livrente indgår **før AM-bidrag**
 i grundlaget for beskæftigelses- og jobfradrag. Det ekstra pensionsfradrag
 bruger derimod bidraget **efter indeholdt AM-bidrag**. Derfor skal både

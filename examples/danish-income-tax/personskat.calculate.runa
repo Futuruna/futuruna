@@ -291,11 +291,11 @@
     help = Some("Hovedreglen er kommunen, hvor du havde bopæl den 5. september året før indkomståret, ikke nødvendigvis din nuværende bopælskommune. Kommunen vælges efter disse fakta, men satsen er indkomstårets. Afklar særregler ved tilflytning fra udlandet, flere bopæle, institutionsophold eller skibsophold efter kommuneskattelovens § 2. En kendt kommunekode bekræfter ikke, at kommunen er juridisk korrekt valgt."),
     unit = None
 )
-= personskat_felt_bruttoløn = Beregningsfelt(
-    path = "lønmodtager.bruttoløn_kroner",
-    label = "Årlig bruttoløn",
-    question = Some("Hvad er årets almindelige løn før AM-bidrag og skat, men uden arbejdsgiveradministreret pension og ATP, og uden særskilt oplyst sømandsindkomst, rejse- eller kørselsgodtgørelse?"),
-    help = Some("Brug løngrundlaget fra lønoplysningerne, ikke den samlede lønpakke inklusive pension. Arbejdsgiveradministrerede pensionsbidrag, også egenbetaling over lønnen, oplyses særskilt under pension og må ikke samtidig tælles som løn. Private pensionsindbetalinger trækkes derimod ikke fra dette lønfelt. Medtag ikke løn fra skibsarbejde i sømandsindkomsttabellen eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder selv de særskilt oplyste beløb, som skal føres tilbage til ordinær bruttoløn."),
+= personskat_felt_bruttoløn = TypetBeregningsfelt(
+    path = refof(PersonskatLønmodtagerInput::bruttoløn_kroner),
+    label = "Årlig almindelig løn før AM og skat",
+    question = Some("Hvad er personens almindelige årsløn før AM-bidrag og skat, men uden bortseelsesberettiget arbejdsgiveradministreret pension og ATP, og uden indkomst oplyst særskilt i andre indkomstgrene?"),
+    help = Some("Brug løngrundlaget fra lønoplysningerne, ikke den samlede lønpakke inklusive pension eller bankens nettoudbetaling. Bortseelsesberettigede arbejdsgiveradministrerede pensionsbidrag, også egenbetaling over lønnen, oplyses særskilt under pension og må ikke samtidig tælles som løn. Når lønlinjen allerede er efter egen ATP og pensionsandel, må de ikke trækkes fra igen. Private pensionsindbetalinger trækkes derimod ikke fra dette lønfelt. Årsopgørelsens samlede personlig indkomst er heller ikke løn. SU, offentlige ydelser og pensionsudbetalinger hører i deres egne grene. Medtag ikke også særskilt oplyst sømandsindkomst, skattepligtige personalegoder eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder de relevante tillæg. Sammenhold dokumentets år, enhed og indhold med feltets definition; et rubriknummer alene afklarer ikke opdelingen. Se pension-og-fradrag.md."),
     unit = Some("kr./år")
 )
 = personskat_felt_dis_indkomster = TypetBeregningsfelt(
@@ -1263,13 +1263,6 @@
     question = Some("Skal indkomst fra en virksomhed fordeles mellem ægtefællerne efter kildeskattelovens § 25 A?"),
     help = Some("Tilføj én række for hver virksomhed. Virksomhedens indtægter og udgifter oplyses kun én gang hos den ægtefælle, der driver den; denne tabel angiver den lovlige henføring mellem ægtefællerne."),
     unit = None
-)
-= personskat_felt_ægtefælle_bruttoløn = Beregningsfelt(
-    path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::lønmodtager::bruttoløn_kroner),
-    label = "Ægtefællens årlige bruttoløn",
-    question = Some("Hvor meget modtog din ægtefælle i almindelig løn før skat i hele indkomståret?"),
-    help = Some("Angiv ægtefællens løn før arbejdsmarkedsbidrag, skat og personlige fradrag."),
-    unit = Some("kr./år")
 )
 = personskat_felt_ægtefælle_kommune = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::lønmodtager::kommune),
@@ -12188,13 +12181,26 @@
         Source(value = kommuneskatteloven_2019_935),
     )
 )
+= personskat_løngrundlag_am_vejledning = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://skat.dk/borger/am-bidrag",
+    identifier = "Skattestyrelsen: Am-bidrag, løn efter ATP og eget pensionsbidrag",
+    hentet_dato = "2026-09-25"
+)
+= personskat_løngrundlag_eindkomst_vejledning = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2233519",
+    identifier = "eIndkomst: Indberetningsvejledning 8.2, felt 13, afgrænsning af AM-bidragspligtig A-indkomst",
+    hentet_dato = "2026-09-25"
+)
 = personskat_metadata_bruttoløn = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_bruttoløn),
         Source(value = personskatteloven_2021_1284),
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
+        Guidance(value = personskat_løngrundlag_am_vejledning),
+        Guidance(value = personskat_løngrundlag_eindkomst_vejledning),
     )
 )
+--@label:PersonskatLønmodtagerInput::meta:personskat_metadata_bruttoløn--
 = personskat_meta_dis_indkomster = TypetBeregningsmeta(
     felter = [
         personskat_felt_dis_indkomster,
@@ -12402,7 +12408,6 @@
         Field(value = personskat_felt_ægtefælle),
         Field(value = personskat_felt_ægtefælle_samliv),
         Field(value = personskat_felt_ægtefælle_kildeskat25a_fordelinger),
-        Field(value = personskat_felt_ægtefælle_bruttoløn),
         Field(value = personskat_felt_ægtefælle_kommune),
         Field(value = personskat_felt_ægtefælle_renteindtægter),
         Field(value = personskat_felt_ægtefælle_renteudgifter),
@@ -14261,7 +14266,6 @@
     grundforhold = (
         personskat_metadata_skatteår,
         personskat_metadata_kommune,
-        personskat_metadata_bruttoløn,
         personskat_meta_dis_indkomster,
         personskat_meta_dis_skibsårsdrifter,
         personskat_meta_andre_ligningslov7u_indkomster,

@@ -287,8 +287,12 @@ Before handling tax information:
 Start by reading:
 
 - `examples/danish-income-tax/website-overblik.md`
-- `examples/danish-income-tax/personskat.calculate.runa`
+- `examples/danish-income-tax/personskat-validity.md`
 - `docs/reference/calculations.md`
+
+Use the generated contract to locate relevant fields, then inspect their types,
+rules and source anchors in `personskat.calculate.runa` and its imports. Reading
+every imported law file before asking the first factual question is not required.
 
 Choose the review route before generating a workbook. If the calculation uses
 Futuruna's spouse branch, an independent calculation needs the relevant spouse
@@ -311,15 +315,40 @@ percentage additions. Do not enter debt as a negative refund or describe that
 principal check as verification of the amount to pay, instalments or due dates.
 
 For an independent calculation with supported source facts, inspect the contract
-and generate an Excel workbook. Replace `PRIVATE_WORK_DIR` with the private
-directory chosen by the user:
+and generate input. JSON is convenient for an AI-assisted interview; XLSX is an
+optional alternative, not a prerequisite. Replace `PRIVATE_WORK_DIR` with the
+private directory chosen by the user:
 
 ```
-"$RUNA_BIN" schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --output PRIVATE_WORK_DIR/personskat-schema.json
-"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format xlsx --output PRIVATE_WORK_DIR/personskat-cases.xlsx
+"$RUNA_BIN" schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format compact-json --output PRIVATE_WORK_DIR/personskat-schema.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format json --output PRIVATE_WORK_DIR/personskat-cases.json
 ```
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
+
+The compact schema retains all source information through `source_group`,
+`source_groups` and `source_objects`; resolve those references when explaining a
+field. It is a schema export, not the input envelope. If the user prefers a
+workbook, use `template --format xlsx` with an `.xlsx` output and the same
+selected compiler; follow the calculation guide for related tables and refresh.
+
+Template values are placeholders, not confirmed facts. In particular, zero,
+`false`, empty lists and the first alternative must not silently become the
+person's income, marital status or absence of deductions. Review applicable
+sections, choose alternatives before their payloads, and keep a private note of
+each supplied value's document/page or explicit user confirmation. A missing
+line is not proof of zero. Preserve an available unknown alternative or `null`;
+when a required field cannot express the unresolved fact, stop the independent
+comparison and explain what is missing. Do not change the fact to make validation
+pass. The conditional report route can still answer its narrower questions.
+
+For both taxpayer and spouse, distinguish the ordinary wage basis from a total
+salary package, net bank payment and the report's total personal income. Follow
+the wage field's pension/ATP exclusions; do not subtract an amount again when
+the source wage line already excludes it. Keep a component out of ordinary wage
+only when its separate input route is actually supplied, so neither omission nor
+double counting is hidden. An annual-report box number alone does not establish
+this allocation. See `pension-og-fradrag.md#løn-og-arbejdsgiverpension-brug-ikke-samme-beløb-to-gange`.
 
 The single-parent employment deduction requires facts about extra børnetilskud,
 not a deduction copied from the tax report or an inference from marital status.
@@ -334,10 +363,10 @@ including labour/material separation and any household allocation. Read
 another expense field or convert unknown expenses to none. A small standalone
 invoice calculation is available before filling the full tax contract.
 
-When the workbook is complete, run:
+When the supported input facts have been reviewed, run:
 
 ```
-"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.xlsx --output PRIVATE_WORK_DIR/personskat-results.xlsx
+"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.json --output PRIVATE_WORK_DIR/personskat-results.json
 ```
 
 Before comparing totals, read the canonical result's `vurdering` as described in
