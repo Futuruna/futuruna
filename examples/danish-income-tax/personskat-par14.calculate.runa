@@ -72,7 +72,7 @@ https://info.skat.dk/data.aspx?oid=1977389
 # PersonskatPar14DisGrundlag(dis_personlig_indkomst_kroner: Heltal, personlig_indkomstgrundlag_kroner: Heltal, personlig_og_positiv_kapitalindkomstgrundlag_kroner: Heltal, skattepligtig_indkomstgrundlag_kroner: Heltal)
 # PersonskatPar14DisResultat(input_gyldigt: Boolsk, delårsgrundlag: PersonskatPar14DisGrundlag, helårsgrundlag: PersonskatPar14DisGrundlag, komponenter_efter_par14: List(Søbl5EksaktLempelseskomponent), lempelse_før_skatteloft_øre: Heltal, henført_personligt_skatteloftsnedslag_beregning: PengeØreBeregning, henført_personligt_skatteloftsnedslag_øre: Heltal, højeste_lempelse_efter_par13_og_skatteloft_øre: Heltal, beregnet_lempelse_øre: Heltal, samlet_lempelse_øre: Heltal, anvendt_lempelse_øre: Heltal, ubrugt_lempelse_øre: Heltal, indkomstskat_før_dis_lempelse_øre: Heltal, indkomstskat_efter_dis_lempelse_øre: Heltal, afstemt: Boolsk)
 # PersonskatPar14EfterfølgendeSkatResultat(ligningslov33: Ligningslov33PersonÅrsresultat, ligningslov33a: Ligningslov33AÅrsresultat, ligningslov33_og_33a_nedslag_øre: Heltal, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, tidligere_fremført_negativ_aktieindkomstskat: AktieindkomstNegativSkatFremførselsparResultat, personskattelov_par8a_stk5_kredit_øre: Heltal, arbejdsmarkedsbidragslov_par6_kredit_øre: Heltal, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatResultat, afskrivningslov40c_acontoskat_kredit_øre: Heltal, ligningslov33_understøttet: Boolsk, aktieskattekredit_understøttet: Boolsk, afskrivningslov40c_understøttet: Boolsk, slutskat_før_kreditter_øre: Heltal, endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal)
-# PersonskatPar14BeregningResultat(input_gyldigt: Boolsk, periode_gyldig: Boolsk, kilder_gyldige: Boolsk, kilder_afstemt_med_personskat: Boolsk, helårsgrundlag_gyldigt: Boolsk, kanonisk_beregning_understøttet: Boolsk, helårsskattekomponenter_afstemt: Boolsk, skattepligtsdage: Heltal, valg: Par14ValgResultat, delårsresultat: PersonskatBeregningResultat, delårsinput: LønmodtagerInput, helårsinput: LønmodtagerInput, helårsberegning: LønmodtagerBreakdown, helårsberegning_eksakt: LønmodtagerEksaktBeregning, statslige_skattekomponenter: List(Par14SkattekomponentResultat), kommunale_og_kirkelige_skattekomponenter: List(Par14SkattekomponentResultat), skatteloftsnedslag: List(Par14SkattekomponentResultat), par11: PersonskatPar14Par11Resultat, sømandsbeskatning: PersonskatPar14DisResultat, statslig_indkomstskat_efter_par14_øre: Heltal, kommunal_og_kirkelig_indkomstskat_efter_par14_øre: Heltal, arbejdsmarkedsbidrag_for_delåret_øre: Heltal, ejendomsskatter_øre: Heltal, efterfølgende_skat: PersonskatPar14EfterfølgendeSkatResultat, slutskat_efter_par14_øre: Heltal, slutskat_efter_par14_kroner: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner: Heltal, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatPar14BeregningResultat(vurdering: PersonskatBeregningsvurdering, input_gyldigt: Boolsk, periode_gyldig: Boolsk, kilder_gyldige: Boolsk, kilder_afstemt_med_personskat: Boolsk, helårsgrundlag_gyldigt: Boolsk, kanonisk_beregning_understøttet: Boolsk, helårsskattekomponenter_afstemt: Boolsk, skattepligtsdage: Heltal, valg: Par14ValgResultat, delårsresultat: PersonskatBeregningResultat, delårsinput: LønmodtagerInput, helårsinput: LønmodtagerInput, helårsberegning: LønmodtagerBreakdown, helårsberegning_eksakt: LønmodtagerEksaktBeregning, statslige_skattekomponenter: List(Par14SkattekomponentResultat), kommunale_og_kirkelige_skattekomponenter: List(Par14SkattekomponentResultat), skatteloftsnedslag: List(Par14SkattekomponentResultat), par11: PersonskatPar14Par11Resultat, sømandsbeskatning: PersonskatPar14DisResultat, statslig_indkomstskat_efter_par14_øre: Heltal, kommunal_og_kirkelig_indkomstskat_efter_par14_øre: Heltal, arbejdsmarkedsbidrag_for_delåret_øre: Heltal, ejendomsskatter_øre: Heltal, efterfølgende_skat: PersonskatPar14EfterfølgendeSkatResultat, slutskat_efter_par14_øre: Heltal, slutskat_efter_par14_kroner: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner: Heltal, årsopgørelse: PersonskatÅrsopgørelseResultat)
 # PersonskatPar14VejledningKilde(titel: Tekst, url: Tekst, afsnit: Tekst)
 # PersonskatPar14Beregningsmeta(a) = PersonskatPar14Beregningsmeta(felter: List(Beregningsfelt), typede_felter: List(TypetBeregningsfelt), attachments: a)
 # impl Meta for PersonskatPar14Beregningsmeta {}
@@ -92,13 +92,14 @@ https://info.skat.dk/data.aspx?oid=1977389
     url = "https://info.skat.dk/data.aspx?oid=1977389",
     afsnit = "C.F.1.6.2.2"
 )
+= personskat_par14_mellemtrin_forbehold = "Denne vurdering gælder den afsluttede delårsberegning efter PSL § 14. delårsresultat.vurdering og helårsberegningen er mellemtrin; deres beløb må ikke bruges som den endelige delårsskat."
 = personskat_par14_beregningsmeta = PersonskatPar14Beregningsmeta(
     felter = [
         Beregningsfelt(
             path = pathof(PersonskatPar14Input::skattepligtsændring::$variant),
             label = "Ændring i skattepligt",
             question = Some("Indtrådte eller ophørte fuld eller begrænset skattepligt i indkomståret?"),
-            help = Some("Fra indkomståret 2023 henviser § 14, stk. 3, til § 10, stk. 5; tidligere år anvender stk. 6."),
+            help = Some("Afklar den juridiske skattepligtsperiode, ikke kun ansættelsesperioden. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Fra indkomståret 2023 henviser § 14, stk. 3, til § 10, stk. 5; tidligere år anvender stk. 6. Se personskat-delaar.md."),
             unit = None
         ),
         Beregningsfelt(
@@ -222,10 +223,30 @@ https://info.skat.dk/data.aspx?oid=1977389
         Guidance(value = personskat_par14_juridisk_vejledning),
         Guidance(value = personskat_par14_indkomsttypevejledning),
         Guidance(value = personskat_par14_beregningscirkulære),
+        Warning(value = personskat_par14_mellemtrin_forbehold),
     )
 )
 
 --@label:beregn_personskat_delår::meta:personskat_par14_beregningsmeta--
+
+-- Vurder den afsluttede § 14-beregning, ikke et indlejret helårsmellemtrin.
+-- Beløb og de eksisterende gyldighedsvilkår ændres ikke af denne grænse.
+| personskat_par14_beregningsvurdering(kontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> {
+    = grundvurdering = personskat_beregningsvurdering(kontroller, slutskat_øre)
+    PersonskatBeregningsvurdering(
+        status = grundvurdering.status,
+        alle_kontroller_gyldige = grundvurdering.alle_kontroller_gyldige,
+        slutskat_til_sammenligning_øre = grundvurdering.slutskat_til_sammenligning_øre,
+        samlet_modeldækning_bekræftet = Falskt,
+        kontroller = grundvurdering.kontroller,
+        fejl = grundvurdering.fejl,
+        forbehold = concat(grundvurdering.forbehold, [
+            personskat_par14_mellemtrin_forbehold,
+            "Skattepligtsperiode, fuld eller begrænset skattepligt, omregningsmetode og eventuelt valg af faktisk helårsindkomst skal underbygges af kildefakta. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Se personskat-delaar.md.",
+            "Sammenligningsbeløbet er slutskat_efter_par14_øre for den modellerede del, ikke restskat, tilbagebetaling eller det særskilte beløb inklusive endelig arbejdsudlejebeskatning. Betalingsafregningen skal vurderes særskilt."
+        ])
+    )
+}
 
 | personskat_par14_kilder_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt) -> filter(kilder, |kilde: PersonskatPar14Kilde| kilde.beregningsfelt == felt)
 | personskat_par14_delårsbeløb_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt) -> foldl(
@@ -729,7 +750,21 @@ https://info.skat.dk/data.aspx?oid=1977389
     | slutskat_efter_par14_øre() -> slutskat_før_kreditter_øre()
     | slutskat_inkl_endelig_arbejdsudlejebeskatning_øre() -> slutskat_efter_par14_øre() + endelig_arbejdsudlejebeskatning_øre()
     | årsopgørelse() -> personskat_årsopgørelse(input.personskat.årsopgørelse, skatteår(), slutskat_efter_par14_øre(), delårsresultat().pension, personskattelov_par8a_stk5_kredit_øre(), arbejdsmarkedsbidragslov_par6_kredit_øre(), afskrivningslov40c_acontoskat_kredit_øre())
+    | inputkontroller() -> [
+        PersonskatInputkontrol(sti = "skattepligtsperiode", gyldig = periode_gyldig(), forklaring = "Periodens datoer og år skal være gyldige og svare til den oplyste indtræden eller ophør af skattepligt."),
+        PersonskatInputkontrol(sti = "valg_afgivet_ved_oplysninger", gyldig = valg().input_gyldigt, forklaring = "Skattepligtsændring, § 14-valg og eventuel omvalgsdato skal opfylde modellens betingelser for indkomståret."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = kilder_gyldige(), forklaring = "Identificerede kilder skal være entydige og gyldige. Valg af faktisk helårsindkomst kræver oplyste faktiske helårsbeløb; ukendt er ikke nul."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = kilder_afstemt_med_personskat(), forklaring = "Kildernes delårsbeløb og eventuelle udlandsafgrænsninger skal stemme med Personskat-grundlaget. Ret ikke dokumenterede beløb blot for at opnå et match."),
+        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold."),
+        PersonskatInputkontrol(sti = "personskat", gyldig = kanonisk_beregning_understøttet(), forklaring = "Den kanoniske delårs- og helårssammensætning skal være understøttet. Se delårsresultatets domænekontroller og eventuelt det dokumenterede helårsgrundlag; et beregneligt mellemtrin er ikke en endelig delårskonklusion."),
+        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsskattekomponenter_afstemt(), forklaring = "Helårets skattekomponenter skal afstemme før forholdsmæssig nedsættelse."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = par14_kerne_gyldig(), forklaring = "Omregningsgrundlag, skattekomponenter, skatteloft, kapitalnedslag og eventuel DIS skal opfylde alle § 14-kernens kontroller."),
+        PersonskatInputkontrol(sti = "personskat.lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = sømandsbeskatning().input_gyldigt, forklaring = "Eventuel DIS-lempelse skal være gyldig og afstemt efter delårsomregningen."),
+        PersonskatInputkontrol(sti = "personskat", gyldig = senere_skat_understøttet(), forklaring = "Efterfølgende udenlandsk lempelse, negativ aktieskat og afskrivningslovens acontoskat skal have gyldigt grundlag og være understøttet i delårsforløbet."),
+        PersonskatInputkontrol(sti = "personskat", gyldig = input_gyldigt(), forklaring = "Det samlede delårsgrundlag skal opfylde modellens eksisterende input_gyldigt-kontrol. Ved fejl er de øvrige beløb kun diagnostik, også hvis de er nul.")
+    ]
     | resultat() -> PersonskatPar14BeregningResultat(
+        vurdering = personskat_par14_beregningsvurdering(inputkontroller(), slutskat_efter_par14_øre()),
         input_gyldigt = input_gyldigt(),
         periode_gyldig = periode_gyldig(),
         kilder_gyldige = kilder_gyldige(),

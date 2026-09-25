@@ -37,6 +37,12 @@ planlagt indbetaling i 2026 er to forskellige opgaver. En hypotetisk ændring
 af et afsluttet år betyder ikke, at betalingen kan foretages med tilbagevirkende
 kraft. Gem personlige dokumenter, input og resultater uden for Git-projektet.
 
+Afklar også, om dansk skattepligt gjaldt hele året. Færre lønmåneder er ikke
+i sig selv delårsskattepligt. Ved indtræden eller ophør skal
+[delårsindgangen](personskat-delaar.md) og dens endelige vurdering bruges,
+når modellen dækker forløbet; den almindelige beregning og de fiktive
+helårseksempler nedenfor foretager ikke automatisk PSL § 14-omregning.
+
 ### Skattekommunen er ikke altid din nuværende bopæl
 
 `lønmodtager.kommune` betyder **skattekommunen for indkomståret**. Hovedreglen
