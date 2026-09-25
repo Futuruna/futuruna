@@ -40,6 +40,18 @@ pension/ATP boundaries and source traces, guarded against renewed drift by the
 input guidance; it does not prove that an AI classifies an arbitrary report
 correctly or that every missing fact is mechanically detectable.
 
+The [senior](../examples/danish-income-tax/ligningsloven-par9j-senior.md) and
+[single-parent](../examples/danish-income-tax/ligningsloven-par9j-enlig.md)
+deduction guides now describe the current øre-truncation/krone-ceiling convention
+instead of the superseded claim that fractional kroner are discarded. Their
+typed metadata distinguishes legal sources, annual rates, allocation evidence,
+rounding assumptions and warnings. Single-parent benefit/quarter fields retain
+those sources for both taxpayer and spouse in the generated contract, covered
+by the [metadata regression](../tests/tax_supplementary_metadata.test.mjs).
+No tax formula changed. The metadata changes the input contract fingerprint;
+regenerate templates without treating placeholders as facts. Selected calculator
+observations still do not establish universal or historical rounding conformance.
+
 The ordinary-interest fields now share source-backed guidance for taxpayer and
 spouse as well: own share, positive expense amounts, no duplicated sources and
 separate income/expense totals. The [generated-input regression](../tests/tax_interest_input.test.mjs)

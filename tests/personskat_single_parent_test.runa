@@ -22,6 +22,7 @@
     enlig_grænse(2026, 600000, 0, Sandt, 0),
     enlig_grænse(2026, 100000, 4, Sandt, 11500),
     enlig_grænse(2026, 100000, 1, Sandt, 2875),
+    enlig_grænse(2026, 100010, 3, Sandt, 8626),
     enlig_grænse(2026, 439991, 4, Sandt, 50599),
     enlig_grænse(2026, 439992, 4, Sandt, 50600),
     enlig_grænse(2026, 439999, 4, Sandt, 50600),

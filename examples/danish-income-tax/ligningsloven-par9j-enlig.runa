@@ -4,7 +4,20 @@
 
 # Ligningslov9JEnligKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 = ll9j_enlig_kilde = Ligningslov9JEnligKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 9 J, stk. 3-4; 2025-satsen indført ved lov 482 af 22. maj 2024", hentet_dato = "2026-09-21")
-= ll9j_enlig_kildemeta = Source(value = ll9j_enlig_kilde)
+= ll9j_enlig_historisk_kilde = Ligningslov9JEnligKilde(url = "https://www.retsinformation.dk/eli/lta/2023/42", identifier = "LL § 9 J, stk. 3-4: historisk lovgrundlag for 2023/2024; kilde fra den oprindelige årskontrol", hentet_dato = "2026-09-21")
+= ll9j_enlig_historiske_lofter = Ligningslov9JEnligKilde(url = "https://svmn.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2018-2024", identifier = "Maksimalt ekstra beskæftigelsesfradrag til enlige forsørgere: 24.400 kr. i 2023 og 25.300 kr. i 2024", hentet_dato = "2026-09-25")
+= ll9j_enlig_satser_2025_2026 = Ligningslov9JEnligKilde(url = "https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag", identifier = "Enligforsørgerfradrag: 11,5 pct.; 48.300 kr. i 2025 og 50.600 kr. i 2026; ret til og modtagelse af ekstra børnetilskud", hentet_dato = "2026-09-25")
+= ll9j_enlig_kvartalsfordeling = Ligningslov9JEnligKilde(url = "https://www.retsinformation.dk/eli/ft/201112L00194", identifier = "L 194 (2011-12), bemærkninger om en fjerdedel af det samlede årsfradrag pr. berettiget kvartal; kilde fra den oprindelige fordelingskontrol", hentet_dato = "2026-09-21")
+= ll9j_enlig_kildehenvisninger = (
+    Source(value = ll9j_enlig_kilde),
+    HistoricalSource(value = ll9j_enlig_historisk_kilde),
+    RateSource(value = ll9j_enlig_historiske_lofter),
+    RateSource(value = ll9j_enlig_satser_2025_2026),
+    PreparatoryWork(value = ll9j_enlig_kvartalsfordeling),
+    Assumption(value = "Det begrænsede årsbeløb afkortes til øre, fordeles efter kvartaler, afkortes til øre igen og oprundes til kroner. Ikke oprunding af helårsfradrag_kroner før fordeling. Modelkonvention fra udvalgte 2025/2026-beregnercases; se skatdk-fradrag-oere-ekstern.md."),
+    Warning(value = "Historisk afrunding er ikke uafhængigt verificeret. Beregnerobservationer er ikke en lovbestemmelse eller bevis for fuld modeldækning. Ukendte ydelsesfakta må ikke erstattes af nul."),
+)
+= ll9j_enlig_kildemeta = Metadata(attachments = ll9j_enlig_kildehenvisninger)
 --@label:ll9j_enlig::meta:ll9j_enlig_kildemeta--
 ----
 Ved enlige forsørgere forstås i denne bestemmelse personer, der er berettiget
@@ -94,7 +107,7 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::$variant), label = "Ekstra børnetilskud og enligforsørgerfradrag", question = Some("Modtog du ekstra børnetilskud fra Udbetaling Danmark i indkomståret, og er forholdet afklaret for hele året?"), help = Some("Vælg uoplyst ved tvivl. Ugift eller børn er ikke i sig selv bevis for ret til fradraget. Ingen ydelse skal bekræftes, ikke antages."), unit = None),
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::OplystEkstraBørnetilskud::oplysninger_for_året_komplette), label = "Hele årets forhold er afklaret", question = Some("Er også kvartaler uden modtagelse afklaret?"), help = Some("Et ufuldstændigt svar kan ikke bruges som et fuldstændigt nulfradrag."), unit = None),
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::OplystEkstraBørnetilskud::kvartaler), label = "Kvartaler med oplyst børnetilskud", question = Some("Hvilke kvartaler dækker oplysningerne fra Udbetaling Danmark?"), help = Some("Én række pr. kvartal, ikke pr. barn eller betaling. Det er ydelsens kvartal, ikke betalingsdatoens kvartal, der bruges."), unit = None)
-    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll9j_enlig_kilde)
+    ], spørgsmål = [], beløbsfelter = [], attachments = ll9j_enlig_kildehenvisninger
 )
 --@label:Ligningslov9JEnligInput::meta:ll9j_enlig_inputmeta--
 = ll9j_enlig_kvartalsmeta = TypetBeregningsmeta(
@@ -104,6 +117,6 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::berettiget), label = "Ret til ekstra børnetilskud", question = Some("Var der ret til ekstra børnetilskud for dette kvartal?"), help = Some("Brug ydelsesafgørelsen; udled ikke retten af civilstand alene."), unit = None),
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::modtaget), label = "Ekstra børnetilskud modtaget", question = Some("Er ekstra børnetilskud modtaget for dette kvartal?"), help = Some("Ansøgning eller ret alene er ikke modtagelse."), unit = None),
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::kildereference), label = "Kilde til ydelsesfakta", question = Some("Hvilken afgørelse eller ydelsesoversigt dokumenterer kvartalets oplysninger?"), help = Some("Lokal dokumenthenvisning; indtast ikke CPR-nummer. Modellen verificerer ikke dokumentets ægthed."), unit = None)
-    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll9j_enlig_kilde)
+    ], spørgsmål = [], beløbsfelter = [], attachments = ll9j_enlig_kildehenvisninger
 )
 --@label:Ligningslov9JEnligKvartal::meta:ll9j_enlig_kvartalsmeta--

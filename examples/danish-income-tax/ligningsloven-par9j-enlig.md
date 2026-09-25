@@ -19,8 +19,9 @@ The basis and ordinary employment-deduction eligibility condition come from the
 existing LL § 9 J calculation. The extra deduction is the capped full-year
 amount multiplied by eligible quarters divided by four. The original bill's
 explanatory notes explicitly describe a quarter of the total annual deduction;
-this is the basis for applying the cap **before** quarter allocation. Fractions
-are retained until the final whole-krone projection, avoiding double rounding.
+this is the basis for applying the cap **before** quarter allocation. The model
+retains whole øre until the final whole-krone projection; it does not allocate
+the already rounded `helårsfradrag_kroner`. See the rounding convention below.
 
 Sources checked September 21, 2026:
 
@@ -91,18 +92,44 @@ choice. Source-level `PersonskatLigningsfradragInput` constructors need the new
 field too. The fictional no-deductions helper and examples explicitly assert
 `IntetEkstraBørnetilskud`; that assertion is not evidence for a private case.
 
-The whole-krone projection discards positive fractions, following the existing
-ordinary LL § 9 J model. The cited sources establish eligibility, rates, caps
-and allocation, not independent confirmation of the administrative rounding
-rule. That confirmation and the existing foreign-employer fact-routing gap
-remain launch follow-ups. Future years are not extrapolated.
+The current model truncates the capped annual percentage amount to whole øre,
+multiplies by eligible quarters divided by four, truncates to whole øre again,
+then rounds **up** to whole kroner. It does not simply discard fractional
+kroner. For example, a 2026 basis of 100,010 DKK and three eligible quarters
+gives 8,626 DKK, not 8,625 DKK. The ordering matters: basis 100,661 DKK with
+three quarters gives 8,682 DKK after the two øre steps, not 8,683 DKK.
+The [recorded 2025/2026 observations](skatdk-fradrag-oere-ekstern.md) support
+this convention for their selected cases, not universal administrative
+conformance. Historical rounding remains unverified. The cited legal sources
+establish eligibility, rates, caps and allocation, not this rounding rule.
+Future years are not extrapolated. Foreign-employment source allocation uses
+the [separate fact route](beskaeftigelsesfradrag.md); do not assume all
+foreign circumstances are covered by these benefit facts.
 [Service and handyman deductions](boligjob.md) are composed separately from
 invoice facts. Complete model conformance remains separate work.
 
-Focused checks:
+## Trace sources in the rule and generated interview
+
+The typed metadata now separates current/historical law, annual rate sources,
+quarter-allocation preparatory work, rounding assumptions and warnings. The
+same attachments follow benefit and quarter fields into the generated contract
+for both taxpayer and spouse. The 2025/2026 rate guidance and 2023/2024 cap table
+were rechecked on September 25, 2026; original legal/allocation source dates
+remain unchanged.
+
+This metadata update changes the calculation fingerprint even though input
+types and arithmetic are unchanged. Generate a fresh template and copy only
+reviewed facts; do not edit an old fingerprint to suppress the mismatch.
+Use the compiler that passed the
+[runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check):
 
 ```sh
-runa check examples/danish-income-tax/ligningsloven-par9j-enlig.runa
-runa run tests/personskat_single_parent_test.runa
-cargo test --quiet --test personskat_validity -j 1
+"$RUNA_BIN" meta --json examples/danish-income-tax/ligningsloven-par9j-enlig.runa
+"$RUNA_BIN" check examples/danish-income-tax/ligningsloven-par9j-enlig.runa
+"$RUNA_BIN" tests/personskat_single_parent_test.runa
+FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" node --test tests/tax_supplementary_metadata.test.mjs
 ```
+
+The regression checks the index and all 16 projected benefit/quarter fields
+across taxpayer and spouse. Source roles help an AI distinguish evidence from
+assumptions; they do not authenticate documents or guarantee its interpretation.
