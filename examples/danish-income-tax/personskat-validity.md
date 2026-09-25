@@ -147,6 +147,43 @@ not necessarily current residence. The ordinary rule uses residence on
 September 5 of the preceding year; exceptions need their own facts. See the
 [Danish moving-house example and source](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
 
+## Kirkeskat gælder indkomståret, ikke status i dag
+
+Afklar kirkeskat for **det år, der beregnes**, for både hovedperson og en aktiv
+ægtefælle. En udmeldelse i 2026 siger ikke, at personen var uden kirkeskat i
+2025. [Kirkeministeriets vejledning på borger.dk](https://www.borger.dk/kultur-og-fritid/medlemskab-af-folkekirken)
+beskriver registreringen af udmeldelsesdatoen og ophør af kirkeskat.
+[Danmarks Statistiks KISKAT-beskrivelse](https://www.dst.dk/da/Statistik/dokumentation/Times/personindkomst/kiskat)
+angiver, at en udmeldt person kun betaler for medlemsdelen af året. Kilderne
+er gennemgået 25. september 2026; de fastlægger ikke her den præcise
+periodiserings- og afrundingsalgoritme.
+
+Det nuværende `lønmodtager.betaler_kirkeskat` er kun et boolsk felt:
+
+- `true`: afklaret kirkeskat hele indkomståret.
+- `false`: afklaret ingen kirkeskat hele indkomståret, **ikke ukendt**.
+- Ind-/udmeldelse i året eller uafklaret status: feltet kan ikke udtrykke
+  fakta. Afvent en understøttet beregningsvej før uafhængig sammenligning
+  af samlet skat; vælg ikke den værdi, der giver det nærmeste rapportbeløb.
+
+Et beløb på nul er ikke i sig selv bevis for ingen kirkeskattepligt:
+indkomstgrundlag og personfradrag påvirker også beløbet. Brug ikke ændret
+indkomst, skattekommune eller sats til at efterligne en medlemsperiode.
+[Delårsskattepligt efter PSL § 14](personskat-delaar.md) er en anden
+problemstilling og tilføjer ikke medlemsperioder til denne model.
+
+Den genererede vejledning og resultatets `forbehold` fremhæver grænsen.
+Der er **ikke** tilføjet en automatisk kontrol: modellen modtager ingen
+medlemsdatoer og kan derfor stadig returnere `BeregnetMedForbehold`, hvis
+et forkert boolsk svar indtastes. Ved
+[betinget rapportafstemning](aarsopgoerelse-afstemning.md) kan de oplyste
+tal stadig undersøges, men kirkeloftet er kun en helårs-overgrænse og
+godkender ikke periodens faktiske nedslag.
+
+Metadataændringen ændrer kontraktens fingeraftryk. Generér en frisk
+skabelon og overfør gennemgåede kildefakta; ret ikke blot `schema_hash`.
+Feltets type og skatteformlerne er uændrede.
+
 ## Særlige DIS-skattepligtspositioner
 
 En skattepligtsposition kan være lovlig og have et beregneligt delresultat,

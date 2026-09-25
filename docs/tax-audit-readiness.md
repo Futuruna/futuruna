@@ -31,6 +31,13 @@ No LLM evaluates these rules at runtime. A person or assistant supplies and
 classifies source facts; Futuruna executes the arithmetic and logic. Do not
 turn inferred report residuals into supposedly independent input facts.
 
+Church-tax intake now refers to the income year, with shared taxpayer/spouse
+guidance and official source traces. The Boolean contract still cannot encode
+unknown or part-year membership; output reservations now say so explicitly.
+This is an intake correction, not automatic detection or implemented membership
+proration. Conditional report review retains a full-year upper bound, not an
+exact period-specific entitlement. See the [coverage boundary](../examples/danish-income-tax/personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
+
 The first-use overview now distinguishes required source classification,
 template placeholders and enumerated validity checks from complete coverage.
 The [setup guide](../website/public/ai-setup.md) offers JSON input without a full

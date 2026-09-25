@@ -1279,13 +1279,6 @@
     help = Some("Aldersstatus bruges til at udlede ægtefællens personfradrag."),
     unit = None
 )
-= personskat_felt_ægtefælle_kirkeskat = Beregningsfelt(
-    path = pathof(PersonskatInput::ægtefælle::MedÆgtefælle::fakta::lønmodtager::betaler_kirkeskat),
-    label = "Ægtefællens kirkeskat",
-    question = Some("Betaler din ægtefælle kirkeskat?"),
-    help = Some("Kirkeskat og den tilhørende personfradragsværdi beregnes kun, når dette felt er sandt."),
-    unit = None
-)
 = personskat_felt_underskudsforhold = Beregningsfelt(
     path = pathof(PersonskatInput::underskudsforhold::$variant),
     label = "Fremført underskud efter § 13",
@@ -1809,11 +1802,11 @@
     help = Some("Aldersstatus bruges til at vælge årets personfradrag."),
     unit = None
 )
-= personskat_felt_kirkeskat = Beregningsfelt(
-    path = "lønmodtager.betaler_kirkeskat",
-    label = "Kirkeskat",
-    question = Some("Betaler du kirkeskat?"),
-    help = Some("Kirkeskat beregnes kun, når dette felt er sandt."),
+= personskat_felt_kirkeskat = TypetBeregningsfelt(
+    path = refof(PersonskatLønmodtagerInput::betaler_kirkeskat),
+    label = "Personens kirkeskat for indkomståret",
+    question = Some("Var denne person omfattet af kirkeskat hele indkomståret, eller slet ikke?"),
+    help = Some("Afklar det valgte indkomstår for denne person, også for en ægtefælle; medlemskab i dag er ikke nok. true betyder kirkeskat hele året, false betyder afklaret ingen kirkeskat hele året. Et kirkeskattebeløb på nul beviser ikke manglende skattepligt, da indkomst og personfradrag også påvirker beløbet. Ved ukendt status eller ind-/udmeldelse i året må der ikke gættes true/false eller sammenlignes samlet skat via denne indgang. Modellen har ikke medlemsperioder; PSL § 14 er ikke en erstatning for dem. Ændr ikke indkomst, kommune eller sats for at efterligne en periode. Se examples/danish-income-tax/personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag."),
     unit = None
 )
 = personskat_felt_renteindtægter = TypetBeregningsfelt(
@@ -12397,7 +12390,6 @@
         Field(value = personskat_felt_ægtefælle_kildeskat25a_fordelinger),
         Field(value = personskat_felt_ægtefælle_kommune),
         Field(value = personskat_felt_ægtefælle_alder),
-        Field(value = personskat_felt_ægtefælle_kirkeskat),
         Source(value = personskatteloven_2021_1284),
         AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
@@ -12472,13 +12464,27 @@
         AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
     )
 )
+= personskat_kirkeskat_medlemsvejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.borger.dk/kultur-og-fritid/medlemskab-af-folkekirken",
+    identifier = "Sundheds- og Kirkeministeriet: medlemskab, registreret udmeldelsesdato og ophør af kirkeskat",
+    hentet_dato = "2026-09-25"
+)
+= personskat_kirkeskat_periodebeskrivelse = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.dst.dk/da/Statistik/dokumentation/Times/personindkomst/kiskat",
+    identifier = "Danmarks Statistik, KISKAT: udmeldte betaler kun for medlemsdelen af året; beskrivelse, ikke præcis periodiserings- eller afrundingsregel",
+    hentet_dato = "2026-09-25"
+)
 = personskat_metadata_kirkeskat = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_kirkeskat),
         Source(value = folkekirkens_økonomilov_2023_424),
         DependencySource(value = kommuneskatteloven_2019_935),
+        Guidance(value = personskat_kirkeskat_medlemsvejledning),
+        Guidance(value = personskat_kirkeskat_periodebeskrivelse),
+        Warning(value = personskat_kirkeskat_forbehold),
     )
 )
+--@label:PersonskatLønmodtagerInput::meta:personskat_metadata_kirkeskat--
 = personskat_rentefakta_vejledning = PersonskattelovIndkomstKildeInfo(
     url = "https://skat.dk/borger/fradrag/fradrag-for-renter",
     identifier = "Skattestyrelsen: renteudgifter, indberetning, egen andel og særskilt klassifikation",
@@ -14267,7 +14273,6 @@
         personskat_metadata_underskudsforhold,
         personskat_metadata_befordring,
         personskat_metadata_alder,
-        personskat_metadata_kirkeskat,
         personskat_meta_ejendomsskatter,
     ),
     kapitalindkomst = (

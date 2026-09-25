@@ -7,6 +7,8 @@
 # PersonskatBeregningsstatus = UgyldigtBeregningsgrundlag | BeregnetMedForbehold
 # PersonskatBeregningsvurdering(status: PersonskatBeregningsstatus, alle_kontroller_gyldige: Boolsk, slutskat_til_sammenligning_øre: Heltal?, samlet_modeldækning_bekræftet: Boolsk, kontroller: List(PersonskatInputkontrol), fejl: List(PersonskatInputkontrol), forbehold: List(Tekst))
 
+= personskat_kirkeskat_forbehold = "Kirkeskat kræver afklaring for indkomståret, ikke medlemskab i dag. Det boolske felt kan ikke repræsentere ukendt status eller medlemskab en del af året, heller ikke for en ægtefælle. Modellen opdager ikke disse forhold automatisk og periodiserer ikke medlemskab; PSL § 14 løser ikke denne mangel. Ved sådanne forhold må samlet skat ikke bruges som uafhængig sammenligning. Se personskat-validity.md."
+
 > personskat_beregningsvurdering(kontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> PersonskatBeregningsvurdering {
     = fejl = filter(kontroller, |kontrol: PersonskatInputkontrol| kontrol.gyldig == Falskt)
     = gyldigt = length(kontroller) > 0 && length(fejl) == 0
@@ -21,6 +23,7 @@
             "Ved ugyldigt beregningsgrundlag er alle øvrige beløb diagnostik, ikke et resultat til sammenligning med årsopgørelsen.",
             "Gyldige kontroller betyder kun, at de anførte modelkontroller er bestået; de bekræfter ikke kildefakta, fuldstændig indberetning eller samlet retlig korrekthed.",
             "En mulig beløbssammenligning gælder den modellerede del. Samlet modeldækning skal vurderes særskilt; ukendte fakta må ikke erstattes med nul.",
+            personskat_kirkeskat_forbehold,
             "Afrunding af arbejdsfradrag bygger på udvalgte 2025/2026-observationer. Der er kendte uafklarede afvigelser på én krone i fradrag i SKATs 2026-forskudsberegner; ældre års praksis er ikke uafhængigt verificeret. En difference er ikke i sig selv en fejl i årsopgørelsen. Ingen tolerance udligner forskellen; se skatdk-fradrag-oere-ekstern.md.",
             "Arbejdsgiveradministreret ratepension: fiktive indtastninger i den anonyme 2025-årsberegners offentlige formular afviger fra modellens ekstra pensionsfradrag og samlede skat, og ved lav løn også beskæftigelsesfradraget. Årsagen er uafklaret; dette er ikke dokumentation for en fejl i en virkelig årsopgørelse. Flyt ikke ratebidrag til andre felter eller ændr kildefakta for at få et match; se skatdk-arbejdsgiverpension-ekstern.md.",
             "Boligjobfradrag beregnes fra dokumenterede betalingsfakta. Forsikringsfordeling, forudbetaling og ældre arbejdsår kræver stadig særskilt vurdering; ydelsesklassifikation og kildefakta skal underbygges før en samlet rapportkonklusion."

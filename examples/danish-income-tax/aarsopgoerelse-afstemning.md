@@ -64,6 +64,16 @@ Oplys **rapportens skattekommune for indkomståret**, ikke automatisk din
 nuværende bopælskommune. Afstemningen efterprøver ikke valget ud fra
 bopælsfakta. Se [flytteeksemplet og hovedreglen](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
 
+Oplys også kirkeskat for **rapportens indkomstår**, ikke medlemskab i dag.
+I denne betingede indgang betyder `betaler_kirkeskat: true`, at personen var
+omfattet hele eller en del af året. `false` kræver afklaret ingen kirkeskat
+hele året; et nulbeløb eller ukendt status er ikke nok. Ved ind-/udmeldelse
+er det beregnede kirkeloft kun en helårs-overgrænse. Afstemningen efterprøver
+hverken medlemsperioden eller det præcise periodiserede nedslag, og en
+betinget matchende rapport beviser ikke disse forhold. Den uafhængige
+Personskat-indgang kan ikke repræsentere medlemskab en del af året; se
+[grænsen og de officielle kilder](personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
+
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
 # Fill the generated cases with report observations, preserving $futuruna.
