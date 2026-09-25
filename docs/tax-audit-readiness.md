@@ -137,6 +137,17 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 
 ## Further correctness work already delivered
 
+The [honorarium intake safeguard](../examples/danish-income-tax/personskat-honorar.md)
+closes a reproduced silent omission: 50,000 DKK entered in the fee list but
+classified as employment/self-employment previously contributed zero while
+the annual comparison remained valid. The component still correctly reports
+non-applicability of AMBL2(1)(2); annual composition now withholds comparison,
+including for a calculated spouse and the part-year flow. Correct-route fee
+arithmetic is unchanged. [Focused coverage](../tests/personskat_work_income_route.test.mjs)
+checks misplaced and mixed routes, duplicate identifiers, year mismatch and
+projected source guidance. This does not classify documents, detect duplicates
+under different identifiers or add a general honorarium-expense model.
+
 The [payroll group-life correction](../examples/danish-income-tax/personskat-gruppeliv.md)
 adds the documented gross premium to employment/job deduction bases while
 retaining net personal income, no second AM charge and no extra pension

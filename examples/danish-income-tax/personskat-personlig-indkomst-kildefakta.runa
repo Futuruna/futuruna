@@ -375,6 +375,12 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
     | UgyldigtPersonligtArbejdsvederlag(_, _, _, _) -> Falskt
     | _ -> Sandt
 }
+-- En korrekt afgrænsning af § 2, stk. 1, nr. 2 er ikke en fuld behandling
+-- af et indtastet vederlag. Årsberegningen må ikke godkende udeladt indkomst.
+| personskat_personligt_arbejdsvederlag_kan_sammensættes(resultat: PersonskatPersonligtArbejdsvederlagResultat) -> match resultat {
+    | BeregnetPersonligtArbejdsvederlag(_) -> Sandt
+    | _ -> Falskt
+}
 | personskat_personligt_arbejdsvederlag_resultat_am_grundlag_kroner(resultat: PersonskatPersonligtArbejdsvederlagResultat) -> match resultat {
     | BeregnetPersonligtArbejdsvederlag(beregning) -> beregning.arbejdsmarkedsbidrag.grundlag_kroner
     | _ -> 0
@@ -717,7 +723,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | personlige_arbejdsvederlag() -> personskat_personligt_arbejdsvederlag_resultater(input.personlige_arbejdsvederlag, skatteår, personlige_arbejdsvederlagsidentifikationer_entydige())
     | virksomheder() -> personskat_virksomhed_resultater(input.virksomheder_uden_virksomhedsordning, skatteår, virksomhedsidentifikationer_entydige())
     | forenings_og_arbejdsløshedsydelser() -> personskat_forenings_og_arbejdsløshedsydelse_resultater(input.forenings_og_arbejdsløshedsydelser, skatteår, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige())
-    | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(personlige_arbejdsvederlag(), personskat_personligt_arbejdsvederlag_resultat_gyldigt) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
+    | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(personlige_arbejdsvederlag(), personskat_personligt_arbejdsvederlag_kan_sammensættes) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
     | selvstændig_personlig_indkomst_før_fremførsel_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_kroner(resultat))
     | selvstændig_biblioteksafgift_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_biblioteksafgift_kroner(resultat))
     | selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))

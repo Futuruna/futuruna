@@ -134,7 +134,7 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag),
     label = "Honorarer og andet personligt arbejdsvederlag",
     question = Some("Hvilke særskilte vederlag for personligt arbejde fremgår af kilderne ud over den almindelige løn?"),
-    help = Some("Opret én række pr. vederlag. Futuruna bruger forholdet til betaleren til at skelne AM-lovens § 2, stk. 1, nr. 2 fra løn og selvstændig virksomhed."),
+    help = Some("Opret én række pr. særskilt vederlag uden for ansættelse og selvstændig virksomhed efter AMBL § 2, stk. 1, nr. 2. Beløbet må ikke også stå i bruttoløn, øvrig personlig indkomst eller virksomhedsindtægter. B-indkomst er ikke én retlig kategori, og en rubrik-total kan kræve opdeling. Se personskat-honorar.md."),
     unit = None
 )
 = personskat_personlig_indkomst_felt_arbejdsvederlag_id = TypetBeregningsfelt(
@@ -155,7 +155,7 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::forhold::$variant),
     label = "Forholdet bag arbejdsvederlaget",
     question = Some("Blev arbejdet udført i et ansættelsesforhold, uden for ansættelse eller som selvstændig erhvervsvirksomhed?"),
-    help = Some("Kun personligt arbejde uden for ansættelse og uden for selvstændig virksomhed hører til AM-lovens § 2, stk. 1, nr. 2 i denne gren."),
+    help = Some("Kun personligt arbejde uden for ansættelse og uden for selvstændig virksomhed hører til AMBL § 2, stk. 1, nr. 2 her. De andre forhold beskriver en afgrænsning, ikke automatisk omplacering: årsberegningen tilbageholder sammenligningen, indtil posten er placeret korrekt. Bevar kildefakta; vælg ikke en anden relation for at få et resultat. Ved ukendt klassifikation skal den uafhængige sammenligning afvente afklaring. Se personskat-honorar.md."),
     unit = None
 )
 = personskat_personlig_indkomst_felt_arbejdsvederlag_form = TypetBeregningsfelt(
@@ -176,7 +176,7 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::skattepligtig_værdi_kroner),
     label = "Arbejdsvederlagets skattepligtige værdi",
     question = Some("Hvad er vederlagets skattepligtige værdi i indkomståret?"),
-    help = Some("For naturalier bruges den skattemæssigt opgjorte værdi. Angiv ikke beløbet efter arbejdsmarkedsbidrag."),
+    help = Some("For penge angives bruttovederlaget før arbejdsmarkedsbidrag og uden modregning af udgifter eller allerede betalt B-skat. Naturalier kræver deres skattemæssigt opgjorte værdi. Denne gren har ikke et særskilt honorarudgiftsfelt; en sag med udgifter kræver yderligere afklaring, ikke et nettobeløb her. Samme vederlag må kun medregnes én gang. Se personskat-honorar.md."),
     unit = Some("kr./år")
 )
 

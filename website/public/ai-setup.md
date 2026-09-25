@@ -332,6 +332,13 @@ guide has a separate restskat route for the principal before interest and
 percentage additions. Do not enter debt as a negative refund or describe that
 principal check as verification of the amount to pay, instalments or due dates.
 
+For fees or B-income, read `examples/danish-income-tax/personskat-honorar.md`.
+The honorarium list does not automatically reroute employment or business
+income; those classifications there withhold the annual comparison. Establish
+the actual relationship, use each source amount once, and keep gross fees
+separate from expenses and prepaid B-tax. A report box or the word "freelance"
+does not establish the legal category. Never relabel income to make it pass.
+
 For an independent calculation with supported source facts, inspect the contract
 and generate input. JSON is convenient for an AI-assisted interview; XLSX is an
 optional alternative, not a prerequisite. Replace `PRIVATE_WORK_DIR` with the

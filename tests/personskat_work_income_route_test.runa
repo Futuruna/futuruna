@@ -1,0 +1,27 @@
+@ sprog da
+
+@ importer ../examples / danish - income - tax / personskat - personlig - indkomst - kildefakta
+
+| vederlagsfakta(id: Tekst, forhold: PersonskatPersonligtArbejdsvederlagsforhold, beløb: Heltal) -> PersonskatPersonligtArbejdsvederlagFakta(identifikation = id, indkomstår = 2025, forhold = forhold, vederlagsform = PsArbejdsvederlagIPenge, skattepligtig_værdi_kroner = beløb)
+| vederlagsår(poster: List(PersonskatPersonligtArbejdsvederlagFakta)) -> personskat_ordinær_personlig_indkomst_resultat(PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser = [], personlige_arbejdsvederlag = poster, virksomheder_uden_virksomhedsordning = [], forenings_og_arbejdsløshedsydelser = []), 2025)
+
+= honorar = vederlagsfakta("fiktivt-honorar", PsArbejdeUdenAnsættelse, 50000)
+= honorarår = vederlagsår([honorar])
+= forkert_placerede = map([PsArbejdeIAnsættelse, PsSelvstændigtArbejde], |forhold: PersonskatPersonligtArbejdsvederlagsforhold| vederlagsfakta("fiktiv-anden-indkomst", forhold, 50000))
+= afgrænsninger = map(forkert_placerede, |fakta: PersonskatPersonligtArbejdsvederlagFakta| personskat_personligt_arbejdsvederlag_resultat(fakta, 2025, Sandt))
+= forkert_placerede_år = map(forkert_placerede, |fakta: PersonskatPersonligtArbejdsvederlagFakta| vederlagsår([fakta]))
+= blandede_år = map(forkert_placerede, |fakta: PersonskatPersonligtArbejdsvederlagFakta| vederlagsår([honorar, fakta]))
+
+| honorar_bevarer_brutto_og_am: honorarår -> honorarår.alle_input_gyldige && honorarår.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 50000 && personskat_personligt_arbejdsvederlag_kan_sammensættes(head(honorarår.personlige_arbejdsvederlag))
+| lovens_afgrænsning_er_stadig_gyldig: afgrænsninger -> all(afgrænsninger, |r: PersonskatPersonligtArbejdsvederlagResultat| personskat_personligt_arbejdsvederlag_resultat_gyldigt(r) && personskat_personligt_arbejdsvederlag_kan_sammensættes(r) == Falskt && match r { | PersonligtArbejdsvederlagUdenForPar2Stk1Nr2(_) -> Sandt | _ -> Falskt })
+| årsberegning_må_ikke_udelade_vederlag: forkert_placerede_år -> all(forkert_placerede_år, |r: PersonskatOrdinærPersonligIndkomstResultat| r.alle_input_gyldige == Falskt && r.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0)
+| delsum_er_ikke_fuld_beregning: blandede_år -> all(blandede_år, |r: PersonskatOrdinærPersonligIndkomstResultat| r.alle_input_gyldige == Falskt && r.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 50000)
+| tom_liste_og_bekræftet_nul_er_gyldige: honorar -> vederlagsår([]).alle_input_gyldige && vederlagsår([vederlagsfakta("fiktivt-nul", PsArbejdeUdenAnsættelse, 0)]).alle_input_gyldige
+| dublet_og_negativt_vederlag_afvises: honorar -> vederlagsår([honorar, honorar]).alle_input_gyldige == Falskt && vederlagsår([vederlagsfakta("fiktivt-negativt", PsArbejdeUdenAnsættelse, -1)]).alle_input_gyldige == Falskt
+
+? honorar_bevarer_brutto_og_am
+? lovens_afgrænsning_er_stadig_gyldig
+? årsberegning_må_ikke_udelade_vederlag
+? delsum_er_ikke_fuld_beregning
+? tom_liste_og_bekræftet_nul_er_gyldige
+? dublet_og_negativt_vederlag_afvises

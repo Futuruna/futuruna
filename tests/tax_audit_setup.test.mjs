@@ -131,3 +131,19 @@ test('tax intake separates liability periods from employment and final from inte
     assert.ok(partyear.replace(/\s+/g, ' ').includes(phrase), phrase);
   }
 });
+
+test('fee intake preserves classification, gross income and separate tax payments', () => {
+  const setupText = guide.replace(/\s+/g, ' ');
+  for (const phrase of ['personskat-honorar.md', 'does not automatically reroute employment or business income',
+    'expenses and prepaid B-tax', 'Never relabel income to make it pass']) {
+    assert.ok(setupText.includes(phrase), phrase);
+  }
+  const feeGuide = readFileSync(join(root, 'examples/danish-income-tax/personskat-honorar.md'), 'utf8');
+  const sample = JSON.parse(feeGuide.match(/```json\n([\s\S]*?)\n```/)[1]);
+  assert.equal(sample.forhold.$variant, 'PsArbejdeUdenAnsættelse');
+  assert.equal(sample.skattepligtig_værdi_kroner, 50000);
+  for (const phrase of ['kun et rækkeuddrag', 'ikke et særskilt honorarudgiftsfelt',
+    'Indtast ikke blot et nettohonorar']) {
+    assert.ok(feeGuide.replace(/\s+/g, ' ').includes(phrase), phrase);
+  }
+});
