@@ -265,7 +265,7 @@ derefter de identificerede kilders valgte helårsbehandling.
 | personskat_par14_arbejdsudleje_fakta() -> KildeskattelovArbejdsudlejeInput(
     identifikation = "arbejdsudleje-delår-2026",
     indkomstår = 2026,
-    alder_ved_indkomstårets_udløb = 40,
+    alder_ved_indkomstårets_udløb = 36,
     parter = KildeskattelovArbejdsudlejeParter(
         person_identifikation = "delårsperson",
         udenlandsk_arbejdsgiver_identifikation = "udenlandsk-udlejer",

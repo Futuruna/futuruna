@@ -78,6 +78,15 @@ the separate spouse/settlement calculations. No tax formula changed.
 
 ## Further correctness work already delivered
 
+The [labour-hire age regression](../tests/personskat_labour_hire_age.test.mjs)
+closes an input-consistency gap: a separate labour-hire age can no longer
+contradict the canonical taxpayer's birth date while retaining a comparison.
+The guard covers spouses and the ordinary-tax election; source-backed field
+help now identifies the single assessed person. Correct youth/adult rates are
+unchanged. This does not authenticate identity or establish external tax
+conformance; the analogous hydrocarbon-age path is tracked for separate
+reproduction as `td-f875ed`.
+
 The [Boligjob supplier-age regression](../tests/boligjob_supplier_age.test.mjs)
 corrects a cross-year eligibility error: delayed payment no longer makes work
 by a private supplier under 18 at work-year-end deductible. The claimant's own

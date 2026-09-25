@@ -6,9 +6,9 @@
 
 = personskat_arbejdsudleje_felt_samling = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje),
-    label = "Arbejdsudlejede personer",
-    question = Some("Hvilke vederlag vedrører personer, som en udenlandsk arbejdsgiver har stillet til rådighed for en dansk virksomhed?"),
-    help = Some("Opret én række pr. arbejdsudlejeforhold. Futuruna afgrænser selv KSL § 2, stk. 1, nr. 3 og beregner enten den endelige skat eller den ordinære Personskat-gren."),
+    label = "Personens arbejdsudlejeforhold",
+    question = Some("Hvilke af denne persons egne vederlag vedrører arbejdsudleje fra en udenlandsk arbejdsgiver til en dansk virksomhed?"),
+    help = Some("Opret én række pr. forhold for denne persons egen indkomst, ikke en liste over virksomhedens medarbejdere. En anden persons indkomst hører til en separat personsag. Futuruna afgrænser KSL § 2, stk. 1, nr. 3 og beregner enten den endelige skat eller den ordinære Personskat-gren. Ens alder eller navn beviser ikke identitet."),
     unit = None
 )
 = personskat_arbejdsudleje_felt_identifikation = TypetBeregningsfelt(
@@ -29,7 +29,7 @@
     path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::alder_ved_indkomstårets_udløb),
     label = "Den arbejdsudlejedes alder ved årets udløb",
     question = Some("Hvor gammel er personen ved indkomstårets udløb?"),
-    help = Some("Alderen bruges til arbejdsmarkedsbidragets lovbestemte aldersafgrænsning."),
+    help = Some("Brug indkomstår minus fødselsår fra denne persons fødselsdato under lønmodtager.pension, ikke alder i dag eller på arbejdsdagen. Fra 2026 er AM-satsen nul til og med året med 17-årsdagen; fylder personen 18 i december, gælder den almindelige sats for hele året. Gæt ikke ved modstridende oplysninger, og brug ikke ægtefællens eller en anden medarbejders alder. Se personskat-validity.md#alder-ved-arbejdsudleje."),
     unit = Some("år")
 )
 = personskat_arbejdsudleje_felt_person_id = TypetBeregningsfelt(
@@ -302,6 +302,7 @@
         Source(value = kildeskattelov_arbejdsudleje_lbk460),
         HistoricalSource(value = kildeskattelov_arbejdsudleje_lbk1330),
         AmendmentSource(value = kildeskattelov_arbejdsudleje_lov710),
+        AmendmentSource(value = kildeskattelov_arbejdsudleje_unges_am),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
         DependencySource(value = ligningsloven_lbk1500_par8m),
         Guidance(value = kildeskattelov_arbejdsudleje_vejledning),

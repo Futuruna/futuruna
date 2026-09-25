@@ -239,6 +239,36 @@ and adult-alimony routes remain distinct. Matching dates are a necessary
 consistency condition, not proof of identity. See the
 [Danish maintenance guide](personskat-underholdsbidrag.md).
 
+## Alder ved arbejdsudleje
+
+Rækkerne i `lønmodtager.personlig_indkomst.arbejdsudleje` vedrører den samme
+person som resten af personsagen, ikke en virksomheds samlede medarbejderliste.
+Hver rækkes `alder_ved_indkomstårets_udløb` skal stemme med personens
+`lønmodtager.pension.fødselsdato`: indkomståret minus fødselsåret. Det gælder
+også i en aktiv ægtefælles egen del af inputtet og ved valg af ordinær skat.
+
+Fra 2026 gælder AM-satsen på nul til og med året, hvor personen fylder 17.
+En 18-årsdag i december betyder derfor den almindelige sats for hele året,
+ikke blot for dagene efter fødselsdagen.
+[LOV 96/2025 § 1 og § 7, stk. 4](https://www.retsinformation.dk/eli/lta/2025/96/pdf),
+kontrolleret 25. september 2026.
+
+Fiktiv illustration: En person født i 1990 er 36 ved udgangen af 2026.
+En arbejdsudlejerække med alder 17 kunne tidligere blive accepteret og give
+30.000 kr. i samlet endelig arbejdsudlejebeskatning af 100.000 kr. i stedet
+for 35.600 kr. Modstriden tilbageholder nu sammenligningsbeløbet og giver en
+alderskontrol i `vurdering.fejl`. De øvrige rå resultater er da diagnostik,
+ikke en gyldig beregning. Ens alder beviser ikke, at oplysningerne tilhører
+samme person; kildefakta skal stadig gennemgås.
+
+Ret ikke en kildeoplysning blot for at vælge en lavere sats. Afklar, om det
+er datoen, alderen, året eller placeringen af posten, der er forkert.
+Skatteformler og inputtyper er uændrede, men den nye kontrol og metadata
+ændrer Preview-fingerprintet: generér en ny skabelon og overfør gennemgåede
+fakta. Den [fokuserede regression](../../tests/personskat_labour_hire_age.test.mjs)
+dækker begge retninger af aldersmodstrid, ægtefælle, ordinært valg og
+2025/2026-grænsen; den er ikke en ekstern årsopgørelsesgodkendelse.
+
 ## Recurring-gift agreements
 
 The control `lønmodtager.ligningsfradrag.gaver` also checks that LL §12
