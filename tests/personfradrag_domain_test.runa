@@ -1,0 +1,55 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / kapitel - 03 - personfradrag
+
+-- Bevarer den indkodede lovs beløb; ikke en ny, uafhængig skatteberegner.
+-- Grundbeløb i 2010-niveau er ikke årets regulerede personfradrag.
+= pf_domain_voksen = map(range(2018, 2028), |år: Heltal| personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, år))
+= pf_domain_barn = map(range(2018, 2028), |år: Heltal| personfradrag_grundbeløb_2010_niveau(Under18Ugift, år))
+= pf_domain_årsbeløb = flat_map(range(2023, 2027), |år: Heltal| map([Fyldt18EllerGift, Under18Ugift], |status: PersonfradragAlderStatus| personfradrag_beløb_for(år, status)))
+| pf_domain_voksen_grundbeløb: pf_domain_voksen -> pf_domain_voksen == [42000, 41300, 40600, 39900, 39350, 39350, 39350, 39350, 39350, 39350]
+| pf_domain_barn_grundbeløb: pf_domain_barn -> pf_domain_barn == [31500, 31500, 31500, 31500, 31500, 39350, 39350, 39350, 39350, 39350]
+| pf_domain_ens_årsbeløb_fra_2023: pf_domain_årsbeløb -> pf_domain_årsbeløb == [48000, 48000, 49700, 49700, 51600, 51600, 54100, 54100]
+
+= pf_domain_historisk_adresse = personfradrag_par10_retsadresse(Under18Ugift, 2022)
+= pf_domain_ny_adresse = personfradrag_par10_retsadresse(Under18Ugift, 2023)
+| pf_domain_virkning_allerede_i_2023: pf_domain_ny_adresse -> personfradrag_par10_regelversion(2022) == Par10Lbk1284FørIndkomstår2023 && personfradrag_par10_regelversion(2023) == Par10Lov1564FraIndkomstår2023 && pf_domain_historisk_adresse.grundbeløb_stk == 2 && pf_domain_ny_adresse.grundbeløb_stk == 1 && pf_domain_ny_adresse.ægtefælleoverførsel_stk == 2
+
+> pf_domain_sag(status: PersonfradragAlderStatus, pligt: PersonfradragSkattepligt, valg: Heltal) -> PersonfradragPar10Resultat {
+    personfradrag_par10_resultat(PersonfradragPar10Input(2025, status, pligt, valg, 0))
+}
+= pf_domain_fuld = pf_domain_sag(Under18Ugift, FuldtSkattepligtigHerILandet, 0)
+= pf_domain_delår = pf_domain_sag(Fyldt18EllerGift, KildeskattelovPar2DelårValgtRelevantIndtægt, 20260701)
+= pf_domain_for_sent = pf_domain_sag(Fyldt18EllerGift, KildeskattelovPar2DelårValgtRelevantIndtægt, 20260702)
+= pf_domain_forsker = pf_domain_sag(Fyldt18EllerGift, Kildeskattelov48Eller48FIndkomst, 0)
+| pf_domain_fuld_pligt: pf_domain_fuld -> pf_domain_fuld.personfradrag_anvendes && pf_domain_fuld.personfradrag_kroner == 51600
+| pf_domain_delårsvalg: pf_domain_delår -> pf_domain_delår.delårsvalg_rettidigt && pf_domain_delår.personfradrag_kroner == 51600 && pf_domain_for_sent.personfradrag_anvendes == Falskt && pf_domain_for_sent.personfradrag_kroner == 0
+| pf_domain_forsker_afskåret: pf_domain_forsker -> pf_domain_forsker.afskåret_af_forskerordning && pf_domain_forsker.personfradrag_anvendes == Falskt && pf_domain_forsker.personfradrag_kroner == 0
+
+-- Adskilte fiktive satser gør sammenblanding af de to grene synlig.
+> pf_domain_underskud(par8c: Boolsk) -> Par13UnderskudSkatteværdiInput {
+    Par13UnderskudSkatteværdiInput(100000, 100, 2300, 75, 3200, par8c)
+}
+= pf_domain_lokalt = pf_domain_underskud(Falskt)
+= pf_domain_par8c = pf_domain_underskud(Sandt)
+| pf_domain_lokal_underskudssats: pf_domain_lokalt -> par13_skatteværdi_sats_basispoint(pf_domain_lokalt) == 2475 && par13_underskud_skatteværdi_kroner(pf_domain_lokalt) == 24750
+| pf_domain_par8c_underskudssats: pf_domain_par8c -> par13_skatteværdi_sats_basispoint(pf_domain_par8c) == 3300 && par13_underskud_skatteværdi_kroner(pf_domain_par8c) == 33000
+
+-- Manglende årsparametre må ikke blive nul, selv om aldersvalget er udtømmende.
+-- Udfør afvisningskald før checks kan udskrive noget.
+= pf_domain_case = env_var("FUTURUNA_PERSONFRADRAG_CASE")
+= pf_domain_output = hvis pf_domain_case == "adult-2022" { vis(personfradrag_beløb_for(2022, Fyldt18EllerGift)) }
+ellers hvis pf_domain_case == "child-2022" { vis(personfradrag_beløb_for(2022, Under18Ugift)) }
+ellers hvis pf_domain_case == "adult-2027" { vis(personfradrag_beløb_for(2027, Fyldt18EllerGift)) }
+ellers hvis pf_domain_case == "child-2027" { vis(personfradrag_beløb_for(2027, Under18Ugift)) }
+ellers { vis((pf_domain_voksen, pf_domain_barn, pf_domain_årsbeløb, pf_domain_fuld, pf_domain_delår, pf_domain_for_sent, pf_domain_forsker, par13_underskud_skatteværdi_kroner(pf_domain_lokalt), par13_underskud_skatteværdi_kroner(pf_domain_par8c))) }
+
+? pf_domain_voksen_grundbeløb
+? pf_domain_barn_grundbeløb
+? pf_domain_ens_årsbeløb_fra_2023
+? pf_domain_virkning_allerede_i_2023
+? pf_domain_fuld_pligt
+? pf_domain_delårsvalg
+? pf_domain_forsker_afskåret
+? pf_domain_lokal_underskudssats
+? pf_domain_par8c_underskudssats
+@ print(pf_domain_output)

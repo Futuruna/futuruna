@@ -93,20 +93,108 @@ fn personal_allowance_transfer_matches_native_execution() {
 
 #[test]
 fn personal_allowance_recipient_offsets_obey_cohabitation() {
-    // The surrounding PSL §10 source still has pre-existing native guarded-
-    // lookup failures (td-124b83). The isolated new §12 kernel has parity above;
-    // this checks its integration into §10 without claiming full native support.
-    let output = execute(
-        false,
-        "tests/fixtures/tax_parameter_domain/personfradrag_recipient.runa",
+    let path = "tests/fixtures/tax_parameter_domain/personfradrag_recipient.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for output in [&interpreted, &native] {
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n"),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("2 modtagerkontroller"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
+fn personal_allowance_domains_preserve_native_values_and_missing_year_errors() {
+    // One compiled fixture serves every rejection edge. This imports §§10–13,
+    // not the entire Personskat calculation (whose native limits remain open).
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let binary = std::fs::canonicalize(binary).unwrap();
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/personfradrag_domain_test.runa");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-personfradrag-native-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    let build = Command::new(&binary)
+        .current_dir(&directory)
+        .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+        .args(["build", source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    if !build.status.success() {
+        let diagnostic = directory.join("build.stderr");
+        std::fs::write(&diagnostic, &build.stderr).unwrap();
+        panic!(
+            "personal-allowance build failed (full diagnostics: {}):\n{}",
+            diagnostic.display(),
+            String::from_utf8_lossy(&build.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let executable = directory.join(format!(
+        "personfradrag_domain_test{}",
+        std::env::consts::EXE_SUFFIX
+    ));
+    let run = |native: bool, case: &str| {
+        let mut command = Command::new(if native { &executable } else { &binary });
+        command
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+            .env("FUTURUNA_PERSONFRADRAG_CASE", case);
+        if !native {
+            command.arg(&source);
+        }
+        command.output().unwrap()
+    };
+    let interpreted = run(false, "supported");
+    let native = run(true, "supported");
+    for output in [&interpreted, &native] {
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!output.stdout.is_empty());
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+    for case in ["adult-2022", "child-2022", "adult-2027", "child-2027"] {
+        for native in [false, true] {
+            let output = run(native, case);
+            assert!(
+                !output.status.success(),
+                "{case}: unsupported year accepted"
+            );
+            assert!(output.stdout.is_empty(), "{case}: fabricated allowance");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("head: empty list"),
+                "{case}: expected runtime domain rejection: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    std::fs::remove_file(executable).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+    println!(
+        "Personal allowance: nine invariants, native parity and four missing-year edges passed"
     );
-    assert!(
-        output.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stderr),
-        String::from_utf8_lossy(&output.stdout)
-    );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("2 modtagerkontroller"));
 }
 
 #[test]

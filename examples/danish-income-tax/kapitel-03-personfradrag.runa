@@ -157,7 +157,10 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
     | Par10Lov1564FraIndkomstår2023 -> PersonfradragPar10Retsadresse(grundbeløb_stk = 1, ægtefælleoverførsel_stk = 2, forskerordning_stk = 3, kildeskattelov_par2_helår_stk = 4, kildeskattelov_par2_delår_stk = 5, regulering_stk = 6)
 }
 
-| personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 42000 under status == Fyldt18EllerGift
+| personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> match status {
+    | Fyldt18EllerGift -> 42000
+    | Under18Ugift -> 31500
+}
 | exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
 | exception voksen_2020 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 40600 under status == Fyldt18EllerGift && skatteår == 2020
 | exception voksen_2021 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39900 under status == Fyldt18EllerGift && skatteår == 2021
@@ -165,8 +168,10 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 | exception under18_ugift_før_lov1564 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 31500 under status == Under18Ugift && skatteår < 2023
 | exception under18_ugift_efter_lov1564 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39350 under status == Under18Ugift && skatteår >= 2023
 
-| personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> nationalparametre_for(skatteår).personfradrag_voksen_kroner under status == Fyldt18EllerGift
-| personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> nationalparametre_for(skatteår).personfradrag_under18_kroner under status == Under18Ugift
+| personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> match status {
+    | Fyldt18EllerGift -> nationalparametre_for(skatteår).personfradrag_voksen_kroner
+    | Under18Ugift -> nationalparametre_for(skatteår).personfradrag_under18_kroner
+}
 
 | personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Falskt
 | exception fuldt_skattepligtig personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == FuldtSkattepligtigHerILandet
@@ -910,8 +915,11 @@ som nævnt i § 10, stk. 1.
     par8_skat_kroner = resultat.par8_efter_kroner,
     par8a_stk2_skat_kroner = resultat.par8a_stk2_efter_kroner
 )
-| par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.par8c_basispoint under input.betaler_par8c
-| par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.kommuneskat_basispoint + input.kirkeskat_basispoint under input.betaler_par8c == Falskt
+| par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> hvis input.betaler_par8c {
+    input.sundhedsbidrag_basispoint + input.par8c_basispoint
+} ellers {
+    input.sundhedsbidrag_basispoint + input.kommuneskat_basispoint + input.kirkeskat_basispoint
+}
 | par13_underskud_skatteværdi_kroner(input: Par13UnderskudSkatteværdiInput) -> penge_beløb_gange_basispoint_kroner(input.underskud_kroner, par13_skatteværdi_sats_basispoint(input))
 | par13_ubrugt_nedslag_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> penge_positivt_beløb(nedslag_kroner - skat_kroner)
 | par13_udnyttet_skatteværdi_kroner(skatteværdi_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal) -> par13_positivt_beløb(skatteværdi_kroner - ubrugt_skatteværdi_kroner)
