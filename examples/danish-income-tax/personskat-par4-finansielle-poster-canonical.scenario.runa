@@ -7,7 +7,8 @@ Kanoniske scenarier for personskattelovens § 4, stk. 1, nr. 5 a, 5 b og 7.
 
 Scenarierne fastholder den fulde vej fra typede kildefakta gennem
 beregn_personskat. Ugyldige år, dubletter og uafsluttede aktivklassifikationer
-må ikke påvirke kapitalindkomst eller personlig indkomst.
+må ikke påvirke kapitalindkomst eller personlig indkomst. Ikke-nul indkomst
+uden for den valgte nr. 5 a/5 b-gren må ikke godkendes som skattefrit nul.
 ----
 
 | psl4_finansiel_scenarie_fakta(identifikation: Tekst, kilde: PersonskatPar4FinansielPostkilde) -> PersonskatPar4FinansielPostfakta(
@@ -50,7 +51,6 @@ må ikke påvirke kapitalindkomst eller personlig indkomst.
 | psl4_finansiel_scenarie_alle_poster() -> [
     psl4_finansiel_scenarie_nr5a("medlemsbevis-gevinst", 40000, Ssl1Stk1Nr6AndenForening),
     psl4_finansiel_scenarie_nr5a("medlemsbevis-tab", -10000, Ssl1Stk1Nr6Korporation),
-    psl4_finansiel_scenarie_nr5a("investeringsforening-undtaget", 15000, Ssl1Stk1Nr6Investeringsforening),
     psl4_finansiel_scenarie_nr5b(
         "formidler-par22",
         5000,
@@ -64,13 +64,6 @@ må ikke påvirke kapitalindkomst eller personlig indkomst.
         Par4Nr5bInvesteringsrådgiver,
         Sandt,
         aktieavance_aktivklassifikation_input_fra_beregning(abl19c_hvis17_input)
-    ),
-    psl4_finansiel_scenarie_nr5b(
-        "formidler-ikke-naevnt",
-        9000,
-        Par4Nr5bIkkeNævntFormidler,
-        Sandt,
-        aktieavance_aktivklassifikation_input_fra_beregning(abl22_tab_input)
     ),
     psl4_finansiel_scenarie_nr7(
         "loebende-laaneprovision",
@@ -152,6 +145,12 @@ må ikke påvirke kapitalindkomst eller personlig indkomst.
 | psl4_finansiel_scenarie_beregning(poster: List(PersonskatPar4FinansielPostfakta)) -> beregn_personskat(psl4_finansiel_scenarie_input(poster))
 
 = psl4_finansiel_scenarie_gyldigt = psl4_finansiel_scenarie_beregning(psl4_finansiel_scenarie_alle_poster())
+= psl4_finansiel_scenarie_investeringsforening = psl4_finansiel_scenarie_beregning([
+    psl4_finansiel_scenarie_nr5a("investeringsforening-undtaget", 15000, Ssl1Stk1Nr6Investeringsforening)
+])
+= psl4_finansiel_scenarie_anden_formidler = psl4_finansiel_scenarie_beregning([
+    psl4_finansiel_scenarie_nr5b("formidler-ikke-naevnt", 9000, Par4Nr5bIkkeNævntFormidler, Sandt, aktieavance_aktivklassifikation_input_fra_beregning(abl22_tab_input))
+])
 = psl4_finansiel_scenarie_forkert_år = psl4_finansiel_scenarie_beregning([
     psl4_finansiel_scenarie_nr7(
         "forkert-aar",
@@ -175,14 +174,18 @@ må ikke påvirke kapitalindkomst eller personlig indkomst.
     )
 ])
 
-| psl4_finansiel_scenarie_positive_negative_og_undtagelser: psl4_finansiel_scenarie_gyldigt -> psl4_finansiel_scenarie_gyldigt.kapitalindkomst.alle_input_gyldige && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postidentifikationer_entydige && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_poster_gyldige && length(psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater) == 8 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[0].kapitalpost.beløb_kroner == 40000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[1].kapitalpost.beløb_kroner == -10000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[2].kapitalpost.beløb_kroner == 0 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[3].kapitalpost.beløb_kroner == 5000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[5].kapitalpost.beløb_kroner == 0 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[6].kapitalpost.beløb_kroner == -3000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[7].kapitalpost.beløb_kroner == 0 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 32000
-| psl4_finansiel_scenarie_par19c_hvis17_omklassificeres_personligt: psl4_finansiel_scenarie_gyldigt -> psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[4].kapitalpost.beløb_kroner == 7000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[4].kapitalpost.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 7000
+| psl4_finansiel_scenarie_positive_negative_og_undtagelser: psl4_finansiel_scenarie_gyldigt -> psl4_finansiel_scenarie_gyldigt.kapitalindkomst.alle_input_gyldige && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postidentifikationer_entydige && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_poster_gyldige && length(psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater) == 6 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[0].kapitalpost.beløb_kroner == 40000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[1].kapitalpost.beløb_kroner == -10000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[2].kapitalpost.beløb_kroner == 5000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[4].kapitalpost.beløb_kroner == -3000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[5].kapitalpost.beløb_kroner == 0 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 32000
+| psl4_finansiel_scenarie_par19c_hvis17_omklassificeres_personligt: psl4_finansiel_scenarie_gyldigt -> psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[3].kapitalpost.beløb_kroner == 7000 && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.finansielle_postresultater[3].kapitalpost.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier && psl4_finansiel_scenarie_gyldigt.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 7000
+| psl4_finansiel_scenarie_investeringsforening_kræver_anden_rute: psl4_finansiel_scenarie_investeringsforening -> psl4_finansiel_scenarie_investeringsforening.kapitalindkomst.finansielle_poster_gyldige == Falskt && psl4_finansiel_scenarie_investeringsforening.vurdering.slutskat_til_sammenligning_øre == None
+| psl4_finansiel_scenarie_anden_formidler_kræver_anden_rute: psl4_finansiel_scenarie_anden_formidler -> psl4_finansiel_scenarie_anden_formidler.kapitalindkomst.finansielle_poster_gyldige == Falskt && psl4_finansiel_scenarie_anden_formidler.vurdering.slutskat_til_sammenligning_øre == None
 | psl4_finansiel_scenarie_forkert_år_fejler_lukket: psl4_finansiel_scenarie_forkert_år -> psl4_finansiel_scenarie_forkert_år.kapitalindkomst.finansielle_postidentifikationer_entydige && psl4_finansiel_scenarie_forkert_år.kapitalindkomst.finansielle_poster_gyldige == Falskt && psl4_finansiel_scenarie_forkert_år.kapitalindkomst.alle_input_gyldige == Falskt && psl4_finansiel_scenarie_forkert_år.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_finansiel_scenarie_dobbelt_id_fejler_lukket: psl4_finansiel_scenarie_dobbelt_id -> psl4_finansiel_scenarie_dobbelt_id.kapitalindkomst.finansielle_postidentifikationer_entydige == Falskt && psl4_finansiel_scenarie_dobbelt_id.kapitalindkomst.finansielle_poster_gyldige == Falskt && psl4_finansiel_scenarie_dobbelt_id.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_finansiel_scenarie_uafsluttet_klassifikation_fejler_lukket: psl4_finansiel_scenarie_uafsluttet -> psl4_finansiel_scenarie_uafsluttet.kapitalindkomst.finansielle_poster_gyldige == Falskt && psl4_finansiel_scenarie_uafsluttet.kapitalindkomst.alle_input_gyldige == Falskt && psl4_finansiel_scenarie_uafsluttet.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && psl4_finansiel_scenarie_uafsluttet.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 0
 
 ? psl4_finansiel_scenarie_positive_negative_og_undtagelser
 ? psl4_finansiel_scenarie_par19c_hvis17_omklassificeres_personligt
+? psl4_finansiel_scenarie_investeringsforening_kræver_anden_rute
+? psl4_finansiel_scenarie_anden_formidler_kræver_anden_rute
 ? psl4_finansiel_scenarie_forkert_år_fejler_lukket
 ? psl4_finansiel_scenarie_dobbelt_id_fejler_lukket
 ? psl4_finansiel_scenarie_uafsluttet_klassifikation_fejler_lukket

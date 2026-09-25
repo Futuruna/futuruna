@@ -3,6 +3,15 @@
 @ importer ./kapitel - 01 - indkomst
 @ importer ./metadata
 
+= personskat_par4_finansiel_indkomstrute_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR4-FINANSIEL-INDKOMSTRUTE",
+    besked = "Et ikke-nul indkomstbeløb uden for den valgte gren efter PSL § 4, stk. 1, nr. 5 a eller 5 b, er ikke automatisk skattefrit. Årssammenligningen tilbageholdes, indtil den korrekte understøttede behandling er afklaret. Bevar beløb og klassifikationsfakta; ret ruten ud fra kilderne, ikke fakta for at få et resultat. Se personskat-finansielle-poster.md. Provisioner efter nr. 7 kan derimod lovligt give nul fradrag."
+)
+= personskat_par4_finansiel_investeringsvejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber",
+    identifier = "Skattestyrelsen: investeringsbeviser, særskilt klassifikation og indkomstbehandling",
+    hentet_dato = "2026-09-25"
+)
 = personskat_par4_abl_mellemklassifikation_advarsel = PersonskattelovKildeAdvarsel(
     kode = "PSL-PAR4-ABL-MELLEMKLASSIFIKATION",
     besked = "AblUdenforDenneSlice og AblIkkeMedregnetISlice er bevidste mellemklassifikationer i aktieavancekaskaden. En afsluttende kilde efter personskattelovens § 4, stk. 1, nr. 5 b, skal derimod være kildeklassificeret som aktieavancebeskatningslovens § 19 C eller § 22; ellers afvises hele den kanoniske postliste uden beløbspåvirkning."
@@ -14,6 +23,8 @@
         DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
         DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
         DependencySource(value = ligningsloven_par8_stk3_lbk1500),
+        Guidance(value = personskat_par4_finansiel_investeringsvejledning),
+        Warning(value = personskat_par4_finansiel_indkomstrute_advarsel),
         Warning(value = personskat_par4_abl_mellemklassifikation_advarsel),
     )
 )
@@ -74,6 +85,14 @@ i en aktie eller et investeringsbevis omfattet af aktieavancebeskatningslovens
     | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner, formidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut, aktieavance_aktivklassifikation_input) -> par4_stk1_nr5b_kapitalpost(personskat_par4_nr5b_input(modtaget_beløb_kroner, formidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut, aktieavance_aktivklassifikation_input))
     | PsPar4Nr7Provision(input) -> par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(input)
 }
+-- En lokal undtagelse afslutter ikke klassifikationen af en indkomstpost.
+-- Nr. 5 b kan dog være dækket og omklassificeret til personlig indkomst.
+-- En udgift uden fradragsret efter nr. 7 er ikke af den grund ugyldig.
+| personskat_par4_finansiel_indkomstrute_afklaret(kilde: PersonskatPar4FinansielPostkilde) -> match kilde {
+    | PsPar4Nr5AMedlemsbevis(beløb, input) -> beløb == 0 || par4_stk1_nr5a_resultat(personskat_par4_nr5a_input(beløb, input)).omfattet_af_kapitalindkomst
+    | PsPar4Nr5BFormidlerbeløb(beløb, formidler, modtaget_fra_institut, klassifikation) -> beløb == 0 || par4_stk1_nr5b_resultat(personskat_par4_nr5b_input(beløb, formidler, modtaget_fra_institut, klassifikation)).omfattet_af_par4_nr5b
+    | PsPar4Nr7Provision(_) -> Sandt
+}
 | personskat_par4_finansiel_post_resultat(alle_fakta: List(PersonskatPar4FinansielPostfakta), fakta: PersonskatPar4FinansielPostfakta, skatteår: Heltal) -> {
     = identifikation_unik = fakta.identifikation != "" && personskat_par4_finansiel_post_identifikation_unik(alle_fakta, fakta)
     = grundfakta_gyldige = personskat_par4_finansiel_postfakta_grundfakta_gyldige(fakta, skatteår)
@@ -81,7 +100,7 @@ i en aktie eller et investeringsbevis omfattet af aktieavancebeskatningslovens
         fakta = fakta,
         identifikation_unik = identifikation_unik,
         grundfakta_gyldige = grundfakta_gyldige,
-        input_gyldigt = identifikation_unik && grundfakta_gyldige,
+        input_gyldigt = identifikation_unik && grundfakta_gyldige && personskat_par4_finansiel_indkomstrute_afklaret(fakta.kilde),
         lovresultat = personskat_par4_finansiel_post_lovresultat(fakta.kilde),
         kapitalpost = personskat_par4_finansiel_post_kapitalpost(fakta.kilde)
     )
