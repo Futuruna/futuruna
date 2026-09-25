@@ -1,0 +1,51 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./kalenderdato
+
+# Pbl22EKilde(url: Tekst, identifier: Tekst, læst: Tekst)
+= pbl22e_lovkilde = Pbl22EKilde(url = "https://www.retsinformation.dk/eli/lta/2024/1243", identifier = "PBL § 22 E; genindbetalingens tidsvirkning følger §§ 18, stk. 1, og 19, stk. 1", læst = "2026-09-26")
+= pbl22e_vejledning = Pbl22EKilde(url = "https://info.skat.dk/data.aspx?oid=2048432", identifier = "C.A.10.2.7.2: tilbagebetaling, virkning fra 1. januar 2021, genindbetaling og eksempel 8", læst = "2026-09-26")
+= pbl22e_bruttovejledning = Pbl22EKilde(url = "https://info.skat.dk/data.aspx?oid=2288101", identifier = "Pensiondiverse, 4.1: tilbagebetaling til arbejdsgiver efter § 22 E inklusive AM-bidrag", læst = "2026-09-26")
+= pbl22e_meta = Metadata(attachments = (Source(value = pbl22e_lovkilde), Guidance(value = pbl22e_vejledning), Guidance(value = pbl22e_bruttovejledning)))
+
+--@label:pbl22e::meta:pbl22e_meta--
+----
+§ 22 E. Beløb, der er indbetalt til en pensionsordning med
+løbende udbetalinger, rateforsikring, rateopsparing, alders-
+forsikring, aldersopsparing eller supplerende engangssum,
+kan senest 30 dage efter indbetalingen, dog senest den 19.
+januar i det følgende kalenderår, helt eller delvis tilbage-
+betales til indbetaleren. Det tilbagebetalte beløb betragtes
+hverken som en indbetaling eller en afgiftspligtig udbeta-
+ling. Der kan ikke afgiftsfrit tilbagebetales et større beløb,
+end der er indbetalt.
+----
+
+--@begin:pbl22e--
+# Pbl22EOrdningsart = Pbl22EUoplystOrdning | Pbl22ELøbendeUdbetalinger | Pbl22ERateforsikring | Pbl22ERateopsparing | Pbl22EAldersforsikring | Pbl22EAldersopsparing | Pbl22ESupplerendeEngangssum
+# Pbl22ETilbagebetalingsfakta(identifikation: Tekst, kildereference: Tekst, oprindelig_indbetaling_identifikation: Tekst, oprindelig_ordning: Pbl22EOrdningsart, oprindelig_indbetalingsdato: Dato, oprindeligt_indbetalt_brutto_kroner: Heltal, tilbagebetalingsdato: Dato, tilbagebetalt_brutto_kroner: Heltal, tilbagebetalt_til_indbetaleren: Boolsk)
+# Pbl22EGenindbetalingsfakta(tilbagebetaling: Pbl22ETilbagebetalingsfakta, genindbetalingsdato: Dato)
+
+-- 9999 er en teknisk kalendergrænse, ikke en lovbestemt udløbsdato.
+| pbl22e_dato_gyldig(dato: Dato) -> dato.år >= 2021 && dato.år <= 9999 && dato_gyldig(dato)
+| pbl22e_tilbagebetalingsfrist(oprindelig: Dato) -> hvis pbl22e_dato_gyldig(oprindelig) && oprindelig.år < 9999 {
+    = tredive_dage = dato_plus_dage(oprindelig, 30)
+    = januarfrist = Dato(år = oprindelig.år + 1, måned = 1, dag = 19)
+    hvis dato_før(tredive_dage, januarfrist) { tredive_dage } ellers { januarfrist }
+} ellers { dato_ugyldig() }
+| pbl22e_tilbagebetaling_gyldig(fakta: Pbl22ETilbagebetalingsfakta) -> fakta.identifikation != "" && fakta.kildereference != "" && fakta.oprindelig_indbetaling_identifikation != "" && fakta.oprindelig_ordning != Pbl22EUoplystOrdning && pbl22e_dato_gyldig(fakta.oprindelig_indbetalingsdato) && fakta.oprindelig_indbetalingsdato.år < 9999 && pbl22e_dato_gyldig(fakta.tilbagebetalingsdato) && dato_før_eller_lig_med(fakta.oprindelig_indbetalingsdato, fakta.tilbagebetalingsdato) && dato_før_eller_lig_med(fakta.tilbagebetalingsdato, pbl22e_tilbagebetalingsfrist(fakta.oprindelig_indbetalingsdato)) && fakta.oprindeligt_indbetalt_brutto_kroner > 0 && fakta.tilbagebetalt_brutto_kroner > 0 && fakta.tilbagebetalt_brutto_kroner <= fakta.oprindeligt_indbetalt_brutto_kroner && fakta.tilbagebetalt_til_indbetaleren
+| pbl22e_genindbetaling_gyldig(fakta: Pbl22EGenindbetalingsfakta, betalingsår: Heltal, beløb_kroner: Heltal) -> pbl22e_tilbagebetaling_gyldig(fakta.tilbagebetaling) && pbl22e_dato_gyldig(fakta.genindbetalingsdato) && dato_før_eller_lig_med(fakta.tilbagebetaling.tilbagebetalingsdato, fakta.genindbetalingsdato) && fakta.genindbetalingsdato.år == betalingsår && beløb_kroner > 0 && beløb_kroner <= fakta.tilbagebetaling.tilbagebetalt_brutto_kroner
+| pbl22e_oplysning_gyldig(hidrører: Boolsk, fakta: Pbl22EGenindbetalingsfakta?, betalingsår: Heltal, beløb_kroner: Heltal) -> match fakta {
+    | None -> hidrører == Falskt
+    | Some(oplyst) -> hidrører && pbl22e_genindbetaling_gyldig(oplyst, betalingsår, beløb_kroner)
+}
+-- En sen genindbetaling gør ikke en rettidig tilbagebetaling ugyldig.
+-- §§ 18/19 bevarer desuden forsikringspræmiens almindelige forfaldsregel.
+| pbl22e_genindbetaling_rettidig(fakta: Pbl22EGenindbetalingsfakta) -> pbl22e_genindbetaling_gyldig(fakta, fakta.genindbetalingsdato.år, fakta.tilbagebetaling.tilbagebetalt_brutto_kroner) && dato_før_eller_lig_med(fakta.genindbetalingsdato, pbl22e_tilbagebetalingsfrist(fakta.tilbagebetaling.oprindelig_indbetalingsdato))
+| pbl22e_indbetalingsår(hidrører: Boolsk, fakta: Pbl22EGenindbetalingsfakta?, betalingsår: Heltal, beløb_kroner: Heltal) -> match fakta {
+    | Some(oplyst) -> hvis hidrører && pbl22e_genindbetaling_gyldig(oplyst, betalingsår, beløb_kroner) && pbl22e_genindbetaling_rettidig(oplyst) { oplyst.tilbagebetaling.oprindelig_indbetalingsdato.år } ellers { betalingsår }
+    | None -> betalingsår
+}
+| pbl22e_samme_oprindelige_indbetaling(a: Pbl22ETilbagebetalingsfakta, b: Pbl22ETilbagebetalingsfakta) -> a.oprindelig_indbetaling_identifikation == b.oprindelig_indbetaling_identifikation && a.oprindelig_ordning == b.oprindelig_ordning && a.oprindelig_indbetalingsdato == b.oprindelig_indbetalingsdato && a.oprindeligt_indbetalt_brutto_kroner == b.oprindeligt_indbetalt_brutto_kroner
+--@end:pbl22e--

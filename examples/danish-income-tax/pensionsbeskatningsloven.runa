@@ -7,6 +7,7 @@
 @ importer ./pensionsbeskatningsloven - par14b
 @ importer ./pensionsbeskatningsloven - par15 - 15a
 @ importer ./pensionsbeskatningsloven - par15b
+@ importer ./pensionsbeskatningsloven - par22e
 
 -- Pensionsbeskatningsloven -- Personskatteloven-afhængigheder.
 --
@@ -438,7 +439,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 # Pbl18Fradragsretshaver = Pbl18OrdningensEjer | Pbl18SamlevendeLængstlevendeÆgtefælle | Pbl18AndenEfterEjerensDød
 # Pbl18Par15AFradragsplacering = Pbl18IkkePar15APlacering | Pbl18Par15AIndbetalingsår | Pbl18Par15AAfståelsesår(fradragsår: Heltal, indbetalt_senest_1_juli_efterfølgende: Boolsk)
 # Pbl18SærligtOrdningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag | Pbl18Par15AIndbetalingsgrundlag(ordning_identifikation: Tekst, afståelse_identifikation: Tekst) | Pbl18Par15BIndbetalingsgrundlag(ordning_identifikation: Tekst)
-# Pbl18Betaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal)
+# Pbl18Betaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par22e_genindbetaling: Pbl22EGenindbetalingsfakta?, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal)
 # Pbl18Fordelingsforløb = Pbl18IngenTiårsfordeling | Pbl18Kapitalindskud(indskudsår: Heltal, indskud_kroner: Heltal) | Pbl18KortIndbetalingsperiode(første_forfaldsår: Heltal, samlet_aftalt_beløb_kroner: Heltal, efterfølgende_tilsvarende_ordning: Boolsk, samlet_indbetalingsperiode_år: Heltal) | Pbl18ForhøjelseKortRestperiode(første_forhøjelsesår: Heltal, samlet_forhøjelse_kroner: Heltal) | Pbl18PristalsreguleretForhøjelse
 # Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner: List(Heltal))
 # Pbl18SelvstændigOverskudInput(skattepligtigt_overskud_før_vsl22b_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_kroner: Heltal, udelukkede_afståelsesindkomster_kroner: Heltal)
@@ -447,7 +448,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 # Pbl18Begrænsninger(pbl54_personkreds_opfyldt: Boolsk, afgiftspligt_for_hele_ordningen_indtrådt: Boolsk, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk)
 # Pbl18Input(indkomstår: Heltal, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Betaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, fradragsramme: Pbl18Fradragsramme, begrænsninger: Pbl18Begrænsninger)
 # Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, årsparametre: Pbl16Og18Årsparametre, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
-# Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
+# Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par22e_genindbetaling: Pbl22EGenindbetalingsfakta?, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
 # Pbl18Indeksordningsgrundlag = Pbl18IkkeIndeksordning | Pbl18Par15Indeksordning(fakta: Pbl15Indeksordningsfakta)
 # Pbl18Årsindbetaling(identifikation: Tekst, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Årsbetaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, indeksordningsgrundlag: Pbl18Indeksordningsgrundlag, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, særligt_ordningsgrundlag: Pbl18SærligtOrdningsgrundlag, begrænsninger: Pbl18Begrænsninger)
 # Pbl18Årsinput(indkomstår: Heltal, personlig_indkomst_før_pensionsfradrag_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, livrentevalg: Pbl18Fradragsvalg, par15a_årsgrundlag: Pbl15AÅrsgrundlag, par15b_årsgrundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl18Årsindbetaling))
@@ -499,12 +500,13 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 ))
 | pbl18_par15b_indbetalingsforbindelse_gyldig(resultat: Pbl15BÅrsresultat, indbetaling: Pbl18Årsindbetaling, ordning_identifikation: Tekst) -> any(resultat.indbetalingsresultater, |par15b_resultat: Pbl15BIndbetalingsresultat| par15b_resultat.indbetaling.identifikation == indbetaling.identifikation && par15b_resultat.indbetaling.ordning_identifikation == ordning_identifikation && par15b_resultat.forbindelse_gyldig)
 
-| pbl18_almindeligt_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> betaling.betalingsår
-| exception pbl18_rettidig_forfaldsbetaling pbl18_almindeligt_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> betaling.forfaldsår under pbl18_ordning_har_indbetalingsprincip(ordning) == Falskt && betaling.hidrører_fra_par22e_tilbagebetaling == Falskt && betaling.betalt_senest_bankjusteret_1_april_efter_forfald
+| pbl18_skattemæssigt_indbetalingsår(betaling: Pbl18Betaling) -> pbl22e_indbetalingsår(betaling.hidrører_fra_par22e_tilbagebetaling, betaling.par22e_genindbetaling, betaling.betalingsår, betaling.beløb_kroner)
+| pbl18_almindeligt_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> pbl18_skattemæssigt_indbetalingsår(betaling)
+| exception pbl18_rettidig_forfaldsbetaling pbl18_almindeligt_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> betaling.forfaldsår under pbl18_ordning_har_indbetalingsprincip(ordning) == Falskt && betaling.betalt_senest_bankjusteret_1_april_efter_forfald
 | pbl18_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> match betaling.par15a_fradragsplacering {
     | Pbl18IkkePar15APlacering -> pbl18_almindeligt_fradragsår(ordning, betaling)
-    | Pbl18Par15AIndbetalingsår -> betaling.betalingsår
-    | Pbl18Par15AAfståelsesår(valgt_fradragsår, rettidig) -> hvis pbl18_ordning_er_par15a(ordning) && rettidig { valgt_fradragsår } ellers { betaling.betalingsår }
+    | Pbl18Par15AIndbetalingsår -> pbl18_skattemæssigt_indbetalingsår(betaling)
+    | Pbl18Par15AAfståelsesår(valgt_fradragsår, rettidig) -> hvis pbl18_ordning_er_par15a(ordning) && rettidig { valgt_fradragsår } ellers { pbl18_skattemæssigt_indbetalingsår(betaling) }
 }
 
 | pbl18_indeksbidrag_første_seks_kroner(indeksvalg: Pbl18Indeksvalg) -> foldl(take(indeksvalg.fradragsvalgte_kontraktbidrag_kroner, 6), 0, |sum, bidrag| sum + penge_positivt_beløb(bidrag))
@@ -557,7 +559,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | exception pbl18_kapitalordning_begrænses_af_personlig_indkomst pbl18_beløb_efter_personlig_indkomst_loft_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_valgt_årsfradrag_kroner(input), penge_positivt_beløb(input.fradragsramme.personlig_indkomst_før_pensionsfradrag_kroner)) under pbl18_ordning_har_personlig_indkomst_loft(input.ordning)
 | pbl18_fradragsret_i_indkomståret(input: Pbl18Input) -> pbl18_fradragsår(input.ordning, input.betaling) == input.indkomstår
 | exception pbl18_tiårsfordeling_fortsætter_fradragsretten pbl18_fradragsret_i_indkomståret(input: Pbl18Input) -> Sandt under input.ordning == Pbl18LivsvarigLivrente && pbl18_tiårsfordeling_omfatter_indkomstår(input.fordelingsforløb, input.indkomstår)
-| pbl18_grundlæggende_betingelser_uden_særligt_årsgrundlag(input: Pbl18Input) -> pbl18_ordning_omfattet_af_kapitel1(input.ordning) && pbl18_ordning_udelukket_fra_fradrag(input.ordning) == Falskt && input.indbetalingskilde == Pbl18EgenIndbetaling && pbl18_fradragsretshaver_opfyldt(input.fradragsretshaver) && input.begrænsninger.pbl54_personkreds_opfyldt && input.begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt == Falskt && input.begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens == Falskt && pbl18_fradragsret_i_indkomståret(input)
+| pbl18_grundlæggende_betingelser_uden_særligt_årsgrundlag(input: Pbl18Input) -> pbl22e_oplysning_gyldig(input.betaling.hidrører_fra_par22e_tilbagebetaling, input.betaling.par22e_genindbetaling, input.betaling.betalingsår, input.betaling.beløb_kroner) && pbl18_ordning_omfattet_af_kapitel1(input.ordning) && pbl18_ordning_udelukket_fra_fradrag(input.ordning) == Falskt && input.indbetalingskilde == Pbl18EgenIndbetaling && pbl18_fradragsretshaver_opfyldt(input.fradragsretshaver) && input.begrænsninger.pbl54_personkreds_opfyldt && input.begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt == Falskt && input.begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens == Falskt && pbl18_fradragsret_i_indkomståret(input)
 | pbl18_grundlæggende_fradragsret(input: Pbl18Input) -> pbl18_grundlæggende_betingelser_uden_særligt_årsgrundlag(input) && pbl18_ordning_kræver_særligt_årsgrundlag(input.ordning) == Falskt
 | pbl18_fradrag_i_skattepligtig_indkomst_kroner(input: Pbl18Input) -> 0
 | exception pbl18_fradragsret_opfyldt pbl18_fradrag_i_skattepligtig_indkomst_kroner(input: Pbl18Input) -> pbl18_beløb_efter_personlig_indkomst_loft_kroner(input) under pbl18_grundlæggende_fradragsret(input)
@@ -606,14 +608,43 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 -- fristoplysning, men kan ikke afgøre betalingsdagen i det efterfølgende år.
 -- Træk fra det positive betalingsår frem for at lægge til forfaldsåret.
 | pbl18_årsbetaling_frister_konsistente(betaling: Pbl18Årsbetaling) -> betaling.forfaldsår > 0 && betaling.betalingsår > 0 && hvis betaling.betalt_senest_bankjusteret_1_april_efter_forfald { betaling.betalingsår - 1 <= betaling.forfaldsår } ellers { betaling.betalingsår > betaling.forfaldsår }
+-- En oplyst genindbetalingsdato før eller på 1. april kan ikke samtidig
+-- påstås at være efter bankfristen. Senere datoer kræver fortsat bankkalender.
+| pbl18_par22e_apriloplysning_konsistent(betaling: Pbl18Årsbetaling) -> match betaling.par22e_genindbetaling {
+    | None -> Sandt
+    | Some(fakta) -> betaling.betalt_senest_bankjusteret_1_april_efter_forfald || fakta.genindbetalingsdato.år - 1 != betaling.forfaldsår || fakta.genindbetalingsdato.måned > 4 || (fakta.genindbetalingsdato.måned == 4 && fakta.genindbetalingsdato.dag > 1)
+}
 | pbl18_par15a_placering_passer_til_ordning(ordning: Pbl18Ordning, placering: Pbl18Par15AFradragsplacering) -> match placering {
     | Pbl18IkkePar15APlacering -> Sandt
     | Pbl18Par15AIndbetalingsår -> pbl18_ordning_er_par15a(ordning)
     | Pbl18Par15AAfståelsesår(_, _) -> pbl18_ordning_er_par15a(ordning)
 }
-| pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && pbl18_årsbetaling_frister_konsistente(betaling) && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
+| pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && pbl18_årsbetaling_frister_konsistente(betaling) && pbl22e_oplysning_gyldig(betaling.hidrører_fra_par22e_tilbagebetaling, betaling.par22e_genindbetaling, betaling.betalingsår, betaling.beløb_kroner) && pbl18_par22e_apriloplysning_konsistent(betaling) && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
 | pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl18_par15a_placering_passer_til_ordning(indbetaling.ordning, indbetaling.betaling.par15a_fradragsplacering) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0
 | pbl18_årsidentifikation_unik(indbetalinger: List(Pbl18Årsindbetaling), indbetaling: Pbl18Årsindbetaling) -> length(filter(indbetalinger, |anden: Pbl18Årsindbetaling| anden.identifikation == indbetaling.identifikation)) == 1
+-- Delte tilbagebetalinger tælles én gang, mens hver genindbetalingspost
+-- forbruger sin del af bruttobeløbet. Samme kilde-id må ikke skifte fakta.
+| pbl18_par22e_tilbagebetalinger(indbetalinger: List(Pbl18Årsindbetaling)) -> foldl(indbetalinger, [], |samlet: List(Pbl22ETilbagebetalingsfakta), post: Pbl18Årsindbetaling| match post.betaling.par22e_genindbetaling {
+        | None -> samlet
+        | Some(fakta) -> hvis any(samlet, |anden: Pbl22ETilbagebetalingsfakta| anden.identifikation == fakta.tilbagebetaling.identifikation) { samlet } ellers { concat(samlet, [fakta.tilbagebetaling]) }
+    })
+| pbl18_par22e_kildefakta_konsistente(indbetalinger: List(Pbl18Årsindbetaling), tilbagebetaling: Pbl22ETilbagebetalingsfakta) -> all(indbetalinger, |post: Pbl18Årsindbetaling| match post.betaling.par22e_genindbetaling {
+        | None -> Sandt
+        | Some(fakta) -> (fakta.tilbagebetaling.identifikation != tilbagebetaling.identifikation || fakta.tilbagebetaling == tilbagebetaling) && (fakta.tilbagebetaling.oprindelig_indbetaling_identifikation != tilbagebetaling.oprindelig_indbetaling_identifikation || pbl22e_samme_oprindelige_indbetaling(fakta.tilbagebetaling, tilbagebetaling)) && post.identifikation != fakta.tilbagebetaling.oprindelig_indbetaling_identifikation
+    })
+| pbl18_par22e_genindbetalt_kroner(indbetalinger: List(Pbl18Årsindbetaling), identifikation: Tekst) -> foldl(indbetalinger, 0, |sum: Heltal, post: Pbl18Årsindbetaling| sum + match post.betaling.par22e_genindbetaling {
+        | Some(fakta) -> hvis fakta.tilbagebetaling.identifikation == identifikation { post.betaling.beløb_kroner } ellers { 0 }
+        | None -> 0
+    })
+| pbl18_par22e_tilbagebetalt_kroner(tilbagebetalinger: List(Pbl22ETilbagebetalingsfakta), oprindelig_identifikation: Tekst) -> foldl(tilbagebetalinger, 0, |sum: Heltal, fakta: Pbl22ETilbagebetalingsfakta| sum + hvis fakta.oprindelig_indbetaling_identifikation == oprindelig_identifikation { fakta.tilbagebetalt_brutto_kroner } ellers { 0 })
+| pbl18_par22e_oprindelig_rest_konsistent(indbetalinger: List(Pbl18Årsindbetaling), fakta: Pbl22ETilbagebetalingsfakta, tilbagebetalt_kroner: Heltal) -> all(indbetalinger, |post: Pbl18Årsindbetaling| post.identifikation != fakta.oprindelig_indbetaling_identifikation || (post.betaling.hidrører_fra_par22e_tilbagebetaling == Falskt && post.betaling.par22e_genindbetaling == None && post.betaling.betalingsår == fakta.oprindelig_indbetalingsdato.år && post.betaling.beløb_kroner <= fakta.oprindeligt_indbetalt_brutto_kroner - tilbagebetalt_kroner))
+| pbl18_par22e_allokeringer_gyldige(indbetalinger: List(Pbl18Årsindbetaling)) -> {
+    = tilbagebetalinger = pbl18_par22e_tilbagebetalinger(indbetalinger)
+    all(tilbagebetalinger, |fakta: Pbl22ETilbagebetalingsfakta| {
+            = samlet_tilbagebetalt = pbl18_par22e_tilbagebetalt_kroner(tilbagebetalinger, fakta.oprindelig_indbetaling_identifikation)
+            pbl18_par22e_kildefakta_konsistente(indbetalinger, fakta) && pbl18_par22e_genindbetalt_kroner(indbetalinger, fakta.identifikation) <= fakta.tilbagebetalt_brutto_kroner && samlet_tilbagebetalt <= fakta.oprindeligt_indbetalt_brutto_kroner && pbl18_par22e_oprindelig_rest_konsistent(indbetalinger, fakta, samlet_tilbagebetalt)
+        })
+}
 | pbl18_årsvalgte_indekskontrakter(indbetalinger: List(Pbl18Årsindbetaling)) -> foldl(indbetalinger, 0, |antal: Heltal, indbetaling: Pbl18Årsindbetaling| antal + hvis indbetaling.ordning == Pbl18Indeksordning { length(indbetaling.indeksvalg.fradragsvalgte_kontraktbidrag_kroner) } ellers { 0 })
 | pbl18_årsindbetaling_indeksgrundlag_gyldigt(indbetaling: Pbl18Årsindbetaling) -> match indbetaling.indeksordningsgrundlag {
     | Pbl18IkkeIndeksordning -> indbetaling.ordning != Pbl18Indeksordning
@@ -628,7 +659,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_årsinput_gyldigt(input: Pbl18Årsinput) -> {
     = par15a_resultat = pbl15a_årsgrundlagsresultat(input.par15a_årsgrundlag)
     = par15b_resultat = pbl18_par15b_årsresultat(input)
-    pbl16_understøttet_indkomstår(input.indkomstår) && input.personlig_indkomst_før_pensionsfradrag_kroner >= 0 && pbl18_årsselvstændig_overskud_gyldigt(input.selvstændig_overskud) && pbl15a_årsgrundlag_gyldigt_for_indkomstår(par15a_resultat, input.indkomstår) && par15b_resultat.input_gyldigt && all(input.indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(input.indbetalinger, indbetaling) && pbl18_årsindbetaling_indeksgrundlag_gyldigt(indbetaling) && pbl18_årsindbetaling_særligt_grundlag_gyldigt(input, par15a_resultat, par15b_resultat, indbetaling)) && pbl18_årsvalgte_indekskontrakter(input.indbetalinger) <= 6
+    pbl16_understøttet_indkomstår(input.indkomstår) && input.personlig_indkomst_før_pensionsfradrag_kroner >= 0 && pbl18_årsselvstændig_overskud_gyldigt(input.selvstændig_overskud) && pbl15a_årsgrundlag_gyldigt_for_indkomstår(par15a_resultat, input.indkomstår) && par15b_resultat.input_gyldigt && all(input.indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(input.indbetalinger, indbetaling) && pbl18_årsindbetaling_indeksgrundlag_gyldigt(indbetaling) && pbl18_årsindbetaling_særligt_grundlag_gyldigt(input, par15a_resultat, par15b_resultat, indbetaling)) && pbl18_par22e_allokeringer_gyldige(input.indbetalinger) && pbl18_årsvalgte_indekskontrakter(input.indbetalinger) <= 6
 }
 
 | pbl18_årsbetaling_til_pbl18_betaling(betaling: Pbl18Årsbetaling, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal) -> Pbl18Betaling(
@@ -637,6 +668,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
     betalingsår = betaling.betalingsår,
     betalt_senest_bankjusteret_1_april_efter_forfald = betaling.betalt_senest_bankjusteret_1_april_efter_forfald,
     hidrører_fra_par22e_tilbagebetaling = betaling.hidrører_fra_par22e_tilbagebetaling,
+    par22e_genindbetaling = betaling.par22e_genindbetaling,
     par15a_fradragsplacering = betaling.par15a_fradragsplacering,
     arbejdsgiverindbetalinger_kroner = arbejdsgiverindbetalinger_kroner,
     arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner
