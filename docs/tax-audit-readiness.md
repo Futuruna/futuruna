@@ -79,6 +79,15 @@ It retains every check, necessary amount, caveat and failed-case diagnostic;
 it is a read-only presentation, not a second tax calculator or an authenticity
 check of saved output.
 
+The conditional report contract now also carries explicit questions, units,
+sign conventions and source traces on all six name/amount fields in its three
+post lists, not only on the parent collections. The
+[row-input regression](../tests/tax_report_input_metadata.test.mjs) checks the
+generated contract and fictional signed refund/restskat observations, including
+wrong signs, units, duplicate rows, unknown completeness and rejected localized
+amount text. This improves AI intake guidance; it does not parse documents or
+prove their classification. Metadata changes require fresh report templates.
+
 Canonical `beregn_personskat` output now has its own
 [local Danish summary](../examples/danish-income-tax/personskat-validity.md#læs-dit-gemte-resultat-på-dansk).
 It leads with validity, withholds diagnostic amounts for invalid cases, retains

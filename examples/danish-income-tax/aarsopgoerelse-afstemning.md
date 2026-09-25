@@ -136,6 +136,37 @@ incomplete. Unknown observed tax or transfer amounts still stay `null`. A
 confirmed empty section can also expose a contradiction with nonzero reported
 tax; it is not automatically treated as missing information.
 
+### Fortegn og enheder følger også hver enkelt række
+
+Den genererede kontrakt har særskilte spørgsmål og kildehenvisninger til
+både navn og beløb i de tre postlister. De deler typen `RapportBeløb`, men
+beløbene har forskellige roller:
+
+- Skatteposter: skatter er positive; egne fradragsværdier og lempelser er
+  negative. Ægtefællenedslagene registreres særskilt, ikke én gang til her.
+- Slutskatstillæg: ikke-negative beløb **før** beregning af overskydende
+  skat eller restskat; ikke beløb, der allerede indgår i beregnet skat.
+- Udbetalingskorrektioner: tillæg er positive; tidligere udbetalinger og
+  modregninger er negative. Ikke slutskatstillæg eller årets restskattetillæg.
+
+`12,34 kr.` indtastes som heltallet `1234` i et ørefelt; en reduktion på
+samme beløb indtastes som `-1234`. Gem originalt beløb, fortegn og lokal
+side/linje i en privat kildelog. Angiv ikke en lokaliseret tekst som
+`"12,34"` i heltalsfeltet, og afrund ikke øre væk. Modellen kan ikke opdage
+enhver forkert, men plausibel, omregning.
+
+Ukendt er ikke nul. Hvis en posts beløb eller placering er uafklaret, behold
+spørgsmålet i kildeloggen og sæt den relevante fuldstændighedsmarkering til
+`false`; opfind ikke en nulrække. Entydige postnavne beskytter mod gentagne
+navne, ikke mod samme dokumentbeløb under to forskellige navne.
+
+Metadatarettelsen ændrer kontraktens fingerprint, ikke inputtyper eller
+afstemningsformler. Generér en frisk skabelon og overfør kun gennemgåede
+observationer; redigér ikke et gammelt fingerprint for at omgå kontrollen.
+[Regressionen](../../tests/tax_report_input_metadata.test.mjs) undersøger
+den faktiske kontrakt og ti fiktive indtastninger, herunder fejl og ukendte
+forhold. Den er ikke en test af AI-læsning af vilkårlige PDF'er.
+
 Neither the spouse's municipality nor year-end tax cohabitation is mandatory.
 The municipal and church transfer ceilings use the **recipient's** municipality
 and church-tax status. The spouse's optional municipality does not change these
