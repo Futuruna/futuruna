@@ -82,8 +82,8 @@ PBL § 20-udbetaling. De dækkede poster indgår heller ikke i LL § 9 C's
 aftrapningsindkomst; faktisk befordring og øvrige betingelser skal stadig oplyses.
 
 Opsat pension, efterlevelsespension, udlandsforhold, tilbagebetaling og
-omperiodisering er uden for denne indgang. Førtids-, senior- og tidlig pension
-må heller ikke omdøbes til folkepension for at få en beregning. Sociale
+omperiodisering er uden for denne indgang. [Førtids-, senior- og tidlig pension](personskat-socialpension.md)
+har en særskilt indgang; de må ikke omdøbes til folkepension. Sociale
 pensioner beskattes som udgangspunkt i udbetalingsåret; en efterbetaling
 skal ikke automatisk flyttes til det år, pensionen vedrører.
 

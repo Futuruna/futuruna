@@ -1,0 +1,6 @@
+@ sprog da
+
+@ importer ./personskat - socialpension
+
+@ calculate("Førtidspension, seniorpension og tidlig pension: skat og fritagne dele")
+| vurder_socialpension(fakta: PersonskatSocialpensionFakta) -> personskat_socialpension_resultat(fakta)

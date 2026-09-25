@@ -1,0 +1,71 @@
+@ sprog da
+
+@ importer ./metadata
+
+# PersonskatSocialpensionKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= personskat_socialpension_skat_kilde = PersonskatSocialpensionKilde(url = "https://info.skat.dk/data.aspx?oid=1976824", identifier = "DJV C.A.3.6.5: nye og gamle førtidspensionsregler, seniorpension, tidlig pension og ATP/SUPP-bortseelse", hentet_dato = "2026-09-25")
+= personskat_socialpension_ll_kilde = PersonskatSocialpensionKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 7, nr. 8: udtrykkeligt fritagne tillæg efter den gamle førtidspensionslov; §§ 9 C, 9 J–9 L: afgrænsning af fradragsgrundlag", hentet_dato = "2026-09-25")
+= personskat_socialpension_ll2023_kilde = PersonskatSocialpensionKilde(url = "https://www.retsinformation.dk/eli/lta/2023/42", identifier = "LL § 7, nr. 8 i 2023: samme opregning af fritagne førtidspensionsbeløb", hentet_dato = "2026-09-25")
+= personskat_socialpension_gamle_regler_kilde = PersonskatSocialpensionKilde(url = "https://www.borger.dk/oekonomi-skat-su/pension-og-efterloen/foertidspension-gamle-regler", identifier = "Udbetaling Danmark: førtidspension efter gamle regler; skattefri invaliditetsbeløb, førtidsbeløb og ekstra tillægsydelse", hentet_dato = "2026-09-25")
+= personskat_socialpension_am_kilde = PersonskatSocialpensionKilde(url = "https://skat.dk/borger/am-bidrag", identifier = "Pensionsydelser er ikke AM-bidragspligtige; pensionsindbetalinger er særskilte forhold", hentet_dato = "2026-09-25")
+= personskat_socialpension_metadata = Metadata(attachments = (Guidance(value = personskat_socialpension_skat_kilde), Source(value = personskat_socialpension_ll_kilde), Source(value = personskat_socialpension_ll2023_kilde), Guidance(value = personskat_socialpension_gamle_regler_kilde), Guidance(value = personskat_socialpension_am_kilde)))
+
+--@label:personskat_socialpension::meta:personskat_socialpension_metadata--
+----
+Seniorpensionen er skattepligtig A-indkomst
+----
+-- DJV C.A.3.6.5. Kun dokumenterede danske sociale pensionsydelser.
+-- Gamle førtidspensionsregler er en dokumenteret lovgren, ikke en antaget
+-- alder eller dato. Erhvervsudygtighedsbeløb er skattepligtigt; invaliditetsbeløb
+-- er skattefrit efter LL § 7, nr. 8. Blandede udbetalinger opdeles.
+-- Indkomstbeløbet er efter bortseelse for eget ATP/SUPP, men før A-skat.
+-- ATP/SUPP/obligatorisk pension oplyses særskilt; ingen ekstra bortseelse her.
+-- Ingen ydelsesberegning, udland, korrektion, efterlevelsespension, delpension,
+-- efterløn eller private invalidepensioner. Ingen PBL § 20-udbetalinger,
+-- AM-/arbejdsfradragsgrundlag eller LL § 9 C-aftrapningsindkomst fra ydelsen.
+--@begin:personskat_socialpension--
+# PersonskatSocialpensionArt = SocialpensionsartUoplystEllerUdenForModellen | SocialFørtidspensionEfterNyeRegler | SocialSeniorpension | SocialTidligPension | GammelFørtidspensionGrundbeløb | GammelFørtidspensionPensionstillæg | GammelFørtidspensionErhvervsudygtighedsbeløb | GammelFørtidspensionInvaliditetsbeløb | GammelFørtidspensionInvaliditetsydelse | GammelFørtidspensionFørtidsbeløb | GammelFørtidspensionEkstraTillægsydelse | GammelFørtidspensionBistandsOgPlejetillæg | GammelFørtidspensionPersonligtTillæg | GammelFørtidspensionHelbredstillæg | GammelFørtidspensionTillægEfterPar62
+# PersonskatSocialpensionFakta(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, art: PersonskatSocialpensionArt, indkomst_før_skat_kroner: Heltal, ordinær_dansk_udbetaling_uden_korrektioner: Boolsk)
+# PersonskatSocialpensionResultat(fakta: PersonskatSocialpensionFakta, input_gyldigt: Boolsk, personlig_indkomst_uden_am_kroner: Heltal, skattefrit_beløb_kroner: Heltal, ll9c_aftrapningsindkomst_kroner: Option(Heltal))
+
+| personskat_socialpension_input_gyldigt(fakta: PersonskatSocialpensionFakta) -> trim(fakta.identifikation) != "" && trim(fakta.kildereference) != "" && fakta.indkomstår >= 2023 && fakta.indkomstår <= 2026 && fakta.indkomst_før_skat_kroner >= 0 && fakta.ordinær_dansk_udbetaling_uden_korrektioner && fakta.art != SocialpensionsartUoplystEllerUdenForModellen
+| personskat_socialpension_art_skattepligtig(art: PersonskatSocialpensionArt) -> match art {
+    | SocialFørtidspensionEfterNyeRegler -> Sandt
+    | SocialSeniorpension -> Sandt
+    | SocialTidligPension -> Sandt
+    | GammelFørtidspensionGrundbeløb -> Sandt
+    | GammelFørtidspensionPensionstillæg -> Sandt
+    | GammelFørtidspensionErhvervsudygtighedsbeløb -> Sandt
+    | GammelFørtidspensionInvaliditetsbeløb -> Falskt
+    | GammelFørtidspensionInvaliditetsydelse -> Falskt
+    | GammelFørtidspensionFørtidsbeløb -> Falskt
+    | GammelFørtidspensionEkstraTillægsydelse -> Falskt
+    | GammelFørtidspensionBistandsOgPlejetillæg -> Falskt
+    | GammelFørtidspensionPersonligtTillæg -> Falskt
+    | GammelFørtidspensionHelbredstillæg -> Falskt
+    | GammelFørtidspensionTillægEfterPar62 -> Falskt
+    | SocialpensionsartUoplystEllerUdenForModellen -> Falskt
+}
+| personskat_socialpension_resultat(fakta: PersonskatSocialpensionFakta) -> PersonskatSocialpensionResultat(
+    fakta = fakta,
+    input_gyldigt = personskat_socialpension_input_gyldigt(fakta),
+    personlig_indkomst_uden_am_kroner = hvis personskat_socialpension_input_gyldigt(fakta) && personskat_socialpension_art_skattepligtig(fakta.art) { fakta.indkomst_før_skat_kroner } ellers { 0 },
+    skattefrit_beløb_kroner = hvis personskat_socialpension_input_gyldigt(fakta) && personskat_socialpension_art_skattepligtig(fakta.art) == Falskt { fakta.indkomst_før_skat_kroner } ellers { 0 },
+    ll9c_aftrapningsindkomst_kroner = hvis personskat_socialpension_input_gyldigt(fakta) { Some(0) } ellers { None }
+)
+--@end:personskat_socialpension--
+
+= personskat_socialpension_felter = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(PersonskatSocialpensionFakta::identifikation), label = "Socialpensionspostens identifikation", question = Some("Hvilken entydig identifikation har denne afgrænsede betaling?"), help = Some("En samlet pension og dens enkelte bestanddele må ikke tælles to gange."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatSocialpensionFakta::indkomstår), label = "Udbetalingens indkomstår", question = Some("I hvilket år blev den ordinære pension udbetalt?"), help = Some("2023–2026. Omperiodisering, efterbetaling og tilbagebetaling kræver særskilt behandling; brug ikke automatisk året for tilkendelsen."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(PersonskatSocialpensionFakta::kildereference), label = "Kilde til pensionsart og beløb", question = Some("Hvilken pensionsmeddelelse eller afgørelse dokumenterer lovgren, modtager og beløb?"), help = Some("Lokal reference uden CPR. Et restbeløb i årsopgørelsen er ikke uafhængige kildefakta."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatSocialpensionFakta::art::$variant), label = "Offentlig pensionsydelse eller særskilt gammelt tillæg", question = Some("Er dette offentlig førtidspension efter nye regler, seniorpension, tidlig pension eller en dokumenteret bestanddel efter gamle førtidspensionsregler?"), help = Some("Gamle regler skal fremgå af dokumentationen. Erhvervsudygtighedsbeløb beskattes, invaliditetsbeløb er fritaget. Ordene førtidspension eller invalidepension alene afgør ikke lovgrenen. Privat forsikringspension, folkepension og efterløn er andre indgange."), unit = None),
+        TypetBeregningsfelt(path = refof(PersonskatSocialpensionFakta::indkomst_før_skat_kroner), label = "Årets pensionsbeløb før A-skat", question = Some("Hvad er det dokumenterede årsbeløb efter eventuel bortseelse for eget ATP/SUPP, men før A-skat?"), help = Some("Ikke bankens netto eller en månedssats. ATP og SUPP til ATP oplyses separat i pension.atp; SUPP hos et andet pensionsinstitut kræver sin rette indbetalingsgren. Træk ikke bidragene fra denne indkomst igen. Statens obligatoriske pensionsbidrag er heller ikke en del af udbetalingen. Skattefri dele oplyses særskilt med det ydede beløb."), unit = Some("kr./år")),
+        TypetBeregningsfelt(path = refof(PersonskatSocialpensionFakta::ordinær_dansk_udbetaling_uden_korrektioner), label = "Ordinær dansk socialpension afklaret", question = Some("Er ydelsen og den valgte lovgren dokumenteret, uden udland, efterbetaling, tilbagebetaling, omperiodisering eller efterlevelsespension?"), help = Some("Falsk bevarer posten som uafklaret/uden for modellen. Denne beregning fastsætter ikke ret til pension, ydelsens størrelse eller betydningen af anden indkomst for ydelsen."), unit = None)
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Guidance(value = personskat_socialpension_skat_kilde), Source(value = personskat_socialpension_ll_kilde), Source(value = personskat_socialpension_ll2023_kilde), Guidance(value = personskat_socialpension_gamle_regler_kilde), Guidance(value = personskat_socialpension_am_kilde))
+)
+--@label:PersonskatSocialpensionFakta::meta:personskat_socialpension_felter--

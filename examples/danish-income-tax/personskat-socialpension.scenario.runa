@@ -1,0 +1,18 @@
+@ sprog da
+
+@ importer ./personskat - socialpension
+
+| socialpension_scenarie(art: PersonskatSocialpensionArt, år: Heltal, beløb: Heltal, afklaret: Boolsk, id: Tekst, kilde: Tekst) -> personskat_socialpension_resultat(PersonskatSocialpensionFakta(identifikation = id, indkomstår = år, kildereference = kilde, art = art, indkomst_før_skat_kroner = beløb, ordinær_dansk_udbetaling_uden_korrektioner = afklaret))
+= sociale_skattepligtige_arter = [SocialFørtidspensionEfterNyeRegler, SocialSeniorpension, SocialTidligPension, GammelFørtidspensionGrundbeløb, GammelFørtidspensionPensionstillæg, GammelFørtidspensionErhvervsudygtighedsbeløb]
+= sociale_fritagne_arter = [GammelFørtidspensionInvaliditetsbeløb, GammelFørtidspensionInvaliditetsydelse, GammelFørtidspensionFørtidsbeløb, GammelFørtidspensionEkstraTillægsydelse, GammelFørtidspensionBistandsOgPlejetillæg, GammelFørtidspensionPersonligtTillæg, GammelFørtidspensionHelbredstillæg, GammelFørtidspensionTillægEfterPar62]
+= sociale_skattepligtige = flat_map([2023, 2024, 2025, 2026], |år: Heltal| map(sociale_skattepligtige_arter, |art: PersonskatSocialpensionArt| socialpension_scenarie(art, år, 10000, Sandt, "syntetisk", "bilag")))
+= sociale_fritagne = flat_map([2023, 2024, 2025, 2026], |år: Heltal| map(sociale_fritagne_arter, |art: PersonskatSocialpensionArt| socialpension_scenarie(art, år, 10000, Sandt, "syntetisk", "bilag")))
+= sociale_ugyldige = [socialpension_scenarie(SocialpensionsartUoplystEllerUdenForModellen, 2025, 0, Sandt, "syntetisk", "bilag"), socialpension_scenarie(SocialSeniorpension, 2022, 10000, Sandt, "syntetisk", "bilag"), socialpension_scenarie(SocialTidligPension, 2027, 10000, Sandt, "syntetisk", "bilag"), socialpension_scenarie(SocialFørtidspensionEfterNyeRegler, 2025, -1, Sandt, "syntetisk", "bilag"), socialpension_scenarie(GammelFørtidspensionInvaliditetsbeløb, 2025, 10000, Falskt, "syntetisk", "bilag"), socialpension_scenarie(SocialSeniorpension, 2025, 10000, Sandt, " ", "bilag"), socialpension_scenarie(SocialSeniorpension, 2025, 10000, Sandt, "syntetisk", " ")]
+
+| socialpension_seks_skattepligtige_arter: sociale_skattepligtige -> all(sociale_skattepligtige, |r: PersonskatSocialpensionResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 10000 && r.skattefrit_beløb_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == Some(0))
+| socialpension_otte_fritagne_arter: sociale_fritagne -> all(sociale_fritagne, |r: PersonskatSocialpensionResultat| r.input_gyldigt && r.personlig_indkomst_uden_am_kroner == 0 && r.skattefrit_beløb_kroner == 10000 && r.ll9c_aftrapningsindkomst_kroner == Some(0))
+| socialpension_ukendt_er_ikke_skattefri: sociale_ugyldige -> all(sociale_ugyldige, |r: PersonskatSocialpensionResultat| r.input_gyldigt == Falskt && r.personlig_indkomst_uden_am_kroner == 0 && r.skattefrit_beløb_kroner == 0 && r.ll9c_aftrapningsindkomst_kroner == None)
+
+? socialpension_seks_skattepligtige_arter
+? socialpension_otte_fritagne_arter
+? socialpension_ukendt_er_ikke_skattefri

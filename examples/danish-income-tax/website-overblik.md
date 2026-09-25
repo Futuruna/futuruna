@@ -18,6 +18,8 @@ For studerende adskiller [SU og studiejob](https://github.com/Futuruna/futuruna/
 stipendium, lån og løn, så SU ikke får lønnens AM-bidrag og arbejdsfradrag.
 For folkepensionister viser [folkepension og tillæg](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-folkepension.md),
 hvilke dækkede udbetalinger der indgår i skatten, og hvilke tillæg der er skattefri.
+[Førtids-, senior- og tidlig pension](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-socialpension.md)
+har en særskilt indgang med opdeling af gamle førtidspensionsreglers skattepligtige og skattefri dele.
 
 Mangler din ægtefælles oplysninger, kan du stadig
 [afstemme din egen årsopgørelse betinget](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/aarsopgoerelse-afstemning.md).
