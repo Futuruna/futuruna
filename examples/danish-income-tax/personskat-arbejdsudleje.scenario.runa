@@ -5,7 +5,7 @@
 | personskat_arbejdsudleje_scenarie_input(identifikation: Tekst, valg: KildeskattelovArbejdsudlejeBeskatningsvalg) -> KildeskattelovArbejdsudlejeInput(
     identifikation = identifikation,
     indkomstår = 2025,
-    alder_ved_indkomstårets_udløb = 40,
+    alder_ved_indkomstårets_udløb = 35,
     parter = KildeskattelovArbejdsudlejeParter(
         person_identifikation = "Oliver",
         udenlandsk_arbejdsgiver_identifikation = "DE-B",

@@ -73,6 +73,9 @@ jobs:
           ./target/release/runa tests/personskat_boligjob_rules_test.runa
           ./target/release/runa run tests/personskat_boligjob_rules_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/boligjob_supplier_age.test.mjs
+          ./target/release/runa tests/personskat_labour_hire_age_test.runa
+          ./target/release/runa run tests/personskat_labour_hire_age_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_labour_hire_age.test.mjs
 
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/

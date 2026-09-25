@@ -38,6 +38,12 @@
     hentet_dato = "2026-08-11",
     status = "Bekræfter AMBL § 2, stk. 1, nr. 3 og kravet om dansk beskatningsret til vederlaget"
 )
+= kildeskattelov_arbejdsudleje_unges_am = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/96",
+    identifier = "LOV nr. 96 af 04/02/2025 § 1 og § 7, stk. 4: AMBL § 1, stk. 2",
+    hentet_dato = "2026-09-25",
+    status = "Fra 2026 er satsen nul til og med året, hvor personen fylder 17; hele året med 18-årsdagen følger den almindelige sats"
+)
 = kildeskattelov_arbejdsudleje_skat_dk = KildeskattelovArbejdsudlejeKildeInfo(
     url = "https://skat.dk/erhverv/ansatte-og-loen/udenlandsk-arbejdskraft/leje-af-medarbejdere-fra-udlandet",
     identifier = "Skattestyrelsen: Leje af medarbejdere fra udlandet",
@@ -169,6 +175,7 @@ med den 30. juni i det andet kalenderår efter indkomstårets udløb.
 = kildeskattelov_arbejdsudleje_am_metadata = Metadata(
     attachments = (
         Source(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+        AmendmentSource(value = kildeskattelov_arbejdsudleje_unges_am),
         DependencySource(value = kildeskattelov_arbejdsudleje_lbk460),
         Guidance(value = kildeskattelov_arbejdsudleje_skat_dk),
         Guidance(value = kildeskattelov_arbejdsudleje_am_vejledning),
@@ -313,3 +320,10 @@ arbejdsgiverbidrag, som påhviler lønmodtageren.
 
 | kildeskat_arbejdsudleje_resultat(input: KildeskattelovArbejdsudlejeInput) -> KildeskattelovArbejdsudlejeSag(input).resultat()
 --@end::kildeskattelov_arbejdsudleje_par48b--
+
+-- Samordningskontrol, ikke en selvstændig skatteregel eller identitetskontrol.
+-- En persons indtægt må ikke få en anden AM-alder end personens øvrige indkomst.
+--@label:kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato::meta:kildeskattelov_arbejdsudleje_am_metadata--
+> kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(indkomstår: Heltal, alder: Heltal, fødselsdato: Dato) -> Boolsk {
+    dato_gyldig(fødselsdato) && fødselsdato.år <= indkomstår && alder == indkomstår - fødselsdato.år
+}

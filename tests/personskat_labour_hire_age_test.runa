@@ -1,0 +1,32 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / kildeskatteloven - arbejdsudleje
+
+-- Fiktive fødselsdatoer; kontrollen kræver samme person og samme årsaldersbegreb.
+= arbejdsudleje_alder_stemmer = [
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 17, Dato(2009, 1, 1)),
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 18, Dato(2008, 12, 31)),
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2025, 17, Dato(2008, 12, 31))
+]
+= arbejdsudleje_alder_modstrider = [
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 17, Dato(1990, 1, 1)),
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 36, Dato(2009, 1, 1)),
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 17, Dato(2008, 12, 31))
+]
+= arbejdsudleje_dato_ugyldig = [
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 18, Dato(2008, 2, 30)),
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, -1, Dato(2027, 1, 1)),
+    kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(2026, 2026, Dato(0, 1, 1))
+]
+= arbejdsudleje_satser = [
+    arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(2025, 17)) == 800,
+    arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(2026, 17)) == 0,
+    arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(2026, 18)) == 800
+]
+| arbejdsudleje_konsistente_aldre: arbejdsudleje_alder_stemmer -> all(arbejdsudleje_alder_stemmer, |ok: Boolsk| ok)
+| arbejdsudleje_modstridende_aldre: arbejdsudleje_alder_modstrider -> all(arbejdsudleje_alder_modstrider, |ok: Boolsk| ok == Falskt)
+| arbejdsudleje_umulige_fødselsdatoer: arbejdsudleje_dato_ugyldig -> all(arbejdsudleje_dato_ugyldig, |ok: Boolsk| ok == Falskt)
+| arbejdsudleje_reformens_årsgrænse: arbejdsudleje_satser -> all(arbejdsudleje_satser, |ok: Boolsk| ok)
+? arbejdsudleje_konsistente_aldre
+? arbejdsudleje_modstridende_aldre
+? arbejdsudleje_umulige_fødselsdatoer
+? arbejdsudleje_reformens_årsgrænse
