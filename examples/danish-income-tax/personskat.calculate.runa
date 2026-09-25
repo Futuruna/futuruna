@@ -10136,25 +10136,25 @@
     help = Some("Angiv bruttobeløbet før eventuelt arbejdsmarkedsbidrag. Futuruna anvender selv de relevante fradrags- og bortseelsesregler."),
     unit = Some("kr./år")
 )
-= personskat_felt_pbl18_forfaldsår = Beregningsfelt(
-    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.forfaldsår",
+= personskat_felt_pbl18_forfaldsår = TypetBeregningsfelt(
+    path = refof(Pbl18Årsbetaling::forfaldsår),
     label = "Indbetalingens forfaldsår",
     question = Some("I hvilket år forfaldt pensionsindbetalingen efter aftalen?"),
-    help = Some("Forfaldsåret kan blive fradragsåret, når en præmie eller et bidrag betales rettidigt efter PBL § 18."),
+    help = Some("Brug aftalens forfaldsår, ikke et år valgt for at få skatten til at passe. Rettidige forsikringspræmier kan henføres hertil; rateopsparing i et pengeinstitut følger normalt betalingsåret. Se pension-og-fradrag.md#betalingsår-og-forfaldsår."),
     unit = Some("år")
 )
-= personskat_felt_pbl18_betalingsår = Beregningsfelt(
-    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.betalingsår",
+= personskat_felt_pbl18_betalingsår = TypetBeregningsfelt(
+    path = refof(Pbl18Årsbetaling::betalingsår),
     label = "Faktisk betalingsår",
     question = Some("I hvilket år blev pensionsindbetalingen faktisk betalt?"),
-    help = Some("Betalingsåret er det almindelige fradragsår, medmindre en særregel knytter fradraget til forfalds- eller afståelsesåret."),
+    help = Some("Bevar det faktiske betalingsår fra bilaget. En betaling to eller flere år efter forfaldsåret kan ikke være betalt senest den bankjusterede 1. april året efter forfald. En tidligere års betaling er ikke automatisk ugyldig. Gæt ikke betalingsdato eller særskilt godkendelse; se pension-og-fradrag.md#betalingsår-og-forfaldsår."),
     unit = Some("år")
 )
-= personskat_felt_pbl18_rettidig_betaling = Beregningsfelt(
-    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.betalt_senest_bankjusteret_1_april_efter_forfald",
+= personskat_felt_pbl18_rettidig_betaling = TypetBeregningsfelt(
+    path = refof(Pbl18Årsbetaling::betalt_senest_bankjusteret_1_april_efter_forfald),
     label = "Betalt senest den justerede 1. april",
-    question = Some("Blev beløbet betalt senest den første bankdag efter 1. april i året efter forfaldsåret?"),
-    help = Some("Rettidig betaling kan henføre fradraget til forfaldsåret for ordninger, der ikke følger indbetalingsprincippet."),
+    question = Some("Blev beløbet betalt senest 1. april i året efter forfaldsåret, eller førstkommende bankdag hvis 1. april var en banklukkedag?"),
+    help = Some("Sandt og falskt er faktiske oplysninger, ikke valg af skatteår. Betaling i eller før forfaldsåret er før fristen; betaling mindst to år efter er efter fristen. Ved betaling i det efterfølgende år kræves dokumentation for fristen. Ukendt må ikke blive falskt. Ordningstypen afgør stadig, om forfaldsåret bruges; se pension-og-fradrag.md#betalingsår-og-forfaldsår."),
     unit = None
 )
 = personskat_felt_pbl18_par22e_tilbagebetaling = Beregningsfelt(
@@ -10164,11 +10164,11 @@
     help = Some("Sådanne tilbagebetalinger følger ikke den almindelige regel, som kan flytte fradraget til forfaldsåret."),
     unit = None
 )
-= personskat_felt_pbl18_par15a_placering = Beregningsfelt(
-    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.par15a_fradragsplacering.$variant",
+= personskat_felt_pbl18_par15a_placering = TypetBeregningsfelt(
+    path = refof(Pbl18Årsbetaling::par15a_fradragsplacering::$variant),
     label = "Fradragsplacering for § 15 A-ordning",
     question = Some("Skal en indbetaling på en § 15 A-ordning fradrages i indbetalingsåret eller i afståelsesåret?"),
-    help = Some("Vælg almindelig placering for andre ordninger. Et fradrag i afståelsesåret kræver rettidig indbetaling efter særreglen."),
+    help = Some("Pbl18Par15AIndbetalingsår og Pbl18Par15AAfståelsesår må kun bruges til en faktisk § 15 A-ordning. Almindelig ratepension bruger Pbl18IkkePar15APlacering; den kan ikke frit flyttes til betalingsåret. Fradrag i afståelsesåret kræver særreglens dokumenterede betingelser. Se pension-og-fradrag.md#betalingsår-og-forfaldsår."),
     unit = None
 )
 = personskat_felt_pbl18_par15a_fradragsår = Beregningsfelt(
@@ -11701,11 +11701,7 @@
         personskat_felt_pbl18_indbetalingskilde,
         personskat_felt_pbl18_fradragsretshaver,
         personskat_felt_pbl18_beløb,
-        personskat_felt_pbl18_forfaldsår,
-        personskat_felt_pbl18_betalingsår,
-        personskat_felt_pbl18_rettidig_betaling,
         personskat_felt_pbl18_par22e_tilbagebetaling,
-        personskat_felt_pbl18_par15a_placering,
         personskat_felt_pbl18_par15a_fradragsår,
         personskat_felt_pbl18_par15a_rettidig,
         personskat_felt_pbl18_am_bidrag
@@ -11717,6 +11713,28 @@
         RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
+= personskat_pensionsbetaling_bank_vejledning = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048283",
+    identifier = "Den juridiske vejledning C.A.10.2.2.3.1, bidrag til pensionsordning i pengeinstitut",
+    hentet_dato = "2026-09-25",
+    ændringsstatus = "Vejledning om betalingsår og særskilt godkendt henføring af tilbageholdte arbejdsgiverbidrag; ikke en automatisk forsikringsfrist"
+)
+= personskat_meta_pbl18_betalingstid = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_pbl18_forfaldsår,
+        personskat_felt_pbl18_betalingsår,
+        personskat_felt_pbl18_rettidig_betaling,
+        personskat_felt_pbl18_par15a_placering
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par18),
+        Source(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+        Guidance(value = personskat_pensionsbetaling_bank_vejledning),
+    )
+)
+--@label:Pbl18Årsbetaling::meta:personskat_meta_pbl18_betalingstid--
 = personskat_meta_pbl18_fordelingsforløb = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_fordelingsforløb,
@@ -19429,7 +19447,7 @@ fraflytningen."
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag", gyldig = grundlag.ligningsfradrag.alle_input_gyldige, forklaring = "Aktive fradragsforhold og deres samordning skal opfylde domænernes kontroller."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter", gyldig = ligningslov9_stk1_årsresultat(indkomstår, grundlag.fakta.lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter).alle_input_gyldige && grundlag.ligningsfradrag.øvrige_lønmodtagerudgifter.alle_input_gyldige, forklaring = "Øvrige lønmodtagerudgifter skal have entydige referencer, korrekte år og ikke-negative beløb; refusion må ikke overstige udgiften. Driftsmidlers erhvervsandel skal ligge fra 0 til 10000 basispoint (0 til 100 %); 0 er afklaret ingen erhvervsbrug, ikke ukendt. Se de oprindelige fakta og ligningsfradrag.øvrige_lønmodtagerudgifter.udgiftsresultater. Manglende fradragsret er ikke i sig selv ugyldige fakta; se personskat-validity.md#øvrige-lønmodtagerudgifter."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.gaver", gyldig = grundlag.ligningsfradrag.gaver.alle_input_gyldige, forklaring = "Gavebetalinger skal have gyldige år, beløb og entydige betalingsreferencer. § 12-delbetalinger skal dele en stabil aftalereference og konsistente modtager- og aftalefakta; aftalens årsbeløb anvendes én gang. Ordinært betalingsforløb skal være bekræftet; aconto og tidligere års restancer kræver særskilt vurdering. Se ligningsfradrag.gaver.par12_aftaler og personskat-gaver.md; omklassificér ikke overbetaling eller ukendte fakta for at få et match."),
-        PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.pbl18_indbetalinger", gyldig = grundlag.pension.pbl18_årsresultat.input_gyldigt, forklaring = "PBL § 18-årsgrundlag, indbetalinger, fradragsvalg og ordningsvilkår skal være gyldige."),
+        PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.pbl18_indbetalinger", gyldig = grundlag.pension.pbl18_årsresultat.input_gyldigt, forklaring = "PBL § 18-årsgrundlag, indbetalinger, fradragsvalg og ordningsvilkår skal være gyldige. Forfaldsår, betalingsår og fristoplysning må ikke modsige hinanden. Særlige § 15 A-fradragsvalg kræver en § 15 A-ordning; se pension-og-fradrag.md#betalingsår-og-forfaldsår. Ret kun oplysninger ud fra bilag, ikke for at få et skattebeløb til at passe."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.ambl_par2_stk1_nr5_årsgrundlag", gyldig = grundlag.pension.ambl_par2_stk1_nr5_resultat.input_gyldigt, forklaring = "Arbejdsgiverens pensionsindbetalinger skal have gyldige kilder, år og årsrammer."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension", gyldig = grundlag.pension.udbetalingsresultat.aktuelle_input_gyldige && grundlag.pension.udbetalingsresultat.foregående_input_gyldige, forklaring = "Aktuelle og foregående pensionsudbetalingsgrundlag skal være gyldige."),
         PersonskatInputkontrol(sti = præfiks + "kapitalindkomst", gyldig = grundlag.kapitalindkomst.alle_input_gyldige, forklaring = "Renter, kapitalposter, virksomhedsordninger, udlejning, ejendomsavance og kursgevinst skal opfylde deres samlede domænekontroller."),

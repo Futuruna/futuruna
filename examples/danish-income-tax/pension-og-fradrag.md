@@ -272,6 +272,52 @@ at der ingen ATP var. Det gælder også en aktiv ægtefælle og delårsberegning
 De fiktive pensionsdemonstrationer angiver udtrykkeligt ingen ATP; dette er
 ikke et forslag til standardvalg i en virkelig sag.
 
+### Betalingsår og forfaldsår
+
+En pensionsbetaling hører ikke nødvendigvis til det år, pengene blev trukket.
+Bevar både aftalens forfaldsår og bilagets faktiske betalingsår. For almindelige
+forsikringspræmier kan rettidig betaling senest 1. april året efter forfald
+henføre fradraget til forfaldsåret. Fristen flyttes kun til førstkommende
+bankdag, **hvis 1. april er en banklukkedag**. Senere betaling følger
+betalingsåret. Bankbaseret rateopsparing følger normalt betalingsåret.
+Se [PBL § 18, stk. 1, og § 19, stk. 1](https://www.retsinformation.dk/eli/lta/2024/1243).
+
+Den juridiske vejledning fastholder betalingsåret for almindelige
+arbejdsgiverbidrag til pensionsordninger i pengeinstitutter. Den beskriver også
+en særskilt godkendelse af henføring af løntilbageholdte bidrag til året før.
+En sådan godkendelse må ikke erstattes af et gættet forfaldsår eller ændret
+ordningstype; denne kontrol implementerer ikke godkendelsesforløbet.
+[C.A.10.2.2.3.1, bidrag til pensionsordning i pengeinstitut](https://info.skat.dk/data.aspx?oid=2048283).
+
+Input under `pbl18_indbetalinger.betaling` kontrolleres nu for årstalsmodstrid:
+
+- Betaling i eller før forfaldsåret kan ikke samtidig være efter fristen.
+- Betaling mindst to år efter forfaldsåret kan ikke være før fristen.
+- Betaling i det efterfølgende år kan være rettidig eller sen; dokumentation
+  for betalingsdagen og fristen afgør svaret. Årstallet alene er utilstrækkeligt.
+
+`Pbl18Par15AIndbetalingsår` og `Pbl18Par15AAfståelsesår` er kun til
+§ 15 A-ordninger. De er ikke en generel valgmulighed for almindelig ratepension,
+som bruger `Pbl18IkkePar15APlacering`. Et fiktivt eksempel med 40.000 kr.
+forsikringspræmie, forfald i 2024 og rettidig betaling i 2025 blev tidligere
+accepteret med fradrag i 2025 ved et forkert § 15 A-valg. Det sænkede modellens
+2025-skat med 15.332 kr. Modstridende valg tilbageholder nu sammenligningsbeløbet;
+kildetal og årstal omskrives ikke. Det gælder også en beregnet ægtefælle.
+
+Ukendt betalingsfrist må ikke blive `false`. Afklar bilaget før den uafhængige
+beregning, hvis den påkrævede boolske oplysning ikke kan besvares. Kontrollen
+beviser ikke en betalingsdato, en ordningsklassifikation, særlig godkendelse
+eller korrekt behandling af tilbagebetaling efter § 22 E. Den bevarer de
+eksisterende regler for lovlige tidsforløb; en post uden fradrag i det aktuelle
+år er ikke i sig selv ugyldig.
+
+**Migration:** Generer frisk schema/skabelon, da de fælles spørgsmål og
+kildespor ændrer kontrakthashen. Gennemgå tidligere gemte tidsoplysninger ud
+fra bilag og beregn igen; skift ikke blot et årstal eller en variant for at
+få et resultat. [Regressionen](../../tests/personskat_pension_payment_year.test.mjs)
+kontrollerer fiktive årsberegninger og fælles hovedperson/ægtefællevejledning,
+ikke en ny uafhængig SKAT-observation.
+
 ### Hvis arbejdsgiveren har indbetalt over rategrænsen
 
 En rubrik 347-linje kan også indeholde **gruppeliv**, ikke kun rateoverskud.

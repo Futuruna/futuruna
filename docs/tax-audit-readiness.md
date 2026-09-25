@@ -180,6 +180,19 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 
 ## Further correctness work already delivered
 
+The [pension payment-year regression](../tests/personskat_pension_payment_year.test.mjs)
+reproduces accepted contradictory deadline facts and ordinary plans using §15A
+timing choices. In a fictional insurance case due in 2024 and paid timely in
+2025, an inapplicable choice moved a 40,000 DKK deduction into 2025 and lowered
+the accepted tax by 15,332 DKK. Annual intake now withholds comparisons for
+these contradictions, including spouses, without rewriting facts or changing
+valid bank/insurance year rules. Shared generated guidance correctly limits
+the 1 April bankday extension and keeps source traces for both persons.
+The [guide and migration](../examples/danish-income-tax/pension-og-fradrag.md#betalingsår-og-forfaldsår)
+distinguish year consistency from actual date evidence, special bank approvals
+and correction rules. These are fictional source-model checks, not new
+independent tax-administration observations.
+
 The [financial-income routing safeguard](../examples/danish-income-tax/personskat-finansielle-poster.md)
 addresses two reproduced omissions: a fictional 15,000 DKK investment-certificate
 gain and a 9,000 DKK payment from an unlisted intermediary each left annual tax
