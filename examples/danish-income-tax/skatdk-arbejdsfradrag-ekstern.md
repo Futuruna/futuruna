@@ -78,7 +78,7 @@ fordeling af udenlandsk arbejdsindkomst ændres ikke.
 
 Seniorfradrag og enligforsørgertillæg er undersøgt særskilt i
 [den efterfølgende kontrol](skatdk-fradrag-oere-ekstern.md), som også
-dokumenterer **to åbne 2026-afvigelser på én krone**. Ekstra pensionsfradrags
+dokumenterer **tre åbne 2026-afvigelser på én krone**. Ekstra pensionsfradrags
 afrunding er efterfølgende undersøgt i [otte særskilte pensionscases](skatdk-pensionsfradrag-ekstern.md).
 Kontrollen er heller ikke fuld validering af en
 personlig årsopgørelse eller af delårsberegning.

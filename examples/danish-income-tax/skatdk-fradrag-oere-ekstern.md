@@ -1,7 +1,7 @@
 # Ekstern kontrol: øretrin og supplerende arbejdsfradrag
 
-Den 24. september 2026 blev yderligere **29 fiktive cases** aflæst i SKATs
-offentlige beregnere. Den opdaterede model matcher fradragene i 27; **to
+Den 24.–25. september 2026 blev yderligere **30 fiktive cases** aflæst i SKATs
+offentlige beregnere. Modellen matcher fradragene i 27; **tre
 afvigelser på én krone står åbne**. Disse er ikke godkendt ekstern konformitet.
 Kontrollen præciserer den tidligere
 [11-case-kontrol](skatdk-arbejdsfradrag-ekstern.md): matematisk oprunding direkte
@@ -55,7 +55,7 @@ af dette er 8.682,0075 kr., som bliver 8.682,00 kr. og derefter 8.682 kr.
 
 Dette er en **modelinferens fra offentlig beregneradfærd**, ikke dokumentation
 for beregnerens interne kode eller en generel lovbestemmelse om afrunding.
-Den forklarer nedenstående match, men ikke de to særskilt viste afvigelser.
+Den forklarer nedenstående match, men ikke de tre særskilt viste afvigelser.
 Ældre år bruger samme konvention som en udtrykkelig modelantagelse;
 uafhængig historisk verifikation mangler fortsat (td-3f1c08).
 
@@ -102,14 +102,29 @@ ikke hele beskæftigelsesfradraget og ikke skattebesparelser.
 | År | Fradrag | Løn | Eksakt procentprodukt, kr. | SKAT, kr. | Model, kr. |
 | --- | --- | ---: | ---: | ---: | ---: |
 | 2026 | Almindeligt | 100204 | 12776,01 | 12776 | 12777 |
+| 2026 | Almindeligt | 100604 | 12827,01 | 12827 | 12828 |
 | 2026 | Senior | 100215 | 1403,01 | 1403 | 1404 |
+
+Casen med løn 100.604 blev aflæst den 25. september i en ny anonym session,
+fortsat profilversion 26.3.5.1. Den viser samme afvigelse ved et andet
+indkomstbeløb, ikke en forklaring af beregnerens interne aritmetik.
+Med samme fiktive fakta giver den kanoniske model 18.660,94 kr. i skat inklusive
+AM, mens den offentlige beregner viste 18.661,18 kr. Forskellen er **24 øre i
+skat**, ikke én krone i skat; én krone er forskellen i selve fradraget. Den
+forskel er fortsat synlig, ikke normaliseret til et match.
 
 Årsagen er ikke fastslået. Kontrolcasen fra 2025 med løn 100.870 har produktet
 12.407,01 kr. og giver 12.408 kr. Vi har ikke kildegrundlag for generelt at
 slette den sidste øre, indføre en tolerance eller forklare forskellen som en
 lovændring eller bevist flydestøjsfejl. Modellen bevarer den eksakte øre.
 Opfølgning: td-68c9d3. Ingen afvigelse her beviser, at en borgers årsopgørelse
-er forkert; ret ikke borgerens fakta for at fremtvinge et match.
+er forkert; ret ikke borgerens fakta for at fremtvinge et match. Den kanoniske
+beregnings `vurdering.forbehold` gør nu også denne afrundingsusikkerhed synlig
+i selve resultatet, både ved gyldigt og ugyldigt grundlag. Forbeholdet ændrer
+ikke beløb, gyldighed eller sammenligningstolerance og siger ikke, at enhver
+difference skyldes afrunding. Kontrol af historisk forskudsberegner for 2025
+blev afvist af en omdirigering til beregnerens fejlside; der er ikke opnået ny
+historisk konformitetsevidens.
 
 ## Sammenhæng med den beregnede skat
 
@@ -150,7 +165,7 @@ Brug den afprøvede compiler fra
 
 Det [eksekverbare scenarie](skatdk-fradrag-oere-ekstern.scenario.runa) bruger
 aflæste beløb, ikke forventninger beregnet af modellen. Det udskriver både
-27 match og de to åbne afvigelser. En bestået kontrol af, at afvigelserne stadig
+27 match og de tre åbne afvigelser. En bestået kontrol af, at afvigelserne stadig
 er synlige, betyder ikke, at de stemmer med SKAT. Testene kører offline.
 
 Native/interpreter-paritet gælder dette lille fradragsmodul. Skattetesten bruger

@@ -58,12 +58,13 @@
 ? skatdk_ørefradrag_matcher_kilden
 
 -- KENDTE AFVIGELSER, IKKE bestået ekstern konformitet. Modellen bevarer
--- nøjagtigt én øre; 2026-beregneren viste én krone mindre i disse to cases.
+-- nøjagtigt én øre; 2026-beregneren viste én krone mindre i disse tre cases.
 -- Ingen tolerance gør dem automatisk til match; se dokumentation og opfølgning.
 = skatdk_kendte_afvigelser_kroner = [
     ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 100204, Falskt)) - 12776,
+    ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 100604, Falskt)) - 12827,
     ll9j_senior_resultat(2026, Dato(år = 1960, måned = 1, dag = 1), 100215, Sandt).fradrag_kroner - 1403
 ]
-| skatdk_kendte_afvigelser_er_synlige: skatdk_kendte_afvigelser_kroner -> skatdk_kendte_afvigelser_kroner == [1, 1]
+| skatdk_kendte_afvigelser_er_synlige: skatdk_kendte_afvigelser_kroner -> skatdk_kendte_afvigelser_kroner == [1, 1, 1]
 ? skatdk_kendte_afvigelser_er_synlige
-@ print("SKAT: 27 fradragscases stemmer; 2 kendte afvigelser på én krone er fortsat åbne.")
+@ print("SKAT: 27 fradragscases stemmer; 3 kendte afvigelser på én krone er fortsat åbne.")

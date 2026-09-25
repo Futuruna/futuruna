@@ -123,8 +123,14 @@ The component result exposes the before/excluded/after amounts and controls.
 Source truth, treaty residence, foreign relief and complete tax coverage remain
 separate questions. [External rounding observations](skatdk-fradrag-oere-ekstern.md)
 now support the whole-øre projection before upward whole-krone rounding in
-selected 2025/2026 cases, with two explicit disagreements and unverified older
-years. This is not a claim of complete administrative conformance.
+selected 2025/2026 cases, with three explicit disagreements and unverified older
+years. This is not a claim of complete administrative conformance. The
+`vurdering.forbehold` output also carries this qualification, including for
+invalid inputs. It does not change any amount, make an invalid input usable,
+or introduce a comparison tolerance. Do not infer that a small difference is
+necessarily rounding, or that it proves the taxpayer's return wrong.
+Input and result types are unchanged by this qualification. Recalculate saved
+results to include it; merely reopening an old output does not add new warnings.
 The [part-year entry](personskat-par14.calculate.runa) also preserves and
 reconciles the exclusion before recomputing annual deductions; check its own
 `input_gyldigt` rather than using a diagnostic scalar total.
