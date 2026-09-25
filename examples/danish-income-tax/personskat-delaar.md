@@ -76,6 +76,39 @@ kildereferencer og uafklarede forhold:
   Personskat-grundlag. Genbrug ikke delårsbeløbene som hele årets fakta uden
   grundlag, og gæt ikke manglende ægtefælleoplysninger.
 
+## Ægtefællers kapitalindkomst i de to grundlag
+
+Bevar hver persons egen kapitalindkomst i både delårsgrundlaget og det
+dokumenterede helårsgrundlag. Indtast ikke et allerede ægtefællemodregnet
+beløb som egne renter. Modellen skal selv anvende PSL § 6, stk. 3, før
+bundskatten og dens delårs-/helårsbrøk beregnes. Den anden persons negative
+kapitalindkomst kan være forskellig i de to grundlag; genbrug ikke automatisk
+delårsbeløbet i helårsberegningen, og udled ikke beløbet af den forventede skat.
+
+Tilsvarende skal § 11-grundlaget bevare den relevante ægtefælles positive
+kapitalindkomst og den fælles beløbsgrænse. De viste beregnede nedslag er ikke
+altid de anvendte nedslag: egen skat kan begrænse anvendelsen, og et uudnyttet
+nedslag kan komme fra ægtefællen. Sammenlign derfor ikke de to felter som en
+generel lighedskontrol.
+
+Dette følger modellens sammensætning af
+[PSL §§ 6, 11 og 14](https://www.retsinformation.dk/eli/lta/2021/1284)
+med særskilt kildeunderbygget helårsomregning. Det er ikke en automatisk
+afgørelse af skattemæssigt samliv eller dokumentation for alle parforløb.
+Ægtefællefakta kræver fortsat det dokumenterede helårsgrundlag; den afledte
+enkeltpersonsvej gætter dem ikke.
+
+Et fiktivt tilflytningsforløb i 2025 med løn 200.000/400.000 kr., egen
+kapitalindkomst +20.000/+40.000 kr. og ægtefællens kapitalindkomst
+−10.000/−15.000 kr. i henholdsvis delårs-/helårsgrundlaget illustrerer fejlen:
+bundskattebrøken er 194.000/393.000 efter modregning, ikke 204.000/408.000.
+Den rettede modelskat er 72.286,83 kr. mod tidligere 72.547,66 kr.
+[Kontrollen](../../tests/personskat_partyear_capital.test.mjs) angiver resten
+af de fiktive fakta og kontrollerer også § 11-grundlag samt to uændrede
+kontrolforløb. Dette er en kildebaseret modelkontrol, ikke en uafhængig
+delårsberegning fra SKAT. Aktieindkomst og modstridende samlivsfakta mellem
+delårs- og helårsgrundlag er særskilte åbne kontrolpunkter (`td-c5777c`).
+
 ## Læs den yderste vurdering
 
 Brug **resultatets egen** `vurdering.slutskat_til_sammenligning_øre`.
@@ -115,8 +148,10 @@ kontrol mod SKAT eller et eksempel, der må genbruges som personlige fakta.
 
 ## Eksisterende input
 
-Den tilføjede vurdering og inputvejledning ændrer kontraktens fingeraftryk.
+Vurderingen og inputvejledningen ændrer kontraktens fingeraftryk.
 Generér en frisk delårsskabelon og overfør de samme gennemgåede kildefakta;
-ret ikke kun `schema_hash`. De eksisterende skatteformler, gyldighedsvilkår
-og rå beløb er uændrede. Tidligere ugyldige nulbeløb bliver ikke godkendte
-resultater ved migreringen.
+ret ikke kun `schema_hash`. Vurderingsgrænsen alene ændrede ikke skatteformler
+eller rå beløb. Den efterfølgende kapitalrettelse ovenfor ændrer derimod
+berørte delårsresultater og § 11-forklaringer; genberegn gemte resultater uden
+at rette kildebeløbene. Inputtyper og satser er uændrede. Tidligere ugyldige
+nulbeløb bliver ikke godkendte resultater ved migreringen.

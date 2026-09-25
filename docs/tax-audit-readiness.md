@@ -363,10 +363,28 @@ After the correction all eight separately assessed people match the recorded
 tax amounts to the øre, without changing the expected amounts or source facts.
 The [small boundary regression](../tests/personskat_bundskat_spouse_test.runa)
 covers partial/full offset, the cohabitation condition and unchanged own facts.
-This is an annual-tax correction, not evidence for the separate part-year
-capital contexts and scaling, which remain under investigation (`td-fd0cba`).
+This is annual-tax conformance evidence, not an independent check of part-year
+capital contexts and scaling.
 Input types and rates are unchanged; affected saved annual results need to be
 recalculated, without changing the source facts.
+
+The adjacent [part-year capital regression](../tests/personskat_partyear_capital.test.mjs)
+reproduces two composition errors: an accepted bundskat ratio omits the spouse
+offset, and the PSL11 explanation reports a single-person basis even while the
+canonical calculation applies a spouse-adjusted credit. Each period now keeps
+its own canonical spouse capital context. All four bundskat scaling consumers
+use the existing PSL6(3) rule; original own income remains available for the
+other taxes. In a fictional 2025 arrival-year case with separately documented
+annual amounts, the ratio changes from 204000/408000 to 194000/393000 and the
+comparison from 72,547.66 DKK to 72,286.83 DKK. In the negative-capital case,
+the displayed period/annual credits become 3,200/6,400 DKK instead of 4,000/4,000 DKK,
+consistent with the already-used amounts. Single-person and no-cohabitation
+controls remain unchanged. The test also checks source-linked generated input
+help: spouse annual amounts must not be guessed or copied from the period.
+These are source-model checks, not independent official part-year observations
+or broad couple coverage. Share-income context and inconsistent relationship
+facts across the two bases remain under review (`td-c5777c`). See the
+[input and migration guide](../examples/danish-income-tax/personskat-delaar.md).
 
 The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
 add two 2025 official-form matches (ordinary ATP below the employment-deduction
