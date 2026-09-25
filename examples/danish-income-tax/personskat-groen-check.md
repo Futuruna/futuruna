@@ -106,6 +106,10 @@ Delår, migration, dødsår, grænsegængere, samliv kun en del af året samt de
 [åbne ægtefællekapital- og særlige børneydelsesgrene](groen-check.md#kendte-grænser--ingen-opdigtet-nulret)
 tilbageholder den samlede slutopgørelse. Gyldige kontroller er ikke fuld
 lovdækning: `samlet_modeldækning_bekræftet` forbliver `false`.
+For ydelse delvis til barnet selv fra 2026 kan den samlede indgang dog bruges,
+når den kompakte beregning viser, at den åbne loftsfortolkning ikke kan ændre
+børnebeløbet. Ét berettiget barn i denne gren giver fx 240 DKK før aftrapning.
+Kan loftet ændre beløbet, forbliver både grøn check og slutopgørelsen tilbageholdt.
 
 Den gamle `beregn_personskat` og dens input-/resultattyper er uændrede; den
 gamle indgang accepterer fortsat en **ekstern** grøn-check-kredit uden at bevise
