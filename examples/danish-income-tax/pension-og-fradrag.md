@@ -461,8 +461,11 @@ Fra projektets rod, med `PRIVATE_WORK_DIR` erstattet af din private mappe:
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --format json --output PRIVATE_WORK_DIR/pension-cases.json
 # Udfyld og gennemgå fakta før beregningen.
-"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
+FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
 ```
+
+Én worker holder hukommelsesforbruget nede, også når de fire ægtefællesager
+nedenfor samles i samme batch. Det ændrer ikke beregningsreglerne.
 
 En genereret skabelon er **ikke et udfyldt menneske**. Nulbeløb, tomme lister
 og standardvalg kræver stadig bekræftelse, og fødselsdatoen skal være rigtig.
@@ -506,13 +509,48 @@ Et brugbart svar viser:
 | Ændret indbetaling | Forskellen mellem de aftalte input, med år og ordning. |
 | Tilladt privat ratefradrag og uudnyttet/afskåret beløb | `pension.pbl18_årsresultat`, som anvender de fælles årsgrænser. |
 | Ekstra pensionsfradrag | `skat.ekstra_pensionsfradrag_kroner`. |
-| Mindre modelleret skat | Før-skat minus efter-skat, fra begge gyldige sammenligningsbeløb i øre. |
-| Færre frie midler efter skat | Merindbetaling minus mindre skat; kun ved uændret øvrig indkomst og betalinger. |
+| Mindre modelleret skat for hovedpersonen | Før-skat minus efter-skat, fra begge gyldige sammenligningsbeløb i øre. Beløbet er ikke begge ægtefællers samlede skat. |
+| Færre frie midler efter skat | Merindbetaling minus mindre skat; kun ved uændret øvrig indkomst og betalinger. Angiv om resultatet gælder personen eller husstanden; se nedenfor. |
 
 »Mindre skat« er ikke nødvendigvis en større kontant tilbagebetaling på
 årsopgørelsen. Forudbetalt skat og tidligere udbetalinger påvirker afregningen.
 Sammenligningen værdisætter heller ikke fremtidig skat, pensionsafkast,
 omkostninger, forsikringsdækning, binding eller indkomstafhængige ydelser.
+
+### Din skat og husstandens skat er ikke det samme
+
+`vurdering.slutskat_til_sammenligning_øre` gælder **hovedpersonen i den
+pågældende sag**, også når ægtefællefakta indgår. En privat pensionsbetaling
+kan ændre, hvor meget uudnyttet personfradrag der overføres, og dermed
+ægtefællens skat. Nul ændring i din egen skat betyder derfor ikke nødvendigvis
+nul skattevirkning for husstanden. Overførsel af uudnyttet skatteværdi af
+personfradrag er et særskilt sambeskatningselement, som kræver samliv ved årets
+udløb; se [Den juridiske vejledning C.A.8.2, PSL §§ 9–10](https://info.skat.dk/data.aspx?oid=1976883).
+
+Hvis spørgsmålet gælder **begge personers økonomi**, og de nødvendige fakta
+foreligger, skal der være fire sammenhængende beregninger:
+
+| Sag | Hovedperson | Ægtefællens fakta |
+| --- | --- | --- |
+| A før | A før ændringen | B før ændringen |
+| A efter | A med ændret pensionsbetaling | B efter ændringen |
+| B før | B før ændringen | A før ændringen |
+| B efter | B efter ændringen | A med ændret pensionsbetaling |
+
+Samme persons fakta skal stemme på tværs af hovedperson/ægtefælle. Også
+**B efter** skal medtage A's ændrede betaling, selv når B's løn og egne
+pensionsbetalinger er uændrede. Beregn begge før/efter-forskelle fra de fire
+gyldige sammenligningsbeløb. Husstandens skattebesparelse er summen af
+forskellene; ved uændret øvrig økonomi er faldet i husstandens frie midler
+merindbetalingen minus denne sum. Mangler blot ét nødvendigt resultat,
+tilbageholdes husstandssammenligningen — `null` må ikke blive til nul.
+
+Dette er **ikke** en generel instruktion om blindt at bytte to JSON-felter.
+Tabsfremførsel, udenlandsk lempelse, ejerskab, fælles fordelinger og
+betalingsafregning kan have personbundne roller uden for de otte fælles
+personfaktafelter. Gennemgå disse kilder og modellens dækning for hver
+orientering. Brug ikke afrundede delbeløb fra `ægtefælle.skat` som erstatning
+for en gyldig, eksakt beregning med B som hovedperson.
 
 Hvis ægtefællefakta mangler, må de nødvendige overførsler fra en betinget
 rapportafstemning ikke låses som kendte fakta i en ny pensionsberegning.
@@ -572,6 +610,48 @@ i oplyst AM-bidrag. Den forbruger 46.000 kr. af rateloftet, så modellen
 beregner plads til 22.700 kr. i privat fradrag. Rækkerne sammenligner ikke
 privat- og arbejdsgiverordninger som alternative lønpakker. Tallene er
 eksempelresultater, ikke en generel skattesats eller personlig anbefaling.
+
+### Et fiktivt par: uændret egen skat, men mindre skat hos ægtefællen
+
+Det separate [pension-par-demo.mjs](pension-par-demo.mjs) gennemfører de fire
+kanoniske beregninger ovenfor for ét fast fiktivt par. Fra projektets rod,
+med den samme verificerede compiler og allerede installeret Node.js 18+:
+
+```sh
+node examples/danish-income-tax/pension-par-demo.mjs "$RUNA_BIN"
+```
+
+Begge er født 1. januar 1990, fuldt skattepligtige og DBO-hjemmehørende i
+Danmark hele 2025, har skattekommune København, ingen kirkeskat og er gift
+og samlevende ved årets udgang. A har 50.000 kr. i løngrundlag og ændrer
+en privat ratebetaling fra 0 til 10.000 kr. B har uændret løngrundlag
+600.000 kr. og ingen pensionsbetalinger. Ingen har ATP, andre indkomster,
+fradragsudgifter, ejendom, pensionsudbetalinger, fremførte tab eller
+udenlandsk lempelse. Årets og sidste års udbetalingshistorik er bekræftet tom.
+Disse er udtrykkeligt **opdigtede fakta**, ikke standardvalg for rigtige brugere.
+
+Observeret kanonisk modeloutput den 25. september 2026:
+
+| Modelleret skat inklusive løn-AM | Før | Efter | Mindre skat |
+| --- | ---: | ---: | ---: |
+| A | 4.000,00 kr. | 4.000,00 kr. | 0,00 kr. |
+| B | 208.510,73 kr. | 204.677,73 kr. | 3.833,00 kr. |
+| Begge tilsammen | 212.510,73 kr. | 208.677,73 kr. | 3.833,00 kr. |
+
+Husstandens frie midler falder derfor med **6.167,00 kr.** ved den ekstra
+indbetaling på 10.000 kr. Et svar baseret alene på A's skat ville overse
+ægtefællevirkningen. Beløbet beskriver årets modellerede skat og private
+betaling, ikke en lovet ændring af tilbagebetaling eller samlet pensionsafkast.
+De fire resultater er `BeregnetMedForbehold`, ikke uafhængigt verificerede
+matches med SKAT eller bevis for fuld lovdækning.
+
+Scriptet kører med én worker og gemmer `cases.json`, uændret `results.json`,
+`summary.json`, den korte `sammenligning.txt` samt `resultat.txt` med alle
+returnerede vurderinger, kontroller og forbehold i en ny midlertidig mappe.
+Det genbruger konstruktion fra det fiktive bilagseksempel, men **ikke** dets
+kildelog eller enlige profils eksterne forventninger. Det er ikke en
+importør eller en generel husstandsberegner til personlige sager. Ingen
+skatteformler er duplikeret i scriptet.
 
 ## Hvilke fradrag er værd at undersøge?
 
