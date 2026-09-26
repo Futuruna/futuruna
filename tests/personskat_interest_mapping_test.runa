@@ -1,0 +1,70 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+
+-- Fiktiv observation med fradragsfortegn; ikke et negativt råt udgiftsinput.
+= renteudgiftslinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "rubrik-42", linje_label = "Renteudgifter", beløb_øre = -5100100)
+= uafklaret_rentemapping = personskat_aarsopgoerelse_kortlaeg_renteudgifter([renteudgiftslinje])
+| fortegn_skal_afklares_før_rå_renteudgift: uafklaret_rentemapping -> personskat_aarsopgoerelse_mappingkategori(uafklaret_rentemapping) == SupplerendeKildeMapping && uafklaret_rentemapping.kildelinjer == [renteudgiftslinje]
+? fortegn_skal_afklares_før_rå_renteudgift
+
+| rente_testlinje(id: Tekst, beløb: Heltal) -> PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = id, linje_label = "Afklaret egen årsrente", beløb_øre = beløb)
+= krævede_rentefakta = [RenteNæringsstatusOgSærregler, RenteudgiftensArtEgenAndelOgÅrsbeløb, RenteudgiftensFortegnsbetydning, RenteudgifterUdenDobbeltregning]
+| rente_uafklaret_forventning(linjer: List(PersonskatÅrsopgørelseKildelinje)) -> PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = KræverSupplerendeKilde(kilde = RenteopgørelseMedEgenAndel, faktakrav = krævede_rentefakta))
+| rente_direkte_forventning(linjer: List(PersonskatÅrsopgørelseKildelinje), kroner: Heltal) -> PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = DirekteKildebeløb(mål = refof(PersonskatRenteInput::renteudgifter_kroner), beløb_kroner = kroner, resterende_faktakrav = krævede_rentefakta))
+| rente_øre_forventning(linjer: List(PersonskatÅrsopgørelseKildelinje), øre: Heltal) -> PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = ØrepræcisionKanIkkeBevares(mål = refof(PersonskatRenteInput::renteudgifter_kroner), beløb_øre = øre, resterende_faktakrav = krævede_rentefakta))
+| rente_ugyldig_forventning(linjer: List(PersonskatÅrsopgørelseKildelinje)) -> PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = UgyldigeKildelinjer)
+
+-- En etiket, nul eller kendt beløbsretning beviser ikke fradragsret/egen andel.
+= uafklarede_rentebeløb = [-5100100, -1, 0, 1, 5100100]
+| generel_og_uoplyst_rute_bevarer_faktakrav: uafklarede_rentebeløb -> all(uafklarede_rentebeløb, |beløb: Heltal| {
+        = linjer = [rente_testlinje("egen-rente", beløb)]
+        personskat_aarsopgoerelse_kortlaeg_renteudgifter(linjer) == rente_uafklaret_forventning(linjer) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(linjer, 2025, RenteudgiftsfortegnUoplyst) == rente_uafklaret_forventning(linjer)
+    })
+? generel_og_uoplyst_rute_bevarer_faktakrav
+
+= hele_rentebeløb = [0, 100, 5100100, 9223372036854775800]
+| afklarede_visninger_giver_samme_positive_udgift: hele_rentebeløb -> all(hele_rentebeløb, |beløb: Heltal| {
+        = positive = [rente_testlinje("egen-rente", beløb)]
+        = negative = [rente_testlinje("egen-rente", 0 - beløb)]
+        personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(positive, 2025, RenteudgiftSomPositivtBeløb) == rente_direkte_forventning(positive, beløb / 100) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(negative, 2025, RenteudgiftSomNegativtFradrag) == rente_direkte_forventning(negative, beløb / 100)
+    })
+? afklarede_visninger_giver_samme_positive_udgift
+
+= ørepræcise_rentebeløb = [1, 99, 101, 5100101, 9223372036854775807]
+| renteøre_afrundes_ikke_og_kilden_bevares: ørepræcise_rentebeløb -> all(ørepræcise_rentebeløb, |beløb: Heltal| {
+        = positive = [rente_testlinje("egen-rente", beløb)]
+        = negative = [rente_testlinje("egen-rente", 0 - beløb)]
+        personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(positive, 2025, RenteudgiftSomPositivtBeløb) == rente_øre_forventning(positive, beløb) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(negative, 2025, RenteudgiftSomNegativtFradrag) == rente_øre_forventning(negative, beløb)
+    })
+? renteøre_afrundes_ikke_og_kilden_bevares
+
+-- Summer før omregning til hele kroner, aldrig afrunding af de enkelte linjer.
+= negative_rentelinjer = [rente_testlinje("rente-a", -123456), rente_testlinje("rente-b", -76544)]
+= positive_rentelinjer = [rente_testlinje("rente-a", 123456), rente_testlinje("rente-b", 76544)]
+| renteaggregering_er_eksakt_og_bevarer_begge_kilder: negative_rentelinjer -> personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(negative_rentelinjer, 2025, RenteudgiftSomNegativtFradrag) == rente_direkte_forventning(negative_rentelinjer, 2000) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(positive_rentelinjer, 2025, RenteudgiftSomPositivtBeløb) == rente_direkte_forventning(positive_rentelinjer, 2000)
+? renteaggregering_er_eksakt_og_bevarer_begge_kilder
+
+= positiv_enkeltlinje = [rente_testlinje("rente", 100)]
+= negativ_enkeltlinje = [rente_testlinje("rente", -100)]
+= blandede_rentelinjer = [rente_testlinje("rente", 200), rente_testlinje("mulig-rettelse", -100)]
+| rentevalg_ændrer_ikke_år_eller_netopgør_rettelser: blandede_rentelinjer -> personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(blandede_rentelinjer, 2025, RenteudgiftSomPositivtBeløb) == rente_ugyldig_forventning(blandede_rentelinjer) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(blandede_rentelinjer, 2025, RenteudgiftSomNegativtFradrag) == rente_ugyldig_forventning(blandede_rentelinjer) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(negativ_enkeltlinje, 2025, RenteudgiftSomPositivtBeløb) == rente_ugyldig_forventning(negativ_enkeltlinje) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(positiv_enkeltlinje, 2025, RenteudgiftSomNegativtFradrag) == rente_ugyldig_forventning(positiv_enkeltlinje) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(positiv_enkeltlinje, 2024, RenteudgiftSomPositivtBeløb) == rente_ugyldig_forventning(positiv_enkeltlinje)
+? rentevalg_ændrer_ikke_år_eller_netopgør_rettelser
+
+= tomme_rentelinjer = filter(positiv_enkeltlinje, |linje: PersonskatÅrsopgørelseKildelinje| Falskt)
+= ugyldige_rentesæt = [
+    tomme_rentelinjer,
+    [rente_testlinje("rente", 100), rente_testlinje("rente", 200)],
+    [rente_testlinje("", 100)],
+    [PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "", indkomstår = 2025, linje_identifikation = "rente", linje_label = "Renter", beløb_øre = 100)],
+    [PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv", indkomstår = 2025, linje_identifikation = "rente", linje_label = "", beløb_øre = 100)],
+    [rente_testlinje("rente", 100), PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "andet-bilag", indkomstår = 2025, linje_identifikation = "rente-2", linje_label = "Renter", beløb_øre = 100)],
+    [rente_testlinje("rente", 100), PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2024, linje_identifikation = "rente-2", linje_label = "Renter", beløb_øre = 100)]
+]
+| renter_afviser_ugyldige_kilder_uden_delresultat: ugyldige_rentesæt -> all(ugyldige_rentesæt, |linjer: List(PersonskatÅrsopgørelseKildelinje)| personskat_aarsopgoerelse_kortlaeg_renteudgifter(linjer) == rente_ugyldig_forventning(linjer) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(linjer, 2025, RenteudgiftSomPositivtBeløb) == rente_ugyldig_forventning(linjer))
+? renter_afviser_ugyldige_kilder_uden_delresultat
+
+= positiv_renteoverløb = [rente_testlinje("rente-1", 9223372036854775807), rente_testlinje("rente-2", 1)]
+= negativ_renteoverløb = [rente_testlinje("rente-1", -9223372036854775807), rente_testlinje("rente-2", -1)]
+= mindste_rentebeløb = [rente_testlinje("rente", -9223372036854775807 - 1)]
+| renteoverløb_giver_ikke_wraparound_eller_delsum: positiv_renteoverløb -> personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(positiv_renteoverløb, 2025, RenteudgiftSomPositivtBeløb) == rente_ugyldig_forventning(positiv_renteoverløb) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(negativ_renteoverløb, 2025, RenteudgiftSomNegativtFradrag) == rente_ugyldig_forventning(negativ_renteoverløb) && personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(mindste_rentebeløb, 2025, RenteudgiftSomNegativtFradrag) == rente_ugyldig_forventning(mindste_rentebeløb)
+? renteoverløb_giver_ikke_wraparound_eller_delsum

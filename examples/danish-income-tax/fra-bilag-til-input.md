@@ -108,11 +108,59 @@ af [eIndkomst-vejledningen](https://info.skat.dk/data.aspx?oid=2233519).
 `EIndkomstEllerLønspecifikation` er en mulig kilde til afklaring, ikke et krav om
 et nyt bilag, når de relevante fakta allerede er dokumenteret.
 
-Tidligere kald til den generelle helper kunne give et direkte beløb med tomme
-faktakrav. Gennemgå derfor eksisterende lønmappings mod kilden; omdøb ikke blot
-kaldet for at få et direkte resultat. Ændringen berører denne hjælpefunktion,
-ikke Personskats skatteformler eller beregningskontrakt. Det fiktive eksempel
-ovenfor har allerede en udtrykkelig klassifikation og ændrer ikke beløb.
+## Renteudgifter: bevar kildens fortegn
+
+Et minustegn fortæller ikke alene, om linjen viser en fradragsberettiget
+årsudgift eller en rettelse. Den generelle helper
+`personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer)` kræver
+afklaring, også ved positive beløb og nul. Det kanoniske udgiftsfelt skal
+indeholde en ikke-negativ størrelse, men originalt fortegn må ikke gå tabt.
+
+Når kilden fastslår egen fradragsberettiget årsrente og beløbets betydning,
+kan man bruge:
+
+```runa
+= mapping = personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(
+    kildelinjer,
+    2025,
+    RenteudgiftSomNegativtFradrag
+)
+```
+
+`RenteudgiftSomPositivtBeløb` vælges i stedet, når alle linjer viser udgiften
+positivt. `RenteudgiftsfortegnUoplyst` giver fortsat et afklaringskrav.
+Fortegnsvalget skal komme fra dokumentets betydning, ikke fra det resultat,
+man ønsker. Helperen beholder alle originale linjer og deres ørebeløb med fortegn;
+den ændrer kun det særskilte forslag til det positive beregningsinput.
+
+En afklaret fiktiv linje med `beløb_øre = -5100100` giver således et forslag
+på **51.001 kr.**, mens −5.100.100 øre bliver i kildeloggen. Den positive
+visning af samme udgift giver samme forslag. Flere linjer summeres eksakt i
+øre før omregning; −1.234,56 og −765,44 kr. giver 2.000 kr. En øresum, der
+ikke er hele kroner, giver `ØrepræcisionKanIkkeBevares` med den positive
+udgiftsstørrelse og de uændrede kildelinjer — ikke et afrundet input.
+
+Den afklarede helper kræver ét bilag, det valgte indkomstår, komplette
+kildeidentifikatorer og forskellige linje-id'er. Forkert fortegnsvalg,
+blandede fortegn og heltalsoverløb giver `UgyldigeKildelinjer` uden delsum.
+En rettelse må ikke bare nettes mod andre linjer i denne rute; afklar det
+gældende årsbeløb først. En afvisning er ikke en afgørelse om fradragsretten.
+
+Begge ruter bevarer fire faktakrav: næring/særregler, udgiftens art og egen
+andel af årsbeløbet, fortegnsbetydning samt fravær af dobbeltregning. En total
+og dens underposter kan have forskellige id'er og stadig være samme udgift;
+det kan helperen ikke opdage. Brug hver udgift én gang og udled ikke en
+ægtefælleandel. Rubrik 44 kan desuden rumme andre poster end renter.
+[SKATs rentevejledning](https://skat.dk/borger/fradrag/fradrag-for-renter).
+`RenteopgørelseMedEgenAndel` angiver en mulig kilde, ikke et krav om et ekstra
+bilag, hvis fakta allerede er dokumenteret. `DirekteMapping` er ikke bevis
+for de resterende fakta og indsender ikke en skattesag.
+
+Brug en frisk beregningsskabelon og gennemgå kildefakta for hver person.
+Vejledningen indgår i Preview-kontraktens fingerprint; ret aldrig et gammelt
+hash for at få en skabelon accepteret. Hold renteindtægter adskilt fra udgifter.
+De [otte fokuserede invarianter](../../tests/personskat_interest_mapping_test.runa)
+kontrollerer mappingen; de beviser ikke vilkårlig AI-læsning af bilag.
 
 ## Manglende oplysninger: to forskellige grænser
 

@@ -133,6 +133,14 @@ also checks existing sign validation and recorded ordinary netting results.
 It does not detect duplicated documents behind a supplied aggregate; see the
 [interest input boundary](../examples/danish-income-tax/skatdk-rentefradrag-ekstern.md#vejledning-i-det-genererede-input).
 
+For signed report expenses, use the
+[source-mapping workflow](../examples/danish-income-tax/fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn).
+It preserves original observations, requires source classification and keeps
+entitlement, own share and duplicate-expense checks explicit. Its focused
+[behavior](../tests/personskat_interest_mapping_test.runa) and
+[metadata](../tests/tax_interest_mapping_metadata.test.mjs) tests do not establish
+reliable AI interpretation of unseen reports.
+
 The [worked source-to-input rehearsal](../examples/danish-income-tax/fra-bilag-til-input.md)
 adds explicitly fictional source excerpts, an authored field mapping with line
 references, generated guidance and canonical output. It separates private

@@ -46,6 +46,11 @@ rumme provisioner; dens total er derfor ikke automatisk et rentebeløb til
 dette felt. Afklar sådanne poster via `kapitalindkomst.finansielle_poster`.
 LL §§ 6/6 A-fradrag har ligeledes egne input og må ikke tælles med igen.
 
+Et minustegn i bilaget skal afklares som fradragsvisning eller rettelse,
+ikke automatisk fjernes. Den [afklarede renteudgiftsmapping](fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn)
+bevarer originalt fortegn og øre og kan foreslå en positiv udgiftsstørrelse
+uden afrunding. Den generelle helper kræver klassifikation først.
+
 Dette er inputvejledning, ikke en ny kontrol af bilagene. Et forkert positivt
 årsbeløb kan stadig passere; et ukendt beløb skal afklares før den kanoniske
 beregning. Nul er kun til bekræftet fravær. De eksisterende kontroller afviser

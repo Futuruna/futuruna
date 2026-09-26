@@ -34,7 +34,9 @@ test('generated main and spouse interest guidance shares source and amount bound
   const schema = run(['schema', model, '--format', 'compact-json']);
   for (const [name, phrases] of [
     ['renteindtægter_kroner', ['egen andel', 'modregne', 'én gang', 'ukendt', 'Næringsstatus']],
-    ['renteudgifter_kroner', ['egen andel', 'positivt', 'afdrag', 'én gang', 'ukendt', '41', '42', '44', 'provisioner']],
+    ['renteudgifter_kroner', ['egen andel', 'positivt', 'afdrag', 'én gang', 'ukendt', '41', '42', '44', 'provisioner',
+      'minustegn', 'rettelse', 'ikke automatisk absolut værdi', 'fortegn og øre', 'total og underposter',
+      'fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn']],
   ]) {
     const pair = ['', 'ægtefælle.MedÆgtefælle.fakta.'].map(prefix => {
       const path = `${prefix}kapitalindkomst.renter.${name}`;
