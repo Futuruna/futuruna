@@ -29,6 +29,12 @@ gennemsnit, der skjuler dage med billetudgift under bundgrænsen. Årskort og
 komplekse rejsekæder kræver en dokumenteret fordeling; modellen udleder ikke
 rejsedatoer eller fordeling fra en samlet kvittering.
 
+Rækkernes dagtal må tilsammen ikke overstige indkomstårets 365 eller 366
+kalenderdage. Kontrollen gælder hver person særskilt, også ægtefællen.
+To rækker med hver 220 dage afvises; modellen fjerner eller flytter ikke dage
+for at få dem til at passe. Et lavere samlet antal beviser ikke, at dagene er
+adskilte. Afstem grupperne med kørebogen eller andre dokumenterede rejsefakta.
+
 ## Et konkret eksempel
 
 Du har 100 ens rejsedage, 16 km landtransport pr. dag og betaler 120 kr. pr. dag

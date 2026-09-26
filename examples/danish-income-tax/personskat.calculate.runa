@@ -1655,13 +1655,18 @@
     help = Some("Opret rækker for grupper af ensartede rejsedage og bevar arbejds- eller uddannelsesstedets identifikation til samordning. Landtransport og færge/fly samme dag hører til samme række. Ved flere arbejdssteder samme dag skal det retligt relevante daglige total bruges; anvend ikke 24-km-bundgrænsen flere gange. Se personskat-faerge-og-fly.md."),
     unit = None
 )
+= personskat_befordring_rejsedage_kilde = LigningslovFradragKildeInfo(
+    url = "https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag",
+    identifier = "SKAT, faktiske rejsedage og flere ture/arbejdspladser samme dag",
+    hentet_dato = "2026-09-26"
+)
 = personskat_befordring_rejsedage_meta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(
             path = refof(PersonskatBefordringsfradragFakta::arbejdsdage),
             label = "Faktiske rejsedage for rækken",
             question = Some("Hvor mange dage foretog du den transport, som denne række beskriver?"),
-            help = Some("Brug faktiske rejsedage, ikke feriedage, sygedage eller hjemmearbejdsdage. Flere ture samme dag er én dag. Ved færge/fly skal dage, daglige landkilometer og billetudgift vedrøre samme gruppe af ensartede rejsedage. Opdel forskellige daglige rejsemønstre uden at tælle samme dag to gange; se personskat-faerge-og-fly.md."),
+            help = Some("Brug faktiske rejsedage, ikke feriedage, sygedage eller hjemmearbejdsdage. Flere ture samme dag er én dag. Rækkerne skal beskrive adskilte grupper af dage og må tilsammen ikke overstige indkomstårets 365 eller 366 kalenderdage. Kontrollen gælder hver person særskilt; et lavere samlet antal beviser ikke, at datoerne er adskilte. Ved færge/fly skal dage, daglige landkilometer og billetudgift vedrøre samme gruppe af ensartede rejsedage. Opdel forskellige daglige rejsemønstre uden at tælle samme dag to gange; se personskat-faerge-og-fly.md."),
             unit = Some("dage/år")
         ),
         TypetBeregningsfelt(
@@ -1691,6 +1696,7 @@
     attachments = (
         Source(value = ligningsloven_lbk1500_par9c_par9d),
         Guidance(value = ligningsloven_vejledning_par9c_færge_fly),
+        Guidance(value = personskat_befordring_rejsedage_kilde),
     )
 )
 --@label:PersonskatBefordringsfradragFakta::meta:personskat_befordring_rejsedage_meta--
@@ -15114,6 +15120,11 @@
 }
 | personskat_befordringsgrundfakta_gyldige(fakta: PersonskatBefordringsfradragFakta) -> fakta.identifikation != "" && fakta.befordringsmål_identifikation != "" && fakta.arbejdsdage >= 0 && fakta.arbejdsdage <= 366 && fakta.daglige_befordringskilometer >= 0 && fakta.broer.storebælt_bil_motorcykel_passager >= 0 && fakta.broer.storebælt_kollektiv_passager >= 0 && fakta.broer.øresund_bil_motorcykel_passager >= 0 && fakta.broer.øresund_kollektiv_passager >= 0 && fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner >= 0
 | personskat_befordringsidentifikationer_entydige(input: PersonskatBefordringsfradragInput) -> length(distinct(map(input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation))) == length(input.forhold) && all(input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation != "")
+-- Rækkerne grupperer adskilte rejsedage, ikke enkelte ture samme dag.
+-- Nødvendig kalendergrænse efter den ovenstående SKAT-vejledning; uden
+-- rejsedatoer kan kontrollen ikke bevise, at et lavere dagtal er uden overlap.
+-- Bevar fejltilstanden, så negative rækker ikke udligner overskydende dage.
+| personskat_befordringsdage_samlet_gyldige(input: PersonskatBefordringsfradragInput, skatteår: Heltal) -> foldl(input.forhold, personskat_indkomstårets_dage(skatteår), |resterende_dage: Heltal, forhold: PersonskatBefordringsfradragFakta| hvis resterende_dage < 0 || forhold.arbejdsdage < 0 || forhold.arbejdsdage > resterende_dage { -1 } ellers { resterende_dage - forhold.arbejdsdage }) >= 0
 | personskat_arbejdsgiverbetalt_befordring_for_hele_strækningen(input: PersonskatArbejdsgiverbetaltBefordring) -> input != UdenArbejdsgiverbetaltBefordring
 | personskat_arbejdsgiverbetalt_befordring_am_bidragspligtig(input: PersonskatArbejdsgiverbetaltBefordring) -> input == ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen
 -- LL § 9 C, stk. 4: AMBL §§ 4-5 anvender årsgrundlaget, ikke summen af
@@ -15198,7 +15209,7 @@
     -- Ukendte ydelser kan kun øge den kendte indkomst. Et allerede fuldt
     -- aftrappet tillæg (eller intet fradragsgrundlag) er derfor sikkert nul.
     = lavindkomsttillæg_afklaret = aftrapningsindkomst_afklaret || lavindkomstgrundlag_før_kontrol_kroner == 0 || (skatteår_understøttet && selvstændig_arbejdsmarkedsbidrag.input_gyldigt && ll9c_lavindkomst_tillæg_for_årsgrundlag_kroner(lønmodtager.skatteår, aftrapningsindkomst_kroner, lavindkomstgrundlag_før_kontrol_kroner) == 0)
-    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(forholdsresultater, personskat_befordringsfradragsforhold_input_gyldigt) && lavindkomsttillæg_afklaret
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && personskat_befordringsdage_samlet_gyldige(input, lønmodtager.skatteår) && all(forholdsresultater, personskat_befordringsfradragsforhold_input_gyldigt) && lavindkomsttillæg_afklaret
     = samlet_par9d_fradrag_kroner = hvis alle_input_gyldige { foldl(forholdsresultater, 0, |sum_kroner: Heltal, resultat: PersonskatBefordringsfradragForholdsresultat| sum_kroner + personskat_befordringsfradragsforhold_par9d_kroner(resultat)) } ellers { 0 }
     = samlet_par9c_grundfradrag_kroner = hvis alle_input_gyldige { foldl(forholdsresultater, 0, |sum_kroner: Heltal, resultat: PersonskatBefordringsfradragForholdsresultat| sum_kroner + personskat_befordringsfradragsforhold_par9c_grundfradrag_kroner(resultat)) } ellers { 0 }
     = lavindkomstgrundlag_kroner = hvis alle_input_gyldige { foldl(forholdsresultater, 0, |sum_kroner: Heltal, resultat: PersonskatBefordringsfradragForholdsresultat| sum_kroner + personskat_befordringsfradragsforhold_lavindkomstgrundlag_kroner(resultat)) } ellers { 0 }
@@ -19488,6 +19499,7 @@ fraflytningen."
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.personlig_indkomst.underholdsbidrag", gyldig = grundlag.personlig_indkomst.underholdsbidrag.alle_input_gyldige && ligningslov10_11_modtagere_svarer_til_fødselsdato(grundlag.fakta.lønmodtager.personlig_indkomst.underholdsbidrag, grundlag.fakta.lønmodtager.pension.fødselsdato), forklaring = "Underholdsbidrag skal have gyldige kildefakta og vedrøre denne skatteyder. Ved Bidragsmodtager og Barn skal barnets fødselsdato svare til personens egen fødselsdato. Skattepligtigt børnebidrag tilhører barnet, ikke forælderen som modtager pengene på barnets vegne. Yderens dato skal ikke matche barnets. Ens datoer beviser ikke identitet; afklar den faktiske modtager. Ret ikke datoer eller roller for at få et match. Se personskat-underholdsbidrag.md."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.personlig_indkomst.ordinære_forhold.forenings_og_arbejdsløshedsydelser", gyldig = grundlag.ligningsfradrag.befordring.lavindkomsttillæg_afklaret, forklaring = "Det ekstra kørselsfradrag kræver et afklaret indkomstgrundlag efter LL § 9 C, stk. 4. En generel A-kassepost efter PBL § 49 afklarer ikke lovgrundlaget; brug den dokumenterede danske dagpengegren, når den passer. Afklar også B-indkomsterstatning og frivillig sikring for syge-/barselsdagpenge. Ukendt er ikke nul. Årsgrundlaget for selvstændig virksomhed skal være gyldigt. Hvis den kendte indkomst allerede aftrapper tillægget til nul, kan nulbeløbet dog fastslås uden at gætte de manglende ydelsesfakta."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.erhvervsbefordring", gyldig = grundlag.erhvervsbefordring.alle_input_gyldige, forklaring = "Kørselsfakta, identiteter, rækkefølge og godtgørelser skal være gyldige."),
+        PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.befordring.forhold.arbejdsdage", gyldig = personskat_befordringsdage_samlet_gyldige(grundlag.fakta.lønmodtager.ligningsfradrag.befordring, indkomstår), forklaring = "Befordringsrækkerne skal beskrive adskilte grupper af faktiske rejsedage. Ikke-negative dagtal må tilsammen højst være " + vis(personskat_indkomstårets_dage(indkomstår)) + " for denne person i indkomståret. Flere ture eller arbejdssteder samme dag kræver ét retligt relevant dagligt total, ikke flere 24-km-bundgrænser. Afstem med kildefakta; fjern ikke dage blot for at passe til grænsen. Et lavere antal beviser ikke, at datoerne er adskilte."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.befordring", gyldig = grundlag.ligningsfradrag.befordring.alle_input_gyldige, forklaring = "Kontrollér hvert befordringsforhold: arbejdsdage må ikke overstige indkomstårets kalenderdage; kilometer, alle fire slags bropassager og dokumenterede udgifter må ikke være negative. Identifikationer skal være entydige, og eventuelle § 9 D-fakta skal passe sammen. Se ligningsfradrag.befordring.forholdsresultater. Brug faktiske rejsedage; flere ture samme dag er ikke flere arbejdsdage."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag", gyldig = grundlag.ligningsfradrag.alle_input_gyldige, forklaring = "Aktive fradragsforhold og deres samordning skal opfylde domænernes kontroller."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter", gyldig = ligningslov9_stk1_årsresultat(indkomstår, grundlag.fakta.lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter).alle_input_gyldige && grundlag.ligningsfradrag.øvrige_lønmodtagerudgifter.alle_input_gyldige, forklaring = "Øvrige lønmodtagerudgifter skal have entydige referencer, korrekte år og ikke-negative beløb; refusion må ikke overstige udgiften. Driftsmidlers erhvervsandel skal ligge fra 0 til 10000 basispoint (0 til 100 %); 0 er afklaret ingen erhvervsbrug, ikke ukendt. Se de oprindelige fakta og ligningsfradrag.øvrige_lønmodtagerudgifter.udgiftsresultater. Manglende fradragsret er ikke i sig selv ugyldige fakta; se personskat-validity.md#øvrige-lønmodtagerudgifter."),

@@ -521,15 +521,19 @@ efter metadataændringen; indkomsttyper og gyldighedsbeslutninger er uændrede.
 
 `lønmodtager.ligningsfradrag.befordring` rejects negative counts for all four
 bridge/transport combinations, including Øresund public transport. Negative
-counts are invalid facts, not zero crossings. Each commuting record must have
-between zero and the income year's number of calendar days: 366 is possible in
-2024, but not in 2023, 2025 or 2026. The active spouse gets the same checks and
-its own prefixed diagnostic. Invalid facts withhold the final comparison amount.
+counts are invalid facts, not zero crossings. Commuting records describe
+disjoint groups of travel days. Their non-negative day counts, taken together,
+must fit within the income year's calendar: 366 days in 2024, 365 in 2023, 2025
+and 2026. Two individually plausible 220-day rows cannot describe distinct
+groups in one year. Negative rows cannot offset excess days. The active spouse
+has a separate calendar bound and a prefixed diagnostic; the two people's days
+are not added together. Invalid facts withhold the final comparison amount and
+remain visible in the result, rather than being truncated to the calendar limit.
 
 This calendar bound is not an allowance to claim every day. Use actual travel
 days, excluding home-working, holiday and sick days; see
 [SKAT's commuting guidance](https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag).
-These aggregate records do not establish whether travel dates overlap. For
+Passing the calendar bound does not establish whether travel dates overlap. For
 multiple workplaces on the same day, use the legally relevant daily total;
 do not count the same travel twice or apply the 24-km exclusion twice.
 
