@@ -80,7 +80,7 @@ nested Experimental implementation and has no compatibility promise.
 
 ## Tooling And Command Surfaces
 
-The 0.2.3 database cleanup retires the language-level SQLite and persistence
+The 0.2.1 database cleanup retires the language-level SQLite and persistence
 surface, including the formerly documented `db_*` builtins. See the
 [compatibility and migration guidance](compatibility-guides/0.2.x.md#database-feature-removal).
 Explore's filesystem journal and ordinary reactive scopes are independent.
