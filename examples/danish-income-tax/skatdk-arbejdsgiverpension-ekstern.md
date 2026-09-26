@@ -45,6 +45,18 @@ forsøgsprogrammets afslutning uden fejl er heller ikke bevis for et
 beregningsresultat: de to beløbsafvisninger nedenfor blev identificeret
 ved læsning af den returnerede fejlside.
 
+En særskilt kontrol den **26. september 2026** undersøgte formularens
+paneltilstand. De viste JavaScript-handlinger sætter `diverseKnap=true`, når
+pensionspanelet åbnes, og `persmaKnap=true`, når lønpanelet åbnes. Et nyt
+anonymt HTTP-forløb satte begge felter til `true`, men beholdt lavtlønsprofilens
+fakta: løn 100.000 kr., `PRA=46000`, ingen ATP eller privat pension. Resultatet
+var fortsat beskæftigelsesfradrag 12.300 kr., ingen ekstra pensionsfradragslinje,
+skattepligtig indkomst 79.700 kr. og beregnet skat 19.455,54 kr. Tilbagefunktionen
+bevarede både beløbene og de to `true`-værdier. Åbne paneler fjernede altså ikke
+afvigelsen i dette forsøg; kontrollen fastslår ikke alle browserens handlinger
+eller serverens interne feltfortolkning. Det er samme økonomiske profil, ikke
+en syvende uafhængig skatteprofil eller et nyt match.
+
 Det er **ikke** en ny afprøvning af den grafiske browsers samlede forløb.
 Beregnerens versionsnummer blev ikke registreret. Årsagen til afvigelserne,
 herunder den præcise feltfortolkning og forskelle fra en virkelig

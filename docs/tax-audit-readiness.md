@@ -551,6 +551,11 @@ submit handlers were inspected; a fresh graphical-browser reproduction and
 explanation remain open (`td-0e5d15`). No formula was changed to fit the
 observations. Canonical caveats now mention the employment-deduction gap too;
 the source demo retains its original rate/ATP disagreement.
+A further September 26 HTTP probe preserved the low-wage rate profile while
+selecting the two observed open-panel form flags. It retained the same deduction
+and tax discrepancy, with the submitted values restored unchanged. This did not
+resolve the gap or establish graphical-browser equivalence; it is not another
+independent tax profile or a reason to repeat the same probe.
 The [offline regression](../tests/tax_employer_pension_conformance.test.mjs)
 keeps matches, disagreements and an invalid ATP control distinct.
 
