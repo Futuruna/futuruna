@@ -132,6 +132,25 @@ test('tax intake separates liability periods from employment and final from inte
   }
 });
 
+test('readiness index retains intake, validity and unresolved conformance boundaries', () => {
+  const readiness = readFileSync(join(root, 'docs/tax-audit-readiness.md'), 'utf8');
+  for (const target of [
+    'ai-setup.md#tax-audit-runtime-check', 'fra-bilag-til-input.md',
+    'aarsopgoerelse-afstemning.md', 'personskat-validity.md', 'personskat-delaar.md',
+    'source-status.runa', 'skatdk-arbejdsgiverpension-ekstern.md',
+    'skatdk-fradrag-oere-ekstern.md#kendte-afvigelser--ikke-match',
+    'personskat-honorar.md', 'personskat-skattekreditter.md', 'releasing.md',
+  ]) {
+    assert.ok(readiness.includes(target), `readiness: ${target}`);
+  }
+  for (const phrase of ['Preview', 'BeregnetMedForbehold', 'UgyldigtBeregningsgrundlag',
+    'BetingetAfstemt', 'Three personal examples', 'negative-net-credit floor',
+    'native Personskat path is incomplete', 'no LLM evaluator',
+    '## Limits to keep visible']) {
+    assert.ok(readiness.includes(phrase), `readiness: ${phrase}`);
+  }
+});
+
 test('fee intake preserves classification, gross income and separate tax payments', () => {
   const setupText = guide.replace(/\s+/g, ' ');
   for (const phrase of ['personskat-honorar.md', 'does not automatically reroute employment or business income',

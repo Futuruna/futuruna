@@ -96,22 +96,10 @@ Futuruna retter ikke datoerne og vælger ikke den skattemæssigt gunstigste.
 Afklar person og dato mod kilden; to ens, men forkerte datoer kan stadig
 bestå denne kontrol.
 
-En fiktiv 2026-kontrol med løn 200.000 kr. i perioden 1. juli–31. december,
-dokumenteret retvisende helårsløn 400.000 kr., København og fødselsdato
-1. januar 1990 giver 65.533,36 kr. i modelskat. Der er udtrykkeligt ingen
-ægtefælle, pension/ATP, øvrige indkomster, udgifter eller andre særlige forhold.
-Før kontrollen blev samme sag accepteret med 1. januar 1960 alene i
-helårsgrundlaget: det gav 5.600 kr. i seniorfradrag dér og en sammenligning på
-65.417,30 kr. De modstridende fakta giver nu `null` som sammenligningsbeløb,
-ikke automatisk kontroltilfældets skat. Dette er en reproduceret modelfejl,
-ikke en uafhængig SKAT-beregning eller et facit for virkelige bilag.
-
 [Regressionskontrollen](../../tests/personskat_partyear_birth_dates.test.mjs)
-bevarer den konsistente kontrol og den afledte beregningsvej, afviser
-hovedpersonens og ægtefællens datomodstrid og efterprøver den genererede
-feltvejledning. Eksisterende input skal gennemgås mod kilderne og gemte
-resultater genberegnes. Metadataændringen kræver en frisk skabelon; kopiér
-kun gennemgåede fakta, og redigér ikke kontrakthashen for at omgå kontrollen.
+indeholder fiktive konsistente og modstridende grundlag samt kontrol af
+feltvejledningen. Den er ikke en uafhængig SKAT-beregning eller et facit
+for virkelige bilag.
 
 ## Samme årsforhold for ægtefællen
 
@@ -131,22 +119,13 @@ er den samme oplysning om hele indkomståret i begge grundlag; en faktisk
 må ikke skjules ved at vælge to forskellige helårsstatusser. Medlemsperioder
 er fortsat uden for denne beregningsvej.
 
-En fiktiv 2026-kontrol med egen løn 200.000/400.000 kr. og ægtefællens
-20.000/40.000 kr. i delårs-/helårsgrundlaget gav 62.807,91 kr. i modelskat.
-Begge var født i 1990, med København, kirkeskat hele året og samliv ved
-årets udløb; øvrige fakta fremgår af
-[regressionen](../../tests/personskat_partyear_spouse_settings.test.mjs).
-Modstridende kommune, kirkeskat eller personfradragsstatus alene i
-ægtefællens helårsgrundlag blev tidligere accepteret med samme beløb.
-Dette er altså dokumentation for accepterede modstridende fakta, ikke en
-påvist skatteforskel eller en uafhængig SKAT-beregning.
-
-Nu tilbageholdes sammenligningen under `helårsgrundlag`, mens kilderne
-bevares. Kontrollen udleder ikke alder/civilstand, autentificerer ikke
+Modstridende årsforhold tilbageholder sammenligningen under `helårsgrundlag`,
+mens kilderne bevares. Kontrollen udleder ikke alder/civilstand, autentificerer ikke
 bilag og beviser ikke, at to ens oplysninger er korrekte. Afklar kilderne;
-kopiér ikke en værdi blot for at bestå. Frisk skabelon og genberegning fra
-gennemgåede fakta er nødvendig efter metadataændringen. Indkomstbeløb må
-fortsat være forskellige mellem grundlagene, og skatteformlerne er uændrede.
+kopiér ikke en værdi blot for at bestå. De
+[fiktive kontroltilfælde](../../tests/personskat_partyear_spouse_settings.test.mjs)
+holder konsistens mellem samme persons grundlag adskilt fra tilladte
+forskelle mellem ægtefællerne.
 
 ## Ægtefællers kapitalindkomst i de to grundlag
 
@@ -170,15 +149,10 @@ afgørelse af skattemæssigt samliv eller dokumentation for alle parforløb.
 Ægtefællefakta kræver fortsat det dokumenterede helårsgrundlag; den afledte
 enkeltpersonsvej gætter dem ikke.
 
-Et fiktivt tilflytningsforløb i 2025 med løn 200.000/400.000 kr., egen
-kapitalindkomst +20.000/+40.000 kr. og ægtefællens kapitalindkomst
-−10.000/−15.000 kr. i henholdsvis delårs-/helårsgrundlaget illustrerer fejlen:
-bundskattebrøken er 194.000/393.000 efter modregning, ikke 204.000/408.000.
-Den rettede modelskat er 72.286,83 kr. mod tidligere 72.547,66 kr.
-[Kontrollen](../../tests/personskat_partyear_capital.test.mjs) angiver resten
-af de fiktive fakta og kontrollerer også § 11-grundlag samt to uændrede
-kontrolforløb. Dette er en kildebaseret modelkontrol, ikke en uafhængig
-delårsberegning fra SKAT.
+[Kontrollen](../../tests/personskat_partyear_capital.test.mjs) angiver fiktive
+delårs-/helårsfakta og kontrollerer bundskattebrøk, § 11-grundlag samt
+enkeltpersons- og samlivsgrænser. Det er en kildebaseret modelkontrol,
+ikke en uafhængig delårsberegning fra SKAT.
 
 ## Aktieindkomst: kildebeløb og skattegrundlag er forskellige
 
@@ -220,14 +194,10 @@ Bevar dokumenterne og ret ikke faktiske beløb for at få input accepteret.
 En uforenelig omregning tilbageholder sammenligningen med en forklaring
 under `kilder`; modellen retter ikke automatisk input.
 
-Et fiktivt eksempel med 100.000 kr. aktieindkomst i 184 skattepligtsdage
-i 2025 viste før rettelsen en accepteret modelskat på 103.236,05 kr. ved
-dagomregning mod 98.215,16 kr. med uændret aktieindkomst. Skat af selve
-aktiebeløbet er her 31.875 kr. uden øvrige aktiereduktioner. Den fulde
-modelskat er ikke en uafhængigt observeret SKAT-beregning.
 [Regressionskontrollen](../../tests/personskat_partyear_share_conversion.test.mjs)
 beskriver alle fiktive fakta og afprøver afledte og dokumenterede grundlag,
-valg af faktisk indkomst samt modsatrettede kildeomregninger.
+valg af faktisk indkomst samt modsatrettede kildeomregninger. Det er ikke
+en uafhængigt observeret SKAT-beregning.
 
 For et dokumenteret helårsgrundlag sammenlignes den rekonstruerede lave
 aktieskat også med det kanoniske helårsresultats egen aktieskat. Det er en
@@ -270,7 +240,7 @@ vurdering autentificerer ikke dokumenterne og beviser ikke fuld lovdækning.
 Den almindelige `personskat-resultat.mjs`-viser understøtter ikke denne
 separate resultatkontrakt; AI'en skal læse det gemte delårs-JSON direkte.
 
-Et **fiktivt modelkontroltilfælde**, kørt den 25. september 2026: fuld
+Et **fiktivt modelkontroltilfælde**: fuld
 skattepligt 1. januar–30. juni 2025, løn 300.000 kr. i perioden, født
 1. januar 1990, København, ingen kirkeskat, ægtefælle, ATP, pension,
 anden indkomst, fradragsudgifter, ejendom eller fremførte tab. Den fiktive
@@ -306,8 +276,7 @@ helårsløn på 600.000 kr.**, ikke den løbende dagfaktor. Modellens slutskat e
 mellemtrin en tilbagebetaling, mens det endelige resultat har 3.752,24 kr. i
 restskat før tillæg. En valgt restskatafregning for 2025 accepteres; en
 tilbagebetalingsinstruks eller afregningsår 2024 tilbageholder sammenligningen.
-Tidligere blev begge disse modstridende instrukser accepteret i den yderste
-vurdering. Den rå skat ændres ikke for at få instrukserne til at passe.
+Den rå skat ændres ikke for at få instrukserne til at passe.
 
 [Regressionen](../../tests/personskat_settlement_stage.test.mjs) dækker også
 ugyldige betalingsfakta, en gyldig tilbagebetaling, nulbalance uden
@@ -320,14 +289,9 @@ dækning af alle afregningsregler og år.
 
 ## Eksisterende input
 
-Vurderingen og inputvejledningen ændrer kontraktens fingeraftryk.
-Generér en frisk delårsskabelon og overfør de samme gennemgåede kildefakta;
-ret ikke kun `schema_hash`. Vurderingsgrænsen alene ændrede ikke skatteformler
-eller rå beløb. Den efterfølgende kapitalrettelse ovenfor ændrer derimod
-berørte delårsresultater og § 11-forklaringer. Aktierettelsen ændrer også
-berørt aktieskat, og modstridende ægtefællegrundlag kan nu afvises.
-Omregning af aktieindkomst til et ændret årsbeløb afvises nu også, selv når
-det ændrede beløb stemmer med et separat dokumenteret helårsgrundlag.
-Genberegn gemte resultater uden
-at rette kildebeløbene. Inputtyper og satser er uændrede. Tidligere ugyldige
-nulbeløb bliver ikke godkendte resultater ved migreringen.
+Generér en frisk delårsskabelon fra den valgte modelversion og overfør
+gennemgåede kildefakta; ret ikke `schema_hash` for at omgå en kontraktforskel.
+Genberegn resultaterne uden at ændre kildebeløb for at opnå accept. De aktuelle
+[kompatibilitetsnoter](../../docs/compatibility-guides/0.2.x.md) beskriver
+migration, når en gemt kontrakt ikke længere passer. Et ugyldigt nulbeløb
+bliver ikke et godkendt resultat ved migreringen.

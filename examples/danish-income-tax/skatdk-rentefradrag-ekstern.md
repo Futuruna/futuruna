@@ -3,12 +3,8 @@
 Seks **fiktive** 2025-beregninger hos Skattestyrelsen blev kontrolleret den
 25. september 2026. Futurunas kanoniske beregning stemte i alle seks tilfælde
 til øren, også omkring 50.000 kr. i negativ nettokapitalindkomst og ved lav
-indkomst. Der var **ikke behov for en formelrettelse**. Kontrollen er nu en
-fast regressionstest.
-
-Den særskilte ægtefællekontrol nedenfor fandt derimod en manglende
-§ 6, stk. 3-modregning i den kanoniske beregning. Den er nu forbundet
-til den allerede kodede lovregel; de oprindelige enligeberegninger ændres ikke.
+indkomst. De faste regressioner nedenfor bevarer både enkeltpersonernes
+observationer og fire ægtepars særskilte specifikationer.
 
 ## Hvilke beløb skal ind i modellen?
 
@@ -39,7 +35,7 @@ genberegning af husstanden. Modellen ændrer intet i TastSelv.
 
 ### Vejledning i det genererede input
 
-De to rentefelter har nu fælles typet metadata for hovedperson og ægtefælle.
+De to rentefelter har fælles typet metadata for hovedperson og ægtefælle.
 `runa schema` viser spørgsmål, enhed, kilde og hjælp om egen andel, fortegn,
 dobbeltregistrering og adskillelse af indtægt og udgift. Rubrik 44 kan også
 rumme provisioner; dens total er derfor ikke automatisk et rentebeløb til
@@ -56,9 +52,9 @@ Dette er inputvejledning, ikke en ny kontrol af bilagene. Et forkert positivt
 beregning. Nul er kun til bekræftet fravær. De eksisterende kontroller afviser
 negative indtægts- og udgiftsbeløb, også for en aktiv ægtefælle.
 
-Metadataændringen ændrer Preview-kontraktens fingerprint, ikke dens datatyper
-eller skatteformler. Generér en ny skabelon og overfør gennemgåede kildefakta;
-ret ikke et gammelt hash. Den [fokuserede test](../../tests/tax_interest_input.test.mjs)
+Vejledningen indgår i Preview-kontraktens fingerprint. Generér en frisk skabelon
+og overfør gennemgåede kildefakta; ret ikke et gammelt hash.
+Den [fokuserede test](../../tests/tax_interest_input.test.mjs)
 kontrollerer alle fire genererede felter samt nul, fortegn og den eksisterende
 netting af separate indtægter og udgifter med fiktive fakta.
 
@@ -158,16 +154,10 @@ også de observerede bundskatter, kommuneskatter og udnyttede nedslag som
 uafhængige forventninger. Ingen forventet skat eller overførsel indgår som
 input. Modellen skal selv beregne overførslerne.
 
-Kontrollen fandt en konkret fejl i tredje række: B's bundskat før
-personfradrag var 24.500,40 kr. i modellen mod 22.098,40 kr. i
-specifikationen. Den kanoniske sammensætning brugte ikke den eksisterende
-§ 6, stk. 3-regel om ægtefællens negative kapitalindkomst. Samlet skat
-blev derfor 64.336,24 kr. i stedet for 61.934,24 kr. Rettelsen forbinder
-lovreglen i både øreberegningen og den ældre helkroneopdeling; den ændrer
-ikke rentefakta eller kommuneskattegrundlaget for at opnå et match.
-Efter rettelsen stemmer alle otte personers beregnede skat, bundskat,
-kommuneskat og udnyttede § 11-nedslag med de registrerede specifikationer
-til øren. De forventede beløb er ikke ændret.
+Alle otte personers beregnede skat, bundskat, kommuneskat og udnyttede
+§ 11-nedslag stemmer til øren med de registrerede specifikationer.
+Den kanoniske beregning anvender § 6, stk. 3 til bundskatten
+og bevarer personernes egne kapitalindkomstbeløb til de øvrige skattetrin.
 
 Denne faste test bytter de to personers fuldstændigt beskrevne fakta;
 parrets øvrige input er neutrale. Den er **ikke** en generel adapter til at
@@ -175,8 +165,9 @@ bytte ægtefæller i personlige sager med personbundne tab, lempelser eller
 betalingsoplysninger. Ukendte ægtefællefakta bliver ikke kendte gennem
 testen, og observationerne dækker ikke forskellige kommuner, separation,
 delår, udenlandske forhold eller grøn check.
-Delårsmodellens særskilte kapitalgrundlag og ægtefællekontekst undersøges
-fortsat (`td-fd0cba`); denne årsberegning dokumenterer ikke deres korrekthed.
+Delårsmodellens særskilte kapitalgrundlag og ægtefællekontekst har egne
+[modelkontroller](../../tests/personskat_partyear_capital.test.mjs);
+årsberegningernes eksterne observationer dokumenterer ikke delårets korrekthed.
 
 ## Reproduktion og afgrænsning
 
