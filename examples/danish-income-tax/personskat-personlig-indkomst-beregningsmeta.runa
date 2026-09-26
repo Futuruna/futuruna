@@ -186,7 +186,7 @@
         TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterOplyst::fuldstændige), label = "Honorarudgifter gennemgået", question = Some("Er alle udgiftsposter for denne honoraropgørelse gennemgået og medtaget?"), help = Some("Bekræft først efter bilagsgennemgang. Uafklarede udgifter, afskrivninger, satsberegnet kørsel og erstatninger må ikke udelades for at få et resultat. Se personskat-honorar.md."), unit = None),
         TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterOplyst::poster), label = "Udgifter til honoraraktiviteten", question = Some("Hvilke særskilte udgifter fremgår af bilagene?"), help = Some("Brug én udgift én gang, ikke både bilag og rubrik 29 som nye poster. Lønmodtagerudgifter, private pensionsindbetalinger og skat hører ikke til her. Se personskat-honorar.md."), unit = None)
     ], spørgsmål = [], beløbsfelter = [],
-    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Warning(value = honorarudgifter_dækningsgrænse))
+    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse))
 )
 --@label:PersonskatPersonligtArbejdsvederlagFakta::meta:personskat_honorarudgifter_inputmeta--
 
@@ -200,7 +200,7 @@
         TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::vedrører_vederlaget), label = "Tilknytning til honoraret", question = Some("Er udgiften afholdt for at erhverve, sikre eller vedligeholde denne honorarindtægt?"), help = Some("Afklar faktisk tilknytning; privat brug eller arbejde som lønmodtager må ikke få honorarfradrag."), unit = None),
         TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::ikke_fratrukket_andetsteds), label = "Ingen dobbelt fradragsføring", question = Some("Er det bekræftet, at samme udgift ikke allerede er fratrukket i andre poster eller indkomstbeløb?"), help = Some("Kontrollér også lønmodtagerudgifter, virksomhed, erhvervsbefordring og andre honorarrækker. Feltet er en kildebekræftelse, ikke dokumentautentifikation."), unit = None)
     ], spørgsmål = [], beløbsfelter = [],
-    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Warning(value = honorarudgifter_dækningsgrænse))
+    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse))
 )
 --@label:PersonskatHonorarudgiftFakta::meta:personskat_honorarudgift_inputmeta--
 

@@ -4,10 +4,13 @@
 @ importer ./arbejdsmarkedsbidragsloven
 
 # HonorarudgiftKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-= honorarudgifter_djv = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2048532", identifier = "C.C.1.2.3: brutto-AM, personlig nettoindkomst og forbehold om SKM2025.490.ØLR", hentet_dato = "2026-09-25")
+= honorarudgifter_djv = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2048532", identifier = "C.C.1.2.3: brutto-AM, personlig nettoindkomst og forbehold om SKM2025.490.ØLR", hentet_dato = "2026-09-26")
 = honorarudgifter_skat = HonorarudgiftKilde(url = "https://skat.dk/erhverv/egen-virksomhed/afklar-virksomhedens-skatteforhold", identifier = "Honorarmodtager: dokumenterede udgifter, rubrik 29/felt 425", hentet_dato = "2026-09-25")
-= honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter i årets honoraraktivitet. Afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR underkender kildeartsbegrænsning; dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Ukendt er ikke nul."
-= honorarudgifter_meta = Metadata(attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Warning(value = honorarudgifter_dækningsgrænse)))
+= honorarudgifter_dom = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2459224", identifier = "SKM2025.490.ØLR, dom 4. april 2025: landsrettens begrundelse og resultat om SL § 6, stk. 1, litra a", hentet_dato = "2026-09-26")
+= honorarudgifter_udkast = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2459115", identifier = "Udkast til styresignal af 18. august 2025, sag 25-2986570, afsnit 6 og 8: foreslået ligningsmæssigt fradrag og virkning ved offentliggørelse; ikke endeligt styresignal", hentet_dato = "2026-09-26")
+= honorarudgifter_udkaststatus = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=16080", identifier = "Afsluttede høringer - under udarbejdelse: honorarudkast 2459115 står her ved kildetjekket", hentet_dato = "2026-09-26")
+= honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter i årets honoraraktivitet efter den beskrevne nettoindkomstpraksis i C.C.1.2.3. Afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i skattepligtig indkomst, ikke automatisk i personlig indkomst. Dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Skattestyrelsens udkast til styresignal er ikke sat i kraft som beregningsregel; afklar gældende praksis og indkomstår ved krav ud over denne gren. Ukendt er ikke nul."
+= honorarudgifter_meta = Metadata(attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse)))
 
 --@label:personskat_honorarudgifter::meta:honorarudgifter_meta--
 ----

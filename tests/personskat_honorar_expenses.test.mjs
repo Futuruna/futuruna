@@ -70,8 +70,14 @@ test('honorarium costs reduce personal income while preserving gross AM and work
     const expected = cases[i]; assert.equal(case_id, expected.case_id);
     assert.equal(r.vurdering.alle_kontroller_gyldige, expected.valid, case_id);
     assert.equal(r.vurdering.slutskat_til_sammenligning_øre, expected.valid ? r.slutskat_øre : null, case_id);
-    if (!expected.valid) assert.ok(r.vurdering.fejl.some(f => f.sti === `${expected.spouse ? 'ægtefælle.MedÆgtefælle.fakta.' : ''}${path}.udgifter`
-      && f.forklaring.includes('ikke et lovbestemt fradragsloft')), case_id);
+    if (!expected.valid) {
+      const error = r.vurdering.fejl.find(f => f.sti === `${expected.spouse ? 'ægtefælle.MedÆgtefælle.fakta.' : ''}${path}.udgifter`);
+      assert.ok(error, case_id);
+      for (const phrase of ['ikke et lovbestemt fradragsloft', 'skattepligtig indkomst',
+        'ikke automatisk i personlig indkomst', 'udkast', 'ikke sat i kraft']) {
+        assert.ok(error.forklaring.includes(phrase), `${case_id}: ${phrase}`);
+      }
+    }
   }
   const result = id => output.results.find(r => r.case_id === id).result;
   const before = result('known-no-costs'), after = result('documented-costs');
@@ -106,8 +112,33 @@ test('honorarium costs reduce personal income while preserving gross AM and work
       const sources = schema.source_groups[field.source_group].map(id => schema.source_objects[id]);
       assert.ok(JSON.stringify(sources).includes('oid=2048532'), key);
       assert.ok(sources.some(s => s.role === 'warning'), key);
+      for (const [role, oid] of [['source', '2459224'], ['preparatory_source', '2459115'], ['currentness_source', '16080']]) {
+        assert.ok(sources.some(s => s.role === role && JSON.stringify(s).includes(`oid=${oid}`)), `${key}: ${role}`);
+      }
     }
   }
+});
+
+test('honorarium sources distinguish adjudicated law from unpublished practice', enabled, () => {
+  const meta = run(['meta', '--json', '--type', 'HonorarudgiftKilde',
+    'examples/danish-income-tax/personskat-honorarudgifter.runa']);
+  assert.deepEqual(meta.diagnostics, []);
+  const anchor = meta.anchors.find(a => a.label === 'personskat_honorarudgifter');
+  assert.ok(anchor);
+  assert.equal(anchor.references.length, 1);
+  const attachments = anchor.references[0].attachments;
+  for (const [role, oid] of [['source', '2459224'], ['preparatory_source', '2459115'], ['currentness_source', '16080']]) {
+    const matches = attachments.filter(s => JSON.stringify(s.data).includes(`oid=${oid}`));
+    assert.equal(matches.length, 1, oid);
+    assert.equal(matches[0].role, role, oid);
+  }
+  const warning = attachments.find(s => s.role === 'warning')?.data.value;
+  for (const phrase of ['ikke et lovbestemt fradragsloft', 'skattepligtig indkomst',
+    'ikke automatisk i personlig indkomst', 'udkast', 'ikke sat i kraft']) {
+    assert.ok(warning?.includes(phrase), phrase);
+  }
+  const span = meta.spans.find(s => s.label === anchor.label);
+  assert.ok(span.symbols.some(s => s.name === 'personskat_honorarudgifter_netto_dækket'));
 });
 
 test('part-year composition preserves gross fees, distinct costs and the loss coverage boundary', enabled, () => {
