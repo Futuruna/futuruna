@@ -134,12 +134,7 @@ indkomstår tilbageholder ligeledes den kanoniske sammenligning. En målrettet
 kontrolforklaring vises også for ægtefællen. Dette kontrollerer de oplyste
 fakta; det beviser ikke, at udbyderens dokument eller klassifikationen er rigtig.
 
-## Fejl før rettelsen og uafhængige observationer
-
-Den tidligere præcise gruppelivsgren lagde netto til personlig indkomst,
-men gav **nul** i arbejdsfradragsgrundlaget. Ved fiktiv løn 100.000 kr. og
-nettopræmie 920 kr. blev input accepteret med beskæftigelsesfradrag
-12.300 kr. og sammenligningsskat 19.782,23 kr.
+## Uafhængige observationer
 
 To friske anonyme sessioner i
 [SKATs 2025-beregner](https://www.tastselv.skat.dk/borger/beregn2025/profil.do)
@@ -153,7 +148,7 @@ forhold er udtrykkeligt fiktivt, ikke udledt af manglende bilag.
 | 100.000 | 920 | 12.423 | 0 | 0 | 19.753,32 |
 | 230.000 | 920 | 28.413 | 293 | 0 | 68.796,78 |
 
-Den rettede kanoniske model matcher begge profiler frem til samlet skat i
+Den kanoniske model matcher begge profiler frem til samlet skat i
 øre med særskilt oplyst bruttopræmie 1.000 kr. Nettopræmien forbliver 920 kr.,
 og der opkræves ikke nyt AM af forsikringen.
 
@@ -190,13 +185,12 @@ samme metodebegrænsninger som ovenfor gælder.
 
 ## Migration og regression
 
-Gruppelivsvarianten har fået et nyt valgfrit bruttofelt, og den genererede
-kontrakthash ændres. Generér en frisk skabelon og overfør gennemgåede fakta;
-overskriv ikke blot den gamle hash. I `.runa`-kald skal det nye argument
-angives som `Some(dokumenteret_brutto)` eller `None`. En tidligere
-samlepost med ukendt brutto giver nu heller ikke en kanonisk sammenligningsskat.
-Den nye bonusvariant ændrer kontrakthashen igen uden at omklassificere gamle
-poster automatisk. Generér også en frisk kontrakt ved denne udvidelse.
+Generér en frisk skabelon og overfør gennemgåede fakta; overskriv ikke blot
+den gamle kontrakthash. I `.runa`-kald angives bruttofeltet som
+`Some(dokumenteret_brutto)` eller `None`. Ukendt brutto tilbageholder
+sammenligningsskatten, også for samleposten. Løntræk og pensionsbonus skal
+klassificeres ud fra kilderne, ikke automatisk omklassificeres fra gamle input.
+Se den fælles [kompatibilitetsvejledning](../../docs/compatibility-guides/0.2.x.md).
 
 [Regressionen](../../tests/personskat_group_life.test.mjs) bruger faste
 officielle observationer, ikke beløb udledt af modellen. Den kontrollerer

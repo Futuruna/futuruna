@@ -104,10 +104,6 @@ overdragelsesrute, hvis grundlaget faktisk stammer fra en anden person; flyt
 ikke et eget grundlag til denne rute for at undgå en kontrol. En yngre
 længstlevende kan fortsat have et særskilt dokumenteret successionsgrundlag.
 
-Feltvejledningen har ændret Preview-kontraktens fingerprint. Generér en frisk
-skabelon med den aktuelle model og genindsæt gennemgåede kildefakta; omskriv
-ikke hashværdien i gamle sager eller arbejdsbøger. Ingen automatisk migration.
-
 ## Historiske ydelser og stigningsbegrænsning
 
 Et 2024-rabatgrundlag kan kræve andre personfakta end folkepensionsalder.
@@ -118,7 +114,7 @@ tilføjede tidlig pension. Dette ændrer valget mellem §§ 9 og 9 a i den
 historiske sammenligning, **ikke** retten til aldersnedslag efter § 8 eller
 den nuværende ESL § 25.
 
-Under `tidligere_ejendomsværdiskat.historisk_begrænsning` findes nu
+Under `tidligere_ejendomsværdiskat.historisk_begrænsning` findes
 `par9_ydelsesgrundlag`. Det er et valgfrit objekt med `ejer` og `ægtefælle`:
 
 - `null` for hele objektet eller `EjskEvslPar9YdelseUoplyst` for en person
@@ -150,20 +146,15 @@ afklar beløbet og dets lovbestemte opgørelsesgrundlag i kildematerialet.
 Den eksisterende indgang modtager dette grundlag; den rekonstruerer ikke hele
 2023-beregningen eller alle særlige tilpasninger i §§ 9 og 9 a.
 
-Fiktiv regression: ejer under folkepensionsalderen med dokumenteret efterløn
+Fiktivt eksempel: ejer under folkepensionsalderen med dokumenteret efterløn
 ved udgangen af 2024, tidligere sammenligningsskat 4.000 kr., beregnet gammel
 skat før loft 7.820 kr. og ny sammenligningsskat 8.160 kr. § 9 giver 4.500 kr.
-og dermed 3.660 kr. i rabat. Før rettelsen anvendte modellen § 9 a og fik
-6.400 kr. og kun 1.760 kr. i rabat. Ingen pensionsaldersdato ændres for at
-opnå forskellen. Det er en kildebaseret modelregression, ikke et eksternt
-match eller en konstateret fejl i en virkelig årsopgørelse.
+og dermed 3.660 kr. i rabat. Ingen pensionsaldersdato ændres for at opnå
+nedslaget. Det er et kildebaseret modeleksempel, ikke et eksternt match
+eller en konstateret fejl i en virkelig årsopgørelse.
 
 Historisk længstlevendesuccession har et selvstændigt kildegrundlag, som
 beskrevet nedenfor. Den må ikke udledes af nutidige pensionsaldersfakta.
-
-**Preview-migration:** Generér frisk schema/skabelon og genindsæt gennemgåede
-fakta. Feltet og metadata ændrer fingerprintet; omskriv ikke hash i gamle
-sager. Uoplyste ydelser må ikke migreres til `EjskEvslIngenPar9Ydelse`.
 
 ## Historisk længstlevendesuccession
 
@@ -216,17 +207,14 @@ behøves irrelevant viden om afdøde ikke. Ellers tilbageholdes sammenligningen,
 når relevant succession er uafklaret. Kontrollen gælder også overtagne
 rabatgrundlag og en beregnet ægtefælles ejendomme.
 
-Fiktiv regression: yngre ejer, kvalificeret tidligere ægtefælle død i 2023,
+Fiktivt eksempel: yngre ejer, kvalificeret tidligere ægtefælle død i 2023,
 fortsat beboelse og nyt ægteskab i 2024. Med gammelt beregningsgrundlag
 850.000 kr. og tidligere sammenligningsskat 4.000 kr. giver § 9 et loft på
-4.500 kr. Den fejlagtige genbrug af ny § 25 gav før rettelsen 6.400 kr.
-Ejendommens beregnede skat i 2025 bliver i dette eksempel 1.900 kr. lavere.
-Det er en modelregression, ikke en fejl konstateret i en virkelig årsopgørelse.
+4.500 kr. Det er et modeleksempel, ikke en fejl konstateret i en virkelig
+årsopgørelse.
 
-**Preview-migration:** Generér frisk schema/skabelon. Det nye felt ændrer
-typen og fingerprintet. Gamle kildefakta gennemgås; en gammel moderne
-succession må ikke kopieres automatisk til det nye felt, og ukendt må ikke
-blive `EjskEvslIngenSuccession`. Omskriv ikke kontrakthashen.
+En moderne succession må ikke kopieres automatisk til det historiske felt,
+og ukendt må ikke blive `EjskEvslIngenSuccession`.
 
 ## Model-owned validity assessment
 
@@ -511,9 +499,7 @@ kildefakta eller årsopgørelsen.
 Et fiktivt kulbrinteeksempel med 100.000 kr. og en konsistent voksenalder
 har et beregneligt AM-delbeløb på 8.000 kr. og et nulresultat efter den
 modellerede § 5 b-lempelse. Alligevel er det kanoniske sammenligningsbeløb
-`null`, ikke nul. En modstridende alder kunne ændre AM-delbeløbet, men
-omgik **ikke** den eksisterende dækningskontrol. Denne undersøgelse har
-derfor ikke ført til en ny alderskontrol eller ændrede skatteformler.
+`null`, ikke nul.
 
 Bevar den faktiske skattepligtsposition. Vælg ikke fuld skattepligt eller
 fjern en indkomst alene for at få en beregning til at bestå. De rå
@@ -655,12 +641,10 @@ ikke blot for dagene efter fødselsdagen.
 kontrolleret 25. september 2026.
 
 Fiktiv illustration: En person født i 1990 er 36 ved udgangen af 2026.
-En arbejdsudlejerække med alder 17 kunne tidligere blive accepteret og give
-30.000 kr. i samlet endelig arbejdsudlejebeskatning af 100.000 kr. i stedet
-for 35.600 kr. Modstriden tilbageholder nu sammenligningsbeløbet og giver en
-alderskontrol i `vurdering.fejl`. De øvrige rå resultater er da diagnostik,
-ikke en gyldig beregning. Ens alder beviser ikke, at oplysningerne tilhører
-samme person; kildefakta skal stadig gennemgås.
+En arbejdsudlejerække med alder 17 modsiger fødselsdatoen og tilbageholder
+sammenligningsbeløbet med en alderskontrol i `vurdering.fejl`. De øvrige rå
+resultater er da diagnostik, ikke en gyldig beregning. Ens alder beviser ikke,
+at oplysningerne tilhører samme person; kildefakta skal stadig gennemgås.
 
 Ret ikke en kildeoplysning blot for at vælge en lavere sats. Afklar, om det
 er datoen, alderen, året eller placeringen af posten, der er forkert.
@@ -718,27 +702,24 @@ reconciles the exclusion before recomputing annual deductions; check its own
 
 ## Updating existing clients
 
-The [spouse loss-credit correction](underskud-modtagersats.md) also uses the
-recipient's rates, including for conversion back to unused losses. Three
-fictional 2025 calculator cases cover different municipalities and church
-membership. No new public input fact is required; direct `.runa` constructors
-of `LønmodtagerPar13Forhold` must supply the recipient's derived §13 rate.
+Generate fresh schemas/templates with the current model, transfer reviewed
+source facts and recalculate. Do not edit a saved contract hash or a workbook's
+hidden fingerprint to bypass validation. Changes to types, outputs and metadata
+can all require this step; see the
+[compatibility guide](../../docs/compatibility-guides/0.2.x.md) for migration
+details. Clients must check `vurdering` before comparing any scalar totals.
 
-The [spouse personal-allowance correction](personfradrag-samordning.md) uses
-the donor's allowance amounts after own-tax offsets and the recipient's rates,
-not the donor's tax-credit amounts. This also corrects ordinary low-income
-own-tax offsets. Six fictional 2025 calculator observations exercise the
-canonical source-fact boundary. The additional outgoing allowance-basis record
-changes the Preview schema fingerprint: regenerate templates even though no
-new personal input fact is required. Read the linked rounding and coverage
-limits before treating the result as full administrative conformance.
+[Spouse loss-credit transfers](underskud-modtagersats.md) use the recipient's
+rates, including for conversion back to unused losses. Direct `.runa`
+constructors of `LønmodtagerPar13Forhold` must supply that derived §13 rate.
+[Spouse personal-allowance transfers](personfradrag-samordning.md) use the
+donor's allowance amounts after own-tax offsets and the recipient's rates,
+not the donor's tax-credit amounts. Read the linked rounding and coverage limits
+before treating either calculation as full administrative conformance.
 
-The validity assessment itself is an additive change to the research model's
-Preview output. Subsequent deduction work also adds a required
-[single-parent benefit input](ligningsloven-par9j-enlig.md): its template default
-is unknown, not confirmed nonreceipt. Regenerate templates and migrate supported
-facts instead of editing a stale workbook's hidden fingerprint. Existing clients
-must check `vurdering` before using the legacy scalar totals for comparison.
+The required [single-parent benefit input](ligningsloven-par9j-enlig.md) starts
+unknown, not as confirmed nonreceipt. Preserve unknowns when reviewing older
+inputs.
 
 The required [service/handyman input](boligjob.md) also starts as unknown.
 Active invoice facts and spouse allocations must pass their component and
