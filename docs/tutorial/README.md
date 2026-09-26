@@ -50,6 +50,11 @@ runa run tax.runa
 
 The output is `100000`: the exception selects the 20% rate for this family.
 
+`runa run` compiles through Rust and requires a Rust toolchain. With a downloaded
+Futuruna binary and no Rust installed, use `runa tax.runa` to interpret the same
+example, and `runa check --frontend tax.runa` for frontend validation. See the
+[missing-tool diagnostics](../cli-diagnostics.md#missing-rust-tools).
+
 ## 2. Give Rules a Shared Case
 
 Real models quickly gain several rules that need the same facts. A product
