@@ -41,8 +41,8 @@
 | par55_ændrer_ikke_år_eller_fortegn: ugyldige_par55_linjer -> all(ugyldige_par55_linjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_tilbagebetalt_forskudsskat_par55(linje, 2025) == refund_ugyldig_forventning(linje))
 ? par55_ændrer_ikke_år_eller_fortegn
 
--- Ingen ny begrænsning eller feltændring i den tilstødende A-skat/AM-mapping.
+-- En tilbagebetalingsklassifikation afklarer ikke andre kreditters art.
 = indeholdt = refund_testlinje(2025, 1234567, "Indeholdt A-skat og AM")
 = indeholdt_mapping = personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am([indeholdt])
-| indeholdt_mapping_er_uændret: indeholdt_mapping -> indeholdt_mapping == PersonskatÅrsopgørelseMapping(kildelinjer = [indeholdt], anvendelse = DirekteKildebeløbØre(mål = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre), beløb_øre = 1234567, resterende_faktakrav = []))
-? indeholdt_mapping_er_uændret
+| indeholdt_mapping_kræver_egen_afklaring: indeholdt_mapping -> indeholdt_mapping == PersonskatÅrsopgørelseMapping(kildelinjer = [indeholdt], anvendelse = KræverSupplerendeKilde(kilde = EIndkomstEllerLønspecifikation, faktakrav = [IndeholdelsensArtÅrOgPerson, IndeholdelsensÅrstotalerUdenDobbeltregning]))
+? indeholdt_mapping_kræver_egen_afklaring

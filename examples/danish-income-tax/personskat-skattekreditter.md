@@ -40,6 +40,37 @@ ikke afklares, skal den fulde afregning vente. En
 [betinget rapportafstemning](aarsopgoerelse-afstemning.md) kan stadig besvare
 snævrere spørgsmål, men etablerer ikke kreditgrundlaget uafhængigt.
 
+### Afstem A-skat/AM-totaler uden dobbelttælling
+
+I [kildemappingen](personskat-aarsopgoerelse-kildemapping.runa) kræver
+`personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(linjer)` afklaring
+af linjernes art og årsgrundlag. En etiket er ikke en klassifikation.
+
+Når kilderne er afklaret, bruges
+`personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, indkomstår)`.
+Hver `PersonskatÅrsopgørelseIndeholdelsespost` bevarer `kildelinje` og angiver
+`art`: `ÅretsIndeholdteASkat`, `ÅretsIndeholdteAm` eller
+`ÅretsSamledeIndeholdteASkatOgAm`. Det er årstotaler for samme person og
+dokument, ikke enkelte arbejdsgiver- eller månedsrækker.
+
+En dokumenteret samlet A-skat/AM-total kan stå alene. Ellers kræves begge
+komponenter; manglende AM bliver ikke nul. Vises både total og komponenter,
+afstemmes de uden dobbelttælling. Fiktivt: 105.000 kr. A-skat, 45.000 kr. AM
+og en samlet post på 150.000 kr. giver 150.000 kr. i kredit og bevarer alle
+tre observationer. En enkelt komponent ved siden af en samlet post må ikke
+overstige totalen; en manglende komponent udledes ikke som en ny kildeoplysning.
+
+`IndeholdelsesartUoplyst` kræver afklaring. `AndetSkatteEllerKreditbeløb`
+hører ikke til denne indgang: en bred forskudsskattesum eller beregnet AM
+må ikke omklassificeres for at få et resultat. Modstridende totaler, gentagne
+årstotaler af samme art, dublerede linjeidentifikationer, forkert år og negative
+rettelsesbeløb giver ingen direkte mapping. Originale linjer og eksakte øre
+bevares, også ved afvisning. Selv `DirekteMapping` beholder faktakrav om
+person, klassifikation og fuldstændighed; hjælperen autentificerer ikke bilag.
+Den ændrer ikke den kanoniske kreditkontrakt og læser ikke PDF-filer.
+Se det [eksekverbare fiktive eksempel](../../tests/personskat_withholding_mapping_test.runa)
+for komplette linjer og afstemningskontroller.
+
 ## Fortegn og rettelser
 
 De rå kreditfelter er **ikke-negative bruttobeløb**. § 55-feltet angiver også

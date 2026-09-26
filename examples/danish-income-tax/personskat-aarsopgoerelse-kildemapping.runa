@@ -59,9 +59,12 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 # PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter | AfgørelseOgBetalingsopgørelse | RenteopgørelseMedEgenAndel
 
-# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
+# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | IndeholdelsensArtÅrOgPerson | IndeholdelsensÅrstotalerUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
 
 # PersonskatÅrsopgørelseRenteudgiftsfortegn = RenteudgiftsfortegnUoplyst | RenteudgiftSomPositivtBeløb | RenteudgiftSomNegativtFradrag
+
+# PersonskatÅrsopgørelseIndeholdelsesart = IndeholdelsesartUoplyst | ÅretsIndeholdteASkat | ÅretsIndeholdteAm | ÅretsSamledeIndeholdteASkatOgAm | AndetSkatteEllerKreditbeløb
+# PersonskatÅrsopgørelseIndeholdelsespost(kildelinje: PersonskatÅrsopgørelseKildelinje, art: PersonskatÅrsopgørelseIndeholdelsesart)
 
 # PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | DirekteKildebeløbØre(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
 
@@ -297,11 +300,62 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
     [GavebetalingModtagergodkendelseIndberetningOgAftale]
 )
 
-| personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> personskat_aarsopgoerelse_direkte_øremapping(
-    kildelinjer,
-    refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre),
-    []
+= personskat_aarsopgoerelse_indeholdelsesfakta = [IndeholdelsensArtÅrOgPerson, IndeholdelsensÅrstotalerUdenDobbeltregning]
+= personskat_aarsopgoerelse_indeholdelsesadvarsel = PersonskatÅrsopgørelseMappingAdvarsel(
+    besked = "KSL § 60, stk. 1, litra a: brug årets indeholdte A-skat og AM, ikke beregnet skat, skattebillet, bankbetaling eller en bred subtotal for forskudsskat. Klassificér højst én årstotal af hver art for samme person, dokument og indkomstår; arbejdsgiver- og månedsrækker er ikke hver sin årstotal. En samlet A-skat/AM-post og dens komponenter afstemmes, ikke summeres oveni. Manglende AM er ikke nul; nul kræver kildegrundlag. Uafklarede linjer kræver afklaring, ikke gæt ud fra etiketten. Bevar originale linjer, fortegn og eksakte øre; negative rettelsesposter må ikke nettes eller omskrives automatisk. DirekteMapping beviser ikke personidentitet, klassifikation eller fuldstændighed. EIndkomstEllerLønspecifikation er en mulig kilde, ikke krav om et ekstra bilag, hvis årsopgørelsen dokumenterer fakta. Se personskat-skattekreditter.md."
 )
+= personskat_aarsopgoerelse_indeholdelsesmetadata = Metadata(attachments = (
+    Source(value = kildeskatteloven_2024_460),
+    Warning(value = personskat_aarsopgoerelse_indeholdelsesadvarsel),
+))
+
+--@label:personskat_aarsopgoerelse_indeholdelse::meta:personskat_aarsopgoerelse_indeholdelsesmetadata--
+--@begin:personskat_aarsopgoerelse_indeholdelse--
+| personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> PersonskatÅrsopgørelseMapping(
+    kildelinjer = kildelinjer,
+    anvendelse = hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) {
+        KræverSupplerendeKilde(kilde = EIndkomstEllerLønspecifikation, faktakrav = personskat_aarsopgoerelse_indeholdelsesfakta)
+    } ellers { UgyldigeKildelinjer }
+)
+
+-- Klassifikationen kommer fra kilden. Kontrollen afstemmer de oplyste
+-- årstotaler uden at udlede en manglende komponent eller ændre originalen.
+| personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster: List(PersonskatÅrsopgørelseIndeholdelsespost), indkomstår: Heltal) -> {
+    = linjer = map(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.kildelinje)
+    = ugyldig = PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = UgyldigeKildelinjer)
+    = a_poster = filter(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.art == ÅretsIndeholdteASkat)
+    = am_poster = filter(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.art == ÅretsIndeholdteAm)
+    = total_poster = filter(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.art == ÅretsSamledeIndeholdteASkatOgAm)
+    hvis personskat_aarsopgoerelse_kildelinjer_gyldige(linjer) == Falskt || all(linjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.indkomstår == indkomstår && linje.beløb_øre >= 0) == Falskt || any(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.art == AndetSkatteEllerKreditbeløb) || length(a_poster) > 1 || length(am_poster) > 1 || length(total_poster) > 1 {
+        ugyldig
+    } ellers hvis any(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.art == IndeholdelsesartUoplyst) || (length(total_poster) == 0 && (length(a_poster) == 0 || length(am_poster) == 0)) {
+        personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(linjer)
+    } ellers {
+        -- Hver liste indeholder højst én ikke-negativ årstotal her.
+        = a_øre = foldl(a_poster, 0, |sum: Heltal, post: PersonskatÅrsopgørelseIndeholdelsespost| sum + post.kildelinje.beløb_øre)
+        = am_øre = foldl(am_poster, 0, |sum: Heltal, post: PersonskatÅrsopgørelseIndeholdelsespost| sum + post.kildelinje.beløb_øre)
+        = total_øre = foldl(total_poster, 0, |sum: Heltal, post: PersonskatÅrsopgørelseIndeholdelsespost| sum + post.kildelinje.beløb_øre)
+        hvis a_øre > 9223372036854775807 - am_øre {
+            ugyldig
+        } ellers {
+            = komponenter_øre = a_øre + am_øre
+            hvis length(total_poster) == 1 && (komponenter_øre > total_øre || (length(a_poster) == 1 && length(am_poster) == 1 && komponenter_øre != total_øre)) {
+                ugyldig
+            } ellers {
+                PersonskatÅrsopgørelseMapping(
+                    kildelinjer = linjer,
+                    anvendelse = DirekteKildebeløbØre(
+                        mål = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre),
+                        beløb_øre = hvis length(total_poster) == 1 { total_øre } ellers { komponenter_øre },
+                        resterende_faktakrav = personskat_aarsopgoerelse_indeholdelsesfakta
+                    )
+                )
+            }
+        }
+    }
+}
+--@end:personskat_aarsopgoerelse_indeholdelse--
+
 | personskat_aarsopgoerelse_kortlaeg_modregningsberettiget_udbytteskat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_øremapping(
     [linje],
     refof(KildeskatPar60KreditterØre::udbytteskat_modregningsberettiget_øre),

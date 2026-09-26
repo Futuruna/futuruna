@@ -1,0 +1,80 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+
+-- Fiktive årsopgørelsesobservationer, ikke lønsedler eller private dokumenter.
+| indeholdelsespost(art: PersonskatÅrsopgørelseIndeholdelsesart, år: Heltal, id: Tekst, øre: Heltal) -> PersonskatÅrsopgørelseIndeholdelsespost(kildelinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = år, linje_identifikation = id, linje_label = "Original kildeetiket", beløb_øre = øre), art = art)
+| indeholdelseslinjer(poster: List(PersonskatÅrsopgørelseIndeholdelsespost)) -> map(poster, |post: PersonskatÅrsopgørelseIndeholdelsespost| post.kildelinje)
+= indeholdelsesfakta = [IndeholdelsensArtÅrOgPerson, IndeholdelsensÅrstotalerUdenDobbeltregning]
+| afklaret_forventning(poster: List(PersonskatÅrsopgørelseIndeholdelsespost), øre: Heltal) -> PersonskatÅrsopgørelseMapping(kildelinjer = indeholdelseslinjer(poster), anvendelse = DirekteKildebeløbØre(mål = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre), beløb_øre = øre, resterende_faktakrav = indeholdelsesfakta))
+| uafklaret_forventning(poster: List(PersonskatÅrsopgørelseIndeholdelsespost)) -> PersonskatÅrsopgørelseMapping(kildelinjer = indeholdelseslinjer(poster), anvendelse = KræverSupplerendeKilde(kilde = EIndkomstEllerLønspecifikation, faktakrav = indeholdelsesfakta))
+| ugyldig_forventning(poster: List(PersonskatÅrsopgørelseIndeholdelsespost)) -> PersonskatÅrsopgørelseMapping(kildelinjer = indeholdelseslinjer(poster), anvendelse = UgyldigeKildelinjer)
+
+= a_skat = indeholdelsespost(ÅretsIndeholdteASkat, 2025, "a-skat", 10500000)
+= am = indeholdelsespost(ÅretsIndeholdteAm, 2025, "am", 4500000)
+= samlet = indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "samlet", 15000000)
+= fuldt_observeret = [a_skat, am, samlet]
+| uklassificeret_sum_er_ikke_en_kredit: fuldt_observeret -> personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(indeholdelseslinjer(fuldt_observeret)) == uafklaret_forventning(fuldt_observeret)
+? uklassificeret_sum_er_ikke_en_kredit
+
+-- Den samlede post dækker begge arter. Eventuelle komponenter bruges kun
+-- til afstemning; en manglende komponent opfindes ikke som en ny kildelinje.
+= konsistente_visninger = [[samlet], [a_skat, am], [am, a_skat], [samlet, a_skat], [am, samlet], fuldt_observeret, [samlet, am, a_skat], [am, samlet, a_skat]]
+| samlet_og_komponenter_tælles_kun_en_gang: konsistente_visninger -> all(konsistente_visninger, |poster: List(PersonskatÅrsopgørelseIndeholdelsespost)| personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, 2025) == afklaret_forventning(poster, 15000000))
+? samlet_og_komponenter_tælles_kun_en_gang
+
+= uafklarede_visninger = [
+    [a_skat], [am],
+    [indeholdelsespost(ÅretsIndeholdteASkat, 2025, "a-nul", 0)],
+    [indeholdelsespost(IndeholdelsesartUoplyst, 2025, "ukendt", 0)],
+    [samlet, indeholdelsespost(IndeholdelsesartUoplyst, 2025, "ukendt", 10500000)]
+]
+| manglende_eller_ukendt_er_ikke_nul: uafklarede_visninger -> all(uafklarede_visninger, |poster: List(PersonskatÅrsopgørelseIndeholdelsespost)| personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, 2025) == uafklaret_forventning(poster))
+? manglende_eller_ukendt_er_ikke_nul
+
+= modsatrettede_totaler = [
+    [a_skat, am, indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "samlet", 15000001)],
+    [a_skat, am, indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "samlet", 14999999)],
+    [a_skat, indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "samlet", 10499999)],
+    [am, indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "samlet", 4499999)]
+]
+| modstridende_kilder_ændres_ikke_for_at_stemme: modsatrettede_totaler -> all(modsatrettede_totaler, |poster: List(PersonskatÅrsopgørelseIndeholdelsespost)| personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, 2025) == ugyldig_forventning(poster))
+? modstridende_kilder_ændres_ikke_for_at_stemme
+
+= dublerede_årstotaler = [
+    [a_skat, am, indeholdelsespost(ÅretsIndeholdteASkat, 2025, "andet-a", 1)],
+    [a_skat, am, indeholdelsespost(ÅretsIndeholdteAm, 2025, "andet-am", 1)],
+    [samlet, indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "anden-total", 15000000)],
+    [a_skat, indeholdelsespost(ÅretsIndeholdteAm, 2025, "a-skat", 4500000)]
+]
+| flere_årstotaler_af_samme_art_er_ikke_flere_kreditter: dublerede_årstotaler -> all(dublerede_årstotaler, |poster: List(PersonskatÅrsopgørelseIndeholdelsespost)| personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, 2025) == ugyldig_forventning(poster))
+? flere_årstotaler_af_samme_art_er_ikke_flere_kreditter
+
+= ugyldige_visninger = [
+    filter(fuldt_observeret, |post: PersonskatÅrsopgørelseIndeholdelsespost| Falskt),
+    [indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2024, "samlet", 15000000)],
+    [a_skat, indeholdelsespost(ÅretsIndeholdteAm, 2026, "am", 4500000)],
+    [indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "", 15000000)],
+    [samlet, indeholdelsespost(AndetSkatteEllerKreditbeløb, 2025, "beregnet-am", 4800000)],
+    [indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "rettelse", -1)],
+    [a_skat, indeholdelsespost(ÅretsIndeholdteAm, 2025, "rettelse", -4500000)],
+    [PersonskatÅrsopgørelseIndeholdelsespost(kildelinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "", indkomstår = 2025, linje_identifikation = "samlet", linje_label = "Indeholdt", beløb_øre = 15000000), art = ÅretsSamledeIndeholdteASkatOgAm)],
+    [PersonskatÅrsopgørelseIndeholdelsespost(kildelinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "samlet", linje_label = "", beløb_øre = 15000000), art = ÅretsSamledeIndeholdteASkatOgAm)],
+    [a_skat, PersonskatÅrsopgørelseIndeholdelsespost(kildelinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "andet-dokument", indkomstår = 2025, linje_identifikation = "am", linje_label = "Indeholdt AM", beløb_øre = 4500000), art = ÅretsIndeholdteAm)]
+]
+| ugyldig_kilde_år_eller_art_giver_ingen_kredit: ugyldige_visninger -> all(ugyldige_visninger, |poster: List(PersonskatÅrsopgørelseIndeholdelsespost)| personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, 2025) == ugyldig_forventning(poster))
+? ugyldig_kilde_år_eller_art_giver_ingen_kredit
+
+= præcise_beløb = [0, 1, 99, 101, 1234567, 9223372036854775807]
+| nul_og_øre_bevares_uden_afrunding_eller_dobbelttælling: præcise_beløb -> all(præcise_beløb, |øre: Heltal| {
+        = poster = [indeholdelsespost(ÅretsIndeholdteASkat, 2025, "a", øre), indeholdelsespost(ÅretsIndeholdteAm, 2025, "am", 0), indeholdelsespost(ÅretsSamledeIndeholdteASkatOgAm, 2025, "samlet", øre)]
+        personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(poster, 2025) == afklaret_forventning(poster, øre)
+    })
+? nul_og_øre_bevares_uden_afrunding_eller_dobbelttælling
+
+= overløb = [indeholdelsespost(ÅretsIndeholdteASkat, 2025, "a", 9223372036854775807), indeholdelsespost(ÅretsIndeholdteAm, 2025, "am", 1)]
+| komponentoverløb_giver_ingen_wraparound: overløb -> personskat_aarsopgoerelse_kortlaeg_afklaret_indeholdelse(overløb, 2025) == ugyldig_forventning(overløb)
+? komponentoverløb_giver_ingen_wraparound
+
+= uklassificerede_fortegn = map([-1, 0, 1], |øre: Heltal| indeholdelsespost(IndeholdelsesartUoplyst, 2025, "ukendt", øre))
+| generel_mapping_bevarer_originale_fortegn: uklassificerede_fortegn -> all(uklassificerede_fortegn, |post: PersonskatÅrsopgørelseIndeholdelsespost| personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am([post.kildelinje]) == uafklaret_forventning([post]))
+? generel_mapping_bevarer_originale_fortegn
