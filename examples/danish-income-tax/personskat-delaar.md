@@ -71,7 +71,8 @@ kildereferencer og uafklarede forhold:
   afstemme modellen; beløb må ikke flyttes for at frembringe en ønsket skat.
 - `valg_afgivet_ved_oplysninger` og `omvalg_dato`: dokumenterede valg, ikke
   en antagelse om hvilken metode der giver lavest skat. Ved faktisk
-  helårsindkomst må manglende `faktisk_helårsbeløb_kroner` ikke blive til nul.
+  helårsindkomst må ukendte beløb ikke blive til nul. Kun for aktieindkomst
+  kan det gentagne årsbeløb udelades, fordi kildebeløbet bevares uændret.
 - `helårsgrundlag`: afledte identificerede kilder eller et gennemgået fuldt
   Personskat-grundlag. Genbrug ikke delårsbeløbene som hele årets fakta uden
   grundlag, og gæt ikke manglende ægtefælleoplysninger.
@@ -184,9 +185,12 @@ valgte beregningsgrundlag. Brug `Par14UændretEngangsbeløb`; et dokumenteret
 helårsbeløb kan også bruges, når det er samme beløb. Kontrollen gælder hver
 kilde, så modsatrettede omregninger ikke kan skjule hinanden i en sum.
 
-Ved valget efter § 14, stk. 2, skal `faktisk_helårsbeløb_kroner` fortsat
-oplyses for hver kilde. For aktiekilden er det samme uændrede beløb, ikke
-en tilføjelse af udenlandske aktieindtægter uden for skattepligtsperioden.
+Ved valget efter § 14, stk. 2, kan `faktisk_helårsbeløb_kroner` være `null`
+for `Par14Aktieindkomst`: modellen bruger det allerede oplyste delårsbeløb
+uændret. Oplyses et årsbeløb, skal det være samme beløb; et udtrykkeligt nul
+er ikke en tom værdi. For alle andre kildearter er det faktiske årsbeløb
+fortsat påkrævet. Dette er ikke en antagelse om ukendt indkomst, og det
+tilføjer ikke udenlandske aktieindtægter uden for skattepligtsperioden.
 Valget af faktisk indkomst udvider ikke i sig selv den danske skattepligt
 for aktier. Er sådanne beløb faktisk relevante, skal deres skattepligt og
 kilder afklares særskilt; de må ikke presses ind i denne omregningsrække.
