@@ -1,5 +1,6 @@
 use futuruna::{eval_source_with_prelude, Interpreter, Lexer, Parser, TypeChecker};
 use std::path::Path;
+use std::process::Command;
 
 fn errors(source: &str) -> Vec<String> {
     let statements = Parser::new(Lexer::new(source).tokenize(), source)
@@ -123,4 +124,57 @@ fn unknown_lexical_receivers_do_not_borrow_an_outer_schema() {
 @ print(show(read(Inner(7))))
 "#;
     assert_eq!(eval_source_with_prelude(source, false).unwrap().trim(), "7");
+}
+
+fn assert_native_field_output(path: &Path, expected: &str) {
+    for native in [false, true] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_runa"));
+        if native {
+            command.arg("run");
+        }
+        let output = command.arg(path).output().expect("execute field fixture");
+        assert!(
+            output.status.success(),
+            "{} (native={native}): {}\n{}",
+            path.display(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), expected);
+    }
+}
+
+#[test]
+fn native_loop_fields_preserve_nested_and_shadowed_owners() {
+    assert_native_field_output(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/differential/corpus/loop_record_field_owners.runa"),
+        "Alice\nChild\n25\nBob\nChild\n45\nCarol\nborrowed string\n6",
+    );
+}
+
+#[test]
+fn website_rule_example_compiles_and_matches_interpretation() {
+    let website = include_str!("../website/src/main.rs");
+    let source = website
+        .split_once("const EXAMPLE_RULES: &str = r#\"")
+        .expect("website rules example start")
+        .1
+        .split_once("\"#;")
+        .expect("website rules example end")
+        .0;
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-website-rule-fields-{}-{}.runa",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
+    ));
+    std::fs::write(&path, source).unwrap();
+    assert_native_field_output(
+        &path,
+        "Alice (age 25, Student): 10% tax\nBob (age 45, Employee): 25% tax\nCarol (age 72, Retired): 0% tax\nDan (age 30, Unemployed): 25% tax",
+    );
+    std::fs::remove_file(path).unwrap();
 }

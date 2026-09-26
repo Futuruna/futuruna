@@ -1,0 +1,34 @@
+# Person(name: String, age: Int)
+
+> visitors() -> List(Person) { [Person("Alice", 25), Person("Bob", 45)] }
+
+for person in visitors() {
+    @ print(person.name)
+    for child in [Person("Child", 7)] {
+        @ print(child.name)
+    }
+    @ print(show(person.age))
+}
+
+> display_visitors(person: List(Person)) -> Unit {
+    for person in person {
+        @ print(person.name)
+    }
+}
+display_visitors([Person("Carol", 72)])
+
+> display_labels(labels: List(String)) -> Unit {
+    for label in labels {
+        @ print(label)
+    }
+}
+display_labels(["borrowed string"])
+
+> sum_values(values: List(Int)) -> Int {
+    = total = 0
+    for value in values {
+        = total = total + value
+    }
+    total
+}
+@ print(show(sum_values([1, 2, 3])))
