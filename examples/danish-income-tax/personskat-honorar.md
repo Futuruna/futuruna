@@ -115,10 +115,18 @@ Den almindelige gren dækker ikke afskrivninger, satsberegnet kørsel,
 erstatninger, udenlandske særregler eller omperiodisering. Den tilbageholder
 også sammenligningen, hvis udgifterne overstiger vederlaget efter den
 alders- og årsbestemte AM-beregning. Det er en **modelgrænse, ikke et juridisk
-fradragsloft**: C.C.1.2.3 henviser til SKM2025.490.ØLR, som underkender
-kildeartsbegrænsning, og varsler et styresignal. Modellen hverken klipper
-udgiften, nægter generel fradragsret eller beregner underskudsfremførsel.
-Disse tilfælde kræver særskilt behandling; ændr ikke fakta for at få et match.
+fradragsloft**. [SKM2025.490.ØLR](https://info.skat.dk/data.aspx?oid=2459224)
+giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i
+**skattepligtig indkomst**, ikke automatisk i personlig indkomst.
+[Udkastet til styresignal](https://info.skat.dk/data.aspx?oid=2459115), afsnit
+6 og 8, foreslår ligningsmæssigt fradrag med virkning ved offentliggørelse.
+Ved kildetjek 26. september 2026 står det fortsat som
+[under udarbejdelse](https://info.skat.dk/data.aspx?oid=16080), ikke som et
+endeligt styresignal. Udkastet aktiverer ikke en beregningsregel i modellen.
+Afklar fradragets placering og den relevante praksis for indkomståret;
+fjern ikke blot nettogrænsen. Modellen hverken klipper udgiften, nægter
+generel fradragsret eller beregner underskudsfremførsel. Disse tilfælde kræver
+særskilt behandling; ændr ikke fakta for at få et match.
 
 I et voksent fiktivt 2025-tilfælde med 600.000 kr. løn, 50.000 kr. honorar og
 10.000 kr. understøttede udgifter skal AM fortsat være 52.000 kr., mens
