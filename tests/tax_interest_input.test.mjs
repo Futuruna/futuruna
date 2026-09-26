@@ -33,9 +33,12 @@ test('generated main and spouse interest guidance shares source and amount bound
   const save = evidence();
   const schema = run(['schema', model, '--format', 'compact-json']);
   for (const [name, phrases] of [
-    ['renteindtægter_kroner', ['egen andel', 'modregne', 'én gang', 'ukendt', 'Næringsstatus']],
+    ['renteindtægter_kroner', ['egen andel', 'modregne', 'én gang', 'ukendt', 'Næringsstatus',
+      'Betalt negativ indlånsrente', 'Modtaget negativ lånerente', 'rubrik 31', 'rubrik 41',
+      'rettelser og blandede rubriksummer', 'uden at gætte en opdeling']],
     ['renteudgifter_kroner', ['egen andel', 'positivt', 'afdrag', 'én gang', 'ukendt', '41', '42', '44', 'provisioner',
       'minustegn', 'rettelse', 'ikke automatisk absolut værdi', 'fortegn og øre', 'total og underposter',
+      'Modtaget negativ lånerente hører til renteindtægter', 'Betalt negativ indlånsrente i rubrik 31',
       'fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn']],
   ]) {
     const pair = ['', 'ægtefælle.MedÆgtefælle.fakta.'].map(prefix => {
@@ -55,6 +58,10 @@ test('generated main and spouse interest guidance shares source and amount bound
       assert.ok(field.help.includes('skatdk-rentefradrag-ekstern.md'), field.path);
       const sources = schema.source_groups[field.source_group]?.map(id => schema.source_objects[id]);
       assert.ok(JSON.stringify(sources).includes(source), `${field.path}: official guidance`);
+      assert.ok(JSON.stringify(sources).includes('https://info.skat.dk/data.aspx?oid=2047212'),
+        `${field.path}: negative-rate legal guidance`);
+      assert.ok(JSON.stringify(sources).includes('freibetraege-fuer-zinsaufwendungen'),
+        `${field.path}: negative-rate report rubric guidance`);
     }
   }
 });
