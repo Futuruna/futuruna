@@ -592,6 +592,20 @@ canonical annual result rather than the same reconstruction on both sides.
 These are source-backed consistency checks, not independent administrative
 part-year conformance or proof of all spouse/foreign share-income treatments.
 
+The [spouse-setting regression](../tests/personskat_partyear_spouse_settings.test.mjs)
+reproduces three more accepted contradictions between period and documented
+annual facts: the corresponding spouse's municipality, whole-year church
+status and personal-allowance status could disagree. All three retained the
+same 62,807.91 DKK comparison in the fictional low-wage-spouse case, so this
+is evidence of an input-consistency defect, not a measured tax difference.
+The outer assessment now withholds these comparisons; distinct settings
+between spouses and distinct income amounts between bases remain supported.
+Generated guidance names the fields, retains legal-source traces and separates
+the year's tax municipality from current residence. This does not infer the
+correct municipality, membership period or age/status, authenticate facts, or
+alter tax formulas. Fresh templates and reviewed facts are required; see the
+[scope and migration](../examples/danish-income-tax/personskat-delaar.md#samme-årsforhold-for-ægtefællen).
+
 The [employer-pension/ATP observations](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md)
 add two 2025 official-form matches (ordinary ATP below the employment-deduction
 cap, and lifetime pension plus ATP) and four unresolved employer-rate pension

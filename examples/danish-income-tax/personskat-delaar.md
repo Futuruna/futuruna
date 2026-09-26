@@ -113,6 +113,41 @@ feltvejledning. Eksisterende input skal gennemgås mod kilderne og gemte
 resultater genberegnes. Metadataændringen kræver en frisk skabelon; kopiér
 kun gennemgåede fakta, og redigér ikke kontrakthashen for at omgå kontrollen.
 
+## Samme årsforhold for ægtefællen
+
+I `DokumenteretHelårsPersonskat` skal den tilsvarende ægtefælles
+`lønmodtager.kommune`, `lønmodtager.kirkeskat` og
+`lønmodtager.personfradrag_alder_status` også stemme med delårsgrundlaget.
+Helårsomregningen ændrer indkomstbeløb, ikke disse årsoplysninger.
+Sammenlign samme person mellem grundlagene; ægtefællerne kan have forskellige
+skattekommuner og kirkeskatteforhold fra hinanden.
+
+Kommune er årets **skattekommune**, ikke nødvendigvis den nuværende bopæl.
+Kommuneskattelovens [§ 2](https://www.retsinformation.dk/eli/lta/2019/935/pdf)
+har regler om kalenderårets skattekommune, herunder ved skattepligtens indtræden.
+Denne kontrol afgør ikke skattekommunen ud fra en flyttehistorik. Kirkeskat
+er den samme oplysning om hele indkomståret i begge grundlag; en faktisk
+[medlemsændring](https://www.borger.dk/kultur-og-fritid/medlemskab-af-folkekirken)
+må ikke skjules ved at vælge to forskellige helårsstatusser. Medlemsperioder
+er fortsat uden for denne beregningsvej.
+
+En fiktiv 2026-kontrol med egen løn 200.000/400.000 kr. og ægtefællens
+20.000/40.000 kr. i delårs-/helårsgrundlaget gav 62.807,91 kr. i modelskat.
+Begge var født i 1990, med København, kirkeskat hele året og samliv ved
+årets udløb; øvrige fakta fremgår af
+[regressionen](../../tests/personskat_partyear_spouse_settings.test.mjs).
+Modstridende kommune, kirkeskat eller personfradragsstatus alene i
+ægtefællens helårsgrundlag blev tidligere accepteret med samme beløb.
+Dette er altså dokumentation for accepterede modstridende fakta, ikke en
+påvist skatteforskel eller en uafhængig SKAT-beregning.
+
+Nu tilbageholdes sammenligningen under `helårsgrundlag`, mens kilderne
+bevares. Kontrollen udleder ikke alder/civilstand, autentificerer ikke
+bilag og beviser ikke, at to ens oplysninger er korrekte. Afklar kilderne;
+kopiér ikke en værdi blot for at bestå. Frisk skabelon og genberegning fra
+gennemgåede fakta er nødvendig efter metadataændringen. Indkomstbeløb må
+fortsat være forskellige mellem grundlagene, og skatteformlerne er uændrede.
+
 ## Ægtefællers kapitalindkomst i de to grundlag
 
 Bevar hver persons egen kapitalindkomst i både delårsgrundlaget og det
