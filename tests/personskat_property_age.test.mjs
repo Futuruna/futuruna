@@ -187,9 +187,168 @@ test('year-end, both spouse directions and survivor succession retain distinct f
   assert.equal(relief('noncohabiting-partner-unused'), 0);
 });
 
+function historicalProperty(input) {
+  const property = ordinaryProperty();
+  property.ordinært_grundlag.ejendomsværdi_kroner = 2000000;
+  property.ordinært_grundlag.grundværdi_kroner = 0;
+  property.nedslagsfakta.ejerskabshistorik.oprindelig_erhvervelsesdato = date(2020);
+  const income = { personlig_indkomst_kroner: 0, kapitalindkomst_kroner: 0, aktieindkomst_kroner: 0 };
+  const history = {
+    kontekst_2024: { indkomstår: 2024, kildefakta: structuredClone(input.ejendomsskatter.person),
+      egen_indkomst: income, ægtefælles_indkomst: structuredClone(income),
+      gift_og_samlevende_ved_indkomstårets_udgang: false },
+    ny_lov_helårsgrundlag: structuredClone(property.ordinært_grundlag),
+    ny_lov_nedslagsfakta: structuredClone(property.nedslagsfakta),
+    tidligere_ejendomsværdiskat: {
+      ejendomsværdi_året_før_kroner: 1062500, ejendomsværdi_2001_kroner: 850000,
+      ejendomsværdi_2002_kroner: 850000,
+      historisk_begrænsning: { foregående_indkomstårs_ejendomsværdiskat_øre: 400000,
+        par9b_nedsættelse_øre: 0, vurderet_helt_eller_delvis_benyttet_til_ejerbolig: true,
+        ejerlejlighed_frigjort_for_lejemål: false, ombygning_over_100_procent: false },
+      udenlandske_ejendomsskatter: [],
+    },
+    tidligere_grundskyld: { grundværdi_efter_fradrag_og_fritagelser_kroner: 0,
+      foregående_års_afgiftspligtige_grundværdi_kroner: 0, grundskyld_promille_2023_tiendedele: 0 },
+    byggeri: v('EjskIngenNyEllerOmbygning'), grundskyld_fritaget_basispoint: 0,
+    grundskyld_kan_fordeles_på_samme_boligenhed: true,
+  };
+  property.overgangsvurderinger.rabat = v('EjskRabatvurderingerOplyst', {
+    fakta: { eget_rabatgrundlag_2024: history, hændelser: [] },
+  });
+  input.ejendomsskatter.ejendomme = [property];
+  return history;
+}
+const historicalPath = 'ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024';
+
+test('historical own-age contradiction cannot change a valid annual tax comparison', enabled, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-historical-age-'));
+  console.log(`Fictional historical-age evidence: ${dir}`);
+  const envelope = run(['template', model, '--format', 'json']);
+  const base = buildFictionalCases(envelope).envelope.cases[0].input;
+  base.lønmodtager.bruttoløn_kroner = 100000;
+  base.lønmodtager.pension.pbl18_indbetalinger = [];
+  base.lønmodtager.pension.fødselsdato = date(1990);
+  historicalProperty(base);
+  const wrong = structuredClone(base);
+  wrong.ejendomsskatter.ejendomme[0].overgangsvurderinger.rabat.fakta.eget_rabatgrundlag_2024
+    .kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2020));
+  envelope.cases = [{ case_id: 'known-history', input: base }, { case_id: 'false-historical-age', input: wrong }];
+  const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
+  save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
+  assert.deepEqual(out.results.map(r => r.case_id), ['known-history', 'false-historical-age']);
+  console.log(JSON.stringify(out.results.map(({ case_id, result: r }) => ({ case_id,
+    valid: r.vurdering.alle_kontroller_gyldige, tax_ore: r.vurdering.slutskat_til_sammenligning_øre,
+    property_tax_ore: r.ejendomsskatter.samlet_ejendomsskat_øre, errors: r.vurdering.fejl.map(f => f.sti) }))));
+  const [known, bad] = out.results.map(r => r.result);
+  assert.equal(known.vurdering.alle_kontroller_gyldige, true);
+  assert.equal(known.ejendomsskatter.samlet_ejendomsskat_øre, 640000);
+  assert.equal(bad.vurdering.alle_kontroller_gyldige, false);
+  assert.equal(bad.vurdering.slutskat_til_sammenligning_øre, null);
+  assert.deepEqual(bad.vurdering.fejl.map(f => f.sti), [historicalPath]);
+  assert.match(bad.vurdering.fejl[0].forklaring, /fiktiv-bolig/);
+  assert.match(bad.vurdering.fejl[0].forklaring, /udgangen af 2024/);
+  assert.match(bad.vurdering.fejl[0].forklaring, /EjskFolkepensionsalderIkkeOpnået/);
+  assert.equal(bad.ejendomsskatter.samlet_ejendomsskat_øre, 450000, 'diagnostic source computation preserved');
+  assert.deepEqual(bad.ejendomsskatter.ejendomsresultater[0].fakta,
+    wrong.ejendomsskatter.ejendomme[0], 'do not silently correct the source history');
+});
+
+test('historical owner identity uses 2024 and does not replace previous spouse or rebate donor facts', enabled, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-historical-boundaries-'));
+  console.log(`Fictional historical boundaries: ${dir}`);
+  const envelope = run(['template', model, '--format', 'json']);
+  const base = buildFictionalCases(envelope).envelope.cases[0].input;
+  base.lønmodtager.bruttoløn_kroner = 100000;
+  base.lønmodtager.pension.pbl18_indbetalinger = [];
+  base.lønmodtager.pension.fødselsdato = date(1990);
+  const specs = [
+    ['first-reaches-age-in-2025', [], i => {
+      const h = historicalProperty(i);
+      i.lønmodtager.pension.fødselsdato = date(1958, 12, 31);
+      i.ejendomsskatter.person.ejer_folkepensionsalder = reached(date(2025, 12, 31));
+      // Historical status remains NotAchieved; today's status is not copied back.
+      assert.equal(h.kontekst_2024.kildefakta.ejer_folkepensionsalder.$variant, 'EjskFolkepensionsalderIkkeOpnået');
+    }],
+    ['cannot-copy-2025-age-back-to-2024', [historicalPath], i => {
+      const h = historicalProperty(i);
+      i.lønmodtager.pension.fødselsdato = date(1958, 12, 31);
+      i.ejendomsskatter.person.ejer_folkepensionsalder = reached(date(2025, 12, 31));
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2025, 12, 31));
+    }],
+    ['spouse-own-history-contradiction', [spousePrefix + historicalPath], i => {
+      const s = addSpouse(i), h = historicalProperty(s);
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2020));
+    }],
+    ['historical-partner-is-not-current-partner', [], i => {
+      addSpouse(i);
+      const h = historicalProperty(i);
+      h.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang = true;
+      h.kontekst_2024.kildefakta.samlevende_ægtefælles_folkepensionsalder = reached(date(2020));
+    }],
+    ['transferred-basis-belongs-to-former-spouse', [], i => {
+      const h = historicalProperty(i), p = i.ejendomsskatter.ejendomme[0];
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2020));
+      p.nedslagsfakta.ejerskabshistorik = { oprindelig_erhvervelsesdato: date(2025), ejerskifter: [] };
+      p.overgangsvurderinger.rabat.fakta = { eget_rabatgrundlag_2024: null, hændelser: [{
+        dato: date(2025), art: v('EjskÆgtefælleoverdragelse', {
+          grund: v('EjskSkilsmisseoverdragelse', { boet_er_endnu_ikke_delt: true }),
+          retning: v('EjskModtagerRabatFraÆgtefælle', { ny_ejerandel_basispoint: 10000,
+            overtaget_rabatgrundlag: { overgangsomfang: structuredClone(p.overgangsomfang), rabat_2024: h } }),
+        }),
+      }] };
+    }],
+    ['reaches-age-last-day-of-2024', [], i => {
+      const h = historicalProperty(i);
+      i.lønmodtager.pension.fødselsdato = date(1957, 12, 31);
+      i.ejendomsskatter.person.ejer_folkepensionsalder = reached(date(2024, 12, 31));
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2024, 12, 31));
+    }],
+    ['rented-today-still-needs-consistent-own-history', [historicalPath], i => {
+      const h = historicalProperty(i);
+      i.ejendomsskatter.ejendomme[0].ordinært_grundlag.erhvervsmæssigt_udlejet = true;
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2020));
+    }],
+    ['second-property-is-identified-in-error', [historicalPath], i => {
+      historicalProperty(i);
+      const p = structuredClone(i.ejendomsskatter.ejendomme[0]);
+      p.ordinært_grundlag.identifikation = 'anden-fiktiv-bolig';
+      const h = p.overgangsvurderinger.rabat.fakta.eget_rabatgrundlag_2024;
+      h.ny_lov_helårsgrundlag.identifikation = 'anden-fiktiv-bolig';
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2020));
+      i.ejendomsskatter.ejendomme.push(p);
+    }],
+  ];
+  envelope.cases = specs.map(([case_id, , change]) => {
+    const input = structuredClone(base); change(input); return { case_id, input };
+  });
+  const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
+  save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
+  assert.deepEqual(out.results.map(r => r.case_id), specs.map(s => s[0]));
+  for (const [n, { case_id, result: r }] of out.results.entries()) {
+    const errors = specs[n][1], valid = errors.length === 0;
+    assert.equal(r.vurdering.alle_kontroller_gyldige, valid, case_id);
+    assert.deepEqual(r.vurdering.fejl.map(f => f.sti), errors, case_id);
+    assert.equal(r.vurdering.slutskat_til_sammenligning_øre === null, !valid, case_id);
+    for (const path of errors) assert.ok(r.vurdering.kontrolgrundlag.beregning
+      .some(c => c.sti === path && !c.gyldig), `${case_id}: calculation validity`);
+  }
+  assert.match(out.results.at(-1).result.vurdering.fejl[0].forklaring, /anden-fiktiv-bolig/);
+  const donor = out.results.find(r => r.case_id === 'transferred-basis-belongs-to-former-spouse').result;
+  assert.equal(donor.ejendomsskatter.ejendomsresultater[0].overgang.rabat_ejendomsværdiskat_øre, 366000);
+});
+
 test('generated age-field guidance carries law and warns against conflating current and historical people', enabled, () => {
   const schema = run(['schema', model, '--format', 'compact-json']);
   for (const prefix of ['', spousePrefix]) {
+    const historical = schema.field_metadata.filter(f => f.path === prefix + historicalPath);
+    assert.equal(historical.length, 1, prefix + historicalPath);
+    for (const phrase of ['din lønmodtager.pension.fødselsdato', 'udgangen af 2024',
+      'ikke beregningsåret', 'overtagne grundlag', 'andre personer']) {
+      assert.ok(historical[0].help.includes(phrase), phrase);
+    }
+    const historicSources = JSON.stringify(schema.source_groups[historical[0].source_group]
+      .map(id => schema.source_objects[id]));
+    assert.ok(historicSources.includes('https://www.retsinformation.dk/eli/lta/2020/1590'));
     for (const path of [ownerPath, partnerPath]) {
       const fields = schema.field_metadata.filter(f => f.path === prefix + path + '.$variant');
       assert.equal(fields.length, 1, prefix + path);

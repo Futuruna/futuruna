@@ -40,8 +40,16 @@ the new guard withholds that comparison and reports the model-derived expected
 date/status without altering source facts. Both ownership directions and the
 year-end boundary are covered by [focused cases](../tests/personskat_property_age.test.mjs).
 Typed field guidance carries ESL §25 and social-pension §1a sources.
-Historical transition-context identities and survivor facts still require
-separate review; see the [scope and migration](../examples/danish-income-tax/personskat-validity.md#folkepensionsalder-og-ejendomsskat).
+The owner's explicitly own 2024 rebate basis now also checks that same birth
+date, assessed for 2024 rather than the current calculation year. Before this
+guard, a false historical retirement claim for a 1990-born owner reduced a
+valid annual comparison by 1,900 DKK through the historical tax-growth cap.
+Historical partner identities, an acquired spouse's rebate basis and survivor
+facts are not automatically joined to the current household. The regression
+covers those distinct routes, active-spouse own history, a property now rented
+out and identifying the erroneous row among multiple properties. This does
+not validate every historical EVSL §9 benefit qualification; see the
+[scope and migration](../examples/danish-income-tax/personskat-validity.md#folkepensionsalder-og-ejendomsskat).
 
 Canonical spouse intake now distinguishes unavailable facts from no spouse.
 Fresh templates select `ÆgtefællegrundlagUoplyst`; this withholds independent
