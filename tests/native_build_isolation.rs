@@ -187,6 +187,34 @@ fn cargo_builds_keep_separate_sources_and_targets_in_the_same_working_directory(
 }
 
 #[test]
+fn cargo_check_and_run_accept_date_and_punctuation_source_names() {
+    let fixture = Fixture::new();
+    let project = fixture.project(0);
+    let source = "@ depend \"sha2\" \"0.10\"\n@ print(\"source name preserved\")\n";
+    for name in ["2026-actor-zq.runa", "!!!.runa", "2026-合同.runa"] {
+        let path = project.join(name);
+        std::fs::write(&path, source).unwrap();
+        for mode in ["check", "run"] {
+            let output = finish(
+                fixture
+                    .command_source(&project, mode, "cache", &path)
+                    .env("CARGO_NET_OFFLINE", "true")
+                    .spawn()
+                    .unwrap(),
+            );
+            assert!(output.status.success(), "{mode} {name}: {output:?}");
+            if mode == "run" {
+                assert_eq!(
+                    String::from_utf8_lossy(&output.stdout).trim(),
+                    "source name preserved"
+                );
+            }
+        }
+        assert_eq!(std::fs::read_to_string(path).unwrap(), source);
+    }
+}
+
+#[test]
 fn build_cannot_report_success_when_the_output_is_a_directory() {
     let fixture = Fixture::new();
     let project = fixture.project(0);
