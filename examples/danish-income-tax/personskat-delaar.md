@@ -76,6 +76,43 @@ kildereferencer og uafklarede forhold:
   Personskat-grundlag. Genbrug ikke delårsbeløbene som hele årets fakta uden
   grundlag, og gæt ikke manglende ægtefælleoplysninger.
 
+## Samme person og fødselsdato i begge grundlag
+
+PSL § 14 omregner indkomst for en person, ikke personens fødselsdato. Ved
+`DokumenteretHelårsPersonskat` skal hovedpersonens dato under
+`lønmodtager.pension.fødselsdato` derfor være ens i delårs- og helårsgrundlaget.
+Det gælder hele datoen, også dag og måned, selv om forskellen ikke ændrer
+skatten i det konkrete år. En aktiv ægtefælles dato skal tilsvarende stemme
+med **den samme ægtefælles** dato i det andet grundlag. Ægtefællerne skal ikke
+have samme dato som hinanden, og deres indkomstbeløb kan være forskellige
+mellem delårs- og helårsgrundlag.
+
+Dette er en konsistenskontrol ved sammensætningen af de to beregninger efter
+[§ 14](https://www.retsinformation.dk/eli/lta/2021/1284/pdf) og
+[helårsvejledningen](https://info.skat.dk/data.aspx?oid=1977388), ikke en ny
+skatteregel eller kontrol af identitet. Modstridende datoer tilbageholder
+den yderste sammenligning med en forklaring under `helårsgrundlag`.
+Futuruna retter ikke datoerne og vælger ikke den skattemæssigt gunstigste.
+Afklar person og dato mod kilden; to ens, men forkerte datoer kan stadig
+bestå denne kontrol.
+
+En fiktiv 2026-kontrol med løn 200.000 kr. i perioden 1. juli–31. december,
+dokumenteret retvisende helårsløn 400.000 kr., København og fødselsdato
+1. januar 1990 giver 65.533,36 kr. i modelskat. Der er udtrykkeligt ingen
+ægtefælle, pension/ATP, øvrige indkomster, udgifter eller andre særlige forhold.
+Før kontrollen blev samme sag accepteret med 1. januar 1960 alene i
+helårsgrundlaget: det gav 5.600 kr. i seniorfradrag dér og en sammenligning på
+65.417,30 kr. De modstridende fakta giver nu `null` som sammenligningsbeløb,
+ikke automatisk kontroltilfældets skat. Dette er en reproduceret modelfejl,
+ikke en uafhængig SKAT-beregning eller et facit for virkelige bilag.
+
+[Regressionskontrollen](../../tests/personskat_partyear_birth_dates.test.mjs)
+bevarer den konsistente kontrol og den afledte beregningsvej, afviser
+hovedpersonens og ægtefællens datomodstrid og efterprøver den genererede
+feltvejledning. Eksisterende input skal gennemgås mod kilderne og gemte
+resultater genberegnes. Metadataændringen kræver en frisk skabelon; kopiér
+kun gennemgåede fakta, og redigér ikke kontrakthashen for at omgå kontrollen.
+
 ## Ægtefællers kapitalindkomst i de to grundlag
 
 Bevar hver persons egen kapitalindkomst i både delårsgrundlaget og det

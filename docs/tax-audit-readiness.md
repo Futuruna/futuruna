@@ -567,6 +567,18 @@ explains this distinction. These fictional 2025 arrival-year composition
 checks do not establish independent part-year conformance, spouse identity,
 or all share-loss/foreign-income combinations.
 
+The [part-year birth-date regression](../tests/personskat_partyear_birth_dates.test.mjs)
+reproduces an accepted same-person contradiction between period and documented
+annual facts: changing only the annual birth year from 1990 to 1960 granted
+a 5,600 DKK senior deduction and changed the fictional 2026 comparison by
+116.06 DKK. The wrapper now requires exact corresponding birth dates, including
+the active spouse's, and withholds the comparison without rewriting evidence.
+Different period/annual incomes and different birth dates between spouses
+remain supported. Generated guidance explains this source-consistency boundary;
+fresh templates and review of affected old facts are required. These are
+model checks, not identity authentication or independent administrative tax
+conformance. See the [date and migration guide](../examples/danish-income-tax/personskat-delaar.md#samme-person-og-fødselsdato-i-begge-grundlag).
+
 The [share-source conversion regression](../tests/personskat_partyear_share_conversion.test.mjs)
 then reproduced another accepted discrepancy: applying the generic day factor
 to a fictional 100,000 DKK dividend raised total tax by 5,020.89 DKK. Changed
