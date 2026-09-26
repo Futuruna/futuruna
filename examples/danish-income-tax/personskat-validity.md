@@ -54,6 +54,41 @@ et mellemtrin, ikke den endelige delårskonklusion. Den almindelige indgang
 modtager ikke skattepligtsperiodens datoer; afklar derfor helår/delår før
 valg af beregningsvej.
 
+## Folkepensionsalder og ejendomsskat
+
+Ved årets ejendomsværdiskat skal ejerens og en aktuel samlevende ægtefælles
+folkepensionsstatus stemme med deres respektive
+`lønmodtager.pension.fødselsdato`. Modellen udleder datoen efter
+[socialpensionslovens § 1 a](https://www.retsinformation.dk/eli/lta/2024/1123)
+med den [daterede ændring](https://www.retsinformation.dk/eli/lta/2025/703),
+og kontrollerer, om alderen er nået ved indkomstårets udgang som krævet af
+[ejendomsskattelovens § 25](https://www.retsinformation.dk/eli/lta/2023/678).
+Det er ikke nødvendigvis 67 år, og datoen er ikke første pensionsudbetaling.
+
+En forkert status **eller dato** tilbageholder sammenligningen. Fejlen peger på
+`ejendomsskatter.person.ejer_folkepensionsalder` eller
+`samlevende_ægtefælles_folkepensionsalder`, eventuelt under
+`ægtefælle.MedÆgtefælle.fakta`, og viser forventet status og afledt dato.
+Kontrollér den oprindelige kilde ved uenighed; ændr ikke fødselsdatoen for at
+få et ønsket nedslag. Den afledte forventning er betinget af den oplyste
+fødselsdato, ikke en bekræftelse af dokumentets sandhed. Rå diagnostiske
+beløb bevares, men må ikke præsenteres som gyldig slutskat.
+
+Ægtefællens alder kan være relevant, selv om denne ikke ejer nogen ejendom.
+I ægtefællens ejendomsgren henviser partnerfeltet omvendt til hovedpersonen.
+Kontrollen kræver ikke ejendomsaldersfakta ved tom ejendomsliste eller alene
+grundskyld, og et ikke-samlevende partnerfelt bruges ikke som nedslagsgrundlag.
+
+Historiske 2024-kontekster i overgangsberegningen og pensionistsuccession efter
+§ 25, stk. 3, har stadig selvstændige kildefakta. Denne kontrol afstemmer ikke
+deres personidentiteter. En afdød eller tidligere ægtefælles alder må ikke
+erstattes med en aktuel ægtefælles alder. En yngre længstlevende kan derfor
+fortsat have et særskilt dokumenteret successionsgrundlag.
+
+Feltvejledningen har ændret Preview-kontraktens fingerprint. Generér en frisk
+skabelon med den aktuelle model og genindsæt gennemgåede kildefakta; omskriv
+ikke hashværdien i gamle sager eller arbejdsbøger. Ingen automatisk migration.
+
 ## Model-owned validity assessment
 
 Finansielle indkomstposter uden for den valgte nr. 5 a/5 b-gren er ikke

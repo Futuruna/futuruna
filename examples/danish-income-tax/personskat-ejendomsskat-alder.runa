@@ -1,0 +1,74 @@
+@ sprog da
+
+@ importer ./ejendomsskatteloven
+@ importer ./socialpensionsloven - par1a
+@ importer ./personskat - beregningskontrol
+
+# PersonskatEjendomsskatAldersforbehold(besked: Tekst)
+= personskat_ejendomsskat_aldersforbehold = PersonskatEjendomsskatAldersforbehold(
+    besked = "Sammenhængskontrol af årets ejer og aktuelle samlevende ægtefælle, ikke dokumentautentifikation. Fødselsdato og folkepensionsstatus skal stemme efter ESL § 25 og socialpensionslovens § 1 a. Historiske 2024-kontekster og pensionistsuccession har selvstændige kildefakta; en tidligere ægtefælle må ikke identificeres med den aktuelle ægtefælle. Kontrollen ændrer ikke kildefakta eller nedslagsbeløb."
+)
+= personskat_ejendomsskat_alder_metadata = Metadata(
+    attachments = (
+        Source(value = ejendomsskatteloven_lov678_par23_til_27),
+        DependencySource(value = socialpensionsloven_lbk1123_par1a),
+        AmendmentSource(value = socialpensionsloven_lov703_par1_nr1),
+        Warning(value = personskat_ejendomsskat_aldersforbehold),
+    )
+)
+
+--@label:personskat_ejendomsskat_alder::meta:personskat_ejendomsskat_alder_metadata--
+--@begin:personskat_ejendomsskat_alder--
+-- Genbrug § 1 a's daterede regler; hardkod ikke en pensionsalder på 67 år.
+-- Årets status afstemmes ved 31/12 som i § 25, ikke ved første udbetaling.
+> personskat_ejendomsskat_alder_stemmer(status: EjendomsskattelovFolkepensionsalder, fødselsdato: Dato, indkomstår: Heltal) -> Boolsk {
+    = årets_udgang = Dato(år = indkomstår, måned = 12, dag = 31)
+    = alder = socialpensionslov1a_resultat(fødselsdato, årets_udgang)
+    = opnået = dato_før_eller_lig_med(alder.folkepensionsdato, årets_udgang)
+    alder.input_gyldigt && dato_før_eller_lig_med(fødselsdato, årets_udgang) && match status {
+        | EjskFolkepensionsalderIkkeOpnået -> opnået == Falskt
+        | EjskFolkepensionsalderOpnået(dato) -> opnået && dato.år == alder.folkepensionsdato.år && dato.måned == alder.folkepensionsdato.måned && dato.dag == alder.folkepensionsdato.dag
+    }
+}
+
+> personskat_ejendomsskat_alder_forklaring(fødselsdato: Dato, indkomstår: Heltal) -> Tekst {
+    = årets_udgang = Dato(år = indkomstår, måned = 12, dag = 31)
+    = alder = socialpensionslov1a_resultat(fødselsdato, årets_udgang)
+    hvis alder.input_gyldigt == Falskt || dato_før_eller_lig_med(fødselsdato, årets_udgang) == Falskt {
+        "Ejendomsskattens folkepensionsstatus kan ikke afstemmes uden en gyldig fødselsdato senest i indkomståret. Afklar kildefakta; gæt ikke en dato."
+    } ellers {
+        = forventet = hvis dato_før_eller_lig_med(alder.folkepensionsdato, årets_udgang) { "EjskFolkepensionsalderOpnået" } ellers { "EjskFolkepensionsalderIkkeOpnået" }
+        "ESL § 25, jf. socialpensionslovens § 1 a: årets folkepensionsstatus skal stemme med personens lønmodtager.pension.fødselsdato. Med den oplyste fødselsdato forventes " + forventet + "; afledt folkepensionsdato: " + show(alder.folkepensionsdato) + ". Kontrollér kilden ved uenighed; brug ikke første pensionsudbetaling eller et ønsket nedslag som dato. Se personskat-validity.md#folkepensionsalder-og-ejendomsskat."
+    }
+}
+
+> personskat_ejendomsskat_alder_relevant(fakta: EjendomsskattelovPersonÅrsfakta, indkomstår: Heltal) -> Boolsk {
+    any(fakta.ejendomme, |ejendom: EjendomsskattelovPersonEjendomFakta| ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(EjendomsskattelovPar3Input(
+        indkomstår = indkomstår,
+        kategori = ejendom.ordinært_grundlag.kategori,
+        beliggenhed = ejendom.ordinært_grundlag.beliggenhed,
+        erhvervsmæssigt_udlejet = ejendom.ordinært_grundlag.erhvervsmæssigt_udlejet,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = ejendom.ordinært_grundlag.særlige_betingelser_for_nr6_til_nr8_opfyldt
+    )))
+}
+
+> personskat_ejendomsskat_alder_inputkontroller(fakta: EjendomsskattelovPersonÅrsfakta, fødselsdato: Dato, samlevende_ægtefælles_fødselsdato: Option(Dato), indkomstår: Heltal, præfiks: Tekst) -> List(PersonskatInputkontrol) {
+    hvis personskat_ejendomsskat_alder_relevant(fakta, indkomstår) == Falskt {
+        []
+    } ellers {
+        = egen = PersonskatInputkontrol(
+            sti = præfiks + "ejendomsskatter.person.ejer_folkepensionsalder",
+            gyldig = personskat_ejendomsskat_alder_stemmer(fakta.person.ejer_folkepensionsalder, fødselsdato, indkomstår),
+            forklaring = personskat_ejendomsskat_alder_forklaring(fødselsdato, indkomstår)
+        )
+        match samlevende_ægtefælles_fødselsdato {
+            | None -> [egen]
+            | Some(dato) -> [egen, PersonskatInputkontrol(
+                sti = præfiks + "ejendomsskatter.person.samlevende_ægtefælles_folkepensionsalder",
+                gyldig = personskat_ejendomsskat_alder_stemmer(fakta.person.samlevende_ægtefælles_folkepensionsalder, dato, indkomstår),
+                forklaring = "Kontrollen gælder den anden persons fødselsdato, også når den anden person ikke selv ejer en ejendom. " + personskat_ejendomsskat_alder_forklaring(dato, indkomstår)
+            )]
+        }
+    }
+}
+--@end:personskat_ejendomsskat_alder--
