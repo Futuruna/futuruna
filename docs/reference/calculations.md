@@ -348,6 +348,16 @@ not create sheets. A reachable empty collection still gets its entry sheet.
 Integer template cells
 are text-formatted so all `i64` values remain exact.
 
+In new workbooks, enter `""` (two double quotes) for an empty string. Clearing
+a cell still means an absent optional value or a missing required value.
+Ordinary text stays unquoted. Text starting with a double quote uses JSON
+string quoting: for example, `"\"quoted\""` represents the text `"quoted"`,
+including its quotation marks. Generated templates apply this encoding
+automatically, including list/set elements, map values, and map keys.
+Input workbook version 8 records this distinction; versions 6 and 7 remain
+readable with their original literal-text behavior. Refreshing an older
+workbook writes version 8 without changing its decoded values.
+
 `cases` is the first visible worksheet and contains scalar fields for the named
 input record. Its first row visibly shows the `@ calculate` title, and every
 related collection sheet combines that title with the collection's field label.
@@ -411,10 +421,17 @@ Each case is decoded through the same Futuruna contract and evaluated in an
 isolated interpreter. Valid cases can produce results even when another case has
 a diagnostic. The command exits unsuccessfully when any diagnostics remain.
 
+JSON and TOML cases report independent missing, unknown, and invalid fields
+together, including fields inside collection elements and selected variants.
+An invalid parent shape or unknown variant produces a diagnostic at that
+boundary; the decoder does not guess child fields. Invalid cases are never
+invoked. Diagnostics remain in case order with one or multiple workers, and
+template hydration reports input errors before writing a workbook.
+
 `call` rejects undefined calculation values: integer division/remainder by zero,
 integer overflow, non-finite floating-point intermediates, failed assertions,
 out-of-bounds list access, and unmatched value rules produce case diagnostics,
-not substitute zero or empty values. Typed Boolean predicate misses still return
+not substitute zero or empty values. Known Boolean predicate misses still return
 `False`, including scoped predicates with captured fields; an error while
 evaluating a predicate is a diagnostic, not `False`. Required top-level
 initialization is checked too; if it fails, no case receives a result from it.

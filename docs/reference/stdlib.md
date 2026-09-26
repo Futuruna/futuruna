@@ -18,9 +18,12 @@ Built into the compiler — no imports needed. Every function here is available 
 | `print` | `String -> ()` | Print to stdout (use via `@ print(...)`) |
 
 ```runa
-@ print(show(42))           -- "42"
-@ print(show([1, 2, 3]))    -- "[1, 2, 3]"
+@ print(show(42)) -- 42
+@ print(show([1, 2, 3])) -- [1, 2, 3]
 ```
+
+Printed strings have no surrounding quotation marks. `show` is a display
+format; use the JSON calculation interface when a tool needs structured values.
 
 ---
 
@@ -84,6 +87,16 @@ the string end. `char_at` returns `""` when the index is out of range.
 | `parse_float` | `String -> Float` | Parse string to float (0.0 on failure) |
 | `string_chars` | `String -> List(String)` | Explode into Unicode scalar values |
 
+`format_float` accepts precision from 0 through 65535 inclusive. Values outside
+this range fail with a diagnostic before formatting; calculations retain their
+case-local error handling. Arguments are evaluated once, in source order.
+
+`parse_int` and `parse_float` do not use the file's language or the computer's
+locale to interpret separators. `parse_float("1,5")` and `parse_int("1.000")`
+return zero, just like other invalid input; a zero result does not establish
+that parsing succeeded. These functions return plain numbers, not `Option` or
+`Result`. Validate external numeric text before using it in a calculation.
+
 ```runa
 = parts = split("a,b,c", ",")         -- ["a", "b", "c"]
 = joined = join(["x", "y"], "-")       -- "x-y"
@@ -105,7 +118,7 @@ the string end. `char_at` returns `""` when the index is out of range.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `length` | `List(a) -> Int` | List length |
+| `length` | `List(a) -> Int` or `String -> Int` | List elements or Unicode scalar values |
 | `head` | `List(a) -> a` | First element |
 | `tail` | `List(a) -> List(a)` | All but first |
 | `push` | `(List(a), a) -> List(a)` | Append element |
@@ -158,6 +171,11 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 | `partition` | `(List(a), a -> Bool) -> (List(a), List(a))` | Split by predicate |
 | `chunked` | `(List(a), Int) -> List(List(a))` | Split into chunks of size N |
 | `subscribe` | `(List(a), a -> ()) -> ()` | Iterate and apply callback |
+
+Integer `sum_list` and stream `sum` reject an overflowing intermediate total.
+Integer `abs` also fails if its result is outside the signed 64-bit range.
+See [integer arithmetic](basics.md#numbers) for ordinary and calculation error
+handling.
 
 ```runa
 = xs = [5, 2, 8, 1, 9, 3]
@@ -396,6 +414,12 @@ JSON values are represented as `String` (serialized JSON text). Auto-adds `serde
 | `json_emit` | `String -> String` | Pass through (identity for JSON) |
 | `json_object` | `List(List(String)) -> String` | Build JSON from key-value pairs |
 
+`json_object` escapes keys as JSON strings. Each value is parsed as complete
+JSON text when valid; otherwise it becomes an escaped JSON string. For example,
+`"true"` supplies a Boolean, while `"\"true\""` supplies the string `true`.
+Text such as `"[draft]"`, `"NaN"`, and `"+5"` remains text. Repeated keys retain
+the last value. Serialized object key order is not input order.
+
 ```runa
 = raw = "{\"name\": \"Alice\", \"age\": 30, \"tags\": [\"dev\", \"runa\"]}"
 = parsed = json_parse(raw)
@@ -450,39 +474,6 @@ The handler receives three string arguments: request path, HTTP method, and requ
 
 ---
 
-## Database (SQLite)
-
-SQLite access via `rusqlite`. Auto-adds dependency. Connection is thread-safe (`Arc<Mutex<Connection>>`).
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `db_open` | `String -> Db` | Open SQLite database (`:memory:` for in-memory) |
-| `db_exec` | `(Db, String) -> ()` | Execute DDL/DML (CREATE, INSERT, UPDATE, DELETE) |
-| `db_query` | `(Db, String) -> List(List(String))` | Query all rows |
-| `db_query_row` | `(Db, String) -> List(String)` | Query single row |
-| `db_insert` | `(Db, String) -> Int` | Insert and return last row ID |
-| `db_close` | `Db -> ()` | Close database connection |
-
-```runa
-= db = db_open(":memory:")
-
-@ db_exec(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)")
-@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Alice', 30)")
-@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Bob', 25)")
-
-= rows = db_query(db, "SELECT name, age FROM users")
-for row in rows {
-    @ print(show(row))    -- ["Alice", "30"], ["Bob", "25"]
-}
-
-= one = db_query_row(db, "SELECT name FROM users WHERE age = 30")
-@ print(show(one))        -- ["Alice"]
-
-@ db_close(db)
-```
-
----
-
 ## Concurrency
 
 | Function | Signature | Description |
@@ -513,13 +504,18 @@ c <- Increment
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `struct_type` | `(String, List(Field)) -> TypeDef` | Generate struct type at compile time |
-| `enum_type` | `(String, List(String)) -> TypeDef` | Generate enum type at compile time |
+| `struct_type` | `List(Field) -> TypeDef` | Generate struct type at compile time |
+| `enum_type` | `List(String) -> TypeDef` | Generate an enum with nullary variants at compile time |
 | `field` | `(String, String) -> Field` | Build a field descriptor |
 
 ```runa
-@ comptime = MyPoint = struct_type("MyPoint", [field("x", "Float"), field("y", "Float")])
-@ comptime = Color = enum_type("Color", ["Red", "Green", "Blue"])
+@ comptime
+= MyPoint = struct_type([field("x", "Float"), field("y", "Float")])
+
+@ comptime
+= Color = enum_type(["Red", "Green", "Blue"])
 ```
 
-These are comptime-only functions — they generate real Rust types (structs/enums) at compile time.
+The binding supplies the generated type's name. These functions generate real
+Rust structs and enums at compile time; the annotation belongs on its own line
+before each binding.

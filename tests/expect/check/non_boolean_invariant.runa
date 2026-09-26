@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: invariant `nonbool` predicate must return Bool, found Int
+
+= limit = 10
+| nonbool: limit -> limit + 1
+? nonbool -> { @ print("unexpected success") } else { @ print("unexpected false") }

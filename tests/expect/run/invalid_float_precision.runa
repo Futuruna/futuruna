@@ -1,0 +1,5 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stderr: format_float precision must be between 0 and 65535
+
+@ print(format_float(3.14159, -1))

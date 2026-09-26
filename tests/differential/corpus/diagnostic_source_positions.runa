@@ -1,0 +1,17 @@
+# Pair(left: Int, right: Int)
+
+> describe(value: Int) -> String {
+    """
+§ {{value}}
+ø {{value + 1}}
+"""
+}
+
+> pair_sum(pair: Pair) -> Int {
+    match pair {
+        | Pair(left, right) -> left + right
+    }
+}
+
+@ print(describe(2))
+@ print(show(pair_sum(Pair(2, 3))))

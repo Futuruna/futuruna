@@ -188,3 +188,48 @@ fn topology_audit_finds_conflicting_active_branches_of_one_rule() {
     assert!(stdout.contains("statutory_exclusion -> false"));
     assert!(stdout.contains("same rule call"));
 }
+
+#[test]
+fn topology_audit_reports_conflicting_unconditional_values_and_the_selected_result() {
+    let fixture = topology_fixture("topology_unconditional_contradiction.runa");
+    let runtime = run(&[fixture.to_str().unwrap()]);
+    assert!(runtime.status.success());
+    assert_eq!(String::from_utf8_lossy(&runtime.stdout).trim(), "25");
+
+    let output = run(&["audit", fixture.to_str().unwrap()]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Findings: 1 contradiction"), "{stdout}");
+    assert!(
+        stdout.contains("Conflicting active ordinary clause branches for sats"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("-> 25"), "{stdout}");
+    assert!(stdout.contains("-> 40"), "{stdout}");
+    assert!(
+        stdout.contains("Source order resolves sats() to 25"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn topology_audit_keeps_equal_outcomes_boolean_alternatives_and_other_arities_separate() {
+    let fixture = topology_fixture("topology_clause_alternatives.runa");
+    let output = run(&["audit", fixture.to_str().unwrap()]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Findings: 0 contradiction, 1 tension"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Override: cap"), "{stdout}");
+    assert!(stdout.contains("default rule says cap() -> 25"), "{stdout}");
+}

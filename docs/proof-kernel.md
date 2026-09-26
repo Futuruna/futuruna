@@ -3,6 +3,20 @@
 **Status:** Implemented and audited for trusted-boundary size (`td-f8f162`).
 **Target:** The trusted core of the Curry-Howard verification layer for the `?` rune.
 
+The kernel's integer axioms describe mathematical integers. They do not by
+themselves prove that evaluating a source expression fits in runtime `i64`.
+For example, `a + b == b + a` is a mathematical identity but can overflow in
+both evaluations. `runa verify` therefore checks the reachable source
+arithmetic separately before reporting such a proof. A mathematical success
+that still needs this check cannot seed the CLI's local lemma registry.
+The synthetic successor used to encode a strict comparison is a mathematical
+term, not an extra source operation requiring `i64` space.
+
+Arithmetic through unsupported helpers or recursion remains unverified by the
+semantic path. Float claims are refused rather than encoded as exact reals.
+These restrictions apply to the CLI's proof claim; the pure kernel and its
+mathematical axioms remain unchanged.
+
 ---
 
 ## 0. Current Audit Decision

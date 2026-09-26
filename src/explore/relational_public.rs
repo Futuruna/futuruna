@@ -349,6 +349,8 @@ pub struct ExploreNativeClassifierRuleMetadataV2 {
     pub parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub parameter_issues: BTreeSet<RuleDispatchKey>,
     pub boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    /// Execution fallback only; grants no endpoint proof authority.
+    pub runtime_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     pub runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
 }
 
@@ -771,6 +773,7 @@ fn native_classifier_rule_metadata_v2(
         parameter_names: artifacts.rule_dispatch_parameter_names.clone(),
         parameter_issues: artifacts.rule_dispatch_parameter_issues.clone(),
         boolean_miss_safe_keys: artifacts.rule_dispatch_boolean_miss_safe_keys.clone(),
+        runtime_boolean_miss_keys: artifacts.rule_dispatch_runtime_boolean_miss_keys.clone(),
         runtime_irrefutable_keys: artifacts.rule_dispatch_runtime_irrefutable_keys.clone(),
     }
 }
@@ -4056,7 +4059,7 @@ mod regional_stream_acceptance_tests {
             (
                 "> choices() -> List(Int) { [True] }\n= choices_value: List(Int) = choices()\n",
                 "choices_value",
-                "declared type",
+                "return type mismatch",
             ),
             (
                 "# Profile(x: Int) { | amount() -> x }\n= profiles: List(Profile) = [Profile(1)]\n",
@@ -4066,7 +4069,21 @@ mod regional_stream_acceptance_tests {
         ] {
             let source = format!("{declarations}\n? explore invalid {{\nfrom {{ vary before in {domain}\ngiven context = () }}\ntransition after = before\nfind invalid_cases = all\n}}\n");
             let temp = TestDirectory::new();
-            let mut epoch = prepare(&source)
+            let prepared =
+                match prepare_checked_relational_stream(&parse(&source), None, &source, None) {
+                    Ok(prepared) => prepared,
+                    Err(ExploreStreamPreparationError::Diagnostics(diagnostics)) => {
+                        assert!(
+                            diagnostics
+                                .iter()
+                                .any(|diagnostic| diagnostic.message.contains(expected)),
+                            "{diagnostics:?}"
+                        );
+                        continue;
+                    }
+                    Err(error) => panic!("unexpected preparation failure: {error}"),
+                };
+            let mut epoch = prepared
                 .open_epoch(ExploreStreamEpochOptions {
                     run_state: temp.path().join("run-state"),
                     output_directory: None,

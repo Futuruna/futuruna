@@ -1,0 +1,9 @@
+> list_size(values: List(a)) -> Int { length(values) }
+> text_size(value: String) -> Int { length(value) }
+@ print(show(list_size([1, 2, 3])))
+@ print(show(length([])))
+@ print(show(text_size("å🙂b")))
+@ print(show(length("")))
+@ print(show(length([[1], [2, 3]])))
+@ print(show(map_len(map_insert(map_new(), "key", 1))))
+@ print(show(set_len(set_insert(set_new(), "value"))))

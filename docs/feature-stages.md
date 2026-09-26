@@ -80,6 +80,11 @@ nested Experimental implementation and has no compatibility promise.
 
 ## Tooling And Command Surfaces
 
+The 0.2.3 database cleanup retires the language-level SQLite and persistence
+surface, including the formerly documented `db_*` builtins. See the
+[compatibility and migration guidance](compatibility-guides/0.2.x.md#database-feature-removal).
+Explore's filesystem journal and ordinary reactive scopes are independent.
+
 | Command family | Stage | Notes |
 |---------------|-------|-------|
 | `runa run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes`, `lib`, `feature-stages` | Stable | These are core workflow and Rust-facing library commands. Their documented behavior is part of the normal public surface. `emit --imports` is the stable public import/export graph snapshot under the importable-library contract. `feature-stages` is stable through the versioned JSON schema. |

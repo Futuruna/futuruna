@@ -1,0 +1,12 @@
+-- Reviewer #51: bindings and named arguments use =; comparisons use ==.
+# EqualityPerson(status: String)
+| equality_fee(p) -> 10
+| equality_fee(p) -> 0 under p.status == "student"
+> is_five(n: Int) -> Bool { n == 5 }
+= x: Int = 3
+@ print(show(equality_fee(EqualityPerson(status = "worker"))))
+@ print(show(equality_fee(EqualityPerson(status = "student"))))
+@ print(if x == 5 { "five" } else { "other" })
+@ print(show(is_five(5)))
+@ print(show(is_five(3)))
+@ print(show(filter([1, 2, 3], |n| n == 2)))

@@ -1,0 +1,24 @@
+| supported(year: Int) -> year == 2024 || year == 2025 || year == 2026
+| selected(value: Int) -> (value == 1 || value == 2), value < 2
+| nested(value: Int) -> value == 1 || (value == 2 && value > 1)
+| short_or(value: Int) -> value == 0 || 10 / value > 0
+| short_and(value: Int) -> value != 0, 10 / value > 0
+
+assert(not(supported(2023)))
+assert(supported(2024))
+assert(supported(2025))
+assert(supported(2026))
+assert(not(supported(2027)))
+assert(selected(1))
+assert(not(selected(2)))
+assert(not(selected(3)))
+assert(nested(1))
+assert(nested(2))
+assert(not(nested(3)))
+assert(short_or(0))
+assert(short_or(1))
+assert(not(short_or(-1)))
+assert(not(short_and(0)))
+assert(short_and(1))
+assert(not(short_and(-1)))
+@ print("ground rule alternatives passed")

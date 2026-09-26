@@ -2008,28 +2008,6 @@ const DOC_DB: &[DocEntry] = &[
         rune: "@",
         rune_class: "hl-rune-at",
     },
-    // -- DB --
-    DocEntry {
-        id: "db_open",
-        name: "db_open",
-        oneliner: "Open a SQLite database connection",
-        rune: "@",
-        rune_class: "hl-rune-at",
-    },
-    DocEntry {
-        id: "db_exec",
-        name: "db_exec",
-        oneliner: "Execute a SQL statement",
-        rune: "@",
-        rune_class: "hl-rune-at",
-    },
-    DocEntry {
-        id: "db_query",
-        name: "db_query",
-        oneliner: "Query rows from the database",
-        rune: "@",
-        rune_class: "hl-rune-at",
-    },
     // -- Pair accessors --
     DocEntry {
         id: "fst",
@@ -2090,7 +2068,7 @@ fn word_doc_id<'a>(w: &'a str) -> Option<&'a str> {
         | "set_union" | "set_intersect" | "set_diff" => Some(w),
         // file/json/http/db
         "read_file" | "write_file" | "read_lines" | "env_var" | "json_parse" | "json_get"
-        | "json_emit" | "http_get" | "http_post" | "db_open" | "db_exec" | "db_query" => Some(w),
+        | "json_emit" | "http_get" | "http_post" => Some(w),
         // pair
         "fst" | "snd" => Some(w),
         _ => None,

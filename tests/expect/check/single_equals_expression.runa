@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: use `==` for comparison
+-- expect-stderr-not: check.rs
+= x = 3
+= selected = if x = 5 { "five" } else { "other" }

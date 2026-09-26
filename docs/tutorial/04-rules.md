@@ -21,8 +21,20 @@ The `|` rune declares things that must be true:
 
 -- Query
 = descendants = findall(c, ancestor("alice", c))
-@ print(show(descendants))  -- ["bob", "charlie", "diana"]
+@ print(show(descendants)) -- [bob, diana, charlie]
 ```
+
+The first argument to `findall` or `search` must be a single variable; tuple,
+list, constant, and computed templates are rejected. Interpreted `findall`
+returns distinct values in first-discovery order. Values
+with different types remain distinct even if `show` prints them alike. Reaching
+the recursive search depth limit reports incomplete evaluation as an error;
+a partial answer list must not be treated as complete.
+
+Use lowercase names such as `x`, `y`, and `z` for logic variables. Uppercase
+names denote declared constructors; undeclared names such as Prolog-style
+`X` and `Y` are rejected before evaluation. Declared constructors can still
+appear as values or patterns in rules.
 
 ## Default logic (Catala-style)
 

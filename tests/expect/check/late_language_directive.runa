@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ sprog` must be the first declaration
+-- expect-stderr-not: check.rs
+# Sag(beløb: Heltal)
+@ sprog da
+= s = Sag(5)
+@ print(show(hvis s.beløb > 3 { "stor" } ellers { "lille" }))

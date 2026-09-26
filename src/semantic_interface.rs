@@ -818,6 +818,7 @@ fn collect_statement_interfaces(
             }
             Stmt::RustBlock(code) => collect_rust_block_callables(code, owner, callables),
             Stmt::Rule(_)
+            | Stmt::PreludeBoundary
             | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
@@ -831,9 +832,6 @@ fn collect_statement_interfaces(
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
             | Stmt::Explore(_)
-            | Stmt::Assert(_, _)
-            | Stmt::Retract(_, _)
-            | Stmt::Abort
             | Stmt::Expr(_) => {}
         }
     }

@@ -220,7 +220,14 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v7`. Version 7 retains complete `_tables` and
+`futuruna.calculate.xlsx.input.v8`. Version 8 encodes empty strings as `""`
+and strings starting with a quotation mark as JSON string literals in text
+cells and map keys. Other text remains literal. Blank cells remain missing or
+null, and malformed quoted strings invalidate the affected case. Versions 6
+and 7 retain literal-text decoding; refreshing them emits version 8. Older
+binaries reject version 8 instead of misreading its text values.
+
+Version 7 retains complete `_tables` and
 `_columns` metadata but adds `_sheets` and materializes only collections reached
 through selected alternatives and existing parent items. Reachable empty
 collections retain an entry sheet. The manifest must contain unique, sorted,

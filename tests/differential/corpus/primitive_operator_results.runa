@@ -1,0 +1,25 @@
+-- Reviewer #17: compare actual results, including the branch each Bool selects.
+> before(a: String, b: String) -> Bool { a < b }
+> same_char(a: Char, b: Char) -> Bool { a == b }
+> char_before(a: Char, b: Char) -> Bool { a < b }
+> same_pair(a: Pair(Int, Int), b: Pair(Int, Int)) -> Bool { a == b }
+> remainder(a: Float, b: Float) -> Float { a % b }
+# Letter = Letter(value: Char)
+> same_letter(a: Letter, b: Letter) -> Bool { a == b }
+# Envelope(a) = Envelope(payload: a)
+
+@ print("zebra<apple: " + show(before("zebra", "apple")))
+@ print("if zebra<apple: " + (if before("zebra", "apple") { "then" } else { "else" }))
+@ print("x==y: " + show(same_char('x', 'y')))
+@ print("if x==y: " + (if same_char('x', 'y') { "then" } else { "else" }))
+@ print("Pair(1,2)==Pair(1,3): " + show(same_pair(Pair(1, 2), Pair(1, 3))))
+@ print("7.5 % 2.0: " + show(remainder(7.5, 2.0)))
+@ print("-7.5 % 2.0: " + show(remainder(-7.5, 2.0)))
+@ print("x<y: " + show(char_before('x', 'y')))
+@ print("tuple equal: " + show((1, 2) == (1, 2)))
+@ print("tuple unequal: " + show((1, 2) == (1, 3)))
+@ print("unit equal: " + show(() == ()))
+@ print("record char equal: " + show(same_letter(Letter('x'), Letter('x'))))
+@ print("list chars equal: " + show(['x'] == ['x']))
+@ print("nested tuples equal: " + show([(1, 'x')] == [(1, 'x')]))
+@ print("record tuple/unit equal: " + show(Envelope(((1, 2), ())) == Envelope(((1, 2), ()))))

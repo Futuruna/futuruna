@@ -1,0 +1,10 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: undefined constructor `X`
+-- expect-stderr: undefined constructor `Y`
+-- expect-stderr: undefined constructor `Z`
+-- expect-stderr-not: check.rs
+| parent("alice", "bob")
+| parent("bob", "carl")
+| grand(X, Z) -> parent(X, Y), parent(Y, Z)
+@ print(show(grand("alice", "carl")))

@@ -1,5 +1,11 @@
 # Persist Design: Falsifiable Claims & Pressure Tests
 
+> Historical design research. The language-level database feature was removed
+> for 0.2.3. The syntax, implementation claims, proposed commands and milestones
+> below describe the retired experiment, not current Futuruna behavior or a
+> committed roadmap. Kept at this path to preserve design references.
+> See [the removal and migration guidance](../compatibility-guides/0.2.x.md#database-feature-removal).
+
 Every claim below is stated as a testable proposition. If any fails, the design must change before implementation begins. Claims are ordered from foundational (must hold) to aspirational (nice-to-have).
 
 ---
