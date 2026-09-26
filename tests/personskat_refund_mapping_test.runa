@@ -1,0 +1,48 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+
+-- En fiktiv linjeetiket beviser ikke hjemlen for en skattetilbagebetaling.
+= tidligere_udbetalt = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "side-2-linje-4", linje_label = "Tidligere udbetalt overskydende skat", beløb_øre = 100000)
+= uafklaret_mapping = personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(tidligere_udbetalt)
+| tidligere_årsudbetaling_er_ikke_automatisk_par55: uafklaret_mapping -> personskat_aarsopgoerelse_mappingkategori(uafklaret_mapping) == SupplerendeKildeMapping && uafklaret_mapping.kildelinjer == [tidligere_udbetalt]
+? tidligere_årsudbetaling_er_ikke_automatisk_par55
+
+| refund_testlinje(år: Heltal, beløb: Heltal, etiket: Tekst) -> PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-afgørelse", indkomstår = år, linje_identifikation = "side-1-linje-1", linje_label = etiket, beløb_øre = beløb)
+| refund_uafklaret_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = KræverSupplerendeKilde(kilde = AfgørelseOgBetalingsopgørelse, faktakrav = [SkattetilbagebetalingensHjemmelOgÅr]))
+
+-- Nul og en overbevisende etiket er heller ikke dokumenteret klassifikation.
+= uafklarede_linjer = [
+    tidligere_udbetalt,
+    refund_testlinje(2025, 100001, "Overskydende skat fra første årsopgørelse"),
+    refund_testlinje(2025, -100001, "Tidligere udbetalt"),
+    refund_testlinje(2025, 0, "Tidligere udbetalt"),
+    refund_testlinje(2025, 1234, "Tilbagebetalt efter § 55")
+]
+| uafklaret_refund_bevarer_kilde_og_faktakrav: uafklarede_linjer -> all(uafklarede_linjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje) == refund_uafklaret_forventning(linje))
+? uafklaret_refund_bevarer_kilde_og_faktakrav
+
+-- Den eksplicitte rute beholder eksakte øre, år og krav om kildegrundlag.
+= par55_linjer = map([0, 1, 1234, 100001], |beløb: Heltal| refund_testlinje(2025, beløb, "Fiktiv § 55-tilbagebetaling"))
+| par55_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = DirekteKildebeløbØre(mål = refof(KildeskatPar60KreditterØre::tilbagebetalt_par55_øre), beløb_øre = linje.beløb_øre, resterende_faktakrav = [Par55HjemmelOgBruttokreditterUdenDobbeltfradrag]))
+| dokumenteret_par55_kan_kortlægges_eksakt: par55_linjer -> all(par55_linjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_tilbagebetalt_forskudsskat_par55(linje, 2025) == par55_forventning(linje))
+? dokumenteret_par55_kan_kortlægges_eksakt
+
+= ugyldige_kildelinjer = [
+    refund_testlinje(0, 100001, "Tilbagebetalt"),
+    refund_testlinje(2025, 100001, ""),
+    PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "", indkomstår = 2025, linje_identifikation = "linje-1", linje_label = "Tilbagebetalt", beløb_øre = 100001),
+    PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv", indkomstår = 2025, linje_identifikation = "", linje_label = "Tilbagebetalt", beløb_øre = 100001)
+]
+| refund_ugyldig_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = UgyldigeKildelinjer)
+| begge_ruter_afviser_ugyldig_kilde: ugyldige_kildelinjer -> all(ugyldige_kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje) == refund_ugyldig_forventning(linje) && personskat_aarsopgoerelse_kortlaeg_tilbagebetalt_forskudsskat_par55(linje, 2025) == refund_ugyldig_forventning(linje))
+? begge_ruter_afviser_ugyldig_kilde
+
+= ugyldige_par55_linjer = [refund_testlinje(2024, 100001, "Tilbagebetalt"), refund_testlinje(2026, 100001, "Tilbagebetalt"), refund_testlinje(2025, -1, "Tilbagebetalt"), refund_testlinje(2025, -100001, "Tilbagebetalt")]
+| par55_ændrer_ikke_år_eller_fortegn: ugyldige_par55_linjer -> all(ugyldige_par55_linjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_tilbagebetalt_forskudsskat_par55(linje, 2025) == refund_ugyldig_forventning(linje))
+? par55_ændrer_ikke_år_eller_fortegn
+
+-- Ingen ny begrænsning eller feltændring i den tilstødende A-skat/AM-mapping.
+= indeholdt = refund_testlinje(2025, 1234567, "Indeholdt A-skat og AM")
+= indeholdt_mapping = personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am([indeholdt])
+| indeholdt_mapping_er_uændret: indeholdt_mapping -> indeholdt_mapping == PersonskatÅrsopgørelseMapping(kildelinjer = [indeholdt], anvendelse = DirekteKildebeløbØre(mål = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre), beløb_øre = 1234567, resterende_faktakrav = []))
+? indeholdt_mapping_er_uændret

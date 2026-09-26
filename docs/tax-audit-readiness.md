@@ -259,6 +259,21 @@ This does not authenticate amounts or establish a refund-versus-gross-credit cap
 Correction histories and the possible negative-net-credit floor remain separate
 `td-145088`; part-year/green-check execution was not rerun for this change.
 
+The [refund source-mapping regression](../tests/personskat_refund_mapping_test.runa)
+then reproduced a separate helper defect: a fictional prior annual refund mapped
+straight to `tilbagebetalt_par55_øre`, with no remaining fact requirements.
+That helper now requests the decision/payment evidence and refund classification.
+An explicit section-55 route preserves exact øre, checks year/nonnegative amount
+and retains source-classification/no-double-subtraction requirements. Six focused
+invariants cover ambiguous labels and signs, zero, exact øre, wrong years,
+incomplete source identity and an unchanged adjacent credit mapping.
+The [metadata regression](../tests/tax_refund_mapping_metadata.test.mjs) checks
+actual `runa meta --json` output: both helpers are linked to typed statutory
+provenance and the warning. The [migration guide](../examples/danish-income-tax/personskat-skattekreditter.md#tidligere-udbetaling-er-ikke-automatisk--55)
+keeps prior annual refunds in the separate payment-reconciliation route.
+This is not automatic classification of PDFs or a new canonical credit gate;
+tax formulas, canonical input types and the unresolved net-credit floor are unchanged.
+
 The [employer bank-pension year route](../examples/danish-income-tax/personskat-bankpension-aar.md)
 now separates unresolved treatment, ordinary payment-year treatment and a
 documented authority approval of the previous wage-withholding year. Previously
