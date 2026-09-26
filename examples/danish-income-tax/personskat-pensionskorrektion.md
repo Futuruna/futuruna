@@ -46,7 +46,7 @@ den følgende aprilfrist; den direkte modstrid afvises.
 tekniske grænse er år 9999, med oprindelig betaling senest i år 9998; det er
 ikke en lovbestemt udløbsdato. Årsberegningens øvrige årsdækning ændres ikke.
 
-## Eksempel på det nye felt
+## Eksempel på genindbetaling
 
 Dette er et **fiktivt feltudsnit**, ikke en komplet `runa call`-fil. Brug en
 frisk JSON-skabelon og dens kontrakt. En bankbetaling på 40.000 kr. den
@@ -77,9 +77,9 @@ Fristen er 19. januar 2026. Bankpostens skattemæssige indbetalingsår bliver
 til 20. januar, bliver bankpostens år 2026. Et samlet fradrag afhænger stadig
 af de øvrige betingelser og fælles årsgrænser.
 
-§ 18's fradragsår er særskilt fra faktisk betaling: de eksisterende § 15 A-
+§ 18's fradragsår er særskilt fra faktisk betaling: § 15 A-
 kontroller af oprettelse, indbetalingsperiode og seneste indbetaling omskrives
-ikke til et andet faktisk år. Dato-/årstesten er ikke en ny fuld konformitetstest
+ikke til et andet faktisk år. Dato-/årstesten er ikke en fuld konformitetstest
 af kombinationer med ophørspension eller sportspension.
 
 Almindelige betalinger bruger `false` og `par22e_genindbetaling: null`.
@@ -113,14 +113,15 @@ ret til tilbagebetaling.
 
 ## Migration og efterprøvning
 
-Typede beregninger er Preview. Nye typer og metadata ændrer kontrakthashen:
+Typede beregninger er Preview. Kontrakthashen skal svare til den valgte model:
 generer frisk schema og skabelon, overfør kun gennemgåede kildefakta og beregn
-berørte resultater igen. I `.runa`-konstruktører af `Pbl18Betaling` og
-`Pbl18Årsbetaling` tilføjes det nye valgfrie felt, normalt `None`.
+berørte resultater igen. Ved migrering af ældre `.runa`-konstruktører af
+`Pbl18Betaling` og `Pbl18Årsbetaling` angives det valgfrie felt
+`par22e_genindbetaling`, normalt `None`.
 Udeladt valgfrit felt i JSON betyder fravær, ikke dokumenteret korrektion.
 
 [Datogrænserne](../../tests/personskat_pension_redeposit_test.runa) og
 [den kanoniske regression](../../tests/personskat_pension_redeposit.test.mjs)
 bruger fiktive kilder og kontrollerer også fælles vejledning for hovedperson
-og ægtefælle. De er ikke nye uafhængige SKAT-observationer eller bevis for
+og ægtefælle. De er ikke uafhængige SKAT-observationer eller bevis for
 vilkårlige AI'ers læsning af pensionsbilag.
