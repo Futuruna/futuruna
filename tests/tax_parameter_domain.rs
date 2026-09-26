@@ -236,6 +236,96 @@ fn personal_allowance_domains_preserve_native_values_and_missing_year_errors() {
 }
 
 #[test]
+fn wage_year_routing_preserves_native_values_and_rejects_missing_domains() {
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let binary = std::fs::canonicalize(binary).unwrap();
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/tax_parameter_domain/wage_year_routing.runa");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-wage-native-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    // Build once: each rejected domain must exercise the same native artifact.
+    let build = Command::new(&binary)
+        .current_dir(&directory)
+        .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+        .args(["build", source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    if !build.status.success() {
+        let diagnostic = directory.join("build.stderr");
+        std::fs::write(&diagnostic, &build.stderr).unwrap();
+        panic!(
+            "wage build failed (full diagnostics: {}):\n{}",
+            diagnostic.display(),
+            String::from_utf8_lossy(&build.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let executable = directory.join(format!("wage_year_routing{}", std::env::consts::EXE_SUFFIX));
+    let run = |native: bool, case: &str| {
+        let mut command = Command::new(if native { &executable } else { &binary });
+        command
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+            .env("FUTURUNA_WAGE_YEAR_CASE", case);
+        if !native {
+            command.arg(&source);
+        }
+        command.output().unwrap()
+    };
+    let interpreted = run(false, "supported");
+    let native = run(true, "supported");
+    for output in [&interpreted, &native] {
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let rows: Vec<Vec<i64>> = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(rows.len(), 8);
+        assert!(rows.iter().all(|row| row.len() == 24));
+        // Existing synthetic model expectations, not new external SKAT goldens.
+        assert_eq!(&rows[2][..5], &[2025, 0, 0, 0, 174075]);
+        assert_eq!(&rows[4][..5], &[2026, 14010, 3757, 0, 348197]);
+        assert_eq!(&rows[5][..5], &[2026, 158910, 148657, 8365, 1498291]);
+        assert_eq!(&rows[7][1..5], &[0, 0, 0, 0]);
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+    for case in [
+        "historic-in-2026",
+        "middle-in-2025",
+        "top-in-2025",
+        "top-top-in-2025",
+        "missing-2022",
+        "missing-2027",
+    ] {
+        for native in [false, true] {
+            let output = run(native, case);
+            assert!(!output.status.success(), "{case}: accepted missing domain");
+            assert!(output.stdout.is_empty(), "{case}: fabricated wage result");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("head: empty list"),
+                "{case}: expected checked domain error: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    std::fs::remove_file(executable).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+    println!("Wage routing: eight native parity cases and six rejected domains passed");
+}
+
+#[test]
 fn spouse_loss_recipient_rates_preserve_capacity_and_priority() {
     // Full wage/tax native generation has separately tracked guarded-lookup
     // failures (td-124b83); this model change claims interpreter coverage only.
