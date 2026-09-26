@@ -74,6 +74,7 @@
     ejendomsværdi_året_før_kroner = beregningsgrundlag_kroner * 100 / 80,
     ejendomsværdi_2001_kroner = beregningsgrundlag_kroner,
     ejendomsværdi_2002_kroner = beregningsgrundlag_kroner,
+    succession = EjskEvslIngenSuccession,
     historisk_begrænsning = EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
         foregående_indkomstårs_ejendomsværdiskat_øre = None,
         par9_ydelsesgrundlag = None,
@@ -508,6 +509,7 @@
         ejendomsværdi_året_før_kroner = 1062500,
         ejendomsværdi_2001_kroner = 850000,
         ejendomsværdi_2002_kroner = 850000,
+        succession = EjskEvslIngenSuccession,
         historisk_begrænsning = EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
             foregående_indkomstårs_ejendomsværdiskat_øre = Some(400000),
             par9_ydelsesgrundlag = Some(EjendomsskattelovEvslPar9Ydelsesgrundlag(ejer = EjskEvslEfterlønVedÅretsUdgang, ægtefælle = EjskEvslPar9YdelseUoplyst)),
@@ -525,6 +527,53 @@
 )
 = ejsk_overgang_efterløn_tidligere = ejendomsskattelov_tidligere_ejendomsværdiskat_2024_resultat(ejsk_overgang_efterløn_fakta)
 | ejsk_overgang_efterløn_giver_loft_men_ikke_aldersnedslag: ejsk_overgang_efterløn_tidligere -> ejsk_overgang_efterløn_tidligere.input_gyldigt && ejsk_overgang_efterløn_tidligere.par8_nedslag_før_par10_øre == 0 && ejsk_overgang_efterløn_tidligere.par10_reduktion_øre == 0 && ejsk_overgang_efterløn_tidligere.par9_eller_par9a_begrænset_skat_øre == 450000 && ejsk_overgang_efterløn_tidligere.skat_øre == 450000 && ejsk_overgang_efterløn_tidligere.skat_til_forskelsbeløb_øre == 450000
+
+-- Fiktivt dokumenteret historisk personkredsgrundlag; ikke afdødes skatteberegning.
+| ejsk_overgang_længstlevende(død: EjendomsskattelovDato, nyt_ægteskab: EjendomsskattelovEvslNytÆgteskab, par8: Option(Boolsk), par9: Option(Boolsk), bliver_boende: Option(Boolsk), ikke_separerede: Option(Boolsk), tilhørt: Option(Boolsk)) -> EjskEvslLængstlevende(fakta = EjendomsskattelovEvslLængstlevendeFakta(
+    dødsdato = død,
+    ægtefæller_ikke_separerede = ikke_separerede,
+    bliver_boende = bliver_boende,
+    ejendommen_har_tilhørt_en_af_ægtefællerne = tilhørt,
+    afdødes_par8_personkreds = par8,
+    afdødes_par9_personkreds = par9,
+    nyt_ægteskab = nyt_ægteskab
+))
+| ejsk_overgang_succession_fakta(succession: EjendomsskattelovEvslSuccession) -> EjendomsskattelovRabat2024Fakta(
+    kontekst_2024 = ejsk_overgang_efterløn_basis.kontekst_2024,
+    ny_lov_helårsgrundlag = ejsk_overgang_efterløn_basis.ny_lov_helårsgrundlag,
+    ny_lov_nedslagsfakta = ejsk_overgang_efterløn_basis.ny_lov_nedslagsfakta,
+    tidligere_ejendomsværdiskat = EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(
+        ejendomsværdi_året_før_kroner = 1062500,
+        ejendomsværdi_2001_kroner = 850000,
+        ejendomsværdi_2002_kroner = 850000,
+        succession = succession,
+        historisk_begrænsning = EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
+            foregående_indkomstårs_ejendomsværdiskat_øre = Some(400000),
+            par9_ydelsesgrundlag = Some(EjendomsskattelovEvslPar9Ydelsesgrundlag(ejer = EjskEvslIngenPar9Ydelse, ægtefælle = EjskEvslIngenPar9Ydelse)),
+            par9b_nedsættelse_øre = 0,
+            vurderet_helt_eller_delvis_benyttet_til_ejerbolig = Sandt,
+            ejerlejlighed_frigjort_for_lejemål = Falskt,
+            ombygning_over_100_procent = Falskt
+        ),
+        udenlandske_ejendomsskatter = []
+    ),
+    tidligere_grundskyld = ejsk_overgang_efterløn_basis.tidligere_grundskyld,
+    byggeri = EjskIngenNyEllerOmbygning,
+    grundskyld_fritaget_basispoint = 0,
+    grundskyld_kan_fordeles_på_samme_boligenhed = Sandt
+)
+= ejsk_overgang_dødsdato = EjendomsskattelovDato(år = 2023, måned = 6, dag = 1)
+= ejsk_overgang_nyt_ægteskab_2024 = EjskEvslNytÆgteskabIndgået(dato = EjendomsskattelovDato(år = 2024, måned = 1, dag = 1))
+= ejsk_overgang_succession_2024 = ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, ejsk_overgang_nyt_ægteskab_2024, Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt))
+= ejsk_overgang_succession_resultat = ejendomsskattelov_tidligere_ejendomsværdiskat_2024_resultat(ejsk_overgang_succession_fakta(ejsk_overgang_succession_2024))
+= ejsk_overgang_ydelsessuccession_resultat = ejendomsskattelov_tidligere_ejendomsværdiskat_2024_resultat(ejsk_overgang_succession_fakta(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, ejsk_overgang_nyt_ægteskab_2024, Some(Falskt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt))))
+= ejsk_overgang_uoplyst_succession = ejendomsskattelov_tidligere_ejendomsværdiskat_2024_resultat(ejsk_overgang_succession_fakta(EjskEvslSuccessionUoplyst))
+| ejsk_overgang_gammel_succession_bevares_i_ægteskabsåret: ejsk_overgang_succession_resultat -> ejsk_overgang_succession_resultat.input_gyldigt && ejsk_overgang_succession_resultat.par8_nedslag_før_par10_øre == 314500 && ejsk_overgang_succession_resultat.skat_øre == 450000 && ejsk_overgang_succession_resultat.skat_til_forskelsbeløb_øre == 450000
+| ejsk_overgang_ydelsessuccession_giver_ikke_par8: ejsk_overgang_ydelsessuccession_resultat -> ejsk_overgang_ydelsessuccession_resultat.input_gyldigt && ejsk_overgang_ydelsessuccession_resultat.par8_nedslag_før_par10_øre == 0 && ejsk_overgang_ydelsessuccession_resultat.skat_til_forskelsbeløb_øre == 450000
+| ejsk_overgang_ukendt_succession_er_ikke_ingen: ejsk_overgang_uoplyst_succession -> ejsk_overgang_uoplyst_succession.input_gyldigt == Falskt && ejsk_overgang_uoplyst_succession.skat_øre == 0 && ejsk_overgang_uoplyst_succession.skat_til_forskelsbeløb_øre == 0
+| ejsk_overgang_succession_afviser_umulige_datoer: ejsk_overgang_dødsdato -> ejendomsskattelov_evsl_succession_input_gyldigt(ejsk_overgang_længstlevende(EjendomsskattelovDato(år = 2023, måned = 2, dag = 30), EjskEvslIntetNytÆgteskab, Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt))) == Falskt && ejendomsskattelov_evsl_succession_input_gyldigt(ejsk_overgang_længstlevende(EjendomsskattelovDato(år = 2025, måned = 1, dag = 1), EjskEvslIntetNytÆgteskab, Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt))) == Falskt && ejendomsskattelov_evsl_succession_input_gyldigt(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, EjskEvslNytÆgteskabIndgået(dato = EjendomsskattelovDato(år = 2023, måned = 5, dag = 31)), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt))) == Falskt
+| ejsk_overgang_succession_bevarer_delvis_viden: ejsk_overgang_dødsdato -> ejendomsskattelov_evsl_succession_personkreds(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, EjskEvslNytÆgteskabUoplyst, Some(Falskt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt)), Sandt) == Some(Falskt) && ejendomsskattelov_evsl_succession_personkreds(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, EjskEvslNytÆgteskabUoplyst, Some(Falskt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt)), Falskt) == None
+| ejsk_overgang_succession_kræver_beboelse_ægteskab_og_ejendom: ejsk_overgang_dødsdato -> ejendomsskattelov_evsl_succession_personkreds(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, EjskEvslIntetNytÆgteskab, Some(Sandt), Some(Sandt), None, Some(Sandt), Some(Sandt)), Sandt) == None && ejendomsskattelov_evsl_succession_personkreds(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, EjskEvslIntetNytÆgteskab, Some(Sandt), Some(Sandt), Some(Sandt), Some(Falskt), Some(Sandt)), Sandt) == Some(Falskt) && ejendomsskattelov_evsl_succession_personkreds(ejsk_overgang_længstlevende(ejsk_overgang_dødsdato, EjskEvslIntetNytÆgteskab, Some(Sandt), Some(Sandt), Some(Sandt), Some(Sandt), Some(Falskt)), Falskt) == Some(Falskt)
 
 | ejsk_overgang_officielt_eksempel_giver_1090_kroner: ejsk_overgang_officielt_resultat -> ejsk_overgang_officielt_resultat.regelgrundlag_understøttet && ejsk_overgang_officielt_resultat.overgang.rabat_ejendomsværdiskat_øre == 109000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_før_overgang_øre == 618000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_øre == 509000
 | ejsk_overgang_par72_hel_februar_er_30_dage: ejsk_overgang_hel_februar_2025 -> ejsk_overgang_hel_februar_2025.datoer_gyldige && ejsk_overgang_hel_februar_2025.skattepligtige_dage == 30 && ejsk_overgang_hel_februar_2024.datoer_gyldige && ejsk_overgang_hel_februar_2024.skattepligtige_dage == 30
@@ -551,6 +600,12 @@
 
 ? ejsk_overgang_officielt_eksempel_giver_1090_kroner
 ? ejsk_overgang_efterløn_giver_loft_men_ikke_aldersnedslag
+? ejsk_overgang_gammel_succession_bevares_i_ægteskabsåret
+? ejsk_overgang_ydelsessuccession_giver_ikke_par8
+? ejsk_overgang_ukendt_succession_er_ikke_ingen
+? ejsk_overgang_succession_afviser_umulige_datoer
+? ejsk_overgang_succession_bevarer_delvis_viden
+? ejsk_overgang_succession_kræver_beboelse_ægteskab_og_ejendom
 ? ejsk_overgang_par72_hel_februar_er_30_dage
 ? ejsk_overgang_par72_skudårets_28_februar_er_ikke_månedens_sidste_dag
 ? ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet

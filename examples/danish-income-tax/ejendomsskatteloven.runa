@@ -90,6 +90,12 @@
     hentet_dato = "2026-09-26"
 )
 
+= ejendomsskatteloven_l113_bemaerkninger_par25 = EjendomsskattelovKildeInfo(
+    url = "https://www.ft.dk/ripdf/samling/20222/lovforslag/l113/20222_l113_som_fremsat.pdf",
+    identifier = "L 113, 2022-23 (2. samling), bemærkninger til § 25, trykte sider 153-155: historisk succession og ændret virkning af nyt ægteskab",
+    hentet_dato = "2026-09-26"
+)
+
 = ejendomsskatteloven_tidligere_kommunale_ejendomsskattelov = EjendomsskattelovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2020/1463",
     identifier = "Tidligere lov om kommunal ejendomsskat §§ 1-2",
@@ -932,6 +938,7 @@ ejendomsværdiskat.
         Source(value = ejendomsskatteloven_lov678_par35_til_45),
         Source(value = ejendomsskatteloven_tidligere_ejendomsvaerdiskattelov),
         AmendmentSource(value = ejendomsskatteloven_evsl_lov2202_par11),
+        Guidance(value = ejendomsskatteloven_l113_bemaerkninger_par25),
         Source(value = ejendomsskatteloven_tidligere_kommunale_ejendomsskattelov),
         Guidance(value = ejendomsskatteloven_vejledning_forskelsbeloeb_ejendomsvaerdiskat),
         Guidance(value = ejendomsskatteloven_vejledning_forskelsbeloeb_grundskyld),
@@ -1161,6 +1168,14 @@ Nedslaget kan højst udgøre 6.000 kr. pr. bolig.
 For fritidsboliger, bortset fra sommerhuse, der efter tilladelse anvendes som
 helårsbolig, kan nedslaget dog højst udgøre 2.000 kr. pr. fritidsbolig.
 
+Stk. 3. Nedslaget efter stk. 1 og 2 gives tilsvarende til en længstlevende
+ægtefælle, som ikke opfylder betingelserne for nedsættelse, hvis denne efter
+den anden ægtefælles død bliver boende i en ejendom, som har tilhørt en af
+ægtefællerne. Det er en betingelse, at ægtefællerne ikke var separerede ved
+dødsfaldet. Hvis den længstlevende ægtefælle indgår ægteskab, ophører retten
+til at indtræde i nedslaget med virkning fra begyndelsen af det første
+påbegyndte indkomstår efter ægteskabets indgåelse.
+
 § 9. Den beregnede ejendomsværdiskat, jf. §§ 5-8, 9 a og 9 b, begrænses efter
 reglerne i stk. 2-6, for skattepligtige,
 1) der inden udgangen af indkomståret har nået folkepensionsalderen, jf. § 1 a
@@ -1176,6 +1191,14 @@ arbejdsløshedsforsikring m.v.,
 eller
 5) hvis ægtefælle opfylder betingelserne i nr. 1, 2, 3 eller 4 og ægtefællerne
 er samlevende ved indkomstårets udløb.
+
+Stk. 3. Nedsættelse efter stk. 2 gives tilsvarende til en længstlevende
+ægtefælle, som ikke opfylder betingelserne for nedsættelse, hvis denne efter
+den anden ægtefælles død bliver boende i en ejendom, som har tilhørt en af
+ægtefællerne. Det er en betingelse, at ægtefællerne ikke var separerede ved
+dødsfaldet. Hvis den længstlevende ægtefælle indgår ægteskab, ophører retten
+til at indtræde i nedsættelse med virkning fra begyndelsen af det første
+påbegyndte indkomstår efter ægteskabets indgåelse.
 
 § 10. Nedslaget efter § 8 reduceres med 5 procent af et beregningsgrundlag, som
 opgøres som den del af den skattepligtiges personlige indkomst med tillæg af
@@ -1219,8 +1242,11 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
 # EjendomsskattelovEvslPar9SocialYdelse = EjskEvslFørtidspension | EjskEvslSeniorpension | EjskEvslTidligPension | EjskEvslInvaliditetsydelseMedBistandsEllerPlejetillæg
 # EjendomsskattelovEvslPar9Ydelse = EjskEvslPar9YdelseUoplyst | EjskEvslIngenPar9Ydelse | EjskEvslModtagerSocialYdelse(ydelse: EjendomsskattelovEvslPar9SocialYdelse, fødselsdato: EjendomsskattelovDato) | EjskEvslEfterlønVedÅretsUdgang | EjskEvslFleksydelseVedÅretsUdgang
 # EjendomsskattelovEvslPar9Ydelsesgrundlag(ejer: EjendomsskattelovEvslPar9Ydelse, ægtefælle: EjendomsskattelovEvslPar9Ydelse)
+# EjendomsskattelovEvslNytÆgteskab = EjskEvslNytÆgteskabUoplyst | EjskEvslIntetNytÆgteskab | EjskEvslNytÆgteskabIndgået(dato: EjendomsskattelovDato)
+# EjendomsskattelovEvslLængstlevendeFakta(dødsdato: EjendomsskattelovDato, ægtefæller_ikke_separerede: Option(Boolsk), bliver_boende: Option(Boolsk), ejendommen_har_tilhørt_en_af_ægtefællerne: Option(Boolsk), afdødes_par8_personkreds: Option(Boolsk), afdødes_par9_personkreds: Option(Boolsk), nyt_ægteskab: EjendomsskattelovEvslNytÆgteskab)
+# EjendomsskattelovEvslSuccession = EjskEvslSuccessionUoplyst | EjskEvslIngenSuccession | EjskEvslLængstlevende(fakta: EjendomsskattelovEvslLængstlevendeFakta)
 # EjendomsskattelovEvslHistoriskeBegrænsningsfakta(foregående_indkomstårs_ejendomsværdiskat_øre: Option(Heltal), par9_ydelsesgrundlag: Option(EjendomsskattelovEvslPar9Ydelsesgrundlag), par9b_nedsættelse_øre: Heltal, vurderet_helt_eller_delvis_benyttet_til_ejerbolig: Boolsk, ejerlejlighed_frigjort_for_lejemål: Boolsk, ombygning_over_100_procent: Boolsk)
-# EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(ejendomsværdi_året_før_kroner: Heltal, ejendomsværdi_2001_kroner: Heltal, ejendomsværdi_2002_kroner: Heltal, historisk_begrænsning: EjendomsskattelovEvslHistoriskeBegrænsningsfakta, udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling))
+# EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(ejendomsværdi_året_før_kroner: Heltal, ejendomsværdi_2001_kroner: Heltal, ejendomsværdi_2002_kroner: Heltal, succession: EjendomsskattelovEvslSuccession, historisk_begrænsning: EjendomsskattelovEvslHistoriskeBegrænsningsfakta, udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling))
 # EjendomsskattelovTidligereGrundskyld2024Fakta(grundværdi_efter_fradrag_og_fritagelser_kroner: Heltal, foregående_års_afgiftspligtige_grundværdi_kroner: Heltal, grundskyld_promille_2023_tiendedele: Heltal)
 # EjendomsskattelovRabat2024Fakta(kontekst_2024: EjendomsskattelovPersonÅrskontekst, ny_lov_helårsgrundlag: EjendomsskattelovOrdinærPersonEjendomFakta, ny_lov_nedslagsfakta: EjendomsskattelovNedslagsfakta, tidligere_ejendomsværdiskat: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta, tidligere_grundskyld: EjendomsskattelovTidligereGrundskyld2024Fakta, byggeri: EjendomsskattelovByggeriVedOvergang, grundskyld_fritaget_basispoint: Heltal, grundskyld_kan_fordeles_på_samme_boligenhed: Boolsk)
 # EjendomsskattelovÆgtefælleoverdragelsesgrund = EjskOverdragelseMellemÆgtefæller | EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo: Boolsk, har_overtaget_ejendommen_eller_ejerandelen: Boolsk) | EjskSkilsmisseoverdragelse(boet_er_endnu_ikke_delt: Boolsk)
@@ -1266,10 +1292,10 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
     | EjskOmbygningVedOvergang(Some(dato), underkendt, før_ombygning) -> underkendt == Falskt && (ejendomsskattelov_dato_før_eller_lig_med(dato, EjendomsskattelovDato(år = 2024, måned = 1, dag = 1)) || før_ombygning)
 }
 | ejendomsskattelov_evsl_historiske_begrænsningsfakta_gyldige(fakta: EjendomsskattelovEvslHistoriskeBegrænsningsfakta) -> ejendomsskattelov_heltal_option_ikke_negativt(fakta.foregående_indkomstårs_ejendomsværdiskat_øre) && fakta.par9b_nedsættelse_øre >= 0
-| ejendomsskattelov_tidligere_ejendomsværdiskat_2024_fakta_gyldige(fakta: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta) -> fakta.ejendomsværdi_året_før_kroner >= 0 && fakta.ejendomsværdi_2001_kroner >= 0 && fakta.ejendomsværdi_2002_kroner >= 0 && ejendomsskattelov_evsl_historiske_begrænsningsfakta_gyldige(fakta.historisk_begrænsning) && ejendomsskattelov_udenlandske_ejendomsskatter_gyldige(fakta.udenlandske_ejendomsskatter)
+| ejendomsskattelov_tidligere_ejendomsværdiskat_2024_fakta_gyldige(fakta: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta) -> fakta.ejendomsværdi_året_før_kroner >= 0 && fakta.ejendomsværdi_2001_kroner >= 0 && fakta.ejendomsværdi_2002_kroner >= 0 && ejendomsskattelov_evsl_succession_input_gyldigt(fakta.succession) && ejendomsskattelov_evsl_historiske_begrænsningsfakta_gyldige(fakta.historisk_begrænsning) && ejendomsskattelov_udenlandske_ejendomsskatter_gyldige(fakta.udenlandske_ejendomsskatter)
 | ejendomsskattelov_tidligere_grundskyld_2024_fakta_gyldige(fakta: EjendomsskattelovTidligereGrundskyld2024Fakta) -> fakta.grundværdi_efter_fradrag_og_fritagelser_kroner >= 0 && fakta.foregående_års_afgiftspligtige_grundværdi_kroner >= 0 && fakta.grundskyld_promille_2023_tiendedele >= 0
 | ejendomsskattelov_rabat_2024_helårsgrundlag_gyldigt(fakta: EjendomsskattelovRabat2024Fakta) -> fakta.kontekst_2024.indkomstår == 2024 && fakta.ny_lov_helårsgrundlag.ejendomsværdiskatteperiode == HeleEjendomsskatteåret && fakta.ny_lov_helårsgrundlag.grundskyldsperiode == HeleEjendomsskatteåret
-| ejendomsskattelov_rabat_2024_fakta_gyldige(fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_rabat_2024_helårsgrundlag_gyldigt(fakta) && ejendomsskattelov_person_årskontekst_gyldig(fakta.kontekst_2024) && ejendomsskattelov_nedslagsfakta_gyldige(fakta.ny_lov_nedslagsfakta) && ejendomsskattelov_tidligere_ejendomsværdiskat_2024_fakta_gyldige(fakta.tidligere_ejendomsværdiskat) && ejendomsskattelov_evsl_par9_ydelsesgrundlag_gyldigt(fakta) && ejendomsskattelov_tidligere_grundskyld_2024_fakta_gyldige(fakta.tidligere_grundskyld) && ejendomsskattelov_byggeri_ved_overgang_input_gyldigt(fakta.byggeri) && fakta.grundskyld_fritaget_basispoint >= 0 && fakta.grundskyld_fritaget_basispoint <= 10000
+| ejendomsskattelov_rabat_2024_fakta_gyldige(fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_rabat_2024_helårsgrundlag_gyldigt(fakta) && ejendomsskattelov_person_årskontekst_gyldig(fakta.kontekst_2024) && ejendomsskattelov_nedslagsfakta_gyldige(fakta.ny_lov_nedslagsfakta) && ejendomsskattelov_tidligere_ejendomsværdiskat_2024_fakta_gyldige(fakta.tidligere_ejendomsværdiskat) && ejendomsskattelov_evsl_succession_grundlag_gyldigt(fakta) && ejendomsskattelov_evsl_par9_ydelsesgrundlag_gyldigt(fakta) && ejendomsskattelov_tidligere_grundskyld_2024_fakta_gyldige(fakta.tidligere_grundskyld) && ejendomsskattelov_byggeri_ved_overgang_input_gyldigt(fakta.byggeri) && fakta.grundskyld_fritaget_basispoint >= 0 && fakta.grundskyld_fritaget_basispoint <= 10000
 
 | ejendomsskattelov_evsl_par4a_beregningsgrundlag_kroner(fakta: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta) -> penge_mindste_beløb(fakta.ejendomsværdi_året_før_kroner * 80 / 100, penge_mindste_beløb(fakta.ejendomsværdi_2001_kroner * 105 / 100, fakta.ejendomsværdi_2002_kroner))
 | ejendomsskattelov_evsl_par5_skat_før_nedslag_øre(grundlag_kroner: Heltal, ejerandel_basispoint: Heltal) -> penge_øre_nedrundet((penge_mindste_beløb(grundlag_kroner, 3040000) * 92 + penge_positivt_beløb(grundlag_kroner - 3040000) * 300) * ejerandel_basispoint, 100 * 10000)
@@ -1277,6 +1303,54 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
 | ejendomsskattelov_evsl_par7_nedslag_øre(grundlag_kroner: Heltal, ejerandel_basispoint: Heltal, nedslagsfakta: EjendomsskattelovNedslagsfakta, berettiget: Boolsk) -> hvis berettiget { penge_øre_nedrundet(penge_mindste_beløb(penge_øre_nedrundet(grundlag_kroner * 37, 100), 120000 * nedslagsfakta.selvstændige_boligenheder) * ejerandel_basispoint, 10000) } ellers { 0 }
 | ejendomsskattelov_evsl_par8_nedslag_før_par10_øre(grundlag_kroner: Heltal, ejerandel_basispoint: Heltal, nedslagsfakta: EjendomsskattelovNedslagsfakta, berettiget: Boolsk) -> hvis berettiget { penge_øre_nedrundet(penge_mindste_beløb(penge_øre_nedrundet(grundlag_kroner * 37, 100), ejendomsskattelov_par25_helårsloft_øre(nedslagsfakta)) * ejerandel_basispoint, 10000) } ellers { 0 }
 | ejendomsskattelov_evsl_par9_eller_par9a_betingelser_opfyldt(fakta: EjendomsskattelovEvslHistoriskeBegrænsningsfakta) -> fakta.vurderet_helt_eller_delvis_benyttet_til_ejerbolig && fakta.ejerlejlighed_frigjort_for_lejemål == Falskt && fakta.ombygning_over_100_procent == Falskt
+
+-- Gamle §§ 8/9 bruger dødsfald, fortsat beboelse og året EFTER nyt ægteskab.
+-- Ingen genbrug af den nye § 25's rådighed/plejehjem/ægteskabsår.
+-- Afdødes historiske personkreds er særskilt kildegrundlag, ikke en beregning
+-- af afdødes skatteforhold eller en slutning fra et faktisk nedslagsbeløb.
+> ejendomsskattelov_evsl_kendt_og(venstre: Option(Boolsk), højre: Option(Boolsk)) -> Option(Boolsk) {
+    hvis venstre == Some(Falskt) || højre == Some(Falskt) { Some(Falskt) } ellers {
+        hvis venstre == Some(Sandt) && højre == Some(Sandt) { Some(Sandt) } ellers { None }
+    }
+}
+> ejendomsskattelov_evsl_succession_input_gyldigt(succession: EjendomsskattelovEvslSuccession) -> Boolsk {
+    match succession {
+        | EjskEvslSuccessionUoplyst -> Sandt
+        | EjskEvslIngenSuccession -> Sandt
+        | EjskEvslLængstlevende(fakta) -> ejendomsskattelov_dato_gyldig(fakta.dødsdato) && fakta.dødsdato.år <= 2024 && (fakta.afdødes_par8_personkreds != Some(Sandt) || fakta.afdødes_par9_personkreds != Some(Falskt)) && match fakta.nyt_ægteskab {
+            | EjskEvslNytÆgteskabUoplyst -> Sandt
+            | EjskEvslIntetNytÆgteskab -> Sandt
+            | EjskEvslNytÆgteskabIndgået(dato) -> ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_før_eller_lig_med(fakta.dødsdato, dato)
+        }
+    }
+}
+> ejendomsskattelov_evsl_succession_personkreds(succession: EjendomsskattelovEvslSuccession, par8: Boolsk) -> Option(Boolsk) {
+    match succession {
+        | EjskEvslSuccessionUoplyst -> None
+        | EjskEvslIngenSuccession -> Some(Falskt)
+        | EjskEvslLængstlevende(fakta) -> {
+            = ægteskab = match fakta.nyt_ægteskab {
+                | EjskEvslNytÆgteskabUoplyst -> None
+                | EjskEvslIntetNytÆgteskab -> Some(Sandt)
+                | EjskEvslNytÆgteskabIndgået(dato) -> Some(dato.år >= 2024)
+            }
+            = afdødes_personkreds = hvis par8 { fakta.afdødes_par8_personkreds } ellers {
+                hvis fakta.afdødes_par8_personkreds == Some(Sandt) { Some(Sandt) } ellers { fakta.afdødes_par9_personkreds }
+            }
+            ejendomsskattelov_evsl_kendt_og(afdødes_personkreds, ejendomsskattelov_evsl_kendt_og(ægteskab, ejendomsskattelov_evsl_kendt_og(fakta.ægtefæller_ikke_separerede, ejendomsskattelov_evsl_kendt_og(fakta.bliver_boende, fakta.ejendommen_har_tilhørt_en_af_ægtefællerne))))
+        }
+    }
+}
+| ejendomsskattelov_evsl_direkte_aldersbetingelse_opfyldt(fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_par25_pensionsbetingelse_opfyldt(fakta.kontekst_2024, EjskIngenPensionistsuccession)
+| ejendomsskattelov_evsl_par8_personkreds_opfyldt(fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_evsl_direkte_aldersbetingelse_opfyldt(fakta) || ejendomsskattelov_evsl_succession_personkreds(fakta.tidligere_ejendomsværdiskat.succession, Sandt) == Some(Sandt)
+> ejendomsskattelov_evsl_succession_grundlag_gyldigt(fakta: EjendomsskattelovRabat2024Fakta) -> Boolsk {
+    = succession = fakta.tidligere_ejendomsværdiskat.succession
+    = historik = fakta.tidligere_ejendomsværdiskat.historisk_begrænsning
+    = direkte_alder = ejendomsskattelov_evsl_direkte_aldersbetingelse_opfyldt(fakta)
+    = par8_afgjort = direkte_alder || ejendomsskattelov_par25_hjemsted_betingelser_opfyldt(fakta.kontekst_2024.kildefakta.skattemæssigt_hjemsted) == Falskt || ejendomsskattelov_evsl_succession_personkreds(succession, Sandt) != None
+    = par9_afgjort = direkte_alder || ejendomsskattelov_evsl_par9_ydelser_opfyldt(fakta) || historik.foregående_indkomstårs_ejendomsværdiskat_øre == None || ejendomsskattelov_evsl_par9_eller_par9a_betingelser_opfyldt(historik) == Falskt || ejendomsskattelov_evsl_succession_personkreds(succession, Falskt) != None
+    ejendomsskattelov_evsl_succession_input_gyldigt(succession) && par8_afgjort && par9_afgjort
+}
 
 -- Ydelsesmodtagelse er historiske kildefakta, ikke en slutning fra årets indkomst.
 -- § 9's personkreds må ikke genbruges som ret til § 8's aldersnedslag.
@@ -1295,7 +1369,7 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
     | None -> Falskt
     | Some(ydelser) -> ejendomsskattelov_evsl_par9_ydelse_opfyldt(ydelser.ejer) || (fakta.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang && ejendomsskattelov_evsl_par9_ydelse_opfyldt(ydelser.ægtefælle))
 }
-| ejendomsskattelov_evsl_par9_personkreds_opfyldt(fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_par25_pensionsbetingelse_opfyldt(fakta.kontekst_2024, fakta.ny_lov_nedslagsfakta.pensionistsuccession) || ejendomsskattelov_evsl_par9_ydelser_opfyldt(fakta)
+| ejendomsskattelov_evsl_par9_personkreds_opfyldt(fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_evsl_direkte_aldersbetingelse_opfyldt(fakta) || ejendomsskattelov_evsl_par9_ydelser_opfyldt(fakta) || ejendomsskattelov_evsl_succession_personkreds(fakta.tidligere_ejendomsværdiskat.succession, Falskt) == Some(Sandt)
 > ejendomsskattelov_evsl_par9_ydelsesgrundlag_gyldigt(fakta: EjendomsskattelovRabat2024Fakta) -> Boolsk {
     = historik = fakta.tidligere_ejendomsværdiskat.historisk_begrænsning
     = ydelsesoplysninger_unødvendige = historik.foregående_indkomstårs_ejendomsværdiskat_øre == None || ejendomsskattelov_evsl_par9_eller_par9a_betingelser_opfyldt(historik) == Falskt || ejendomsskattelov_evsl_par9_personkreds_opfyldt(fakta)
@@ -1318,7 +1392,7 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
     = skat_før_nedslag_øre = ejendomsskattelov_evsl_par5_skat_før_nedslag_øre(beregningsgrundlag_kroner, ejerandel_basispoint)
     = par6_berettiget = ejerskab_2024.ret_til_par23_og_par24
     = par7_berettiget = par6_berettiget && ejendomsskattelov_par24_kategori_omfattet(ejendomsskattelov_par3_hjemmel(fakta.ny_lov_helårsgrundlag.kategori, 2024)) && fakta.ny_lov_nedslagsfakta.ejendomsform == EjskIkkeEjerlejlighed && fakta.ny_lov_nedslagsfakta.fredet_og_omfattet_af_ligningslovens_par15k == Falskt
-    = pensionist = ejendomsskattelov_par25_pensionsbetingelse_opfyldt(fakta.kontekst_2024, fakta.ny_lov_nedslagsfakta.pensionistsuccession) && ejendomsskattelov_par25_hjemsted_betingelser_opfyldt(fakta.kontekst_2024.kildefakta.skattemæssigt_hjemsted)
+    = pensionist = ejendomsskattelov_evsl_par8_personkreds_opfyldt(fakta) && ejendomsskattelov_par25_hjemsted_betingelser_opfyldt(fakta.kontekst_2024.kildefakta.skattemæssigt_hjemsted)
     = par9_berettiget = ejendomsskattelov_evsl_par9_personkreds_opfyldt(fakta)
     = par6_nedslag_øre = ejendomsskattelov_evsl_par6_nedslag_øre(beregningsgrundlag_kroner, ejerandel_basispoint, par6_berettiget)
     = par7_nedslag_øre = ejendomsskattelov_evsl_par7_nedslag_øre(beregningsgrundlag_kroner, ejerandel_basispoint, fakta.ny_lov_nedslagsfakta, par7_berettiget)

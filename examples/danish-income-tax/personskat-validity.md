@@ -158,14 +158,75 @@ og dermed 3.660 kr. i rabat. Før rettelsen anvendte modellen § 9 a og fik
 opnå forskellen. Det er en kildebaseret modelregression, ikke et eksternt
 match eller en konstateret fejl i en virkelig årsopgørelse.
 
-Historiske længstlevenderuter er **ikke fuldt afklaret** af denne ændring.
-Den eksisterende delte pensionssuccession skal stadig adskilles fra de gamle
-§§ 8 og 9, navnlig ydelsesbaseret succession og virkningen af nyt ægteskab
-(`td-a30c1f`). Brug ikke disse grene som dokumenteret fuld lovdækning.
+Historisk længstlevendesuccession har et selvstændigt kildegrundlag, som
+beskrevet nedenfor. Den må ikke udledes af nutidige pensionsaldersfakta.
 
 **Preview-migration:** Generér frisk schema/skabelon og genindsæt gennemgåede
 fakta. Feltet og metadata ændrer fingerprintet; omskriv ikke hash i gamle
 sager. Uoplyste ydelser må ikke migreres til `EjskEvslIngenPar9Ydelse`.
+
+## Historisk længstlevendesuccession
+
+`tidligere_ejendomsværdiskat.succession` adskiller gamle
+[EVSL § 8, stk. 3, og § 9, stk. 3](https://www.retsinformation.dk/eli/lta/2020/1590)
+fra `ny_lov_nedslagsfakta.pensionistsuccession` efter
+[ESL § 25](https://www.retsinformation.dk/eli/lta/2023/678).
+Gamle regler lader succession ophøre fra indkomståret **efter** nyt ægteskab;
+den nye § 25 bruger selve ægteskabsåret. Gamle regler bruger fortsat beboelse
+efter dødsfald, mens den nye ordlyd bruger rådighed og også nævner plejehjem.
+Forskellen i beboelse/rådighed og ægteskabsår forklares i
+[L 113's bemærkninger til § 25, trykte sider 153–155](https://www.ft.dk/ripdf/samling/20222/lovforslag/l113/20222_l113_som_fremsat.pdf).
+En plejehjemsdato må ikke indtastes som en dødsdato; uafklaret anvendelse af
+ældre regler eller praksis skal forblive uafklaret, ikke blive et afslag.
+
+Vælg mellem:
+
+- `EjskEvslSuccessionUoplyst`: det gamle grundlag er ukendt.
+- `EjskEvslIngenSuccession`: afklaret fravær af gammelt successionsgrundlag,
+  ikke blot manglende dokumentation eller fravær af nuværende ægtefælle.
+- `EjskEvslLængstlevende`: `fakta` indeholder dødsdato og særskilte oplysninger
+  om, at ægtefællerne ikke var separerede ved dødsfaldet, fortsat beboelse,
+  ejendommens tilhørsforhold til en af ægtefællerne, afdødes personkreds efter
+  §§ 8/9 og eventuelt nyt ægteskab.
+
+De fem boolske oplysninger i `fakta` bruger `null` for ukendt. Nyt ægteskab
+har tre alternativer: `EjskEvslNytÆgteskabUoplyst`,
+`EjskEvslIntetNytÆgteskab` og `EjskEvslNytÆgteskabIndgået` med `dato`.
+Oplys det første nye ægteskab efter dødsfaldet, også hvis dette ægteskab siden
+er ophørt. Datoer skal være gyldige og kronologiske; et dødsfald efter 2024
+kan ikke bruges i dette 2024-grundlag. Kalenderårsmodellen genberegner ikke
+forskudte indkomstår.
+
+**Afgrænsning af kildefakta:** `afdødes_par8_personkreds` og
+`afdødes_par9_personkreds` er særskilt dokumenterede historiske kvalifikationer
+før dødsfaldet. Denne indgang genberegner ikke afdødes alder, ydelsestildeling
+eller hele tidligere skat. En udbetalt pension eller en linje med nul i nedslag
+afgør ikke alene personkredsen. Brug en afklaret historisk opgørelse eller
+begrundelse i den private kildelog; gæt ikke et ja for at opnå et beløb.
+Kan kvalifikationen ikke fastslås, bevares `null`. Det er en betinget
+beregning med dette kildegrundlag, ikke uafhængig validering af afdødes skat.
+
+§ 8-personkreds indebærer § 9-personkreds. `true` for § 8 og `false` for § 9
+afvises som modstrid; `true` for § 8 er tilstrækkeligt ved ukendt § 9.
+Omvendt kan en ydelsesbaseret § 9-kvalifikation give stigningsbegrænsning uden
+§ 8-aldersnedslag. En afklaret manglende nødvendig betingelse kan afgøre
+succession som ikke opfyldt, selv om andre betingelser er ukendte. Hvis ejer
+eller historisk samlevende ægtefælle allerede opfylder aldersbetingelsen,
+behøves irrelevant viden om afdøde ikke. Ellers tilbageholdes sammenligningen,
+når relevant succession er uafklaret. Kontrollen gælder også overtagne
+rabatgrundlag og en beregnet ægtefælles ejendomme.
+
+Fiktiv regression: yngre ejer, kvalificeret tidligere ægtefælle død i 2023,
+fortsat beboelse og nyt ægteskab i 2024. Med gammelt beregningsgrundlag
+850.000 kr. og tidligere sammenligningsskat 4.000 kr. giver § 9 et loft på
+4.500 kr. Den fejlagtige genbrug af ny § 25 gav før rettelsen 6.400 kr.
+Ejendommens beregnede skat i 2025 bliver i dette eksempel 1.900 kr. lavere.
+Det er en modelregression, ikke en fejl konstateret i en virkelig årsopgørelse.
+
+**Preview-migration:** Generér frisk schema/skabelon. Det nye felt ændrer
+typen og fingerprintet. Gamle kildefakta gennemgås; en gammel moderne
+succession må ikke kopieres automatisk til det nye felt, og ukendt må ikke
+blive `EjskEvslIngenSuccession`. Omskriv ikke kontrakthashen.
 
 ## Model-owned validity assessment
 

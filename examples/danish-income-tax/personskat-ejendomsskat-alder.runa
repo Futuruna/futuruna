@@ -16,6 +16,7 @@
         DependencySource(value = socialpensionsloven_lbk1123_par1a),
         AmendmentSource(value = socialpensionsloven_lov703_par1_nr1),
         AmendmentSource(value = ejendomsskatteloven_evsl_lov2202_par11),
+        Guidance(value = ejendomsskatteloven_l113_bemaerkninger_par25),
         Warning(value = personskat_ejendomsskat_aldersforbehold),
     )
 )
@@ -80,6 +81,10 @@
                         sti = præfiks + "ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024",
                         gyldig = ejendomsskattelov_evsl_par9_ydelsesgrundlag_gyldigt(grundlag),
                         forklaring = "Ejendom " + show(ejendom.ordinært_grundlag.identifikation) + ": afklar par9_ydelsesgrundlag i tidligere_ejendomsværdiskat.historisk_begrænsning for 2024. Ukendte egne eller relevante historiske ægtefælleydelser må ikke blive ingen ydelse. Fødselsdatoer skal være gyldige; nr. 2 kræver fyldt 60 år ved udgangen af 2024. Se personskat-validity.md#historiske-ydelser-og-stigningsbegrænsning."
+                    ), PersonskatInputkontrol(
+                        sti = præfiks + "ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024",
+                        gyldig = ejendomsskattelov_evsl_succession_grundlag_gyldigt(grundlag),
+                        forklaring = "Ejendom " + show(ejendom.ordinært_grundlag.identifikation) + ": afklar tidligere_ejendomsværdiskat.succession særskilt efter gamle EVSL §§ 8/9. Den kræver historiske dødsfalds-, beboelses-, ejerskabs- og ægteskabsfakta samt afdødes dokumenterede personkreds; sidstnævnte genberegnes ikke. Ukendt må ikke blive ingen succession eller false. Datoer skal være gyldige og kronologiske; dødsfald senest 2024. Brug ikke ny_lov_nedslagsfakta.pensionistsuccession som erstatning. Se personskat-validity.md#historisk-længstlevendesuccession."
                 )]
             } ellers { [] }
         }

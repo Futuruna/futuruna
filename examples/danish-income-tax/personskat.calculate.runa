@@ -2423,11 +2423,19 @@
     help = Some("Når svaret er sandt, sammenholder Futuruna positive og negative forskelsbeløb efter § 40."),
     unit = None
 )
+= personskat_ejendomsskat_evsl_succession_vejledning = "Under tidligere_ejendomsværdiskat er succession et særskilt historisk EVSL §§ 8/9-grundlag. EjskEvslSuccessionUoplyst betyder ukendt; EjskEvslIngenSuccession kræver afklaret fravær. EjskEvslLængstlevende.fakta indeholder dødsdato, ægtefæller_ikke_separerede ved dødsfaldet, bliver_boende, ejendommen_har_tilhørt_en_af_ægtefællerne, afdødes_par8_personkreds, afdødes_par9_personkreds og nyt_ægteskab. De valgfrie boolske fakta bruger null for ukendt, ikke false. Personkredsfelterne er dokumenterede historiske kvalifikationer før dødsfaldet, ikke et faktisk udbetalt nedslag eller en ønsket skat; afdødes skatteforhold genberegnes ikke. § 8-personkreds indebærer § 9-personkreds, men ydelsesbaseret § 9 giver ikke automatisk § 8. Nyt ægteskab er EjskEvslNytÆgteskabUoplyst, EjskEvslIntetNytÆgteskab eller EjskEvslNytÆgteskabIndgået(dato); oplys første nye ægteskab efter dødsfaldet, også hvis det siden er ophørt. Gamle regler stopper først året efter nyt ægteskab. Kopiér ikke ny_lov_nedslagsfakta.pensionistsuccession: rådighed er ikke fortsat beboelse, og en plejehjemsdato er ikke en dødsdato. Uafklaret gammelt grundlag må ikke blive et afslag. Dokumentér tidligere person, bolig og forløb særskilt i en privat kildelog. Se personskat-validity.md#historisk-længstlevendesuccession."
+= personskat_felt_ejendomsskat_evsl_succession = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereEjendomsværdiskat2024Fakta::succession::$variant),
+    label = "Historisk længstlevendesuccession efter EVSL",
+    question = Some("Er et historisk længstlevendegrundlag efter gamle §§ 8/9 afklaret for denne ejer og bolig?"),
+    help = Some(personskat_ejendomsskat_evsl_succession_vejledning),
+    unit = None
+)
 = personskat_felt_ejendomsskat_eget_rabatgrundlag_2024 = TypetBeregningsfelt(
     path = refof(EjendomsskattelovRabatOvergangsfakta::eget_rabatgrundlag_2024),
     label = "Eget rabatgrundlag fra 2024",
     question = Some("Havde du selv et rabatgrundlag for denne ejendomsandel ved overgangen i 2024?"),
-    help = Some("Lad feltet være tomt, hvis rabatten alene overtages fra en ægtefælle; brug overdragelseshændelsens overtagne grundlag. Eget grundlag vedrører dig selv: ejer_folkepensionsalder i kontekst_2024 afstemmes mod din lønmodtager.pension.fødselsdato ved udgangen af 2024, ikke beregningsåret. En modstrid tilbageholder sammenligningen og viser forventet status/dato. Historisk ægtefælle og overtaget grundlag kan vedrøre andre personer; kopier ikke den aktuelle ejers eller ægtefælles alder. Historiske indkomster og øvrige 2024-fakta skal dokumenteres særskilt. Det indre par9_ydelsesgrundlag under tidligere_ejendomsværdiskat.historisk_begrænsning er særskilt: null betyder ukendte historiske ydelser, ikke ingen ydelse. Dokumenteret efterløn/fleksydelse ved udgangen af 2024 eller sociale ydelser med 60-årsbetingelse kan give § 9-loft uden aldersnedslag. Oplys ejer og historisk ægtefælle hver for sig; gæt ikke partnerens ydelser. Se personskat-validity.md#historiske-ydelser-og-stigningsbegrænsning og personskat-validity.md#folkepensionsalder-og-ejendomsskat."),
+    help = Some("Lad feltet være tomt, hvis rabatten alene overtages fra en ægtefælle; brug overdragelseshændelsens overtagne grundlag. Eget grundlag vedrører dig selv: ejer_folkepensionsalder i kontekst_2024 afstemmes mod din lønmodtager.pension.fødselsdato ved udgangen af 2024, ikke beregningsåret. En modstrid tilbageholder sammenligningen og viser forventet status/dato. Historisk ægtefælle og overtaget grundlag kan vedrøre andre personer; kopier ikke den aktuelle ejers eller ægtefælles alder. Historiske indkomster og øvrige 2024-fakta skal dokumenteres særskilt. Det indre par9_ydelsesgrundlag under tidligere_ejendomsværdiskat.historisk_begrænsning er særskilt: null betyder ukendte historiske ydelser, ikke ingen ydelse. Dokumenteret efterløn/fleksydelse ved udgangen af 2024 eller sociale ydelser med 60-årsbetingelse kan give § 9-loft uden aldersnedslag. Oplys ejer og historisk ægtefælle hver for sig; gæt ikke partnerens ydelser. Se personskat-validity.md#historiske-ydelser-og-stigningsbegrænsning og personskat-validity.md#folkepensionsalder-og-ejendomsskat. " + personskat_ejendomsskat_evsl_succession_vejledning),
     unit = None
 )
 = personskat_felt_ejendomsskat_rabathaendelser = TypetBeregningsfelt(
@@ -12660,6 +12668,7 @@
         personskat_felt_ejendomsskat_ejendomsvaerdi_2002,
         personskat_felt_ejendomsskat_tidligere_aarsskat,
         personskat_felt_ejendomsskat_par9_ydelsesgrundlag,
+        personskat_felt_ejendomsskat_evsl_succession,
         personskat_felt_ejendomsskat_par9b_nedsaettelse,
         personskat_felt_ejendomsskat_historisk_ejerbolig,
         personskat_felt_ejendomsskat_historisk_lejemaal,
@@ -12703,6 +12712,7 @@
         Warning(value = personskat_ejendomsskat_aldersforbehold),
         DependencySource(value = ejendomsskatteloven_tidligere_ejendomsvaerdiskattelov),
         AmendmentSource(value = ejendomsskatteloven_evsl_lov2202_par11),
+        Guidance(value = ejendomsskatteloven_l113_bemaerkninger_par25),
         ParameterSource(value = ejendomsskatteloven_skm_satser_2025_2026),
         TransitionSource(value = ejendomsskatteloven_lov394_historisk_aktieloen),
         AmendmentSource(value = ejendomsskatteloven_lov515_historisk_aktieloen),
