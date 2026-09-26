@@ -188,7 +188,9 @@ eller beløb er ikke den endelige delårskonklusion. Heller ikke
 - `BeregnetMedForbehold`: de eksisterende delårskontroller er bestået.
   Sammenligningsbeløbet svarer til `slutskat_efter_par14_øre`; det er ikke
   restskat, tilbagebetaling eller det særskilte beløb inklusive endelig
-  arbejdsudlejebeskatning. Betalingsafregningen skal vurderes særskilt.
+  arbejdsudlejebeskatning. En valgt betalingsafregning skal også bestå
+  kontrollerne mod den endelige delårsskat. Uden valgt afregning er et beløb
+  til udbetaling eller opkrævning ikke fastlagt.
 
 `samlet_modeldækning_bekræftet` er fortsat `false`. Alle generelle og
 delårsspecifikke forbehold skal bevares. En vellykket CLI-kørsel eller denne
@@ -211,6 +213,38 @@ resultat er fortsat beregneligt, men den yderste vurdering tilbageholder
 sammenligningen. [Regressionskontrollen](../../tests/personskat_partyear_validity.test.mjs)
 dækker denne forskel. Tallene er modelobservationer, ikke en uafhængig
 kontrol mod SKAT eller et eksempel, der må genbruges som personlige fakta.
+
+## Afregning efter den endelige delårsskat
+
+`vurdering.kontrolgrundlag.beregning` indeholder delårets kilde- og
+beregningskontroller. `afregning` indeholder kontrollen af den afsluttende
+betalingsafregning. `kontroller` og `fejl` bevarer det samlede overblik.
+`input_gyldigt` og den yderste vurdering kræver begge et gyldigt
+beregningsgrundlag og en gyldig valgt afregning.
+
+Et ordinært mellemtrin kan have en anden betalingsretning end den endelige
+delårsberegning. Dets afregningsfejl må derfor hverken afvise et gyldigt
+delårsresultat eller erstatte den endelige kontrol. Kildekontrollerne fra både
+perioden og det dokumenterede helårsgrundlag bevares derimod, også når deres
+sti hedder `årsopgørelse`.
+
+Et særskilt fiktivt kontroltilfælde bruger perioden ovenfor, men **dokumenteret
+helårsløn på 600.000 kr.**, ikke den løbende dagfaktor. Modellens slutskat er
+103.752,24 kr. Med fiktivt indeholdt skat/AM på 100.000 kr. er det ordinære
+mellemtrin en tilbagebetaling, mens det endelige resultat har 3.752,24 kr. i
+restskat før tillæg. En valgt restskatafregning for 2025 accepteres; en
+tilbagebetalingsinstruks eller afregningsår 2024 tilbageholder sammenligningen.
+Tidligere blev begge disse modstridende instrukser accepteret i den yderste
+vurdering. Den rå skat ændres ikke for at få instrukserne til at passe.
+
+[Regressionen](../../tests/personskat_settlement_stage.test.mjs) dækker også
+ugyldige betalingsfakta, en gyldig tilbagebetaling, nulbalance uden
+betalingsinstruks og kildefejl i begge grundlag. Det er kontrol af den
+eksisterende KSL-models sammensætning efter § 14. Modregning og sondringen
+mellem restskat og overskydende skat følger de særskilte trin i
+[KSL §§ 60–62](https://www.retsinformation.dk/eli/lta/2024/460/pdf).
+Kontrollen er ikke ny dokumentkontrol, individuel rådgivning eller fuld
+dækning af alle afregningsregler og år.
 
 ## Eksisterende input
 

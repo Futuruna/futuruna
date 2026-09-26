@@ -91,6 +91,45 @@ test('invalid assessment withholds every diagnostic amount, including seemingly 
   assert.match(render(source).text, /Ingen kontroller returneret/);
 });
 
+test('typed control groups retain stage labels and withhold tax for a failed settlement', () => {
+  const source = baseline(), a = resultOf(source).vurdering;
+  const payment = { sti: 'årsopgørelse', gyldig: true, forklaring: 'Fiktiv afregningskontrol.' };
+  a.kontrolgrundlag = { beregning: structuredClone(a.kontroller), afregning: [payment] };
+  a.kontroller.push(structuredClone(payment));
+  assert.equal(render(source).exitCode, 0);
+  for (const label of ['Beregningsgrundlag:', 'Betalingsafregning for dette trin:']) assert.ok(render(source).text.includes(label));
+  a.kontrolgrundlag.afregning[0].gyldig = false; a.kontroller[1].gyldig = false;
+  a.fejl = [structuredClone(a.kontroller[1])]; a.alle_kontroller_gyldige = false;
+  a.status = variant('UgyldigtBeregningsgrundlag'); a.slutskat_til_sammenligning_øre = null;
+  const output = render(source);
+  assert.equal(output.exitCode, 2);
+  assert.match(output.text, /FEJL — årsopgørelse: Fiktiv afregningskontrol/);
+  assert.doesNotMatch(output.text, /Modelleret slutskat|Bruttoløn:/);
+});
+
+test('contradictory or unknown control groups are rejected, not flattened silently', () => {
+  for (const edit of [
+    a => { a.kontrolgrundlag = null; },
+    a => { delete a.kontrolgrundlag.afregning; },
+    a => { a.kontrolgrundlag.unknown = []; },
+    a => { a.kontrolgrundlag.beregning[0].forklaring = 'Different'; },
+    a => { a.kontrolgrundlag.beregning[0].gyldig = false; },
+    a => { a.kontrolgrundlag.beregning[0].new_field = true; },
+    a => { a.kontrolgrundlag.afregning.push(structuredClone(a.kontroller[0])); },
+    a => { a.kontrolgrundlag.afregning = a.kontrolgrundlag.beregning; a.kontrolgrundlag.beregning = []; },
+  ]) {
+    const source = baseline(), a = resultOf(source).vurdering;
+    a.kontrolgrundlag = { beregning: structuredClone(a.kontroller), afregning: [] };
+    edit(a); assert.throws(() => render(source), edit.toString());
+  }
+  const source = baseline(), a = resultOf(source).vurdering;
+  a.kontrolgrundlag = { beregning: [], afregning: structuredClone(a.kontroller) };
+  a.alle_kontroller_gyldige = false; a.status = variant('UgyldigtBeregningsgrundlag');
+  a.slutskat_til_sammenligning_øre = null;
+  assert.equal(render(source).exitCode, 2);
+  assert.match(render(source).text, /afregningskontroller alene er ikke tilstrækkelige/);
+});
+
 test('an exact zero is distinct from unavailable tax and i64 values never lose an ore', () => {
   const source = parseReportOutput(JSON.stringify(baseline()));
   for (const [value, expected] of [[0n, '0,00 kr. (0 øre)'], [-1n, '-0,01 kr. (-1 øre)'],

@@ -153,13 +153,14 @@ canonical model observations, not new external tax conformance. Arbitrary
 role-swapping of personal cases, including pair-level losses/relief, is not
 implemented or implied. No tax formula or input contract changed.
 
-The separate part-year entry now has a final nullable comparison assessment
-based on its existing validity conditions. A fictional valid 2025 case gives
+The separate part-year entry has a final nullable comparison assessment.
+Its initial addition used the existing validity conditions. A fictional valid 2025 case gives
 103,831.01 DKK after PSL14 but 94,331.44 DKK in its ordinary intermediate result;
 a source mismatch leaves that intermediate valid while invalidating the final
 part-year result. The [regression](../tests/personskat_partyear_validity.test.mjs)
-guards the correct output level and generated source-linked warning. No tax
-formula, raw amount or existing validity condition changed. This does not infer
+guards the correct output level and generated source-linked warning. That
+initial addition changed no tax formula, raw amount or existing validity
+condition; the later final-settlement guard is described below. This does not infer
 tax liability, establish external conformance or cover arbitrary mixed periods;
 the ordinary entry still needs the correct intake route chosen explicitly.
 
@@ -194,15 +195,26 @@ and not automatic correction/reopening or document classification. Positive
 totals can still be misclassified. See the [scope and migration](../examples/danish-income-tax/personskat-validity.md#lønrettelser-og-negative-beløb).
 
 That regression also found a composition omission: a part-year result accepted
-zero tax despite the period's canonical wage rejection. The wrapper now inherits
-canonical controls outside the exact `årsopgørelse` root path, including active
-spouse controls, in both bases. Existing component and credit checks remain.
-Ordinary intermediate settlement is not required to match final part-year tax;
-typed source/settlement separation and final payment reconciliation remain
-`td-98b93a`, not established by this change. The
+zero tax despite the period's canonical wage rejection. The wrapper inherits
+canonical calculation controls, including active spouse controls, in both bases.
+The temporary path-based stage exception has now been replaced with typed
+`kontrolgrundlag.beregning`/`afregning` groups. Source-credit checks remain in
+the calculation group even when their path is `årsopgørelse`.
+
+The [settlement-stage regression](../tests/personskat_settlement_stage.test.mjs)
+reproduced accepted wrong payment direction and wrong year in the final
+part-year assessment. The final comparison and `input_gyldigt` now require the
+selected settlement to match the recomputed part-year tax and existing KSL
+fact checks. Tax arithmetic and source facts are unchanged; a valid final
+restskat can coexist with an ordinary intermediate refund. Canonical and
+green-check assessments use the same explicit groups, preserving green-check
+payment validation after its credit. The
 [small boundary regression](../tests/personskat_partyear_input_controls_test.runa)
-checks unknown future control paths and the precise stage exception, while
-canonical cases cover period/annual wages, spouse wages and future birth dates.
+checks group membership independently of control names. The Danish viewer
+validates and displays both groups while retaining older saved-output support.
+This is source-model consistency, not new independent payment-law conformance.
+Output contracts changed: generate fresh templates and recalculate from reviewed
+facts. See the [part-year guide](../examples/danish-income-tax/personskat-delaar.md#afregning-efter-den-endelige-delårsskat).
 
 The [employer bank-pension year route](../examples/danish-income-tax/personskat-bankpension-aar.md)
 now separates unresolved treatment, ordinary payment-year treatment and a

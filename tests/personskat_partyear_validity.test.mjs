@@ -67,7 +67,9 @@ test('part-year comparison uses the final assessment, never a nested ordinary am
     assert.equal(a.status.$variant, valid ? 'BeregnetMedForbehold' : 'UgyldigtBeregningsgrundlag', case_id);
     assert.equal(a.samlet_modeldækning_bekræftet, false);
     assert.equal(a.slutskat_til_sammenligning_øre, valid ? 10383101 : null, case_id);
-    assert.equal(a.kontroller.length, 11);
+    assert.equal(a.kontrolgrundlag.beregning.length, 11);
+    assert.equal(a.kontrolgrundlag.afregning.length, 1);
+    assert.equal(a.kontroller.length, 12);
     assert.deepEqual(a.fejl, a.kontroller.filter(c => !c.gyldig));
     assert.equal(a.kontroller.every(c => c.gyldig), valid);
     for (const warning of r.delårsresultat.vurdering.forbehold) assert.ok(a.forbehold.includes(warning), warning);

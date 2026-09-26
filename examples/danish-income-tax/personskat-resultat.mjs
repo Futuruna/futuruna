@@ -57,18 +57,32 @@ function checkRow(check) {
   textValue(check.sti, 'Kontrolsti'); textValue(check.forklaring, 'Kontrolforklaring');
   requireThat(typeof check.gyldig === 'boolean', 'Kontrollens gyldighed mangler.');
 }
+function sameChecks(left, right) {
+  return left.length === right.length && left.every((c, i) =>
+    c.sti === right[i].sti && c.gyldig === right[i].gyldig && c.forklaring === right[i].forklaring);
+}
 function assessment(result) {
   const a = result.vurdering;
+  object(a, 'Vurdering');
+  const grouped = Object.hasOwn(a, 'kontrolgrundlag');
   record(a, ['status', 'alle_kontroller_gyldige', 'slutskat_til_sammenligning_øre',
-    'samlet_modeldækning_bekræftet', 'kontroller', 'fejl', 'forbehold'], 'Vurdering');
+    'samlet_modeldækning_bekræftet', 'kontroller', 'fejl', 'forbehold', ...(grouped ? ['kontrolgrundlag'] : [])], 'Vurdering');
   const status = variant(a.status, statuses, 'Vurdering');
   for (const name of ['kontroller', 'fejl', 'forbehold']) list(a[name], name);
   a.kontroller.forEach(checkRow); a.fejl.forEach(checkRow);
+  let calculationCount = a.kontroller.length;
+  if (grouped) {
+    const g = a.kontrolgrundlag;
+    record(g, ['beregning', 'afregning'], 'Kontrolgrundlag');
+    for (const name of ['beregning', 'afregning']) { list(g[name], name); g[name].forEach(checkRow); }
+    requireThat(sameChecks([...g.beregning, ...g.afregning], a.kontroller),
+      'Kontrolgrupperne svarer ikke til den samlede kontrolliste.');
+    calculationCount = g.beregning.length;
+  }
   const failed = a.kontroller.filter(c => !c.gyldig);
-  requireThat(failed.length === a.fejl.length && failed.every((c, i) =>
-    c.sti === a.fejl[i].sti && c.gyldig === a.fejl[i].gyldig && c.forklaring === a.fejl[i].forklaring),
+  requireThat(sameChecks(failed, a.fejl),
   'Fejllisten svarer ikke til de returnerede kontroller.');
-  const valid = a.kontroller.length > 0 && failed.length === 0;
+  const valid = calculationCount > 0 && failed.length === 0;
   requireThat(a.alle_kontroller_gyldige === valid && (status === 'BeregnetMedForbehold') === valid,
     'Beregningsstatus og kontroller er indbyrdes modstridende.');
   requireThat(a.samlet_modeldækning_bekræftet === false,
@@ -127,7 +141,9 @@ export function renderPersonskatOutput(envelope) {
       details.push('Beløb tilbageholdt — ukendt er ikke nul. Alle øvrige beløb er kun diagnostik og vises ikke her.',
         'Gennemgå de fejlede kontrollers kildefakta og genberegn. Udfyld ikke mangler med gæt.',
         'Fejlede kontroller:');
-      if (r.vurdering.fejl.length === 0) details.push('  Ingen kontroller returneret; grundlaget kan ikke godkendes.');
+      if (r.vurdering.fejl.length === 0) details.push(r.vurdering.kontroller.length === 0
+        ? '  Ingen kontroller returneret; grundlaget kan ikke godkendes.'
+        : '  Intet beregningsgrundlag returneret; afregningskontroller alene er ikke tilstrækkelige.');
       for (const c of r.vurdering.fejl) details.push(`  ${visible(c.sti)}: ${visible(c.forklaring)}`);
     }
     details.push(spouse === 'IngenÆgtefælleberegning'
@@ -139,8 +155,13 @@ export function renderPersonskatOutput(envelope) {
     details.push('Alle returnerede modelkontroller — bestået er ikke bekræftelse af kildefakta:',
       'Forklaringerne er faste modeltekster; de beskriver også fejlscenarier, selv når kontrollen er bestået.');
     if (r.vurdering.kontroller.length === 0) details.push('  Ingen kontroller returneret.');
-    for (const c of r.vurdering.kontroller) {
-      details.push(`  ${c.gyldig ? 'Bestået' : 'FEJL'} — ${visible(c.sti)}: ${visible(c.forklaring)}`);
+    const groups = r.vurdering.kontrolgrundlag
+      ? [['Beregningsgrundlag:', r.vurdering.kontrolgrundlag.beregning], ['Betalingsafregning for dette trin:', r.vurdering.kontrolgrundlag.afregning]]
+      : [[null, r.vurdering.kontroller]];
+    for (const [label, checks] of groups) {
+      if (label) details.push(label);
+      if (label && checks.length === 0) details.push('  Ingen kontroller i denne gruppe.');
+      for (const c of checks) details.push(`  ${c.gyldig ? 'Bestået' : 'FEJL'} — ${visible(c.sti)}: ${visible(c.forklaring)}`);
     }
     details.push('Alle returnerede forbehold:');
     for (const caveat of r.vurdering.forbehold) details.push(`  - ${visible(caveat)}`);

@@ -82,6 +82,13 @@ Slutskat **før kreditter** ændres ikke af grøn check. Det er kreditten og der
 restskat/overskydende skat, der ændres. Betalingsretningen kontrolleres efter
 kreditten, så en lille restskat godt kan blive til overskydende skat.
 
+Vurderingen viser nu dette eksplicit i `kontrolgrundlag.beregning` og
+`kontrolgrundlag.afregning`. De kanoniske kildekontroller bevares; den endelige
+afregningskontrol udføres efter grøn check. De flade lister `kontroller` og
+`fejl` bevares. Forkert betalingsår eller retning tilbageholder fortsat både
+sammenligningsbeløbet og årsopgørelsen. Se den
+[fælles trinkontrol](../../tests/personskat_settlement_stage.test.mjs).
+
 Grøn-check-delen af en tilbagebetaling indgår ikke i grundlaget for almindelig
 procentgodtgørelse efter [KSL § 62, stk. 2](https://www.retsinformation.dk/eli/lta/2024/460).
 Den afledte udelukkelse er højst den endelige overskydende skat; de eksisterende
@@ -111,10 +118,12 @@ når den kompakte beregning viser, at den åbne loftsfortolkning ikke kan ændre
 børnebeløbet. Ét berettiget barn i denne gren giver fx 240 DKK før aftrapning.
 Kan loftet ændre beløbet, forbliver både grøn check og slutopgørelsen tilbageholdt.
 
-Den gamle `beregn_personskat` og dens input-/resultattyper er uændrede; den
-gamle indgang accepterer fortsat en **ekstern** grøn-check-kredit uden at bevise
+`beregn_personskat` accepterer fortsat en **ekstern** grøn-check-kredit uden at bevise
 retten til den. Gamle input migreres kun ved bevidst valg af den nye indgang og
 en ny skabelon. Den betingede rapportafstemning ændres heller ikke automatisk.
+Den fælles vurderings nye kontrolgrupper ændrer outputkontrakten for begge
+indgange: regenerér schemas/skabeloner og overfør de samme gennemgåede fakta.
+Skatte- og kreditformler ændres ikke af denne gruppering.
 
 Den permanente [integrationstest](../../tests/personskat_green_check.test.mjs)
 bruger kun fiktive fakta og sammenligner med den eksisterende kanoniske
