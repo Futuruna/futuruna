@@ -45517,6 +45517,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     return out;
                 }
 
+                let item_ty = self.iter_item_ty_with_env(iter_expr, &self.current_type_env());
                 let mut iter_str = self.emit_expr(iter_expr);
                 // For-loop consumes the iterable via into_iter(). If the variable is used
                 // elsewhere (multi-use), we need to clone to avoid move errors.
@@ -45540,35 +45541,39 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     })
                     .collect();
                 let mut out = String::new();
-                // When iterating over a borrowed param (&Vec), items are &T.
-                // Use `for &var` to auto-deref so the loop variable is T, not &T.
+                // Loop bindings hold values. Clone borrowed list elements so
+                // records and Strings work as well as Copy scalars.
                 let is_borrowed_iter = if let ExprKind::Var(name) = &iter_expr.kind {
                     self.current_borrow_params.contains(name.as_str())
                 } else {
                     false
                 };
-                let loop_var = if is_borrowed_iter {
-                    format!("&{}", var)
-                } else {
-                    var.clone()
-                };
+                if is_borrowed_iter {
+                    iter_str = format!("{}.iter().cloned()", iter_str);
+                }
                 out.push_str(&format!(
                     "{}for {} in {} {{\n",
                     self.ind(),
-                    loop_var,
+                    sanitize_name(var),
                     iter_str
                 ));
                 self.indent += 1;
-                for s in body {
-                    // If this binding rebinds an accumulator, emit as assignment
-                    if let Stmt::Bind(Pat::Var(name), _, value) = s {
-                        if rebound_vars.contains(name) {
-                            let val_str = self.emit_expr(value);
-                            out.push_str(&format!("{}{} = {};\n", self.ind(), name, val_str));
-                            continue;
+                let was_borrowed = self.current_borrow_params.remove(var);
+                self.with_temporary_named_types(std::slice::from_ref(var), &[item_ty], |this| {
+                    for s in body {
+                        // Rebound accumulators retain assignment semantics.
+                        if let Stmt::Bind(Pat::Var(name), _, value) = s {
+                            if rebound_vars.contains(name) {
+                                let val_str = this.emit_expr(value);
+                                out.push_str(&format!("{}{} = {};\n", this.ind(), name, val_str));
+                                continue;
+                            }
                         }
+                        out.push_str(&this.emit_stmt(s));
                     }
-                    out.push_str(&self.emit_stmt(s));
+                });
+                if was_borrowed {
+                    self.current_borrow_params.insert(var.clone());
                 }
                 self.indent -= 1;
                 out.push_str(&format!("{}}}\n", self.ind()));
