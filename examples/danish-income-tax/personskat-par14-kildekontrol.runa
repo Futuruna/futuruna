@@ -1,0 +1,10 @@
+@ sprog da
+@ importer ./personskat - beregningskontrol
+
+-- Modelkomposition, ikke en selvstændig skatteregel eller bilagsgodkendelse.
+-- Bevar alle kanoniske kilde-/personkontroller, også nye og ægtefællens.
+-- Den præcise rodsti årsopgørelse er trinbestemt: ordinær afregning kan ikke
+-- kræves afstemt mod en endnu ikke beregnet § 14-slutskat. Kildekontrollen her
+-- erstatter hverken de særskilte kreditkontroller i § 14-grundlaget eller
+-- validering af den afsluttende afregning. Understier fritages ikke automatisk.
+| personskat_par14_kildekontroller_gyldige(kontroller: List(PersonskatInputkontrol)) -> any(kontroller, |kontrol: PersonskatInputkontrol| kontrol.sti != "årsopgørelse") && all(kontroller, |kontrol: PersonskatInputkontrol| kontrol.sti == "årsopgørelse" || kontrol.gyldig)

@@ -297,7 +297,7 @@
     path = refof(PersonskatLønmodtagerInput::bruttoløn_kroner),
     label = "Årlig almindelig løn før AM og skat",
     question = Some("Hvad er personens almindelige årsløn før AM-bidrag og skat, men uden bortseelsesberettiget arbejdsgiveradministreret pension og ATP, og uden indkomst oplyst særskilt i andre indkomstgrene?"),
-    help = Some("Brug løngrundlaget fra lønoplysningerne, ikke den samlede lønpakke inklusive pension eller bankens nettoudbetaling. Bortseelsesberettigede arbejdsgiveradministrerede pensionsbidrag, også egenbetaling over lønnen, oplyses særskilt under pension og må ikke samtidig tælles som løn. Når lønlinjen allerede er efter egen ATP og pensionsandel, må de ikke trækkes fra igen. Private pensionsindbetalinger trækkes derimod ikke fra dette lønfelt. Årsopgørelsens samlede personlig indkomst er heller ikke løn. SU, offentlige ydelser og pensionsudbetalinger hører i deres egne grene. Medtag ikke også særskilt oplyst sømandsindkomst, skattepligtige personalegoder eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder de relevante tillæg. Sammenhold dokumentets år, enhed og indhold med feltets definition; et rubriknummer alene afklarer ikke opdelingen. Se pension-og-fradrag.md."),
+    help = Some("Brug løngrundlaget fra lønoplysningerne, ikke den samlede lønpakke inklusive pension eller bankens nettoudbetaling. Bortseelsesberettigede arbejdsgiveradministrerede pensionsbidrag, også egenbetaling over lønnen, oplyses særskilt under pension og må ikke samtidig tælles som løn. Når lønlinjen allerede er efter egen ATP og pensionsandel, må de ikke trækkes fra igen. Private pensionsindbetalinger trækkes derimod ikke fra dette lønfelt. Årsopgørelsens samlede personlig indkomst er heller ikke løn. SU, offentlige ydelser og pensionsudbetalinger hører i deres egne grene. Medtag ikke også særskilt oplyst sømandsindkomst, skattepligtige personalegoder eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder de relevante tillæg. Sammenhold dokumentets år, enhed og indhold med feltets definition; et rubriknummer alene afklarer ikke opdelingen. Feltet kræver et ikke-negativt, afklaret årsbeløb, ikke en enkelt rettelses forskelsbeløb. Brug ved rettelser den dokumenterede korrigerede årsløn i det rigtige indkomstår; fratræk ikke rettelsen igen. En tilbagebetaling hører ikke automatisk til betalingsåret. Negativ årsløn tilbageholder sammenligningen i denne ordinære gren; det er ikke en afgørelse om manglende fradragsret. Bevar fortegn og kildefakta, og afklar korrektionsgrundlag og år særskilt; erstat ikke med nul eller absolut værdi. Se personskat-validity.md#lønrettelser-og-negative-beløb og pension-og-fradrag.md."),
     unit = Some("kr./år")
 )
 = personskat_felt_dis_indkomster = TypetBeregningsfelt(
@@ -12211,6 +12211,21 @@
     identifier = "eIndkomst: Indberetningsvejledning 8.2, felt 13, afgrænsning af AM-bidragspligtig A-indkomst",
     hentet_dato = "2026-09-25"
 )
+= personskat_lønrettelser_vejledning = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2386660",
+    identifier = "eIndkomst 14.1: rettelsesposter og oprindelig lønperiode; negativ post er ikke månedens samlede indkomst",
+    hentet_dato = "2026-09-26"
+)
+= personskat_løntilbagebetaling_vejledning = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976766",
+    identifier = "DJV 2026-2 C.A.3.1.1.3: uretmæssig løn reguleres i optjeningsåret; senere indtrufne omstændigheder kan give fradrag i tabsåret",
+    hentet_dato = "2026-09-26"
+)
+= personskat_lønrettelser_efter_året_vejledning = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2386664",
+    identifier = "eIndkomst 14.4: negativt forskelsbeløb ved tilbagebetalingskrav; ikke nødvendigvis faktisk betalingstidspunkt",
+    hentet_dato = "2026-09-26"
+)
 = personskat_metadata_bruttoløn = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_bruttoløn),
@@ -12218,6 +12233,9 @@
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
         Guidance(value = personskat_løngrundlag_am_vejledning),
         Guidance(value = personskat_løngrundlag_eindkomst_vejledning),
+        Guidance(value = personskat_lønrettelser_vejledning),
+        Guidance(value = personskat_løntilbagebetaling_vejledning),
+        Guidance(value = personskat_lønrettelser_efter_året_vejledning),
     )
 )
 --@label:PersonskatLønmodtagerInput::meta:personskat_metadata_bruttoløn--
@@ -19442,13 +19460,17 @@ fraflytningen."
 }
 -- Kontroller kun domænernes samlede gyldighed, ikke vilkårlige boolske felter.
 -- Samme kontrolpakke anvendes på hovedpersonen og en faktisk beregnet ægtefælle.
-> personskat_person_inputkontroller(grundlag: PersonskatPersonGrundlagResultat, præfiks: Tekst, indkomstår: Heltal) -> List(PersonskatInputkontrol) {
+-- Modelgrænse for det eksterne ordinære lønfelt, ikke et generelt forbud mod
+-- løntilbagebetaling eller negativ personlig indkomst. Kontrollér kilden før
+-- § 25 A-tillæg; en positiv afledt løn må ikke skjule et negativt kildebeløb.
+> personskat_person_inputkontroller(grundlag: PersonskatPersonGrundlagResultat, præfiks: Tekst, indkomstår: Heltal, oprindelig_bruttoløn_kroner: Heltal) -> List(PersonskatInputkontrol) {
     concat([
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus", gyldig = personskat_faglige_kontingenter_personstatus_gyldig(grundlag.fakta.lønmodtager.ligningsfradrag.faglige_kontingenter), forklaring = "Personskat beregner en fysisk persons skat. Aktive faglige kontingenter kan ikke bruge selskabers status Ll13JuridiskPerson og dermed omgå personens loft. Oplys personens faktiske status; arbejdsgiverbetaling gør ikke en lønmodtager til en juridisk person. Se LL § 13 og DJV C.A.4.3.1.3."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.arbejdsfradrag_udland", gyldig = grundlag.arbejdsfradrag_udland.alle_input_gyldige, forklaring = "Arbejdsfradragets udlandsforhold skal være afklaret. Ved fordeling skal alle kilder og perioder stemme med modellens afledte indkomst- og pensionsgrundlag; se arbejdsfradrag_udland.kontroller. Uoplyst er ikke ingen udelukkelse."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.boligjob", gyldig = grundlag.ligningsfradrag.boligjob.input_gyldigt, forklaring = "Årets service- og håndværkerudgifter skal være afklaret med gyldige bilag, datoer og fordeling. Ukendt eller uden for modellens omfang er ikke nul; se ligningsfradrag.boligjob."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.ligningsfradrag.enlig_forsørger", gyldig = grundlag.enligforsørgerfradrag.input_gyldigt, forklaring = "Årets ekstra børnetilskud skal være afklaret med gyldige kvartaler og kildereferencer; uoplyst er ikke nul. Se enligforsørgerfradrag.fejl."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.skatteår", gyldig = grundlag.fakta.lønmodtager.skatteår == indkomstår && skatteår_understøttet(indkomstår), forklaring = "Personens indkomstår skal være understøttet og stemme med husstandens beregningsår."),
+        PersonskatInputkontrol(sti = præfiks + "lønmodtager.bruttoløn_kroner", gyldig = oprindelig_bruttoløn_kroner >= 0, forklaring = "Den ordinære løngren kræver et ikke-negativt årsbeløb, ikke en negativ rettelsespost. Brug den dokumenterede korrigerede årsløn i det korrekte indkomstår uden at fratrække rettelsen igen. Negativ årsløn kræver særskilt afklaring af tilbagebetaling, tabsgrundlag og år; denne modelgrænse afgør ikke fradragsretten. Bevar kildefakta og fortegn; erstat ikke med nul eller absolut værdi. Se personskat-validity.md#lønrettelser-og-negative-beløb."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.kommune", gyldig = kommune_indkomstskat_understøttet_i_år(indkomstår, grundlag.fakta.lønmodtager.kommune), forklaring = "Kommunens indkomstskatteparametre skal være dækket for året."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.kirkeskat", gyldig = personskat_kirkeskat_status_understøttet(grundlag.fakta.lønmodtager.kirkeskat), forklaring = "Kirkeskat skal være afklaret for indkomståret. Uoplyst status og kirkeskat en del af året tilbageholder sammenligningen; medlemsperioder er endnu ikke modelleret. Det er en modelgrænse, ikke en afgørelse om skattefrihed. Vælg ikke helårsstatus alene for at få et resultat."),
         PersonskatInputkontrol(sti = præfiks + "lønmodtager.pension.fødselsdato", gyldig = grundlag.pension.pensionsalder_resultat.input_gyldigt && grundlag.fakta.lønmodtager.pension.fødselsdato.år <= indkomstår, forklaring = "Fødselsdatoen skal være en gyldig dato senest i indkomståret; nul er ikke en ukendt dato."),
@@ -19482,7 +19504,7 @@ fraflytningen."
 > personskat_ægtefælle_inputkontroller(ægtefælle: PersonskatÆgtefælleBeregningResultat, indkomstår: Heltal) -> List(PersonskatInputkontrol) {
     match ægtefælle {
         | IngenÆgtefælleberegning -> []
-        | BeregnetÆgtefælle(_, grundlag, skat, _) -> concat(personskat_person_inputkontroller(grundlag, "ægtefælle.MedÆgtefælle.fakta.", indkomstår), [
+        | BeregnetÆgtefælle(fakta, grundlag, skat, _) -> concat(personskat_person_inputkontroller(grundlag, "ægtefælle.MedÆgtefælle.fakta.", indkomstår, fakta.lønmodtager.bruttoløn_kroner), [
             PersonskatInputkontrol(sti = "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning).input_gyldigt, forklaring = personskat_dis_kontrolforklaring(grundlag.personlig_indkomst.sømandsbeskatning))
         ])
     }
@@ -19612,7 +19634,7 @@ fraflytningen."
         afskrivningslov40c_acontoskat_kredit_øre
     )
     = inputkontroller = concat(concat(
-        personskat_person_inputkontroller(hovedgrundlag, "", input.lønmodtager.skatteår),
+        personskat_person_inputkontroller(hovedgrundlag, "", input.lønmodtager.skatteår, input.lønmodtager.bruttoløn_kroner),
         personskat_ægtefælle_inputkontroller(parberegning.ægtefælle, input.lønmodtager.skatteår)
         ), [
             PersonskatInputkontrol(sti = "ægtefælle.$variant", gyldig = personskat_ægtefællegrundlag_afklaret(input.ægtefælle), forklaring = personskat_ægtefællegrundlag_forbehold),
