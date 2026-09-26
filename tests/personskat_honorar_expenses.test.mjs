@@ -23,6 +23,30 @@ const fee = amount => ({ identifikation: 'fiktiv-honoraraktivitet', indkomstår:
   skattepligtig_værdi_kroner: 50000,
   udgifter: { $variant: 'PsHonorarudgifterOplyst', poster: amount ? [cost(amount)] : [], fuldstændige: true } });
 const rows = input => input.lønmodtager.personlig_indkomst.ordinære_forhold.personlige_arbejdsvederlag;
+function depreciation(mixed = false) {
+  const asset = { skatteyder: v('AlAndenFysiskPerson'), aktivart: v('AlInventar'),
+    erhvervsmæssig_anvendelsesandel_basispoint: mixed ? 5000 : 10000 };
+  const input = mixed ? {
+    indkomstår: 2025, aktiv_input: asset, afskrivningskategori: v('Al11Par5Stk1'),
+    uafskrevet_beløb_primo_kroner: 80000, anskaffelsessum_i_året_kroner: 0,
+    forbedringsudgifter_i_året_kroner: 0,
+    årets_benyttelse: { erhvervsmæssig_benyttelse_enheder: 50, samlet_benyttelse_enheder: 100 },
+    valg: { $variant: 'Al11OrdinærAfskrivning', sats_basispoint: 2500 },
+  } : {
+    indkomstår: 2025, aktivgrundlag: { $variant: 'Al5Kapitel2Aktiv', input: asset },
+    saldoordning: v('AlPar5AlmindeligSaldo'), saldoværdi_primo_kroner: 40000,
+    øvrige_anskaffelsessummer_i_året_kroner: 0, forbedringsudgifter_i_året_kroner: 0,
+    salgssummer_i_året_kroner: 0, valg: { $variant: 'Al5OrdinærAfskrivning', sats_basispoint: 2500 },
+  };
+  return { identifikation: 'fiktiv-afskrivning', aktividentifikationer: ['fiktivt-driftsmiddel'],
+    grundlag: { $variant: mixed ? 'PsHonorarAl11Aktiv' : 'PsHonorarAl5Saldo', input },
+    dokumenteret_ejet_og_anvendt_i_aktiviteten: true, primosaldo_anskaffelser_og_samlesæt_afklaret: true,
+    ingen_salg_ophør_eller_overførsel: true, ikke_fratrukket_andetsteds: true };
+}
+const depreciationFee = (mixed = false, runningCost = 0) => ({ ...fee(0), udgifter: {
+  $variant: 'PsHonorarudgifterMedDriftsmidler', poster: runningCost ? [cost(runningCost)] : [],
+  afskrivninger: [depreciation(mixed)], fuldstændige: true,
+} });
 function run(args) {
   const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 600000,
     maxBuffer: 64 * 1024 * 1024, env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' } });
@@ -54,6 +78,22 @@ test('honorarium costs reduce personal income while preserving gross AM and work
     rows(input)[0] = fee(10000); const second = fee(10000); second.identifikation = 'anden-aktivitet'; rows(input).push(second);
   });
   add('negative-net', false, input => { rows(input)[0] = fee(46001); });
+  add('full-use-depreciation', true, input => { rows(input)[0] = depreciationFee(); });
+  add('mixed-use-depreciation', true, input => { rows(input)[0] = depreciationFee(true); });
+  add('running-and-depreciation', true, input => { rows(input)[0] = depreciationFee(true, 10000); });
+  add('depreciation-negative-net', false, input => { rows(input)[0] = depreciationFee(true, 36001); });
+  for (const [id, edit] of [
+    ['depreciation-unknown-basis', d => { d.primosaldo_anskaffelser_og_samlesæt_afklaret = false; }],
+    ['depreciation-with-sale', d => { d.ingen_salg_ophør_eller_overførsel = false; }],
+    ['depreciation-wrong-year', d => { d.grundlag.input.indkomstår = 2024; }],
+    ['depreciation-private-share-mismatch', d => { d.grundlag.input.årets_benyttelse.erhvervsmæssig_benyttelse_enheder = 60; }],
+    ['depreciation-wrong-taxpayer', d => { d.grundlag.input.aktiv_input.skatteyder = v('AlSelvstændigErhvervsdrivendePerson'); }],
+  ]) add(id, false, input => { rows(input)[0] = depreciationFee(true); edit(rows(input)[0].udgifter.afskrivninger[0]); });
+  add('same-asset-across-activities', false, input => {
+    rows(input)[0] = depreciationFee(); const second = depreciationFee(true);
+    second.identifikation = 'anden-aktivitet'; second.udgifter.afskrivninger[0].identifikation = 'anden-opgørelse';
+    rows(input).push(second);
+  });
   for (const [id, amount, valid] of [['spouse-costs', 10000, true], ['spouse-negative-net', 46001, false]]) {
     add(id, valid, input => {
       const fakta = Object.fromEntries(['lønmodtager', 'kapitalindkomst', 'aktieavance', 'udenlandske_sociale_bidrag',
@@ -62,6 +102,12 @@ test('honorarium costs reduce personal income while preserving gross AM and work
       input.ægtefælle = { $variant: 'MedÆgtefælle', fakta, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] };
     }, true);
   }
+  add('spouse-mixed-depreciation', true, input => {
+    const fakta = Object.fromEntries(['lønmodtager', 'kapitalindkomst', 'aktieavance', 'udenlandske_sociale_bidrag',
+      'cfc', 'skatteforhold', 'underskudsforhold', 'ejendomsskatter'].map(key => [key, structuredClone(input[key])]));
+    rows(fakta)[0] = depreciationFee(true); rows(input).length = 0;
+    input.ægtefælle = { $variant: 'MedÆgtefælle', fakta, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] };
+  }, true);
   envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
   const output = run(['call', model, '--input', save(evidence, 'cases.json', envelope)]);
   save(evidence, 'results.json', output); assert.deepEqual(output.diagnostics, []);
@@ -99,6 +145,21 @@ test('honorarium costs reduce personal income while preserving gross AM and work
   assert.equal(result('spouse-costs').ægtefælle.grundlag.personlig_indkomst.fradrag_i_personlig_indkomst_kroner, 10000);
   assert.equal(result('spouse-costs').ægtefælle.grundlag.lønmodtager_input.øvrig_personlig_indkomst_kroner, -10000);
   assert.ok(after.slutskat_øre < before.slutskat_øre);
+  for (const id of ['full-use-depreciation', 'mixed-use-depreciation']) {
+    const r = result(id);
+    assert.equal(r.slutskat_øre, after.slutskat_øre, `${id}: same personal-income deduction`);
+    assert.equal(r.skat.arbejdsmarkedsbidrag_kroner, 52000, id);
+    assert.deepEqual(r.arbejdsfradrag_udland.grundlag, before.arbejdsfradrag_udland.grundlag, id);
+    const d = r.personlig_indkomst.ordinære_forhold.personlige_arbejdsvederlag[0].beregning.honorarudgifter.afskrivninger[0];
+    assert.equal(d.fradrag_i_personlig_indkomst_kroner, 10000, id);
+    const remaining = id === 'full-use-depreciation' ? d.beregning.resultat.saldoværdi_efter_afskrivning_kroner
+      : d.beregning.resultat.uafskrevet_beløb_ultimo_kroner;
+    assert.equal(remaining, id === 'full-use-depreciation' ? 30000 : 60000, id);
+  }
+  assert.equal(result('running-and-depreciation').personlig_indkomst.fradrag_i_personlig_indkomst_kroner, 20000);
+  assert.equal(result('running-and-depreciation').skat.personlig_indkomst_efter_am_kroner, 578000);
+  assert.equal(result('spouse-mixed-depreciation').ægtefælle.grundlag.personlig_indkomst.fradrag_i_personlig_indkomst_kroner, 10000);
+  assert.equal(result('spouse-mixed-depreciation').slutskat_øre, result('spouse-costs').slutskat_øre);
   assert.equal(result('negative-net').personlig_indkomst.alle_input_gyldige, false, 'propagate coverage into downstream composition');
   console.log(JSON.stringify({ gross: after.skat.bruttoløn_kroner, AM: after.skat.arbejdsmarkedsbidrag_kroner,
     personalIncome: after.skat.personlig_indkomst_efter_am_kroner, taxOre: after.slutskat_øre }));
@@ -115,6 +176,18 @@ test('honorarium costs reduce personal income while preserving gross AM and work
       for (const [role, oid] of [['source', '2459224'], ['preparatory_source', '2459115'], ['currentness_source', '16080']]) {
         assert.ok(sources.some(s => s.role === role && JSON.stringify(s).includes(`oid=${oid}`)), `${key}: ${role}`);
       }
+    }
+    const assetPath = `${prefix}${path}.udgifter.PsHonorarudgifterMedDriftsmidler.afskrivninger`;
+    for (const member of ['identifikation', 'aktividentifikationer', 'grundlag.$variant',
+      'dokumenteret_ejet_og_anvendt_i_aktiviteten', 'primosaldo_anskaffelser_og_samlesæt_afklaret',
+      'ingen_salg_ophør_eller_overførsel', 'ikke_fratrukket_andetsteds',
+      'grundlag.PsHonorarAl11Aktiv.input.årets_benyttelse.samlet_benyttelse_enheder',
+      'grundlag.PsHonorarAl5Saldo.input.saldoværdi_primo_kroner']) {
+      const key = `${assetPath}.${member}`, field = schema.field_metadata.find(f => f.path === key);
+      assert.ok(field?.question && field.help, key);
+      const sources = schema.source_groups[field.source_group].map(id => schema.source_objects[id]);
+      assert.ok(sources.some(s => s.role === 'source' && JSON.stringify(s).includes('2025/1222')), key);
+      assert.ok(sources.some(s => s.role === 'guidance' && JSON.stringify(s).includes('2048532')), key);
     }
   }
 });

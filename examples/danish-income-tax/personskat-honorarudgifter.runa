@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./arbejdsmarkedsbidragsloven
+@ importer ./afskrivningsloven
 
 # HonorarudgiftKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 = honorarudgifter_djv = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2048532", identifier = "C.C.1.2.3: brutto-AM, personlig nettoindkomst og forbehold om SKM2025.490.ØLR", hentet_dato = "2026-09-26")
@@ -9,7 +10,7 @@
 = honorarudgifter_dom = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2459224", identifier = "SKM2025.490.ØLR, dom 4. april 2025: landsrettens begrundelse og resultat om SL § 6, stk. 1, litra a", hentet_dato = "2026-09-26")
 = honorarudgifter_udkast = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2459115", identifier = "Udkast til styresignal af 18. august 2025, sag 25-2986570, afsnit 6 og 8: foreslået ligningsmæssigt fradrag og virkning ved offentliggørelse; ikke endeligt styresignal", hentet_dato = "2026-09-26")
 = honorarudgifter_udkaststatus = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=16080", identifier = "Afsluttede høringer - under udarbejdelse: honorarudkast 2459115 står her ved kildetjekket", hentet_dato = "2026-09-26")
-= honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter i årets honoraraktivitet efter den beskrevne nettoindkomstpraksis i C.C.1.2.3. Afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i skattepligtig indkomst, ikke automatisk i personlig indkomst. Dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Skattestyrelsens udkast til styresignal er ikke sat i kraft som beregningsregel; afklar gældende praksis og indkomstår ved krav ud over denne gren. Ukendt er ikke nul."
+= honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter og almindelige driftsmiddelafskrivninger i årets honoraraktivitet efter nettoindkomstpraksis i C.C.1.2.3. Driftsmidler kræver PsHonorarudgifterMedDriftsmidler: én samlet AL § 5-saldo og særskilte blandede AL § 11-aktiver med afklaret ejerskab, anskaffelser, samlesæt og årets brug. Der må ikke være salg, ophør eller AL § 4-overførsel i denne rute; køb og afskrivning må ikke fratrækkes dobbelt. Andre afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i skattepligtig indkomst, ikke automatisk i personlig indkomst. Dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Skattestyrelsens udkast til styresignal er ikke sat i kraft som beregningsregel; afklar gældende praksis og indkomstår ved krav ud over denne gren. Ukendt er ikke nul."
 = honorarudgifter_meta = Metadata(attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse)))
 
 --@label:personskat_honorarudgifter::meta:honorarudgifter_meta--
@@ -20,21 +21,69 @@ Der skal betales arbejdsmarkedsbidrag af bruttovederlaget
 --@begin:personskat_honorarudgifter--
 # PersonskatHonorarudgiftsart = PsHonorarLøbendeUdgift | PsHonorarPrivatUdgift | PsHonorarAndenUdgift | PsHonorarUdgiftUoplyst
 # PersonskatHonorarudgiftFakta(identifikation: Tekst, indkomstår: Heltal, art: PersonskatHonorarudgiftsart, egen_udgift_kroner: Heltal, dokumenteret: Boolsk, vedrører_vederlaget: Boolsk, ikke_fratrukket_andetsteds: Boolsk)
-# PersonskatHonorarudgifter = PsHonorarudgifterUoplyst | PsHonorarudgifterOplyst(poster: List(PersonskatHonorarudgiftFakta), fuldstændige: Boolsk)
-# PersonskatHonorarudgiftsresultat(input: PersonskatHonorarudgifter, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
+# PersonskatHonorarAfskrivningsgrundlag = PsHonorarAl5Saldo(input: Afskrivningslov5Input) | PsHonorarAl11Aktiv(input: Afskrivningslov11Input)
+# PersonskatHonorarAfskrivningFakta(identifikation: Tekst, aktividentifikationer: List(Tekst), grundlag: PersonskatHonorarAfskrivningsgrundlag, dokumenteret_ejet_og_anvendt_i_aktiviteten: Boolsk, primosaldo_anskaffelser_og_samlesæt_afklaret: Boolsk, ingen_salg_ophør_eller_overførsel: Boolsk, ikke_fratrukket_andetsteds: Boolsk)
+# PersonskatHonorarAfskrivningsberegning = PsHonorarAl5Beregning(resultat: Afskrivningslov5Resultat) | PsHonorarAl11Beregning(resultat: Afskrivningslov11Resultat)
+# PersonskatHonorarAfskrivningsresultat(input: PersonskatHonorarAfskrivningFakta, alle_input_gyldige: Boolsk, beregning: Option(PersonskatHonorarAfskrivningsberegning), fradrag_i_personlig_indkomst_kroner: Heltal)
+# PersonskatHonorarudgifter = PsHonorarudgifterUoplyst | PsHonorarudgifterOplyst(poster: List(PersonskatHonorarudgiftFakta), fuldstændige: Boolsk) | PsHonorarudgifterMedDriftsmidler(poster: List(PersonskatHonorarudgiftFakta), afskrivninger: List(PersonskatHonorarAfskrivningFakta), fuldstændige: Boolsk)
+# PersonskatHonorarudgiftsresultat(input: PersonskatHonorarudgifter, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, afskrivninger: List(PersonskatHonorarAfskrivningsresultat), fradrag_i_personlig_indkomst_kroner: Heltal)
+
+-- Almindelige driftsmidler i fortsat honoraraktivitet. Saldobeløb er hele
+-- skattemæssige værdier før privat andel; de er ikke frit indtastede fradrag.
+| personskat_honorar_driftsmiddelart_dækket(art: AfskrivningslovAktivart) -> art == AlMaskine || art == AlInventar || art == AlAndetDriftsmiddel || art == AlSoftware
+| personskat_honorar_al5_grundlag_gyldigt(input: Afskrivningslov5Input, skatteår: Heltal) -> input.indkomstår == skatteår && input.saldoordning == AlPar5AlmindeligSaldo && input.saldoværdi_primo_kroner >= 0 && input.øvrige_anskaffelsessummer_i_året_kroner >= 0 && input.forbedringsudgifter_i_året_kroner >= 0 && input.salgssummer_i_året_kroner == 0 && match input.aktivgrundlag {
+    | Al5Kapitel2Aktiv(aktiv) -> aktiv.skatteyder == AlAndenFysiskPerson && aktiv.erhvervsmæssig_anvendelsesandel_basispoint == 10000 && personskat_honorar_driftsmiddelart_dækket(aktiv.aktivart)
+    | _ -> Falskt
+}
+| personskat_honorar_al11_grundlag_gyldigt(input: Afskrivningslov11Input, skatteår: Heltal) -> input.indkomstår == skatteår && input.aktiv_input.skatteyder == AlAndenFysiskPerson && personskat_honorar_driftsmiddelart_dækket(input.aktiv_input.aktivart) && input.afskrivningskategori == Al11Par5Stk1 && input.uafskrevet_beløb_primo_kroner >= 0 && input.anskaffelsessum_i_året_kroner >= 0 && input.forbedringsudgifter_i_året_kroner >= 0 && afskrivningslov11_omfattet(input)
+| personskat_honorar_afskrivning_resultat(post: PersonskatHonorarAfskrivningFakta, skatteår: Heltal) -> {
+    = identitet = post.identifikation != "" && length(post.aktividentifikationer) > 0 && all(post.aktividentifikationer, |id: Tekst| id != "") && length(distinct(post.aktividentifikationer)) == length(post.aktividentifikationer)
+    = fakta = identitet && post.dokumenteret_ejet_og_anvendt_i_aktiviteten && post.primosaldo_anskaffelser_og_samlesæt_afklaret && post.ingen_salg_ophør_eller_overførsel && post.ikke_fratrukket_andetsteds && afskrivningslov_årsparametre_understøttet(skatteår)
+    = beregning = hvis fakta {
+        match post.grundlag {
+            | PsHonorarAl5Saldo(input) -> hvis personskat_honorar_al5_grundlag_gyldigt(input, skatteår) { Some(PsHonorarAl5Beregning(afskrivningslov5_resultat(input, afskrivningslov_årsparametre(skatteår)))) } ellers { None }
+            | PsHonorarAl11Aktiv(input) -> hvis personskat_honorar_al11_grundlag_gyldigt(input, skatteår) { Some(PsHonorarAl11Beregning(afskrivningslov11_resultat(input, afskrivningslov_årsparametre(skatteår)))) } ellers { None }
+        }
+    } ellers { None }
+    = gyldigt = match beregning {
+        | Some(PsHonorarAl5Beregning(resultat)) -> resultat.valg_gyldigt
+        | Some(PsHonorarAl11Beregning(resultat)) -> resultat.valg_gyldigt
+        | None -> Falskt
+    }
+    = fradrag = hvis gyldigt {
+        match beregning {
+            | Some(PsHonorarAl5Beregning(resultat)) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+            | Some(PsHonorarAl11Beregning(resultat)) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+            | None -> 0
+        }
+    } ellers { 0 }
+    PersonskatHonorarAfskrivningsresultat(input = post, alle_input_gyldige = gyldigt, beregning = beregning, fradrag_i_personlig_indkomst_kroner = fradrag)
+}
 
 | personskat_honorarudgift_gyldig(post: PersonskatHonorarudgiftFakta, skatteår: Heltal) -> post.identifikation != "" && post.indkomstår == skatteår && post.egen_udgift_kroner >= 0 && (post.art == PsHonorarPrivatUdgift || (post.art == PsHonorarLøbendeUdgift && post.dokumenteret && post.vedrører_vederlaget && post.ikke_fratrukket_andetsteds))
 | personskat_honorarudgift_fradrag_kroner(post: PersonskatHonorarudgiftFakta) -> hvis post.art == PsHonorarLøbendeUdgift { post.egen_udgift_kroner } ellers { 0 }
 | personskat_honorarudgiftsposter(input: PersonskatHonorarudgifter) -> match input {
     | PsHonorarudgifterUoplyst -> []
     | PsHonorarudgifterOplyst(poster, _) -> poster
+    | PsHonorarudgifterMedDriftsmidler(poster, _, _) -> poster
 }
+| personskat_honorarafskrivningsposter(input: PersonskatHonorarudgifter) -> match input {
+    | PsHonorarudgifterMedDriftsmidler(_, poster, _) -> poster
+    | _ -> []
+}
+| personskat_honorarudgifter_identifikationer(input: PersonskatHonorarudgifter) -> concat(map(personskat_honorarudgiftsposter(input), |post: PersonskatHonorarudgiftFakta| post.identifikation), map(personskat_honorarafskrivningsposter(input), |post: PersonskatHonorarAfskrivningFakta| post.identifikation))
+| personskat_honorarudgifter_aktividentifikationer(input: PersonskatHonorarudgifter) -> flat_map(personskat_honorarafskrivningsposter(input), |post: PersonskatHonorarAfskrivningFakta| post.aktividentifikationer)
 | personskat_honorarudgifter_resultat(input: PersonskatHonorarudgifter, skatteår: Heltal) -> {
     = poster = personskat_honorarudgiftsposter(input)
-    = entydige = length(distinct(map(poster, |post: PersonskatHonorarudgiftFakta| post.identifikation))) == length(poster)
-    = komplette = match input { | PsHonorarudgifterUoplyst -> Falskt | PsHonorarudgifterOplyst(_, fuldstændige) -> fuldstændige }
-    = gyldige = skatteår > 0 && komplette && entydige && all(poster, |post: PersonskatHonorarudgiftFakta| personskat_honorarudgift_gyldig(post, skatteår))
-    PersonskatHonorarudgiftsresultat(input = input, identifikationer_entydige = entydige, alle_input_gyldige = gyldige, fradrag_i_personlig_indkomst_kroner = hvis gyldige { foldl(poster, 0, |sum: Heltal, post: PersonskatHonorarudgiftFakta| sum + personskat_honorarudgift_fradrag_kroner(post)) } ellers { 0 })
+    = afskrivningsposter = personskat_honorarafskrivningsposter(input)
+    = afskrivninger = map(afskrivningsposter, |post: PersonskatHonorarAfskrivningFakta| personskat_honorar_afskrivning_resultat(post, skatteår))
+    = ider = personskat_honorarudgifter_identifikationer(input)
+    = aktiver = personskat_honorarudgifter_aktividentifikationer(input)
+    = entydige = length(distinct(ider)) == length(ider) && length(distinct(aktiver)) == length(aktiver)
+    = komplette = match input { | PsHonorarudgifterUoplyst -> Falskt | PsHonorarudgifterOplyst(_, fuldstændige) -> fuldstændige | PsHonorarudgifterMedDriftsmidler(_, _, fuldstændige) -> fuldstændige }
+    = én_saldo = length(filter(afskrivningsposter, |post: PersonskatHonorarAfskrivningFakta| match post.grundlag { | PsHonorarAl5Saldo(_) -> Sandt | _ -> Falskt })) <= 1
+    = gyldige = skatteår > 0 && komplette && entydige && én_saldo && all(poster, |post: PersonskatHonorarudgiftFakta| personskat_honorarudgift_gyldig(post, skatteår)) && all(afskrivninger, |post: PersonskatHonorarAfskrivningsresultat| post.alle_input_gyldige)
+    PersonskatHonorarudgiftsresultat(input = input, identifikationer_entydige = entydige, alle_input_gyldige = gyldige, afskrivninger = afskrivninger, fradrag_i_personlig_indkomst_kroner = hvis gyldige { foldl(poster, 0, |sum: Heltal, post: PersonskatHonorarudgiftFakta| sum + personskat_honorarudgift_fradrag_kroner(post)) + foldl(afskrivninger, 0, |sum: Heltal, post: PersonskatHonorarAfskrivningsresultat| sum + post.fradrag_i_personlig_indkomst_kroner) } ellers { 0 })
 }
 
 -- En dækningskontrol, ikke et skattemæssigt loft: beløbet klippes aldrig.
