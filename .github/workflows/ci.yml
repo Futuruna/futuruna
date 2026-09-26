@@ -70,7 +70,7 @@ jobs:
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_salary_input.test.mjs
           ./target/release/runa tests/personskat_partyear_input_controls_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/personskat_settlement_stage.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/tax_credit_input.test.mjs
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/tax_credit_input.test.mjs tests/tax_credit_signs.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_supplementary_metadata.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_report_input_metadata.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_church_input.test.mjs

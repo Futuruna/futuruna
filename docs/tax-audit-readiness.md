@@ -230,6 +230,22 @@ Using 30,000 DKK paid instead of 40,000 DKK assessed raises modeled restskat by
 existing model checks: this is improved source-to-field guidance, not automatic
 document classification, credit authentication or a new completeness gate.
 
+The subsequent [credit-sign regression](../tests/tax_credit_signs.test.mjs)
+reproduced accepted negative section-55 refunds in both unit routes. A -1,000
+DKK input became an extra credit rather than a subtraction, understating restskat
+by 2,000 DKK relative to a positive refund. Canonical intake now requires all
+12 raw credit/refund fields to follow their nonnegative gross-amount convention.
+A calculation-stage `årsopgørelse.kreditter` control withholds comparison while
+preserving source values and raw diagnostic arithmetic. Shared metadata and
+[guidance](../examples/danish-income-tax/personskat-skattekreditter.md#fortegn-og-rettelser)
+distinguish report signs and correction deltas from supported annual totals.
+The bounded matrix covers all 24 field/unit negative edges and zero/positive
+controls; four canonical scenarios cover the refund reversal and a B-skat edge.
+Existing credit guidance and six positive-scalar mapping scenarios remain covered.
+This does not authenticate amounts or establish a refund-versus-gross-credit cap.
+Correction histories and the possible negative-net-credit floor remain separate
+`td-145088`; part-year/green-check execution was not rerun for this change.
+
 The [employer bank-pension year route](../examples/danish-income-tax/personskat-bankpension-aar.md)
 now separates unresolved treatment, ordinary payment-year treatment and a
 documented authority approval of the previous wage-withholding year. Previously
