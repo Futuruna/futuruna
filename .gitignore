@@ -1,6 +1,7 @@
 # Build artifacts
 /target/
 website/target/
+/editors/vscode/node_modules/
 __pycache__/
 .runa-build/
 .playwright-cli/
