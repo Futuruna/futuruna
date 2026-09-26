@@ -53,17 +53,15 @@ er et offentligt fastsat martsbidrag på 3.000 kr. i 2025 til et barn født i
 AM-bidrag. Yderens tilsvarende fradrag er 2.816 kr. Det er forskellige størrelser,
 ikke beløb der skal være ens. Beløbene er ikke generelle skattebesparelser.
 
-## Eksisterende sager
+## Skabelon og afgrænsning
 
-Ingen nye inputfelter er nødvendige. Den forbedrede feltvejledning ændrer dog
-Preview-kontraktens fingeraftryk: generér en ny skabelon, gennemgå roller og
-overfør faktiske oplysninger. Kopier ikke blot det nye fingeraftryk til gamle
-sager. Tidligere output kan have været markeret gyldigt trods en åbenlys
-forælder/barn-konflikt; beregn berørte sager igen.
+Generér skabelonen fra den aktuelle model, gennemgå roller og overfør faktiske
+oplysninger. Kopier ikke blot et nyt fingeraftryk til gamle sager. Følg
+[migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
+ved genbrug af tidligere input og resultater.
 
 Brug den [kontrollerede compiler](../../website/public/ai-setup.md#tax-audit-runtime-check)
 og den [danske resultatvisning](personskat-validity.md#læs-dit-gemte-resultat-på-dansk).
 Den [eksisterende lovmodel](ligningsloven-par10-par11-underhold.runa) bevarer
-lovtekst og kilder for LL §§ 10–11. Ændringen 25. september 2026 er en
-personsammenhængskontrol, ikke en ny beregning af normalbidrag eller en fuld
+lovtekst og kilder for LL §§ 10–11. Personsammenhængskontrollen er ikke en fuld
 validering af alle underholds-, restancesager og børns skatteforhold.

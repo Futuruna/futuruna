@@ -416,9 +416,7 @@ til at undersøge rapportens interne sammenhæng; det fastslår ikke fradragsret
 En ikke-negativ værdi beviser omvendt ikke, at kilderne er komplette eller korrekt
 periodiserede: positive årsbeløb kan også skjule en forkert nettomodregning.
 
-Feltets type er uændret. Regenerér schema/template efter metadataændringen,
-gennemgå berørte fakta og genberegn gemte resultater. Den
-[fokuserede regression](../../tests/personskat_salary_input.test.mjs) adskiller
+Den [fokuserede regression](../../tests/personskat_salary_input.test.mjs) adskiller
 nul, positiv løn, et korrigeret årsbeløb, negativ løn med SU, ægtefælleinput og
 lovlig negativ kapitalindkomst. Det er model-/inputkontrol, ikke en ny uafhængig
 bekræftelse af årsopgørelsers korrekthed.
@@ -428,7 +426,7 @@ gruppe `kontrolgrundlag.beregning` i begge grundlag, også for en aktiv ægtefæ
 Kildekontroller på `årsopgørelse` er ikke undtaget. Den ordinære afregningsgruppe
 overføres ikke: den endelige afregning kontrolleres mod skatten efter § 14.
 Forkert betalingsretning, forkert indkomstår eller ugyldige afregningsfakta
-tilbageholder nu den yderste sammenligning. Den rå skat forbliver diagnostik,
+tilbageholder den yderste sammenligning. Den rå skat forbliver diagnostik,
 ikke en godkendt skat eller et beløb til udbetaling. Den
 [lille kontroltest](../../tests/personskat_partyear_input_controls_test.runa)
 adskiller trinnene uden at fortolke kontrolstiers navne; den
@@ -520,8 +518,7 @@ Lovgrundlaget for positionerne findes i
 Begrænsningen ovenfor tilhører modellen, ikke loven. Kilder kontrolleret
 25. september 2026. Den [fokuserede regression](../../tests/personskat_dis_coverage.test.mjs)
 kontrollerer hovedperson, ægtefælle, aldersmodstrid og en almindelig sag samt
-fire genererede felters vejledning og kildespor. Forny Preview-skabeloner
-efter metadataændringen; indkomsttyper og gyldighedsbeslutninger er uændrede.
+de genererede felters vejledning og kildespor.
 
 ## Commuting input checks
 

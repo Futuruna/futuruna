@@ -24,10 +24,9 @@ Komponentens lovklassifikation og beløb ændres ikke. Andre beløb i et ugyldig
 resultat er kun diagnostik, ikke brugbare skattebeløb.
 
 Et fiktivt kontrolforløb med 600.000 kr. i løn og 20.000 kr. i erhvervsmæssigt
-udlejet ejerboligs overskud afslørede fejlen: den gamle årsberegning gav samme
-gyldige 211.944,54 kr. som uden ejendomsresultatet. Overskuddet indgik hverken
-i kapitalindkomsten eller den personlige indkomst. Rettelsen tilbageholder
-sammenligningen; den gætter ikke en alternativ korrekt slutskat.
+udlejet ejerboligs overskud gennem denne gren tilbageholder sammenligningen.
+Et overskud, der ikke omfattes af kapitalindkomstreglen, må ikke forsvinde
+fra årsberegningen; en anden indgang kræver sine egne kildefakta.
 
 ## Vælg indgang ud fra kilden
 
@@ -63,14 +62,14 @@ snævrere spørgsmål uden en uafhængig fuld genberegning.
 
 Den eksisterende kildemodel i [kapitel 1](kapitel-01-indkomst.runa) bevarer
 PSL § 4, stk. 1, nr. 6, og henvisningen til ejendomsskattelovens § 3,
-herunder ændringslovene og den tidsafhængige nummerering. Denne rettelse
-ændrer ikke de regler eller beregner nye fradrag. Seks typede feltbeskrivelser
-følger nu ejendomsgrenen i både hovedpersonens og ægtefællens kontrakt med
-lovkilder, vejledning og ruteforbehold.
+herunder ændringslovene og den tidsafhængige nummerering. Typede
+feltbeskrivelser følger ejendomsgrenen i både hovedpersonens og ægtefællens
+kontrakt med lovkilder, vejledning og ruteforbehold.
 
-Generér en frisk schema/skabelon fra den aktuelle model: metadata ændrer
-kontrakthashen, selv om inputtyperne er uændrede. Bevar oprindelige kildefakta
-privat. De [fokuserede tests](../../tests/personskat_property_route.test.mjs)
+Generér schema/skabelon fra den aktuelle model, og følg
+[migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
+ved genbrug af tidligere sager. Bevar oprindelige kildefakta privat.
+De [fokuserede tests](../../tests/personskat_property_route.test.mjs)
 er model- og indgangskontroller med opdigtede fakta, ikke dokumentautentifikation,
 uafhængig officiel skatteberegning eller fuld dækning af udlejning. Typede
 `@ calculate`-kontrakter er fortsat Preview; skattemodellen er forskningssoftware.
