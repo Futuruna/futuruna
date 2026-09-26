@@ -1,0 +1,37 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - ejendomsskat - alder
+
+= ung = Dato(år = 1990, måned = 1, dag = 1)
+= sidste_dag = Dato(år = 1958, måned = 12, dag = 31)
+= næste_dag = Dato(år = 1959, måned = 1, dag = 1)
+= opnået_sidste_dag = EjskFolkepensionsalderOpnået(EjendomsskattelovDato(år = 2025, måned = 12, dag = 31))
+
+| ung_må_ikke_påstå_opnået: ung -> personskat_ejendomsskat_alder_stemmer(opnået_sidste_dag, ung, 2025) == Falskt
+| ung_ikke_opnået: ung -> personskat_ejendomsskat_alder_stemmer(EjskFolkepensionsalderIkkeOpnået, ung, 2025)
+| årets_sidste_dag_tæller: sidste_dag -> personskat_ejendomsskat_alder_stemmer(opnået_sidste_dag, sidste_dag, 2025)
+| næste_år_er_ikke_opnået: næste_dag -> personskat_ejendomsskat_alder_stemmer(EjskFolkepensionsalderIkkeOpnået, næste_dag, 2025)
+| opnået_kan_ikke_skjules: sidste_dag -> personskat_ejendomsskat_alder_stemmer(EjskFolkepensionsalderIkkeOpnået, sidste_dag, 2025) == Falskt
+
+= forkert_dato = EjskFolkepensionsalderOpnået(EjendomsskattelovDato(år = 2025, måned = 12, dag = 30))
+| en_dags_fejl_afvises: forkert_dato -> personskat_ejendomsskat_alder_stemmer(forkert_dato, sidste_dag, 2025) == Falskt
+= fremtidig_dato = EjskFolkepensionsalderOpnået(EjendomsskattelovDato(år = 2026, måned = 1, dag = 1))
+| fremtidig_opnået_afvises: fremtidig_dato -> personskat_ejendomsskat_alder_stemmer(fremtidig_dato, næste_dag, 2025) == Falskt
+
+= halvt_år = Dato(år = 1954, måned = 6, dag = 30)
+= halvt_år_dato = EjskFolkepensionsalderOpnået(EjendomsskattelovDato(år = 2019, måned = 12, dag = 30))
+| overgangsårgang_ikke_altid_67: halvt_år -> personskat_ejendomsskat_alder_stemmer(halvt_år_dato, halvt_år, 2025)
+= ugyldig = Dato(år = 1990, måned = 2, dag = 30)
+| ugyldig_fødselsdato_afvises: ugyldig -> personskat_ejendomsskat_alder_stemmer(EjskFolkepensionsalderIkkeOpnået, ugyldig, 2025) == Falskt
+= ufødt = Dato(år = 2026, måned = 1, dag = 1)
+| fremtidig_fødselsdato_afvises: ufødt -> personskat_ejendomsskat_alder_stemmer(EjskFolkepensionsalderIkkeOpnået, ufødt, 2025) == Falskt
+
+? ung_må_ikke_påstå_opnået
+? ung_ikke_opnået
+? årets_sidste_dag_tæller
+? næste_år_er_ikke_opnået
+? opnået_kan_ikke_skjules
+? en_dags_fejl_afvises
+? fremtidig_opnået_afvises
+? overgangsårgang_ikke_altid_67
+? ugyldig_fødselsdato_afvises
+? fremtidig_fødselsdato_afvises

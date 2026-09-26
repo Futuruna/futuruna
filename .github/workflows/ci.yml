@@ -89,6 +89,8 @@ jobs:
           ./target/release/runa tests/personskat_work_income_route_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_work_income_route.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_property_route.test.mjs
+          ./target/release/runa tests/personskat_property_age_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_property_age.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_financial_route.test.mjs
           ./target/release/runa tests/personskat_honorar_expenses_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_honorar_expenses.test.mjs

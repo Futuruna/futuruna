@@ -33,6 +33,16 @@ No LLM evaluates these rules at runtime. A person or assistant supplies and
 classifies source facts; Futuruna executes the arithmetic and logic. Do not
 turn inferred report residuals into supposedly independent input facts.
 
+Current-year property-tax age assertions now reconcile against the taxpayer's
+and current cohabiting spouse's respective canonical birth dates. A fictional
+35-year-old previously obtained a valid comparison with false retirement relief;
+the new guard withholds that comparison and reports the model-derived expected
+date/status without altering source facts. Both ownership directions and the
+year-end boundary are covered by [focused cases](../tests/personskat_property_age.test.mjs).
+Typed field guidance carries ESL §25 and social-pension §1a sources.
+Historical transition-context identities and survivor facts still require
+separate review; see the [scope and migration](../examples/danish-income-tax/personskat-validity.md#folkepensionsalder-og-ejendomsskat).
+
 Canonical spouse intake now distinguishes unavailable facts from no spouse.
 Fresh templates select `ÆgtefællegrundlagUoplyst`; this withholds independent
 comparison, including the period/documented annual basis in PSL14 and integrated
