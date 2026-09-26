@@ -1,0 +1,58 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+
+-- En fiktiv etiket og et beløb fastslår ikke indkomstens retlige art.
+= lønlinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "side-1-linje-1", linje_label = "Personlig indkomst", beløb_øre = 60000000)
+= uafklaret_lønmapping = personskat_aarsopgoerelse_kortlaeg_bruttoløn(lønlinje)
+| uafklaret_løn_er_ikke_automatisk_ordinær_løn: uafklaret_lønmapping -> personskat_aarsopgoerelse_mappingkategori(uafklaret_lønmapping) == SupplerendeKildeMapping && uafklaret_lønmapping.kildelinjer == [lønlinje]
+? uafklaret_løn_er_ikke_automatisk_ordinær_løn
+
+| løn_testlinje(år: Heltal, beløb: Heltal, etiket: Tekst) -> PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-lønoplysning", indkomstår = år, linje_identifikation = "linje-1", linje_label = etiket, beløb_øre = beløb)
+-- Forventningen er uafhængig af produktionsmodellens faktakravsliste.
+= krævede_lønfakta = [LønartOgAfklaretÅrsbeløb, LøngrundlagEfterAtpOgBortseelsesberettigetPension, LønUdenDobbeltregningMedAndreIndkomstgrene]
+| uafklaret_løn_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = KræverSupplerendeKilde(kilde = EIndkomstEllerLønspecifikation, faktakrav = krævede_lønfakta))
+
+-- Hverken lønetiket, nul, fortegn eller hele kroner afklarer indkomstarten.
+= uafklarede_lønlinjer = [
+    lønlinje,
+    løn_testlinje(2025, 60000000, "Lønindkomst, felt 13"),
+    løn_testlinje(2025, 60000000, "Ordinær årsløn uden pension og ATP"),
+    løn_testlinje(2025, 0, "Løn"),
+    løn_testlinje(2025, -100, "Lønrettelse"),
+    løn_testlinje(2025, -1, "Lønrettelse"),
+    løn_testlinje(2025, 60000001, "Løn i øre")
+]
+| uafklaret_løn_bevarer_kilde_og_faktakrav: uafklarede_lønlinjer -> all(uafklarede_lønlinjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje) == uafklaret_løn_forventning(linje))
+? uafklaret_løn_bevarer_kilde_og_faktakrav
+
+-- Kildeklassifikation foretages uden for helperen; direkte beløb beviser den ikke.
+| ordinær_løn_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = linje.beløb_øre / 100, resterende_faktakrav = krævede_lønfakta))
+= ordinære_lønlinjer = map([0, 100, 60000000, 9223372036854775800], |beløb: Heltal| løn_testlinje(2025, beløb, "Kildeafklaret årsløn"))
+| ordinær_løn_bevarer_beløb_uden_nye_fradrag: ordinære_lønlinjer -> all(ordinære_lønlinjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_ordinær_årsløn(linje, 2025) == ordinær_løn_forventning(linje))
+? ordinær_løn_bevarer_beløb_uden_nye_fradrag
+
+| løn_øre_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = ØrepræcisionKanIkkeBevares(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_øre = linje.beløb_øre, resterende_faktakrav = krævede_lønfakta))
+= lønlinjer_med_ører = map([1, 99, 101, 60000001, 9223372036854775807], |beløb: Heltal| løn_testlinje(2025, beløb, "Kildeafklaret årsløn"))
+| ordinær_løn_afrunder_ikke_øre: lønlinjer_med_ører -> all(lønlinjer_med_ører, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_ordinær_årsløn(linje, 2025) == løn_øre_forventning(linje))
+? ordinær_løn_afrunder_ikke_øre
+
+| løn_ugyldig_forventning(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = UgyldigeKildelinjer)
+= ugyldige_lønkilder = [
+    løn_testlinje(0, 60000000, "Løn"),
+    løn_testlinje(-1, 60000000, "Løn"),
+    løn_testlinje(2025, 60000000, ""),
+    PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "", indkomstår = 2025, linje_identifikation = "linje-1", linje_label = "Løn", beløb_øre = 60000000),
+    PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv", indkomstår = 2025, linje_identifikation = "", linje_label = "Løn", beløb_øre = 60000000)
+]
+| lønruter_afviser_ugyldig_kilde: ugyldige_lønkilder -> all(ugyldige_lønkilder, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje) == løn_ugyldig_forventning(linje) && personskat_aarsopgoerelse_kortlaeg_ordinær_årsløn(linje, linje.indkomstår) == løn_ugyldig_forventning(linje))
+? lønruter_afviser_ugyldig_kilde
+
+= ugyldige_ordinære_lønlinjer = [løn_testlinje(2024, 60000000, "Løn"), løn_testlinje(2026, 60000000, "Løn"), løn_testlinje(2025, -1, "Rettelse"), løn_testlinje(2025, -100, "Rettelse")]
+| ordinær_løn_ændrer_ikke_år_eller_fortegn: ugyldige_ordinære_lønlinjer -> all(ugyldige_ordinære_lønlinjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kortlaeg_ordinær_årsløn(linje, 2025) == løn_ugyldig_forventning(linje))
+? ordinær_løn_ændrer_ikke_år_eller_fortegn
+
+-- Beregnet AM er stadig en kontrol, aldrig erstatning for løngrundlaget.
+= am_kildelinje = løn_testlinje(2025, 4800000, "Beregnet AM")
+= am_kontrol = personskat_aarsopgoerelse_kortlaeg_beregnet_arbejdsmarkedsbidrag(am_kildelinje)
+| beregnet_am_forbliver_kontrol: am_kontrol -> am_kontrol == PersonskatÅrsopgørelseMapping(kildelinjer = [am_kildelinje], anvendelse = Kontrolresultat(mål = refof(LønmodtagerBreakdown::arbejdsmarkedsbidrag_kroner), beløb_øre = 4800000))
+? beregnet_am_forbliver_kontrol

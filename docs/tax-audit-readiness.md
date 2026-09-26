@@ -92,6 +92,18 @@ pension/ATP boundaries and source traces, guarded against renewed drift by the
 input guidance; it does not prove that an AI classifies an arbitrary report
 correctly or that every missing fact is mechanically detectable.
 
+The [salary source-mapping correction](../examples/danish-income-tax/fra-bilag-til-input.md#lønlinjer-kræver-klassifikation)
+closes a contradictory helper path: an arbitrary line labelled personal income
+previously became ordinary wage with no remaining factual requirements. The
+generic helper now requests classification; a separate source-confirmed route
+checks year, sign and precision while retaining its factual obligations. Neither
+route authenticates a document or submits a canonical tax case. Focused
+[behavior](../tests/personskat_salary_mapping_test.runa) and
+[metadata](../tests/tax_salary_mapping_metadata.test.mjs) regressions protect the
+boundary, source references and linked code spans. Canonical tax formulas and
+input contracts are unchanged; old source mappings require review, not automatic
+renaming. This is not evidence of reliable AI interpretation of unseen reports.
+
 The [read-only input navigator](../scripts/calculation-input-guide.py) makes the
 large generated contract usable one branch at a time, including type choices,
 collection/optional context and exact field/ancestor metadata. It preserves

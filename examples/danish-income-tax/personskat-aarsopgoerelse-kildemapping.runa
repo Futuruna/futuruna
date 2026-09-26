@@ -59,7 +59,7 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 # PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter | AfgørelseOgBetalingsopgørelse
 
-# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
+# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
 
 # PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | DirekteKildebeløbØre(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
 
@@ -154,11 +154,39 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
     | UgyldigeKildelinjer -> UgyldigMapping
 }
 
-| personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
-    [linje],
-    refof(PersonskatLønmodtagerInput::bruttoløn_kroner),
-    []
+= personskat_aarsopgoerelse_løn_faktakrav = [LønartOgAfklaretÅrsbeløb, LøngrundlagEfterAtpOgBortseelsesberettigetPension, LønUdenDobbeltregningMedAndreIndkomstgrene]
+= personskat_aarsopgoerelse_lønadvarsel = PersonskatÅrsopgørelseMappingAdvarsel(
+    besked = "Et rubriknummer, felt 13 eller en lønetiket fastslår ikke, at hele beløbet er ordinær årsløn. Afklar indkomstart, år og korrigeret årsbeløb; en rettelses forskelsbeløb eller samlet personlig indkomst er ikke dette input. Løngrundlaget er før A-skat og AM, men efter egen ATP og bortseelsesberettiget arbejdsgiveradministreret pension. Træk ikke disse bidrag fra igen, og træk ikke privat pension fra lønfeltet. Samme indkomst må ikke samtidig ligge i andre indkomstgrene; bevar særskilt oplyste komponenter i deres rette grene. Den eksplicitte ordinære rute kræver kildebaseret klassifikation; DirekteMapping beviser ikke de resterende fakta. Bevar original linje, fortegn og øre uden afrunding. EIndkomstEllerLønspecifikation angiver en mulig supplerende kilde, ikke et krav om et nyt dokument, hvis fakta allerede er afklaret. Se fra-bilag-til-input.md#lønlinjer-kræver-klassifikation."
 )
+= personskat_aarsopgoerelse_lønmetadata = Metadata(
+    attachments = (
+        Guidance(value = personskat_løngrundlag_am_vejledning),
+        Guidance(value = personskat_løngrundlag_eindkomst_vejledning),
+        Warning(value = personskat_aarsopgoerelse_lønadvarsel),
+    )
+)
+
+--@label:personskat_aarsopgoerelse_løn::meta:personskat_aarsopgoerelse_lønmetadata--
+--@begin:personskat_aarsopgoerelse_løn--
+| personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
+    linje,
+    EIndkomstEllerLønspecifikation,
+    personskat_aarsopgoerelse_løn_faktakrav
+)
+
+-- Kald kun efter afklaring af lønart, årsgrundlag og fordeling fra kildefakta.
+-- År, fortegn og præcision kontrolleres, ikke dokumentets sandhed eller indhold.
+| personskat_aarsopgoerelse_kortlaeg_ordinær_årsløn(linje: PersonskatÅrsopgørelseKildelinje, indkomstår: Heltal) -> hvis linje.indkomstår == indkomstår && linje.beløb_øre >= 0 {
+    personskat_aarsopgoerelse_direkte_kronemapping(
+        [linje],
+        refof(PersonskatLønmodtagerInput::bruttoløn_kroner),
+        personskat_aarsopgoerelse_løn_faktakrav
+    )
+} ellers {
+    PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = UgyldigeKildelinjer)
+}
+--@end:personskat_aarsopgoerelse_løn--
+
 | personskat_aarsopgoerelse_kortlaeg_renteindtægter(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
     [linje],
     refof(PersonskatRenteInput::renteindtægter_kroner),

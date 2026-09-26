@@ -82,6 +82,38 @@ bare afrunde for at opfylde en heltalskontrakt; den eksisterende
 [kildemapping](personskat-aarsopgoerelse-kildemapping.runa) skelner eksplicit
 mellem direkte mapping, kontrolresultat, supplerende fakta og tab af ørepræcision.
 
+## Lønlinjer kræver klassifikation
+
+En lønetiket eller et rubriknummer er ikke nok til at fastslå det ordinære
+løngrundlag. Den generelle helper
+`personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje)` returnerer derfor nu
+`KræverSupplerendeKilde` med tre synlige faktakrav: lønart og afklaret årsbeløb,
+grundlag efter egen ATP og bortseelsesberettiget pension samt afgrænsning uden
+dobbeltregning med andre indkomstgrene. Original linje, år, etiket og øre bevares,
+også når beløbet er nul, negativt eller har øre.
+
+Når disse fakta er dokumenteret, kan den særskilte helper
+`personskat_aarsopgoerelse_kortlaeg_ordinær_årsløn(linje, indkomstår)` pege på
+`PersonskatLønmodtagerInput::bruttoløn_kroner`. Den kræver samme indkomstår,
+gyldige kildeidentifikatorer og et ikke-negativt beløb. Ikke-hele kroner giver
+`ØrepræcisionKanIkkeBevares`, ikke et afrundet input. Den hverken trækker pension
+eller ATP fra på ny eller udleder lønnen af en beregnet skat. Begge helpers er
+rene mappingfunktioner; de indsender ikke beløbet til Personskat.
+
+Den direkte rute bevarer de tre `resterende_faktakrav`: den kan ikke kontrollere,
+at en AI faktisk har klassificeret bilaget korrekt. `DirekteMapping` alene er
+ikke godkendelse. Registrér grundlaget i den private kildelog. Felt 13 kan også
+indeholde andre indkomstarter og komponenter, der har særskilte input; det følger
+af [eIndkomst-vejledningen](https://info.skat.dk/data.aspx?oid=2233519).
+`EIndkomstEllerLønspecifikation` er en mulig kilde til afklaring, ikke et krav om
+et nyt bilag, når de relevante fakta allerede er dokumenteret.
+
+Tidligere kald til den generelle helper kunne give et direkte beløb med tomme
+faktakrav. Gennemgå derfor eksisterende lønmappings mod kilden; omdøb ikke blot
+kaldet for at få et direkte resultat. Ændringen berører denne hjælpefunktion,
+ikke Personskats skatteformler eller beregningskontrakt. Det fiktive eksempel
+ovenfor har allerede en udtrykkelig klassifikation og ændrer ikke beløb.
+
 ## Manglende oplysninger: to forskellige grænser
 
 **ATP mangler:** Arbejdsgivervarianten `atp-uoplyst` har stadig den kendte

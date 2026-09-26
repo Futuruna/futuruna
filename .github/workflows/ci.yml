@@ -67,6 +67,8 @@ jobs:
           ./target/release/runa run tests/personskat_ferry_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_ferry.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_salary_metadata.test.mjs
+          ./target/release/runa tests/personskat_salary_mapping_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_salary_mapping_metadata.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_salary_input.test.mjs
           ./target/release/runa tests/personskat_partyear_input_controls_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/personskat_settlement_stage.test.mjs
