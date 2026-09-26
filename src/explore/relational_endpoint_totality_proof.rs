@@ -859,6 +859,7 @@ enum ObligationKind {
     Collection,
     Match,
     StringTrim,
+    IntegerDisplay,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -9221,6 +9222,25 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                     ))
                 }
             },
+            ("show", 1) => match arguments.remove(0) {
+                AbstractValue::Int(interval) if interval.runtime_int().is_some() => {
+                    // Runtime Int display is total and at most 20 bytes. A
+                    // varying input must retain an unknown result, not a
+                    // representative string that could erase a reachable arm.
+                    AbstractValue::String(
+                        interval
+                            .singleton_value()
+                            .map(|value| value.to_string().into()),
+                    )
+                }
+                _ => {
+                    return Err(self.issue(
+                        site,
+                        RelationalEndpointTotalityIssueReason::CheckedResolutionUnavailable,
+                        "show requires one proved runtime Int in an endpoint proof",
+                    ))
+                }
+            },
             ("length", 1) => match arguments.remove(0) {
                 AbstractValue::List(sequence) => {
                     let (minimum, maximum) = sequence.lengths();
@@ -9590,6 +9610,9 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         self.require_bounded_value(&result, site)?;
         if name == "trim" {
             self.record(site, ObligationKind::StringTrim, &input, &result)?;
+        }
+        if name == "show" {
+            self.record(site, ObligationKind::IntegerDisplay, &input, &result)?;
         }
         if matches!(
             name,
