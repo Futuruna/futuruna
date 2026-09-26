@@ -76,14 +76,33 @@ beløb bevares, men må ikke præsenteres som gyldig slutskat.
 
 Ægtefællens alder kan være relevant, selv om denne ikke ejer nogen ejendom.
 I ægtefællens ejendomsgren henviser partnerfeltet omvendt til hovedpersonen.
-Kontrollen kræver ikke ejendomsaldersfakta ved tom ejendomsliste eller alene
+Årets kontrol kræver ikke ejendomsaldersfakta ved tom ejendomsliste eller alene
 grundskyld, og et ikke-samlevende partnerfelt bruges ikke som nedslagsgrundlag.
 
-Historiske 2024-kontekster i overgangsberegningen og pensionistsuccession efter
-§ 25, stk. 3, har stadig selvstændige kildefakta. Denne kontrol afstemmer ikke
-deres personidentiteter. En afdød eller tidligere ægtefælles alder må ikke
-erstattes med en aktuel ægtefælles alder. En yngre længstlevende kan derfor
-fortsat have et særskilt dokumenteret successionsgrundlag.
+Et oplyst **eget rabatgrundlag fra 2024** vedrører samme ejer. Her afstemmes
+`kontekst_2024.kildefakta.ejer_folkepensionsalder` mod ejerens fødselsdato for
+**2024**, også i en senere årsberegning. Hvis folkepensionsalderen først nås i
+2025, må denne status ikke kopieres tilbage til 2024. Dette gælder begge
+personers egne ejendomsgrene og også et historisk ejendomsværdiskattegrundlag
+for en bolig, som nu udlejes. Fejlen peger på det valgfrie JSON-felt
+`eget_rabatgrundlag_2024`; forklaringen navngiver ejendommens identifikation,
+det indre aldersfelt og den forventede status/dato. Ret kildegrundlaget, ikke
+den afledte skat.
+
+Historien kan påvirke overgangsrabatten efter
+[ESL §§ 35-40](https://www.retsinformation.dk/eli/lta/2023/678), herunder
+den tidligere ejendomsværdiskats stigningsbegrænsning efter
+[EVSL §§ 9 og 9 a](https://www.retsinformation.dk/eli/lta/2020/1590).
+Kontrollen bekræfter kun sammenhængen i aldersoplysningen; den verificerer
+ikke historiske indkomster, vurderinger eller alle § 9-kvalifikationer.
+
+En historisk ægtefælle, et **overtaget** rabatgrundlag og pensionistsuccession
+efter § 25, stk. 3, har stadig selvstændige personfakta. Disse personidentiteter
+udledes ikke af den aktuelle husstand. En tidligere ægtefælles alder må derfor
+ikke erstattes med ejerens eller en ny ægtefælles alder. Brug den dokumenterede
+overdragelsesrute, hvis grundlaget faktisk stammer fra en anden person; flyt
+ikke et eget grundlag til denne rute for at undgå en kontrol. En yngre
+længstlevende kan fortsat have et særskilt dokumenteret successionsgrundlag.
 
 Feltvejledningen har ændret Preview-kontraktens fingerprint. Generér en frisk
 skabelon med den aktuelle model og genindsæt gennemgåede kildefakta; omskriv
