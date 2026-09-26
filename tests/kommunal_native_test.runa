@@ -1,0 +1,49 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / kommuneskatteloven
+
+-- Fiktive kerneinput; valgstatus er allerede afledt af PSL § 14.
+| kommunal_testinput(delår: Boolsk, valg_gyldigt: Boolsk, omregnes: Boolsk, dage: Heltal, helårsskat: Heltal) -> KommunalPar5DelårInput(
+    omfatter_kortere_periode_end_år = delår,
+    omregning = Par14OmregningInput(
+        skatteår = 2026,
+        delårs_skattepligtig_indkomst_kroner = 180000,
+        delårs_personlig_indkomst_kroner = 200000,
+        delårs_kapitalindkomst_kroner = -20000,
+        skattepligtsdage = dage,
+        skattepligtige_indkomstposter = [Par14Beløbspost("indkomst", 180000, Par14ForholdsmæssigtLøbendeBeløb)],
+        personlige_indkomstposter = [Par14Beløbspost("personlig", 200000, Par14ForholdsmæssigtLøbendeBeløb)],
+        kapitalindkomstposter = [Par14Beløbspost("kapital", -20000, Par14ForholdsmæssigtLøbendeBeløb)]
+    ),
+    valg = Par14ValgResultat(valg_gyldigt, Sandt, Falskt, Falskt, Dato(2027, 7, 1), Sandt, Sandt, Falskt, omregnes),
+    kommunal_helårsskat_kroner = helårsskat,
+    kommunal_skat_som_helårsskattepligtig_kroner = helårsskat,
+    stk2_indkomstfordeling = Par14Stk2Indkomstfordeling(365000, 180000)
+)
+| kommunal_testresultat(delår: Boolsk, valg_gyldigt: Boolsk, omregnes: Boolsk, dage: Heltal, skat: Heltal) -> kommunal_par5_delår_resultat(kommunal_testinput(delår, valg_gyldigt, omregnes, dage, skat))
+
+= helår = kommunal_testresultat(Falskt, Sandt, Falskt, 180, 78000)
+= helår_nul = kommunal_testresultat(Falskt, Sandt, Falskt, 180, 0)
+= helår_negativ = kommunal_testresultat(Falskt, Sandt, Falskt, 180, -1)
+= delår_omregnet = kommunal_testresultat(Sandt, Sandt, Sandt, 180, 85775)
+= delår_stk2 = kommunal_testresultat(Sandt, Sandt, Falskt, 180, 78000)
+= delår_ugyldigt_valg = kommunal_testresultat(Sandt, Falskt, Sandt, 180, 85775)
+= delår_ugyldig_periode = kommunal_testresultat(Sandt, Sandt, Sandt, 0, 85775)
+= delår_negativ = kommunal_testresultat(Sandt, Sandt, Sandt, 180, -1)
+= eget_skøn = kommunal_par7_afregningsvalg_resultat(KommunalEgetSkøn)
+= statsgaranti = kommunal_par7_afregningsvalg_resultat(KommunalStatsgaranteretUdskrivningsgrundlag)
+
+= kommunale_grænser = [
+    helår.input_gyldigt && helår.kommunal_indkomstskat_efter_delår_kroner == 78000,
+    helår_nul.input_gyldigt && helår_nul.kommunal_indkomstskat_efter_delår_kroner == 0,
+    helår_negativ.input_gyldigt == Falskt && helår_negativ.kommunal_indkomstskat_efter_delår_kroner == 0,
+    delår_omregnet.input_gyldigt && delår_omregnet.kommunal_indkomstskat_efter_delår_kroner == 42300,
+    delår_stk2.input_gyldigt && delår_stk2.kommunal_indkomstskat_efter_delår_kroner == 38465,
+    delår_ugyldigt_valg.input_gyldigt == Falskt && delår_ugyldigt_valg.kommunal_indkomstskat_efter_delår_kroner == 0,
+    delår_ugyldig_periode.input_gyldigt == Falskt && delår_ugyldig_periode.kommunal_indkomstskat_efter_delår_kroner == 0,
+    delår_negativ.input_gyldigt == Falskt && delår_negativ.kommunal_indkomstskat_efter_delår_kroner == 0,
+    eget_skøn.budgetvalg == KommunalEgetSkøn && eget_skøn.omfang == AfregningEfterPar15OgPar16Stk1Til4 && eget_skøn.par15_gælder && eget_skøn.efterregulering_stk1_til_4_gælder,
+    statsgaranti.budgetvalg == KommunalStatsgaranteretUdskrivningsgrundlag && statsgaranti.omfang == AfregningEfterPar15OgPar16Stk4 && statsgaranti.par15_gælder && statsgaranti.efterregulering_stk1_til_4_gælder == Falskt
+]
+| kommunal_helår_delår_og_budgetvalg: kommunale_grænser -> length(kommunale_grænser) == 10 && all(kommunale_grænser, |gyldig: Boolsk| gyldig)
+? kommunal_helår_delår_og_budgetvalg
+@ print("10 kommunale grænsekontroller bestået")

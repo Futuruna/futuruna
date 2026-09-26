@@ -41,6 +41,23 @@ fn source_parameters_and_report_results_match_native_execution() {
 }
 
 #[test]
+fn municipality_year_scope_and_budget_choices_match_native_execution() {
+    let path = "tests/kommunal_native_test.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+        assert!(
+            output.status.success(),
+            "{lane}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("10 kommunale grænsekontroller"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
 fn ordinary_deductions_match_external_skat_calculator_boundaries() {
     let path = "examples/danish-income-tax/skatdk-arbejdsfradrag-ekstern.scenario.runa";
     let interpreted = execute(false, path);
