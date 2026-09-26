@@ -76,6 +76,7 @@
     ejendomsværdi_2002_kroner = beregningsgrundlag_kroner,
     historisk_begrænsning = EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
         foregående_indkomstårs_ejendomsværdiskat_øre = None,
+        par9_ydelsesgrundlag = None,
         par9b_nedsættelse_øre = 0,
         vurderet_helt_eller_delvis_benyttet_til_ejerbolig = Sandt,
         ejerlejlighed_frigjort_for_lejemål = Falskt,
@@ -255,12 +256,15 @@
     grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 7, dag = 1)),
     ejerandel_basispoint = 5000
 )
+> ejsk_overgang_ejerskifteart() -> EjendomsskattelovEjerskifteArt {
+    EjskOverdragelseMellemÆgtefæller
+}
 = ejsk_overgang_modtagers_nedslagsfakta = EjendomsskattelovNedslagsfakta(
     ejerskabshistorik = EjendomsskattelovEjerskabshistorik(
         oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 1998, måned = 7, dag = 1),
         ejerskifter = [EjendomsskattelovEjerskifte(
             dato = EjendomsskattelovDato(år = 2025, måned = 7, dag = 1),
-            art = EjskOverdragelseMellemÆgtefæller
+            art = ejsk_overgang_ejerskifteart()
         )]
     ),
     boliganvendelse = EjskHelårsbolig,
@@ -494,6 +498,34 @@
     )
 )
 
+-- Fiktiv § 9-modtager under folkepensionsalderen: loft, ikke § 8-nedslag.
+= ejsk_overgang_efterløn_basis = ejsk_overgang_rabat_2024_fakta("efterløn", 2000000, 850000, EjendomsskattelovDato(år = 2020, måned = 1, dag = 1), EjskFolkepensionsalderIkkeOpnået)
+= ejsk_overgang_efterløn_fakta = EjendomsskattelovRabat2024Fakta(
+    kontekst_2024 = ejsk_overgang_efterløn_basis.kontekst_2024,
+    ny_lov_helårsgrundlag = ejsk_overgang_efterløn_basis.ny_lov_helårsgrundlag,
+    ny_lov_nedslagsfakta = ejsk_overgang_efterløn_basis.ny_lov_nedslagsfakta,
+    tidligere_ejendomsværdiskat = EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(
+        ejendomsværdi_året_før_kroner = 1062500,
+        ejendomsværdi_2001_kroner = 850000,
+        ejendomsværdi_2002_kroner = 850000,
+        historisk_begrænsning = EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
+            foregående_indkomstårs_ejendomsværdiskat_øre = Some(400000),
+            par9_ydelsesgrundlag = Some(EjendomsskattelovEvslPar9Ydelsesgrundlag(ejer = EjskEvslEfterlønVedÅretsUdgang, ægtefælle = EjskEvslPar9YdelseUoplyst)),
+            par9b_nedsættelse_øre = 0,
+            vurderet_helt_eller_delvis_benyttet_til_ejerbolig = Sandt,
+            ejerlejlighed_frigjort_for_lejemål = Falskt,
+            ombygning_over_100_procent = Falskt
+        ),
+        udenlandske_ejendomsskatter = []
+    ),
+    tidligere_grundskyld = ejsk_overgang_efterløn_basis.tidligere_grundskyld,
+    byggeri = EjskIngenNyEllerOmbygning,
+    grundskyld_fritaget_basispoint = 0,
+    grundskyld_kan_fordeles_på_samme_boligenhed = Sandt
+)
+= ejsk_overgang_efterløn_tidligere = ejendomsskattelov_tidligere_ejendomsværdiskat_2024_resultat(ejsk_overgang_efterløn_fakta)
+| ejsk_overgang_efterløn_giver_loft_men_ikke_aldersnedslag: ejsk_overgang_efterløn_tidligere -> ejsk_overgang_efterløn_tidligere.input_gyldigt && ejsk_overgang_efterløn_tidligere.par8_nedslag_før_par10_øre == 0 && ejsk_overgang_efterløn_tidligere.par10_reduktion_øre == 0 && ejsk_overgang_efterløn_tidligere.par9_eller_par9a_begrænset_skat_øre == 450000 && ejsk_overgang_efterløn_tidligere.skat_øre == 450000 && ejsk_overgang_efterløn_tidligere.skat_til_forskelsbeløb_øre == 450000
+
 | ejsk_overgang_officielt_eksempel_giver_1090_kroner: ejsk_overgang_officielt_resultat -> ejsk_overgang_officielt_resultat.regelgrundlag_understøttet && ejsk_overgang_officielt_resultat.overgang.rabat_ejendomsværdiskat_øre == 109000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_før_overgang_øre == 618000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_øre == 509000
 | ejsk_overgang_par72_hel_februar_er_30_dage: ejsk_overgang_hel_februar_2025 -> ejsk_overgang_hel_februar_2025.datoer_gyldige && ejsk_overgang_hel_februar_2025.skattepligtige_dage == 30 && ejsk_overgang_hel_februar_2024.datoer_gyldige && ejsk_overgang_hel_februar_2024.skattepligtige_dage == 30
 | ejsk_overgang_par72_skudårets_28_februar_er_ikke_månedens_sidste_dag: ejsk_overgang_februar_2024_til_28 -> ejsk_overgang_februar_2024_til_28.datoer_gyldige && ejsk_overgang_februar_2024_til_28.skattepligtige_dage == 28
@@ -518,6 +550,7 @@
 | ejsk_overgang_delårsperiode_bevarer_ordinær_afrunding_når_loftet_ikke_binder: ejsk_overgang_fem_måneder_uden_bindende_loft -> ejsk_overgang_fem_måneder_uden_bindende_loft.kapabilitet == EjskUnderstøttet && ejsk_overgang_fem_måneder_uden_bindende_loft.ordinær_grundskyld_helår_øre == 408002 && ejsk_overgang_fem_måneder_uden_bindende_loft.ordinær_grundskyld_øre == 170001 && ejsk_overgang_fem_måneder_uden_bindende_loft.grundskyld_efter_stigningsbegrænsning_helår_øre == 408002 && ejsk_overgang_fem_måneder_uden_bindende_loft.grundskyld_efter_stigningsbegrænsning_øre == 170001 && ejsk_overgang_fem_måneder_uden_bindende_loft.begrænsning_øre == 0 && ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft.grundskyld_før_overgang_øre == 170001 && ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft.grundskyld_øre == 170001
 
 ? ejsk_overgang_officielt_eksempel_giver_1090_kroner
+? ejsk_overgang_efterløn_giver_loft_men_ikke_aldersnedslag
 ? ejsk_overgang_par72_hel_februar_er_30_dage
 ? ejsk_overgang_par72_skudårets_28_februar_er_ikke_månedens_sidste_dag
 ? ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet

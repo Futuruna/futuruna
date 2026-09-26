@@ -203,6 +203,7 @@ function historicalProperty(input) {
       ejendomsværdi_året_før_kroner: 1062500, ejendomsværdi_2001_kroner: 850000,
       ejendomsværdi_2002_kroner: 850000,
       historisk_begrænsning: { foregående_indkomstårs_ejendomsværdiskat_øre: 400000,
+        par9_ydelsesgrundlag: { ejer: v('EjskEvslIngenPar9Ydelse'), ægtefælle: v('EjskEvslIngenPar9Ydelse') },
         par9b_nedsættelse_øre: 0, vurderet_helt_eller_delvis_benyttet_til_ejerbolig: true,
         ejerlejlighed_frigjort_for_lejemål: false, ombygning_over_100_procent: false },
       udenlandske_ejendomsskatter: [],
@@ -219,6 +220,112 @@ function historicalProperty(input) {
   return history;
 }
 const historicalPath = 'ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024';
+
+test('historical benefit recipient gets section9 cap without retirement-age relief', enabled, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-historical-benefit-'));
+  console.log(`Fictional historical-benefit evidence: ${dir}`);
+  const envelope = run(['template', model, '--format', 'json']);
+  const input = buildFictionalCases(envelope).envelope.cases[0].input;
+  input.lønmodtager.bruttoløn_kroner = 100000;
+  input.lønmodtager.pension.pbl18_indbetalinger = [];
+  input.lønmodtager.pension.fødselsdato = date(1960);
+  const history = historicalProperty(input);
+  // Fictional source fact: owner received efterløn at the END OF 2024.
+  history.tidligere_ejendomsværdiskat.historisk_begrænsning.par9_ydelsesgrundlag = {
+    ejer: v('EjskEvslEfterlønVedÅretsUdgang'), ægtefælle: v('EjskEvslIngenPar9Ydelse'),
+  };
+  envelope.cases = [{ case_id: 'historical-efterlon', input }];
+  const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
+  save(dir, 'results.json', out);
+  assert.deepEqual(out.diagnostics, []);
+  const r = out.results[0].result;
+  console.log(JSON.stringify({ valid: r.vurdering.alle_kontroller_gyldige,
+    property_tax_ore: r.ejendomsskatter.samlet_ejendomsskat_øre,
+    tax_ore: r.vurdering.slutskat_til_sammenligning_øre }));
+  assert.equal(r.vurdering.alle_kontroller_gyldige, true);
+  assert.equal(r.ejendomsskatter.samlet_ejendomsskat_øre, 450000);
+  assert.equal(r.ejendomsskatter.ejendomsresultater[0].nedslag.par25_nedslag_efter_par26_øre, 0);
+});
+
+test('historical benefits keep age boundaries, unknowns and historical spouse identity', enabled, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-benefit-boundaries-'));
+  console.log(`Fictional historical-benefit boundaries: ${dir}`);
+  const envelope = run(['template', model, '--format', 'json']);
+  const base = buildFictionalCases(envelope).envelope.cases[0].input;
+  base.lønmodtager.bruttoløn_kroner = 100000;
+  base.lønmodtager.pension.pbl18_indbetalinger = [];
+  base.lønmodtager.pension.fødselsdato = date(1960);
+  const social = (d, kind = 'EjskEvslFørtidspension') => v('EjskEvslModtagerSocialYdelse', {
+    ydelse: v(kind), fødselsdato: d,
+  });
+  // Each mutation receives the current input, historical household and historical cap facts.
+  const specs = [
+    ['known-no-benefit', 640000, () => {}],
+    ['unknown-benefits', null, (i, h, c) => { c.par9_ydelsesgrundlag = null; }],
+    ['unknown-owner', null, (i, h, c) => { c.par9_ydelsesgrundlag.ejer = v('EjskEvslPar9YdelseUoplyst'); }],
+    ['turns-60-last-day', 450000, (i, h, c) => {
+      i.lønmodtager.pension.fødselsdato = date(1964, 12, 31);
+      c.par9_ydelsesgrundlag.ejer = social(date(1964, 12, 31));
+    }],
+    ['turns-60-next-year', 640000, (i, h, c) => {
+      i.lønmodtager.pension.fødselsdato = date(1965);
+      c.par9_ydelsesgrundlag.ejer = social(date(1965));
+    }],
+    ['seniorpension', 450000, (i, h, c) => { c.par9_ydelsesgrundlag.ejer = social(date(1960), 'EjskEvslSeniorpension'); }],
+    ['tidlig-pension-amendment', 450000, (i, h, c) => { c.par9_ydelsesgrundlag.ejer = social(date(1960), 'EjskEvslTidligPension'); }],
+    ['invalidity-with-supplement', 450000, (i, h, c) => { c.par9_ydelsesgrundlag.ejer = social(date(1960), 'EjskEvslInvaliditetsydelseMedBistandsEllerPlejetillæg'); }],
+    ['fleksydelse', 450000, (i, h, c) => { c.par9_ydelsesgrundlag.ejer = v('EjskEvslFleksydelseVedÅretsUdgang'); }],
+    ['historical-spouse-not-current-spouse', 450000, (i, h, c) => {
+      i.lønmodtager.pension.fødselsdato = date(1990);
+      h.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang = true;
+      c.par9_ydelsesgrundlag.ægtefælle = social(date(1960));
+    }],
+    ['noncohabiting-spouse-not-used', 640000, (i, h, c) => { c.par9_ydelsesgrundlag.ægtefælle = social(date(1960)); }],
+    ['own-qualification-needs-no-partner-benefit-facts', 450000, (i, h, c) => {
+      h.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang = true;
+      c.par9_ydelsesgrundlag.ejer = v('EjskEvslEfterlønVedÅretsUdgang');
+      c.par9_ydelsesgrundlag.ægtefælle = v('EjskEvslPar9YdelseUoplyst');
+    }],
+    ['unresolved-relevant-spouse', null, (i, h, c) => {
+      h.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang = true;
+      c.par9_ydelsesgrundlag.ægtefælle = v('EjskEvslPar9YdelseUoplyst');
+    }],
+    ['contradictory-owner-birthday', null, (i, h, c) => {
+      i.lønmodtager.pension.fødselsdato = date(1965);
+      c.par9_ydelsesgrundlag.ejer = social(date(1964));
+    }],
+    ['impossible-historical-spouse-date', null, (i, h, c) => {
+      h.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang = true;
+      c.par9_ydelsesgrundlag.ægtefælle = social(date(1960, 2, 30));
+    }],
+    ['no-applicable-cap-needs-no-benefit-facts', 782000, (i, h, c) => {
+      c.foregående_indkomstårs_ejendomsværdiskat_øre = null;
+      c.par9_ydelsesgrundlag = null;
+    }],
+    ['retirement-already-establishes-cap-route', 0, (i, h, c) => {
+      i.lønmodtager.pension.fødselsdato = date(1957, 12, 31);
+      i.ejendomsskatter.person.ejer_folkepensionsalder = reached(date(2024, 12, 31));
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2024, 12, 31));
+      c.par9_ydelsesgrundlag = null;
+    }],
+  ];
+  envelope.cases = specs.map(([case_id, , change]) => {
+    const input = structuredClone(base), h = historicalProperty(input);
+    change(input, h, h.tidligere_ejendomsværdiskat.historisk_begrænsning);
+    return { case_id, input };
+  });
+  const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
+  save(dir, 'results.json', out);
+  assert.deepEqual(out.diagnostics, []);
+  assert.deepEqual(out.results.map(r => r.case_id), specs.map(s => s[0]));
+  for (const [n, { case_id, result: r }] of out.results.entries()) {
+    const expected = specs[n][1], valid = expected !== null;
+    assert.equal(r.vurdering.alle_kontroller_gyldige, valid, case_id);
+    assert.equal(r.vurdering.slutskat_til_sammenligning_øre === null, !valid, case_id);
+    if (valid) assert.equal(r.ejendomsskatter.samlet_ejendomsskat_øre, expected, case_id);
+    else assert.ok(r.vurdering.fejl.some(f => f.sti === historicalPath && /par9_ydelsesgrundlag/.test(f.forklaring)), case_id);
+  }
+});
 
 test('historical own-age contradiction cannot change a valid annual tax comparison', enabled, () => {
   const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-historical-age-'));
@@ -349,6 +456,10 @@ test('generated age-field guidance carries law and warns against conflating curr
     const historicSources = JSON.stringify(schema.source_groups[historical[0].source_group]
       .map(id => schema.source_objects[id]));
     assert.ok(historicSources.includes('https://www.retsinformation.dk/eli/lta/2020/1590'));
+    assert.ok(historicSources.includes('https://www.retsinformation.dk/eli/lta/2020/2202'));
+    for (const phrase of ['par9_ydelsesgrundlag', 'null betyder ukendte', '60-årsbetingelse', 'gæt ikke partnerens ydelser']) {
+      assert.ok(historical[0].help.includes(phrase), phrase);
+    }
     for (const path of [ownerPath, partnerPath]) {
       const fields = schema.field_metadata.filter(f => f.path === prefix + path + '.$variant');
       assert.equal(fields.length, 1, prefix + path);

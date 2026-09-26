@@ -15,6 +15,7 @@
         DependencySource(value = ejendomsskatteloven_tidligere_ejendomsvaerdiskattelov),
         DependencySource(value = socialpensionsloven_lbk1123_par1a),
         AmendmentSource(value = socialpensionsloven_lov703_par1_nr1),
+        AmendmentSource(value = ejendomsskatteloven_evsl_lov2202_par11),
         Warning(value = personskat_ejendomsskat_aldersforbehold),
     )
 )
@@ -56,6 +57,15 @@
 
 -- Eget grundlag tilhører ejeren; et overtaget grundlag gør ikke. Partneren i
 -- 2024 kan være en anden end i beregningsåret. Ingen sådan identitet udledes.
+> personskat_ejendomsskat_eget_ydelsesgrundlag_alder_stemmer(grundlag: EjendomsskattelovRabat2024Fakta, fødselsdato: Dato) -> Boolsk {
+    match grundlag.tidligere_ejendomsværdiskat.historisk_begrænsning.par9_ydelsesgrundlag {
+        | None -> Sandt
+        | Some(ydelser) -> match ydelser.ejer {
+            | EjskEvslModtagerSocialYdelse(_, dato) -> dato.år == fødselsdato.år && dato.måned == fødselsdato.måned && dato.dag == fødselsdato.dag
+            | _ -> Sandt
+        }
+    }
+}
 > personskat_ejendomsskat_eget_rabatgrundlag_alderkontroller(ejendom: EjendomsskattelovPersonEjendomFakta, fødselsdato: Dato, præfiks: Tekst) -> List(PersonskatInputkontrol) {
     match ejendom.overgangsvurderinger.rabat {
         | EjskIngenRabatvurderingerOplyst -> []
@@ -64,8 +74,12 @@
             | Some(grundlag) -> hvis ejendomsskattelov_par3_stk1_hjemmel_findes(ejendomsskattelov_par3_hjemmel(grundlag.ny_lov_helårsgrundlag.kategori, 2024)) {
                 [PersonskatInputkontrol(
                     sti = præfiks + "ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024",
-                    gyldig = personskat_ejendomsskat_alder_stemmer(grundlag.kontekst_2024.kildefakta.ejer_folkepensionsalder, fødselsdato, 2024),
-                    forklaring = "Ejendom " + show(ejendom.ordinært_grundlag.identifikation) + ": ejer_folkepensionsalder i dit eget rabatgrundlags kontekst_2024 skal passe til din egen fødselsdato. Afstem status ved udgangen af 2024, ikke ved udgangen af beregningsåret. " + personskat_ejendomsskat_alder_forklaring(fødselsdato, 2024)
+                    gyldig = personskat_ejendomsskat_alder_stemmer(grundlag.kontekst_2024.kildefakta.ejer_folkepensionsalder, fødselsdato, 2024) && personskat_ejendomsskat_eget_ydelsesgrundlag_alder_stemmer(grundlag, fødselsdato),
+                    forklaring = "Ejendom " + show(ejendom.ordinært_grundlag.identifikation) + ": ejer_folkepensionsalder i dit eget rabatgrundlags kontekst_2024 skal passe til din egen fødselsdato. Ejerens fødselsdato i par9_ydelsesgrundlag skal også være " + show(fødselsdato) + ". Afstem status ved udgangen af 2024, ikke ved udgangen af beregningsåret. " + personskat_ejendomsskat_alder_forklaring(fødselsdato, 2024)
+                    ), PersonskatInputkontrol(
+                        sti = præfiks + "ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024",
+                        gyldig = ejendomsskattelov_evsl_par9_ydelsesgrundlag_gyldigt(grundlag),
+                        forklaring = "Ejendom " + show(ejendom.ordinært_grundlag.identifikation) + ": afklar par9_ydelsesgrundlag i tidligere_ejendomsværdiskat.historisk_begrænsning for 2024. Ukendte egne eller relevante historiske ægtefælleydelser må ikke blive ingen ydelse. Fødselsdatoer skal være gyldige; nr. 2 kræver fyldt 60 år ved udgangen af 2024. Se personskat-validity.md#historiske-ydelser-og-stigningsbegrænsning."
                 )]
             } ellers { [] }
         }

@@ -108,6 +108,65 @@ Feltvejledningen har ændret Preview-kontraktens fingerprint. Generér en frisk
 skabelon med den aktuelle model og genindsæt gennemgåede kildefakta; omskriv
 ikke hashværdien i gamle sager eller arbejdsbøger. Ingen automatisk migration.
 
+## Historiske ydelser og stigningsbegrænsning
+
+Et 2024-rabatgrundlag kan kræve andre personfakta end folkepensionsalder.
+Den tidligere [EVSL § 9, stk. 1](https://www.retsinformation.dk/eli/lta/2020/1590)
+omfatter også visse ydelsesmodtagere og deres samlevende ægtefæller.
+[Lov nr. 2202/2020 § 11](https://www.retsinformation.dk/eli/lta/2020/2202)
+tilføjede tidlig pension. Dette ændrer valget mellem §§ 9 og 9 a i den
+historiske sammenligning, **ikke** retten til aldersnedslag efter § 8 eller
+den nuværende ESL § 25.
+
+Under `tidligere_ejendomsværdiskat.historisk_begrænsning` findes nu
+`par9_ydelsesgrundlag`. Det er et valgfrit objekt med `ejer` og `ægtefælle`:
+
+- `null` for hele objektet eller `EjskEvslPar9YdelseUoplyst` for en person
+  betyder **ukendt**, ikke ingen ydelse.
+- `EjskEvslIngenPar9Ydelse` kræver afklaret fravær af de relevante ydelser.
+- `EjskEvslEfterlønVedÅretsUdgang` og `EjskEvslFleksydelseVedÅretsUdgang`
+  vedrører modtagelse ved udgangen af **2024**, efter de respektive love.
+- `EjskEvslModtagerSocialYdelse` indeholder `ydelse` og `fødselsdato`.
+  Ydelsen er `EjskEvslFørtidspension`, `EjskEvslSeniorpension`,
+  `EjskEvslTidligPension` eller
+  `EjskEvslInvaliditetsydelseMedBistandsEllerPlejetillæg` efter § 9, stk. 1,
+  nr. 2. Førtids-, senior- og tidlig pension omfatter også lovens forskud.
+  Modellen kontrollerer en gyldig dato og mindst 60 år ved udgangen af 2024.
+  Den efterprøver ikke myndighedens tilkendelse af selve ydelsen.
+
+En ukendt relevant person tilbageholder sammenligningen, hvis valget mellem
+lofterne ikke allerede er afgjort af en kendt kvalifikation. Ejerens kendte
+efterløn kan fx være tilstrækkelig uden partnerens ydelsesoplysninger.
+En allerede tilstrækkelig folkepensionskvalifikation kræver heller ikke
+yderligere ydelsesfakta. En ikke-samlevende historisk partners ydelse bruges
+ikke. Historisk partner og et overtaget rabatgrundlag kan vedrøre andre
+personer end den aktuelle husstand; kopier ikke aktuelle fakta bagud i tiden.
+I eget grundlag kontrolleres ejerens supplerende fødselsdato også mod
+`lønmodtager.pension.fødselsdato`.
+
+Oplysningerne behøves ikke, når intet historisk loft anvendes. Men manglende
+2023-sammenligningsbeløb må **ikke** omfortolkes til, at loftet ikke gælder:
+afklar beløbet og dets lovbestemte opgørelsesgrundlag i kildematerialet.
+Den eksisterende indgang modtager dette grundlag; den rekonstruerer ikke hele
+2023-beregningen eller alle særlige tilpasninger i §§ 9 og 9 a.
+
+Fiktiv regression: ejer under folkepensionsalderen med dokumenteret efterløn
+ved udgangen af 2024, tidligere sammenligningsskat 4.000 kr., beregnet gammel
+skat før loft 7.820 kr. og ny sammenligningsskat 8.160 kr. § 9 giver 4.500 kr.
+og dermed 3.660 kr. i rabat. Før rettelsen anvendte modellen § 9 a og fik
+6.400 kr. og kun 1.760 kr. i rabat. Ingen pensionsaldersdato ændres for at
+opnå forskellen. Det er en kildebaseret modelregression, ikke et eksternt
+match eller en konstateret fejl i en virkelig årsopgørelse.
+
+Historiske længstlevenderuter er **ikke fuldt afklaret** af denne ændring.
+Den eksisterende delte pensionssuccession skal stadig adskilles fra de gamle
+§§ 8 og 9, navnlig ydelsesbaseret succession og virkningen af nyt ægteskab
+(`td-a30c1f`). Brug ikke disse grene som dokumenteret fuld lovdækning.
+
+**Preview-migration:** Generér frisk schema/skabelon og genindsæt gennemgåede
+fakta. Feltet og metadata ændrer fingerprintet; omskriv ikke hash i gamle
+sager. Uoplyste ydelser må ikke migreres til `EjskEvslIngenPar9Ydelse`.
+
 ## Model-owned validity assessment
 
 Finansielle indkomstposter uden for den valgte nr. 5 a/5 b-gren er ikke
