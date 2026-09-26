@@ -1,0 +1,64 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / loenmodtager_beregning
+
+-- Fiktive input og modelregression, ikke uafhængig skattevalidering.
+| lønår_input(år: Heltal, løn: Heltal, kapital: Heltal, kirke: Boolsk) -> LønmodtagerInput(
+    skatteår = år,
+    kommune = København,
+    bruttoløn_kroner = løn,
+    øvrig_personlig_indkomst_kroner = 0,
+    nettokapitalindkomst_kroner = kapital,
+    ligningsmæssige_fradrag_kroner = 0,
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
+    pensionsfradrag = lønmodtager_uden_pensionsfradrag(Dato(1990, 1, 1)),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = kirke
+)
+> lønår_række(input: LønmodtagerInput) -> List(Heltal) {
+    = model = beregn_lønmodtager_model(input)
+    [
+        input.skatteår,
+        model.før_personfradrag.mellemskat_kroner,
+        model.før_personfradrag.topskat_kroner,
+        model.før_personfradrag.toptopskat_kroner,
+        model.slutskat.samlet_inkl_am_kroner,
+        topskat_personligt_overskud_fixture(input),
+        progressiv_kapital_over_bundfradrag(input),
+        topskat_grundlag_med_kapital_fixture(input),
+        topskat_kapitalgrundlag_fixture(input),
+        mellemskat_personligt_grundlag_for(input),
+        mellemskat_kapitalgrundlag_for(input),
+        lønmodtager_par7_skat_før_personfradrag(input),
+        lønmodtager_par7a_skat_før_personfradrag(input),
+        lønmodtager_par8_skat_før_personfradrag(input),
+        mellemskat_efter_personfradrag(input),
+        topskat_efter_personfradrag(input),
+        toptopskat_efter_personfradrag(input),
+        model.efter_personfradrag_før_skatteloft.mellemskat_kroner,
+        model.efter_personfradrag_før_skatteloft.topskat_kroner,
+        model.efter_personfradrag_før_skatteloft.toptopskat_kroner,
+        model.efter_personfradrag_før_skatteloft.udligningsskat_kroner,
+        model.efter_personfradrag_før_skatteloft.sundhedsbidrag_kroner,
+        lønmodtager_personligt_skatteloft_beregningsgrundlag(input),
+        lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input)
+    ]
+}
+
+= lønår_case = env_var("FUTURUNA_WAGE_YEAR_CASE")
+= lønår_output = hvis lønår_case == "historic-in-2026" { vis(lønmodtager_par7_topskat_resultat(lønår_input(2026, 900000, 0, Falskt))) }
+ellers hvis lønår_case == "middle-in-2025" { vis(lønmodtager_par7_reform_mellemskat_resultat(lønår_input(2025, 900000, 0, Falskt))) }
+ellers hvis lønår_case == "top-in-2025" { vis(lønmodtager_par7a_reform_topskat_resultat(lønår_input(2025, 900000, 0, Falskt))) }
+ellers hvis lønår_case == "top-top-in-2025" { vis(lønmodtager_par8_reform_toptopskat_resultat(lønår_input(2025, 3000000, 0, Falskt))) }
+ellers hvis lønår_case == "missing-2022" { vis(beregn_lønmodtager_model(lønår_input(2022, 500000, 0, Falskt))) }
+ellers hvis lønår_case == "missing-2027" { vis(beregn_lønmodtager_model(lønår_input(2027, 500000, 0, Falskt))) }
+ellers { vis(map([
+    lønår_input(2023, 500000, 0, Sandt),
+    lønår_input(2024, 500000, 0, Sandt),
+    lønår_input(2025, 500000, 0, Sandt),
+    lønår_input(2025, 900000, 110000, Falskt),
+    lønår_input(2026, 900000, 0, Falskt),
+    lønår_input(2026, 3000000, 0, Falskt),
+    lønår_input(2026, 650000, 110000, Falskt),
+    lønår_input(2026, 0, 0, Falskt)
+    ], |input: LønmodtagerInput| lønår_række(input))) }
+@ print(lønår_output)
