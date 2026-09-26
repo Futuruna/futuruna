@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { parseReportOutput } from '../examples/danish-income-tax/resultat-visning.mjs';
-import { incomeFields, renderPersonskatOutput, resultFields } from '../examples/danish-income-tax/personskat-resultat.mjs';
+import { amount, parseReportOutput, readSavedOutput } from '../examples/danish-income-tax/resultat-visning.mjs';
+import { incomeFields, partyearChoiceFields, partyearIncomeFields, partyearResultFields,
+  renderPersonskatOutput, resultFields } from '../examples/danish-income-tax/personskat-resultat.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -45,6 +46,154 @@ function invalidate(source) {
   a.kontroller[0].gyldig = false; a.fejl = [structuredClone(a.kontroller[0])];
   return source;
 }
+
+function partyearBaseline() {
+  const source = baseline(), inner = resultOf(source);
+  const result = Object.fromEntries(partyearResultFields.map(field => [field, {}]));
+  for (const field of ['input_gyldigt', 'periode_gyldig', 'kilder_gyldige', 'kilder_afstemt_med_personskat',
+    'helårsgrundlag_gyldigt', 'kanonisk_beregning_understøttet', 'helårsskattekomponenter_afstemt']) result[field] = true;
+  Object.assign(result, {
+    vurdering: structuredClone(inner.vurdering), delårsresultat: inner,
+    slutskat_efter_par14_øre: 7654321, skattepligtsdage: 184,
+    årsopgørelse: variant('IngenÅrsopgørelse'),
+    valg: { ...Object.fromEntries(partyearChoiceFields.map(field => [field, false])),
+      input_gyldigt: true, helårsomregning_skal_ske: true, omvalgsfrist: { år: 2028, måned: 6, dag: 30 } },
+    delårsinput: { skatteår: 2026, bruttoløn_kroner: 200000, øvrig_personlig_indkomst_kroner: 1000, nettokapitalindkomst_kroner: -15000 },
+    helårsinput: { skatteår: 2026, bruttoløn_kroner: 400000, øvrig_personlig_indkomst_kroner: 1000, nettokapitalindkomst_kroner: -30000 },
+  });
+  result.vurdering.slutskat_til_sammenligning_øre = result.slutskat_efter_par14_øre;
+  source.$futuruna.entry = 'beregn_personskat_delår'; source.results[0].result = result;
+  return source;
+}
+
+test('part-year presentation fields track the distinct output, choice and income contracts', () => {
+  for (const [file, type, expected] of [
+    ['personskat-par14.calculate.runa', 'PersonskatPar14BeregningResultat', partyearResultFields],
+    ['kapitel-04-omregning-skatteloft.runa', 'Par14ValgResultat', partyearChoiceFields],
+  ]) {
+    const source = readFileSync(join(root, 'examples/danish-income-tax', file), 'utf8');
+    const fields = source.match(new RegExp(`^# ${type}\\((.+)\\)$`, 'm'))?.[1];
+    assert.ok(fields); assert.deepEqual(fields.split(', ').map(f => f.split(':')[0]).sort(), [...expected].sort());
+  }
+  const source = readFileSync(join(root, 'examples/danish-income-tax/loenmodtager_beregning.runa'), 'utf8');
+  const fields = source.match(/^# LønmodtagerInput\((.+)\)$/m)?.[1];
+  for (const [field] of partyearIncomeFields) assert.ok(fields.includes(`${field}: Heltal`));
+});
+
+test('part-year viewer uses the final outer tax, not a valid ordinary intermediate', () => {
+  const source = partyearBaseline(), r = resultOf(source), before = JSON.stringify(source);
+  const { text, exitCode } = render(source);
+  assert.equal(exitCode, 0);
+  assert.match(text, /slutskat efter PSL § 14 til sammenligning: 76\.543,21 kr/);
+  assert.doesNotMatch(text, /12\.345,67|1\.234\.567/);
+  assert.match(text, /Skattepligtsdage i output: 184/);
+  assert.match(text, /Periodens grundlag: 200\.000 DKK; Omregnet årsgrundlag: 400\.000 DKK/);
+  assert.match(text, /ikke årsopgørelsens endelige rubrikbeløb/);
+  assert.match(text, /mellemregninger og vises ikke som slutskat/);
+  assert.equal(JSON.stringify(source), before);
+  Object.assign(r.valg, { helårsomregning_skal_ske: false, valg_muligt: true,
+    valg_afgivet_ved_oplysninger: true, valg_gældende: true });
+  assert.match(render(source).text, /Faktisk årsgrundlag: 400\.000 DKK/);
+  // A completed change of election restores annualization in the model.
+  // Use its final method flag, not the original election flag alone.
+  r.valg.omvalg_gennemført = true; r.valg.helårsomregning_skal_ske = true;
+  assert.match(render(source).text, /Omregnet årsgrundlag: 400\.000 DKK/);
+  // Nested settlement failure can legitimately coexist with a valid final
+  // settlement. The viewer must neither promote nor veto the outer assessment.
+  invalidate({ results: [{ result: r.delårsresultat }] });
+  assert.equal(render(source).exitCode, 0);
+});
+
+test('outer part-year source or settlement failure suppresses all intermediate and final amounts', () => {
+  for (const settlement of [false, true]) {
+    const source = partyearBaseline(), r = resultOf(source), a = r.vurdering;
+    if (settlement) {
+      a.kontrolgrundlag = { beregning: structuredClone(a.kontroller), afregning: [
+        { sti: 'personskat.årsopgørelse.afregningsfakta', gyldig: false, forklaring: 'Fiktiv forkert slutafregning.' },
+      ] };
+      a.kontroller = [...a.kontrolgrundlag.beregning, ...a.kontrolgrundlag.afregning];
+      a.fejl = [structuredClone(a.kontrolgrundlag.afregning[0])];
+      a.status = variant('UgyldigtBeregningsgrundlag'); a.alle_kontroller_gyldige = false;
+      a.slutskat_til_sammenligning_øre = null;
+    } else { invalidate(source); r.kilder_gyldige = false; }
+    r.input_gyldigt = false;
+    const output = render(source);
+    assert.equal(output.exitCode, 2);
+    assert.match(output.text, /Beløb tilbageholdt/);
+    assert.doesNotMatch(output.text, /76\.543|12\.345|200\.000|400\.000|Skattepligtsdage i output|Metode i output/);
+    for (const c of a.kontroller) assert.ok(output.text.includes(c.forklaring));
+    for (const c of a.forbehold) assert.ok(output.text.includes(c));
+  }
+});
+
+test('part-year entry, validity, exact amounts and displayed context cannot silently disagree', () => {
+  for (const edit of [
+    s => { s.$futuruna.entry = 'beregn_personskat'; },
+    s => { resultOf(s).slutskat_efter_par14_øre += 1; },
+    s => { resultOf(s).input_gyldigt = false; },
+    s => { resultOf(s).periode_gyldig = false; },
+    s => { resultOf(s).kilder_gyldige = 'true'; },
+    s => { resultOf(s).skattepligtsdage = 0; },
+    s => { resultOf(s).skattepligtsdage = 367; },
+    s => { resultOf(s).helårsinput.skatteår = 2025; },
+    s => { resultOf(s).helårsinput.bruttoløn_kroner = '400000'; },
+    s => { resultOf(s).valg.helårsomregning_skal_ske = null; },
+    s => { resultOf(s).valg.input_gyldigt = false; },
+    s => { resultOf(s).valg.new_warning = 'Must not disappear'; },
+    s => { resultOf(s).new_warning = 'Must not disappear'; },
+    s => { resultOf(s).delårsresultat.new_warning = 'Must not disappear'; },
+  ]) { const source = partyearBaseline(); edit(source); assert.throws(() => render(source), edit.toString()); }
+  const ordinary = baseline(); ordinary.$futuruna.entry = 'beregn_personskat_delår';
+  assert.throws(() => render(ordinary));
+  const source = parseReportOutput(JSON.stringify(partyearBaseline()));
+  for (const value of [0n, -1n, 9223372036854775807n]) {
+    resultOf(source).slutskat_efter_par14_øre = value;
+    resultOf(source).vurdering.slutskat_til_sammenligning_øre = value;
+    assert.equal(renderPersonskatOutput(source).exitCode, 0);
+  }
+});
+
+test('part-year CLI remains read-only and prints no partial report for a malformed later case', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'futuruna-partyear-viewer-'));
+  const file = join(directory, 'results.json'), source = partyearBaseline();
+  writeFileSync(file, JSON.stringify(source), { flag: 'wx', mode: 0o600 });
+  const bytes = readFileSync(file), entries = readdirSync(directory);
+  assert.equal(invoke([file]).status, 0);
+  assert.deepEqual(readFileSync(file), bytes); assert.deepEqual(readdirSync(directory), entries);
+  const later = structuredClone(source.results[0]); later.case_id = 'malformed-later';
+  later.result.input_gyldigt = false; source.results.push(later);
+  const bad = join(directory, 'malformed.json');
+  writeFileSync(bad, JSON.stringify(source), { flag: 'wx', mode: 0o600 });
+  const rejected = invoke([bad]); assert.equal(rejected.status, 1); assert.equal(rejected.stdout, '');
+  source.results = []; source.diagnostics = [{ case_id: 'failed', path: '$.input', message: 'No calculation result.' }];
+  assert.equal(render(source).exitCode, 2);
+});
+
+test('saved fictional part-year calculation output is readable without recalculation', {
+  skip: !process.env.FUTURUNA_PARTYEAR_VIEWER_OUTPUT && 'Set a known fictional calculation output path; never use private cases.',
+}, () => {
+  const path = process.env.FUTURUNA_PARTYEAR_VIEWER_OUTPUT, bytes = readFileSync(path);
+  const output = readSavedOutput(path);
+  assert.equal(output.$futuruna.entry, 'beregn_personskat_delår');
+  assert.ok(output.results.length > 0);
+  const rendered = renderPersonskatOutput(output), sections = rendered.text.split('\nSag: ').slice(1);
+  const needsAttention = output.diagnostics.length > 0 || output.results.some(row => !row.result.input_gyldigt);
+  assert.equal(rendered.exitCode, needsAttention ? 2 : 0);
+  assert.equal(sections.length, output.results.length);
+  for (const [i, row] of output.results.entries()) {
+    assert.ok(sections[i].startsWith(row.case_id));
+    if (row.result.input_gyldigt) assert.ok(sections[i].includes(
+      `Modelleret slutskat efter PSL § 14 til sammenligning: ${amount(row.result.vurdering.slutskat_til_sammenligning_øre, 'øre')}`));
+    else assert.doesNotMatch(sections[i], /Modelleret slutskat|Periodens grundlag:/);
+    for (const c of row.result.vurdering.kontroller) {
+      assert.ok(sections[i].includes(c.sti)); assert.ok(sections[i].includes(c.forklaring));
+    }
+    for (const caveat of row.result.vurdering.forbehold) assert.ok(sections[i].includes(caveat));
+  }
+  const cli = invoke([path]); assert.equal(cli.status, rendered.exitCode, cli.stderr);
+  assert.equal(cli.stdout, rendered.text); assert.deepEqual(readFileSync(path), bytes);
+  console.log(`Read-only replay: ${output.results.length} fictional part-year results, ${output.diagnostics.length} diagnostics.`);
+});
 
 test('supported outer record and selected fields stay aligned with the source model', () => {
   const source = readFileSync(join(root, model), 'utf8');
