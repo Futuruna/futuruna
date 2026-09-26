@@ -1818,14 +1818,14 @@
     path = refof(PersonskatRenteInput::renteindtægter_kroner),
     label = "Personens renteindtægter før modregning",
     question = Some("Hvor stor er denne persons egen renteindtægt i indkomståret, før renteudgifter modregnes?"),
-    help = Some("Angiv personens egen andel som et ikke-negativt beløb i kroner, ikke husstandens samlede indtægt. Medtag samme indtægt én gang, også når den står både i bankoversigten og årsopgørelsen. Indtast udgifter separat uden at modregne dem først. Næringsstatus og særregler skal afklares fra kilderne. Et ukendt beløb må ikke erstattes af nul; nul betyder bekræftet ingen indtægt. Se examples/danish-income-tax/skatdk-rentefradrag-ekstern.md."),
+    help = Some("Angiv personens egen andel som et ikke-negativt beløb i kroner, ikke husstandens samlede indtægt. Medtag samme indtægt én gang, også når den står både i bankoversigten og årsopgørelsen. Indtast udgifter separat uden at modregne dem først. Betalt negativ indlånsrente kan stå med minus i rubrik 31, men hører til renteudgifter. Modtaget negativ lånerente kan stå med minus i rubrik 41 eller 42, men hører som positiv størrelse til dette indtægtsfelt. Rubriknummer og fortegn er ikke nok til klassifikation: afklar rettelser og blandede rubriksummer fra deres underliggende poster uden at gætte en opdeling. Næringsstatus og særregler skal afklares fra kilderne. Et ukendt beløb må ikke erstattes af nul; nul betyder bekræftet ingen indtægt. Se examples/danish-income-tax/fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn og examples/danish-income-tax/skatdk-rentefradrag-ekstern.md."),
     unit = Some("kr./år")
 )
 = personskat_felt_renteudgifter = TypetBeregningsfelt(
     path = refof(PersonskatRenteInput::renteudgifter_kroner),
     label = "Personens fradragsberettigede renteudgifter",
     question = Some("Hvor stor er denne persons egen afklarede andel af årets fradragsberettigede renteudgifter, angivet positivt?"),
-    help = Some("Angiv personens egen andel som positivt beløb i kroner, ikke afdrag, hele låneydelsen eller skatteværdien. Tæl hver udgift én gang, selv om både bankoversigt og årsopgørelse viser den. Rubrik 41 og 42 indeholder normalt indberettede renter; rubrik 44 kan også indeholde provisioner, som kræver særskilt klassifikation i finansielle_poster. Hold renteindtægter og LL §§ 6/6 A-fradrag adskilt fra dette beløb. Gæt ikke en ægtefælleandel eller et ukendt beløb; nul kræver bekræftet fravær. Summen beviser ikke hæftelse, fradragsret eller betalingshistorik. Afklar restancer og udenlandske forhold særskilt. Et minustegn i bilaget kan betyde fradragsvisning eller en rettelse: brug ikke automatisk absolut værdi. Bevar kildens fortegn og øre i kildeloggen, afklar betydningen og undgå at summere både total og underposter. Den afklarede renteudgiftsmapping er beskrevet i examples/danish-income-tax/fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn. Se examples/danish-income-tax/skatdk-rentefradrag-ekstern.md."),
+    help = Some("Angiv personens egen andel som positivt beløb i kroner, ikke afdrag, hele låneydelsen eller skatteværdien. Tæl hver udgift én gang, selv om både bankoversigt og årsopgørelse viser den. Rubrik 41 og 42 indeholder normalt indberettede renter; rubrik 44 kan også indeholde provisioner, som kræver særskilt klassifikation i finansielle_poster. Hold renteindtægter og LL §§ 6/6 A-fradrag adskilt fra dette beløb. Gæt ikke en ægtefælleandel eller et ukendt beløb; nul kræver bekræftet fravær. Summen beviser ikke hæftelse, fradragsret eller betalingshistorik. Afklar restancer og udenlandske forhold særskilt. Et minustegn i bilaget kan betyde fradragsvisning, en rettelse eller modtaget negativ lånerente: brug ikke automatisk absolut værdi. Modtaget negativ lånerente hører til renteindtægter, selv hvis den står i rubrik 41 eller 42. Betalt negativ indlånsrente i rubrik 31 hører derimod som positiv størrelse til dette udgiftsfelt. Bevar kildens fortegn og øre i kildeloggen, afklar betydningen og undgå at summere både total og underposter. Den afklarede rentemapping er beskrevet i examples/danish-income-tax/fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn. Se examples/danish-income-tax/skatdk-rentefradrag-ekstern.md."),
     unit = Some("kr./år")
 )
 = personskat_felt_finansielle_poster = TypetBeregningsfelt(
@@ -12545,12 +12545,24 @@
     identifier = "Skattestyrelsen: renteudgifter, indberetning, egen andel og særskilt klassifikation",
     hentet_dato = "2026-09-25"
 )
+= personskat_negative_renter_juridisk_vejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2047212",
+    identifier = "Den juridiske vejledning C.A.11.2.1: Negative renter; SL § 4, stk. 1, litra e, SL § 6, stk. 1, litra e og PSL § 4, stk. 1, nr. 1",
+    hentet_dato = "2026-09-26"
+)
+= personskat_negative_renter_rubrikvejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://skat.dk/de-de/buerger/freibetraege-und-pauschalen/freibetraege-fuer-zinsaufwendungen",
+    identifier = "Skattestyrelsen: Negativzinsen; negativ indlånsrente i rubrik 31 og modtaget negativ lånerente i rubrik 41/42",
+    hentet_dato = "2026-09-26"
+)
 = personskat_metadata_renteindtægter = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_renteindtægter),
         Field(value = personskat_felt_renteudgifter),
         Source(value = personskatteloven_2021_1284),
         Guidance(value = personskat_rentefakta_vejledning),
+        Guidance(value = personskat_negative_renter_juridisk_vejledning),
+        Guidance(value = personskat_negative_renter_rubrikvejledning),
     )
 )
 --@label:PersonskatRenteInput::meta:personskat_metadata_renteindtægter--

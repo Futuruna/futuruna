@@ -111,13 +111,46 @@ et nyt bilag, når de relevante fakta allerede er dokumenteret.
 ## Renteudgifter: bevar kildens fortegn
 
 Et minustegn fortæller ikke alene, om linjen viser en fradragsberettiget
-årsudgift eller en rettelse. Den generelle helper
+årsudgift, en modtaget negativ lånerente eller en rettelse. Den generelle helper
 `personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer)` kræver
 afklaring, også ved positive beløb og nul. Det kanoniske udgiftsfelt skal
 indeholde en ikke-negativ størrelse, men originalt fortegn må ikke gå tabt.
 
+Det samme gælder `personskat_aarsopgoerelse_kortlaeg_renteindtægter(linje)`:
+etiketten er ikke nok til at foreslå et indtægtsbeløb. Negative renter kan
+vende beløbets økonomiske retning. Betalt negativ indlånsrente er en udgift,
+mens modtaget negativ lånerente er en indtægt; for personer uden den relevante
+virksomhedsordning indgår begge i kapitalindkomsten.
+[Den juridiske vejledning C.A.11.2.1](https://info.skat.dk/data.aspx?oid=2047212).
+SKAT beskriver visning med minus i henholdsvis rubrik 31 og rubrik 41/42.
+[SKAT: Negativzinsen](https://skat.dk/de-de/buerger/freibetraege-und-pauschalen/freibetraege-fuer-zinsaufwendungen).
+
+Brug `personskat_aarsopgoerelse_kortlaeg_afklarede_renter(kildelinjer,
+indkomstår, art)`, når kildefakta fastslår art, egen andel og årsbeløb:
+
+| Bekræftet betydning | `art` | Forslag i `PersonskatRenteInput` |
+| --- | --- | --- |
+| Almindelig indtægt, vist positivt | `OrdinærRenteindtægt` | `renteindtægter_kroner` |
+| Almindelig udgift, vist positivt | `OrdinærRenteudgift` | `renteudgifter_kroner` |
+| Udgift vist med fradragsminus | `RenteudgiftVistSomFradrag` | `renteudgifter_kroner` |
+| Betalt negativ indlånsrente, vist med minus | `BetaltNegativIndlånsrente` | `renteudgifter_kroner` |
+| Modtaget negativ lånerente, vist med minus | `ModtagetNegativLånerente` | `renteindtægter_kroner` |
+
+Et fiktivt rubrik-31-beløb på −1.000 kr., bekræftet som betalt negativ
+indlånsrente, giver således **1.000 kr. i udgift**. Et rubrik-42-beløb på
+−1.000 kr., bekræftet som modtaget negativ lånerente, giver **1.000 kr. i
+indtægt**. Original linje og minus bevares i begge tilfælde. Det er
+klassifikationen, ikke rubriknummeret, der bestemmer inputfeltet.
+
+`RenteartUoplyst` og `RenterettelseEllerBlandetRubrik` kræver afklaring;
+de omdanner ikke beløbet. En rubriksum kan indeholde flere slags poster eller
+være et nettobeløb. Afklar komponenterne fra kilden, uden at gætte en
+bruttoopdeling, og medtag ikke både total og underposter. Ruten bevarer krav
+om økonomisk art/fortegn, egen andel/afklaret årsbeløb, særregler og ingen
+dobbeltregning. En klassifikation er ikke dokumentation for disse fakta.
+
 Når kilden fastslår egen fradragsberettiget årsrente og beløbets betydning,
-kan man bruge:
+kan den snævrere udgiftshelper også bruges:
 
 ```runa
 = mapping = personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(
@@ -129,6 +162,7 @@ kan man bruge:
 
 `RenteudgiftSomPositivtBeløb` vælges i stedet, når alle linjer viser udgiften
 positivt. `RenteudgiftsfortegnUoplyst` giver fortsat et afklaringskrav.
+Modtaget negativ lånerente må ikke klassificeres som fradragsvisning.
 Fortegnsvalget skal komme fra dokumentets betydning, ikke fra det resultat,
 man ønsker. Helperen beholder alle originale linjer og deres ørebeløb med fortegn;
 den ændrer kun det særskilte forslag til det positive beregningsinput.
@@ -140,13 +174,13 @@ visning af samme udgift giver samme forslag. Flere linjer summeres eksakt i
 ikke er hele kroner, giver `ØrepræcisionKanIkkeBevares` med den positive
 udgiftsstørrelse og de uændrede kildelinjer — ikke et afrundet input.
 
-Den afklarede helper kræver ét bilag, det valgte indkomstår, komplette
+De afklarede helpers kræver ét bilag, det valgte indkomstår, komplette
 kildeidentifikatorer og forskellige linje-id'er. Forkert fortegnsvalg,
 blandede fortegn og heltalsoverløb giver `UgyldigeKildelinjer` uden delsum.
 En rettelse må ikke bare nettes mod andre linjer i denne rute; afklar det
 gældende årsbeløb først. En afvisning er ikke en afgørelse om fradragsretten.
 
-Begge ruter bevarer fire faktakrav: næring/særregler, udgiftens art og egen
+De to snævre udgiftsruter bevarer fire faktakrav: næring/særregler, udgiftens art og egen
 andel af årsbeløbet, fortegnsbetydning samt fravær af dobbeltregning. En total
 og dens underposter kan have forskellige id'er og stadig være samme udgift;
 det kan helperen ikke opdage. Brug hver udgift én gang og udled ikke en

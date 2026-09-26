@@ -59,9 +59,12 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 # PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter | AfgørelseOgBetalingsopgørelse | RenteopgørelseMedEgenAndel
 
-# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | IndeholdelsensArtÅrOgPerson | IndeholdelsensÅrstotalerUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
+# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | RentensØkonomiskeArtOgFortegnsbetydning | RentensEgenAndelOgAfklaredeÅrsbeløb | RenterUdenDobbeltregning | IndeholdelsensArtÅrOgPerson | IndeholdelsensÅrstotalerUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
 
 # PersonskatÅrsopgørelseRenteudgiftsfortegn = RenteudgiftsfortegnUoplyst | RenteudgiftSomPositivtBeløb | RenteudgiftSomNegativtFradrag
+
+-- Klassifikation af kildebeløb, ikke automatisk fortolkning af rubrik/fortegn.
+# PersonskatÅrsopgørelseRenteart = RenteartUoplyst | OrdinærRenteindtægt | OrdinærRenteudgift | RenteudgiftVistSomFradrag | BetaltNegativIndlånsrente | ModtagetNegativLånerente | RenterettelseEllerBlandetRubrik
 
 # PersonskatÅrsopgørelseIndeholdelsesart = IndeholdelsesartUoplyst | ÅretsIndeholdteASkat | ÅretsIndeholdteAm | ÅretsSamledeIndeholdteASkatOgAm | AndetSkatteEllerKreditbeløb
 # PersonskatÅrsopgørelseIndeholdelsespost(kildelinje: PersonskatÅrsopgørelseKildelinje, art: PersonskatÅrsopgørelseIndeholdelsesart)
@@ -192,19 +195,16 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 }
 --@end:personskat_aarsopgoerelse_løn--
 
-| personskat_aarsopgoerelse_kortlaeg_renteindtægter(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
-    [linje],
-    refof(PersonskatRenteInput::renteindtægter_kroner),
-    [RenteNæringsstatusOgSærregler]
-)
 = personskat_aarsopgoerelse_renteudgiftskrav = [RenteNæringsstatusOgSærregler, RenteudgiftensArtEgenAndelOgÅrsbeløb, RenteudgiftensFortegnsbetydning, RenteudgifterUdenDobbeltregning]
 = personskat_aarsopgoerelse_renteudgiftsadvarsel = PersonskatÅrsopgørelseMappingAdvarsel(
-    besked = "Afklar om beløbet er egen fradragsberettiget årsrente, ikke afdrag, skatteværdi, provision eller hele lånets beløb. Rubrik 44 kan indeholde andre poster. Afklar særregler, restancer og udenlandske forhold. Tæl ikke både en sum og dens underposter eller samme udgift fra flere bilag. Et minustegn kan være fradragsvisning, men også en rettelse; brug ikke automatisk absolut værdi. Den afklarede rute kræver udtrykkeligt positiv udgiftsvisning eller negativ fradragsvisning for alle linjer. Ukendt fortegn kræver afklaring; blandede fortegn og beløb uden for repræsentationsgrænsen afvises uden delsum. Hele kroner dannes kun af en eksakt øresum uden afrunding. Originale linjer og fortegn bevares, mens det afklarede udgiftsbeløb angives positivt. Ingen ægtefælleandel udledes eller fratrækkes igen. DirekteMapping beviser ikke de resterende faktakrav. RenteopgørelseMedEgenAndel er en mulig kilde, ikke krav om et ekstra bilag, hvis fakta allerede er afklaret. Se fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn."
+    besked = "Afklar om beløbet er egen fradragsberettiget årsrente, ikke afdrag, skatteværdi, provision eller hele lånets beløb. Rubrik 44 kan indeholde andre poster. Afklar særregler, restancer og udenlandske forhold. Tæl ikke både en sum og dens underposter eller samme udgift fra flere bilag. Et minustegn kan være fradragsvisning, men også en rettelse eller modtaget negativ lånerente; brug ikke automatisk absolut værdi. Modtaget negativ lånerente i rubrik 41 eller 42 er indtægt, ikke fradragsvisning: brug personskat_aarsopgoerelse_kortlaeg_afklarede_renter med kildebekræftet art. Den afklarede udgiftsrute kræver udtrykkeligt positiv udgiftsvisning eller negativ fradragsvisning for alle linjer. Ukendt fortegn kræver afklaring; blandede fortegn og beløb uden for repræsentationsgrænsen afvises uden delsum. Hele kroner dannes kun af en eksakt øresum uden afrunding. Originale linjer og fortegn bevares, mens det afklarede udgiftsbeløb angives positivt. Ingen ægtefælleandel udledes eller fratrækkes igen. DirekteMapping beviser ikke de resterende faktakrav. RenteopgørelseMedEgenAndel er en mulig kilde, ikke krav om et ekstra bilag, hvis fakta allerede er afklaret. Se fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn."
 )
 = personskat_aarsopgoerelse_renteudgiftsmetadata = Metadata(
     attachments = (
         Source(value = personskatteloven_2021_1284),
         Guidance(value = personskat_rentefakta_vejledning),
+        Guidance(value = personskat_negative_renter_juridisk_vejledning),
+        Guidance(value = personskat_negative_renter_rubrikvejledning),
         Warning(value = personskat_aarsopgoerelse_renteudgiftsadvarsel),
     )
 )
@@ -220,18 +220,28 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 -- Fortegnsvalget er kildeklassifikation, ikke en tilladelse til at netopgøre
 -- rettelser eller udlede en persons andel. Oprindelige observationer bevares.
-| personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), indkomstår: Heltal, fortegn: PersonskatÅrsopgørelseRenteudgiftsfortegn) -> {
+| personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), indkomstår: Heltal, fortegn: PersonskatÅrsopgørelseRenteudgiftsfortegn) -> hvis fortegn == RenteudgiftsfortegnUoplyst {
+    hvis all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.indkomstår == indkomstår) {
+        personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer)
+    } ellers {
+        PersonskatÅrsopgørelseMapping(kildelinjer = kildelinjer, anvendelse = UgyldigeKildelinjer)
+    }
+} ellers {
+    personskat_aarsopgoerelse_afklaret_rentebeløb(kildelinjer, indkomstår, fortegn == RenteudgiftSomNegativtFradrag, refof(PersonskatRenteInput::renteudgifter_kroner), personskat_aarsopgoerelse_renteudgiftskrav)
+}
+--@end:personskat_aarsopgoerelse_renteudgifter--
+
+-- Fælles repræsentationskontrol efter kildeklassifikation; ingen nettoberegning.
+| personskat_aarsopgoerelse_afklaret_rentebeløb(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), indkomstår: Heltal, negativ_visning: Boolsk, mål: ProgramReference, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) -> {
     = ugyldig = PersonskatÅrsopgørelseMapping(kildelinjer = kildelinjer, anvendelse = UgyldigeKildelinjer)
     hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) == Falskt || all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.indkomstår == indkomstår) == Falskt {
         ugyldig
-    } ellers hvis fortegn == RenteudgiftsfortegnUoplyst {
-        personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer)
-    } ellers hvis all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| hvis fortegn == RenteudgiftSomPositivtBeløb { linje.beløb_øre >= 0 } ellers { linje.beløb_øre <= 0 && linje.beløb_øre >= -9223372036854775807 }) == Falskt {
+    } ellers hvis all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| hvis negativ_visning { linje.beløb_øre <= 0 && linje.beløb_øre >= -9223372036854775807 } ellers { linje.beløb_øre >= 0 }) == Falskt {
         ugyldig
     } ellers {
         -- Kontroller størrelsen før addition/fortegnsskift, også uden for call.
         = sum_øre = foldl(kildelinjer, Some(0), |sum: Option(Heltal), linje: PersonskatÅrsopgørelseKildelinje| {
-                = beløb = hvis fortegn == RenteudgiftSomNegativtFradrag { 0 - linje.beløb_øre } ellers { linje.beløb_øre }
+                = beløb = hvis negativ_visning { 0 - linje.beløb_øre } ellers { linje.beløb_øre }
                 match sum {
                     | None -> None
                     | Some(tidligere) -> hvis tidligere <= 9223372036854775807 - beløb { Some(tidligere + beløb) } ellers { None }
@@ -242,15 +252,43 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
             | Some(beløb) -> PersonskatÅrsopgørelseMapping(
                 kildelinjer = kildelinjer,
                 anvendelse = hvis beløb % 100 == 0 {
-                    DirekteKildebeløb(mål = refof(PersonskatRenteInput::renteudgifter_kroner), beløb_kroner = beløb / 100, resterende_faktakrav = personskat_aarsopgoerelse_renteudgiftskrav)
+                    DirekteKildebeløb(mål = mål, beløb_kroner = beløb / 100, resterende_faktakrav = faktakrav)
                 } ellers {
-                    ØrepræcisionKanIkkeBevares(mål = refof(PersonskatRenteInput::renteudgifter_kroner), beløb_øre = beløb, resterende_faktakrav = personskat_aarsopgoerelse_renteudgiftskrav)
+                    ØrepræcisionKanIkkeBevares(mål = mål, beløb_øre = beløb, resterende_faktakrav = faktakrav)
                 }
             )
         }
     }
 }
---@end:personskat_aarsopgoerelse_renteudgifter--
+
+= personskat_aarsopgoerelse_rentekrav = [RenteNæringsstatusOgSærregler, RentensØkonomiskeArtOgFortegnsbetydning, RentensEgenAndelOgAfklaredeÅrsbeløb, RenterUdenDobbeltregning]
+= personskat_aarsopgoerelse_renteadvarsel = PersonskatÅrsopgørelseMappingAdvarsel(
+    besked = "Rubriknummer og fortegn fastslår ikke rentens økonomiske art. Betalt negativ indlånsrente kan stå med minus i rubrik 31, men hører som positiv størrelse til renteudgifter. Modtaget negativ lånerente kan stå med minus i rubrik 41 eller 42, men hører som positiv størrelse til renteindtægter. Det er ikke det samme som negativ fradragsvisning eller en rettelse. Vælg kun art efter kildeafklaring af egen andel, årsbeløb og særregler. Ukendt art, rettelser og blandede rubriksummer kræver afklaring; split ikke et nettobeløb ved gæt. Tæl ikke en total og dens underposter eller samme rente fra flere bilag. En rubrik kan indeholde andet end almindelige renter, som kræver andre inputgrene. Originale linjer, fortegn og øre bevares; intet afrundes. DirekteMapping beviser ikke de resterende faktakrav. RenteopgørelseMedEgenAndel angiver en mulig kilde, ikke krav om et ekstra bilag. Se fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn."
+)
+= personskat_aarsopgoerelse_rentemetadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_2021_1284),
+        Guidance(value = personskat_negative_renter_juridisk_vejledning),
+        Guidance(value = personskat_negative_renter_rubrikvejledning),
+        Warning(value = personskat_aarsopgoerelse_renteadvarsel),
+    )
+)
+
+--@label:personskat_aarsopgoerelse_renters_art::meta:personskat_aarsopgoerelse_rentemetadata--
+--@begin:personskat_aarsopgoerelse_renters_art--
+| personskat_aarsopgoerelse_kortlaeg_renteindtægter(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(linje, RenteopgørelseMedEgenAndel, personskat_aarsopgoerelse_rentekrav)
+
+| personskat_aarsopgoerelse_kortlaeg_afklarede_renter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), indkomstår: Heltal, art: PersonskatÅrsopgørelseRenteart) -> hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) == Falskt || all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.indkomstår == indkomstår) == Falskt {
+    PersonskatÅrsopgørelseMapping(kildelinjer = kildelinjer, anvendelse = UgyldigeKildelinjer)
+} ellers hvis art == RenteartUoplyst || art == RenterettelseEllerBlandetRubrik {
+    PersonskatÅrsopgørelseMapping(kildelinjer = kildelinjer, anvendelse = KræverSupplerendeKilde(kilde = RenteopgørelseMedEgenAndel, faktakrav = personskat_aarsopgoerelse_rentekrav))
+} ellers {
+    = indtægt = art == OrdinærRenteindtægt || art == ModtagetNegativLånerente
+    = negativ_visning = art == RenteudgiftVistSomFradrag || art == BetaltNegativIndlånsrente || art == ModtagetNegativLånerente
+    = mål = hvis indtægt { refof(PersonskatRenteInput::renteindtægter_kroner) } ellers { refof(PersonskatRenteInput::renteudgifter_kroner) }
+    personskat_aarsopgoerelse_afklaret_rentebeløb(kildelinjer, indkomstår, negativ_visning, mål, personskat_aarsopgoerelse_rentekrav)
+}
+--@end:personskat_aarsopgoerelse_renters_art--
 
 | personskat_aarsopgoerelse_kortlaeg_gruppeliv_og_ydelser(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
     linje,

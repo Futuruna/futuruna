@@ -42,10 +42,13 @@ rumme provisioner; dens total er derfor ikke automatisk et rentebeløb til
 dette felt. Afklar sådanne poster via `kapitalindkomst.finansielle_poster`.
 LL §§ 6/6 A-fradrag har ligeledes egne input og må ikke tælles med igen.
 
-Et minustegn i bilaget skal afklares som fradragsvisning eller rettelse,
-ikke automatisk fjernes. Den [afklarede renteudgiftsmapping](fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn)
-bevarer originalt fortegn og øre og kan foreslå en positiv udgiftsstørrelse
-uden afrunding. Den generelle helper kræver klassifikation først.
+Et minustegn i bilaget kan være fradragsvisning, rettelse eller negativ rente.
+Betalt negativ indlånsrente i rubrik 31 er en udgift; modtaget negativ
+lånerente i rubrik 41/42 er en indtægt. Fortegnet må ikke automatisk fjernes.
+Den [afklarede rentemapping](fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn)
+knytter kildebekræftet betydning til det rette inputfelt og bevarer originalt
+fortegn og øre uden afrunding. De generelle helpers kræver klassifikation
+først; blandede rubriksummer og rettelser må ikke opdeles ved gæt.
 
 Dette er inputvejledning, ikke en ny kontrol af bilagene. Et forkert positivt
 årsbeløb kan stadig passere; et ukendt beløb skal afklares før den kanoniske
