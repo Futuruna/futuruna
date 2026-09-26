@@ -57,9 +57,11 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 --@begin:personskat_aarsopgoerelse_kildemapping--
 # PersonskatÅrsopgørelseKildelinje(dokument_identifikation: Tekst, indkomstår: Heltal, linje_identifikation: Tekst, linje_label: Tekst, beløb_øre: Heltal)
 
-# PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter | AfgørelseOgBetalingsopgørelse
+# PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter | AfgørelseOgBetalingsopgørelse | RenteopgørelseMedEgenAndel
 
-# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
+# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
+
+# PersonskatÅrsopgørelseRenteudgiftsfortegn = RenteudgiftsfortegnUoplyst | RenteudgiftSomPositivtBeløb | RenteudgiftSomNegativtFradrag
 
 # PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | DirekteKildebeløbØre(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
 
@@ -192,11 +194,60 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
     refof(PersonskatRenteInput::renteindtægter_kroner),
     [RenteNæringsstatusOgSærregler]
 )
-| personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> personskat_aarsopgoerelse_direkte_kronemapping(
-    kildelinjer,
-    refof(PersonskatRenteInput::renteudgifter_kroner),
-    [RenteNæringsstatusOgSærregler]
+= personskat_aarsopgoerelse_renteudgiftskrav = [RenteNæringsstatusOgSærregler, RenteudgiftensArtEgenAndelOgÅrsbeløb, RenteudgiftensFortegnsbetydning, RenteudgifterUdenDobbeltregning]
+= personskat_aarsopgoerelse_renteudgiftsadvarsel = PersonskatÅrsopgørelseMappingAdvarsel(
+    besked = "Afklar om beløbet er egen fradragsberettiget årsrente, ikke afdrag, skatteværdi, provision eller hele lånets beløb. Rubrik 44 kan indeholde andre poster. Afklar særregler, restancer og udenlandske forhold. Tæl ikke både en sum og dens underposter eller samme udgift fra flere bilag. Et minustegn kan være fradragsvisning, men også en rettelse; brug ikke automatisk absolut værdi. Den afklarede rute kræver udtrykkeligt positiv udgiftsvisning eller negativ fradragsvisning for alle linjer. Ukendt fortegn kræver afklaring; blandede fortegn og beløb uden for repræsentationsgrænsen afvises uden delsum. Hele kroner dannes kun af en eksakt øresum uden afrunding. Originale linjer og fortegn bevares, mens det afklarede udgiftsbeløb angives positivt. Ingen ægtefælleandel udledes eller fratrækkes igen. DirekteMapping beviser ikke de resterende faktakrav. RenteopgørelseMedEgenAndel er en mulig kilde, ikke krav om et ekstra bilag, hvis fakta allerede er afklaret. Se fra-bilag-til-input.md#renteudgifter-bevar-kildens-fortegn."
 )
+= personskat_aarsopgoerelse_renteudgiftsmetadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_2021_1284),
+        Guidance(value = personskat_rentefakta_vejledning),
+        Warning(value = personskat_aarsopgoerelse_renteudgiftsadvarsel),
+    )
+)
+
+--@label:personskat_aarsopgoerelse_renteudgifter::meta:personskat_aarsopgoerelse_renteudgiftsmetadata--
+--@begin:personskat_aarsopgoerelse_renteudgifter--
+| personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> PersonskatÅrsopgørelseMapping(
+    kildelinjer = kildelinjer,
+    anvendelse = hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) {
+        KræverSupplerendeKilde(kilde = RenteopgørelseMedEgenAndel, faktakrav = personskat_aarsopgoerelse_renteudgiftskrav)
+    } ellers { UgyldigeKildelinjer }
+)
+
+-- Fortegnsvalget er kildeklassifikation, ikke en tilladelse til at netopgøre
+-- rettelser eller udlede en persons andel. Oprindelige observationer bevares.
+| personskat_aarsopgoerelse_kortlaeg_afklarede_renteudgifter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), indkomstår: Heltal, fortegn: PersonskatÅrsopgørelseRenteudgiftsfortegn) -> {
+    = ugyldig = PersonskatÅrsopgørelseMapping(kildelinjer = kildelinjer, anvendelse = UgyldigeKildelinjer)
+    hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) == Falskt || all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.indkomstår == indkomstår) == Falskt {
+        ugyldig
+    } ellers hvis fortegn == RenteudgiftsfortegnUoplyst {
+        personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer)
+    } ellers hvis all(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| hvis fortegn == RenteudgiftSomPositivtBeløb { linje.beløb_øre >= 0 } ellers { linje.beløb_øre <= 0 && linje.beløb_øre >= -9223372036854775807 }) == Falskt {
+        ugyldig
+    } ellers {
+        -- Kontroller størrelsen før addition/fortegnsskift, også uden for call.
+        = sum_øre = foldl(kildelinjer, Some(0), |sum: Option(Heltal), linje: PersonskatÅrsopgørelseKildelinje| {
+                = beløb = hvis fortegn == RenteudgiftSomNegativtFradrag { 0 - linje.beløb_øre } ellers { linje.beløb_øre }
+                match sum {
+                    | None -> None
+                    | Some(tidligere) -> hvis tidligere <= 9223372036854775807 - beløb { Some(tidligere + beløb) } ellers { None }
+                }
+            })
+        match sum_øre {
+            | None -> ugyldig
+            | Some(beløb) -> PersonskatÅrsopgørelseMapping(
+                kildelinjer = kildelinjer,
+                anvendelse = hvis beløb % 100 == 0 {
+                    DirekteKildebeløb(mål = refof(PersonskatRenteInput::renteudgifter_kroner), beløb_kroner = beløb / 100, resterende_faktakrav = personskat_aarsopgoerelse_renteudgiftskrav)
+                } ellers {
+                    ØrepræcisionKanIkkeBevares(mål = refof(PersonskatRenteInput::renteudgifter_kroner), beløb_øre = beløb, resterende_faktakrav = personskat_aarsopgoerelse_renteudgiftskrav)
+                }
+            )
+        }
+    }
+}
+--@end:personskat_aarsopgoerelse_renteudgifter--
 
 | personskat_aarsopgoerelse_kortlaeg_gruppeliv_og_ydelser(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
     linje,
