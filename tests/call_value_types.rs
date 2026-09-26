@@ -60,6 +60,36 @@ fn function_calls_reject_known_argument_type_contradictions() {
 }
 
 #[test]
+fn optional_argument_syntax_preserves_context_and_generic_constraints() {
+    let source = include_str!("differential/corpus/optional_argument_types.runa");
+    assert_eq!(
+        eval_source_with_prelude(source, false).unwrap().trim(),
+        "true\nfalse\n2\n7\nyes"
+    );
+}
+
+#[test]
+fn optional_arguments_reject_wrong_elements_and_nominal_owners() {
+    for source in [
+        "> accept(value: Int?) -> Int { 1 }\naccept(Some(\"no\"))\n",
+        "> accept(value: Int?) -> Int { 1 }\naccept(1)\n",
+        "> accept(value: List(Int?)) -> Int { 1 }\naccept([Some(\"no\")])\n",
+        "> agree(left: a?, right: a) -> a { right }\nagree(Some(1), \"no\")\n",
+        "> agree(left: a, right: a?) -> a { left }\nagree(1, Some(\"no\"))\n",
+        "# Different = Missing\n> accept(value: Int?) -> Int { 1 }\naccept(Missing)\n",
+    ] {
+        let source = format!("# Option(a) = None | Some(a)\n{source}");
+        let diagnostics = errors(&source);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|error| error.contains("argument") && error.contains("expects")),
+            "{source}: {diagnostics:?}"
+        );
+    }
+}
+
+#[test]
 fn inferred_functions_and_lexical_unknown_callbacks_remain_callable() {
     let source = r#"
 = length = 5
