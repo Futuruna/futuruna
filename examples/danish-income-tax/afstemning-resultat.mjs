@@ -46,7 +46,12 @@ export function renderReportOutput(envelope) {
     list(result.nødvendige_forudsætninger, 'Forudsætninger');
     list(result.uafklaret, 'Forbehold');
     requireThat(result.uafklaret.length > 0, 'Resultatets forbehold mangler.');
-    if (status === 'BetingetAfstemt') requireThat(result.kontroller.length > 0, 'Betinget status uden kontroller afvises.');
+    const notReconciled = status === 'UgyldigtRapportinput' || status === 'IkkeUnderstøttetÅrEllerKommune';
+    requireThat(notReconciled
+      ? result.kontroller.length === 0 && result.nødvendige_forudsætninger.length === 0
+      : result.kontroller.length > 0, 'Afstemningsstatus og tilstedeværelsen af kontroller er indbyrdes modstridende.');
+    let hasContradiction = false;
+    let hasMissingObservation = false;
     needsAttention ||= status !== 'BetingetAfstemt';
     lines.push('', `Sag: ${visible(row.case_id)}`, statuses[status], 'Kontroller (difference = oplyst − forventet):');
     if (result.kontroller.length === 0) lines.push('  Ingen kontroller returneret.');
@@ -59,7 +64,8 @@ export function renderReportOutput(envelope) {
       requireThat(known
         ? check.difference === check.oplyst - check.forventet && state === (check.difference === 0n ? 'Stemmer' : 'Afviger')
         : check.difference === null && state === 'IkkeOplyst', 'Kontrolstatus og returnerede beløb er indbyrdes modstridende.');
-      if (status === 'BetingetAfstemt') requireThat(state === 'Stemmer', 'Betinget status strider mod en kontrolstatus.');
+      hasContradiction ||= state === 'Afviger';
+      hasMissingObservation ||= state === 'IkkeOplyst';
       lines.push(`  ${visible(check.navn)}: ${checkStatuses[state]}`,
         `    Forventet: ${amount(check.forventet, check.enhed)}; oplyst: ${amount(check.oplyst, check.enhed)}; difference: ${amount(check.difference, check.enhed)}.`);
     }
@@ -71,11 +77,21 @@ export function renderReportOutput(envelope) {
       for (const field of ['nødvendigt_beløb', 'mindst']) integer(condition[field], false, 'Betingelsesbeløb');
       integer(condition.højst, true, 'Øvre grænse');
       requireThat(typeof condition.inden_for_kontrollerede_grænser === 'boolean', 'Betingelsens udfald mangler.');
-      if (status === 'BetingetAfstemt') requireThat(condition.inden_for_kontrollerede_grænser, 'Betinget status strider mod en nødvendig betingelse.');
+      const withinKnownBounds = condition.nødvendigt_beløb >= condition.mindst
+        && (condition.højst === null || condition.nødvendigt_beløb <= condition.højst);
+      // A true flag must satisfy the returned numbers. The converse does not
+      // hold: a non-numeric condition (such as cohabitation) can still fail.
+      requireThat(!condition.inden_for_kontrollerede_grænser || withinKnownBounds,
+        'Betingelsens udfald og returnerede numeriske grænser er indbyrdes modstridende.');
+      hasContradiction ||= !condition.inden_for_kontrollerede_grænser;
       const ceiling = condition.højst === null ? 'ukendt — ikke ubegrænset ret' : amount(condition.højst, condition.enhed);
       lines.push(`  ${visible(condition.navn)}: ${amount(condition.nødvendigt_beløb, condition.enhed)}`,
         `    Mindst: ${amount(condition.mindst, condition.enhed)}; højst: ${ceiling}. Inden for kontrollerede grænser: ${condition.inden_for_kontrollerede_grænser ? 'ja' : 'NEJ'}.`,
         `    ${visible(condition.forklaring)}`);
+    }
+    if (!notReconciled) {
+      const expectedStatus = hasContradiction ? 'Modstrid' : hasMissingObservation ? 'Ufuldstændig' : 'BetingetAfstemt';
+      requireThat(status === expectedStatus, 'Afstemningsstatus strider mod de returnerede kontroller eller nødvendige betingelser.');
     }
     lines.push('Forbehold og uafklarede forhold:');
     for (const caveat of result.uafklaret) { textValue(caveat, 'Forbehold'); lines.push(`  - ${visible(caveat)}`); }

@@ -147,6 +147,57 @@ test('wrong contracts and incompatible or contradictory presentation structures 
   for (const edit of edits) { const source = baseline(); edit(source); assert.throws(() => render(source)); }
 });
 
+test('a successful condition cannot contradict its own numerical bounds', () => {
+  for (const [required, floor, ceiling] of [
+    [-1, 0, null], [1, 0, 0], [12000, 12001, null], [12000, 0, 11999],
+  ]) {
+    const source = baseline();
+    Object.assign(resultOf(source).nødvendige_forudsætninger[0], {
+      nødvendigt_beløb: required, mindst: floor, højst: ceiling,
+    });
+    assert.throws(() => render(source), /grænser/, `${required} outside ${floor}..${ceiling}`);
+  }
+  const exact = parseReportOutput(JSON.stringify(baseline()));
+  Object.assign(resultOf(exact).nødvendige_forudsætninger[0], {
+    nødvendigt_beløb: 9007199254740993n, højst: 9007199254740992n,
+  });
+  assert.throws(() => renderReportOutput(exact), /grænser/, 'one unit above a large exact ceiling');
+});
+
+test('report conclusion must agree with all returned controls and conditions', () => {
+  const edits = [
+    r => { r.status = variant('Modstrid'); },
+    r => { r.status = variant('Ufuldstændig'); },
+    r => {
+      r.status = variant('Ufuldstændig');
+      Object.assign(r.kontroller[0], { oplyst: 380001, difference: 1, status: variant('Afviger') });
+    },
+    r => { r.status = variant('Ufuldstændig'); r.nødvendige_forudsætninger[0].inden_for_kontrollerede_grænser = false; },
+    r => { r.status = variant('UgyldigtRapportinput'); },
+    r => { r.status = variant('IkkeUnderstøttetÅrEllerKommune'); },
+  ];
+  for (const edit of edits) { const source = baseline(); edit(resultOf(source)); assert.throws(() => render(source)); }
+});
+
+test('unknown ceilings and failed non-numeric conditions keep their meanings', () => {
+  for (const [required, ceiling] of [[0, 0], [12000, 12000], [12000, null]]) {
+    const source = baseline();
+    Object.assign(resultOf(source).nødvendige_forudsætninger[0], { nødvendigt_beløb: required, højst: ceiling });
+    assert.equal(render(source).exitCode, 0, 'inclusive known bounds or unknown ceiling');
+  }
+  for (const ceiling of [12000, null, -1]) {
+    const source = baseline();
+    resultOf(source).status = variant('Modstrid');
+    Object.assign(resultOf(source).nødvendige_forudsætninger[0], {
+      højst: ceiling, inden_for_kontrollerede_grænser: false,
+      forklaring: 'En oplyst ikke-numerisk overførselsbetingelse er ikke opfyldt.',
+    });
+    assert.equal(render(source).exitCode, 2, 'do not turn numeric fit into legal eligibility');
+    Object.assign(resultOf(source).kontroller[0], { oplyst: null, difference: null, status: variant('IkkeOplyst') });
+    assert.equal(render(source).exitCode, 2, 'contradiction takes precedence over missing observations');
+  }
+});
+
 test('terminal controls in source text cannot rewrite displayed conclusions', () => {
   const source = baseline();
   source.results[0].case_id = 'navn\nFAKE\u001b[2J\u202e';
@@ -193,6 +244,19 @@ test('CLI is read-only, emits no partial success on bad JSON, and uses distinct 
   const pending = invoke([incompletePath]);
   assert.equal(pending.status, 2, pending.stderr);
   assert.match(pending.stdout, /Ufuldstændig/);
+
+  const contradictory = baseline();
+  const second = structuredClone(contradictory.results[0]); second.case_id = 'fiktiv-modstridende-status';
+  Object.assign(second.result.nødvendige_forudsætninger[0], { højst: 0 });
+  contradictory.results.push(second);
+  const contradictoryPath = join(directory, 'contradictory.json');
+  writeFileSync(contradictoryPath, JSON.stringify(contradictory), { flag: 'wx', mode: 0o600 });
+  const contradictoryBytes = readFileSync(contradictoryPath);
+  const rejected = invoke([contradictoryPath]);
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, '', 'do not print the first success-looking case before rejecting the second');
+  assert.match(rejected.stderr, /numeriske grænser/);
+  assert.deepEqual(readFileSync(contradictoryPath), contradictoryBytes);
 });
 
 test('fresh compact-model output stays readable without dropping any returned evidence', {
