@@ -22,11 +22,11 @@ verified facts. Matching the report this way would be circular. Necessary
 conditions are not a proof that a legally valid household with those facts
 exists, and neither workflow certifies the underlying documents.
 
-The independent calculation now has an explicit `ÆgtefællegrundlagUoplyst`
+The independent calculation has an explicit `ÆgtefællegrundlagUoplyst`
 default. It withholds comparison when spouse information is unavailable,
 without preventing this conditional review. Do not switch it to
 `UdenÆgtefælle` simply to obtain a number; see the
-[input and migration guide](personskat-validity.md#manglende-ægtefælleoplysninger-er-ikke-ingen-ægtefælle).
+[input guide](personskat-validity.md#manglende-ægtefælleoplysninger-er-ikke-ingen-ægtefælle).
 
 ## Run the compact review
 
@@ -179,9 +179,6 @@ spørgsmålet i kildeloggen og sæt den relevante fuldstændighedsmarkering til
 `false`; opfind ikke en nulrække. Entydige postnavne beskytter mod gentagne
 navne, ikke mod samme dokumentbeløb under to forskellige navne.
 
-Metadatarettelsen ændrer kontraktens fingerprint, ikke inputtyper eller
-afstemningsformler. Generér en frisk skabelon og overfør kun gennemgåede
-observationer; redigér ikke et gammelt fingerprint for at omgå kontrollen.
 [Regressionen](../../tests/tax_report_input_metadata.test.mjs) undersøger
 den faktiske kontrakt og ti fiktive indtastninger, herunder fejl og ukendte
 forhold. Den er ikke en test af AI-læsning af vilkårlige PDF'er.
@@ -233,12 +230,6 @@ rapportlinjer er bevaret som syntetiske regressioner i
 Afstemningen matcher dem uden ægtefællens kommune som input. Dette er to
 eksterne observationer for 2025, ikke en uafhængig kontrol af alle års satser,
 delvist udnyttede personfradrag eller den fulde `beregn_personskat`-beregning.
-
-**Eksisterende input:** Det nye valgfrie felt og den opdaterede metadata ændrer
-kontraktens fingeraftryk. Generér en ny skabelon og overfør de gennemgåede
-observationer; ret ikke blot det gamle fingeraftryk. Tidligere særskilte
-kommune-/kirkebeløb kan bevares med det samlede felt `null`. Tidligere resultater
-med afsenders sats som loft bør køres igen.
 
 ## Read the result
 
@@ -298,6 +289,8 @@ and optional upper bound, and its explanation. An absent upper bound is
 **unverified**, not unlimited entitlement. The output always sets
 `uafhængig_skatteberegning_udført` to `false`. Domain statuses are result data;
 successful CLI execution alone does not mean the report passed.
+Consumers should find checks and conditions by name, not assume a fixed list
+length or position.
 
 The allowance ceilings use the encoded PSL §§ 9–10 parameters. The capital
 credit constraints use the shared PSL § 11 rate and household limit, less the
@@ -310,8 +303,8 @@ cross-border adjustments remain unverified.
 An amended assessment's new surplus is not its additional refund: subtract any
 reported earlier refund before comparing the whole-krone payout. This mode
 checks those reported amounts, not the independent legality of interest rates,
-offsets or payment dates. The legacy refund route leaves negative post-correction
-settlements incomplete; it does not silently turn them into a debt calculation.
+offsets or payment dates. The refund route without `slutbetaling` leaves negative
+post-correction settlements incomplete; it does not silently turn them into a debt calculation.
 Use the explicit final-payment observation below to check that separate balance.
 [Kildeskatteloven §§ 60, 62 and 62 A](https://www.retsinformation.dk/eli/lta/2024/460).
 
@@ -356,7 +349,7 @@ Dette er et udsnit, ikke et fuldt input eller personlige fakta. Forskudsskat,
 beregnet skat, tillæg og øvrige rapportafsnit skal stadig oplyses særskilt.
 `true` betyder her en fiktiv bekræftelse på, at alle korrektioner er med.
 
-- Vælg årets grundbeløb som før: `restskat: null` for overskydende skat;
+- Vælg årets grundbeløb: `restskat: null` for overskydende skat;
   ellers et objekt med `oplyst_restskat_øre`, mens overskydende skat er `null`.
   Vælg ikke dette spor ud fra den senere betalingsretning.
 - Vælg slutretningen fra rapporten: `TilBetaling` eller `TilUdbetaling`.
@@ -371,9 +364,9 @@ beregnet skat, tillæg og øvrige rapportafsnit skal stadig oplyses særskilt.
   subtotaler eller genbrug af beløb, der allerede indgår i forskudsskat,
   beregnet skat eller tillæg. Ved ukendt fuldstændighed bruges `false`;
   afstemningen tilbageholder den korrigerede saldo.
-- Med `slutbetaling` skal det ældre `oplyst_udbetaling_kroner` være `null`.
-  Begge felter samtidig afvises, også ved nul. Uden `slutbetaling` bevares
-  de hidtidige, snævrere kontroller.
+- Med `slutbetaling` skal `oplyst_udbetaling_kroner` være `null`.
+  Begge felter samtidig afvises, også ved nul. Uden `slutbetaling` gælder
+  de særskilt beskrevne, snævrere kontroller.
 
 Output viser årets beløb, den eksakte korrigerede øresaldo i den valgte
 retning og sammenligningen i hele kroner. Retningen kontrolleres **før**
@@ -396,12 +389,6 @@ de konkrete beregningsregler. Den
 [fokuserede regression](../../tests/tax_report_payment.test.mjs) kontrollerer
 både disse metadata og faktisk output; den er ikke en test af vilkårlig
 AI-læsning af PDF'er eller en uafhængig administrativ konformitetskontrol.
-
-**Eksisterende input:** Generér frisk schema/skabelon, og overfør gennemgåede
-observationer uden at ændre dem. Feltet og metadata ændrer fingeraftrykket.
-JSON uden det nye valgfrie felt læses som `null` i den friske kontrakt.
-Håndskrevne `.runa`-konstruktioner af `RapportBetaling` skal tilføje
-`slutbetaling = None` for at bevare det hidtidige spor. Outputtypen er uændret.
 
 ## Additions before either refund or tax owed
 
@@ -496,36 +483,13 @@ interest rates or payment schedules are inferred.
 
 ### Existing templates
 
-The shared-additions correction moves `tillæg_til_slutskat` and
-`tillæg_til_slutskat_komplette` from `betaling.restskat` directly into
-`betaling`; `restskat` now contains only `oplyst_restskat_øre`. This is a
-Preview source/input-contract change. Regenerate the template and transfer
-reviewed observations, keeping any unknown completeness as `false`. For older
-refund inputs, review the additions before choosing `[]` and `true`; their
-absence from the old contract did not establish that there were none. Update
-authored `RapportBetaling` and `RapportRestskat` constructors as well. Do not
-change stored schema hashes to bypass migration. Recalculate saved results;
-the old refund check did not account for these additions.
+Regenerate the template and transfer reviewed observations; never edit stored
+schema hashes to bypass a mismatch. Use the
+[compatibility guide](../../docs/compatibility-guides/0.2.x.md#preview-and-experimental-notes)
+for field migrations and cases that need recalculation. Saved results are
+not automatically recalculated with the current contract.
 
-The partial-transfer check adds a named necessary condition, not a new input
-field. Consumers should find conditions by name, not assume a fixed list length
-or position. Recalculate saved results: some previously incomplete reports now
-show a contradiction already implied by their known transfers. A missing line
-remains missing even when its necessary amount can be determined.
-
-The confirmed-empty correction updates field-help metadata, which is included
-in the contract fingerprint. If an older envelope or workbook is rejected,
-regenerate a template and carry over reviewed observations; do not edit the
-stored hash to bypass the check. Recalculate affected cases: historical empty
-sections may have been reported as incomplete even when zero or a contradiction
-could be established.
-
-The optional `betaling.restskat` field changes the Preview model's contract
-fingerprint. Regenerate the template and migrate supported observations; never
-edit an old workbook's hidden fingerprint. `null` preserves the refund route,
-including the earlier-refund correction. Existing JSON records may omit the
-optional field after migration to the current envelope. Saved results are
-historical evidence, not automatically recalculated with the new contract.
+### Coverage and regression checks
 
 The focused regression checks both routes, including the one-øre boundary
 where additions turn a refund into debt, missing amounts/additions,
@@ -540,8 +504,7 @@ does not independently recompute individual tax lines, resolve other spouse
 mechanisms, or prove a complete household solution. Use `runa call` for typed
 report inputs. The compact report model also passes native `runa check`;
 `tests/tax_report_native_test.runa` compares complete interpreted and native
-outputs for 28 fictional reports (21 existing reports and seven revised-payment
-cases), including partial-transfer residual bounds,
+outputs for fictional reports, including partial-transfer residual bounds,
 missing observations, one-øre
 contradictions, spouse transfers, both settlement routes and unsupported years.
 This is not a native-coverage claim for the larger `personskat.calculate.runa`
@@ -557,18 +520,15 @@ source does not cover that input; it is never a zero rate or a neighbouring
 year's value. In particular, the 2023 income-tax table does not provide the
 2024–2026 property-tax table's parameters.
 
-Existing value rules retain their names and supported results; ordinary callers
-need no source migration. The source-backed guarded clauses now live in the
-optional lookup families. Strict value rules extract a present value and stop
+Strict value rules extract a present value from the optional lookup and stop
 with the checked `head: empty list` runtime failure on absence, never a
 replacement value. They do not prove all inputs valid. Code
 accepting an uncertain year should match the optional lookup first. The report
 boundary keeps its `IkkeUnderstøttetÅrEllerKommune` result, and the canonical
 calculation keeps its separate actionable unsupported-year diagnostic.
 
-No tax rates, source quotations, provenance, input schema or compiler rule-
-totality policy changed in this repair. The focused parameter regression
-checks every supported municipality/year, preserves historical PSL § 11
+The focused parameter regression checks every supported municipality/year,
+preserves historical PSL § 11
 rates, and tests both execution modes' refusal to invent missing parameters:
 
 ```sh

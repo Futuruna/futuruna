@@ -70,7 +70,7 @@ automatisk erstatte gennemgåede kildefakta.
 ## Udgifter holdes adskilt fra bruttovederlaget
 
 Indtast ikke blot et nettohonorar: det ville også ændre modellens AM-grundlag.
-Feltet `udgifter` behandler nu dokumenterede løbende egne udgifter ved
+Feltet `udgifter` behandler dokumenterede løbende egne udgifter ved
 honoraraktiviteten. Fradraget reducerer personlig indkomst, ikke AM-grundlaget
 eller beskæftigelses-/jobfradragsgrundlaget. Det er ikke et lønmodtagerfradrag
 med bundgrænse. Se [C.C.1.2.3](https://info.skat.dk/data.aspx?oid=2048532) og
@@ -132,7 +132,7 @@ uafhængig kontrol mod en officiel beregner eller en rigtig årsopgørelse.
 
 Hvis løn eller virksomhedsindtægt står i honorarlisten, bevarer komponenten
 `PersonligtArbejdsvederlagUdenForPar2Stk1Nr2` den oprindelige klassifikation.
-Den samlede årsberegning tilbageholder nu sammenligningen:
+Den samlede årsberegning tilbageholder sammenligningen:
 
 - `vurdering.status` er `UgyldigtBeregningsgrundlag`.
 - `vurdering.slutskat_til_sammenligning_øre` er `null`.
@@ -145,11 +145,6 @@ Fakta om ansættelse eller virksomhed må ikke omskrives til honorar alene
 for at få et resultat; ret placeringen efter kildegennemgang og kontrollér
 mod dobbelt medregning.
 
-En fiktiv 2025-modelkontrol viste fejlen: 600.000 kr. løn plus 50.000 kr.
-placeret som ansættelse i honorarlisten gav tidligere samme godkendte skat
-som kun 600.000 kr. løn. Den forkert placerede indkomst var udeladt.
-Det korrekt klassificerede honorar giver fortsat et samlet AM-grundlag på
-650.000 kr. og AM på 52.000 kr. i dette voksne kontroltilfælde.
 [Komponentkontrollen](../../tests/personskat_work_income_route_test.runa) og
 [årsregressionen](../../tests/personskat_work_income_route.test.mjs) skelner
 gyldig lovafgrænsning fra en komplet årsberegning. Det er modelkontroller,
@@ -157,10 +152,6 @@ ikke uafhængig verifikation af en virkelig årsopgørelse.
 
 ## Eksisterende input
 
-Honorarposter har nu det krævede felt `udgifter`. Generér frisk skabelon og
-overfør gennemgåede fakta, ikke blot et nyt `schema_hash`. Migrér ikke automatisk
-gamle poster til ingen udgifter; brug Uoplyst, indtil bilagene er gennemgået.
-Gamle poster med bekræftet ingen udgifter beholder deres indkomst-/AM-beløb;
-understøttede udgifter får nu særskilt fradrag i personlig indkomst.
-Et tidligere gyldigt resultat med indkomst i den forkerte gren skal genåbnes;
-nulbidraget fra komponenten må ikke bruges som dokumentation for skattefrihed.
+Generér en frisk skabelon og overfør gennemgåede fakta; redigér ikke et gemt
+`schema_hash` for at omgå kontrollen. Se de konkrete migrationskrav i
+[kompatibilitetsvejledningen](../../docs/compatibility-guides/0.2.x.md#preview-and-experimental-notes).
