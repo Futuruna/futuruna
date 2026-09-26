@@ -170,7 +170,7 @@ https://info.skat.dk/data.aspx?oid=1977389
             path = pathof(PersonskatPar14Input::helårsgrundlag::$variant),
             label = "Grundlag for den kanoniske helårsberegning",
             question = Some("Kan helårsberegningen afledes alene af de identificerede beløb, eller skal et komplet dokumenteret Personskat-grundlag for hele året anvendes?"),
-            help = Some("Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Samliv ved indkomstårets udløb skal være samme oplysning i begge grundlag. Hver persons fødselsdato, også dag og måned, skal være ens i de to grundlag; det gælder også den tilsvarende ægtefælle. Ægtefællerne skal ikke have samme fødselsdato som hinanden. Indkomster kan være forskellige, men helårsomregning ændrer ikke fødselsdatoen. Ens datoer beviser ikke personernes identitet. Afklar modstridende bilag uden at vælge dato efter skatteresultatet. Se personskat-delaar.md."),
+            help = Some("Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Samliv ved indkomstårets udløb skal være samme oplysning i begge grundlag. Hver persons fødselsdato, også dag og måned, skal være ens i de to grundlag; det gælder også den tilsvarende ægtefælle. Ægtefællerne skal ikke have samme fødselsdato som hinanden. Indkomster kan være forskellige, men helårsomregning ændrer ikke fødselsdatoen. Ens datoer beviser ikke personernes identitet. Afklar modstridende bilag uden at vælge dato efter skatteresultatet. For den tilsvarende ægtefælle skal også lønmodtager.kommune, lønmodtager.kirkeskat og lønmodtager.personfradrag_alder_status stemme mellem grundlagene. Kommune betyder årets skattekommune, ikke nødvendigvis bopæl i dag. Kirkeskat er den samme oplysning om hele indkomståret; medlemsperioder er fortsat ikke understøttet. Ægtefællerne kan have forskellige kommuner og kirkeskatteforhold fra hinanden. Ens oplysninger beviser ikke, at de er korrekte; afklar kilderne uden at kopiere en værdi blot for at få sammenligningen. Se personskat-delaar.md."),
             unit = None
         )
     ],
@@ -220,7 +220,9 @@ https://info.skat.dk/data.aspx?oid=1977389
     ],
     attachments = (
         Source(value = personskatteloven_2021_1284),
+        DependencySource(value = kommuneskatteloven_2019_935),
         AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
+        Guidance(value = personskat_kirkeskat_medlemsvejledning),
         Guidance(value = personskat_par14_juridisk_vejledning),
         Guidance(value = personskat_par14_indkomsttypevejledning),
         Guidance(value = personskat_par14_beregningscirkulære),
@@ -386,11 +388,13 @@ https://info.skat.dk/data.aspx?oid=1977389
 | personskat_par14_uden_ægtefælle(input: PersonskatÆgtefælleInput) -> match input { | UdenÆgtefælle -> Sandt | _ -> Falskt }
 -- Begge grundlag beskriver samme indkomstårs udløb, ikke hver sin periodes
 -- civilstand. Kontrollen beviser ikke ægtefællens identitet eller samliv.
+-- Skattekommune, helårskirkeskat og personfradragsstatus er heller ikke
+-- indkomstbeløb, der omregnes. Sammenlign samme ægtefælle, ikke parrets personer.
 | personskat_par14_ægtefælleforhold_forenelige(delår: PersonskatÆgtefælleInput, helår: PersonskatÆgtefælleInput, skatteår: Heltal) -> match delår {
     | UdenÆgtefælle -> personskat_par14_uden_ægtefælle(helår)
     | ÆgtefællegrundlagUoplyst -> Falskt
     | MedÆgtefælle(delårsfakta, delårssamliv, _) -> match helår {
-        | MedÆgtefælle(helårsfakta, helårssamliv, _) -> delårssamliv == helårssamliv && delårsfakta.lønmodtager.skatteår == skatteår && helårsfakta.lønmodtager.skatteår == skatteår && delårsfakta.lønmodtager.pension.fødselsdato == helårsfakta.lønmodtager.pension.fødselsdato
+        | MedÆgtefælle(helårsfakta, helårssamliv, _) -> delårssamliv == helårssamliv && delårsfakta.lønmodtager.skatteår == skatteår && helårsfakta.lønmodtager.skatteår == skatteår && delårsfakta.lønmodtager.pension.fødselsdato == helårsfakta.lønmodtager.pension.fødselsdato && delårsfakta.lønmodtager.kommune == helårsfakta.lønmodtager.kommune && delårsfakta.lønmodtager.kirkeskat == helårsfakta.lønmodtager.kirkeskat && delårsfakta.lønmodtager.personfradrag_alder_status == helårsfakta.lønmodtager.personfradrag_alder_status
         | _ -> Falskt
     }
 }
@@ -825,7 +829,7 @@ https://info.skat.dk/data.aspx?oid=1977389
         PersonskatInputkontrol(sti = "valg_afgivet_ved_oplysninger", gyldig = valg().input_gyldigt, forklaring = "Skattepligtsændring, § 14-valg og eventuel omvalgsdato skal opfylde modellens betingelser for indkomståret."),
         PersonskatInputkontrol(sti = "kilder", gyldig = kilder_gyldige(), forklaring = "Identificerede kilder skal være entydige og gyldige. Valg af faktisk helårsindkomst kræver oplyste faktiske helårsbeløb; ukendt er ikke nul. Hver kildes aktieindkomst skal indgå uændret uden helårsomregning, også ved § 14, stk. 2-valget. Afklar kilde og metode; ret ikke fakta for at opnå et match."),
         PersonskatInputkontrol(sti = "kilder", gyldig = kilder_afstemt_med_personskat(), forklaring = "Kildernes delårsbeløb og eventuelle udlandsafgrænsninger skal stemme med Personskat-grundlaget. Ret ikke dokumenterede beløb blot for at opnå et match."),
-        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold. Begge grundlag skal angive samme ægtefællestatus og samliv ved indkomstårets udløb; en aktiv ægtefælle skal vedrøre samme skatteår. Hovedpersonens fødselsdato skal være ens i de to grundlag, og det samme gælder den tilsvarende ægtefælles fødselsdato, også dag og måned. Ægtefællerne skal ikke have samme dato som hinanden. Indkomstomregning ændrer ikke fødselsdato; ens datoer beviser ikke identitet. Afklar modstridende fakta, ikke det forventede skattebeløb."),
+        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold. Begge grundlag skal angive samme ægtefællestatus og samliv ved indkomstårets udløb; en aktiv ægtefælle skal vedrøre samme skatteår. Hovedpersonens fødselsdato skal være ens i de to grundlag, og det samme gælder den tilsvarende ægtefælles fødselsdato, også dag og måned. Ægtefællerne skal ikke have samme dato som hinanden. Indkomstomregning ændrer ikke fødselsdato; ens datoer beviser ikke identitet. Sammenhold også den tilsvarende ægtefælles lønmodtager.kommune, lønmodtager.kirkeskat og lønmodtager.personfradrag_alder_status mellem de to grundlag; de skal stemme for samme person, ikke mellem ægtefællerne. Afklar modstridende fakta, ikke det forventede skattebeløb."),
         PersonskatInputkontrol(sti = "personskat", gyldig = kanonisk_beregning_understøttet(), forklaring = "Den kanoniske delårs- og helårssammensætning skal være understøttet. Se delårsresultatets domænekontroller og eventuelt det dokumenterede helårsgrundlag; et beregneligt mellemtrin er ikke en endelig delårskonklusion."),
         PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsskattekomponenter_afstemt(), forklaring = "Helårets skattekomponenter skal afstemme før forholdsmæssig nedsættelse."),
         PersonskatInputkontrol(sti = "kilder", gyldig = par14_kerne_gyldig(), forklaring = "Omregningsgrundlag, skattekomponenter, skatteloft, kapitalnedslag og eventuel DIS skal opfylde alle § 14-kernens kontroller."),
