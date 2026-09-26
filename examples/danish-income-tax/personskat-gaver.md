@@ -68,15 +68,14 @@ underbetaling. [DJV C.A.4.3.5.1](https://info.skat.dk/data.aspx?oid=2061726).
 Lovgrundlaget er den kildebevarede [LL § 12-model](ligningsloven-kontingenter-gaver.runa)
 med henvisning til [ligningsloven](https://www.retsinformation.dk/eli/lta/2025/1500).
 
-## Eksisterende input skal gennemgås igen
+## Skabelon og kontroller
 
-Ændringen 25. september 2026 tilføjer to påkrævede felter på
-`Ll12BindendeLøbendeYdelse` og ændrer kontraktfingeraftrykket. Generér en ny
-skabelon med den [kontrollerede compiler](../../website/public/ai-setup.md#tax-audit-runtime-check),
-og overfør kun gennemgåede kildefakta. Ret ikke blot det gamle fingeraftryk,
+Generér skabelonen fra den aktuelle model med den
+[kontrollerede compiler](../../website/public/ai-setup.md#tax-audit-runtime-check),
+og overfør kun gennemgåede kildefakta. Ret ikke blot et gammelt fingeraftryk,
 og udfyld ikke automatisk aftalereferencer eller bekræftelsen med `true`.
-Andre gavetyper har ingen nye aftalefelter, men det samlede kontraktfingeraftryk
-er også ændret for deres skabeloner.
+Følg [migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
+ved genbrug af tidligere input og resultater.
 
 Permanente kontroller ligger i
 [komponentprøven](../../tests/personskat_recurring_gifts_test.runa) og

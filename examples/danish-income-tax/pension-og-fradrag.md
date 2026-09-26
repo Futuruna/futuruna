@@ -155,10 +155,10 @@ adskilt fra denne afgrænsning. Afklar manglende detaljer frem for at tilpasse
 lønnen, så beregnet skat passer.
 [eIndkomstvejledningen 8.2, felt 13](https://info.skat.dk/data.aspx?oid=2233519).
 
-Metadataændringen ændrer kontraktens fingeraftryk, men ikke lønfeltets sti,
-datatype eller skatteformler. Generér en ny skabelon og overfør gennemgåede
-fakta; redigér ikke det gamle fingeraftryk. Ægtefællens tidligere kortere
-felttekst er ikke grundlag for at bruge en anden løndefinition.
+Generér skabelonen fra den aktuelle model og overfør gennemgåede fakta;
+redigér ikke et gammelt fingeraftryk. Følg
+[migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
+ved genbrug af tidligere sager.
 
 En almindelig arbejdsgiverbetalt livsvarig livrente indgår **før AM-bidrag**
 i grundlaget for beskæftigelses- og jobfradrag. Det ekstra pensionsfradrag
@@ -311,14 +311,13 @@ Ukendt betalingsfrist må ikke blive `false`. Afklar bilaget før den uafhængig
 beregning, hvis den påkrævede boolske oplysning ikke kan besvares. Kontrollen
 beviser ikke en betalingsdato, en ordningsklassifikation eller særlig
 godkendelse. [Tilbagebetaling og genindbetaling efter § 22 E](personskat-pensionskorrektion.md)
-har nu særskilte dokumenterede fakta og beregnede korrektionsfrister; et ja/nej
+har særskilte dokumenterede fakta og beregnede korrektionsfrister; et ja/nej
 alene er utilstrækkeligt. En post uden fradrag i det aktuelle år er ikke i sig
 selv ugyldig.
 
-**Migration:** Generer frisk schema/skabelon, da de fælles spørgsmål og
-kildespor ændrer kontrakthashen. Gennemgå tidligere gemte tidsoplysninger ud
-fra bilag og beregn igen; skift ikke blot et årstal eller en variant for at
-få et resultat. [Regressionen](../../tests/personskat_pension_payment_year.test.mjs)
+Gennemgå tidsoplysninger ud fra bilag; skift ikke blot et årstal eller en
+variant for at få et resultat.
+[Regressionen](../../tests/personskat_pension_payment_year.test.mjs)
 kontrollerer fiktive årsberegninger og fælles hovedperson/ægtefællevejledning,
 ikke en ny uafhængig SKAT-observation.
 
@@ -327,7 +326,7 @@ ikke en ny uafhængig SKAT-observation.
 En rubrik 347-linje kan også indeholde **gruppeliv**, ikke kun rateoverskud.
 For lønfinansieret gruppeliv bruges dokumenteret brutto til arbejdsfradrag
 og netto til personlig indkomst, uden nyt AM eller ekstra pensionsfradrag.
-Se [gruppelivsguiden og skabelonændringen](personskat-gruppeliv.md), før en
+Se [gruppelivsguiden](personskat-gruppeliv.md), før en
 samlet pensions-/forsikringsoversigt fordeles på flere inputposter.
 
 Den fælles grænse for almindelig ratepension og ophørende livrente gælder
