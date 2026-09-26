@@ -807,13 +807,13 @@ fn main_inner() {
         }
     }
 
-    // Internal child-process entrypoint used by parallel test workers.
+    // Internal interpreter entrypoint isolated from the test-suite coordinator.
     if mode == "test-file" {
         let test_file = filename.as_deref().unwrap_or_else(|| {
             eprintln!("error: __test-file requires a .runa file");
             std::process::exit(1);
         });
-        run_test_file_child(test_file, use_prelude, test_compile);
+        run_test_file_child(test_file, use_prelude);
         return;
     }
 
@@ -10708,31 +10708,150 @@ fn collect_test_paths(dir: &str, kind: TestFileKind) -> Vec<std::path::PathBuf> 
     paths
 }
 
-fn run_test_file_child(filename: &str, use_prelude: bool, compile_mode: bool) {
-    let file_path = std::path::PathBuf::from(filename);
-    let display_dir = file_path
+fn run_test_file_child(filename: &str, use_prelude: bool) {
+    let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
+        eprintln!("cannot read {filename}: {error}");
+        std::process::exit(1);
+    });
+    let mut lexer = Lexer::new(&source);
+    let mut parser = Parser::new(lexer.tokenize(), &source);
+    let user_stmts = parser.parse_program().unwrap_or_else(|error| {
+        eprintln!("parse error in {filename}: {error}");
+        std::process::exit(1);
+    });
+    let stmts = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let source_dir = Path::new(filename)
         .parent()
-        .map(|parent| parent.to_string_lossy().to_string())
-        .unwrap_or_else(|| ".".to_string());
-    run_test_paths_serial(
-        &display_dir,
-        std::slice::from_ref(&file_path),
-        use_prelude,
-        compile_mode,
-        false,
-    );
+        .map(|parent| parent.to_string_lossy().to_string());
+    let mut interp = Interpreter::new();
+    interp.source_dir = source_dir.clone();
+    interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
+    let mut env = interp.default_env();
+    interp.run_program(&stmts, &mut env);
 }
 
-fn run_tests_parallel(
-    dir: &str,
-    paths: &[std::path::PathBuf],
+enum TestFileOutcome {
+    Pass(&'static str),
+    Skip(&'static str),
+    Fail(String),
+}
+
+struct TestFileResult {
+    outcome: TestFileOutcome,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    elapsed: std::time::Duration,
+}
+
+fn run_test_case(
+    self_bin: &Path,
+    file_path: &Path,
     use_prelude: bool,
     compile_mode: bool,
-    jobs: usize,
-) {
+) -> TestFileResult {
+    let start = std::time::Instant::now();
+    let failed = |message| TestFileResult {
+        outcome: TestFileOutcome::Fail(message),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+        elapsed: start.elapsed(),
+    };
+    let source = match std::fs::read_to_string(file_path) {
+        Ok(source) => source,
+        Err(error) => return failed(format!("cannot read: {error}")),
+    };
+    let expected_errors = collect_expectation_markers(&source, "-- expect-error:");
+    let expected_runtime_errors = collect_expectation_markers(&source, "-- expect-runtime-error:");
+    if compile_mode && !expected_errors.is_empty() {
+        return TestFileResult {
+            outcome: TestFileOutcome::Skip("negative test"),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+            elapsed: start.elapsed(),
+        };
+    }
+
+    let (command, expected, expectation_label, error_kind) = if !expected_errors.is_empty() {
+        ("check", &expected_errors, "expect-error", "error")
+    } else if compile_mode {
+        (
+            "run",
+            &expected_runtime_errors,
+            "expect-runtime-error",
+            "runtime error",
+        )
+    } else {
+        (
+            "__test-file",
+            &expected_runtime_errors,
+            "expect-runtime-error",
+            "runtime error",
+        )
+    };
+    let mut process = std::process::Command::new(self_bin);
+    process.arg(command).arg(file_path);
+    if !use_prelude {
+        process.arg("--no-prelude");
+    }
+    let output = match process.output() {
+        Ok(output) => output,
+        Err(error) => return failed(format!("cannot execute: {error}")),
+    };
+    // Interpreter invariant failures can terminate with their diagnostic on stdout.
+    // Keep both channels until expectations are checked; never discard panic details.
+    let diagnostics = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let outcome = if output.status.success() {
+        if expected.is_empty() {
+            TestFileOutcome::Pass("")
+        } else {
+            TestFileOutcome::Fail(format!("expected {error_kind} but program succeeded"))
+        }
+    } else if expected.is_empty() {
+        TestFileOutcome::Fail(format!("{error_kind} ({})", output.status))
+    } else {
+        let missing = expected
+            .iter()
+            .filter(|text| !diagnostics.contains(text.as_str()))
+            .collect::<Vec<_>>();
+        if missing.is_empty() {
+            TestFileOutcome::Pass(expectation_label)
+        } else {
+            TestFileOutcome::Fail(format!(
+                "{error_kind} occurred but missing expected text: {missing:?}"
+            ))
+        }
+    };
+    let suppress_success_diagnostics =
+        matches!(outcome, TestFileOutcome::Pass(_)) && (compile_mode || !expected.is_empty());
+    TestFileResult {
+        outcome,
+        stdout: if compile_mode || !expected_errors.is_empty() {
+            Vec::new()
+        } else {
+            output.stdout
+        },
+        stderr: if suppress_success_diagnostics {
+            Vec::new()
+        } else {
+            output.stderr
+        },
+        elapsed: start.elapsed(),
+    }
+}
+
+fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize, kind: TestFileKind) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Instant;
 
+    let paths = collect_test_paths(dir, kind);
     let total = paths.len();
     let worker_count = jobs.min(total);
     let mode_label = if compile_mode {
@@ -10740,89 +10859,117 @@ fn run_tests_parallel(
     } else {
         "runa test"
     };
+    let jobs_label = if jobs == 1 {
+        String::new()
+    } else {
+        format!(" with {worker_count} jobs")
+    };
     status_eprintln!(
-        "\x1b[1m{}\x1b[0m: running {} tests from {}/ with {} jobs\n",
+        "\x1b[1m{}\x1b[0m: running {} tests from {}/{}\n",
         mode_label,
         total,
         dir,
-        worker_count
+        jobs_label
     );
 
     let suite_start = Instant::now();
     let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
     let next_index = AtomicUsize::new(0);
-    let results = std::thread::scope(|scope| {
-        let mut handles = Vec::with_capacity(worker_count);
-        for _ in 0..worker_count {
-            let next_index = &next_index;
-            let self_bin = &self_bin;
-            handles.push(scope.spawn(move || {
-                let mut worker_results = Vec::new();
-                loop {
-                    let index = next_index.fetch_add(1, Ordering::Relaxed);
-                    if index >= paths.len() {
-                        break;
-                    }
-                    let mut command = std::process::Command::new(&self_bin);
-                    command.arg("__test-file");
-                    if compile_mode {
-                        command.arg("--run");
-                    }
-                    command.arg(&paths[index]);
-                    if !use_prelude {
-                        command.arg("--no-prelude");
-                    }
-                    worker_results.push((index, command.output()));
+    // Even one worker uses a child process: an interpreter exit or panic must not
+    // terminate the coordinator before later files and the suite summary run.
+    let results: Box<dyn Iterator<Item = TestFileResult> + '_> = if worker_count == 1 {
+        // Report each serial result immediately, without buffering the whole suite.
+        Box::new(
+            paths
+                .iter()
+                .map(|path| run_test_case(&self_bin, path, use_prelude, compile_mode)),
+        )
+    } else {
+        Box::new(
+            (std::thread::scope(|scope| {
+                let mut handles = Vec::with_capacity(worker_count);
+                for _ in 0..worker_count {
+                    let next_index = &next_index;
+                    let self_bin = &self_bin;
+                    let paths = &paths;
+                    handles.push(scope.spawn(move || {
+                        let mut worker_results = Vec::new();
+                        loop {
+                            let index = next_index.fetch_add(1, Ordering::Relaxed);
+                            if index >= paths.len() {
+                                break;
+                            }
+                            worker_results.push((
+                                index,
+                                run_test_case(self_bin, &paths[index], use_prelude, compile_mode),
+                            ));
+                        }
+                        worker_results
+                    }));
                 }
-                worker_results
-            }));
-        }
-
-        let mut ordered = (0..total).map(|_| None).collect::<Vec<_>>();
-        for handle in handles {
-            let worker_results = handle.join().unwrap_or_else(|payload| {
-                panic!(
-                    "parallel test worker panicked: {}",
-                    panic_payload_to_string(payload)
-                )
-            });
-            for (index, output) in worker_results {
-                ordered[index] = Some(output);
-            }
-        }
-        ordered
-            .into_iter()
-            .map(|output| output.expect("parallel test worker omitted a result"))
-            .collect::<Vec<_>>()
-    });
+                let mut ordered = (0..total).map(|_| None).collect::<Vec<_>>();
+                for handle in handles {
+                    let worker_results = handle.join().unwrap_or_else(|payload| {
+                        panic!("test worker panicked: {}", panic_payload_to_string(payload))
+                    });
+                    for (index, result) in worker_results {
+                        ordered[index] = Some(result);
+                    }
+                }
+                ordered
+                    .into_iter()
+                    .map(|result| result.expect("test worker omitted a result"))
+                    .collect::<Vec<_>>()
+            }))
+            .into_iter(),
+        )
+    };
 
     let mut failures = Vec::new();
-    for (path, output) in paths.iter().zip(results) {
+    for (path, result) in paths.iter().zip(results) {
         let name = path
             .file_name()
             .map(|name| name.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        match output {
-            Ok(output) => {
-                let mut stdout = std::io::stdout().lock();
-                let _ = IoWrite::write_all(&mut stdout, &output.stdout);
-                let _ = IoWrite::flush(&mut stdout);
-                let mut stderr = std::io::stderr().lock();
-                let _ = IoWrite::write_all(&mut stderr, &output.stderr);
-                let _ = IoWrite::flush(&mut stderr);
-                if !output.status.success() {
-                    failures.push(name);
-                }
-            }
-            Err(error) => {
+        let time = short_duration(result.elapsed);
+        let mut stdout = std::io::stdout().lock();
+        let _ = IoWrite::write_all(&mut stdout, &result.stdout);
+        let _ = IoWrite::flush(&mut stdout);
+        match result.outcome {
+            TestFileOutcome::Pass(label) => {
+                let label = if label.is_empty() {
+                    String::new()
+                } else {
+                    format!("{label}, ")
+                };
                 status_eprintln!(
-                    "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}",
+                    "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({}{})\x1b[0m",
                     name,
-                    error
+                    label,
+                    time
+                );
+            }
+            TestFileOutcome::Skip(label) => {
+                status_eprintln!(
+                    "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({}, {})\x1b[0m",
+                    name,
+                    label,
+                    time
+                );
+            }
+            TestFileOutcome::Fail(message) => {
+                status_eprintln!(
+                    "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
+                    name,
+                    message,
+                    time
                 );
                 failures.push(name);
             }
         }
+        let mut stderr = std::io::stderr().lock();
+        let _ = IoWrite::write_all(&mut stderr, &result.stderr);
+        let _ = IoWrite::flush(&mut stderr);
     }
 
     let suite_time = short_duration(suite_start.elapsed());
@@ -10842,364 +10989,6 @@ fn run_tests_parallel(
         );
         for failure in failures {
             eprintln!("  - {}", failure);
-        }
-        std::process::exit(1);
-    }
-}
-
-fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize, kind: TestFileKind) {
-    let paths = collect_test_paths(dir, kind);
-    if jobs == 1 {
-        run_test_paths_serial(dir, &paths, use_prelude, compile_mode, true);
-    } else {
-        run_tests_parallel(dir, &paths, use_prelude, compile_mode, jobs);
-    }
-}
-
-fn run_test_paths_serial(
-    dir: &str,
-    entries: &[std::path::PathBuf],
-    use_prelude: bool,
-    compile_mode: bool,
-    show_suite: bool,
-) {
-    use std::process::Command;
-    use std::time::Instant;
-
-    let total = entries.len();
-    let mut failed = 0usize;
-    let mut failures: Vec<String> = Vec::new();
-
-    let mode_label = if compile_mode {
-        "runa test --run"
-    } else {
-        "runa test"
-    };
-    if show_suite {
-        status_eprintln!(
-            "\x1b[1m{}\x1b[0m: running {} tests from {}/\n",
-            mode_label,
-            total,
-            dir
-        );
-    }
-
-    let suite_start = Instant::now();
-
-    // Find our own binary for subprocess mode
-    let self_bin = if compile_mode {
-        std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"))
-    } else {
-        std::path::PathBuf::new() // unused
-    };
-
-    for file_path in entries {
-        let name = file_path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-        let test_start = Instant::now();
-        let source = match std::fs::read_to_string(&file_path) {
-            Ok(source) => source,
-            Err(e) => {
-                status_eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, e);
-                failed += 1;
-                failures.push(name);
-                continue;
-            }
-        };
-        let expected_errors = collect_expectation_markers(&source, "-- expect-error:");
-        let expected_runtime_errors =
-            collect_expectation_markers(&source, "-- expect-runtime-error:");
-
-        if compile_mode {
-            if !expected_errors.is_empty() {
-                let elapsed = test_start.elapsed();
-                let ms = elapsed.as_millis();
-                let time_str = if ms >= 1000 {
-                    format!("{:.1}s", elapsed.as_secs_f64())
-                } else {
-                    format!("{}ms", ms)
-                };
-                status_eprintln!(
-                    "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative test, {})\x1b[0m",
-                    name,
-                    time_str
-                );
-                continue;
-            }
-            // Compile+execute mode: run as subprocess `runa run <file>`
-            let file_str = file_path.to_string_lossy().to_string();
-            let mut cmd = Command::new(&self_bin);
-            cmd.args(&["run", &file_str]);
-            if !use_prelude {
-                cmd.arg("--no-prelude");
-            }
-            // Suppress stdout (test output) but capture stderr for errors
-            cmd.stdout(std::process::Stdio::null());
-            cmd.stderr(std::process::Stdio::piped());
-            match cmd.output() {
-                Ok(output) => {
-                    let elapsed = test_start.elapsed();
-                    let ms = elapsed.as_millis();
-                    let time_str = if ms >= 1000 {
-                        format!("{:.1}s", elapsed.as_secs_f64())
-                    } else {
-                        format!("{}ms", ms)
-                    };
-                    if output.status.success() {
-                        if expected_runtime_errors.is_empty() {
-                            status_eprintln!(
-                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
-                                name,
-                                time_str
-                            );
-                        } else {
-                            status_eprintln!(
-                                "  \x1b[1;31mFAIL\x1b[0m  {} — expected runtime error but program succeeded \x1b[2m({})\x1b[0m",
-                                name, time_str
-                            );
-                            failed += 1;
-                            failures.push(name);
-                        }
-                    } else if !expected_runtime_errors.is_empty() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let missing: Vec<&String> = expected_runtime_errors
-                            .iter()
-                            .filter(|expected| !stderr.contains(expected.as_str()))
-                            .collect();
-                        if missing.is_empty() {
-                            status_eprintln!(
-                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-runtime-error, {})\x1b[0m",
-                                name, time_str
-                            );
-                        } else {
-                            status_eprintln!(
-                                "  \x1b[1;31mFAIL\x1b[0m  {} — runtime error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
-                                name, missing, time_str
-                            );
-                            failed += 1;
-                            failures.push(name);
-                        }
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let err_line = stderr
-                            .lines()
-                            .find(|l| {
-                                l.contains("error")
-                                    || l.contains("failed")
-                                    || l.contains("panicked")
-                            })
-                            .unwrap_or("(compilation or runtime error)");
-                        status_eprintln!(
-                            "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
-                            name,
-                            err_line.trim(),
-                            time_str
-                        );
-                        failed += 1;
-                        failures.push(name);
-                    }
-                }
-                Err(e) => {
-                    status_eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}", name, e);
-                    failed += 1;
-                    failures.push(name);
-                }
-            }
-        } else {
-            // Interpret mode: run in-process
-            if !expected_errors.is_empty() {
-                // Negative test: run via subprocess so we can capture stderr
-                let self_bin =
-                    std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
-                let file_str = file_path.to_string_lossy().to_string();
-                let output = std::process::Command::new(&self_bin)
-                    .args(&["check", &file_str])
-                    .stdout(std::process::Stdio::null())
-                    .stderr(std::process::Stdio::piped())
-                    .output();
-
-                let elapsed = test_start.elapsed();
-                let ms = elapsed.as_millis();
-                let time_str = if ms >= 1000 {
-                    format!("{:.1}s", elapsed.as_secs_f64())
-                } else {
-                    format!("{}ms", ms)
-                };
-
-                match output {
-                    Ok(out) => {
-                        let stderr = String::from_utf8_lossy(&out.stderr);
-                        let did_error = !out.status.success();
-                        let all_found = expected_errors
-                            .iter()
-                            .all(|expected| stderr.contains(expected.as_str()));
-
-                        if did_error && all_found {
-                            status_eprintln!(
-                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-error, {})\x1b[0m",
-                                name,
-                                time_str
-                            );
-                        } else if !did_error {
-                            status_eprintln!(
-                                "  \x1b[1;31mFAIL\x1b[0m  {} — expected error but program succeeded \x1b[2m({})\x1b[0m",
-                                name, time_str
-                            );
-                            failed += 1;
-                            failures.push(name);
-                        } else {
-                            let missing: Vec<&String> = expected_errors
-                                .iter()
-                                .filter(|e| !stderr.contains(e.as_str()))
-                                .collect();
-                            status_eprintln!(
-                                "  \x1b[1;31mFAIL\x1b[0m  {} — error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
-                                name, missing, time_str
-                            );
-                            failed += 1;
-                            failures.push(name);
-                        }
-                    }
-                    Err(e) => {
-                        status_eprintln!(
-                            "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {} \x1b[2m({})\x1b[0m",
-                            name,
-                            e,
-                            time_str
-                        );
-                        failed += 1;
-                        failures.push(name);
-                    }
-                }
-            } else {
-                // Positive and runtime-error fixtures: run in-process
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    let mut lexer = Lexer::new(&source);
-                    let tokens = lexer.tokenize();
-                    let mut parser = Parser::new(tokens, &source);
-                    match parser.parse_program() {
-                        Ok(user_stmts) => {
-                            let stmts = if use_prelude {
-                                prepend_prelude(parse_prelude(), &user_stmts)
-                            } else {
-                                user_stmts
-                            };
-                            let source_dir = file_path
-                                .parent()
-                                .map(|parent| parent.to_string_lossy().to_string());
-                            let mut interp = Interpreter::new();
-                            interp.source_dir = source_dir.clone();
-                            interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
-                            let mut env = interp.default_env();
-                            interp.run_program(&stmts, &mut env);
-                            Ok(())
-                        }
-                        Err(e) => Err(e),
-                    }
-                }));
-
-                let elapsed = test_start.elapsed();
-                let ms = elapsed.as_millis();
-                let time_str = if ms >= 1000 {
-                    format!("{:.1}s", elapsed.as_secs_f64())
-                } else {
-                    format!("{}ms", ms)
-                };
-                match result {
-                    Ok(Ok(())) => {
-                        if expected_runtime_errors.is_empty() {
-                            status_eprintln!(
-                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
-                                name,
-                                time_str
-                            );
-                        } else {
-                            status_eprintln!(
-                                "  \x1b[1;31mFAIL\x1b[0m  {} — expected runtime error but program succeeded \x1b[2m({})\x1b[0m",
-                                name, time_str
-                            );
-                            failed += 1;
-                            failures.push(name);
-                        }
-                    }
-                    Ok(Err(e)) => {
-                        status_eprintln!(
-                            "  \x1b[1;31mFAIL\x1b[0m  {} — parse error: {} \x1b[2m({})\x1b[0m",
-                            name,
-                            e,
-                            time_str
-                        );
-                        failed += 1;
-                        failures.push(name);
-                    }
-                    Err(payload) => {
-                        if expected_runtime_errors.is_empty() {
-                            status_eprintln!(
-                                "  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic \x1b[2m({})\x1b[0m",
-                                name,
-                                time_str
-                            );
-                            failed += 1;
-                            failures.push(name);
-                        } else {
-                            let panic_text = panic_payload_to_string(payload);
-                            let missing: Vec<&String> = expected_runtime_errors
-                                .iter()
-                                .filter(|e| !panic_text.contains(e.as_str()))
-                                .collect();
-                            if missing.is_empty() {
-                                status_eprintln!(
-                                    "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-runtime-error, {})\x1b[0m",
-                                    name, time_str
-                                );
-                            } else {
-                                status_eprintln!(
-                                    "  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic missing expected text: {:?} \x1b[2m({})\x1b[0m",
-                                    name, missing, time_str
-                                );
-                                failed += 1;
-                                failures.push(name);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if !show_suite {
-        if failed > 0 {
-            std::process::exit(1);
-        }
-        return;
-    }
-
-    let suite_elapsed = suite_start.elapsed();
-    let suite_secs = suite_elapsed.as_secs_f64();
-    let suite_time = if suite_secs >= 1.0 {
-        format!("{:.1}s", suite_secs)
-    } else {
-        format!("{}ms", suite_elapsed.as_millis())
-    };
-
-    eprintln!();
-    if failed == 0 {
-        status_eprintln!(
-            "\x1b[1;32mAll {} tests passed\x1b[0m in {}.",
-            total,
-            suite_time
-        );
-    } else {
-        status_eprintln!(
-            "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
-            failed,
-            total,
-            suite_time
-        );
-        for f in &failures {
-            eprintln!("  - {}", f);
         }
         std::process::exit(1);
     }
@@ -46082,9 +45871,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             (None, None) => {
                                 // Bare ? name — verify and print result (matches interpreter output)
                                 out.push_str(&format!(
-                                    "{}// ? {}\n{}if {} {{ println!(\"  ✓ |{}| holds (value: {{}})\", {}); }} else {{ panic!(\"? {} FAILED\"); }}\n",
+                                    "{}// ? {}\n{}if {} {{ println!(\"  ✓ |{}| holds (value: {{}})\", {}); }} else {{ panic!(\"? {} FAILED: |{}| VIOLATED (value: {{}})\", {}); }}\n",
                                     self.ind(), inv_name,
-                                    self.ind(), pred_str, inv_name, subj_display, inv_name
+                                    self.ind(), pred_str, inv_name, subj_display, name, inv_name, subj_display
                                 ));
                             }
                             (Some(pass), None) => {

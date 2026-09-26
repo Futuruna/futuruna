@@ -147,3 +147,97 @@ fn test_runner_rejects_unknown_test_kind() {
     assert!(String::from_utf8_lossy(&output.stderr)
         .contains("--kind requires all, scenario, or audit, got 'benchmark'"));
 }
+
+#[test]
+fn test_runner_reports_every_failure_and_keeps_invariant_details() {
+    let dir = temp_test_dir();
+    for (name, source) in [
+        ("a.runa", "@ print(\"before\")\n"),
+        (
+            "b.scenario.runa",
+            "= value = 3\n| value_ok: value -> value < 2\n? value_ok\n",
+        ),
+        ("c.runa", "@ print(show(head([])))\n"),
+        (
+            "d.runa",
+            "= other = 7\n| other_ok: other -> other < 2\n? other_ok -> { @ print(\"unreachable\") }\n",
+        ),
+        ("e.runa", "@ print(\"after\")\n"),
+    ] {
+        std::fs::write(dir.join(name), source).expect("write test fixture");
+    }
+    let dir_arg = dir.to_str().expect("UTF-8 fixture path");
+    for compiled in [false, true] {
+        for jobs in ["1", "2"] {
+            let mut args = vec!["test", "--jobs", jobs, dir_arg];
+            if compiled {
+                args.push("--run");
+            }
+            let output = run(&args);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let details = format!("args: {args:?}\nstdout:\n{stdout}\nstderr:\n{stderr}");
+            assert!(!output.status.success(), "{details}");
+            assert!(stderr.contains("3 of 5 tests failed"), "{details}");
+            for name in ["b.scenario.runa", "c.runa", "d.runa"] {
+                assert!(stderr.contains(&format!("FAIL  {name}")), "{details}");
+                assert!(stderr.contains(&format!("  - {name}")), "{details}");
+            }
+            assert!(stderr.contains("PASS  e.runa"), "{details}");
+            assert!(details.contains("value_ok"), "{details}");
+            assert!(details.contains("value: 3"), "{details}");
+            assert!(details.contains("other_ok"), "{details}");
+            assert!(stderr.contains("head: empty list"), "{details}");
+            if !compiled {
+                assert!(stdout.starts_with("before\n"), "{details}");
+                assert!(stdout.ends_with("after\n"), "{details}");
+            }
+        }
+    }
+    std::fs::remove_dir_all(dir).expect("remove owned test fixtures");
+}
+
+#[test]
+fn test_runner_recognizes_expected_invariant_exits_and_rejects_missing_errors() {
+    let dir = temp_test_dir();
+    std::fs::write(
+        dir.join("a.runa"),
+        "-- expect-runtime-error: value_ok\n-- expect-runtime-error: value: [1, 2, 3]\n= value = [1, 2, 3]\n| value_ok: value -> length(value) < 2\n? value_ok\n",
+    )
+    .expect("write expected invariant failure");
+    std::fs::write(
+        dir.join("b.runa"),
+        "-- expect-runtime-error: missing_error\n@ print(\"success\")\n",
+    )
+    .expect("write missing runtime error");
+    std::fs::write(
+        dir.join("c.runa"),
+        "-- expect-runtime-error: wrong_message\n@ print(show(head([])))\n",
+    )
+    .expect("write mismatched runtime error");
+    let dir_arg = dir.to_str().expect("UTF-8 fixture path");
+    for compiled in [false, true] {
+        for jobs in ["1", "2"] {
+            let mut args = vec!["test", "--jobs", jobs, dir_arg];
+            if compiled {
+                args.push("--run");
+            }
+            let output = run(&args);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let details = format!("args: {args:?}\n{stderr}");
+            assert!(!output.status.success(), "{details}");
+            assert!(stderr.contains("2 of 3 tests failed"), "{details}");
+            assert!(stderr.contains("PASS  a.runa"), "{details}");
+            assert!(stderr.contains("expect-runtime-error"), "{details}");
+            assert!(stderr.contains("FAIL  b.runa"), "{details}");
+            assert!(
+                stderr.contains("expected runtime error but program succeeded"),
+                "{details}"
+            );
+            assert!(stderr.contains("FAIL  c.runa"), "{details}");
+            assert!(stderr.contains("wrong_message"), "{details}");
+            assert!(stderr.contains("head: empty list"), "{details}");
+        }
+    }
+    std::fs::remove_dir_all(dir).expect("remove owned test fixtures");
+}
