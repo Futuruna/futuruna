@@ -7,6 +7,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mjs';
+import { amount, parseReportOutput } from '../examples/danish-income-tax/resultat-visning.mjs';
+import { renderPersonskatOutput } from '../examples/danish-income-tax/personskat-resultat.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
@@ -99,6 +101,20 @@ test('part-year share sources cannot acquire salary-style annualization', enable
   save(directory, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);
   assert.deepEqual(output.results.map(row => row.case_id), cases.map(row => row.case_id));
+  const exact = parseReportOutput(JSON.stringify(output)), view = renderPersonskatOutput(exact);
+  assert.equal(view.exitCode, 2, 'Mixed valid and invalid part-year cases need review.');
+  const sections = view.text.split('\nSag: ').slice(1);
+  assert.equal(sections.length, cases.length);
+  for (const [i, row] of exact.results.entries()) {
+    assert.ok(sections[i].startsWith(row.case_id));
+    if (row.result.input_gyldigt) assert.ok(sections[i].includes(
+      `Modelleret slutskat efter PSL § 14 til sammenligning: ${amount(row.result.vurdering.slutskat_til_sammenligning_øre, 'øre')}`));
+    else assert.doesNotMatch(sections[i], /Modelleret slutskat|Periodens grundlag:/);
+    for (const c of row.result.vurdering.kontroller) {
+      assert.ok(sections[i].includes(c.sti)); assert.ok(sections[i].includes(c.forklaring));
+    }
+    for (const caveat of row.result.vurdering.forbehold) assert.ok(sections[i].includes(caveat));
+  }
   for (const { case_id, result: r } of output.results) console.log(JSON.stringify({ case_id,
     valid: r.input_gyldigt, comparison: r.vurdering.slutskat_til_sammenligning_øre,
     faults: r.vurdering.fejl, shares: r.statslige_skattekomponenter.filter(c =>

@@ -45,12 +45,18 @@ Exitkode **0** betyder kun *beregnet med forbehold*, **2** betyder mindst én
 ugyldig sag eller beregningsdiagnostik, og **1** betyder afvist fil/format.
 Ved kode 1 vises ingen delvis succesrapport. Ingen kode godkender skatteforhold.
 Filer over 16 MiB afvises; beregn mindre batches frem for at slette forbehold.
-Denne visning understøtter kun `beregn_personskat`, ikke den separate
+Denne visning understøtter `beregn_personskat` og `beregn_personskat_delår`,
+ikke den separate
 [grøn-check-beregning](personskat-groen-check.md) eller
 [betingede rapportafstemning](aarsopgoerelse-afstemning.md#læs-resultatet-på-dansk).
-Den særskilte [delårsberegning](personskat-delaar.md) læses som JSON og har
-sin egen yderste `vurdering`. Dens indlejrede `delårsresultat.vurdering` er
-et mellemtrin, ikke den endelige delårskonklusion. Den almindelige indgang
+For den særskilte [delårsberegning](personskat-delaar.md) bruger visningen
+den yderste `vurdering` og `slutskat_efter_par14_øre`. Den viser udvalgte
+periode-/årsgrundlag særskilt og aldrig indlejrede skattetotaler som slutskat.
+`delårsresultat.vurdering` er et mellemtrin, ikke den endelige delårskonklusion;
+en gyldig mellemregning kan ikke ophæve en fejl i den yderste vurdering.
+En afregningsfejl i en mellemregning erstatter heller ikke den endelige
+afregningskontrol. De fulde mellemregninger findes fortsat i JSON.
+Den almindelige indgang
 modtager ikke skattepligtsperiodens datoer; afklar derfor helår/delår før
 valg af beregningsvej.
 

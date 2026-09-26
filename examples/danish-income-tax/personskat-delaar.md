@@ -50,13 +50,15 @@ delårsgrundlaget og et særskilt dokumenteret helårsgrundlag.
 
 Brug den compiler, der bestod [runtime-tjekket](../../website/public/ai-setup.md#tax-audit-runtime-check),
 og gem personlige filer uden for projektet. Erstat `PRIVATE_WORK_DIR` med den
-valgte private mappe. Fra projektets rod:
+valgte private mappe. Visningskommandoen er valgfri og kræver allerede
+installeret Node.js 18 eller nyere. Fra projektets rod:
 
 ```sh
 "$RUNA_BIN" schema examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --format compact-json --output PRIVATE_WORK_DIR/delaar-schema.json
 "$RUNA_BIN" template examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --format json --output PRIVATE_WORK_DIR/delaar-cases.json
 # Udfyld og gennemgå kildefakta, før der beregnes.
 FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --input PRIVATE_WORK_DIR/delaar-cases.json --output PRIVATE_WORK_DIR/delaar-results.json
+node examples/danish-income-tax/personskat-resultat.mjs PRIVATE_WORK_DIR/delaar-results.json
 ```
 
 Skabelonværdier er ikke personfakta. Følg de genererede spørgsmål og bevar
@@ -241,8 +243,15 @@ eller beløb er ikke den endelige delårskonklusion. Heller ikke
 `samlet_modeldækning_bekræftet` er fortsat `false`. Alle generelle og
 delårsspecifikke forbehold skal bevares. En vellykket CLI-kørsel eller denne
 vurdering autentificerer ikke dokumenterne og beviser ikke fuld lovdækning.
-Den almindelige `personskat-resultat.mjs`-viser understøtter ikke denne
-separate resultatkontrakt; AI'en skal læse det gemte delårs-JSON direkte.
+`personskat-resultat.mjs` understøtter det gemte delårsresultat og bruger kun
+den yderste vurdering til sammenligningsbeløbet. Ved et gyldigt grundlag vises
+også skattepligtsdage, valgt metode og udvalgte indkomstgrundlag i perioden
+og årsberegningen. Disse grundlag er mellemregninger, ikke årsopgørelsens
+endelige rubrikbeløb. Indlejrede skattetotaler vises ikke som slutskat.
+Ugyldige sager viser kontroller og forbehold, men ingen af disse beløb.
+Viseren genberegner ikke skatten, afklarer ikke skattepligt og ændrer ingen
+filer; den fulde detailberegning og betalingsafregning skal læses i JSON.
+Se [visningens grænser og exitkoder](personskat-validity.md#læs-dit-gemte-resultat-på-dansk).
 
 Et **fiktivt modelkontroltilfælde**: fuld
 skattepligt 1. januar–30. juni 2025, løn 300.000 kr. i perioden, født

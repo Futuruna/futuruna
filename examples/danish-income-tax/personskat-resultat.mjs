@@ -32,6 +32,26 @@ personlig_indkomst selvstændig_arbejdsmarkedsbidrag pension erhvervsbefordring 
 kapitalindkomst aktieavance kursgevinst_par32 udenlandske_sociale_bidrag cfc årsopgørelse
 `.trim().split(/\s+/);
 
+export const partyearResultFields = `
+vurdering input_gyldigt periode_gyldig kilder_gyldige kilder_afstemt_med_personskat
+helårsgrundlag_gyldigt kanonisk_beregning_understøttet helårsskattekomponenter_afstemt
+skattepligtsdage valg delårsresultat delårsinput helårsinput helårsberegning helårsberegning_eksakt
+statslige_skattekomponenter kommunale_og_kirkelige_skattekomponenter skatteloftsnedslag par11 sømandsbeskatning
+statslig_indkomstskat_efter_par14_øre kommunal_og_kirkelig_indkomstskat_efter_par14_øre
+arbejdsmarkedsbidrag_for_delåret_øre ejendomsskatter_øre efterfølgende_skat
+slutskat_efter_par14_øre slutskat_efter_par14_kroner
+slutskat_inkl_endelig_arbejdsudlejebeskatning_øre slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner årsopgørelse
+`.trim().split(/\s+/);
+export const partyearIncomeFields = [
+  ['bruttoløn_kroner', 'Bruttoløn'],
+  ['øvrig_personlig_indkomst_kroner', 'Øvrig personlig indkomst'],
+  ['nettokapitalindkomst_kroner', 'Nettokapitalindkomst'],
+];
+const partyearFlags = ['input_gyldigt', 'periode_gyldig', 'kilder_gyldige', 'kilder_afstemt_med_personskat',
+  'helårsgrundlag_gyldigt', 'kanonisk_beregning_understøttet', 'helårsskattekomponenter_afstemt'];
+export const partyearChoiceFields = ['input_gyldigt', 'valg_muligt', 'valg_afgivet_ved_oplysninger',
+  'valg_gældende', 'omvalgsfrist', 'omvalg_dato_gyldig', 'omvalg_rettidigt', 'omvalg_gennemført', 'helårsomregning_skal_ske'];
+
 const statuses = {
   BeregnetMedForbehold: 'Beregnet med forbehold — modelkontroller bestået; ikke en godkendt årsopgørelse.',
   UgyldigtBeregningsgrundlag: 'Ugyldigt beregningsgrundlag — intet beløb til sammenligning.',
@@ -61,7 +81,7 @@ function sameChecks(left, right) {
   return left.length === right.length && left.every((c, i) =>
     c.sti === right[i].sti && c.gyldig === right[i].gyldig && c.forklaring === right[i].forklaring);
 }
-function assessment(result) {
+function assessment(result, taxField = 'slutskat_øre') {
   const a = result.vurdering;
   object(a, 'Vurdering');
   const grouped = Object.hasOwn(a, 'kontrolgrundlag');
@@ -90,18 +110,47 @@ function assessment(result) {
   requireThat(a.forbehold.length > 0, 'Resultatets forbehold mangler.');
   a.forbehold.forEach(c => textValue(c, 'Forbehold'));
   integer(a.slutskat_til_sammenligning_øre, !valid, 'Sammenligningsbeløb');
-  integer(result.slutskat_øre, false, 'Diagnostisk slutskat');
-  requireThat(valid ? a.slutskat_til_sammenligning_øre === result.slutskat_øre
+  integer(result[taxField], false, 'Diagnostisk slutskat');
+  requireThat(valid ? a.slutskat_til_sammenligning_øre === result[taxField]
     : a.slutskat_til_sammenligning_øre === null, 'Sammenligningsbeløb strider mod vurderingen.');
   return { status, valid };
+}
+
+function partyearContext(result, valid) {
+  for (const field of partyearFlags) requireThat(typeof result[field] === 'boolean', `Delår: ${field} skal være boolsk.`);
+  requireThat(result.input_gyldigt === valid && (!valid || partyearFlags.every(field => result[field])),
+    'Delårets gyldighedsflag strider mod den yderste vurdering.');
+  integer(result.skattepligtsdage, false, 'Skattepligtsdage');
+  for (const name of ['delårsinput', 'helårsinput']) {
+    object(result[name], name); integer(result[name].skatteår, false, 'Indkomstår');
+    for (const [field] of partyearIncomeFields) integer(result[name][field], false, 'Indkomstgrundlag');
+  }
+  record(result.valg, partyearChoiceFields, 'Delårsvalg');
+  for (const field of partyearChoiceFields.filter(field => field !== 'omvalgsfrist'))
+    requireThat(typeof result.valg[field] === 'boolean', 'Delårets valgflag skal være boolske.');
+  if (!valid) return [];
+  requireThat(result.valg.input_gyldigt, 'Delårets ugyldige valg strider mod den yderste vurdering.');
+  requireThat(result.delårsinput.skatteår === result.helårsinput.skatteår
+    && result.skattepligtsdage > 0n && result.skattepligtsdage <= 366n,
+  'Delårets viste år eller skattepligtsdage er indbyrdes modstridende.');
+  const annual = result.valg.helårsomregning_skal_ske ? 'Omregnet årsgrundlag' : 'Faktisk årsgrundlag';
+  return [
+    `Skattepligtsdage i output: ${result.skattepligtsdage} (datoer og skattepligt er ikke kontrolleret her).`,
+    `Metode i output: ${result.valg.helårsomregning_skal_ske ? 'helårsomregning' : 'valg af faktisk helårsindkomst'}.`,
+    'Udvalgte indkomstgrundlag til mellemregningen — ikke årsopgørelsens endelige rubrikbeløb:',
+    ...partyearIncomeFields.map(([field, label]) => `  ${label} — Periodens grundlag: ${amount(result.delårsinput[field], 'DKK')}; ${annual}: ${amount(result.helårsinput[field], 'DKK')}`),
+    'Skat i delårsresultat og helårsberegning er mellemregninger og vises ikke som slutskat.',
+  ];
 }
 
 export function renderPersonskatOutput(envelope) {
   record(envelope, ['$futuruna', 'results', 'diagnostics'], 'Resultat');
   const metadata = envelope.$futuruna;
   record(metadata, ['schema', 'schema_hash', 'entry'], 'Kontrakt');
-  requireThat(metadata.schema === 'futuruna.calculate.output.v1' && metadata.entry === 'beregn_personskat',
-    'Brug JSON-output fra beregn_personskat; andre beregninger og input understøttes ikke.');
+  requireThat(metadata.schema === 'futuruna.calculate.output.v1'
+    && ['beregn_personskat', 'beregn_personskat_delår'].includes(metadata.entry),
+  'Brug JSON-output fra beregn_personskat eller beregn_personskat_delår; andre beregninger og input understøttes ikke.');
+  const partyear = metadata.entry === 'beregn_personskat_delår';
   requireThat(typeof metadata.schema_hash === 'string' && /^[0-9a-f]{64}$/.test(metadata.schema_hash),
     'Kontraktens fingeraftryk mangler.');
   list(envelope.results, 'Resultater'); list(envelope.diagnostics, 'Diagnostik');
@@ -114,29 +163,39 @@ export function renderPersonskatOutput(envelope) {
     record(row, ['case_id', 'result'], 'Sag'); textValue(row.case_id, 'Sagsnavn');
     requireThat(!ids.has(row.case_id), 'Gentaget sagsnavn i resultater.'); ids.add(row.case_id);
     const r = row.result;
-    record(r, resultFields, 'Personskatresultat');
-    const { status, valid } = assessment(r);
+    record(r, partyear ? partyearResultFields : resultFields, 'Personskatresultat');
+    const { status, valid } = assessment(r, partyear ? 'slutskat_efter_par14_øre' : 'slutskat_øre');
     needsAttention ||= !valid;
-    object(r.skat, 'Indkomstoversigt'); integer(r.skat.skatteår, false, 'Indkomstår');
-    for (const [field] of incomeFields) integer(r.skat[field], false, 'Indkomst- eller fradragsbeløb');
-    object(r.ægtefælle, 'Ægtefælle'); object(r.årsopgørelse, 'Årsopgørelse');
-    const spouse = r.ægtefælle.$variant;
+    const context = partyear ? partyearContext(r, valid) : [];
+    const canonical = partyear ? r.delårsresultat : r;
+    if (partyear) record(canonical, resultFields, 'Indlejret Personskatresultat');
+    const year = partyear ? r.delårsinput.skatteår : r.skat?.skatteår;
+    integer(year, false, 'Indkomstår');
+    if (!partyear) {
+      object(r.skat, 'Indkomstoversigt');
+      for (const [field] of incomeFields) integer(r.skat[field], false, 'Indkomst- eller fradragsbeløb');
+    }
+    object(canonical.ægtefælle, 'Ægtefælle'); object(r.årsopgørelse, 'Årsopgørelse');
+    const spouse = canonical.ægtefælle.$variant;
     requireThat(spouse === 'IngenÆgtefælleberegning' || spouse === 'BeregnetÆgtefælle', 'Ukendt ægtefællevariant.');
-    record(r.ægtefælle, spouse === 'IngenÆgtefælleberegning' ? ['$variant']
+    record(canonical.ægtefælle, spouse === 'IngenÆgtefælleberegning' ? ['$variant']
       : ['$variant', 'fakta', 'grundlag', 'skat', 'samlevende_ved_indkomstårets_udløb'], 'Ægtefælle');
     const settlement = r.årsopgørelse.$variant;
     requireThat(settlement === 'IngenÅrsopgørelse' || settlement === 'BeregnetÅrsopgørelse', 'Ukendt årsopgørelsesvariant.');
     record(r.årsopgørelse, settlement === 'IngenÅrsopgørelse' ? ['$variant']
       : ['$variant', 'input', 'resultat', 'afregning'], 'Årsopgørelse');
     overview.push(`  ${visible(row.case_id)}: ${statuses[status]} (${r.vurdering.fejl.length} fejlede kontroller)`);
-    details.push('', `Sag: ${visible(row.case_id)}`, `Indkomstår i output: ${r.skat.skatteår}`, statuses[status]);
+    details.push('', `Sag: ${visible(row.case_id)}`, `Indkomstår i output: ${year}`, statuses[status]);
     if (valid) {
-      details.push(`Modelleret slutskat til sammenligning: ${amount(r.vurdering.slutskat_til_sammenligning_øre, 'øre')}`,
+      details.push(`Modelleret slutskat${partyear ? ' efter PSL § 14' : ''} til sammenligning: ${amount(r.vurdering.slutskat_til_sammenligning_øre, 'øre')}`,
         '  Kun hovedpersonens skat, ikke summen af begge ægtefællers skat.',
         '  Kun den modellerede del. Dette er ikke restskat, overskydende skat eller en udbetaling.',
-        '  Ingen sammenligning med et observeret beløb i din årsopgørelse er udført her.',
-        'Udvalgte indkomster og fradrag — delbeløb kan overlappe; summér ikke denne liste:');
-      for (const [field, label] of incomeFields) details.push(`  ${label}: ${amount(r.skat[field], 'DKK')}`);
+        '  Ingen sammenligning med et observeret beløb i din årsopgørelse er udført her.');
+      if (partyear) details.push(...context);
+      else {
+        details.push('Udvalgte indkomster og fradrag — delbeløb kan overlappe; summér ikke denne liste:');
+        for (const [field, label] of incomeFields) details.push(`  ${label}: ${amount(r.skat[field], 'DKK')}`);
+      }
     } else {
       details.push('Beløb tilbageholdt — ukendt er ikke nul. Alle øvrige beløb er kun diagnostik og vises ikke her.',
         'Gennemgå de fejlede kontrollers kildefakta og genberegn. Udfyld ikke mangler med gæt.',
@@ -163,7 +222,7 @@ export function renderPersonskatOutput(envelope) {
       if (label && checks.length === 0) details.push('  Ingen kontroller i denne gruppe.');
       for (const c of checks) details.push(`  ${c.gyldig ? 'Bestået' : 'FEJL'} — ${visible(c.sti)}: ${visible(c.forklaring)}`);
     }
-    details.push('Alle returnerede forbehold:');
+    details.push('Alle forbehold fra den yderste vurdering:');
     for (const caveat of r.vurdering.forbehold) details.push(`  - ${visible(caveat)}`);
   }
   if (envelope.diagnostics.length > 0) details.push('', 'SAGER UDEN BEREGNINGSRESULTAT:');
@@ -178,6 +237,7 @@ export function renderPersonskatOutput(envelope) {
     : 'Kun beregning med forbehold. Resultaterne beviser ikke, at hele årsopgørelsen er korrekt.';
   const lines = [
     'PERSONSKAT — lokal oversigt over gemt modeloutput, ikke skatterådgivning.',
+    `Beregningsvej: ${partyear ? 'delår efter PSL § 14; den yderste vurdering og endelige delårsskat' : 'ordinær Personskat'}.`,
     'Ingen genberegning, dokumentkontrol, LLM eller kontrol mod din årsopgørelse.',
     'Viser modelvurdering, alle dens kontroller/forbehold, diagnostik og udvalgte beløb for hovedpersonen.',
     'Den fulde detailberegning er i JSON; denne oversigt validerer ikke alle dens underfelter.',
@@ -193,7 +253,7 @@ export function renderPersonskatOutput(envelope) {
 function main(args) {
   if (args.length === 1 && args[0] === '--help') {
     console.log('Brug: node examples/danish-income-tax/personskat-resultat.mjs RESULTATER.json');
-    console.log('Viser gemt beregn_personskat-output lokalt. Skriver ingen filer og sender ingen data.');
+    console.log('Viser gemt beregn_personskat- eller beregn_personskat_delår-output lokalt. Skriver ingen filer og sender ingen data.');
     console.log('Exit: 0 = beregnet med forbehold; 2 = ugyldige sager/diagnostik; 1 = fil/format kan ikke vises. Ingen skattemæssig godkendelse.');
     return 0;
   }

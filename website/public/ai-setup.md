@@ -456,6 +456,9 @@ caveat and case diagnostic and withholds invalid amounts. This read-only view
 does not authenticate output, compare against the taxpayer's report, or replace
 the detailed spouse and payment-settlement results. See the validity guide for
 scope and exit codes; do not treat a zero exit code as tax approval.
+The same viewer accepts saved `beregn_personskat_delår` output. It uses the
+outer assessment and final part-year tax, not an ordinary/annual intermediate
+tax; the displayed period/annual income bases are not final report rubrics.
 
 Help the user trace differences back to inputs and rules, and report
 uncertainties clearly. `schema`, `template`, and `call` are Preview features,
