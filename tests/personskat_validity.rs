@@ -1318,6 +1318,8 @@ fn union_fee_taxpayer_status_matches_the_individual_assessment() {
     let mut baseline = envelope["cases"][0]["input"].clone();
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    // Explicit fictional full-year status; the template intentionally leaves it unknown.
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant":"IngenKirkeskatHeleÅret"});
     baseline["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     baseline["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
     baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
@@ -1478,6 +1480,8 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
     let mut input = envelope["cases"][0]["input"].clone();
     input["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    // Explicit fictional full-year status; the template intentionally leaves it unknown.
+    input["lønmodtager"]["kirkeskat"] = json!({"$variant":"IngenKirkeskatHeleÅret"});
     input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
     input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
@@ -1526,8 +1530,9 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
     ]) {
         assert_eq!(row["case_id"], format!("year-{year}"));
         assert_eq!(
-            row["result"]["vurdering"]["slutskat_til_sammenligning_øre"],
-            tax
+            row["result"]["vurdering"]["slutskat_til_sammenligning_øre"], tax,
+            "year {year}: {}",
+            row["result"]["vurdering"]["fejl"]
         );
         println!("supported year {year}: tax {tax} øre unchanged");
     }
@@ -1563,6 +1568,12 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     let mut ordinary = template["cases"][0]["input"].clone();
     ordinary["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     assert_eq!(
+        ordinary["lønmodtager"]["kirkeskat"]["$variant"],
+        "KirkeskatUoplyst"
+    );
+    // Explicit fictional full-year status, not an inferred fact or a template default.
+    ordinary["lønmodtager"]["kirkeskat"] = json!({"$variant":"IngenKirkeskatHeleÅret"});
+    assert_eq!(
         ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"]["$variant"],
         "EkstraBørnetilskudUoplyst"
     );
@@ -1596,6 +1607,11 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
             cases.push(json!({"case_id":name,"input":input}));
             expectations.push((name.to_string(), failure_path.map(str::to_string), tax));
         };
+    for status in ["KirkeskatUoplyst", "KirkeskatEnDelAfÅret"] {
+        add(status, Some("lønmodtager.kirkeskat"), None, &|v| {
+            v["lønmodtager"]["kirkeskat"] = json!({"$variant":status});
+        });
+    }
     for (year, tax) in [
         (2023, 21678330),
         (2024, 21556463),
