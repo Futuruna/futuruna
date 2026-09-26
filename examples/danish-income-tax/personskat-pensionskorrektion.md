@@ -104,8 +104,10 @@ personers beregninger.
 Ruten er ikke § 22 D-overførsel, § 22 F-fejlkorrektion eller en rettelse af en
 forkert registrering uden faktisk tilbagebetaling. Overskydende udbetaling af
 afkast, kæder hvor en genindbetaling selv tilbagebetales igen, og særskilt
-godkendt tidligere bankår kræver anden behandling; de er ikke implementeret
-her. Afklar og hold en uunderstøttet sag tilbage i stedet for at tilpasse fakta.
+godkendt tidligere bankår kræver anden behandling. Den sidste har en
+[selvstændig inputrute](personskat-bankpension-aar.md), men ikke i kombination
+med denne korrektion. Afklar og hold en uunderstøttet sag tilbage i stedet for
+at tilpasse fakta.
 Modellen giver ikke tilladelse til at hæve en pension og afgør ikke civilretlig
 ret til tilbagebetaling.
 

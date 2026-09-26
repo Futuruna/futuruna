@@ -22,6 +22,7 @@ function payment(due, paid, timely, plan = 'Pbl18Rateforsikring', employer = fal
     betaling: { beløb_kroner: employer ? 50000 : 40000, forfaldsår: due, betalingsår: paid,
       betalt_senest_bankjusteret_1_april_efter_forfald: timely,
       hidrører_fra_par22e_tilbagebetaling: false, par15a_fradragsplacering: placement,
+      par22e_genindbetaling: null, bank_årsplacering: v('Pbl19BankBetalingsår'),
       arbejdsmarkedsbidrag_kroner: employer ? 4000 : 0 },
     fordelingsforløb: v('Pbl18IngenTiårsfordeling'),
     indeksvalg: { fradragsvalgte_kontraktbidrag_kroner: [] },

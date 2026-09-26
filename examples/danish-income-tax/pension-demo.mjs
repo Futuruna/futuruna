@@ -45,6 +45,7 @@ function payment(id, amount, employer = false) {
       beløb_kroner: amount, forfaldsår: 2026, betalingsår: 2026,
       betalt_senest_bankjusteret_1_april_efter_forfald: true,
       hidrører_fra_par22e_tilbagebetaling: false,
+      bank_årsplacering: employer ? variant('Pbl19BankBetalingsår') : null,
       par15a_fradragsplacering: variant('Pbl18IkkePar15APlacering'),
       arbejdsmarkedsbidrag_kroner: employer ? 4000 : 0,
     },

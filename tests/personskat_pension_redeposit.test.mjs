@@ -32,6 +32,8 @@ test('pension re-payments retain documented timing and withhold missing correcti
   // The example explicitly supplies all other absences and whole-year facts.
   const originalPost = base.lønmodtager.pension.pbl18_indbetalinger[0];
   originalPost.betaling.beløb_kroner = 40000;
+  originalPost.betaling.bank_årsplacering = v('Pbl19BankBetalingsår');
+  originalPost.betaling.par22e_genindbetaling = null;
   const cases = [];
   const add = (case_id, mutate, expected, spouse = false) => {
     const input = structuredClone(base);

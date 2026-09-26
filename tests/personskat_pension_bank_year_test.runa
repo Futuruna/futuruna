@@ -1,0 +1,61 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / pensionsbeskatningsloven
+
+| bankgodkendelse(år: Heltal, godkendt_år: Heltal, tilbageholdt: Heltal, godkendt: Heltal, kilde: Tekst) -> Pbl19BankGodkendelse(
+    identifikation = "afgørelse-1", kildereference = kilde,
+    løntilbageholdelse_kildereference = "fiktiv lønseddel",
+    tilbageholdelsesår = år, godkendt_indkomstår = godkendt_år,
+    tilbageholdt_brutto_kroner = tilbageholdt, godkendt_brutto_kroner = godkendt
+)
+= bankg = bankgodkendelse(2025, 2025, 50000, 50000, "fiktiv afgørelse")
+| bankplacering(dato: Dato, omfattet: Boolsk) -> Some(Pbl19BankGodkendtÅr(bankg, dato, omfattet))
+| bankpost(kilde: Pbl18Indbetalingskilde, ordning: Pbl18Ordning, placering: Pbl19BankÅrsplacering?, beløb: Heltal, april: Boolsk, korrektion: Boolsk) -> Pbl18Årsindbetaling(
+    identifikation = "indbetaling-1", indbetalingskilde = kilde, ordning = ordning,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb, forfaldsår = 2025, betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = april,
+        hidrører_fra_par22e_tilbagebetaling = korrektion, par22e_genindbetaling = None,
+        bank_årsplacering = placering, par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsmarkedsbidrag_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = 0,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
+    begrænsninger = Pbl18Begrænsninger(pbl54_personkreds_opfyldt = Sandt, afgiftspligt_for_hele_ordningen_indtrådt = Falskt, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt)
+)
+| bank(placering: Pbl19BankÅrsplacering?, beløb: Heltal) -> bankpost(Pbl18Arbejdsgiverindbetaling, Pbl18Rateopsparing, placering, beløb, Sandt, Falskt)
+= bankdato = Dato(år = 2026, måned = 1, dag = 12)
+= bankvalg = bankplacering(bankdato, Sandt)
+= bankkontroller = [
+    pbl19_bankgodkendelse_gyldig(bankg),
+    pbl19_bankgodkendelse_gyldig(bankgodkendelse(2025, 2024, 50000, 50000, "kilde")) == Falskt,
+    pbl19_bankgodkendelse_gyldig(bankgodkendelse(2025, 2025, 49999, 50000, "kilde")) == Falskt,
+    pbl19_bankgodkendelse_gyldig(bankgodkendelse(2025, 2025, 50000, 0, "kilde")) == Falskt,
+    pbl19_bankgodkendelse_gyldig(bankgodkendelse(2025, 2025, 50000, 50000, "")) == Falskt,
+    pbl19_bankgodkendelse_gyldig(bankgodkendelse(0, 0, 50000, 50000, "kilde")) == Falskt,
+    pbl19_bankgodkendelse_gyldig(bankgodkendelse(9223372036854775807, 9223372036854775807, 50000, 50000, "kilde")) == Falskt,
+    pbl19_bankår_gyldigt(bank(None, 50000)) == Falskt,
+    pbl19_bankår_gyldigt(bank(None, 0)),
+    pbl19_bankår_gyldigt(bank(Some(Pbl19BankBetalingsår), 50000)),
+    pbl19_bankår_gyldigt(bank(bankvalg, 50000)),
+    pbl19_bankår_gyldigt(bank(bankvalg, 50001)) == Falskt,
+    pbl19_bankår_gyldigt(bank(bankvalg, 0)) == Falskt,
+    pbl19_bankår_gyldigt(bank(bankplacering(bankdato, Falskt), 50000)) == Falskt,
+    pbl19_bankår_gyldigt(bank(bankplacering(Dato(år = 2025, måned = 1, dag = 12), Sandt), 50000)) == Falskt,
+    pbl19_bankår_gyldigt(bank(bankplacering(Dato(år = 2026, måned = 2, dag = 29), Sandt), 50000)) == Falskt,
+    pbl19_bankår_gyldigt(bankpost(Pbl18EgenIndbetaling, Pbl18Rateopsparing, bankvalg, 50000, Sandt, Falskt)) == Falskt,
+    pbl19_bankår_gyldigt(bankpost(Pbl18Arbejdsgiverindbetaling, Pbl18Rateforsikring, bankvalg, 50000, Sandt, Falskt)) == Falskt,
+    pbl19_bankår_gyldigt(bankpost(Pbl18Arbejdsgiverindbetaling, Pbl18Par15BRateopsparing, bankvalg, 50000, Sandt, Falskt)) == Falskt,
+    pbl19_bankår_gyldigt(bankpost(Pbl18Arbejdsgiverindbetaling, Pbl18Rateopsparing, bankvalg, 50000, Sandt, Sandt)) == Falskt,
+    pbl19_bankår_gyldigt(bankpost(Pbl18Arbejdsgiverindbetaling, Pbl18Rateopsparing, bankvalg, 50000, Falskt, Falskt)) == Falskt,
+    pbl18_årsindbetaling_fradragsår(bank(bankvalg, 50000)) == 2025,
+    pbl18_årsindbetaling_fradragsår(bank(Some(Pbl19BankBetalingsår), 50000)) == 2026,
+    bank(bankvalg, 50000).betaling.betalingsår == 2026,
+    pbl19_bankgodkendelser_konsistente([bank(bankvalg, 25000), bank(bankvalg, 25000)]),
+    pbl19_bankgodkendelser_konsistente([bank(bankvalg, 25000), bank(bankvalg, 25001)]) == Falskt
+]
+| bankår_holder: bankkontroller -> all(bankkontroller, |gyldig: Boolsk| gyldig)
+? bankår_holder

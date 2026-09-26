@@ -64,7 +64,7 @@
         "1": { "tekst": "Samlet bruttoindbetaling til samme arbejdsgiveradministrerede rateopsparing som E:2 og E:5.", "værdi": 50000, "enhed": "kr./år" },
         "2": { "tekst": "Indeholdt AM-bidrag af EP:1, oplyst særskilt.", "værdi": 4000, "enhed": "kr./år" },
         "3": { "tekst": "Indbetaling efter indeholdt AM; ikke en yderligere indbetaling.", "værdi": 46000, "enhed": "kr./år" },
-        "4": { "tekst": "Almindelig dansk PBL §11 A-rateopsparing hos nuværende arbejdsgiver med bortseelsesret. Ejeren opfylder PBL §54-personkredsen; forfald og betaling i 2025. Ingen tilbagebetaling efter §22 E, afgiftsberigtigelse, udenlandsk overførsel, §15 A/B-, indeks- eller særlig ordning, tidligere ufratrukne bidrag eller tiårsfordeling. Ingen anden pension og ingen privat indbetaling.", "værdi": true }
+        "4": { "tekst": "Almindelig dansk PBL §11 A-rateopsparing hos nuværende arbejdsgiver med bortseelsesret. Ejeren opfylder PBL §54-personkredsen; forfald og betaling i 2025. Afklaret almindeligt betalingsår uden særskilt godkendelse af henføring til et tidligere løntilbageholdelsesår. Ingen tilbagebetaling efter §22 E, afgiftsberigtigelse, udenlandsk overførsel, §15 A/B-, indeks- eller særlig ordning, tidligere ufratrukne bidrag eller tiårsfordeling. Ingen anden pension og ingen privat indbetaling.", "værdi": true }
       }
     },
     "T": {

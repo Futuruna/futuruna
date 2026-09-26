@@ -76,6 +76,7 @@ export function buildFictionalCases(template, documents = sources) {
         beløb_kroner: amount, arbejdsmarkedsbidrag_kroner: am,
         forfaldsår: year, betalingsår: year, betalt_senest_bankjusteret_1_april_efter_forfald: true,
         hidrører_fra_par22e_tilbagebetaling: false, par15a_fradragsplacering: v('Pbl18IkkePar15APlacering'),
+        bank_årsplacering: employer ? v('Pbl19BankBetalingsår') : null,
       },
       fordelingsforløb: v('Pbl18IngenTiårsfordeling'),
       indeksvalg: { fradragsvalgte_kontraktbidrag_kroner: [] },

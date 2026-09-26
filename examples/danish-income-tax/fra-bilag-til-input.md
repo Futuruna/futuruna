@@ -49,6 +49,9 @@ København og ingen kirkeskat. Fuld dansk skattepligt og DBO-hjemsted samt
 fravær af andre indkomster, udgifter og pensionsudbetalinger er **udtrykkeligt
 opdigtede fakta** i dokument F, ikke noget en rigtig skabelon fortæller os.
 Eksemplerne er selvstændige profiler, ikke ændringer af samme lønpakke.
+EP:4 bekræfter også almindelig bankpensionsbehandling uden særgodkendt tidligere
+år. Det nye `bank_årsplacering` sættes ud fra denne fiktive bekræftelse, aldrig
+som et foreslået standardvalg for virkelige bilag.
 
 | Kildefakta | Input eller handling | Hvorfor? |
 | --- | --- | --- |
