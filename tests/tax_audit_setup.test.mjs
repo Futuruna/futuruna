@@ -148,3 +148,12 @@ test('fee intake preserves classification, gross income and separate tax payment
     assert.ok(feeGuide.replace(/\s+/g, ' ').includes(phrase), phrase);
   }
 });
+
+test('credit intake distinguishes assessed amounts, bank payments and subtotals', () => {
+  const setupText = guide.replace(/\s+/g, ' ');
+  for (const phrase of ['personskat-skattekreditter.md', 'assessed tax-bill/section-68 amounts',
+    'Do not replace assessed B-skat with bank payments', 'subtotal alongside its components',
+    'positive integers can still be factually misclassified']) {
+    assert.ok(setupText.includes(phrase), phrase);
+  }
+});
