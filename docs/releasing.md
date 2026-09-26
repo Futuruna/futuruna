@@ -106,8 +106,10 @@ Review all four build logs. Download the workflow artifacts and verify that:
 
 ## Create the Release
 
-Confirm that `Cargo.toml`, `Cargo.lock`, `CITATION.cff`, CodeMeta, the
-compatibility guide, and release notes agree on the version. Use an annotated or
+Confirm that `Cargo.toml`, both the root and website `Cargo.lock` entries for
+`futuruna`, `CITATION.cff`, CodeMeta, the compatibility guide, and release notes
+agree on the version. The website locks its local compiler dependency separately.
+Use an annotated or
 signed tag when the maintainer's signing setup is available:
 
 ```bash
