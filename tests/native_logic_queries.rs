@@ -25,6 +25,45 @@ fn ground_rule_alternatives_preserve_boolean_operators_and_short_circuiting() {
     );
 }
 
+#[test]
+fn repeated_logic_variables_compare_head_and_query_positions() {
+    assert_both_backends(
+        "logic_repeated_variables",
+        "repeated logic variables passed",
+    );
+}
+
+#[test]
+fn native_existential_queries_reject_unproven_outer_value_capture() {
+    let path = std::env::temp_dir().join(format!(
+        "futuruna-native-existential-capture-{}-{}.runa",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
+    ));
+    std::fs::write(
+        &path,
+        "| edge(1, 2)\n= selected = 9\n| selected_edge() -> edge(selected, child), True\n@ print(show(selected_edge()))\n",
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .arg("check")
+        .arg(&path)
+        .output()
+        .expect("check captured existential query");
+    std::fs::remove_file(&path).unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains(
+            "existential query capture of an outer value has no checked native binding contract"
+        ),
+        "{}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
 fn assert_both_backends(name: &str, expected: &str) {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join(format!("tests/differential/corpus/{name}.runa"));
