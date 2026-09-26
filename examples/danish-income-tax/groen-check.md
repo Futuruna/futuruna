@@ -17,11 +17,13 @@ Modellen er researchsoftware; beregningskontrakterne er Preview.
 ## Kør lokalt
 
 Brug først [runtime-kontrollen](../../website/public/ai-setup.md#tax-audit-runtime-check).
-Fra checkoutens rod, med din allerede verificerede compiler:
+Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
+Fra checkoutens rod:
 
 ```sh
-runa template examples/danish-income-tax/groen-check.calculate.runa --format json --output /absolut/sti/uden-for-repo/groen-check-input.json
-runa call examples/danish-income-tax/groen-check.calculate.runa --input /absolut/sti/uden-for-repo/groen-check-input.json --output /absolut/sti/uden-for-repo/groen-check-resultat.json
+"$RUNA_BIN" template examples/danish-income-tax/groen-check.calculate.runa --format json --output /absolut/sti/uden-for-repo/groen-check-input.json
+# Udfyld og gennemgå fakta; sæt sagens input_status ved siden af case_id til "ready".
+"$RUNA_BIN" call examples/danish-income-tax/groen-check.calculate.runa --input /absolut/sti/uden-for-repo/groen-check-input.json --output /absolut/sti/uden-for-repo/groen-check-resultat.json
 ```
 
 Erstat stierne med en eksisterende privat mappe og udfyld input før `call`.

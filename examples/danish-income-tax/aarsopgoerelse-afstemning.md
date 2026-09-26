@@ -84,6 +84,7 @@ uafhængige sammenligning, fordi medlemsperioder endnu ikke beregnes; se
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
 # Fill the generated cases with report observations, preserving $futuruna.
+# Review each case and set its input_status beside case_id to "ready" before calling.
 "$RUNA_BIN" call examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --input PRIVATE_WORK_DIR/report-cases.json --output PRIVATE_WORK_DIR/report-results.json
 ```
 
