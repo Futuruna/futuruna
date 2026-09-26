@@ -119,6 +119,12 @@ der udskrives da ingen delvis succesrapport. Ukendte resultatfelter/statusser,
 gentagne JSON-felter og ikke-heltallige beløb afvises frem for at blive skjult
 eller afrundet. Ingen af exitkoderne er en skattemæssig godkendelse.
 
+Visningen afviser også en samlet status, der modsiger de returnerede
+kontroller, eller et positivt betingelsesflag, hvor beløbet ligger uden for
+de viste grænser. En betingelse kan stadig fejle af andre grunde end beløbet;
+et ukendt loft forbliver ukendt. Dette er kontrol af resultatfilens interne
+sammenhæng, ikke en ny skatteberegning eller bevis for filens ægthed.
+
 The same contract supports `--format xlsx` and XLSX invocation. The optional
 income bridge remains one canonical JSON field in that format. Field metadata
 explains the units, signs, and completeness questions. Generated template values
