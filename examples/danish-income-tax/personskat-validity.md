@@ -25,6 +25,8 @@ i årsopgørelsen. Alle kontroller og forbehold fra `vurdering` bevares.
 Ved afstemning af foreløbige skatter skal der også skelnes mellem indeholdte,
 pålignede og faktisk betalte beløb; se [kreditvejledningen](personskat-skattekreditter.md).
 Et gyldigt positivt tal er ikke i sig selv en korrekt klassificeret kredit.
+Negative rå kreditbeløb eller en negativ § 55-tilbagebetaling tilbageholder
+sammenligningen med kontrollen `årsopgørelse.kreditter`; fortegn omskrives ikke.
 Kontrollernes forklaringer er modeltekster, som også kan beskrive et
 fejlscenarie ved en bestået kontrol. Læs kontrollens status som dens udfald.
 En aktiv ægtefælle indgår i modelkontrollerne, men ægtefællens egne tal,

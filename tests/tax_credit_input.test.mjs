@@ -53,6 +53,10 @@ function assertGuidance(schema, prefixes) {
       const sources = schema.source_groups[field.source_group]?.map(id => schema.source_objects[id]);
       assert.ok(sources?.some(s => s.role === 'source' && JSON.stringify(s).includes(source)), path);
       assert.ok(sources.some(s => s.role === 'warning'), `${path}: source-fact boundary`);
+      assert.ok(sources.some(s => s.role === 'warning'
+        && JSON.stringify(s).includes('ikke-negative bruttobeløb')
+        && JSON.stringify(s).includes('forskelsbeløb')
+        && JSON.stringify(s).includes('absolut værdi')), `${path}: sign convention, not normalization`);
     }
   }
   return checked;

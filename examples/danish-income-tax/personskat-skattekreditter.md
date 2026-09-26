@@ -40,6 +40,33 @@ ikke afklares, skal den fulde afregning vente. En
 [betinget rapportafstemning](aarsopgoerelse-afstemning.md) kan stadig besvare
 snævrere spørgsmål, men etablerer ikke kreditgrundlaget uafhængigt.
 
+## Fortegn og rettelser
+
+De rå kreditfelter er **ikke-negative bruttobeløb**. § 55-feltet angiver også
+tilbagebetalingens størrelse uden minus; modellen foretager fradraget efter
+§ 60, stk. 3. Et negativt felt tilbageholder nu den kanoniske sammenligning
+med en fejl ved `årsopgørelse.kreditter`, også i den ældre hele-kroneindgang.
+Kontrollen tilhører `kontrolgrundlag.beregning`, ikke den senere betalingsfase.
+
+Hvis en rapport viser »tilbagebetalt: -1.000 kr.« som en fradragslinje, skal
+AI'en først afklare, at det er en § 55-tilbagebetaling, og registrere både
+original linje og feltets positive bruttobeløb i kildeloggen. En ukendt negativ
+post må ikke automatisk blive 1.000 kr., nul eller en anden kreditart.
+Et negativt forskelsbeløb fra en rettelse er heller ikke en ny årstotal;
+brug det dokumenterede korrigerede grundlag eller afklar korrektionsforløbet.
+
+Dette er inputkonventionen for disse felter, ikke et generelt forbud mod
+negative indkomster eller korrektioner. En negativ § 55-værdi vendte tidligere
+fradraget til ekstra kredit: -1.000 kr. gav 2.000 kr. mindre restskat end en
+korrekt oplyst tilbagebetaling på 1.000 kr. Rå tal bevares som diagnostik ved
+afvisningen; modellen tager ikke absolut værdi og omskriver ikke kilderne.
+
+Fortegnskontrollen beviser ikke kreditternes størrelse, indkomstår eller
+fuldstændighed. Den indfører heller ikke en juridisk grænse, hvor § 55-refund
+altid skal være mindre end de nuværende bruttokreditter. Korrektionsforløb og
+modellens nulafgrænsning af en mulig negativ nettokredit kræver særskilt
+afklaring (`td-145088`); det er ikke dækket af denne kontrol.
+
 ## Fiktivt eksempel på fejlen
 
 Den [fokuserede regression](../../tests/tax_credit_input.test.mjs) bruger en
@@ -69,7 +96,8 @@ Spørgsmål, hjælp, enheder og kilder er knyttet til de to kredittyper med
 typede meta-ankre. Vejledningen følger derfor typerne gennem indlejrede input,
 ikke kun ét hårdkodet felt i Personskat.
 
-Ændringen retter vejledningen; skatteformler, inputtyper og maskinnøgler er
-uændrede. Metadata indgår i kontrakthashen, så generér frisk schema/skabelon.
+Vejledningen og den efterfølgende fortegnskontrol bevarer skatteformler,
+inputtyper og maskinnøgler. Negative bruttobeløb accepteres ikke længere som
+grundlag for sammenligning. Metadata indgår i kontrakthashen, så generér frisk schema/skabelon.
 Gennemgå eksisterende kreditbeløb mod deres kilder før overførsel. Ret ikke
 beløb for at få et bestemt resultat, og genbrug ikke eksemplets opdigtede fakta.

@@ -48,6 +48,7 @@
 @ importer ./personskat - soemandsfradrag - beregningsmeta
 @ importer ./slutopgoerelse
 @ importer ./personskat - skattekreditter - beregningsmeta
+@ importer ./personskat - skattekreditter - kildekontrol
 @ importer ./aktieindkomst - slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 @ importer ./kursgevinstloven - aarsnetto
@@ -18712,6 +18713,11 @@ fraflytningen."
         )
     }
 }
+| personskat_kildeskat_kreditbeløb_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
+    | UdenÅrsopgørelse -> Sandt
+    | MedÅrsopgørelse(_, _, kreditter, _) -> personskat_skattekreditter_kroner_ikke_negative(kreditter)
+    | MedEksaktÅrsopgørelse(_, _, kreditter, _, _) -> personskat_skattekreditter_øre_ikke_negative(kreditter)
+}
 | personskat_kildeskat_par8a_kredit_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
     | UdenÅrsopgørelse -> Sandt
     | MedÅrsopgørelse(_, _, kreditter, _) -> kreditter.personskattelov_par8a_stk5_beløb_kroner == 0
@@ -19611,6 +19617,7 @@ fraflytningen."
             PersonskatInputkontrol(sti = "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter", gyldig = personskat_ægtefælle_ejendomsskat_input_gyldigt(ægtefælles_ejendomsskatter), forklaring = "En aktiv ægtefælles ejendomsfakta og regelgrundlag skal være gyldige og understøttede."),
             PersonskatInputkontrol(sti = "ligningslov33", gyldig = ligningslov33.input_gyldigt && ligningslov33a.input_gyldigt, forklaring = "Udenlandske lempelseskrav skal have gyldige kilder, år og personhenføringer."),
             PersonskatInputkontrol(sti = "årsopgørelse", gyldig = personskat_kildeskat_par8a_kredit_input_gyldigt(input.årsopgørelse) && personskat_kildeskat_ambl_par6_kredit_input_gyldigt(input.årsopgørelse) && kildeskat_al40c_acontoskat_input_gyldigt && afskrivningslov40c_acontoskat.kildefakta_gyldige, forklaring = "Afledte kreditter må ikke samtidig indlæses som eksterne kreditter; acontoskat kræver gyldige kildefakta."),
+            PersonskatInputkontrol(sti = "årsopgørelse.kreditter", gyldig = personskat_kildeskat_kreditbeløb_input_gyldigt(input.årsopgørelse), forklaring = personskat_skattekredit_fortegnsforklaring),
     ])
     = afregningskontroller = [PersonskatInputkontrol(sti = "årsopgørelse", gyldig = personskat_afregning_input_gyldigt(årsopgørelse), forklaring = "En valgt betalingsafregning skal have gyldige fakta og matche slutopgørelsen.")]
     PersonskatBeregningResultat(

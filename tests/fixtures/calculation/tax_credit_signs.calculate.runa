@@ -1,0 +1,10 @@
+@ import ../../../examples / danish - income - tax / personskat - skattekreditter - kildekontrol
+
+# CreditSignInput(exact: KildeskatPar60KreditterØre, whole: KildeskatPar60Kreditter)
+# CreditSignResult(exact_nonnegative: Bool, whole_nonnegative: Bool)
+
+@ calculate
+| credit_signs(input: CreditSignInput) -> CreditSignResult(
+    exact_nonnegative = personskat_skattekreditter_øre_ikke_negative(input.exact),
+    whole_nonnegative = personskat_skattekreditter_kroner_ikke_negative(input.whole)
+)

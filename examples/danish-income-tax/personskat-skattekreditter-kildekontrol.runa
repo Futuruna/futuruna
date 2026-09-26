@@ -1,0 +1,36 @@
+@ sprog da
+
+@ importer ./slutopgoerelse
+
+-- Indgangens bruttobeløbskonvention for KSL § 60-kreditter og § 55-refund.
+-- Dette er ikke en regel om, at indkomst eller alle korrektionsposter er
+-- positive. Nettokredit og tilbagebetalingshistorik er særskilte spørgsmål.
+= personskat_skattekredit_fortegnsforklaring = "De rå § 60-kreditter og § 55-tilbagebetalingen skal være ikke-negative bruttobeløb. Modellen fratrækker selv tilbagebetalingen. Brug dokumenterede korrigerede årstotaler, ikke et negativt forskelsbeløb eller rapportens visningsfortegn. Omskriv ikke ukendte eller negative beløb til nul eller absolut værdi. Se personskat-skattekreditter.md."
+
+| personskat_skattekreditter_øre_ikke_negative(kreditter: KildeskatPar60KreditterØre) -> kreditter.a_skat_og_am_indeholdt_øre >= 0
+    && kreditter.par68_indbetalt_øre >= 0
+    && kreditter.b_skat_betalt_øre >= 0
+    && kreditter.udbytteskat_modregningsberettiget_øre >= 0
+    && kreditter.frivillig_indbetaling_par59_øre >= 0
+    && kreditter.virksomhedsordning_beløb_øre >= 0
+    && kreditter.personskattelov_par8a_stk5_beløb_øre >= 0
+    && kreditter.afskrivningslov_acontoskat_øre >= 0
+    && kreditter.am_lov_par6_beløb_øre >= 0
+    && kreditter.seniornedslag_øre >= 0
+    && kreditter.energiafgiftskompensation_øre >= 0
+    && kreditter.tilbagebetalt_par55_øre >= 0
+
+-- Kontroller hele kroner direkte: en domænekontrol skal ikke gange beløb med
+-- 100 og kunne løbe over før selve beregningen.
+| personskat_skattekreditter_kroner_ikke_negative(kreditter: KildeskatPar60Kreditter) -> kreditter.a_skat_og_am_indeholdt_kroner >= 0
+    && kreditter.par68_indbetalt_kroner >= 0
+    && kreditter.b_skat_betalt_kroner >= 0
+    && kreditter.udbytteskat_modregningsberettiget_kroner >= 0
+    && kreditter.frivillig_indbetaling_par59_kroner >= 0
+    && kreditter.virksomhedsordning_beløb_kroner >= 0
+    && kreditter.personskattelov_par8a_stk5_beløb_kroner >= 0
+    && kreditter.afskrivningslov_acontoskat_kroner >= 0
+    && kreditter.am_lov_par6_beløb_kroner >= 0
+    && kreditter.seniornedslag_kroner >= 0
+    && kreditter.energiafgiftskompensation_kroner >= 0
+    && kreditter.tilbagebetalt_par55_kroner >= 0

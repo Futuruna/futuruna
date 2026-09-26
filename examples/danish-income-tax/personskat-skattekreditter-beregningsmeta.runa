@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./source - status
 @ importer ./slutopgoerelse
+@ importer ./personskat - skattekreditter - kildekontrol
 
 -- KSL § 60, stk. 1, litra a-c og e, samt stk. 3. Feltnavnene bevares;
 -- navnlig b_skat_betalt_* og par68_indbetalt_* beskriver ikke et kontantprincip.
@@ -62,6 +63,7 @@
     Field(value = personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt),
     Source(value = kildeskatteloven_2024_460),
     Warning(value = personskat_skattekredit_kildegrænse),
+    Warning(value = personskat_skattekredit_fortegnsforklaring),
 ))
 --@label:KildeskatPar60KreditterØre::meta:personskat_skattekreditter_øre_metadata--
 
@@ -108,5 +110,6 @@
     Field(value = personskat_felt_årsopgørelse_par55_tilbagebetalt),
     Source(value = kildeskatteloven_2024_460),
     Warning(value = personskat_skattekredit_kildegrænse),
+    Warning(value = personskat_skattekredit_fortegnsforklaring),
 ))
 --@label:KildeskatPar60Kreditter::meta:personskat_skattekreditter_kroner_metadata--
