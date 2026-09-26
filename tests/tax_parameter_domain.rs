@@ -326,6 +326,105 @@ fn wage_year_routing_preserves_native_values_and_rejects_missing_domains() {
 }
 
 #[test]
+fn exact_share_and_dis_year_routes_preserve_native_values() {
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let binary = std::fs::canonicalize(binary).unwrap();
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/tax_parameter_domain/exact_share_dis_year_routing.runa");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-exact-year-native-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    let build = Command::new(&binary)
+        .current_dir(&directory)
+        .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+        .args(["build", source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    if !build.status.success() {
+        let diagnostic = directory.join("build.stderr");
+        std::fs::write(&diagnostic, &build.stderr).unwrap();
+        panic!(
+            "year-route build failed (full diagnostics: {}):\n{}",
+            diagnostic.display(),
+            String::from_utf8_lossy(&build.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let executable = directory.join(format!(
+        "exact_share_dis_year_routing{}",
+        std::env::consts::EXE_SUFFIX
+    ));
+    let run = |native: bool, year: &str| {
+        let mut command = Command::new(if native { &executable } else { &binary });
+        command
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+            .env("FUTURUNA_EXACT_YEAR", year);
+        if !native {
+            command.arg(&source);
+        }
+        command.output().unwrap()
+    };
+    // Captured from the unchanged interpreted model before making its closed
+    // year routes explicit. These are model regressions, not external goldens.
+    let expected = vec![
+        vec![
+            2023, 33784500, 0, 0, 337845, 0, 0, 2870000, 2870000, 23543, 2870000, 2354320,
+        ],
+        vec![
+            2024, 33459000, 0, 0, 334590, 0, 0, 2870000, 2870000, 23316, 2870000, 2331637,
+        ],
+        vec![
+            2025, 33087000, 0, 0, 330870, 0, 0, 2870000, 2870000, 23057, 2870000, 2305714,
+        ],
+        vec![
+            2026, 16303500, 14865750, 836500, 163035, 148657, 8365, 2760000, 2760000, 10772,
+            2760000, 1077228,
+        ],
+        vec![2025, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        vec![2026, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+    for native in [false, true] {
+        let output = run(native, "0");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let rows: Vec<Vec<i64>> = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(rows, expected, "native={native}");
+        for year in ["2022", "2027"] {
+            let output = run(native, year);
+            assert!(
+                !output.status.success(),
+                "{year}: accepted unsupported year"
+            );
+            assert!(output.stdout.is_empty(), "{year}: fabricated tax output");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("head: empty list"),
+                "{year}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    std::fs::remove_file(executable).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+    println!(
+        "Exact/share/DIS: six cases, 72 preserved values and two rejected years in both lanes"
+    );
+}
+
+#[test]
 fn spouse_loss_recipient_rates_preserve_capacity_and_priority() {
     // Full wage/tax native generation has separately tracked guarded-lookup
     // failures (td-124b83); this model change claims interpreter coverage only.

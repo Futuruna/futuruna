@@ -45,7 +45,7 @@
 )
 | søbl5_bundskat_komponent(model: LønmodtagerBeregning, dis_indkomst_kroner: Heltal) -> søbl5_komponent(Søbl5Bundskat, model.før_personfradrag.bundskat_kroner, dis_indkomst_kroner, søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model))
 | søbl5_mellemskat_komponent(model: LønmodtagerBeregning, dis_indkomst_kroner: Heltal) -> søbl5_komponent(Søbl5Mellemskat, model.før_personfradrag.mellemskat_kroner, dis_indkomst_kroner, søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model))
-| søbl5_topskat_grundlag_kroner(model: LønmodtagerBeregning) -> søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model) under model.input.skatteår < 2026
+| søbl5_topskat_grundlag_kroner(model: LønmodtagerBeregning) -> søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model)
 | exception søbl5_topskat_2026_personligt_grundlag søbl5_topskat_grundlag_kroner(model: LønmodtagerBeregning) -> søbl5_personlig_indkomstgrundlag_kroner(model) under model.input.skatteår >= 2026
 | søbl5_topskat_komponent(model: LønmodtagerBeregning, dis_indkomst_kroner: Heltal) -> søbl5_komponent(Søbl5Topskat, model.før_personfradrag.topskat_kroner, dis_indkomst_kroner, søbl5_topskat_grundlag_kroner(model))
 | søbl5_toptopskat_komponent(model: LønmodtagerBeregning, dis_indkomst_kroner: Heltal) -> søbl5_komponent(Søbl5Toptopskat, model.før_personfradrag.toptopskat_kroner, dis_indkomst_kroner, søbl5_personlig_indkomstgrundlag_kroner(model))
