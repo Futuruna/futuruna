@@ -156,6 +156,13 @@ or verification fails. If the operating system blocks the downloaded program,
 show the user the exact message and ask before changing any security setting.
 Use Cargo or a local source build when that is the safer available route.
 
+**macOS browser downloads:** Check the selected release's signing status in its
+release notes. The `v0.2.0` macOS downloads are not Apple Developer ID signed or
+notarized. A browser download can carry a quarantine flag, so Gatekeeper may
+block it even when its checksum matches. A checksum confirms file integrity;
+it is not Apple notarization. If blocked, use the local source build below.
+Do not disable Gatekeeper or remove quarantine as an automatic setup step.
+
 If there is no download for the user's computer, use one of the installation
 methods below instead of trying to build from an unrelated AI sandbox.
 
@@ -223,6 +230,16 @@ When setup succeeds, tell the user:
 - where the `runa` binary is located.
 
 Do not add the compiler to a global path or edit the user's environment unless they ask you to.
+
+### Optional: VS Code or Cursor
+
+For syntax colors, diagnostics, completion, hover and go-to-definition, follow
+the [editor installation guide](https://github.com/Futuruna/futuruna/blob/main/editors/vscode/README.md).
+It covers installing the extension's npm dependencies and local extension copy.
+Set `futuruna.serverPath` in workspace settings to the **same absolute executable
+path verified above**, then reload the editor window. A compiler in a
+`target/runa-download.XXXXXX` directory works directly; no global `PATH` change
+or rename is needed. Install or configure the editor when the user requests it.
 
 ### Tax-audit runtime check
 
