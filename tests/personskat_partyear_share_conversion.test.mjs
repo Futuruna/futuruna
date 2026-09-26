@@ -60,6 +60,21 @@ test('part-year share sources cannot acquire salary-style annualization', enable
     x.kilder[1].omregningsmetode = v('Par14DokumenteretRetvisendeHelårsbeløb', { helårsbeløb_kroner: 200000 });
   });
   add('actual-unchanged', false, x => { x.valg_afgivet_ved_oplysninger = true; });
+  add('actual-share-omitted', false, x => {
+    x.valg_afgivet_ved_oplysninger = true; x.kilder[1].faktisk_helårsbeløb_kroner = null;
+  });
+  add('actual-share-explicit-zero', true, x => {
+    x.valg_afgivet_ved_oplysninger = true; x.kilder[1].faktisk_helårsbeløb_kroner = 0;
+  });
+  add('actual-salary-unknown', true, x => {
+    x.valg_afgivet_ved_oplysninger = true;
+    for (const source of x.kilder) source.faktisk_helårsbeløb_kroner = null;
+  });
+  add('actual-share-omitted-documented-basis', false, x => {
+    x.valg_afgivet_ved_oplysninger = true; x.kilder[1].faktisk_helårsbeløb_kroner = null;
+    const annual = structuredClone(person); annual.lønmodtager.bruttoløn_kroner = 400000;
+    x.helårsgrundlag = v('DokumenteretHelårsPersonskat', { personskat: annual });
+  });
   add('actual-ignores-unused-method', false, x => {
     x.valg_afgivet_ved_oplysninger = true;
     x.kilder[1].omregningsmetode = v('Par14ForholdsmæssigtLøbendeBeløb');
@@ -103,6 +118,8 @@ test('part-year share sources cannot acquire salary-style annualization', enable
       //2025single threshold67500: low18225 + high13650 =31875DKK.
       const low = r.statslige_skattekomponenter.find(c => c.art.$variant === 'Par14EndeligAktieindkomstskat');
       const high = r.statslige_skattekomponenter.find(c => c.art.$variant === 'Par14Par8AStk2Skat');
+      assert.equal(low.nedsættelsesfaktor_tæller_kroner, 100000);
+      assert.equal(low.nedsættelsesfaktor_nævner_kroner, 100000);
       assert.equal(low.delårsskat_øre, 1822500);
       assert.equal(high.delårsskat_øre, 1365000);
       assert.equal(low.helårsskat_øre, r.delårsresultat.endelig_aktieindkomstskat_øre);
@@ -120,4 +137,9 @@ test('share annualization warning reaches the generated source-choice fields', e
     assert.ok(sources.some(s => s.role === 'source' && JSON.stringify(s).includes('2021/1284')));
     assert.ok(sources.some(s => s.role === 'guidance' && JSON.stringify(s).includes('oid=1977389')));
   }
+  const actual = schema.field_metadata.find(f => f.path === 'kilder.faktisk_helårsbeløb_kroner');
+  assert.ok(actual.help.includes('For Par14Aktieindkomst kan feltet udelades'));
+  assert.ok(actual.help.includes('øvrige kildearter'));
+  const election = schema.field_metadata.find(f => f.path === 'valg_afgivet_ved_oplysninger');
+  assert.ok(election.help.includes('aktieindkomst'));
 });
