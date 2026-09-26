@@ -67,6 +67,45 @@ altid skal være mindre end de nuværende bruttokreditter. Korrektionsforløb og
 modellens nulafgrænsning af en mulig negativ nettokredit kræver særskilt
 afklaring (`td-145088`); det er ikke dækket af denne kontrol.
 
+## Tidligere udbetaling er ikke automatisk § 55
+
+KSL § 60, stk. 3, fratrækker tilbagebetalt **foreløbig skat efter § 55**.
+En tidligere udbetaling af årsopgørelsens overskydende skat efter §§ 62/62 A
+er et andet forhold. Etiketten »tidligere udbetalt overskydende skat« kan
+ikke alene afgøre, hvor beløbet hører til.
+
+I [kildemappingen](personskat-aarsopgoerelse-kildemapping.runa) kræver
+`personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje)`
+derfor nu afgørelse/betalingsopgørelse og afklaring af hjemmel og år. Den
+tidligere direkte mapping til § 55 var forkert. Hverken positivt beløb,
+minus, nul eller en bestemt linjeetiket ophæver afklaringskravet.
+
+Når kilden faktisk dokumenterer § 55-forskudsskat, kan man bruge
+`personskat_aarsopgoerelse_kortlaeg_tilbagebetalt_forskudsskat_par55(linje, indkomstår)`.
+Den bevarer eksakte øre og kræver samme indkomstår og ikke-negativ størrelse.
+Manglende kildeidentifikation, forkert år eller negativt beløb giver
+`UgyldigeKildelinjer`; original linje bevares. Ved en negativ dokumentlinje
+skal den dokumenterede omregning til et positivt bruttoinput foretages og
+forklares særskilt i den private kildelog, ikke ved at ændre originalen.
+Selv `DirekteMapping` beholder et faktakrav om § 55-hjemmel og om, at
+bruttokreditterne ikke allerede er reduceret. Hjælperen autentificerer ikke
+dokumentet eller disse påstande.
+
+Er beløbet en allerede udbetalt årsrefusion, skal det holdes ude af
+`tilbagebetalt_par55_øre`. Den
+[betingede afstemning af en ændret rapport](aarsopgoerelse-afstemning.md#ændret-rapport-beløb-til-betaling-eller-udbetaling)
+kan bruge en dokumenteret tidligere udbetaling som negativ post i
+`betaling.korrektioner_til_udbetaling`. Posten må ikke også være fratrukket
+det oplyste kreditgrundlag. Det er afstemning af rapportens observationer,
+ikke en ny selvstændig beregning af renter eller hele korrektionshistorikken.
+
+Den [eksekverbare regression](../../tests/personskat_refund_mapping_test.runa)
+bevarer sondringen med fiktive linjer. Typede `Source`/`Warning`-metadata
+knytter lovgrundlag og forbehold til begge hjælpere, så `runa meta --json`
+kan følge dem. Den kanoniske `@ calculate`-kontrakt importerer ikke denne
+mappingfil: dette er en rettelse af en interviewhjælper, ikke automatisk
+PDF-læsning eller en ny kontrol af ethvert indsendt kreditbeløb.
+
 ## Fiktivt eksempel på fejlen
 
 Den [fokuserede regression](../../tests/tax_credit_input.test.mjs) bruger en
