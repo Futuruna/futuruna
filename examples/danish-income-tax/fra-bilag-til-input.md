@@ -50,7 +50,7 @@ fravær af andre indkomster, udgifter og pensionsudbetalinger er **udtrykkeligt
 opdigtede fakta** i dokument F, ikke noget en rigtig skabelon fortæller os.
 Eksemplerne er selvstændige profiler, ikke ændringer af samme lønpakke.
 EP:4 bekræfter også almindelig bankpensionsbehandling uden særgodkendt tidligere
-år. Det nye `bank_årsplacering` sættes ud fra denne fiktive bekræftelse, aldrig
+år. `bank_årsplacering` sættes ud fra denne fiktive bekræftelse, aldrig
 som et foreslået standardvalg for virkelige bilag.
 
 | Kildefakta | Input eller handling | Hvorfor? |
@@ -86,7 +86,7 @@ mellem direkte mapping, kontrolresultat, supplerende fakta og tab af ørepræcis
 
 En lønetiket eller et rubriknummer er ikke nok til at fastslå det ordinære
 løngrundlag. Den generelle helper
-`personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje)` returnerer derfor nu
+`personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje)` returnerer derfor
 `KræverSupplerendeKilde` med tre synlige faktakrav: lønart og afklaret årsbeløb,
 grundlag efter egen ATP og bortseelsesberettiget pension samt afgrænsning uden
 dobbeltregning med andre indkomstgrene. Original linje, år, etiket og øre bevares,
@@ -107,6 +107,54 @@ indeholde andre indkomstarter og komponenter, der har særskilte input; det føl
 af [eIndkomst-vejledningen](https://info.skat.dk/data.aspx?oid=2233519).
 `EIndkomstEllerLønspecifikation` er en mulig kilde til afklaring, ikke et krav om
 et nyt bilag, når de relevante fakta allerede er dokumenteret.
+
+### Rettet løn: forskelsbeløb er ikke årsløn
+
+En negativ lønrettelse er hverken en ny årsløn eller automatisk et fradrag i
+betalingsåret. Løn modtaget med urette reguleres i det oprindelige indkomstår;
+en tilbagebetalingspligt, der opstår på grund af senere omstændigheder, kan
+derimod høre til det senere år. Afklar grundlaget, ikke kun minustegnet.
+[C.A.3.1.1.3](https://info.skat.dk/data.aspx?oid=1976766).
+
+`personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(opgørelse, indkomstår)`
+afstemmer dokumenterede nedsættelser for løn modtaget med urette:
+
+- `oprindelig_årsløn`: det afklarede ordinære årsbeløb **før** alle rettelser
+  i listen, ikke en allerede korrigeret total.
+- `rettelser`: hver rettelses stabile id, originale negative `forskelsbeløb`
+  og `LønModtagetMedUrette` med kildehenvisning og dato for det retserhvervede
+  tilbagebetalingskrav. Samme rettelse fra flere bilag må kun indgå én gang.
+- `observeret_korrigeret_årsløn`: en eventuel ny årstotal som kontrol.
+  `None` betyder ukendt total, ikke nul. Kontrollen lægges aldrig til lønnen.
+- De tre bekræftelser kræver afklaret oprindeligt grundlag, samme person og
+  ordinære lønomfang samt alle relevante rettelser. Sæt dem ikke til `Sandt`
+  alene for at få et resultat.
+
+Et **fiktivt** eksempel: oprindelig ordinær årsløn for 2025 er 600.000 kr.
+Et dokumenteret krav erhverves i april 2026 og retter lønnen for 2025 med
+−20.000 kr. Forslaget bliver **580.000 kr. for 2025**, ikke et fradrag i 2026.
+En oplyst korrigeret total skal være 580.000 kr.; en forskel på én øre
+afvises. Har kilden allerede en afklaret korrigeret årsløn på 580.000 kr.,
+kan den almindelige årslønhelper bruges direkte. Træk ikke de 20.000 kr. fra igen.
+
+Rettelseslinjens `indkomstår` er det berørte lønår, ikke dokumentets udstedelsesår.
+Ved flere berørte år kræves kildeafklaret fordeling, ikke en gættet opdeling.
+Indberetningen knytter nedsættelsen til den oprindelige lønperiode og sker ved
+retserhvervet krav, ikke først ved kontant tilbagebetaling.
+[eIndkomst 14.1](https://info.skat.dk/data.aspx?oid=2386660),
+[eIndkomst 14.4](https://info.skat.dk/data.aspx?oid=2386664).
+
+Helperen bevarer alle kildebeløb og danner kun hele kroner, når øresummen er
+eksakt. Modstridende år, dubletter og negative årstotaler afvises. Uoplyst
+grundlag, senere opstået tilbagebetalingspligt, andre rettelser eller manglende
+bekræftelser kræver afklaring; ingen delsum sendes videre som færdigt input.
+Forskellige id'er beviser ikke, at to dokumenter vedrører forskellige krav.
+
+**Indeholdt A-skat og AM holdes adskilt.** En sen bruttoregulering kan rette
+lønnen uden at rette de indeholdte beløb. Genberegnet AM er ikke en ny
+observation af indeholdt AM. Brug kildeafklarede kreditter, og opret ikke et
+ekstra fradrag for samme tilbageførte løn. Mappingen ændrer ingen
+indeholdelser og indsender ikke en rettelse til SKAT.
 
 ## Renteudgifter: bevar kildens fortegn
 
@@ -193,7 +241,7 @@ for de resterende fakta og indsender ikke en skattesag.
 Brug en frisk beregningsskabelon og gennemgå kildefakta for hver person.
 Vejledningen indgår i Preview-kontraktens fingerprint; ret aldrig et gammelt
 hash for at få en skabelon accepteret. Hold renteindtægter adskilt fra udgifter.
-De [otte fokuserede invarianter](../../tests/personskat_interest_mapping_test.runa)
+De [fokuserede invarianter](../../tests/personskat_interest_mapping_test.runa)
 kontrollerer mappingen; de beviser ikke vilkårlig AI-læsning af bilag.
 
 ## Manglende oplysninger: to forskellige grænser

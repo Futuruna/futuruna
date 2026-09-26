@@ -58,4 +58,22 @@ test('salary mapping links both helpers to payroll guidance and unresolved sourc
     assert.ok(reference.typed_values.some(value => value.type === item.type
       && value.path === item.value_path), `${item.type}: typed descendant`);
   }
+
+  const correction = meta.anchors.find(anchor => anchor.label === 'personskat_aarsopgoerelse_lønrettelser');
+  assert.ok(correction);
+  assert.equal(correction.references.length, 1);
+  const correctionSources = correction.references[0].attachments;
+  assert.deepEqual(correctionSources.map(item => item.role), ['guidance', 'guidance', 'guidance', 'warning']);
+  assert.deepEqual(correctionSources.slice(0, 3).map(item => field(item, 'url')), [
+    'https://info.skat.dk/data.aspx?oid=1976766',
+    'https://info.skat.dk/data.aspx?oid=2386660',
+    'https://info.skat.dk/data.aspx?oid=2386664',
+  ]);
+  const correctionWarning = field(correctionSources[3], 'besked');
+  for (const phrase of ['negative forskelsbeløb', 'kun kontrol', 'oprindeligt indkomstår',
+    'retserhvervet tilbagebetalingskrav', 'betalingsdatoen afgør ikke året',
+    'Senere opstået', 'ændrer ingen skattekreditter', 'opretter intet ekstra fradrag',
+    'fortegn og øre bevares uden afrunding']) assert.ok(correctionWarning.includes(phrase), phrase);
+  assert.ok(meta.spans.find(span => span.label === correction.label)?.symbols.some(symbol =>
+    symbol.kind === 'rule' && symbol.name === 'personskat_aarsopgoerelse_kortlaeg_rettet_årsløn'));
 });
