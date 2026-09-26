@@ -91,6 +91,8 @@ jobs:
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_pension_payment_year.test.mjs
           ./target/release/runa tests/personskat_pension_redeposit_test.runa
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_pension_redeposit.test.mjs
+          ./target/release/runa tests/personskat_pension_bank_year_test.runa
+          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_pension_bank_year.test.mjs
           FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_group_life.test.mjs
           ./target/release/runa tests/personskat_group_bonus_test.runa
           ./target/release/runa run tests/personskat_group_bonus_test.runa

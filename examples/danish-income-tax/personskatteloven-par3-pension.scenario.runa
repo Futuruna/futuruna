@@ -371,6 +371,7 @@
         betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
         hidrører_fra_par22e_tilbagebetaling = Falskt,
         par22e_genindbetaling = None,
+        bank_årsplacering = Some(Pbl19BankBetalingsår),
         par15a_fradragsplacering = Pbl18Par15AAfståelsesår(
             fradragsår = 2026,
             indbetalt_senest_1_juli_efterfølgende = Sandt
@@ -477,6 +478,7 @@
         betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
         hidrører_fra_par22e_tilbagebetaling = Falskt,
         par22e_genindbetaling = None,
+        bank_årsplacering = Some(Pbl19BankBetalingsår),
         par15a_fradragsplacering = Pbl18IkkePar15APlacering,
         arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
     ),
@@ -499,6 +501,7 @@
         betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
         hidrører_fra_par22e_tilbagebetaling = Falskt,
         par22e_genindbetaling = None,
+        bank_årsplacering = Some(Pbl19BankBetalingsår),
         par15a_fradragsplacering = Pbl18IkkePar15APlacering,
         arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
     ),
@@ -521,6 +524,7 @@
         betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
         hidrører_fra_par22e_tilbagebetaling = Falskt,
         par22e_genindbetaling = None,
+        bank_årsplacering = Some(Pbl19BankBetalingsår),
         par15a_fradragsplacering = Pbl18IkkePar15APlacering,
         arbejdsmarkedsbidrag_kroner = 0
     ),

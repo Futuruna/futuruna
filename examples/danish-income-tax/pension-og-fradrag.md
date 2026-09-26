@@ -286,7 +286,10 @@ Den juridiske vejledning fastholder betalingsåret for almindelige
 arbejdsgiverbidrag til pensionsordninger i pengeinstitutter. Den beskriver også
 en særskilt godkendelse af henføring af løntilbageholdte bidrag til året før.
 En sådan godkendelse må ikke erstattes af et gættet forfaldsår eller ændret
-ordningstype; denne kontrol implementerer ikke godkendelsesforløbet.
+ordningstype. [Bankpensionens årsplacering](personskat-bankpension-aar.md) har nu
+et særskilt dokumenteret input. Modellen anvender en allerede givet godkendelse;
+den udsteder den ikke. Uafklaret behandling af en almindelig arbejdsgiver-
+rateopsparing tilbageholder sammenligningen, også ved ens forfalds-/betalingsår.
 [C.A.10.2.2.3.1, bidrag til pensionsordning i pengeinstitut](https://info.skat.dk/data.aspx?oid=2048283).
 
 Input under `pbl18_indbetalinger.betaling` kontrolleres nu for årstalsmodstrid:

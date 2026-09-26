@@ -180,6 +180,19 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 
 ## Further correctness work already delivered
 
+The [employer bank-pension year route](../examples/danish-income-tax/personskat-bankpension-aar.md)
+now separates unresolved treatment, ordinary payment-year treatment and a
+documented authority approval of the previous wage-withholding year. Previously
+three fictional unresolved taxpayer/spouse cases were accepted. Annual intake
+now withholds them and can apply a documented approval without rewriting the
+actual payment year. The approval's shared gross budget, year/date consistency
+and source references are checked; the existing employer-net and private shared
+rate-cap calculations consume the approved year. Generated guidance is shared
+by taxpayer/spouse. The model does not issue or authenticate approvals, invent
+a deadline for “reasonable time”, or establish administrative conformance.
+Special-plan/correction combinations and cross-file duplicate evidence remain
+outside this route. Fresh templates and reviewed facts are required.
+
 The [pension re-payment regression](../tests/personskat_pension_redeposit.test.mjs)
 addresses a reproduced acceptance gap: a correction Boolean previously sufficed
 without original-payment or refund evidence. PBL22E now has optional typed

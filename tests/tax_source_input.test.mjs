@@ -47,6 +47,8 @@ test('construction keeps source facts, repeated observations and unknowns distin
     assert.equal(pension[0].indbetalingskilde.$variant, 'Pbl18Arbejdsgiverindbetaling');
     assert.equal(pension[0].betaling.beløb_kroner, 50000);
     assert.equal(pension[0].betaling.arbejdsmarkedsbidrag_kroner, 4000);
+    assert.deepEqual(pension[0].betaling.bank_årsplacering, v('Pbl19BankBetalingsår'),
+      'ordinary treatment is explicitly confirmed in the fictional EP:4 source');
   }
   const atp = byId['arbejdsgiver-atp'].lønmodtager.pension.atp;
   assert.equal(atp.poster.length, 1);

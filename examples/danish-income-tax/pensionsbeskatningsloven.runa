@@ -448,7 +448,9 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 # Pbl18Begrænsninger(pbl54_personkreds_opfyldt: Boolsk, afgiftspligt_for_hele_ordningen_indtrådt: Boolsk, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk)
 # Pbl18Input(indkomstår: Heltal, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Betaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, fradragsramme: Pbl18Fradragsramme, begrænsninger: Pbl18Begrænsninger)
 # Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, årsparametre: Pbl16Og18Årsparametre, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
-# Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par22e_genindbetaling: Pbl22EGenindbetalingsfakta?, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
+# Pbl19BankGodkendelse(identifikation: Tekst, kildereference: Tekst, løntilbageholdelse_kildereference: Tekst, tilbageholdelsesår: Heltal, godkendt_indkomstår: Heltal, tilbageholdt_brutto_kroner: Heltal, godkendt_brutto_kroner: Heltal)
+# Pbl19BankÅrsplacering = Pbl19BankBetalingsår | Pbl19BankGodkendtÅr(godkendelse: Pbl19BankGodkendelse, indbetalingsdato: Dato, indbetalingen_omfattet_af_godkendelsen: Boolsk)
+# Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par22e_genindbetaling: Pbl22EGenindbetalingsfakta?, bank_årsplacering: Pbl19BankÅrsplacering?, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
 # Pbl18Indeksordningsgrundlag = Pbl18IkkeIndeksordning | Pbl18Par15Indeksordning(fakta: Pbl15Indeksordningsfakta)
 # Pbl18Årsindbetaling(identifikation: Tekst, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Årsbetaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, indeksordningsgrundlag: Pbl18Indeksordningsgrundlag, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, særligt_ordningsgrundlag: Pbl18SærligtOrdningsgrundlag, begrænsninger: Pbl18Begrænsninger)
 # Pbl18Årsinput(indkomstår: Heltal, personlig_indkomst_før_pensionsfradrag_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, livrentevalg: Pbl18Fradragsvalg, par15a_årsgrundlag: Pbl15AÅrsgrundlag, par15b_årsgrundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl18Årsindbetaling))
@@ -619,8 +621,46 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
     | Pbl18Par15AIndbetalingsår -> pbl18_ordning_er_par15a(ordning)
     | Pbl18Par15AAfståelsesår(_, _) -> pbl18_ordning_er_par15a(ordning)
 }
+-- Vejledningen angiver myndighedens godkendelse, ikke en beregnelig frist.
+= pbl19_bankår_kilde = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048283",
+    identifier = "Den juridiske vejledning 2026-2, C.A.10.2.2.3.1, Bidrag til pensionsordning i pengeinstitut",
+    hentet_dato = "2026-09-26",
+    ændringsstatus = "Betalingsår er udgangspunktet; Skattestyrelsen kan godkende året for løntilbageholdelsen ved indbetaling året efter"
+)
+= pbl19_bankår_meta = Guidance(value = pbl19_bankår_kilde)
+--@label:pbl19_bankår::meta:pbl19_bankår_meta--
+----
+Det forudsættes, at indbetalingen foretages af arbejdsgiveren inden en rimelig tid efter indkomstårets udløb.
+----
+--@begin:pbl19_bankår--
+-- Kun almindelig rateopsparing her; en godkendelse er et dokumenteret input.
+-- Særlige ordninger og kombination med § 22 E må ikke antage samme retsvirkning.
+| pbl19_bankår_kræver_afklaring(post: Pbl18Årsindbetaling) -> post.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && post.ordning == Pbl18Rateopsparing && post.betaling.beløb_kroner > 0 && post.betaling.hidrører_fra_par22e_tilbagebetaling == Falskt
+| pbl19_bankgodkendelse_gyldig(godkendelse: Pbl19BankGodkendelse) -> godkendelse.identifikation != "" && godkendelse.kildereference != "" && godkendelse.løntilbageholdelse_kildereference != "" && godkendelse.tilbageholdelsesår > 0 && godkendelse.tilbageholdelsesår < 9999 && godkendelse.godkendt_indkomstår == godkendelse.tilbageholdelsesår && godkendelse.godkendt_brutto_kroner > 0 && godkendelse.godkendt_brutto_kroner <= godkendelse.tilbageholdt_brutto_kroner
+| pbl19_bankår_gyldigt(post: Pbl18Årsindbetaling) -> match post.betaling.bank_årsplacering {
+    | None -> pbl19_bankår_kræver_afklaring(post) == Falskt
+    | Some(Pbl19BankBetalingsår) -> Sandt
+    | Some(Pbl19BankGodkendtÅr(godkendelse, indbetalingsdato, omfattet)) -> pbl19_bankår_kræver_afklaring(post) && pbl19_bankgodkendelse_gyldig(godkendelse) && omfattet && post.betaling.par22e_genindbetaling == None && dato_gyldig(indbetalingsdato) && indbetalingsdato.år == post.betaling.betalingsår && indbetalingsdato.år - 1 == godkendelse.tilbageholdelsesår && post.betaling.beløb_kroner <= godkendelse.godkendt_brutto_kroner && (post.betaling.betalt_senest_bankjusteret_1_april_efter_forfald || indbetalingsdato.år - 1 != post.betaling.forfaldsår || indbetalingsdato.måned > 4 || (indbetalingsdato.måned == 4 && indbetalingsdato.dag > 1))
+}
+| pbl19_bankgodkendelse_på_post(post: Pbl18Årsindbetaling) -> match post.betaling.bank_årsplacering {
+    | Some(Pbl19BankGodkendtÅr(godkendelse, _, _)) -> Some(godkendelse)
+    | _ -> None
+}
+-- Samme godkendelses-id er én beløbsramme, også ved flere betalinger.
+| pbl19_bankgodkendelser_konsistente(poster: List(Pbl18Årsindbetaling)) -> all(poster, |post: Pbl18Årsindbetaling| match pbl19_bankgodkendelse_på_post(post) {
+        | None -> Sandt
+        | Some(godkendelse) -> all(poster, |anden: Pbl18Årsindbetaling| match pbl19_bankgodkendelse_på_post(anden) {
+                | None -> Sandt
+                | Some(anden_godkendelse) -> anden_godkendelse.identifikation != godkendelse.identifikation || anden_godkendelse == godkendelse
+            }) && foldl(poster, 0, |sum: Heltal, anden: Pbl18Årsindbetaling| sum + match pbl19_bankgodkendelse_på_post(anden) {
+                | None -> 0
+                | Some(anden_godkendelse) -> hvis anden_godkendelse.identifikation == godkendelse.identifikation { anden.betaling.beløb_kroner } ellers { 0 }
+            }) <= godkendelse.godkendt_brutto_kroner
+    })
+--@end:pbl19_bankår--
 | pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && pbl18_årsbetaling_frister_konsistente(betaling) && pbl22e_oplysning_gyldig(betaling.hidrører_fra_par22e_tilbagebetaling, betaling.par22e_genindbetaling, betaling.betalingsår, betaling.beløb_kroner) && pbl18_par22e_apriloplysning_konsistent(betaling) && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
-| pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl18_par15a_placering_passer_til_ordning(indbetaling.ordning, indbetaling.betaling.par15a_fradragsplacering) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0
+| pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl19_bankår_gyldigt(indbetaling) && pbl18_par15a_placering_passer_til_ordning(indbetaling.ordning, indbetaling.betaling.par15a_fradragsplacering) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0
 | pbl18_årsidentifikation_unik(indbetalinger: List(Pbl18Årsindbetaling), indbetaling: Pbl18Årsindbetaling) -> length(filter(indbetalinger, |anden: Pbl18Årsindbetaling| anden.identifikation == indbetaling.identifikation)) == 1
 -- Delte tilbagebetalinger tælles én gang, mens hver genindbetalingspost
 -- forbruger sin del af bruttobeløbet. Samme kilde-id må ikke skifte fakta.
@@ -659,7 +699,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_årsinput_gyldigt(input: Pbl18Årsinput) -> {
     = par15a_resultat = pbl15a_årsgrundlagsresultat(input.par15a_årsgrundlag)
     = par15b_resultat = pbl18_par15b_årsresultat(input)
-    pbl16_understøttet_indkomstår(input.indkomstår) && input.personlig_indkomst_før_pensionsfradrag_kroner >= 0 && pbl18_årsselvstændig_overskud_gyldigt(input.selvstændig_overskud) && pbl15a_årsgrundlag_gyldigt_for_indkomstår(par15a_resultat, input.indkomstår) && par15b_resultat.input_gyldigt && all(input.indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(input.indbetalinger, indbetaling) && pbl18_årsindbetaling_indeksgrundlag_gyldigt(indbetaling) && pbl18_årsindbetaling_særligt_grundlag_gyldigt(input, par15a_resultat, par15b_resultat, indbetaling)) && pbl18_par22e_allokeringer_gyldige(input.indbetalinger) && pbl18_årsvalgte_indekskontrakter(input.indbetalinger) <= 6
+    pbl16_understøttet_indkomstår(input.indkomstår) && input.personlig_indkomst_før_pensionsfradrag_kroner >= 0 && pbl18_årsselvstændig_overskud_gyldigt(input.selvstændig_overskud) && pbl15a_årsgrundlag_gyldigt_for_indkomstår(par15a_resultat, input.indkomstår) && par15b_resultat.input_gyldigt && all(input.indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(input.indbetalinger, indbetaling) && pbl18_årsindbetaling_indeksgrundlag_gyldigt(indbetaling) && pbl18_årsindbetaling_særligt_grundlag_gyldigt(input, par15a_resultat, par15b_resultat, indbetaling)) && pbl19_bankgodkendelser_konsistente(input.indbetalinger) && pbl18_par22e_allokeringer_gyldige(input.indbetalinger) && pbl18_årsvalgte_indekskontrakter(input.indbetalinger) <= 6
 }
 
 | pbl18_årsbetaling_til_pbl18_betaling(betaling: Pbl18Årsbetaling, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal) -> Pbl18Betaling(
@@ -674,6 +714,10 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
     arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner
 )
 | pbl18_årsindbetaling_fradragsår(indbetaling: Pbl18Årsindbetaling) -> pbl18_fradragsår(indbetaling.ordning, pbl18_årsbetaling_til_pbl18_betaling(indbetaling.betaling, 0, 0))
+| exception pbl19_godkendt_bankår pbl18_årsindbetaling_fradragsår(indbetaling: Pbl18Årsindbetaling) -> match indbetaling.betaling.bank_årsplacering {
+    | Some(Pbl19BankGodkendtÅr(godkendelse, _, _)) -> godkendelse.godkendt_indkomstår
+    | _ -> indbetaling.betaling.betalingsår
+} under pbl19_bankår_gyldigt(indbetaling) && pbl19_bankgodkendelse_på_post(indbetaling) != None
 | pbl18_årsindbetaling_arbejdsgiver_efter_am_bidrag_kroner(input: Pbl18Årsinput, indbetaling: Pbl18Årsindbetaling) -> hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner - indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 }
 | pbl18_årsarbejdsgiver_rate_brutto_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner } ellers { 0 })
 | pbl18_årsarbejdsgiver_rate_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
@@ -729,7 +773,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
     Pbl18Årspostresultat(
         indbetaling = indbetaling,
         pbl18_input = pbl18_input,
-        fradragsår = pbl18_fradragsår(pbl18_input.ordning, pbl18_input.betaling),
+        fradragsår = pbl18_årsindbetaling_fradragsår(indbetaling),
         grundlæggende_fradragsret = grundlæggende_fradragsret,
         arbejdsgiverindbetaling_efter_am_bidrag_kroner = pbl18_årsindbetaling_arbejdsgiver_efter_am_bidrag_kroner(input, indbetaling),
         fradragsgrundlag_før_fælles_årsgrænser_kroner = pbl18_årspost_fradragsgrundlag_før_fælles_årsgrænser_kroner(pbl18_input, grundlæggende_fradragsret)
@@ -999,7 +1043,7 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
 -- https://www.retsinformation.dk/eli/ft/201712L00238 (til § 1, nr. 1 og 2)
 # Pbl19RateÅrsresultat(indkomstår: Heltal, input_gyldigt: Boolsk, indbetaling_før_am_kroner: Heltal, indeholdt_am_kroner: Heltal, indbetaling_efter_am_kroner: Heltal, fælles_rateloft_kroner: Heltal, bortseelsesberettiget_efter_am_kroner: Heltal, skattepligtig_personlig_indkomst_uden_nyt_am_kroner: Heltal)
 # Pbl19RateÅrsSag(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling), supplerende_brutto_kroner: Heltal, supplerende_am_kroner: Heltal) {
-    | input_gyldigt() -> pbl16_understøttet_indkomstår(indkomstår) && supplerende_am_kroner >= 0 && supplerende_brutto_kroner >= supplerende_am_kroner && all(indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(indbetalinger, indbetaling))
+    | input_gyldigt() -> pbl16_understøttet_indkomstår(indkomstår) && supplerende_am_kroner >= 0 && supplerende_brutto_kroner >= supplerende_am_kroner && pbl19_bankgodkendelser_konsistente(indbetalinger) && all(indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(indbetalinger, indbetaling))
     | rateindbetalinger() -> filter(indbetalinger, |indbetaling: Pbl18Årsindbetaling| indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == indkomstår)
     | før_am_kroner() -> hvis input_gyldigt() { supplerende_brutto_kroner + foldl(rateindbetalinger(), 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + indbetaling.betaling.beløb_kroner) } ellers { 0 }
     | indeholdt_am_kroner() -> hvis input_gyldigt() { supplerende_am_kroner + foldl(rateindbetalinger(), 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + indbetaling.betaling.arbejdsmarkedsbidrag_kroner) } ellers { 0 }

@@ -30,6 +30,7 @@
     beløb_kroner = 40000, forfaldsår = 2025, betalingsår = 2026,
     betalt_senest_bankjusteret_1_april_efter_forfald = april,
     hidrører_fra_par22e_tilbagebetaling = Sandt, par22e_genindbetaling = Some(rettidig),
+    bank_årsplacering = None,
     par15a_fradragsplacering = Pbl18Par15AIndbetalingsår, arbejdsmarkedsbidrag_kroner = 0
 )
 = særlig_post = Pbl18Årsindbetaling(

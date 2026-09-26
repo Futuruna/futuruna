@@ -35,6 +35,7 @@ fn contribution() -> Value {
             "beløb_kroner":50000, "forfaldsår":2026, "betalingsår":2026,
             "betalt_senest_bankjusteret_1_april_efter_forfald":true,
             "hidrører_fra_par22e_tilbagebetaling":false,
+            "bank_årsplacering":{"$variant":"Pbl19BankBetalingsår"},
             "par15a_fradragsplacering":{"$variant":"Pbl18IkkePar15APlacering"},
             "arbejdsmarkedsbidrag_kroner":0
         },
