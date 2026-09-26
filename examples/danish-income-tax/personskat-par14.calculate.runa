@@ -231,20 +231,21 @@ https://info.skat.dk/data.aspx?oid=1977389
 --@label:beregn_personskat_delår::meta:personskat_par14_beregningsmeta--
 
 -- Vurder den afsluttede § 14-beregning, ikke et indlejret helårsmellemtrin.
--- Beløb og de eksisterende gyldighedsvilkår ændres ikke af denne grænse.
-| personskat_par14_beregningsvurdering(kontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> {
-    = grundvurdering = personskat_beregningsvurdering(kontroller, slutskat_øre)
+-- Afregningen valideres mod dette trins skat, ikke den ordinære mellemregning.
+| personskat_par14_beregningsvurdering(kontroller: List(PersonskatInputkontrol), afregningskontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> {
+    = grundvurdering = personskat_beregningsvurdering_med_afregning(kontroller, afregningskontroller, slutskat_øre)
     PersonskatBeregningsvurdering(
         status = grundvurdering.status,
         alle_kontroller_gyldige = grundvurdering.alle_kontroller_gyldige,
         slutskat_til_sammenligning_øre = grundvurdering.slutskat_til_sammenligning_øre,
         samlet_modeldækning_bekræftet = Falskt,
+        kontrolgrundlag = grundvurdering.kontrolgrundlag,
         kontroller = grundvurdering.kontroller,
         fejl = grundvurdering.fejl,
         forbehold = concat(grundvurdering.forbehold, [
             personskat_par14_mellemtrin_forbehold,
             "Skattepligtsperiode, fuld eller begrænset skattepligt, omregningsmetode og eventuelt valg af faktisk helårsindkomst skal underbygges af kildefakta. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Se personskat-delaar.md.",
-            "Sammenligningsbeløbet er slutskat_efter_par14_øre for den modellerede del, ikke restskat, tilbagebetaling eller det særskilte beløb inklusive endelig arbejdsudlejebeskatning. Betalingsafregningen skal vurderes særskilt."
+            "Sammenligningsbeløbet er slutskat_efter_par14_øre for den modellerede del, ikke restskat, tilbagebetaling eller det særskilte beløb inklusive endelig arbejdsudlejebeskatning. En valgt betalingsafregning kontrolleres mod den afsluttede delårsberegning; fejl tilbageholder sammenligningen. Uden valgt afregning er et udbetalings- eller opkrævningsbeløb ikke fastlagt."
         ])
     )
 }
@@ -409,7 +410,7 @@ https://info.skat.dk/data.aspx?oid=1977389
 -- Det særskilte § 14-grundlag skal også bevare en aktiv ægtefælles rutefejl.
 | personskat_par14_ejendomsdrift_afklaret(resultat: PersonskatBeregningResultat) -> all(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| (kontrol.sti != "kapitalindkomst.ejendomsdrift" && kontrol.sti != "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.ejendomsdrift") || kontrol.gyldig)
 | personskat_par14_finansielle_poster_afklaret(resultat: PersonskatBeregningResultat) -> all(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| (kontrol.sti != "kapitalindkomst.finansielle_poster" && kontrol.sti != "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.finansielle_poster") || kontrol.gyldig)
-| personskat_par14_resultatgrundlag_gyldigt(resultat: PersonskatBeregningResultat) -> personskat_par14_kildekontroller_gyldige(resultat.vurdering.kontroller) && personskat_par14_finansielle_poster_afklaret(resultat) && personskat_par14_ejendomsdrift_afklaret(resultat) && personskat_par14_ægtefællegrundlag_afklaret(resultat) && personskat_par14_kirkeskat_afklaret(resultat) && resultat.personlig_indkomst.alle_input_gyldige && resultat.erhvervsbefordring.alle_input_gyldige && resultat.ligningsfradrag.alle_input_gyldige && resultat.kapitalindkomst.alle_input_gyldige && resultat.aktieavance.alle_input_gyldige && resultat.cfc.alle_input_gyldige && personskat_par14_pension_gyldig(resultat.pension) && personskat_par14_udenlandske_sociale_bidrag_gyldige(resultat.udenlandske_sociale_bidrag) && personskat_par14_kursgevinst_par32_gyldig(resultat.kursgevinst_par32) && resultat.kildeskat25a.alle_input_gyldige && resultat.underskudsår.alle_åbningsgrundlag_gyldige && resultat.personskattelov13a.alle_kildegrundlag_gyldige && resultat.personskattelov13a.stk2_nedsættelser_stabile && resultat.aktieindkomst_parår.input_gyldigt && resultat.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && resultat.ejendomsskatter.alle_input_gyldige && resultat.ejendomsskatter.regelgrundlag_understøttet && resultat.ligningslov33.input_gyldigt && resultat.ligningslov33a.input_gyldigt && resultat.kildeskat_par8a_kredit_input_gyldigt && resultat.kildeskat_ambl_par6_kredit_input_gyldigt && resultat.kildeskat_al40c_acontoskat_input_gyldigt && resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && resultat.arbejdsfradrag_udland.alle_input_gyldige
+| personskat_par14_resultatgrundlag_gyldigt(resultat: PersonskatBeregningResultat) -> personskat_par14_kildekontroller_gyldige(resultat.vurdering.kontrolgrundlag) && personskat_par14_finansielle_poster_afklaret(resultat) && personskat_par14_ejendomsdrift_afklaret(resultat) && personskat_par14_ægtefællegrundlag_afklaret(resultat) && personskat_par14_kirkeskat_afklaret(resultat) && resultat.personlig_indkomst.alle_input_gyldige && resultat.erhvervsbefordring.alle_input_gyldige && resultat.ligningsfradrag.alle_input_gyldige && resultat.kapitalindkomst.alle_input_gyldige && resultat.aktieavance.alle_input_gyldige && resultat.cfc.alle_input_gyldige && personskat_par14_pension_gyldig(resultat.pension) && personskat_par14_udenlandske_sociale_bidrag_gyldige(resultat.udenlandske_sociale_bidrag) && personskat_par14_kursgevinst_par32_gyldig(resultat.kursgevinst_par32) && resultat.kildeskat25a.alle_input_gyldige && resultat.underskudsår.alle_åbningsgrundlag_gyldige && resultat.personskattelov13a.alle_kildegrundlag_gyldige && resultat.personskattelov13a.stk2_nedsættelser_stabile && resultat.aktieindkomst_parår.input_gyldigt && resultat.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && resultat.ejendomsskatter.alle_input_gyldige && resultat.ejendomsskatter.regelgrundlag_understøttet && resultat.ligningslov33.input_gyldigt && resultat.ligningslov33a.input_gyldigt && resultat.kildeskat_par8a_kredit_input_gyldigt && resultat.kildeskat_ambl_par6_kredit_input_gyldigt && resultat.kildeskat_al40c_acontoskat_input_gyldigt && resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && resultat.arbejdsfradrag_udland.alle_input_gyldige
 | personskat_par14_resultat_afstemt(resultat: PersonskatBeregningResultat) -> resultat.sømandsbeskatning.input_gyldigt && resultat.sømandsbeskatning_eksakt.input_gyldigt && resultat.eksakt_ordinær_skat_efter_dis_øre == resultat.sømandsbeskatning_eksakt.samlet_skat_inkl_am_efter_dis_lempelse_øre && resultat.sømandsbeskatning_eksakt.indkomstskat_før_dis_lempelse_øre == resultat.hovedskat_eksakt.samlet_indkomstskat_øre && resultat.sømandsbeskatning_eksakt.arbejdsmarkedsbidrag_øre == resultat.hovedskat_eksakt.arbejdsmarkedsbidrag_øre
 | personskat_par14_uden_ægtefællelempelse(input: PersonskatLigningslov33ParInput) -> input.ægtefælle == UdenLigningslov33 && input.ligningslov33a_ægtefælle == UdenLigningslov33A
 | personskat_par14_uden_afskrivningslov40c(input: PersonskatÅrsopgørelseInput) -> match personskat_afskrivningslov40c_acontoskat_kilde(input) {
@@ -793,8 +794,9 @@ https://info.skat.dk/data.aspx?oid=1977389
     )
     | afskrivningslov40c_acontoskat_kredit_øre() -> hvis delårsresultat().kildeskat_al40c_acontoskat_input_gyldigt { afskrivningslov40c_acontoskat().kredit_til_egen_kildeskat_slutopgørelse_øre } ellers { 0 }
     | senere_skat_understøttet() -> ligningslov33_understøttet() && aktieskattekredit_understøttet() && negativ_aktieindkomstskat().input_gyldigt && tidligere_fremført_negativ_aktieindkomstskat().input_gyldigt && afskrivningslov40c_understøttet() && afskrivningslov40c_acontoskat().kildefakta_gyldige
-    | input_gyldigt() -> par14_kerne_gyldig() && sømandsbeskatning().input_gyldigt && senere_skat_understøttet()
-    | slutskat_før_kreditter_øre() -> hvis input_gyldigt() { slutskat_før_kreditter_kandidat_øre() } ellers { 0 }
+    | beregningsgrundlag_gyldigt() -> par14_kerne_gyldig() && sømandsbeskatning().input_gyldigt && senere_skat_understøttet()
+    | input_gyldigt() -> beregningsgrundlag_gyldigt() && personskat_afregning_input_gyldigt(årsopgørelse())
+    | slutskat_før_kreditter_øre() -> hvis beregningsgrundlag_gyldigt() { slutskat_før_kreditter_kandidat_øre() } ellers { 0 }
     | endelig_arbejdsudlejebeskatning_øre() -> delårsresultat().personlig_indkomst.samlet_endelig_arbejdsudlejebeskatning_kroner * 100
     | efterfølgende_skat() -> PersonskatPar14EfterfølgendeSkatResultat(
         ligningslov33 = ligningslov33(),
@@ -827,10 +829,11 @@ https://info.skat.dk/data.aspx?oid=1977389
         PersonskatInputkontrol(sti = "kilder", gyldig = par14_kerne_gyldig(), forklaring = "Omregningsgrundlag, skattekomponenter, skatteloft, kapitalnedslag og eventuel DIS skal opfylde alle § 14-kernens kontroller."),
         PersonskatInputkontrol(sti = "personskat.lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = sømandsbeskatning().input_gyldigt, forklaring = "Eventuel DIS-lempelse skal være gyldig og afstemt efter delårsomregningen."),
         PersonskatInputkontrol(sti = "personskat", gyldig = senere_skat_understøttet(), forklaring = "Efterfølgende udenlandsk lempelse, negativ aktieskat og afskrivningslovens acontoskat skal have gyldigt grundlag og være understøttet i delårsforløbet."),
-        PersonskatInputkontrol(sti = "personskat", gyldig = input_gyldigt(), forklaring = "Det samlede delårsgrundlag skal opfylde modellens eksisterende input_gyldigt-kontrol. Ved fejl er de øvrige beløb kun diagnostik, også hvis de er nul.")
+        PersonskatInputkontrol(sti = "personskat", gyldig = beregningsgrundlag_gyldigt(), forklaring = "Det samlede delårsgrundlag skal opfylde modellens beregningskontroller før betalingsafregning. Ved fejl er de øvrige beløb kun diagnostik, også hvis de er nul.")
     ]
+    | afregningskontroller() -> [PersonskatInputkontrol(sti = "personskat.årsopgørelse.afregningsfakta", gyldig = personskat_afregning_input_gyldigt(årsopgørelse()), forklaring = "En valgt betalingsafregning skal matche indkomståret og den endelige restskat eller overskydende skat efter § 14 samt opfylde KSL-modellens faktakontroller. Et gyldigt ordinært mellemtrin er ikke tilstrækkeligt.")]
     | resultat() -> PersonskatPar14BeregningResultat(
-        vurdering = personskat_par14_beregningsvurdering(inputkontroller(), slutskat_efter_par14_øre()),
+        vurdering = personskat_par14_beregningsvurdering(inputkontroller(), afregningskontroller(), slutskat_efter_par14_øre()),
         input_gyldigt = input_gyldigt(),
         periode_gyldig = periode_gyldig(),
         kilder_gyldige = kilder_gyldige(),

@@ -4,21 +4,33 @@
 -- Domænemodellerne leverer eksplicitte kontroller. Almindelige falske
 -- berettigelsesvilkår eller inaktive grene er ikke i sig selv inputfejl.
 # PersonskatInputkontrol(sti: Tekst, gyldig: Boolsk, forklaring: Tekst)
+# PersonskatKontrolgrundlag(beregning: List(PersonskatInputkontrol), afregning: List(PersonskatInputkontrol))
 # PersonskatBeregningsstatus = UgyldigtBeregningsgrundlag | BeregnetMedForbehold
-# PersonskatBeregningsvurdering(status: PersonskatBeregningsstatus, alle_kontroller_gyldige: Boolsk, slutskat_til_sammenligning_øre: Heltal?, samlet_modeldækning_bekræftet: Boolsk, kontroller: List(PersonskatInputkontrol), fejl: List(PersonskatInputkontrol), forbehold: List(Tekst))
+# PersonskatBeregningsvurdering(status: PersonskatBeregningsstatus, alle_kontroller_gyldige: Boolsk, slutskat_til_sammenligning_øre: Heltal?, samlet_modeldækning_bekræftet: Boolsk, kontrolgrundlag: PersonskatKontrolgrundlag, kontroller: List(PersonskatInputkontrol), fejl: List(PersonskatInputkontrol), forbehold: List(Tekst))
 
 = personskat_kirkeskat_forbehold = "Kirkeskat kræver afklaring for indkomståret, ikke medlemskab i dag. KirkeskatUoplyst og KirkeskatEnDelAfÅret tilbageholder sammenligningen, også for en aktiv ægtefælle. Modellen beregner endnu ikke medlemsperioder; PSL § 14 løser ikke denne mangel. En angivet helårsstatus bekræfter ikke dokumenternes sandhed. Se personskat-validity.md."
 
 = personskat_ægtefællegrundlag_forbehold = "Ægtefællegrundlaget skal afklares for indkomståret. ÆgtefællegrundlagUoplyst tilbageholder den uafhængige sammenligning; manglende dokumenter er hverken ingen ægtefælle eller nul indkomst. Brug aarsopgoerelse-afstemning.md til en betinget gennemgang uden ægtefællens årsopgørelse. Nødvendige overførsler udledt af rapporten er ikke verificerede kildefakta."
 
+-- Trinnet angives af sammensætningen, aldrig af kontrolstiens stavemåde.
+-- Kildekontroller under årsopgørelse tilhører stadig beregningsgrundlaget.
+| personskat_beregningsgrundlag_gyldigt(grundlag: PersonskatKontrolgrundlag) -> length(grundlag.beregning) > 0 && all(grundlag.beregning, |kontrol: PersonskatInputkontrol| kontrol.gyldig)
+
 > personskat_beregningsvurdering(kontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> PersonskatBeregningsvurdering {
+    personskat_beregningsvurdering_med_afregning(kontroller, [], slutskat_øre)
+}
+
+> personskat_beregningsvurdering_med_afregning(beregningskontroller: List(PersonskatInputkontrol), afregningskontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> PersonskatBeregningsvurdering {
+    = grundlag = PersonskatKontrolgrundlag(beregning = beregningskontroller, afregning = afregningskontroller)
+    = kontroller = concat(grundlag.beregning, grundlag.afregning)
     = fejl = filter(kontroller, |kontrol: PersonskatInputkontrol| kontrol.gyldig == Falskt)
-    = gyldigt = length(kontroller) > 0 && length(fejl) == 0
+    = gyldigt = personskat_beregningsgrundlag_gyldigt(grundlag) && length(fejl) == 0
     PersonskatBeregningsvurdering(
         status = hvis gyldigt { BeregnetMedForbehold } ellers { UgyldigtBeregningsgrundlag },
         alle_kontroller_gyldige = gyldigt,
         slutskat_til_sammenligning_øre = hvis gyldigt { Some(slutskat_øre) } ellers { None },
         samlet_modeldækning_bekræftet = Falskt,
+        kontrolgrundlag = grundlag,
         kontroller = kontroller,
         fejl = fejl,
         forbehold = [

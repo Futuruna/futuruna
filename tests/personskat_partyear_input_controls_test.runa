@@ -2,17 +2,38 @@
 @ importer ../examples / danish - income - tax / personskat - par14 - kildekontrol
 
 | par14_testkontrol(sti: Tekst, gyldig: Boolsk) -> PersonskatInputkontrol(sti = sti, gyldig = gyldig, forklaring = "Fiktiv kontrol")
+| par14_testgrundlag(beregning: List(PersonskatInputkontrol), afregning: List(PersonskatInputkontrol)) -> PersonskatKontrolgrundlag(beregning = beregning, afregning = afregning)
 = par14_gyldig_kilde = par14_testkontrol("lønmodtager.skatteår", Sandt)
+= par14_ugyldig_afregning = par14_testkontrol("et_vilkårligt_afregningsnavn", Falskt)
 = par14_kildekontrol_grænser = [
-    personskat_par14_kildekontroller_gyldige([]) == Falskt,
-    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde]),
-    personskat_par14_kildekontroller_gyldige([par14_testkontrol("lønmodtager.bruttoløn_kroner", Falskt)]) == Falskt,
-    personskat_par14_kildekontroller_gyldige([par14_testkontrol("ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner", Falskt)]) == Falskt,
-    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde, par14_testkontrol("en_fremtidig_kildekontrol", Falskt)]) == Falskt,
-    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde, par14_testkontrol("årsopgørelse", Falskt)]),
-    personskat_par14_kildekontroller_gyldige([par14_testkontrol("årsopgørelse", Sandt)]) == Falskt,
-    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde, par14_testkontrol("årsopgørelse.kilde", Falskt)]) == Falskt,
-    personskat_par14_kildekontroller_gyldige([par14_testkontrol("lønmodtager.bruttoløn_kroner", Falskt), par14_testkontrol("årsopgørelse", Falskt)]) == Falskt
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([], [])) == Falskt,
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_gyldig_kilde], [])),
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_testkontrol("lønmodtager.bruttoløn_kroner", Falskt)], [])) == Falskt,
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_testkontrol("ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner", Falskt)], [])) == Falskt,
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_gyldig_kilde, par14_testkontrol("en_fremtidig_kildekontrol", Falskt)], [])) == Falskt,
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_gyldig_kilde, par14_testkontrol("årsopgørelse", Falskt)], [])) == Falskt,
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_testkontrol("årsopgørelse", Sandt)], [])),
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_gyldig_kilde, par14_testkontrol("årsopgørelse.kilde", Falskt)], [])) == Falskt,
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([par14_gyldig_kilde], [par14_ugyldig_afregning])),
+    personskat_par14_kildekontroller_gyldige(par14_testgrundlag([], [par14_gyldig_kilde])) == Falskt
 ]
 | par14_kildekontrol_arves: par14_kildekontrol_grænser -> all(par14_kildekontrol_grænser, |gyldig: Boolsk| gyldig)
 ? par14_kildekontrol_arves
+
+= par14_samlet_vurdering = personskat_beregningsvurdering_med_afregning([par14_gyldig_kilde], [par14_ugyldig_afregning], 12345)
+= par14_uden_afregning = personskat_beregningsvurdering([par14_gyldig_kilde], 12345)
+= par14_kun_afregning = personskat_beregningsvurdering_med_afregning([], [par14_gyldig_kilde], 12345)
+= par14_vurderingsgrænser = [
+    par14_samlet_vurdering.alle_kontroller_gyldige == Falskt,
+    par14_samlet_vurdering.slutskat_til_sammenligning_øre == None,
+    par14_samlet_vurdering.kontroller == [par14_gyldig_kilde, par14_ugyldig_afregning],
+    par14_samlet_vurdering.fejl == [par14_ugyldig_afregning],
+    personskat_par14_kildekontroller_gyldige(par14_samlet_vurdering.kontrolgrundlag),
+    par14_uden_afregning.alle_kontroller_gyldige,
+    par14_uden_afregning.slutskat_til_sammenligning_øre == Some(12345),
+    par14_uden_afregning.kontrolgrundlag.afregning == [],
+    par14_kun_afregning.alle_kontroller_gyldige == Falskt,
+    par14_kun_afregning.slutskat_til_sammenligning_øre == None
+]
+| par14_vurdering_adskiller_trin: par14_vurderingsgrænser -> all(par14_vurderingsgrænser, |gyldig: Boolsk| gyldig)
+? par14_vurdering_adskiller_trin

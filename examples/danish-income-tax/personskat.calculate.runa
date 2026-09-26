@@ -19650,11 +19650,11 @@ fraflytningen."
             PersonskatInputkontrol(sti = "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter", gyldig = personskat_ægtefælle_ejendomsskat_input_gyldigt(ægtefælles_ejendomsskatter), forklaring = "En aktiv ægtefælles ejendomsfakta og regelgrundlag skal være gyldige og understøttede."),
             PersonskatInputkontrol(sti = "ligningslov33", gyldig = ligningslov33.input_gyldigt && ligningslov33a.input_gyldigt, forklaring = "Udenlandske lempelseskrav skal have gyldige kilder, år og personhenføringer."),
             PersonskatInputkontrol(sti = "årsopgørelse", gyldig = personskat_kildeskat_par8a_kredit_input_gyldigt(input.årsopgørelse) && personskat_kildeskat_ambl_par6_kredit_input_gyldigt(input.årsopgørelse) && kildeskat_al40c_acontoskat_input_gyldigt && afskrivningslov40c_acontoskat.kildefakta_gyldige, forklaring = "Afledte kreditter må ikke samtidig indlæses som eksterne kreditter; acontoskat kræver gyldige kildefakta."),
-            PersonskatInputkontrol(sti = "årsopgørelse", gyldig = personskat_afregning_input_gyldigt(årsopgørelse), forklaring = "En valgt betalingsafregning skal have gyldige fakta og matche slutopgørelsen.")
     ])
+    = afregningskontroller = [PersonskatInputkontrol(sti = "årsopgørelse", gyldig = personskat_afregning_input_gyldigt(årsopgørelse), forklaring = "En valgt betalingsafregning skal have gyldige fakta og matche slutopgørelsen.")]
     PersonskatBeregningResultat(
         arbejdsfradrag_udland = hovedgrundlag.arbejdsfradrag_udland,
-        vurdering = personskat_beregningsvurdering(inputkontroller, slutskat_øre),
+        vurdering = personskat_beregningsvurdering_med_afregning(inputkontroller, afregningskontroller, slutskat_øre),
         enligforsørgerfradrag = hovedgrundlag.enligforsørgerfradrag,
         skat = skat,
         hovedskat_eksakt = parberegning.hovedskat_eksakt,

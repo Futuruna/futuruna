@@ -78,6 +78,18 @@ other numerical fields as a reliable tax result. They remain available only to
 diagnose the failed calculation. `vurdering.fejl` gives input paths and reasons;
 `vurdering.kontroller` includes the passing checks too.
 
+`vurdering.kontrolgrundlag` separates `beregning` (source and calculation
+checks) from `afregning` (payment-settlement checks for this calculation stage).
+The flat `kontroller` list is their ordered concatenation; the complete
+assessment requires a nonempty calculation group and no failed checks in either
+group. The path alone does not select a group: source-credit and settlement
+checks can both have the path `årsopgørelse`.
+
+The Danish viewer validates this grouping against the flat list and labels both
+groups. It still accepts older saved assessments without groups, without making
+them current or authentic. Fresh schemas/templates are required after this
+output-contract change; transfer the same reviewed facts and recalculate.
+
 For example, a structurally valid date object containing all zeroes is not a
 valid birthday. It now fails the `lønmodtager.pension.fødselsdato` check even if
 the downstream arithmetic happens to produce a plausible tax amount. An invalid
@@ -238,13 +250,18 @@ nul, positiv løn, et korrigeret årsbeløb, negativ løn med SU, ægtefælleinp
 lovlig negativ kapitalindkomst. Det er model-/inputkontrol, ikke en ny uafhængig
 bekræftelse af årsopgørelsers korrekthed.
 
-Delårsgrenen bevarer nu de kanoniske person-/kildekontroller i begge grundlag,
-også for en aktiv ægtefælle. Den ordinære afregnings rodsti `årsopgørelse` er
-trinbestemt og undtaget fra denne overførsel; de eksisterende kreditkontroller
-bevares særskilt. Et afstemt ordinært mellemtrin er ikke en endelig afregning
-efter § 14. Ændringen dokumenterer ikke den afsluttende betalingsafregnings
-korrekthed. Den [lille kontroltest](../../tests/personskat_partyear_input_controls_test.runa)
-viser, at ukendte kontrolstier ikke automatisk undtages.
+Delårsgrenen bevarer de kanoniske person-/kildekontroller fra den eksplicitte
+gruppe `kontrolgrundlag.beregning` i begge grundlag, også for en aktiv ægtefælle.
+Kildekontroller på `årsopgørelse` er ikke undtaget. Den ordinære afregningsgruppe
+overføres ikke: den endelige afregning kontrolleres mod skatten efter § 14.
+Forkert betalingsretning, forkert indkomstår eller ugyldige afregningsfakta
+tilbageholder nu den yderste sammenligning. Den rå skat forbliver diagnostik,
+ikke en godkendt skat eller et beløb til udbetaling. Den
+[lille kontroltest](../../tests/personskat_partyear_input_controls_test.runa)
+adskiller trinnene uden at fortolke kontrolstiers navne; den
+[kanoniske regression](../../tests/personskat_settlement_stage.test.mjs)
+kontrollerer begge beregningsgrundlag og den afsluttende afregning.
+Det er modelkonsistens, ikke ny uafhængig administrativ konformitet.
 
 ## Kirkeskat gælder indkomståret, ikke status i dag
 
