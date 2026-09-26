@@ -59,7 +59,7 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 # PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter | AfgørelseOgBetalingsopgørelse | RenteopgørelseMedEgenAndel
 
-# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | RentensØkonomiskeArtOgFortegnsbetydning | RentensEgenAndelOgAfklaredeÅrsbeløb | RenterUdenDobbeltregning | IndeholdelsensArtÅrOgPerson | IndeholdelsensÅrstotalerUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag
+# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | LønartOgAfklaretÅrsbeløb | LøngrundlagEfterAtpOgBortseelsesberettigetPension | LønUdenDobbeltregningMedAndreIndkomstgrene | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | RenteudgiftensArtEgenAndelOgÅrsbeløb | RenteudgiftensFortegnsbetydning | RenteudgifterUdenDobbeltregning | RentensØkonomiskeArtOgFortegnsbetydning | RentensEgenAndelOgAfklaredeÅrsbeløb | RenterUdenDobbeltregning | IndeholdelsensArtÅrOgPerson | IndeholdelsensÅrstotalerUdenDobbeltregning | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta | SkattetilbagebetalingensHjemmelOgÅr | Par55HjemmelOgBruttokreditterUdenDobbeltfradrag | LønrettelsensHjemmelOgOprindeligeÅr | LønrettelsernesGrundlagOgFuldstændighed
 
 # PersonskatÅrsopgørelseRenteudgiftsfortegn = RenteudgiftsfortegnUoplyst | RenteudgiftSomPositivtBeløb | RenteudgiftSomNegativtFradrag
 
@@ -194,6 +194,57 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
     PersonskatÅrsopgørelseMapping(kildelinjer = [linje], anvendelse = UgyldigeKildelinjer)
 }
 --@end:personskat_aarsopgoerelse_løn--
+
+= personskat_lønrettelse_årsplacering = PersonskatÅrsopgørelseKildeInfo(url = "https://info.skat.dk/data.aspx?oid=1976766", identifier = "C.A.3.1.1.3: løn modtaget med urette kontra senere indtrufne omstændigheder", hentet_dato = "2026-09-26")
+= personskat_lønrettelse_periodisering = PersonskatÅrsopgørelseKildeInfo(url = "https://info.skat.dk/data.aspx?oid=2386660", identifier = "eIndkomst 14.1: negative forskelsbeløb og oprindelig lønperiode", hentet_dato = "2026-09-26")
+= personskat_lønrettelse_bruttoregulering = PersonskatÅrsopgørelseKildeInfo(url = "https://info.skat.dk/data.aspx?oid=2386664", identifier = "eIndkomst 14.4: retserhvervet tilbagebetalingskrav, forskelsbeløb og indeholdt A-skat/AM", hentet_dato = "2026-09-26")
+= personskat_lønrettelse_advarsel = PersonskatÅrsopgørelseMappingAdvarsel(besked = "Afstem oprindelig ordinær årsløn før rettelser med negative forskelsbeløb for løn modtaget med urette. Et korrigeret årsbeløb er kun kontrol, ikke endnu en post. Kilder skal fastslå samme person, lønomfang, oprindeligt indkomstår og retserhvervet tilbagebetalingskrav; betalingsdatoen afgør ikke året. Senere opstået tilbagebetalingspligt og andre rettelser kræver særskilt afklaring. Bevar brutto og indeholdt A-skat/AM hver for sig: ændret beregnet AM er ikke en automatisk ændring af indeholdt AM. Modellen ændrer ingen skattekreditter og opretter intet ekstra fradrag. Kildeklassifikation og fuldstændighed kan ikke bevises af beløbene. Originale linjer, fortegn og øre bevares uden afrunding. Se fra-bilag-til-input.md#rettet-løn-forskelsbeløb-er-ikke-årsløn.")
+= personskat_lønrettelse_metadata = Metadata(attachments = (Guidance(value = personskat_lønrettelse_årsplacering), Guidance(value = personskat_lønrettelse_periodisering), Guidance(value = personskat_lønrettelse_bruttoregulering), Warning(value = personskat_lønrettelse_advarsel)))
+= personskat_lønrettelse_faktakrav = concat(personskat_aarsopgoerelse_løn_faktakrav, [LønrettelsensHjemmelOgOprindeligeÅr, LønrettelsernesGrundlagOgFuldstændighed])
+
+--@label:personskat_aarsopgoerelse_lønrettelser::meta:personskat_lønrettelse_metadata--
+--@begin:personskat_aarsopgoerelse_lønrettelser--
+# PersonskatLønrettelsesgrundlag = LønrettelsesgrundlagUoplyst | LønModtagetMedUrette(krav_kildereference: Tekst, krav_retserhvervet_dato: Dato) | SenereOpståetLøntilbagebetalingspligt | AndenLønrettelse
+# PersonskatLønrettelse(identifikation: Tekst, forskelsbeløb: PersonskatÅrsopgørelseKildelinje, grundlag: PersonskatLønrettelsesgrundlag)
+# PersonskatÅrslønMedRettelser(oprindelig_årsløn: PersonskatÅrsopgørelseKildelinje, rettelser: List(PersonskatLønrettelse), observeret_korrigeret_årsløn: Option(PersonskatÅrsopgørelseKildelinje), årsbeløb_er_før_alle_rettelser: Boolsk, samme_person_og_ordinære_løngrundlag: Boolsk, rettelser_fuldstændige: Boolsk)
+
+| personskat_lønrettelse_grundlag_gyldigt(post: PersonskatLønrettelse) -> match post.grundlag {
+    | LønModtagetMedUrette(kilde, dato) -> kilde != "" && dato_gyldig(dato) && post.forskelsbeløb.beløb_øre < 0
+    | _ -> Sandt
+}
+| personskat_lønrettelse_kan_henføres_til_oprindeligt_år(post: PersonskatLønrettelse) -> match post.grundlag { | LønModtagetMedUrette(_, _) -> Sandt | _ -> Falskt }
+
+-- De negative deltaposter reducerer det oprindelige årsbeløb én gang.
+-- Kontroltotalen summeres aldrig, og ingen indeholdelsesfelter ændres.
+| personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(input: PersonskatÅrslønMedRettelser, indkomstår: Heltal) -> {
+    = kontrol = match input.observeret_korrigeret_årsløn { | Some(linje) -> [linje] | None -> [] }
+    = linjer = concat(concat([input.oprindelig_årsløn], map(input.rettelser, |post: PersonskatLønrettelse| post.forskelsbeløb)), kontrol)
+    = linjeider = map(linjer, |linje: PersonskatÅrsopgørelseKildelinje| (linje.dokument_identifikation, linje.linje_identifikation))
+    = rettelsesider = map(input.rettelser, |post: PersonskatLønrettelse| post.identifikation)
+    = ugyldig = PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = UgyldigeKildelinjer)
+    = kildegyldig = indkomstår > 0 && input.oprindelig_årsløn.beløb_øre >= 0 && all(linjer, |linje: PersonskatÅrsopgørelseKildelinje| personskat_aarsopgoerelse_kildelinje_gyldig(linje) && linje.indkomstår == indkomstår) && all(kontrol, |linje: PersonskatÅrsopgørelseKildelinje| linje.beløb_øre >= 0) && length(distinct(linjeider)) == length(linjeider) && all(rettelsesider, |id: Tekst| id != "") && length(distinct(rettelsesider)) == length(rettelsesider) && all(input.rettelser, personskat_lønrettelse_grundlag_gyldigt)
+    hvis kildegyldig == Falskt {
+        ugyldig
+    } ellers hvis input.årsbeløb_er_før_alle_rettelser == Falskt || input.samme_person_og_ordinære_løngrundlag == Falskt || input.rettelser_fuldstændige == Falskt || all(input.rettelser, personskat_lønrettelse_kan_henføres_til_oprindeligt_år) == Falskt {
+        PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = KræverSupplerendeKilde(kilde = EIndkomstEllerLønspecifikation, faktakrav = personskat_lønrettelse_faktakrav))
+    } ellers {
+        = beløb = foldl(input.rettelser, Some(input.oprindelig_årsløn.beløb_øre), |sum: Option(Heltal), post: PersonskatLønrettelse| match sum {
+                | None -> None
+                | Some(tidligere) -> hvis post.forskelsbeløb.beløb_øre >= 0 - tidligere { Some(tidligere + post.forskelsbeløb.beløb_øre) } ellers { None }
+            })
+        match beløb {
+            | None -> ugyldig
+            | Some(sum) -> hvis all(kontrol, |linje: PersonskatÅrsopgørelseKildelinje| linje.beløb_øre == sum) {
+                PersonskatÅrsopgørelseMapping(kildelinjer = linjer, anvendelse = hvis sum % 100 == 0 {
+                        DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = sum / 100, resterende_faktakrav = personskat_lønrettelse_faktakrav)
+                    } ellers {
+                        ØrepræcisionKanIkkeBevares(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_øre = sum, resterende_faktakrav = personskat_lønrettelse_faktakrav)
+                    })
+            } ellers { ugyldig }
+        }
+    }
+}
+--@end:personskat_aarsopgoerelse_lønrettelser--
 
 = personskat_aarsopgoerelse_renteudgiftskrav = [RenteNæringsstatusOgSærregler, RenteudgiftensArtEgenAndelOgÅrsbeløb, RenteudgiftensFortegnsbetydning, RenteudgifterUdenDobbeltregning]
 = personskat_aarsopgoerelse_renteudgiftsadvarsel = PersonskatÅrsopgørelseMappingAdvarsel(

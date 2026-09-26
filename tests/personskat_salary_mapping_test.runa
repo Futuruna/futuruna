@@ -56,3 +56,74 @@
 = am_kontrol = personskat_aarsopgoerelse_kortlaeg_beregnet_arbejdsmarkedsbidrag(am_kildelinje)
 | beregnet_am_forbliver_kontrol: am_kontrol -> am_kontrol == PersonskatÅrsopgørelseMapping(kildelinjer = [am_kildelinje], anvendelse = Kontrolresultat(mål = refof(LønmodtagerBreakdown::arbejdsmarkedsbidrag_kroner), beløb_øre = 4800000))
 ? beregnet_am_forbliver_kontrol
+
+-- Fiktiv løn i 2025, krav konstateret i 2026; betalingstidspunkt er ikke input.
+= krævede_lønrettelsesfakta = concat(krævede_lønfakta, [LønrettelsensHjemmelOgOprindeligeÅr, LønrettelsernesGrundlagOgFuldstændighed])
+| rettelseslinje(dok: Tekst, id: Tekst, år: Heltal, beløb: Heltal) -> PersonskatÅrsopgørelseKildelinje(dokument_identifikation = dok, indkomstår = år, linje_identifikation = id, linje_label = "Fiktiv lønoplysning", beløb_øre = beløb)
+| rettelsespost(id: Tekst, linje: PersonskatÅrsopgørelseKildelinje, grundlag: PersonskatLønrettelsesgrundlag) -> PersonskatLønrettelse(identifikation = id, forskelsbeløb = linje, grundlag = grundlag)
+= dokumenteret_krav = LønModtagetMedUrette(krav_kildereference = "fiktiv-aftale-2026", krav_retserhvervet_dato = Dato(2026, 4, 1))
+= før_rettelse = rettelseslinje("oprindelig", "løn", 2025, 60000000)
+= lønminus = rettelsespost("krav-1", rettelseslinje("rettelse", "løn", 2025, -2000000), dokumenteret_krav)
+| rettelsesopgørelse(før: PersonskatÅrsopgørelseKildelinje, poster: List(PersonskatLønrettelse), efter: Option(PersonskatÅrsopgørelseKildelinje), før_alle: Boolsk, samme: Boolsk, fuld: Boolsk) -> PersonskatÅrslønMedRettelser(oprindelig_årsløn = før, rettelser = poster, observeret_korrigeret_årsløn = efter, årsbeløb_er_før_alle_rettelser = før_alle, samme_person_og_ordinære_løngrundlag = samme, rettelser_fuldstændige = fuld)
+| lønrettet(før: PersonskatÅrsopgørelseKildelinje, poster: List(PersonskatLønrettelse), efter: Option(PersonskatÅrsopgørelseKildelinje)) -> rettelsesopgørelse(før, poster, efter, Sandt, Sandt, Sandt)
+| rettelseskategori(input: PersonskatÅrslønMedRettelser) -> personskat_aarsopgoerelse_mappingkategori(personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(input, 2025))
+= efter_rettelse = rettelseslinje("korrigeret", "løn", 2025, 58000000)
+= rettet_mapping = personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(før_rettelse, [lønminus], Some(efter_rettelse)), 2025)
+| lønrettelse_bevarer_kilder_og_henføres_til_oprindeligt_år: rettet_mapping -> rettet_mapping == PersonskatÅrsopgørelseMapping(kildelinjer = [før_rettelse, lønminus.forskelsbeløb, efter_rettelse], anvendelse = DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = 580000, resterende_faktakrav = krævede_lønrettelsesfakta))
+? lønrettelse_bevarer_kilder_og_henføres_til_oprindeligt_år
+
+= uden_kontroltotal = personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(før_rettelse, [lønminus], None), 2025)
+| korrigeret_total_er_kun_kontrol_ikke_en_ny_post: uden_kontroltotal -> uden_kontroltotal.anvendelse == rettet_mapping.anvendelse && uden_kontroltotal.kildelinjer == [før_rettelse, lønminus.forskelsbeløb] && rettelseskategori(lønrettet(før_rettelse, [], Some(før_rettelse))) == UgyldigMapping
+? korrigeret_total_er_kun_kontrol_ikke_en_ny_post
+
+= modstridende_totaler = [rettelseslinje("korrigeret", "løn", 2025, 57999999), rettelseslinje("korrigeret", "løn", 2025, 58000001), rettelseslinje("korrigeret", "løn", 2025, -58000000)]
+| kontroltotalens_ene_øre_kan_ikke_skjules: modstridende_totaler -> all(modstridende_totaler, |linje: PersonskatÅrsopgørelseKildelinje| rettelseskategori(lønrettet(før_rettelse, [lønminus], Some(linje))) == UgyldigMapping)
+? kontroltotalens_ene_øre_kan_ikke_skjules
+
+= dobbelt_fra_netto = lønrettet(efter_rettelse, [lønminus], Some(rettelseslinje("kontrol", "løn", 2025, 58000000)))
+| allerede_korrigeret_løn_fratrækkes_ikke_igen: dobbelt_fra_netto -> rettelseskategori(dobbelt_fra_netto) == UgyldigMapping && rettelseskategori(rettelsesopgørelse(efter_rettelse, [lønminus], None, Falskt, Sandt, Sandt)) == SupplerendeKildeMapping
+? allerede_korrigeret_løn_fratrækkes_ikke_igen
+
+= rettelsesgrundlag_uden_årsplacering = [LønrettelsesgrundlagUoplyst, SenereOpståetLøntilbagebetalingspligt, AndenLønrettelse]
+| senere_tab_og_ukendt_grundlag_flyttes_ikke_bagud: rettelsesgrundlag_uden_årsplacering -> all(rettelsesgrundlag_uden_årsplacering, |grundlag: PersonskatLønrettelsesgrundlag| rettelseskategori(lønrettet(før_rettelse, [rettelsespost("krav", lønminus.forskelsbeløb, grundlag)], None)) == SupplerendeKildeMapping)
+? senere_tab_og_ukendt_grundlag_flyttes_ikke_bagud
+
+= ukomplette_rettelser = [rettelsesopgørelse(før_rettelse, [lønminus], None, Falskt, Sandt, Sandt), rettelsesopgørelse(før_rettelse, [lønminus], None, Sandt, Falskt, Sandt), rettelsesopgørelse(før_rettelse, [lønminus], None, Sandt, Sandt, Falskt)]
+| rettelser_kræver_afklaret_person_lønomfang_og_fuldstændighed: ukomplette_rettelser -> all(ukomplette_rettelser, |input: PersonskatÅrslønMedRettelser| rettelseskategori(input) == SupplerendeKildeMapping)
+? rettelser_kræver_afklaret_person_lønomfang_og_fuldstændighed
+
+= rettelse_med_forkert_år = rettelsespost("krav", rettelseslinje("rettelse", "løn", 2026, -2000000), dokumenteret_krav)
+| rettelsesdato_er_ikke_indkomstår: rettelse_med_forkert_år -> rettelseskategori(lønrettet(før_rettelse, [rettelse_med_forkert_år], None)) == UgyldigMapping && personskat_aarsopgoerelse_mappingkategori(personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(før_rettelse, [lønminus], None), 2026)) == UgyldigMapping
+? rettelsesdato_er_ikke_indkomstår
+
+= dobbelt_krav = rettelsespost("krav-1", rettelseslinje("andet-bilag", "løn", 2025, -2000000), dokumenteret_krav)
+= dobbelt_linje = rettelsespost("krav-2", lønminus.forskelsbeløb, dokumenteret_krav)
+| dobbelt_krav_eller_bilagslinje_afvises: dobbelt_krav -> rettelseskategori(lønrettet(før_rettelse, [lønminus, dobbelt_krav], None)) == UgyldigMapping && rettelseskategori(lønrettet(før_rettelse, [lønminus, dobbelt_linje], None)) == UgyldigMapping
+? dobbelt_krav_eller_bilagslinje_afvises
+
+= anden_rettelse = rettelsespost("krav-2", rettelseslinje("anden-rettelse", "løn", 2025, -1000000), dokumenteret_krav)
+= to_rettelser = personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(før_rettelse, [lønminus, anden_rettelse], None), 2025)
+| forskellige_rettelser_summeres_eksakt: to_rettelser -> to_rettelser.anvendelse == DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = 570000, resterende_faktakrav = krævede_lønrettelsesfakta)
+? forskellige_rettelser_summeres_eksakt
+
+= fejl_i_krav = [LønModtagetMedUrette("", Dato(2026, 4, 1)), LønModtagetMedUrette("kilde", Dato(2026, 2, 29)), LønModtagetMedUrette("kilde", Dato(0, 12, 31))]
+| dokumenteret_krav_kræver_reference_og_mulig_dato: fejl_i_krav -> all(fejl_i_krav, |grundlag: PersonskatLønrettelsesgrundlag| rettelseskategori(lønrettet(før_rettelse, [rettelsespost("krav", lønminus.forskelsbeløb, grundlag)], None)) == UgyldigMapping)
+? dokumenteret_krav_kræver_reference_og_mulig_dato
+
+= ikke_negative_forskelle = [0, 1, 2000000]
+| nedsættelsesruten_accepterer_ikke_positiv_efterbetaling: ikke_negative_forskelle -> all(ikke_negative_forskelle, |beløb: Heltal| rettelseskategori(lønrettet(før_rettelse, [rettelsespost("krav", rettelseslinje("rettelse", "løn", 2025, beløb), dokumenteret_krav)], None)) == UgyldigMapping)
+? nedsættelsesruten_accepterer_ikke_positiv_efterbetaling
+
+= for_store_rettelser = [-60000001, -9223372036854775807, -9223372036854775807 - 1]
+| rettelser_giver_ikke_negativ_årsløn_eller_heltalsoverløb: for_store_rettelser -> all(for_store_rettelser, |beløb: Heltal| rettelseskategori(lønrettet(før_rettelse, [rettelsespost("krav", rettelseslinje("rettelse", "løn", 2025, beløb), dokumenteret_krav)], None)) == UgyldigMapping)
+? rettelser_giver_ikke_negativ_årsløn_eller_heltalsoverløb
+
+= øre_rettelse = rettelsespost("krav", rettelseslinje("rettelse", "løn", 2025, -2000001), dokumenteret_krav)
+= øre_rettelsesresultat = personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(før_rettelse, [øre_rettelse], None), 2025)
+| rettelser_mister_ikke_øre: øre_rettelsesresultat -> øre_rettelsesresultat.anvendelse == ØrepræcisionKanIkkeBevares(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_øre = 57999999, resterende_faktakrav = krævede_lønrettelsesfakta) && øre_rettelsesresultat.kildelinjer == [før_rettelse, øre_rettelse.forskelsbeløb]
+? rettelser_mister_ikke_øre
+
+= fuld_tilbageførsel = rettelsespost("krav", rettelseslinje("rettelse", "løn", 2025, -60000000), dokumenteret_krav)
+= nul_løn = personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(før_rettelse, [fuld_tilbageførsel], None), 2025)
+| afklaret_fuld_tilbageførsel_kan_give_kendt_nul: nul_løn -> nul_løn.anvendelse == DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = 0, resterende_faktakrav = krævede_lønrettelsesfakta)
+? afklaret_fuld_tilbageførsel_kan_give_kendt_nul
