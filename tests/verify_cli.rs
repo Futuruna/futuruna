@@ -249,6 +249,35 @@ fn unused_qualified_nominal_metadata_does_not_perturb_root_smt() {
 }
 
 #[test]
+fn verify_rejects_conflicting_rule_returns_before_smt() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/conflicting_rule_returns.runa");
+    let output = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "{stdout}\n{stderr}");
+    assert!(
+        stderr.contains(
+            "rule `conflicting_result` with arity 1 has conflicting return types `Int` and `Bool`"
+        ),
+        "{stdout}\n{stderr}"
+    );
+    assert!(
+        stderr.contains("conflicting_rule_returns.runa:2:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("requires a type-correct program"),
+        "{stderr}"
+    );
+    assert!(!stdout.contains("PROVED:"), "{stdout}");
+    assert!(
+        !stdout.contains("--- |"),
+        "ill-typed program reached SMT: {stdout}"
+    );
+}
+
+#[test]
 fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
     let fixture = fixture();
     let output = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
@@ -260,6 +289,11 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.is_empty(),
+        "type-correct dispatch fixture must reach SMT; stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(
         !stdout.contains("higher-order function calls are not translatable to SMT"),
         "rule dispatch was not lowered:\n{stdout}"
@@ -338,12 +372,6 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
         );
         assert!(stdout.contains("SMT argument 1 to rule `boolean_argument` has type `Int` but its canonical schema is `Bool`"),
             "an unbound invariant Int must not be retyped to fit a Bool parameter: {stdout}");
-        assert!(
-            stdout.contains(
-                "rule `conflicting_result` with arity 1 has conflicting return types `Int` and `Bool`"
-            ),
-            "conflicting exact-arity returns must fail closed:\n{stdout}"
-        );
         assert!(
             stdout.contains(
                 "cannot infer every return clause of rule `unresolved_result` with arity 1"
