@@ -4286,6 +4286,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Faktisk betalingsår",
                 "Betalt senest den justerede 1. april",
                 "Tilbagebetaling efter PBL § 22 E",
+                "Dokumenteret tilbagebetaling og genindbetaling",
+                "Årsplacering af arbejdsgiverens bankpension",
                 "Fradragsplacering for § 15 A-ordning",
                 "Valgt afståelsesår for § 15 A-fradrag",
                 "§ 15 A-indbetaling foretaget rettidigt",
@@ -6005,6 +6007,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "kapitalindkomst.renter.renteudgifter_kroner",
                 "Personens fradragsberettigede renteudgifter",
+            ),
+            (
+                "lønmodtager.pension.pbl18_indbetalinger.betaling.par22e_genindbetaling",
+                "Dokumenteret tilbagebetaling og genindbetaling",
+            ),
+            (
+                "lønmodtager.pension.pbl18_indbetalinger.betaling.bank_årsplacering",
+                "Årsplacering af arbejdsgiverens bankpension",
             ),
         ] {
             let row = metadata
