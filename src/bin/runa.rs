@@ -41396,6 +41396,29 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             ExprKind::Var(name) if name == "_" => Ok("_".to_string()),
             ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
                 let temporary_name = Self::fresh_rule_head_temporary(state);
+                if let Some(previous) = state
+                    .bindings
+                    .iter()
+                    .find(|binding| binding.source_name == *name)
+                {
+                    if previous.ty != *expected_ty {
+                        state.guards.push("false".to_string());
+                    } else {
+                        let value = if boxed {
+                            format!("(*{temporary_name})")
+                        } else {
+                            temporary_name.clone()
+                        };
+                        state.guards.push(self.emit_prolog_fact_match_condition(
+                            &value,
+                            &sanitize_name(name),
+                            expected_ty,
+                            !borrowed_string,
+                            true,
+                        )?);
+                    }
+                    return Ok(temporary_name);
+                }
                 let materialization = if boxed {
                     RustRuleHeadBindingMaterialization::DerefClone
                 } else if borrowed_string {
@@ -42842,7 +42865,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
         if let ExprKind::App(func, goal_args) = &goal.kind {
             let fn_name = Self::expr_fn_name(func);
-            let table = format!("{}_FACTS", sanitize_name(&fn_name).to_uppercase());
 
             // Find which position is the template variable
             let template_pos = goal_args
@@ -42881,9 +42903,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             .collect();
                         let call_args: Vec<String> = goal_args
                             .iter()
-                            .enumerate()
-                            .map(|(position, arg)| {
-                                if position == t_pos {
+                            .map(|arg| {
+                                if matches!(&arg.kind, ExprKind::Var(name) if name == &template_name) {
                                     "(*__candidate).clone()".to_string()
                                 } else {
                                     self.emit_expr(arg)
@@ -42904,34 +42925,69 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     return "vec![]".to_string(); // can't iterate non-fact rules
                 }
 
-                // Build filter conditions for non-template positions
-                let mut filters = Vec::new();
-                for (i, a) in goal_args.iter().enumerate() {
-                    if i == t_pos {
-                        continue;
-                    }
-                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") {
-                        continue;
-                    }
-                    let val = self.emit_prolog_arg(a);
-                    let param_ty = self
-                        .types
-                        .prolog_rule_fns
-                        .get(&fn_name)
-                        .and_then(|types| types.get(i))
-                        .cloned()
-                        .unwrap_or_else(|| "i64".to_string());
-                    let param_is_copy = Self::rust_rule_param_type_is_copy(&param_ty);
-                    if is_unary {
-                        if param_is_copy || param_ty == "&str" {
-                            filters.push(format!("f == &{}", val));
-                        } else {
-                            filters.push(format!("(*f).clone() == {}", val));
+                let (table, fact_strings_are_owned) =
+                    match self.complete_prolog_ground_fact_source(&fn_name, arity) {
+                        Ok(source) => source,
+                        Err(error) => {
+                            return format!("{{ compile_error!({error:?}); vec![] }}");
                         }
-                    } else if param_is_copy || param_ty == "&str" {
-                        filters.push(format!("f.{} == {}", i, val));
-                    } else {
-                        filters.push(format!("f.{}.clone() == {}", i, val));
+                    };
+                let parameter_types =
+                    Self::prolog_param_fir_tys(self.types.prolog_rule_fns.get(&fn_name).unwrap());
+
+                // Unbound named positions bind from the current row. Repeated
+                // occurrences constrain that same row, including positions
+                // that are not projected into the result.
+                let mut filters = Vec::new();
+                let mut first_positions = BTreeMap::<String, usize>::new();
+                for (i, a) in goal_args.iter().enumerate() {
+                    if let ExprKind::Var(name) = &a.kind {
+                        if name == "_" {
+                            continue;
+                        }
+                        if !name.chars().next().is_some_and(char::is_uppercase) {
+                            if let Some(previous) = first_positions.get(name) {
+                                if parameter_types[*previous] != parameter_types[i] {
+                                    filters.push("false".to_string());
+                                } else {
+                                    match self.emit_prolog_fact_match_condition(
+                                        &format!("f.{i}"),
+                                        &format!("f.{previous}"),
+                                        &parameter_types[i],
+                                        fact_strings_are_owned,
+                                        fact_strings_are_owned,
+                                    ) {
+                                        Ok(condition) => filters.push(condition),
+                                        Err(error) => {
+                                            return format!(
+                                                "{{ compile_error!({error:?}); vec![] }}"
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                first_positions.insert(name.clone(), i);
+                            }
+                            let bound = self.local_bindings.contains(name)
+                                || self.var_types.contains_key(name)
+                                || self.var_fir_types.contains_key(name)
+                                || self.binary_global_binding_types.contains_key(name)
+                                || self.types.literal_bindings.contains_key(name);
+                            if name == &template_name || !bound {
+                                continue;
+                            }
+                        }
+                    }
+                    let value = self.emit_prolog_arg(a);
+                    match self.emit_prolog_fact_match_condition(
+                        &format!("f.{i}"),
+                        &value,
+                        &parameter_types[i],
+                        fact_strings_are_owned,
+                        !matches!(a.kind, ExprKind::Lit(Literal::Str(_))),
+                    ) {
+                        Ok(condition) => filters.push(condition),
+                        Err(error) => return format!("{{ compile_error!({error:?}); vec![] }}"),
                     }
                 }
 
@@ -43348,6 +43404,20 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 );
             }
         }
+        // Source head variables may repeat, but Rust's positional ABI must
+        // still name each argument independently. Head matching below owns
+        // the equality constraint and exposes the source binding only once.
+        let mut parameter_names = BTreeSet::new();
+        for index in 0..params.len() {
+            if !parameter_names.insert(sanitize_name(&params[index])) {
+                params[index] = Self::fresh_rule_dispatch_state_name(
+                    rules,
+                    &params,
+                    &format!("__fut_rule_arg_{index}"),
+                );
+                parameter_names.insert(sanitize_name(&params[index]));
+            }
+        }
         let inferred_types: Vec<String> = inferred_param_tys
             .iter()
             .map(|ty| Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
@@ -43587,6 +43657,46 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             "    ",
                             |cg, indent| {
                                 if ret_type == "bool" {
+                                    if let ExprKind::Conjunction(goals) = &body.kind {
+                                        let mut bound_names = cg.local_bindings.clone();
+                                        Self::collect_rule_head_binding_names(head, &mut bound_names);
+                                        if Self::prolog_clause_has_existential(goals, &bound_names) {
+                                            let mut head_names = BTreeSet::new();
+                                            Self::collect_rule_head_binding_names(head, &mut head_names);
+                                            let captures_outer_value = goals.iter().any(|goal| {
+                                                let ExprKind::App(_, arguments) = &goal.kind else {
+                                                    return false;
+                                                };
+                                                arguments.iter().any(|argument| {
+                                                    let ExprKind::Var(name) = &argument.kind else {
+                                                        return false;
+                                                    };
+                                                    !head_names.contains(name)
+                                                        && (cg.local_bindings.contains(name)
+                                                            || cg.binary_global_binding_types.contains_key(name)
+                                                            || cg.types.literal_bindings.contains_key(name)
+                                                            || cg.types.comptime_values.contains_key(name))
+                                                })
+                                            });
+                                            if captures_outer_value {
+                                                return Self::emit_rule_head_compile_error(
+                                                    indent,
+                                                    fn_name,
+                                                    arity,
+                                                    "existential query capture of an outer value has no checked native binding contract",
+                                                );
+                                            }
+                                            let mut emitted = cg
+                                                .emit_prolog_existential_clause_body(goals, &bound_names, indent)
+                                                .unwrap_or_else(|error| {
+                                                    Self::emit_rule_head_compile_error(indent, fn_name, arity, &error)
+                                                });
+                                            if let Some(name) = &matched_false_clause_name {
+                                                emitted.push_str(&format!("{indent}{name} = true;\n"));
+                                            }
+                                            return emitted;
+                                        }
+                                    }
                                     let predicate = cg.emit_expr(body);
                                     matched_false_clause_name.as_deref().map_or_else(
                                         || {
