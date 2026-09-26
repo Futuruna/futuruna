@@ -1,0 +1,4 @@
+| conflicting_result(value: Int) -> value
+| conflicting_result(value: Int) -> True under value > 0
+
+| conflicting_return_dispatch_is_rejected: conflicting_result(value) -> True
