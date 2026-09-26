@@ -5850,13 +5850,14 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             });
 
             // Generate Cargo.toml with wasm-bindgen + user deps
+            let package_name = rust_artifact_stem_for_source(filename, "tau_wasm");
             let mut cargo_toml = format!(
                 "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n\
                  [lib]\ncrate-type = [\"cdylib\", \"rlib\"]\n\n\
                  [package.metadata.wasm-pack.profile.release]\nwasm-opt = false\n\n\
                  [dependencies]\n\
                  wasm-bindgen = \"0.2\"\n",
-                safe_stem
+                package_name
             );
             for (crate_name, version) in &cg.cargo_deps {
                 let safe_name: String = crate_name
@@ -19530,19 +19531,10 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 let main_rs = format!("{}/main.rs", src_dir);
                 write_file_if_changed(Path::new(&main_rs), code.as_bytes()).ok();
                 // Generate Cargo.toml
-                let safe_stem: String = stem
-                    .chars()
-                    .map(|c| {
-                        if c.is_alphanumeric() || c == '-' || c == '_' {
-                            c
-                        } else {
-                            '_'
-                        }
-                    })
-                    .collect();
+                let package_name = rust_artifact_stem_for_source(filename, "tau_out");
                 let mut cargo_toml = format!(
                     "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
-                    safe_stem
+                    package_name
                 );
                 for (crate_name, version) in &cg.cargo_deps {
                     let safe_name: String = crate_name
