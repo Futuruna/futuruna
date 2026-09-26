@@ -143,8 +143,10 @@ Transcribe only these selected observations:
   are signed øre: interest/allowances positive, prior refunds/offsets negative.
   The final refund is in **whole DKK**, after rounding down.
 
-For a report with **restskat** instead of a refund, select the tax-owed route
-below. Do not put a negative debt amount in the surplus-tax field.
+For a report with **restskat** before corrections, select the tax-owed route
+below. Do not put a negative debt amount in the surplus-tax field. An amended
+report's final payment can point in the opposite direction; use the separate
+[corrected-payment observation](#ændret-rapport-beløb-til-betaling-eller-udbetaling).
 
 An explicitly reviewed empty tax section has a known sum of zero. Leave the
 list empty and mark it complete only after checking the report; do not invent a
@@ -308,9 +310,98 @@ cross-border adjustments remain unverified.
 An amended assessment's new surplus is not its additional refund: subtract any
 reported earlier refund before comparing the whole-krone payout. This mode
 checks those reported amounts, not the independent legality of interest rates,
-offsets or payment dates. The refund route leaves negative post-correction
+offsets or payment dates. The legacy refund route leaves negative post-correction
 settlements incomplete; it does not silently turn them into a debt calculation.
+Use the explicit final-payment observation below to check that separate balance.
 [Kildeskatteloven §§ 60, 62 and 62 A](https://www.retsinformation.dk/eli/lta/2024/460).
+
+### Ændret rapport: beløb til betaling eller udbetaling
+
+Årets overskydende skat er ikke nødvendigvis en ny udbetaling. En tidligere
+udbetaling kan betyde, at personen skal betale tilbage. Omvendt kan en nedsat
+restskat give en udbetaling, hvis den tidligere restskat allerede er betalt.
+KSL § 62 A, stk. 2–4, skelner disse situationer. Afstemningen kontrollerer
+**rapportens oplyste regnestykke**, ikke selvstændigt beløbenes retmæssighed.
+[Officiel lovtekst](https://www.retsinformation.dk/eli/lta/2024/460/pdf).
+
+Det valgfrie `betaling.slutbetaling` adskiller den samlede korrigerede saldo
+fra årets restskat/overskydende skat. Tre rent fiktive eksempler uden andre
+korrektioner:
+
+| Årets beløb før korrektioner | Oplyst tidligere bevægelse | Korrigeret saldo |
+| --- | --- | --- |
+| Overskydende skat 2.000 kr. | Allerede udbetalt 5.000 kr. | 3.000 kr. til betaling |
+| Overskydende skat 2.000 kr. | Allerede udbetalt 1.000 kr. | 1.000 kr. til udbetaling |
+| Restskat 2.000 kr. | Allerede betalt 5.000 kr. | 3.000 kr. til udbetaling |
+
+I første eksempel bliver de relevante felter inde i `betaling`:
+
+```json
+{
+  "oplyst_overskydende_skat_øre": 200000,
+  "restskat": null,
+  "korrektioner_til_udbetaling": [
+    {"navn": "Fiktiv tidligere udbetalt, side 2", "beløb_øre": -500000}
+  ],
+  "korrektioner_komplette": true,
+  "oplyst_udbetaling_kroner": null,
+  "slutbetaling": {
+    "retning": {"$variant": "TilBetaling"},
+    "oplyst_beløb_kroner": 3000
+  }
+}
+```
+
+Dette er et udsnit, ikke et fuldt input eller personlige fakta. Forskudsskat,
+beregnet skat, tillæg og øvrige rapportafsnit skal stadig oplyses særskilt.
+`true` betyder her en fiktiv bekræftelse på, at alle korrektioner er med.
+
+- Vælg årets grundbeløb som før: `restskat: null` for overskydende skat;
+  ellers et objekt med `oplyst_restskat_øre`, mens overskydende skat er `null`.
+  Vælg ikke dette spor ud fra den senere betalingsretning.
+- Vælg slutretningen fra rapporten: `TilBetaling` eller `TilUdbetaling`.
+  `oplyst_beløb_kroner` er beløbets ikke-negative størrelse i hele DKK;
+  `null` betyder ukendt og giver ikke en fuldført sammenligning. Ukendt
+  retning skal afklares, ikke gættes fra modellens resultat.
+- Korrektionernes fortegn følger altid saldoen **til personens fordel**:
+  godtgørelser og særskilte tidligere indbetalinger er positive; tidligere
+  udbetalinger, modregninger og oplyste skyldige renter/procenttillæg er
+  negative. Fortegnet skifter ikke, fordi personen nu skal betale.
+- Medtag kun særskilte observerede poster til samme samlede saldo. Ingen
+  subtotaler eller genbrug af beløb, der allerede indgår i forskudsskat,
+  beregnet skat eller tillæg. Ved ukendt fuldstændighed bruges `false`;
+  afstemningen tilbageholder den korrigerede saldo.
+- Med `slutbetaling` skal det ældre `oplyst_udbetaling_kroner` være `null`.
+  Begge felter samtidig afvises, også ved nul. Uden `slutbetaling` bevares
+  de hidtidige, snævrere kontroller.
+
+Output viser årets beløb, den eksakte korrigerede øresaldo i den valgte
+retning og sammenligningen i hele kroner. Retningen kontrolleres **før**
+ørebeløbet omregnes til hele kroner; en forkert retning ved én øre kan
+derfor ikke forsvinde ved afrunding. Kendt nul kan passe til begge retninger.
+Manglende observationer er fortsat ukendte, selv når det nødvendige beløb
+kan beregnes.
+
+Sammenlign ikke denne samlede saldo med en enkelt rate eller et betalingskort.
+KSL § 62 C har særskilte opkrævningsgrænser, som denne rapportkontrol ikke
+beregner. Den beregner heller ikke renter, tilbageført godtgørelse, modregning,
+frister eller betalingsplaner selv. `BetingetAfstemt` er derfor **ikke et krav
+om betaling nu** eller en godkendelse af udbetaling. Særregler og udeladte
+korrektioner skal afklares fra kilden; opfind ikke en udligningspost.
+
+Spørgsmål, fortegn, enheder og begrænsninger følger med den genererede
+kontrakt. `runa meta --json` forbinder desuden ankret
+`rapport_korrigeret_betaling` med kildehenvisningen, fortolkningsgrænsen og
+de konkrete beregningsregler. Den
+[fokuserede regression](../../tests/tax_report_payment.test.mjs) kontrollerer
+både disse metadata og faktisk output; den er ikke en test af vilkårlig
+AI-læsning af PDF'er eller en uafhængig administrativ konformitetskontrol.
+
+**Eksisterende input:** Generér frisk schema/skabelon, og overfør gennemgåede
+observationer uden at ændre dem. Feltet og metadata ændrer fingeraftrykket.
+JSON uden det nye valgfrie felt læses som `null` i den friske kontrakt.
+Håndskrevne `.runa`-konstruktioner af `RapportBetaling` skal tilføje
+`slutbetaling = None` for at bevare det hidtidige spor. Outputtypen er uændret.
 
 ## Additions before either refund or tax owed
 
@@ -378,22 +469,27 @@ legal classifications or permissions to add arbitrary balancing amounts.
 
 Interest and percentage additions **on this year's restskat** do not belong in
 that list. Neither do instalments, a prior refund, or a payment made after the
-assessment. This route does not model those collection/reassessment movements.
+assessment. This principal-only route does not model those collection/reassessment movements.
+The optional `slutbetaling` observation can separately reconcile a reported
+corrected balance without independently calculating those legal adjustments.
 Read the report's separately labelled principal line rather than substituting
 the amount on a payment slip. For an amended assessment, this is the new total
 principal, not necessarily the change from the preceding assessment.
 
 While this route is selected, keep `oplyst_overskydende_skat_øre` and
-`oplyst_udbetaling_kroner` as `null` and `korrektioner_til_udbetaling` empty.
+`oplyst_udbetaling_kroner` as `null`. Keep `korrektioner_til_udbetaling` empty
+unless the explicit `slutbetaling` comparison is also selected.
 These are inactive fields, not assumed zero observations. Supplying both routes
 is rejected rather than silently dropping a payment observation. A known
 negative principal contradicts the selected debt route, including when the
 reported restskat is unknown. Zero is allowed for a reconciled zero balance.
 
-`BetingetAfstemt` now means the **selected** arithmetic checks agree. In this
-route it does not mean that an amount to collect, interest, rates, due dates,
-minimum collection amounts, or earlier payments were checked. There is no
-calculated “pay this now” output. The result keeps this limitation explicit.
+`BetingetAfstemt` means the **selected** arithmetic checks agree. Without
+`slutbetaling`, only the annual principal is compared in this route. With it,
+reported corrections and the final balance are also compared arithmetically;
+their legal basis is not independently verified. Neither choice calculates
+an amount to collect now, interest, rates, due dates or minimum collection
+amounts. The result keeps this limitation explicit.
 The distinction follows [KSL § 61(1)–(2), § 62 and § 62 C](https://www.retsinformation.dk/eli/lta/2024/460/pdf),
 checked against the official law text September 22, 2026. No new annual
 interest rates or payment schedules are inferred.
@@ -444,12 +540,14 @@ does not independently recompute individual tax lines, resolve other spouse
 mechanisms, or prove a complete household solution. Use `runa call` for typed
 report inputs. The compact report model also passes native `runa check`;
 `tests/tax_report_native_test.runa` compares complete interpreted and native
-outputs for 21 fictional reports, including partial-transfer residual bounds,
+outputs for 28 fictional reports (21 existing reports and seven revised-payment
+cases), including partial-transfer residual bounds,
 missing observations, one-øre
 contradictions, spouse transfers, both settlement routes and unsupported years.
 This is not a native-coverage claim for the larger `personskat.calculate.runa`
-model. Additional native invariants cover shared additions, unknown
-completeness and the refund/debt boundary without changing the 21-report set.
+model. Native invariants also cover shared additions, unknown completeness,
+the refund/debt boundary, both corrected payment directions, one-øre direction
+contradictions and rejected overlapping observations.
 
 ### Parameter lookup coverage
 

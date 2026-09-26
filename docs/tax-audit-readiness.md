@@ -123,6 +123,19 @@ It retains every check, necessary amount, caveat and failed-case diagnostic;
 it is a read-only presentation, not a second tax calculator or an authenticity
 check of saved output.
 
+Revised reports can now select an explicit
+[corrected-payment comparison](../examples/danish-income-tax/aarsopgoerelse-afstemning.md#ændret-rapport-beløb-til-betaling-eller-udbetaling).
+A smaller annual refund can require repayment; reduced restskat can refund an
+earlier payment. The new optional observation keeps that direction separate from
+annual surplus/restskat, checks exact øre before whole-krone projection and
+preserves missing values. The [focused regression](../tests/tax_report_payment.test.mjs)
+covers both directions, wrong-direction one-øre boundaries, incomplete facts,
+overlapping fields, generated interview metadata, indexed legal-source/code-span
+links and actual viewer output. Legacy routes remain available. These are
+fictional arithmetic cases, not independently verified collection/interest law or
+unseen-document AI intake. Fresh report templates are required; this does not
+change canonical Personskat tax or resolve the section-55 credit-floor question.
+
 The conditional report contract now also carries explicit questions, units,
 sign conventions and source traces on all six name/amount fields in its three
 post lists, not only on the parent collections. The
