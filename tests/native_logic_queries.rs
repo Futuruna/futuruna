@@ -34,6 +34,14 @@ fn repeated_logic_variables_compare_head_and_query_positions() {
 }
 
 #[test]
+fn rust_keyword_rule_names_keep_valid_fact_table_names() {
+    assert_both_backends(
+        "logic_rust_keyword_names",
+        "keyword-named logic rules passed",
+    );
+}
+
+#[test]
 fn native_existential_queries_reject_unproven_outer_value_capture() {
     let path = std::env::temp_dir().join(format!(
         "futuruna-native-existential-capture-{}-{}.runa",

@@ -41986,11 +41986,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 format!("existential source `{goal_name}` has no generated rule identity")
             })?;
         Ok((
-            format!("{}_FACTS", sanitize_name(emitted_name).to_uppercase()),
+            Self::rule_fact_table_name(emitted_name),
             fact_arguments
                 .iter()
                 .any(|argument| Self::rule_head_arg_requires_lazy_fact_table(argument)),
         ))
+    }
+
+    fn rule_fact_table_name(rule_name: &str) -> String {
+        let sanitized = sanitize_name(rule_name);
+        // The function may need a raw identifier (r#loop), but its uppercase
+        // table name is an ordinary identifier. Never uppercase the r# escape.
+        let stem = sanitized.strip_prefix("r#").unwrap_or(&sanitized);
+        format!("{}_FACTS", stem.to_uppercase())
     }
 
     fn prolog_fact_type_contains_float(
@@ -42548,7 +42556,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         };
 
         // Emit fact table
-        let table_name = format!("{}_FACTS", sanitized.to_uppercase());
+        let table_name = Self::rule_fact_table_name(&sanitized);
         if !facts.is_empty() {
             if arity == 1 {
                 let ty = if param_types[0] == "String" {
@@ -50211,7 +50219,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             .iter()
                             .any(|a| matches!(a.kind, ExprKind::Var(ref n) if n == "_"));
                         if has_wildcard {
-                            let table = format!("{}_FACTS", sanitize_name(name).to_uppercase());
+                            let table = Self::rule_fact_table_name(name);
                             let checks: Vec<String> = args
                                 .iter()
                                 .enumerate()
