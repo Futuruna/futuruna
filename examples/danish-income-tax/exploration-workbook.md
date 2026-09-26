@@ -1875,9 +1875,8 @@ publication configuration:
 If any perspective must infer a hidden fixed profile, an implicit comparison
 group, an unreported filter, or what an unqualified “complete” means, the
 scenario fails acceptance even if its evaluator happens to terminate.
-The dated cross-scenario verdict and the issues corrected before it passed are
-recorded in the
-[implementation workbook](../../docs/rfcs/bounded-rule-exploration-workbook.md#pbr-round-2-record-2026-09-03).
+Use the [cross-scenario review procedure](../../docs/rfcs/bounded-rule-exploration-workbook.md#repeatable-perspective-based-scenario-review)
+and its acceptance criteria when changing the contract or widening a domain.
 
 ### The result is graph-backed, but not every graph is a DAG
 
