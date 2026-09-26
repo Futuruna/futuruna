@@ -202,6 +202,7 @@ function historicalProperty(input) {
     tidligere_ejendomsværdiskat: {
       ejendomsværdi_året_før_kroner: 1062500, ejendomsværdi_2001_kroner: 850000,
       ejendomsværdi_2002_kroner: 850000,
+      succession: v('EjskEvslIngenSuccession'), // Explicit fictional absence, not an intake default.
       historisk_begrænsning: { foregående_indkomstårs_ejendomsværdiskat_øre: 400000,
         par9_ydelsesgrundlag: { ejer: v('EjskEvslIngenPar9Ydelse'), ægtefælle: v('EjskEvslIngenPar9Ydelse') },
         par9b_nedsættelse_øre: 0, vurderet_helt_eller_delvis_benyttet_til_ejerbolig: true,
@@ -220,6 +221,128 @@ function historicalProperty(input) {
   return history;
 }
 const historicalPath = 'ejendomsskatter.ejendomme.overgangsvurderinger.rabat.EjskRabatvurderingerOplyst.fakta.eget_rabatgrundlag_2024';
+
+test('historical survivor retains section9 cap in the remarriage year', enabled, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-survivor-remarriage-'));
+  console.log(`Fictional survivor-remarriage evidence: ${dir}`);
+  const envelope = run(['template', model, '--format', 'json']);
+  const input = buildFictionalCases(envelope).envelope.cases[0].input;
+  input.lønmodtager.bruttoløn_kroner = 100000;
+  input.lønmodtager.pension.pbl18_indbetalinger = [];
+  const history = historicalProperty(input);
+  // Fictional source facts: old spouse died in 2023; new younger spouse in 2024.
+  // Owner continued living in the same owner-occupied property after the death.
+  addSpouse(input);
+  history.kontekst_2024.gift_og_samlevende_ved_indkomstårets_udgang = true;
+  history.ny_lov_nedslagsfakta.pensionistsuccession = v('EjskLængstlevendeBevarerRådighed', {
+    hændelsesdato: date(2023, 6, 1), ægtefæller_ikke_separerede: true, rådighed_bevaret: true,
+    ægtefælles_folkepensionsalder: reached(date(2020)), nyt_ægteskab: date(2024, 6, 1),
+  });
+  history.tidligere_ejendomsværdiskat.succession = historicalSurvivor();
+  envelope.cases = [{ case_id: 'remarried-in-2024', input }];
+  const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
+  save(dir, 'results.json', out);
+  assert.deepEqual(out.diagnostics, []);
+  const r = out.results[0].result;
+  console.log(JSON.stringify({ valid: r.vurdering.alle_kontroller_gyldige,
+    property_tax_ore: r.ejendomsskatter.samlet_ejendomsskat_øre,
+    tax_ore: r.vurdering.slutskat_til_sammenligning_øre }));
+  assert.equal(r.vurdering.alle_kontroller_gyldige, true);
+  assert.equal(r.ejendomsskatter.samlet_ejendomsskat_øre, 450000);
+  assert.equal(r.ejendomsskatter.ejendomsresultater[0].nedslag.par25_nedslag_efter_par26_øre, 0);
+});
+
+function historicalSurvivor() {
+  return v('EjskEvslLængstlevende', { fakta: {
+    dødsdato: date(2023, 6, 1), ægtefæller_ikke_separerede: true, bliver_boende: true,
+    ejendommen_har_tilhørt_en_af_ægtefællerne: true,
+    afdødes_par8_personkreds: true, afdødes_par9_personkreds: true,
+    nyt_ægteskab: v('EjskEvslNytÆgteskabIndgået', { dato: date(2024, 6, 1) }),
+  } });
+}
+
+test('historical survivor facts keep unknowns, modern rules and spouse identities separate', enabled, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-survivor-boundaries-'));
+  console.log(`Fictional historical-survivor boundaries: ${dir}`);
+  const envelope = run(['template', model, '--format', 'json']);
+  const base = buildFictionalCases(envelope).envelope.cases[0].input;
+  base.lønmodtager.bruttoløn_kroner = 100000;
+  base.lønmodtager.pension.pbl18_indbetalinger = [];
+  const specs = [
+    ['benefit-only-deceased', 450000, (i, h, s) => { s.afdødes_par8_personkreds = false; }],
+    ['age-implies-section9', 450000, (i, h, s) => { s.afdødes_par9_personkreds = null; }],
+    ['remarried-previous-year', 640000, (i, h, s) => {
+      s.nyt_ægteskab = v('EjskEvslNytÆgteskabIndgået', { dato: date(2023, 12, 31) });
+    }],
+    ['unknown-remarriage', null, (i, h, s) => { s.nyt_ægteskab = v('EjskEvslNytÆgteskabUoplyst'); }],
+    ['unknown-residence', null, (i, h, s) => { s.bliver_boende = null; }],
+    ['unknown-deceased-qualification', null, (i, h, s) => {
+      s.afdødes_par8_personkreds = null; s.afdødes_par9_personkreds = null;
+    }],
+    ['known-ineligible-despite-unknowns', 640000, (i, h, s) => {
+      s.bliver_boende = false; s.afdødes_par8_personkreds = null; s.afdødes_par9_personkreds = null;
+      s.nyt_ægteskab = v('EjskEvslNytÆgteskabUoplyst');
+    }],
+    ['contradictory-deceased-qualification', null, (i, h, s) => { s.afdødes_par9_personkreds = false; }],
+    ['modern-succession-does-not-prove-old', null, (i, h) => {
+      h.tidligere_ejendomsværdiskat.succession = v('EjskEvslSuccessionUoplyst');
+      h.ny_lov_nedslagsfakta.pensionistsuccession = v('EjskLængstlevendeBevarerRådighed', {
+        hændelsesdato: date(2023, 6, 1), ægtefæller_ikke_separerede: true, rådighed_bevaret: true,
+        ægtefælles_folkepensionsalder: reached(date(2020)), nyt_ægteskab: null,
+      });
+    }],
+    ['active-spouse-unknown-old-succession', null, (i, h) => {
+      h.tidligere_ejendomsværdiskat.succession = v('EjskEvslSuccessionUoplyst');
+      const s = addSpouse(i); s.ejendomsskatter.ejendomme = i.ejendomsskatter.ejendomme;
+      i.ejendomsskatter.ejendomme = [];
+    }],
+    ['donor-unknown-old-succession', null, (i, h) => {
+      h.tidligere_ejendomsværdiskat.succession = v('EjskEvslSuccessionUoplyst');
+      const p = i.ejendomsskatter.ejendomme[0];
+      p.overgangsvurderinger.rabat.fakta = { eget_rabatgrundlag_2024: null, hændelser: [{
+        dato: date(2025), art: v('EjskÆgtefælleoverdragelse', {
+          grund: v('EjskLængstlevendeOvertagelse', { sidder_i_uskiftet_bo: true,
+            har_overtaget_ejendommen_eller_ejerandelen: true }),
+          retning: v('EjskModtagerRabatFraÆgtefælle', { ny_ejerandel_basispoint: 10000,
+            overtaget_rabatgrundlag: { overgangsomfang: structuredClone(p.overgangsomfang), rabat_2024: h } }),
+        }),
+      }] };
+    }],
+    ['direct-age-makes-unknown-succession-irrelevant', 450000, (i, h) => {
+      i.lønmodtager.pension.fødselsdato = date(1957);
+      i.ejendomsskatter.person.ejer_folkepensionsalder = reached(date(2024));
+      h.kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2024));
+      h.tidligere_ejendomsværdiskat.succession = v('EjskEvslSuccessionUoplyst');
+      // Keep current income high enough to phase out modern age relief.
+      i.lønmodtager.bruttoløn_kroner = 600000;
+    }],
+  ];
+  envelope.cases = specs.map(([case_id, , change]) => {
+    const input = structuredClone(base), history = historicalProperty(input);
+    // These sources describe a former spouse, not the current household.
+    history.tidligere_ejendomsværdiskat.succession = historicalSurvivor();
+    history.tidligere_ejendomsværdiskat.succession.fakta.nyt_ægteskab = v('EjskEvslIntetNytÆgteskab');
+    change(input, history, history.tidligere_ejendomsværdiskat.succession.fakta);
+    return { case_id, input };
+  });
+  const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
+  save(dir, 'results.json', out);
+  assert.deepEqual(out.diagnostics, []);
+  assert.deepEqual(out.results.map(r => r.case_id), specs.map(s => s[0]));
+  for (const [n, { case_id, result: r }] of out.results.entries()) {
+    const amount = specs[n][1];
+    assert.equal(r.vurdering.alle_kontroller_gyldige, amount !== null, case_id);
+    assert.equal(r.vurdering.slutskat_til_sammenligning_øre === null, amount === null, case_id);
+    if (amount !== null) assert.equal(r.ejendomsskatter.samlet_ejendomsskat_øre, amount, case_id);
+    else if (case_id === 'donor-unknown-old-succession') {
+      assert.equal(r.ejendomsskatter.alle_input_gyldige, false);
+      assert.ok(r.vurdering.fejl.some(f => f.sti === 'ejendomsskatter'), case_id);
+    } else {
+      const path = (case_id.startsWith('active-spouse') ? spousePrefix : '') + historicalPath;
+      assert.ok(r.vurdering.fejl.some(f => f.sti === path && /succession særskilt/.test(f.forklaring)), case_id);
+    }
+  }
+});
 
 test('historical benefit recipient gets section9 cap without retirement-age relief', enabled, () => {
   const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-historical-benefit-'));
@@ -460,6 +583,11 @@ test('generated age-field guidance carries law and warns against conflating curr
     for (const phrase of ['par9_ydelsesgrundlag', 'null betyder ukendte', '60-årsbetingelse', 'gæt ikke partnerens ydelser']) {
       assert.ok(historical[0].help.includes(phrase), phrase);
     }
+    for (const phrase of ['EjskEvslSuccessionUoplyst', 'null for ukendt', 'året efter nyt ægteskab',
+      'afdødes skatteforhold genberegnes ikke', 'en plejehjemsdato er ikke en dødsdato']) {
+      assert.ok(historical[0].help.includes(phrase), phrase);
+    }
+    assert.ok(historicSources.includes('20222_l113_som_fremsat.pdf'));
     for (const path of [ownerPath, partnerPath]) {
       const fields = schema.field_metadata.filter(f => f.path === prefix + path + '.$variant');
       assert.equal(fields.length, 1, prefix + path);

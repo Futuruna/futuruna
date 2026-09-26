@@ -14636,6 +14636,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "ejendomsværdi_året_før_kroner": 0,
                             "ejendomsværdi_2001_kroner": 0,
                             "ejendomsværdi_2002_kroner": 0,
+                            "succession": { "$variant": "EjskEvslIngenSuccession" },
                             "historisk_begrænsning": {
                                 "foregående_indkomstårs_ejendomsværdiskat_øre": null,
                                 "par9b_nedsættelse_øre": 0,
@@ -14728,6 +14729,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "ejendomsværdi_året_før_kroner": 1_062_500,
                             "ejendomsværdi_2001_kroner": 850_000,
                             "ejendomsværdi_2002_kroner": 850_000,
+                            "succession": { "$variant": "EjskEvslIngenSuccession" },
                             "historisk_begrænsning": {
                                 "foregående_indkomstårs_ejendomsværdiskat_øre": null,
                                 "par9b_nedsættelse_øre": 0,
@@ -14798,6 +14800,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ejendomsværdi_året_før_kroner": 1_062_500,
             "ejendomsværdi_2001_kroner": 850_000,
             "ejendomsværdi_2002_kroner": 850_000,
+            "succession": { "$variant": "EjskEvslIngenSuccession" },
             "historisk_begrænsning": {
                 "foregående_indkomstårs_ejendomsværdiskat_øre": null,
                 "par9b_nedsættelse_øre": 0,
