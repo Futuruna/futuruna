@@ -192,6 +192,60 @@ not necessarily current residence. The ordinary rule uses residence on
 September 5 of the preceding year; exceptions need their own facts. See the
 [Danish moving-house example and source](pension-og-fradrag.md#skattekommunen-er-ikke-altid-din-nuværende-bopæl).
 
+## Lønrettelser og negative beløb
+
+`lønmodtager.bruttoløn_kroner` er personens afklarede almindelige **årsbeløb**
+med feltets pensions-/ATP-afgrænsning, ikke en enkelt lønseddel eller rettelsespost.
+Den ordinære gren kræver nu et ikke-negativt beløb. En negativ værdi bevares i
+diagnostikken, men tilbageholder sammenligningen med en fejl på lønfeltet.
+Det gælder også en aktiv ægtefælle og de kanoniske grundlag i delårsberegningen.
+Andre indkomster eller ægtefællens indkomst gør ikke et negativt løninput gyldigt.
+Kontrollen gælder det oprindelige input før afledte § 25 A-løntillæg, ikke den
+samlede personlige indkomst eller lovlige underskud i andre grene.
+
+En negativ eIndkomst-post kan være **forskellen** til en tidligere indberetning.
+Den er ikke i sig selv et negativt årsbeløb. Ved en afklaret rettelse bruges det
+dokumenterede korrigerede årsbeløb for det rigtige år, uden at trække rettelsen
+fra igen. Eksempel: oprindelig årsløn 600.000 kr. og dokumenteret nedsættelse
+50.000 kr. giver 550.000 kr., hvis kilderne fastslår, at beløbene vedrører samme
+år, samme løngrundlag og ingen andre ændringer. Har årsopgørelsen allerede
+550.000 kr., er rettelsen ikke yderligere 50.000 kr. i fradrag.
+Se [eIndkomst 14.1](https://info.skat.dk/data.aspx?oid=2386660) og
+[14.4](https://info.skat.dk/data.aspx?oid=2386664).
+
+**Tilbagebetalingsåret er ikke automatisk indkomståret.** Skattestyrelsens
+[juridiske vejledning C.A.3.1.1.3](https://info.skat.dk/data.aspx?oid=1976766)
+skelner mellem løn modtaget med urette, som reguleres i de oprindelige
+indkomstår, og senere indtrufne omstændigheder, hvor et tab normalt hører til
+året, hvor det konstateres. Derfor er et banktræk eller et negativt beløb alene
+ikke tilstrækkeligt til at vælge år, fradragstype eller AM-behandling.
+Dette er en afgrænsning af den ordinære inputgren, **ikke** en regel om, at
+løntilbagebetaling aldrig giver fradrag. Modellen afgør ikke her
+tilbagebetalingskravets retlige grundlag, genoptagelse eller særlige tabsforløb.
+
+AI'en skal bevare det originale bilag og dets fortegn. Er det korrekte årsbeløb
+eller korrektionsgrundlag uafklaret, må den hverken bruge nul, absolut værdi,
+flytte beløbet til en anden indkomstgren eller tilpasse det til den forventede
+skat. Brug eventuelt den [betingede rapportgennemgang](aarsopgoerelse-afstemning.md)
+til at undersøge rapportens interne sammenhæng; det fastslår ikke fradragsretten.
+En ikke-negativ værdi beviser omvendt ikke, at kilderne er komplette eller korrekt
+periodiserede: positive årsbeløb kan også skjule en forkert nettomodregning.
+
+Feltets type er uændret. Regenerér schema/template efter metadataændringen,
+gennemgå berørte fakta og genberegn gemte resultater. Den
+[fokuserede regression](../../tests/personskat_salary_input.test.mjs) adskiller
+nul, positiv løn, et korrigeret årsbeløb, negativ løn med SU, ægtefælleinput og
+lovlig negativ kapitalindkomst. Det er model-/inputkontrol, ikke en ny uafhængig
+bekræftelse af årsopgørelsers korrekthed.
+
+Delårsgrenen bevarer nu de kanoniske person-/kildekontroller i begge grundlag,
+også for en aktiv ægtefælle. Den ordinære afregnings rodsti `årsopgørelse` er
+trinbestemt og undtaget fra denne overførsel; de eksisterende kreditkontroller
+bevares særskilt. Et afstemt ordinært mellemtrin er ikke en endelig afregning
+efter § 14. Ændringen dokumenterer ikke den afsluttende betalingsafregnings
+korrekthed. Den [lille kontroltest](../../tests/personskat_partyear_input_controls_test.runa)
+viser, at ukendte kontrolstier ikke automatisk undtages.
+
 ## Kirkeskat gælder indkomståret, ikke status i dag
 
 Afklar kirkeskat for **det år, der beregnes**, for både hovedperson og en aktiv

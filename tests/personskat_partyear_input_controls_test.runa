@@ -1,0 +1,18 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - par14 - kildekontrol
+
+| par14_testkontrol(sti: Tekst, gyldig: Boolsk) -> PersonskatInputkontrol(sti = sti, gyldig = gyldig, forklaring = "Fiktiv kontrol")
+= par14_gyldig_kilde = par14_testkontrol("lønmodtager.skatteår", Sandt)
+= par14_kildekontrol_grænser = [
+    personskat_par14_kildekontroller_gyldige([]) == Falskt,
+    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde]),
+    personskat_par14_kildekontroller_gyldige([par14_testkontrol("lønmodtager.bruttoløn_kroner", Falskt)]) == Falskt,
+    personskat_par14_kildekontroller_gyldige([par14_testkontrol("ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner", Falskt)]) == Falskt,
+    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde, par14_testkontrol("en_fremtidig_kildekontrol", Falskt)]) == Falskt,
+    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde, par14_testkontrol("årsopgørelse", Falskt)]),
+    personskat_par14_kildekontroller_gyldige([par14_testkontrol("årsopgørelse", Sandt)]) == Falskt,
+    personskat_par14_kildekontroller_gyldige([par14_gyldig_kilde, par14_testkontrol("årsopgørelse.kilde", Falskt)]) == Falskt,
+    personskat_par14_kildekontroller_gyldige([par14_testkontrol("lønmodtager.bruttoløn_kroner", Falskt), par14_testkontrol("årsopgørelse", Falskt)]) == Falskt
+]
+| par14_kildekontrol_arves: par14_kildekontrol_grænser -> all(par14_kildekontrol_grænser, |gyldig: Boolsk| gyldig)
+? par14_kildekontrol_arves

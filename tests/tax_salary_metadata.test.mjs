@@ -37,14 +37,18 @@ test('the two salary fields share one source-backed definition of the wage input
       assert.ok(field.question.includes(phrase), `${field.path}: ${phrase}`);
     }
     for (const phrase of ['egenbetaling', 'Private pensionsindbetalinger', 'ikke trækkes fra igen',
-      'personlig indkomst', 'ikke løn', 'pension-og-fradrag.md']) {
+      'personlig indkomst', 'ikke løn', 'pension-og-fradrag.md', 'ikke-negativt',
+      'forskelsbeløb', 'ikke automatisk til betalingsåret', 'ikke en afgørelse',
+      'nul eller absolut værdi', 'personskat-validity.md#lønrettelser-og-negative-beløb']) {
       assert.ok(field.help.includes(phrase), `${field.path}: ${phrase}`);
     }
     assert.equal(field.unit, 'kr./år');
     assert.equal(field.anchor, 'PersonskatLønmodtagerInput');
     const sources = schema.source_groups[field.source_group]?.map(id => schema.source_objects[id]);
     assert.ok(sources?.length > 0, `${field.path}: attached sources`);
-    for (const url of ['https://skat.dk/borger/am-bidrag', 'https://info.skat.dk/data.aspx?oid=2233519']) {
+    for (const url of ['https://skat.dk/borger/am-bidrag', 'https://info.skat.dk/data.aspx?oid=2233519',
+      'https://info.skat.dk/data.aspx?oid=2386660', 'https://info.skat.dk/data.aspx?oid=1976766',
+      'https://info.skat.dk/data.aspx?oid=2386664']) {
       assert.ok(JSON.stringify(sources).includes(url), `${field.path}: ${url}`);
     }
   }

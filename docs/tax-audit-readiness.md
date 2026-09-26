@@ -180,6 +180,30 @@ the ordinary entry still needs the correct intake route chosen explicitly.
 
 ## Further correctness work already delivered
 
+The [ordinary-wage intake regression](../tests/personskat_salary_input.test.mjs)
+reproduces an accepted unsupported offset: -10,000 DKK in the ordinary wage
+field reduced modeled tax on 100,000 DKK of SU by 4,066.92 DKK without repayment
+or correction-year evidence. The comparison now requires a nonnegative original
+ordinary wage total for each person, before derived spouse-business wage
+adjustments. Raw signed facts remain diagnostic; genuine negative income in
+other supported branches is not prohibited. Shared generated guidance separates
+correction deltas from documented corrected annual totals and distinguishes
+original-year corrections from later-arising repayment losses. This is a
+coverage safeguard, not a finding that every wage repayment is nondeductible,
+and not automatic correction/reopening or document classification. Positive
+totals can still be misclassified. See the [scope and migration](../examples/danish-income-tax/personskat-validity.md#lønrettelser-og-negative-beløb).
+
+That regression also found a composition omission: a part-year result accepted
+zero tax despite the period's canonical wage rejection. The wrapper now inherits
+canonical controls outside the exact `årsopgørelse` root path, including active
+spouse controls, in both bases. Existing component and credit checks remain.
+Ordinary intermediate settlement is not required to match final part-year tax;
+typed source/settlement separation and final payment reconciliation remain
+`td-98b93a`, not established by this change. The
+[small boundary regression](../tests/personskat_partyear_input_controls_test.runa)
+checks unknown future control paths and the precise stage exception, while
+canonical cases cover period/annual wages, spouse wages and future birth dates.
+
 The [employer bank-pension year route](../examples/danish-income-tax/personskat-bankpension-aar.md)
 now separates unresolved treatment, ordinary payment-year treatment and a
 documented authority approval of the previous wage-withholding year. Previously
