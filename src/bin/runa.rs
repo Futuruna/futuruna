@@ -41017,19 +41017,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
     }
 
-    fn emit_prolog_arg_with_named_types(
-        &mut self,
-        a: &Expr,
-        names: &[String],
-        tys: &[FirTy],
-    ) -> String {
-        if let ExprKind::Lit(Literal::Str(s)) = &a.kind {
-            format!("{:?}", s)
-        } else {
-            self.with_temporary_named_types(names, tys, |cg| cg.emit_expr(a))
-        }
-    }
-
     fn prolog_param_fir_tys(param_types: &[String]) -> Vec<FirTy> {
         param_types
             .iter()
@@ -42860,31 +42847,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             }
             _ => {}
         }
-    }
-
-    /// Word-boundary replacement: replace `old` with `new` only at word boundaries
-    fn word_replace(&self, text: &str, old: &str, new: &str) -> String {
-        let mut result = String::new();
-        let chars: Vec<char> = text.chars().collect();
-        let old_chars: Vec<char> = old.chars().collect();
-        let mut i = 0;
-        while i < chars.len() {
-            if i + old_chars.len() <= chars.len() && chars[i..i + old_chars.len()] == old_chars[..]
-            {
-                let before_ok = i == 0 || !(chars[i - 1].is_alphanumeric() || chars[i - 1] == '_');
-                let after_ok = i + old_chars.len() >= chars.len()
-                    || !(chars[i + old_chars.len()].is_alphanumeric()
-                        || chars[i + old_chars.len()] == '_');
-                if before_ok && after_ok {
-                    result.push_str(new);
-                    i += old_chars.len();
-                    continue;
-                }
-            }
-            result.push(chars[i]);
-            i += 1;
-        }
-        result
     }
 
     /// Emit value-returning Prolog rule function: returns Option<T> instead of bool.
