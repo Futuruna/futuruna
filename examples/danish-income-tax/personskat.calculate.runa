@@ -47,6 +47,7 @@
 @ importer ./personskat - rejsefradrag - beregningsmeta
 @ importer ./personskat - soemandsfradrag - beregningsmeta
 @ importer ./slutopgoerelse
+@ importer ./personskat - skattekreditter - beregningsmeta
 @ importer ./aktieindkomst - slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 @ importer ./kursgevinstloven - aarsnetto
@@ -2570,8 +2571,8 @@
 = personskat_felt_årsopgørelse = Beregningsfelt(
     path = "årsopgørelse.$variant",
     label = "Årsopgørelse",
-    question = Some("Skal allerede betalt skat, restskat og kreditter indgå i resultatet?"),
-    help = Some("Vælg årsopgørelse for at beregne slutskat efter indeholdt skat og øvrige kreditter."),
+    question = Some("Skal slutskatten også afstemmes med årets foreløbige skatter og øvrige kreditter?"),
+    help = Some("Kreditmodregningen ændrer ikke slutskatten; den bestemmer restskat eller overskydende skat efter eventuelle slutskatstillæg. Vælg MedEksaktÅrsopgørelse for beløb i øre og særskilt betalingsafregning. Afklar hver kredit fra dens kilde, ikke blot fra bankbetalinger eller subtotalen forskudsskat. Se personskat-skattekreditter.md."),
     unit = None
 )
 = personskat_felt_årsopgørelse_al40c_kilde = TypetBeregningsfelt(
@@ -2798,39 +2799,11 @@
     help = Some("Angiv 0, når tilbagebetalingen sker senest 1. september."),
     unit = Some("måneder")
 )
-= personskat_felt_årsopgørelse_eksakt_a_skat_og_am = TypetBeregningsfelt(
-    path = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre),
-    label = "Indeholdt A-skat og AM-bidrag",
-    question = Some("Hvor meget A-skat og arbejdsmarkedsbidrag er indeholdt for indkomståret?"),
-    help = Some("Angiv årsopgørelsens samlede eksakte beløb i øre."),
-    unit = Some("øre")
-)
-= personskat_felt_årsopgørelse_eksakt_par68 = TypetBeregningsfelt(
-    path = refof(KildeskatPar60KreditterØre::par68_indbetalt_øre),
-    label = "Indbetaling efter KSL § 68",
-    question = Some("Hvor meget foreløbig skat er indbetalt efter KSL § 68?"),
-    help = Some("Angiv det eksakte beløb i øre."),
-    unit = Some("øre")
-)
-= personskat_felt_årsopgørelse_eksakt_b_skat = TypetBeregningsfelt(
-    path = refof(KildeskatPar60KreditterØre::b_skat_betalt_øre),
-    label = "Betalt B-skat",
-    question = Some("Hvor meget B-skat er betalt for indkomståret?"),
-    help = Some("Angiv det eksakte beløb i øre."),
-    unit = Some("øre")
-)
 = personskat_felt_årsopgørelse_eksakt_udbytteskat = TypetBeregningsfelt(
     path = refof(KildeskatPar60KreditterØre::udbytteskat_modregningsberettiget_øre),
     label = "Modregningsberettiget udbytteskat",
     question = Some("Hvor meget indeholdt udbytteskat kan modregnes i slutskatten?"),
     help = Some("Angiv det eksakte beløb i øre efter afklaring af, at skatten ikke er endelig efter PSL § 8 a, stk. 1."),
-    unit = Some("øre")
-)
-= personskat_felt_årsopgørelse_eksakt_par59 = TypetBeregningsfelt(
-    path = refof(KildeskatPar60KreditterØre::frivillig_indbetaling_par59_øre),
-    label = "Frivillig indbetaling efter KSL § 59",
-    question = Some("Hvor meget forskudsskat er frivilligt indbetalt efter KSL § 59?"),
-    help = Some("Angiv det eksakte krediterede beløb i øre."),
     unit = Some("øre")
 )
 = personskat_felt_årsopgørelse_eksakt_virksomhedsordning = TypetBeregningsfelt(
@@ -2873,13 +2846,6 @@
     label = "Energiafgiftskompensation",
     question = Some("Hvor stor kompensation for forhøjede energi- og miljøafgifter skal modregnes?"),
     help = Some("Angiv det eksakte beløb i øre."),
-    unit = Some("øre")
-)
-= personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt = TypetBeregningsfelt(
-    path = refof(KildeskatPar60KreditterØre::tilbagebetalt_par55_øre),
-    label = "Tidligere tilbagebetalt efter KSL § 55",
-    question = Some("Hvor meget skat er allerede tilbagebetalt efter KSL § 55?"),
-    help = Some("Angiv det eksakte beløb i øre. Beløbet trækkes fra § 60-kreditterne."),
     unit = Some("øre")
 )
 = personskat_felt_egne_ejendomssalg = Beregningsfelt(
@@ -12795,18 +12761,13 @@
         Field(value = personskat_felt_årsopgørelse_overskydende_restancer),
         Field(value = personskat_felt_årsopgørelse_overskydende_efter_september),
         Field(value = personskat_felt_årsopgørelse_overskydende_maaneder),
-        Field(value = personskat_felt_årsopgørelse_eksakt_a_skat_og_am),
-        Field(value = personskat_felt_årsopgørelse_eksakt_par68),
-        Field(value = personskat_felt_årsopgørelse_eksakt_b_skat),
         Field(value = personskat_felt_årsopgørelse_eksakt_udbytteskat),
-        Field(value = personskat_felt_årsopgørelse_eksakt_par59),
         Field(value = personskat_felt_årsopgørelse_eksakt_virksomhedsordning),
         Field(value = personskat_felt_årsopgørelse_eksakt_par8a),
         Field(value = personskat_felt_årsopgørelse_eksakt_acontoskat),
         Field(value = personskat_felt_årsopgørelse_eksakt_am_lov_par6),
         Field(value = personskat_felt_årsopgørelse_eksakt_seniornedslag),
         Field(value = personskat_felt_årsopgørelse_eksakt_energiafgiftskompensation),
-        Field(value = personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt),
         Source(value = kildeskatteloven_2024_460),
         DependencySource(value = afskrivningsloven_lbk1222),
     )

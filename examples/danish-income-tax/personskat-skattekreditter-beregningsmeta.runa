@@ -1,0 +1,112 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./source - status
+@ importer ./slutopgoerelse
+
+-- KSL § 60, stk. 1, litra a-c og e, samt stk. 3. Feltnavnene bevares;
+-- navnlig b_skat_betalt_* og par68_indbetalt_* beskriver ikke et kontantprincip.
+-- Typeankrene lader vejledningen følge kreditterne gennem andre beregninger.
+= personskat_skattekredit_a_skat_spørgsmål = "Hvor meget A-skat og AM-bidrag er indeholdt vedrørende indkomstårets indkomst?"
+= personskat_skattekredit_a_skat_hjælp = "Brug kildens indeholdte A-skat plus indeholdte AM-bidrag, hver post én gang. Brug ikke den beregnede skat eller et beregnet AM-bidrag som erstatning for indeholdelsen. En subtotal for forskudsskat kan også rumme B-skat og andre kreditter og må ikke lægges oveni. Ukendt er ikke 0. Bevar indkomstår og bilags-/linjereference; se personskat-skattekreditter.md."
+= personskat_skattekredit_par68_spørgsmål = "Hvor meget foreløbig skat har skullet indbetales efter KSL § 68 for indkomståret?"
+= personskat_skattekredit_par68_hjælp = "Brug det dokumenterede pligtige beløb efter § 68, ikke kun faktisk bankbetaling. Det historiske feltnavn par68_indbetalt_* ændrer ikke grundlaget i § 60, stk. 1, litra b. Beløbet må ikke også stå som indeholdt A-skat eller B-skat. Ukendt er ikke 0; afklar grundlaget før afregning. Se personskat-skattekreditter.md."
+= personskat_skattekredit_b_skat_spørgsmål = "Hvor meget B-skat og foreløbigt AM-bidrag har skullet betales efter skattebillet for indkomståret?"
+= personskat_skattekredit_b_skat_hjælp = "Brug det pålignede beløb efter indkomstårets skattebillet, ikke kun faktisk bankbetaling. Medtag skattebillettens foreløbige AM-bidrag én gang, også når det allerede indgår i en samlet post. Det historiske feltnavn b_skat_betalt_* ændrer ikke § 60, stk. 1, litra c. Ubetalte rater og restancer er særskilte betalingsforhold, ikke grund til at nedsætte denne kredit. Ukendt er ikke 0. Se personskat-skattekreditter.md."
+= personskat_skattekredit_par59_spørgsmål = "Hvor meget frivillig forskudsskat er godskrevet indkomståret efter KSL § 59?"
+= personskat_skattekredit_par59_hjælp = "Her kræves faktisk indbetalt forskudsskat efter § 59, ikke en planlagt betaling. Brug det godskrevne skattebeløb efter fradrag af den eventuelle rente, som er indeholdt i betalingen; medtag ikke renten som skattekredit og fratræk den ikke igen fra et allerede opgjort nettobeløb. Ukendt er ikke 0. Se personskat-skattekreditter.md."
+= personskat_skattekredit_par55_spørgsmål = "Hvor meget af årets foreløbige skat er tilbagebetalt efter KSL § 55?"
+= personskat_skattekredit_par55_hjælp = "Angiv tilbagebetalingen som et positivt beløb; Futuruna trækker den fra § 60-kreditterne. De øvrige kreditter må ikke allerede være reduceret med samme tilbagebetaling. En tidligere udbetaling af overskydende skat efter § 62 er ikke automatisk en § 55-post. Ukendt er ikke 0. Se personskat-skattekreditter.md."
+= personskat_skattekredit_kildegrænse = "Vejledning, ikke dokumentkontrol: behold hver kildepost, dens indkomstår, enhed og reference i en privat kildelog. Ukendte beløb må ikke blive skabelonens nul. Øre omregnes eksakt; hele-kronefelter må ikke udfyldes ved vilkårlig afrunding. Korrekt JSON og beståede modelkontroller beviser ikke, at kreditbeløbet er korrekt klassificeret."
+
+= personskat_felt_årsopgørelse_eksakt_a_skat_og_am = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre),
+    label = "Indeholdt A-skat og AM-bidrag",
+    question = Some(personskat_skattekredit_a_skat_spørgsmål),
+    help = Some(personskat_skattekredit_a_skat_hjælp),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par68 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::par68_indbetalt_øre),
+    label = "Pligtig foreløbig skat efter KSL § 68",
+    question = Some(personskat_skattekredit_par68_spørgsmål),
+    help = Some(personskat_skattekredit_par68_hjælp),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_b_skat = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::b_skat_betalt_øre),
+    label = "Pålignet B-skat og foreløbigt AM-bidrag",
+    question = Some(personskat_skattekredit_b_skat_spørgsmål),
+    help = Some(personskat_skattekredit_b_skat_hjælp),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par59 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::frivillig_indbetaling_par59_øre),
+    label = "Godskrevet frivillig forskudsskat efter KSL § 59",
+    question = Some(personskat_skattekredit_par59_spørgsmål),
+    help = Some(personskat_skattekredit_par59_hjælp),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::tilbagebetalt_par55_øre),
+    label = "Tidligere tilbagebetalt efter KSL § 55",
+    question = Some(personskat_skattekredit_par55_spørgsmål),
+    help = Some(personskat_skattekredit_par55_hjælp),
+    unit = Some("øre")
+)
+= personskat_skattekreditter_øre_metadata = Metadata(attachments = (
+    Field(value = personskat_felt_årsopgørelse_eksakt_a_skat_og_am),
+    Field(value = personskat_felt_årsopgørelse_eksakt_par68),
+    Field(value = personskat_felt_årsopgørelse_eksakt_b_skat),
+    Field(value = personskat_felt_årsopgørelse_eksakt_par59),
+    Field(value = personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt),
+    Source(value = kildeskatteloven_2024_460),
+    Warning(value = personskat_skattekredit_kildegrænse),
+))
+--@label:KildeskatPar60KreditterØre::meta:personskat_skattekreditter_øre_metadata--
+
+= personskat_felt_årsopgørelse_a_skat_og_am = TypetBeregningsfelt(
+    path = refof(KildeskatPar60Kreditter::a_skat_og_am_indeholdt_kroner),
+    label = "Indeholdt A-skat og AM-bidrag",
+    question = Some(personskat_skattekredit_a_skat_spørgsmål),
+    help = Some(personskat_skattekredit_a_skat_hjælp),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_par68 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60Kreditter::par68_indbetalt_kroner),
+    label = "Pligtig foreløbig skat efter KSL § 68",
+    question = Some(personskat_skattekredit_par68_spørgsmål),
+    help = Some(personskat_skattekredit_par68_hjælp),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_b_skat = TypetBeregningsfelt(
+    path = refof(KildeskatPar60Kreditter::b_skat_betalt_kroner),
+    label = "Pålignet B-skat og foreløbigt AM-bidrag",
+    question = Some(personskat_skattekredit_b_skat_spørgsmål),
+    help = Some(personskat_skattekredit_b_skat_hjælp),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_par59 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60Kreditter::frivillig_indbetaling_par59_kroner),
+    label = "Godskrevet frivillig forskudsskat efter KSL § 59",
+    question = Some(personskat_skattekredit_par59_spørgsmål),
+    help = Some(personskat_skattekredit_par59_hjælp),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_par55_tilbagebetalt = TypetBeregningsfelt(
+    path = refof(KildeskatPar60Kreditter::tilbagebetalt_par55_kroner),
+    label = "Tidligere tilbagebetalt efter KSL § 55",
+    question = Some(personskat_skattekredit_par55_spørgsmål),
+    help = Some(personskat_skattekredit_par55_hjælp),
+    unit = Some("kr.")
+)
+= personskat_skattekreditter_kroner_metadata = Metadata(attachments = (
+    Field(value = personskat_felt_årsopgørelse_a_skat_og_am),
+    Field(value = personskat_felt_årsopgørelse_par68),
+    Field(value = personskat_felt_årsopgørelse_b_skat),
+    Field(value = personskat_felt_årsopgørelse_par59),
+    Field(value = personskat_felt_årsopgørelse_par55_tilbagebetalt),
+    Source(value = kildeskatteloven_2024_460),
+    Warning(value = personskat_skattekredit_kildegrænse),
+))
+--@label:KildeskatPar60Kreditter::meta:personskat_skattekreditter_kroner_metadata--

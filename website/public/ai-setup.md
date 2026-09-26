@@ -364,6 +364,13 @@ private directory chosen by the user:
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
 
+For annual payment reconciliation, read
+`examples/danish-income-tax/personskat-skattekreditter.md`: withheld tax,
+assessed tax-bill/section-68 amounts and voluntary payments are different
+credit sources. Do not replace assessed B-skat with bank payments or count
+the total prepaid-tax subtotal alongside its components. Preserve a private
+source-to-field record; positive integers can still be factually misclassified.
+
 The compact schema retains all source information through `source_group`,
 `source_groups` and `source_objects`; resolve those references when explaining a
 field. With Python 3 available, use the repository's read-only navigator instead

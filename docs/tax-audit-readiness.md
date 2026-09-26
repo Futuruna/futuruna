@@ -216,6 +216,20 @@ This is source-model consistency, not new independent payment-law conformance.
 Output contracts changed: generate fresh templates and recalculate from reviewed
 facts. See the [part-year guide](../examples/danish-income-tax/personskat-delaar.md#afregning-efter-den-endelige-delårsskat).
 
+The [annual credit guidance](../examples/danish-income-tax/personskat-skattekreditter.md)
+corrects an actual generated question that asked for paid B-skat, although the
+encoded KSL60(1)(b,c) credit basis is the required tax-bill/section-68 amount.
+Shared typed metadata now covers kroner and øre, distinguishing withheld A-skat/AM,
+assessed amounts, net voluntary section-59 payments and section-55 refunds.
+Historical machine keys and tax formulas remain unchanged; fresh schemas/templates
+are required. The [focused regression](../tests/tax_credit_input.test.mjs)
+checks the canonical generated contract, projection through a small nested-list
+contract and six fictional annual calculations, plus one rejected missing amount.
+Using 30,000 DKK paid instead of 40,000 DKK assessed raises modeled restskat by
+10,000 DKK without changing tax. Such wrong positive scalars still pass the
+existing model checks: this is improved source-to-field guidance, not automatic
+document classification, credit authentication or a new completeness gate.
+
 The [employer bank-pension year route](../examples/danish-income-tax/personskat-bankpension-aar.md)
 now separates unresolved treatment, ordinary payment-year treatment and a
 documented authority approval of the previous wage-withholding year. Previously

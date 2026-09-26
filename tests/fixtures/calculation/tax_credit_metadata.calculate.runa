@@ -1,0 +1,7 @@
+@ import ../../../examples / danish - income - tax / personskat - skattekreditter - beregningsmeta
+
+# CreditGuidePair(exact: KildeskatPar60KreditterØre, whole: KildeskatPar60Kreditter)
+# CreditGuideInput(direct: KildeskatPar60KreditterØre, nested: List(CreditGuidePair))
+
+@ calculate
+| credit_guide(input: CreditGuideInput) -> kildeskat_par60_modregning_øre(input.direct)
