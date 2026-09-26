@@ -515,7 +515,7 @@ Fra projektets rod, med `PRIVATE_WORK_DIR` erstattet af din private mappe:
 
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --format json --output PRIVATE_WORK_DIR/pension-cases.json
-# Udfyld og gennemgå fakta før beregningen.
+# Udfyld og gennemgå fakta; sæt hver sags input_status ved siden af case_id til "ready".
 FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
 ```
 

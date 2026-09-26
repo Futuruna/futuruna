@@ -21,14 +21,15 @@ Det er altså vigtigt ikke at forveksle **erhvervsudygtighedsbeløb** med
 ## Prøv den lille beregning
 
 Brug [det kontrollerede beregningsprogram](../../website/public/ai-setup.md#tax-audit-runtime-check).
+Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra projektmappen:
 
 ```sh
-./target/release/runa template examples/danish-income-tax/personskat-socialpension.calculate.runa \
+"$RUNA_BIN" template examples/danish-income-tax/personskat-socialpension.calculate.runa \
   --format json --output /tmp/futuruna-socialpension.json
 ```
 
-Bevar `$futuruna`. Erstat kun `cases[0].input` med disse **fiktive** fakta:
+Bevar `$futuruna`. Udfyld `cases[0].input` med disse **fiktive** fakta:
 
 ```json
 {
@@ -41,8 +42,13 @@ Bevar `$futuruna`. Erstat kun `cases[0].input` med disse **fiktive** fakta:
 }
 ```
 
+Gennemgå oplysningerne og sæt `cases[0].input_status` til `"ready"` før
+beregningen. Status står ved siden af `input`, ikke inde i faktaobjektet.
+Det er en [bekræftelse af inputgennemgang](../../docs/reference/calculations.md#generate-input),
+ikke en godkendelse af bilaget eller skatten.
+
 ```sh
-FUTURUNA_CALCULATION_JOBS=1 ./target/release/runa call \
+FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call \
   examples/danish-income-tax/personskat-socialpension.calculate.runa \
   --input /tmp/futuruna-socialpension.json
 ```

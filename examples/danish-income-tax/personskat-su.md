@@ -21,14 +21,15 @@ skatterådgivning.
 ## Start med en lille beregning
 
 Brug først [kontrollen af beregningsprogrammet](../../website/public/ai-setup.md#tax-audit-runtime-check).
+Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra projektmappen:
 
 ```sh
-./target/release/runa template examples/danish-income-tax/personskat-su.calculate.runa \
+"$RUNA_BIN" template examples/danish-income-tax/personskat-su.calculate.runa \
   --format json --output /tmp/futuruna-su.json
 ```
 
-Bevar `$futuruna`-delen i skabelonen. Erstat kun `cases[0].input` med disse
+Bevar `$futuruna`-delen i skabelonen. Udfyld `cases[0].input` med disse
 **fiktive** oplysninger:
 
 ```json
@@ -42,8 +43,13 @@ Bevar `$futuruna`-delen i skabelonen. Erstat kun `cases[0].input` med disse
 }
 ```
 
+Gennemgå oplysningerne og sæt `cases[0].input_status` til `"ready"` før
+beregningen. Status står ved siden af `input`, ikke inde i faktaobjektet.
+Det er en [bekræftelse af inputgennemgang](../../docs/reference/calculations.md#generate-input),
+ikke en godkendelse af bilaget eller skatten.
+
 ```sh
-FUTURUNA_CALCULATION_JOBS=1 ./target/release/runa call \
+FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call \
   examples/danish-income-tax/personskat-su.calculate.runa \
   --input /tmp/futuruna-su.json
 ```

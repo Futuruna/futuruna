@@ -136,6 +136,7 @@ and filled templates outside the checkout:
 
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/boligjob.calculate.runa --format json --output PRIVATE_WORK_DIR/boligjob.json
+# Fill and review the facts, then set the case's input_status beside case_id to "ready".
 "$RUNA_BIN" call examples/danish-income-tax/boligjob.calculate.runa --input PRIVATE_WORK_DIR/boligjob.json --output PRIVATE_WORK_DIR/boligjob-results.json
 ```
 
