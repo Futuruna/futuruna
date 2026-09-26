@@ -111,10 +111,88 @@ Vælg `PsHonorarudgifterUoplyst`, når udgifterne ikke er afklaret. En tom liste
 med `fuldstændige: true` betyder **bekræftet ingen udgifter**, ikke manglende
 bilag. En skabelon eller en manglende rapportlinje er ikke sådan bekræftelse.
 
-Den almindelige gren dækker ikke afskrivninger, satsberegnet kørsel,
-erstatninger, udenlandske særregler eller omperiodisering. Den tilbageholder
+### Driftsmidler og privat brug
+
+Brug `PsHonorarudgifterMedDriftsmidler`, når honoraraktiviteten har almindelige
+driftsmidler. Varianten har `poster` til løbende udgifter, `afskrivninger`
+til driftsmidler og `fuldstændige` for den samlede gennemgang. Selve
+afskrivningen beregnes med modellens AL-regler; indtast ikke et ønsket fradrag
+som løbende udgift. Honorarmodtageres adgang til afskrivning følger praksis
+beskrevet i [C.C.1.2.3](https://info.skat.dk/data.aspx?oid=2048532).
+
+- `PsHonorarAl5Saldo`: én samlet almindelig saldo for fuld brug i samme
+  honoraraktivitet, ikke en saldo pr. faktura. Brug `Al5Kapitel2Aktiv`,
+  `AlPar5AlmindeligSaldo` og `AlAndenFysiskPerson`.
+- `PsHonorarAl11Aktiv`: ét blandet benyttet aktiv eller ét samlesæt med
+  `Al11Par5Stk1` og årets dokumenterede brug. Grundlaget er hele aktivets
+  skattemæssige afskrivningsgrundlag **før** privat brugsandel; modellen
+  anvender brugsandelen én gang. Ejerandel, refusion og moms skal allerede
+  være afklaret i grundlaget — brug ikke automatisk hele en medejet
+  genstands pris.
+  Småaktivgrænsen gælder også før privat andel.
+  [AL § 11-vejledningen](https://info.skat.dk/data.aspx?oid=2060792).
+
+En **fiktiv** blandet opgørelse i `afskrivninger` kan være:
+
+```json
+{
+  "identifikation": "fiktiv-kameraopgoerelse",
+  "aktividentifikationer": ["fiktivt-kamera"],
+  "grundlag": {
+    "$variant": "PsHonorarAl11Aktiv",
+    "input": {
+      "indkomstår": 2025,
+      "aktiv_input": {
+        "skatteyder": { "$variant": "AlAndenFysiskPerson" },
+        "aktivart": { "$variant": "AlInventar" },
+        "erhvervsmæssig_anvendelsesandel_basispoint": 5000
+      },
+      "afskrivningskategori": { "$variant": "Al11Par5Stk1" },
+      "uafskrevet_beløb_primo_kroner": 80000,
+      "anskaffelsessum_i_året_kroner": 0,
+      "forbedringsudgifter_i_året_kroner": 0,
+      "årets_benyttelse": {
+        "erhvervsmæssig_benyttelse_enheder": 50,
+        "samlet_benyttelse_enheder": 100
+      },
+      "valg": { "$variant": "Al11OrdinærAfskrivning", "sats_basispoint": 2500 }
+    }
+  },
+  "dokumenteret_ejet_og_anvendt_i_aktiviteten": true,
+  "primosaldo_anskaffelser_og_samlesæt_afklaret": true,
+  "ingen_salg_ophør_eller_overførsel": true,
+  "ikke_fratrukket_andetsteds": true
+}
+```
+
+Her giver det valgte 25 %-forløb 20.000 kr. i beregnet afskrivning, heraf
+10.000 kr. i fradrag ved 50 % honorarbrug. Hele aktivets restværdi er
+60.000 kr. Modellen bevarer AL-beregningen og restværdien i resultatets
+`honorarudgifter.afskrivninger`; den ændrer ikke AM-grundlaget. Valget og
+brugsandelen er fiktive fakta, ikke anbefalede standardværdier.
+
+Kilderne skal dokumentere ejerskab/egen ejerandel, skattemæssig primo, årets
+anskaffelser og ibrugtagning samt samlesæt. Aktiver, der skal fungere sammen, må ikke deles
+for at opnå flere småaktivfradrag. Brug samme stabile aktivreference i alle
+opgørelser; dubletter mellem saldo, blandede aktiver og honorarrækker afvises.
+Køb og afskrivning må heller ikke ligge i løbende udgifter eller andre
+fradragsgrene. Modellen kontrollerer ikke bilagenes indhold eller autentificerer
+de faktiske bekræftelser.
+
+Denne driftsmiddelrute dækker 2023–2026 og kræver fortsat aktivitet uden salg,
+ophør eller overførsel mellem anvendelsesformer efter AL § 4. Sæt ikke
+bekræftelser til `true`, hvis fakta er ukendte. Andre aktivtyper, forhøjede
+saldi, bygninger og særlige afskrivningsregler kræver særskilt behandling.
+Årets almindelige brugsprocent kan ændres inden for fortsat blandet brug;
+det er ikke i sig selv en AL § 4-overførsel.
+
+### Dækningsgrænsen for underskud og andre udgifter
+
+Grenen dækker ikke satsberegnet kørsel, erstatninger, udenlandske særregler
+eller omperiodisering. Den tilbageholder
 også sammenligningen, hvis udgifterne overstiger vederlaget efter den
-alders- og årsbestemte AM-beregning. Det er en **modelgrænse, ikke et juridisk
+alders- og årsbestemte AM-beregning; løbende udgifter og afskrivninger tælles
+sammen. Det er en **modelgrænse, ikke et juridisk
 fradragsloft**. [SKM2025.490.ØLR](https://info.skat.dk/data.aspx?oid=2459224)
 giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i
 **skattepligtig indkomst**, ikke automatisk i personlig indkomst.

@@ -28,3 +28,42 @@
 = ung_udgift = oplyst([udgift("ung", 2026, 50000, PsHonorarLøbendeUdgift, Sandt, Sandt, Sandt)])
 | ungdoms_am_følger_året_og_alderen: ung_udgift -> personskat_honorarudgifter_netto_dækket(ung_udgift, 50000, 2026, 17) && personskat_honorarudgifter_netto_dækket(ung_udgift, 50000, 2026, 18) == Falskt && personskat_honorarudgifter_netto_dækket(netto_nul, 50000, 2025, 17)
 ? ungdoms_am_følger_året_og_alderen
+
+| honoraraktiv(andel: Heltal) -> AfskrivningslovPar1Par2Input(skatteyder = AlAndenFysiskPerson, aktivart = AlInventar, erhvervsmæssig_anvendelsesandel_basispoint = andel)
+| honorarsaldo(år: Heltal, beløb: Heltal, valg: Afskrivningslov5Valg) -> PsHonorarAl5Saldo(Afskrivningslov5Input(indkomstår = år, aktivgrundlag = Al5Kapitel2Aktiv(honoraraktiv(10000)), saldoordning = AlPar5AlmindeligSaldo, saldoværdi_primo_kroner = beløb, øvrige_anskaffelsessummer_i_året_kroner = 0, forbedringsudgifter_i_året_kroner = 0, salgssummer_i_året_kroner = 0, valg = valg))
+| honorarblandet(år: Heltal, beløb: Heltal, valg: Afskrivningslov11Valg) -> PsHonorarAl11Aktiv(Afskrivningslov11Input(indkomstår = år, aktiv_input = honoraraktiv(5000), afskrivningskategori = Al11Par5Stk1, uafskrevet_beløb_primo_kroner = beløb, anskaffelsessum_i_året_kroner = 0, forbedringsudgifter_i_året_kroner = 0, årets_benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 50, samlet_benyttelse_enheder = 100), valg = valg))
+| afskrivningspost(id: Tekst, aktiver: List(Tekst), grundlag: PersonskatHonorarAfskrivningsgrundlag) -> PersonskatHonorarAfskrivningFakta(identifikation = id, aktividentifikationer = aktiver, grundlag = grundlag, dokumenteret_ejet_og_anvendt_i_aktiviteten = Sandt, primosaldo_anskaffelser_og_samlesæt_afklaret = Sandt, ingen_salg_ophør_eller_overførsel = Sandt, ikke_fratrukket_andetsteds = Sandt)
+| med_driftsmidler(poster: List(PersonskatHonorarAfskrivningFakta)) -> PsHonorarudgifterMedDriftsmidler(poster = [], afskrivninger = poster, fuldstændige = Sandt)
+= saldoafskrivning = afskrivningspost("saldo", ["fiktiv-inventar"], honorarsaldo(2025, 100000, Al5OrdinærAfskrivning(2500)))
+= blandet_afskrivning = afskrivningspost("blandet", ["fiktivt-kamera"], honorarblandet(2025, 100000, Al11OrdinærAfskrivning(2500)))
+= afskrivningsresultat = personskat_honorarudgifter_resultat(med_driftsmidler([saldoafskrivning, blandet_afskrivning]), 2025)
+| afskrivning_bruger_al_og_kun_egen_aktivitetsandel: afskrivningsresultat -> afskrivningsresultat.alle_input_gyldige && afskrivningsresultat.fradrag_i_personlig_indkomst_kroner == 37500 && all(afskrivningsresultat.afskrivninger, |post: PersonskatHonorarAfskrivningsresultat| match post.beregning {
+        | Some(PsHonorarAl5Beregning(resultat)) -> resultat.fradrag_i_skattepligtig_indkomst_kroner == 25000 && resultat.saldoværdi_efter_afskrivning_kroner == 75000
+        | Some(PsHonorarAl11Beregning(resultat)) -> resultat.fradrag_i_skattepligtig_indkomst_kroner == 12500 && resultat.uafskrevet_beløb_ultimo_kroner == 75000
+        | None -> Falskt
+    })
+? afskrivning_bruger_al_og_kun_egen_aktivitetsandel
+
+= fuld_saldo = afskrivningspost("saldo", ["inventar"], honorarsaldo(2025, 10000, Al5FuldRestsaldo))
+= fuldt_blandet = afskrivningspost("blandet", ["kamera"], honorarblandet(2025, 16200, Al11FuldRestfradrag))
+| småsaldi_følger_årets_grænser_før_privat_andel: fuldt_blandet -> personskat_honorarudgifter_resultat(med_driftsmidler([fuld_saldo, fuldt_blandet]), 2025).fradrag_i_personlig_indkomst_kroner == 18100 && personskat_honorarudgifter_resultat(med_driftsmidler([afskrivningspost("blandet", ["kamera"], honorarblandet(2025, 16201, Al11FuldRestfradrag))]), 2025).alle_input_gyldige == Falskt
+? småsaldi_følger_årets_grænser_før_privat_andel
+
+= ugyldige_afskrivningsgrundlag = [honorarsaldo(2024, 100000, Al5OrdinærAfskrivning(2500)), honorarsaldo(2025, -1, Al5IngenAfskrivning), honorarsaldo(2025, 100000, Al5OrdinærAfskrivning(2501)), honorarblandet(2025, -1, Al11IngenAfskrivning), honorarblandet(2025, 100000, Al11OrdinærAfskrivning(2501))]
+| afskrivning_afviser_år_negative_beløb_og_for_høj_sats: ugyldige_afskrivningsgrundlag -> all(ugyldige_afskrivningsgrundlag, |grundlag: PersonskatHonorarAfskrivningsgrundlag| personskat_honorarudgifter_resultat(med_driftsmidler([afskrivningspost("post", ["aktiv"], grundlag)]), 2025).alle_input_gyldige == Falskt) && personskat_honorarudgifter_resultat(med_driftsmidler([saldoafskrivning]), 2022).alle_input_gyldige == Falskt
+? afskrivning_afviser_år_negative_beløb_og_for_høj_sats
+
+= gentaget_aktiv = afskrivningspost("anden-saldo", ["fiktiv-inventar"], honorarblandet(2025, 100000, Al11OrdinærAfskrivning(2500)))
+= ekstra_saldo = afskrivningspost("anden-saldo", ["andet-inventar"], honorarsaldo(2025, 10000, Al5FuldRestsaldo))
+| aktiver_og_saldi_må_ikke_opdeles_for_dobbelt_fradrag: gentaget_aktiv -> personskat_honorarudgifter_resultat(med_driftsmidler([saldoafskrivning, gentaget_aktiv]), 2025).alle_input_gyldige == Falskt && personskat_honorarudgifter_resultat(med_driftsmidler([saldoafskrivning, ekstra_saldo]), 2025).alle_input_gyldige == Falskt && personskat_honorarudgifter_resultat(med_driftsmidler([saldoafskrivning, saldoafskrivning]), 2025).alle_input_gyldige == Falskt
+? aktiver_og_saldi_må_ikke_opdeles_for_dobbelt_fradrag
+
+= afskrivning_uden_kilde = afskrivningspost("", ["aktiv"], honorarsaldo(2025, 10000, Al5FuldRestsaldo))
+= afskrivning_uden_aktiv = afskrivningspost("saldo", [], honorarsaldo(2025, 10000, Al5FuldRestsaldo))
+| afskrivning_kræver_identificerede_fuldstændige_kilder: afskrivning_uden_kilde -> all([afskrivning_uden_kilde, afskrivning_uden_aktiv], |post: PersonskatHonorarAfskrivningFakta| personskat_honorarudgifter_resultat(med_driftsmidler([post]), 2025).alle_input_gyldige == Falskt) && personskat_honorarudgifter_resultat(PsHonorarudgifterMedDriftsmidler(poster = [], afskrivninger = [saldoafskrivning], fuldstændige = Falskt), 2025).alle_input_gyldige == Falskt
+? afskrivning_kræver_identificerede_fuldstændige_kilder
+
+= nettogrænse_med_afskrivning = PsHonorarudgifterMedDriftsmidler(poster = [almindelig(21000)], afskrivninger = [saldoafskrivning], fuldstændige = Sandt)
+= tab_med_afskrivning = PsHonorarudgifterMedDriftsmidler(poster = [almindelig(21001)], afskrivninger = [saldoafskrivning], fuldstændige = Sandt)
+| nettoomkostninger_omfatter_både_løbende_udgift_og_afskrivning: nettogrænse_med_afskrivning -> personskat_honorarudgifter_netto_dækket(nettogrænse_med_afskrivning, 50000, 2025, 35) && personskat_honorarudgifter_netto_dækket(tab_med_afskrivning, 50000, 2025, 35) == Falskt && personskat_honorarudgifter_resultat(tab_med_afskrivning, 2025).fradrag_i_personlig_indkomst_kroner == 46001
+? nettoomkostninger_omfatter_både_løbende_udgift_og_afskrivning

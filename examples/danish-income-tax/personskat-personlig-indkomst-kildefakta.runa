@@ -392,8 +392,9 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
     | _ -> 0
 }
 | personskat_honorarudgiftsidentifikationer_entydige(fakta: List(PersonskatPersonligtArbejdsvederlagFakta)) -> {
-    = ider = flat_map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| map(personskat_honorarudgiftsposter(post.udgifter), |udgift: PersonskatHonorarudgiftFakta| udgift.identifikation))
-    length(distinct(ider)) == length(ider)
+    = ider = flat_map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| personskat_honorarudgifter_identifikationer(post.udgifter))
+    = aktiver = flat_map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| personskat_honorarudgifter_aktividentifikationer(post.udgifter))
+    length(distinct(ider)) == length(ider) && length(distinct(aktiver)) == length(aktiver)
 }
 --@end:personskat_personligt_arbejdsvederlag--
 
