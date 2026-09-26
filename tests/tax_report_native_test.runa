@@ -9,7 +9,7 @@
         indkomstbro = Some(RapportIndkomstBro(personlig_indkomst_kroner = 0, kapitalindkomst_kroner = 0, ligningsmæssige_fradrag_kroner = 0, skattepligtig_indkomst_kroner = 0, øvrige_indkomstreguleringer_kroner = 0, oplyst_ægtefælleunderskud_kroner = Some(0))),
         ægtefællenedslag = RapportÆgtefællenedslag(statsligt_personfradrag_øre = nedslag, kommunalt_personfradrag_øre = nedslag, kirkeligt_personfradrag_øre = nedslag, kommunalt_og_kirkeligt_personfradrag_øre = None, negativ_kapitalindkomst_øre = nedslag, eget_negativ_kapitalindkomstnedslag_øre = nedslag),
         skat = RapportSkat(poster_uden_ægtefællenedslag = [], poster_uden_ægtefællenedslag_komplette = komplet, oplyst_beregnet_skat_øre = skat),
-        betaling = RapportBetaling(oplyst_forskudsskat_øre = skat, oplyst_beregnet_skat_øre = skat, tillæg_til_slutskat = [], tillæg_til_slutskat_komplette = Sandt, oplyst_overskydende_skat_øre = hvis restskat { None } ellers { Some(0) }, korrektioner_til_udbetaling = [], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = hvis restskat { None } ellers { Some(0) }, restskat = hvis restskat { Some(RapportRestskat(oplyst_restskat_øre = Some(0))) } ellers { None })
+        betaling = RapportBetaling(oplyst_forskudsskat_øre = skat, oplyst_beregnet_skat_øre = skat, tillæg_til_slutskat = [], tillæg_til_slutskat_komplette = Sandt, oplyst_overskydende_skat_øre = hvis restskat { None } ellers { Some(0) }, korrektioner_til_udbetaling = [], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = hvis restskat { None } ellers { Some(0) }, restskat = hvis restskat { Some(RapportRestskat(oplyst_restskat_øre = Some(0))) } ellers { None }, slutbetaling = None)
     )
 }
 
@@ -20,7 +20,7 @@
         indkomstbro = Some(RapportIndkomstBro(personlig_indkomst_kroner = 400000, kapitalindkomst_kroner = -10000, ligningsmæssige_fradrag_kroner = 45000, skattepligtig_indkomst_kroner = 333000, øvrige_indkomstreguleringer_kroner = 0, oplyst_ægtefælleunderskud_kroner = Some(12000))),
         ægtefællenedslag = RapportÆgtefællenedslag(statsligt_personfradrag_øre = statsligt_nedslag, kommunalt_personfradrag_øre = kommunalt_nedslag, kirkeligt_personfradrag_øre = Some(0), kommunalt_og_kirkeligt_personfradrag_øre = None, negativ_kapitalindkomst_øre = Some(80000), eget_negativ_kapitalindkomstnedslag_øre = Some(80000)),
         skat = RapportSkat(poster_uden_ægtefællenedslag = [RapportBeløb(navn = "Fiktiv øvrig skat", beløb_øre = 9820000 + samlet_nedslag)], poster_uden_ægtefællenedslag_komplette = Sandt, oplyst_beregnet_skat_øre = Some(9820000)),
-        betaling = RapportBetaling(oplyst_forskudsskat_øre = Some(9900000), oplyst_beregnet_skat_øre = Some(9820000), tillæg_til_slutskat = [], tillæg_til_slutskat_komplette = Sandt, oplyst_overskydende_skat_øre = Some(80000), korrektioner_til_udbetaling = [RapportBeløb(navn = "Fiktiv oplyst godtgørelse", beløb_øre = 1234)], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = Some(812), restskat = None)
+        betaling = RapportBetaling(oplyst_forskudsskat_øre = Some(9900000), oplyst_beregnet_skat_øre = Some(9820000), tillæg_til_slutskat = [], tillæg_til_slutskat_komplette = Sandt, oplyst_overskydende_skat_øre = Some(80000), korrektioner_til_udbetaling = [RapportBeløb(navn = "Fiktiv oplyst godtgørelse", beløb_øre = 1234)], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = Some(812), restskat = None, slutbetaling = None)
     )
 }
 
@@ -72,7 +72,7 @@
 
 -- KSL §§ 61–62: samme grundlag før begge betalingsspor og korrektioner.
 > betaling_med_tillæg(tillæg: Heltal, komplette: Boolsk) -> RapportBetaling {
-    RapportBetaling(oplyst_forskudsskat_øre = Some(9900000), oplyst_beregnet_skat_øre = Some(9820000), tillæg_til_slutskat = [RapportBeløb(navn = "Fiktivt overført beløb", beløb_øre = tillæg)], tillæg_til_slutskat_komplette = komplette, oplyst_overskydende_skat_øre = None, korrektioner_til_udbetaling = [RapportBeløb(navn = "Fiktiv godtgørelse", beløb_øre = 1234)], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = None, restskat = None)
+    RapportBetaling(oplyst_forskudsskat_øre = Some(9900000), oplyst_beregnet_skat_øre = Some(9820000), tillæg_til_slutskat = [RapportBeløb(navn = "Fiktivt overført beløb", beløb_øre = tillæg)], tillæg_til_slutskat_komplette = komplette, oplyst_overskydende_skat_øre = None, korrektioner_til_udbetaling = [RapportBeløb(navn = "Fiktiv godtgørelse", beløb_øre = 1234)], korrektioner_komplette = Sandt, oplyst_udbetaling_kroner = None, restskat = None, slutbetaling = None)
 }
 = tillægsbetaling = betaling_med_tillæg(50000, Sandt)
 = ukendte_tillæg = betaling_med_tillæg(50000, Falskt)
@@ -83,4 +83,28 @@
 ? tillæg_før_udbetaling
 ? ukendte_tillæg_tilbageholder_begge_spor
 ? samme_balance_ved_en_øres_grænse
+
+-- Nye betalingsretninger gennem samme model, også i native-paritetskontrollen.
+> ændret_rapport(restskat: Boolsk, retning: RapportBetalingsretning, korrektion: Heltal, komplette: Boolsk, oplyst: Heltal?, ældre: Heltal?) -> ÅrsopgørelseAfstemningsinput {
+    = grundlag = nulrapport(2025, Sandt, Some(0), Some(0), Falskt)
+    ÅrsopgørelseAfstemningsinput(
+        skatteår = grundlag.skatteår, kommune = grundlag.kommune, betaler_kirkeskat = grundlag.betaler_kirkeskat,
+        ægtefællens_kommune = grundlag.ægtefællens_kommune, gift_samlevende_ved_årets_udløb = grundlag.gift_samlevende_ved_årets_udløb,
+        indkomstbro = grundlag.indkomstbro, ægtefællenedslag = grundlag.ægtefællenedslag,
+        skat = RapportSkat(poster_uden_ægtefællenedslag = [RapportBeløb(navn = "Fiktiv skat", beløb_øre = 2000000)], poster_uden_ægtefællenedslag_komplette = Sandt, oplyst_beregnet_skat_øre = Some(2000000)),
+        betaling = RapportBetaling(oplyst_forskudsskat_øre = Some(hvis restskat { 1800000 } ellers { 2200000 }), oplyst_beregnet_skat_øre = Some(2000000), tillæg_til_slutskat = [], tillæg_til_slutskat_komplette = Sandt, oplyst_overskydende_skat_øre = hvis restskat { None } ellers { Some(200000) }, korrektioner_til_udbetaling = [RapportBeløb(navn = "Fiktiv tidligere bevægelse", beløb_øre = korrektion)], korrektioner_komplette = komplette, oplyst_udbetaling_kroner = ældre, restskat = hvis restskat { Some(RapportRestskat(oplyst_restskat_øre = Some(200000))) } ellers { None }, slutbetaling = Some(RapportSlutbetaling(retning = retning, oplyst_beløb_kroner = oplyst)))
+    )
+}
+= ændrede_resultater = map([
+    ændret_rapport(Falskt, TilBetaling, -500000, Sandt, Some(3000), None),
+    ændret_rapport(Sandt, TilUdbetaling, 500000, Sandt, Some(3000), None),
+    ændret_rapport(Falskt, TilUdbetaling, -200001, Sandt, Some(0), None),
+    ændret_rapport(Falskt, TilBetaling, -500000, Falskt, Some(3000), None),
+    ændret_rapport(Falskt, TilBetaling, -500000, Sandt, Some(-3000), None),
+    ændret_rapport(Falskt, TilBetaling, -500000, Sandt, Some(3000), Some(0)),
+    ændret_rapport(Falskt, TilBetaling, -500000, Sandt, None, None)
+    ], afstem_årsopgørelse)
+| ændrede_betalingsretninger: ændrede_resultater -> map(ændrede_resultater, |r: ÅrsopgørelseAfstemningsresultat| r.status) == [BetingetAfstemt, BetingetAfstemt, Modstrid, Ufuldstændig, UgyldigtRapportinput, UgyldigtRapportinput, Ufuldstændig]
+? ændrede_betalingsretninger
 @ print(vis(resultater))
+@ print(vis(ændrede_resultater))
