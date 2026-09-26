@@ -1,0 +1,47 @@
+@ sprog da
+@ importer ../../../examples / danish - income - tax / aktieindkomst - slutopgoerelse
+@ importer ../../../examples / danish - income - tax / soemandsbeskatningsloven - dis - lempelse
+
+-- Fiktive input: native/interpreter-konformitet, ikke ekstern skattevalidering.
+| årsskifte_input(år: Heltal, løn: Heltal, kapital: Heltal) -> LønmodtagerInput(
+    skatteår = år,
+    kommune = København,
+    bruttoløn_kroner = løn,
+    øvrig_personlig_indkomst_kroner = 0,
+    nettokapitalindkomst_kroner = kapital,
+    ligningsmæssige_fradrag_kroner = 0,
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = 0,
+    pensionsfradrag = lønmodtager_uden_pensionsfradrag(Dato(1990, 1, 1)),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+> årsskifte_række(input: LønmodtagerInput) -> List(Heltal) {
+    = model = beregn_lønmodtager_model(input)
+    = eksakt = beregn_lønmodtager_eksakt(input, lønmodtager_standard_skatteforhold(), lønmodtager_par13_standard_forhold())
+    = aktier = AktieindkomstSlutopgørelseCase(lønmodtager_breakdown_fra_model(model), 0, 150000, 0, Falskt, 40500).statsskat_personfradrag_input()
+    = dis = søbl5_topskat_komponent(model, 200000)
+    = eksakt_dis = søbl5_eksakte_lempelseskomponenter(model, eksakt, 200000)
+    [input.skatteår,
+        eksakt.før_nedsættelser.par7_skat_øre,
+        eksakt.før_nedsættelser.par7a_skat_øre,
+        eksakt.før_nedsættelser.par8_skat_øre,
+        aktier.par7_skat_kroner,
+        aktier.par7a_skat_kroner,
+        aktier.par8_skat_kroner,
+        søbl5_topskat_grundlag_kroner(model),
+        dis.samlet_skattegrundlag_kroner,
+        dis.forholdsmæssig_lempelse_kroner,
+        eksakt_dis[2].samlet_skattegrundlag_kroner,
+        eksakt_dis[2].forholdsmæssig_lempelse_øre]
+}
+= valgt_år = parse_int(env_var("FUTURUNA_EXACT_YEAR"))
+= rækker = hvis valgt_år != 0 { [årsskifte_række(årsskifte_input(valgt_år, 3000000, 110000))] }
+ellers { map([
+    årsskifte_input(2023, 3000000, 110000),
+    årsskifte_input(2024, 3000000, 110000),
+    årsskifte_input(2025, 3000000, 110000),
+    årsskifte_input(2026, 3000000, 110000),
+    årsskifte_input(2025, 0, 0),
+    årsskifte_input(2026, 0, 0)
+    ], |input: LønmodtagerInput| årsskifte_række(input)) }
+@ print(vis(rækker))

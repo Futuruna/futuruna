@@ -140,11 +140,11 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
         ]
     )
     | slutskat_statsskat_før_personfradrag() -> par5_statsskat_resultat(slutskat_statsskat_før_personfradrag_input())
-    | par7_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().topskat_kroner under person.skatteår < 2026
+    | par7_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().topskat_kroner
     | exception aktie_reform_par7_er_mellemskat par7_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().mellemskat_kroner under person.skatteår >= 2026
-    | par7a_skat_før_personfradrag_kroner() -> 0 under person.skatteår < 2026
+    | par7a_skat_før_personfradrag_kroner() -> 0
     | exception aktie_reform_par7a_er_topskat par7a_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().topskat_kroner under person.skatteår >= 2026
-    | par8_skat_før_personfradrag_kroner() -> 0 under person.skatteår < 2026
+    | par8_skat_før_personfradrag_kroner() -> 0
     | exception aktie_reform_par8_er_toptopskat par8_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().toptopskat_kroner under person.skatteår >= 2026
     | statsskat_personfradrag_input() -> PersonfradragStatsskatNedsættelseInput(
         par6_skat_kroner = slutskat_statsskat_før_personfradrag().bundskat_kroner,
