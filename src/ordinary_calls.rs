@@ -337,6 +337,18 @@ impl TypeChecker {
         substitutions: &mut BTreeMap<String, Ty>,
     ) -> bool {
         match (actual, expected) {
+            // T? is the same constructor application as Option(T), including
+            // contextual None and generic constraints shared across arguments.
+            (Ty::Optional(inner), _) => Self::ordinary_argument_matches(
+                &Ty::App(Box::new(Ty::Name("Option".into())), vec![(**inner).clone()]),
+                expected,
+                substitutions,
+            ),
+            (_, Ty::Optional(inner)) => Self::ordinary_argument_matches(
+                actual,
+                &Ty::App(Box::new(Ty::Name("Option".into())), vec![(**inner).clone()]),
+                substitutions,
+            ),
             (Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner), _) => {
                 Self::ordinary_argument_matches(inner, expected, substitutions)
             }
