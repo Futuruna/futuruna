@@ -28,6 +28,8 @@ Contact: research@futuruna.com
 
 ## For AIs
 
+- [Running shared models](https://futuruna.com/ai-setup.md#running-shared-models): Review source and dependencies before execution; checking, auditing, calculations and editor dependency resolution are not a sandbox.
+- [Common mistakes from other languages](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/common-mistakes.md): Check comparisons, comments, partial rules, exception labels, effects, interpolation, integer units, and validation commands before adapting unfamiliar syntax.
 - [Futuruna skill](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/SKILL.md): Use the maintained workflow for learning, writing, checking, and explaining Futuruna.
 - [Learning path](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/references/learning-path.md): Learn the seven front runes through one small working program at a time.
 
@@ -37,7 +39,7 @@ Contact: research@futuruna.com
 - [Logic rules](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/cocktails.runa): See facts, rules, queries, and ordinary collection processing work side by side.
 - [Typed calculation](https://raw.githubusercontent.com/Futuruna/futuruna/main/tests/fixtures/calculation/tax.calculate.runa): See a small rule model become a typed, interview-ready calculation.
 - [Law-exploration workbook](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/exploration-workbook.md): Learn how to search a finite rule space, find counterexamples, and select the worst case with ordinary Futuruna.
-- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Inspect 490 adjacent 2026 tax transitions across all 98 municipal rows and two complete phase-out staircases, including checked coverage, a four-bucket histogram, loss ranges, ties, and concrete cases.
+- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Full audit of 490 adjacent 2026 tax transitions, requiring 980 complete model evaluations before its report. Read the workbook and plan for a substantial run before launching it; use the weather demo or small typed calculation for a first-run check.
 
 ## Law, Rules, and Research
 

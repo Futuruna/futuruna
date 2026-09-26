@@ -5,6 +5,31 @@
 use std::fmt;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+
+trait __FuturunaNumber: Default + Sized {
+    fn checked_sum_step(self, other: Self) -> Self;
+    fn magnitude(self) -> Self;
+}
+impl __FuturunaNumber for i64 {
+    fn checked_sum_step(self, other: Self) -> Self {
+        self.checked_add(other).expect("integer sum overflow")
+    }
+    fn magnitude(self) -> Self {
+        self.checked_abs().expect("integer absolute-value overflow")
+    }
+}
+impl __FuturunaNumber for f64 {
+    fn checked_sum_step(self, other: Self) -> Self { self + other }
+    fn magnitude(self) -> Self { self.abs() }
+}
+fn __futuruna_sum<T: __FuturunaNumber, I: Iterator<Item = T>>(items: I) -> T {
+    items.fold(T::default(), T::checked_sum_step)
+}
+fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
+// Fix the key type from the map so compiler-inserted borrows can coerce to &K.
+fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
+    map.get(key)
+}
 fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!("{}", v) }
 fn __futuruna_show_any<T: fmt::Debug>(v: &T) -> String {
     let s = format!("{:?}", v);
@@ -171,7 +196,7 @@ fn identity<A: fmt::Display + Clone>(x: A) -> A {
 }
 
 fn add_bias(__fut_globals: &__FutGlobals, x: i64) -> i64 {
-    (x + __fut_globals.doubled.clone().expect("top-level binding `doubled` not initialized"))
+    { let __fut_l: i64 = x; let __fut_r: i64 = __fut_globals.doubled.clone().expect("top-level binding `doubled` not initialized"); __fut_l.checked_add(__fut_r).expect("integer addition overflow") }
 }
 
 const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;
@@ -180,7 +205,7 @@ fn __fut_runtime_main_inner() {
     let mut __fut_globals = __FutGlobals::default();
     let base = 7i64;
     __fut_globals.base = Some(base.clone());
-    let doubled = (base * 2i64);
+    let doubled = { let __fut_l: i64 = base; let __fut_r: i64 = 2i64; __fut_l.checked_mul(__fut_r).expect("integer multiplication overflow") };
     __fut_globals.doubled = Some(doubled.clone());
     println!("{}", __futuruna_show_any(&add_bias(&__fut_globals, base)));
 }

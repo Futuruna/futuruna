@@ -33,6 +33,7 @@ for entry in "${ENTRYPOINTS[@]}"; do
     run_step "$RELEASE_RUNA" check "$entry"
 done
 
+run_step "$RELEASE_RUNA" test "$TARGET_DIR"
 run_step "$RELEASE_RUNA" test --run "$TARGET_DIR"
 run_step "$RELEASE_RUNA" test --check-codegen "$TARGET_DIR"
 run_step "$RELEASE_RUNA" test --roundtrip "$TARGET_DIR"

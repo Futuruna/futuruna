@@ -1,0 +1,16 @@
+@ print(format_float(3.14159, 2))
+@ print(format_float(3.0, 0))
+@ print(format_float(7, 3))
+@ print(show(string_length(format_float(1.0, 65535))))
+
+> formatting_value() -> Float {
+    @ print("value")
+    3.14159
+}
+
+> formatting_precision() -> Int {
+    @ print("precision")
+    2
+}
+
+@ print(format_float(formatting_value(), formatting_precision()))

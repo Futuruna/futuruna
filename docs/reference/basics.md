@@ -21,6 +21,27 @@ metadata, and audits an actual same-rule contradiction.
 -7          -- negative Int
 ```
 
+Write thousands without commas or underscores: `1000`. Digit separators such
+as `1_000` are unsupported. Commas separate arguments and list
+items, so `[1,000, 2]` means `[1, 0, 2]`. Leading zeroes do not change an
+integer's decimal value. There is no date literal: `2024-01-31` is subtraction
+and evaluates to `1992`. Use a string such as `"2024-01-31"` for date text, or
+an explicitly defined date record with the validation your model requires.
+
+`%` is a binary remainder operator, not a percentage suffix. Represent a rate
+as `25` percent or `0.25` as a fraction, and keep that unit consistent in the
+model. A trailing `%` continues onto the next line because it needs a right
+operand.
+
+`Int` is a signed 64-bit integer. Addition, subtraction, multiplication,
+division, remainder, and negation fail if the result cannot be represented.
+Integer division or remainder by zero also fails. These operations do not
+wrap or substitute zero in either interpreted or compiled execution. Division
+truncates toward zero; a nonzero remainder has the dividend's sign.
+
+Ordinary execution stops with an error. Typed calculations report the invalid
+value as a case diagnostic; see [calculation errors](calculations.md).
+
 ### Booleans
 ```runa
 True        -- capitalized
@@ -41,6 +62,13 @@ preserves newlines
 ```
 
 Interpolation desugars to `"Result: " + show(x + 5)`.
+An ordinary string such as `"Hello {name}"` keeps its braces literally. Use
+`"""Hello {{name}}"""` for interpolation. Single quotes enclose one character,
+not a string.
+
+When either operand of `+` is a string, the other value is converted to text:
+`"10" + 5` produces `"105"`. This is concatenation, not numeric addition. Parse
+numeric input explicitly before doing arithmetic.
 
 ### Characters
 ```runa
@@ -56,6 +84,10 @@ Interpolation desugars to `"Result: " + show(x + 5)`.
 Use `concat(left, right)` to concatenate lists. The `+` operator does not
 concatenate lists.
 
+List operations are ordinary function calls: `length(items)` and
+`map(items, |item| item * 2)`. A list does not expose `.length`, `.len()` or
+`.map(...)` members.
+
 ### Unit
 ```runa
 ()                       -- unit value and unit type
@@ -69,6 +101,14 @@ grammar makes continuation unambiguous:
 - inside parentheses `(...)` or brackets `[...]`;
 - after an incomplete token such as `=`, `->`, `,`, or an operator; or
 - before a continuation token such as `|>`, `.`, `under`, or `else`.
+
+Use a newline or `;` between adjacent expressions. For example, `= x = 5 5`
+is an error; write `= x = 5; 5` if you intend two statements. Explicit rune
+boundaries and compact forms such as `{ @ print("hello") 5 }` remain valid.
+Unrecognized characters in code are errors, rather than ignored text.
+Strings, character literals, triple-quoted templates and `----` quotation
+blocks must have their closing delimiters. Legal quotations and strings may
+still contain punctuation such as `§`, curly quotation marks and dashes.
 
 This lets compact and multiline forms mean the same thing:
 
@@ -121,6 +161,9 @@ top-level rule:
 Do not rely on continuation inference for a line-leading `+`, `-`, or `||`.
 Put these operators at the end of the preceding line, or wrap the whole
 expression in parentheses, to make the intended continuation explicit.
+For example, `= net = 100` followed by an indented `- 30` keeps `net` at
+`100`: the second line is a separate expression statement whose result is
+discarded. Indentation alone does not join these statements.
 
 ## Types
 
@@ -140,7 +183,7 @@ expression in parentheses, to make the intended continuation explicit.
 | `List(a)` | `Vec<A>` | `[1, 2, 3]` |
 | `Option(a)` | `Option<A>` | `Some(42)`, `None` |
 | `Result(a, e)` | `Result<A, E>` | `Ok(42)`, `Err("fail")` |
-| `Pair(a, b)` | `Pair<A, B>` (struct with `fst`, `snd` fields) | `Pair(1, "x")` |
+| `Pair(a, b)` | `(A, B)` | `Pair(1, "x")` |
 
 Tuple literals may span lines and may end in a trailing comma:
 
@@ -154,9 +197,13 @@ Tuple literals may span lines and may end in a trailing comma:
 Pair construction and field access:
 ```runa
 = p = Pair(1, "hello")
-@ print(show(p.fst))          -- 1
-@ print(show(p.snd))          -- "hello"
+@ print(show(p.fst)) -- 1
+@ print(show(p.snd)) -- hello
 ```
+
+A nonexistent field is an error. Known receiver types are checked before
+execution; an untyped receiver is checked when the field is accessed. A real
+field whose value is `()` remains a valid field.
 
 ### Function types
 ```runa

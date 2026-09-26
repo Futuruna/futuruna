@@ -24,8 +24,8 @@ clicks <- "button1"
 clicks <- "button2"
 clicks <- "button3"
 
-@ print("count: " + show(clicks.count))    -- 3
-@ print("latest: " + show(clicks.latest))  -- "button3"
+@ print("count: " + show(clicks.count)) -- count: 3
+@ print("latest: " + show(clicks.latest)) -- latest: button3
 ```
 
 Subjects are push-based streams. `<-` sends values. `.count` and `.latest` inspect state.

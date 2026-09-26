@@ -227,7 +227,24 @@ authoritative and the first applicable rule wins. Put the more specific of two
 overlapping guards first. `under` adds a guard condition. `exception <label>`
 places the rule in the exception tier for the same head. The label (here
 `heatwave`) names the exception for readability and debugging; it does not
-affect priority.
+affect priority. Write both the label and the named call:
+`| exception reduced rate(x) -> 10 under x < 10`. For a rule with no arguments,
+use `rate()`. Missing labels, parenthesized heads, and heads that are not named
+rule calls are parsing errors.
+
+An `under` guard must return `Bool`. A known non-Boolean guard is rejected at
+its declaration, even if the rule is never called. A dynamically supplied
+non-Boolean guard fails evaluation; it is not treated as `False` and cannot
+select a fallback rule. Clauses in one family (same scope, name, and arity)
+must have compatible result types. Known conflicting results are diagnosed
+before execution. Unresolved generic results do not establish compatibility
+or totality. Exception-only families remain supported.
+
+A rule with safely known Boolean results returns `False` when no clause
+applies, including `| eligible(age) -> True under age >= 18` without a
+parameter annotation. Invalid guards still stop evaluation. This runtime
+fallback does not establish parameter types or authorize a proof: verification
+and exploration retain their separate checking requirements.
 
 ### Named invariants (verification targets)
 ```runa
@@ -401,12 +418,23 @@ The boundary between the verified world and effects. Every `@` says: formal reas
 @ print("value: " + show(x))
 ```
 
+Effect invocations use supported builtin names. Unknown names such as
+`@ println(...)` or `@ log(...)` are errors. Assertions are ordinary calls:
+write `assert(condition)` or `assert_with_message(condition, "message")`
+without `@`. Declared algebraic operations also use ordinary call syntax, as
+shown in the handler example above.
+
 ### Import (multi-file)
 ```runa
 @ import ./utils                    -- flat import: merge all definitions
 @ import Utils from ./utils         -- qualified: access via Utils.function()
 @ import #a1b2c3 from ./utils       -- content-addressed import
 ```
+
+Checking an importing file also checks imported function bodies. Errors identify
+the imported file and source position; editors link the import-site diagnostic
+to that original location. Qualified modules resolve private helpers and their
+own dependencies within the module, without inheriting the caller's local names.
 
 ### Use (Rust items)
 ```runa
@@ -444,10 +472,14 @@ calculation; nested input labels and questions remain field metadata. See
 
 ### Comptime (compile-time evaluation)
 ```runa
-@ comptime = table = generate_lookup(1000)
+> generate_lookup(n: Int) -> Int { n * 2 }
+
+@ comptime
+= table = generate_lookup(1000)
 ```
 
-The expression is evaluated at compile time and inlined as a constant.
+Put `@ comptime` on its own line before the binding. The expression is evaluated
+at compile time and inlined as a constant.
 
 ### Rust escape hatch
 ```runa
@@ -529,9 +561,30 @@ The `: val` capture binds the **subject value** (the data being checked), not th
 The same `?` line works at three levels of assurance:
 - **`runa run`** — evaluates the predicate with current values at runtime
 - **`runa build`** — emits `debug_assert!()` in the compiled binary
-- **`runa verify`** — translates to SMT-LIB2 and invokes Z3 to prove for all inputs
+- **`runa verify`** — translates supported claims to SMT-LIB2 and invokes Z3
+  to prove them over their runtime input domain
+
+For `Int`, verification includes checked `i64` arithmetic: a reachable overflow
+or zero divisor is a counterexample to the guarantee. Division truncates toward
+zero, and remainder has the dividend's sign. Short-circuited operations and
+unselected branches do not have to be defined. Unsupported helpers and Float
+claims remain explicitly unverified; exact real arithmetic cannot substitute
+for floating-point evaluation.
+
+An explicit `by` proof checks a mathematical proposition in the proof kernel.
+If its source dependency graph performs arithmetic, `runa verify` additionally
+requires the supported semantic check before reporting a proof. The ordinary
+interpreter and native emitter skip explicit proof blocks; use `runa verify`
+to check them. A plain `?` without `by` retains its runtime assertion behavior.
 
 ### Verifying rule dispatch
+
+For CI, `runa verify` exits 0 only when at least one invariant exists and every
+invariant is proved without an explicit-proof validation failure. A
+counterexample, unsupported claim, unknown result, missing or failed solver,
+or empty invariant set exits 1. If an authored proof fails validation, a
+successful SMT fallback does not turn the command into a successful check.
+Kernel-only proofs do not require Z3.
 
 `runa verify` can translate pure, total, non-recursive `|` rule groups directly,
 including rules inside a product RuleScope. Conditions and exceptions use the
@@ -549,6 +602,11 @@ separate `>` function.
 = high_income_case = TaxCase(income = 600000)
 | high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
 ```
+
+Place plain imports before local declarations and executable statements.
+Verification rejects a late plain import because its static symbol graph
+cannot represent the source-ordered rebinding that interpretation permits.
+This restriction also applies to imported helper files.
 
 Plain imports are resolved recursively for verification. An exception declared
 by an importing file therefore extends the imported rule group and keeps its

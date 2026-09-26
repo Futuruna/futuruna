@@ -277,9 +277,11 @@ fn canonical_tax_uses_filtered_work_basis_without_changing_am_or_ll9l() {
         34500
     );
     for id in ["atp-ordinary", "atp-mixed"] {
+        // The model rounds the final 12% deduction of the 920-kr. net ATP
+        // contribution upward: 110.40 kr. becomes 111 kr. (LL §9 L).
         assert_eq!(
             result(id)["skat"]["ekstra_pensionsfradrag_kroner"],
-            110,
+            111,
             "{id}"
         );
     }

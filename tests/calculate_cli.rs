@@ -1791,6 +1791,226 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
     std::fs::remove_file(&output_path).ok();
 }
 
+struct StringWorkbookFixture {
+    source: PathBuf,
+    input: PathBuf,
+    workbook: PathBuf,
+    expected: Value,
+}
+
+impl StringWorkbookFixture {
+    fn new(inputs: Option<Vec<Value>>) -> Self {
+        let source = temp_path("runa");
+        let input = temp_path("json");
+        let workbook = temp_path("xlsx");
+        std::fs::write(&source, "# TextInput(name: String, note: String?, names: List(String), labels: Map(String, String), tags: Set(String))\n@ calculate\n> echo_text(input: TextInput) -> TextInput { input }\n").unwrap();
+        let template = run(&["template", source.to_str().unwrap(), "--format", "json"]);
+        assert!(template.status.success(), "{template:?}");
+        let mut envelope = parse_stdout(&template);
+        if let Some(inputs) = &inputs {
+            envelope["cases"] = inputs.iter().enumerate().map(|(index, input)| {
+                serde_json::json!({"case_id": format!("case-{index}"), "input": input})
+            }).collect();
+        }
+        std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
+        let reference = run(&[
+            "call",
+            source.to_str().unwrap(),
+            "--input",
+            input.to_str().unwrap(),
+        ]);
+        assert!(reference.status.success(), "{reference:?}");
+        let mut args = vec![
+            "template",
+            source.to_str().unwrap(),
+            "--format",
+            "xlsx",
+            "--output",
+            workbook.to_str().unwrap(),
+        ];
+        if inputs.is_some() {
+            args.extend(["--input", input.to_str().unwrap()]);
+        }
+        let template = run(&args);
+        assert!(template.status.success(), "{template:?}");
+        Self {
+            source,
+            input,
+            workbook,
+            expected: parse_stdout(&reference)["results"].clone(),
+        }
+    }
+
+    fn call(&self) -> Output {
+        run(&[
+            "call",
+            self.source.to_str().unwrap(),
+            "--input",
+            self.workbook.to_str().unwrap(),
+        ])
+    }
+
+    fn assert_round_trip(&self) {
+        let output = self.call();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(parse_stdout(&output)["results"], self.expected);
+    }
+
+    fn assert_refresh_round_trip(&self) {
+        let refreshed = temp_path("xlsx");
+        let output = run(&[
+            "template",
+            self.source.to_str().unwrap(),
+            "--input",
+            self.workbook.to_str().unwrap(),
+            "--output",
+            refreshed.to_str().unwrap(),
+        ]);
+        assert!(output.status.success(), "{output:?}");
+        let output = run(&[
+            "call",
+            self.source.to_str().unwrap(),
+            "--input",
+            refreshed.to_str().unwrap(),
+        ]);
+        std::fs::remove_file(refreshed).unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(parse_stdout(&output)["results"], self.expected);
+    }
+}
+
+impl Drop for StringWorkbookFixture {
+    fn drop(&mut self) {
+        for path in [&self.source, &self.input, &self.workbook] {
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+fn string_workbook_input(name: &str, note: Value) -> Value {
+    serde_json::json!({"name": name, "note": note, "names": [], "labels": {}, "tags": []})
+}
+
+#[test]
+fn xlsx_strings_unedited_template_preserves_required_empty_text() {
+    let fixture = StringWorkbookFixture::new(None);
+    let mut workbook = open_workbook_auto(&fixture.workbook).unwrap();
+    let metadata = workbook.worksheet_range("_futuruna").unwrap();
+    assert_eq!(
+        metadata.get((1, 1)),
+        Some(&Data::String("futuruna.calculate.xlsx.input.v8".into()))
+    );
+    drop(workbook);
+    assert_eq!(fixture.expected[0]["result"]["name"], "");
+    fixture.assert_round_trip();
+}
+
+#[test]
+fn xlsx_strings_optional_empty_text_stays_distinct_from_null() {
+    let fixture = StringWorkbookFixture::new(Some(vec![
+        string_workbook_input("present", Value::String(String::new())),
+        string_workbook_input("absent", Value::Null),
+    ]));
+    assert_eq!(fixture.expected[0]["result"]["note"], "");
+    assert_eq!(fixture.expected[1]["result"]["note"], Value::Null);
+    fixture.assert_round_trip();
+}
+
+#[test]
+fn xlsx_strings_collections_and_quote_like_values_preserve_json_values() {
+    let fixture = StringWorkbookFixture::new(Some(vec![serde_json::json!({
+        "name": "\"quoted\"",
+        "note": "\"\"",
+        "names": ["", "plain", "\"quoted\"", "\"\"", "\\path", "å🙂", "  "],
+        "labels": {"": "", "\"\"": "\"\"", "  ": "spaces", "plain": "\"quoted\""},
+        "tags": ["", "\"quoted\"", "plain"]
+    })]));
+    fixture.assert_round_trip();
+    fixture.assert_refresh_round_trip();
+}
+
+#[test]
+fn xlsx_strings_legacy_workbooks_keep_literal_quotes() {
+    for version in ["v6", "v7"] {
+        let mut fixture = StringWorkbookFixture::new(Some(vec![string_workbook_input(
+            "present",
+            Value::String("present".into()),
+        )]));
+        edit_workbook(&fixture.workbook, |sheets| {
+            workbook_sheet_mut(sheets, "_futuruna")[1][1] =
+                Data::String(format!("futuruna.calculate.xlsx.input.{version}"));
+            if version == "v6" {
+                sheets.retain(|(name, _)| name != "_sheets");
+            }
+            set_workbook_cell_by_header(sheets, "cases", 1, "name", Data::String("\"\"".into()));
+            set_workbook_cell_by_header(
+                sheets,
+                "cases",
+                1,
+                "note",
+                Data::String("\"quoted\"".into()),
+            );
+        });
+        fixture.expected[0]["result"]["name"] = Value::String("\"\"".into());
+        fixture.expected[0]["result"]["note"] = Value::String("\"quoted\"".into());
+        fixture.assert_round_trip();
+        fixture.assert_refresh_round_trip();
+    }
+}
+
+#[test]
+fn xlsx_strings_cleared_cells_remain_absent_or_required_errors() {
+    let fixture = StringWorkbookFixture::new(Some(vec![
+        string_workbook_input("good", Value::String("present".into())),
+        string_workbook_input("bad", Value::Null),
+    ]));
+    edit_workbook(&fixture.workbook, |sheets| {
+        set_workbook_cell_by_header(sheets, "cases", 1, "note", Data::Empty);
+        set_workbook_cell_by_header(sheets, "cases", 2, "name", Data::Empty);
+    });
+    let output = fixture.call();
+    assert_eq!(output.status.code(), Some(1));
+    let result = parse_stdout(&output);
+    assert_eq!(result["results"].as_array().unwrap().len(), 1);
+    assert_eq!(result["results"][0]["result"]["note"], Value::Null);
+    assert!(result["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| diagnostic["message"] == "required input cell is empty"));
+}
+
+#[test]
+fn xlsx_strings_malformed_quoted_text_is_case_scoped() {
+    let fixture = StringWorkbookFixture::new(Some(vec![
+        string_workbook_input("good", Value::Null),
+        string_workbook_input("bad", Value::Null),
+    ]));
+    edit_workbook(&fixture.workbook, |sheets| {
+        set_workbook_cell_by_header(
+            sheets,
+            "cases",
+            2,
+            "name",
+            Data::String("\"unfinished".into()),
+        );
+    });
+    let output = fixture.call();
+    assert_eq!(output.status.code(), Some(1));
+    let result = parse_stdout(&output);
+    assert_eq!(result["results"].as_array().unwrap().len(), 1);
+    assert_eq!(result["results"][0]["case_id"], "case-0");
+    assert!(result["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| diagnostic["case_id"] == "case-1"
+            && diagnostic["message"]
+                .as_str()
+                .unwrap()
+                .contains("invalid quoted text")));
+}
+
 #[test]
 fn xlsx_template_hydrates_populated_json_cases() {
     let fixture = fixture();
@@ -2002,15 +2222,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let case_headers = workbook_headers(&mut workbook, "cases");
         for expected in [
             "Skatteår",
-            "Bopælskommune",
-            "Årlig bruttoløn",
+            "Skattekommune for indkomståret",
+            "Årlig almindelig løn før AM og skat",
             "Etablerings- eller iværksætterkonto",
             "Faktisk indskud på etableringskonto",
             "Faktisk indskud på iværksætterkonto",
             "Ægtefælleforhold",
             "Samlevende med ægtefællen ved årets udløb",
-            "Ægtefællens årlige bruttoløn",
-            "Ægtefællens renteudgifter",
+            "Årlig almindelig løn før AM og skat",
+            "Personens fradragsberettigede renteudgifter",
             "Valg af sømandsfradrag",
             "Valg af fiskerfradrag",
             "Dødsboets skattegrundlag efter § 30",
@@ -2080,8 +2300,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Dato for omgørelse af aktieindkomstfradrag",
             "Aldersstatus for personfradrag",
             "Personens kirkeskat for indkomståret",
-            "Årets renteindtægter",
-            "Årets renteudgifter",
+            "Personens renteindtægter før modregning",
+            "Personens fradragsberettigede renteudgifter",
             "Driftsresultat fra bolig eller fritidsejendom",
             "Ejendomstype for driftsresultatet",
             "Ejendommens beliggenhed",
@@ -5761,6 +5981,48 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .iter()
             .position(|cell| cell.to_string() == "question")
             .expect("question metadata column");
+        // Reusable typed metadata gives taxpayer and spouse the same label.
+        // Assert each canonical path so one person's column cannot stand in
+        // for the other's merely because its displayed header matches.
+        for (path, expected_label) in [
+            ("lønmodtager.kommune", "Skattekommune for indkomståret"),
+            (
+                "lønmodtager.bruttoløn_kroner",
+                "Årlig almindelig løn før AM og skat",
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
+                "Årlig almindelig løn før AM og skat",
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
+                "Personens fradragsberettigede renteudgifter",
+            ),
+            (
+                "kapitalindkomst.renter.renteindtægter_kroner",
+                "Personens renteindtægter før modregning",
+            ),
+            (
+                "kapitalindkomst.renter.renteudgifter_kroner",
+                "Personens fradragsberettigede renteudgifter",
+            ),
+        ] {
+            let row = metadata
+                .rows()
+                .skip(1)
+                .find(|row| {
+                    row.get(input_path_column)
+                        .map(ToString::to_string)
+                        .as_deref()
+                        == Some(path)
+                })
+                .unwrap_or_else(|| panic!("missing human field metadata for {path}"));
+            assert_eq!(
+                row.get(label_column).map(ToString::to_string).as_deref(),
+                Some(expected_label),
+                "wrong current human label for {path}"
+            );
+        }
         for (path, expected_label, expected_question_fragment) in [
             (
                 "årsopgørelse.MedEksaktÅrsopgørelse.afregningsfakta.$variant",

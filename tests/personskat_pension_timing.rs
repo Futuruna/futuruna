@@ -866,7 +866,9 @@ fn employer_pension_routes_share_deductions_caps_and_private_priority() {
                 (31875, 666, 8244, 22700, 161300, None)
             }
             "young-alternate-lifetime" => (31875, 666, 6000, 0, 200000, Some(4263386)),
-            "taxable-aldersopsparing" => (25626, 0, 0, 0, 184911, None),
+            // (200000 + 990) * 12.75% = 25626.225; the existing model
+            // truncates to øre, then rounds the deduction up to whole kroner.
+            "taxable-aldersopsparing" => (25627, 0, 0, 0, 184911, None),
             _ => (31875, 666, 5520, 0, 184000, Some(5308213)),
         };
         assert_eq!(

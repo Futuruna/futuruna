@@ -33,14 +33,22 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex, OnceLock};
 
+mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod editor_fields;
+pub use editor_fields::EditorField;
 pub mod explore;
+mod function_returns;
+mod ordinary_calls;
+mod ordinary_expressions;
+mod parser_hints;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
 /// Lives in its own file so it can be audited in isolation.
 /// See `docs/proof-kernel.md` for the design spec.
 pub mod proof_kernel;
+mod runtime_diagnostics;
 pub mod semantic_interface;
 
 // ============================================================================
@@ -85,6 +93,8 @@ pub enum TokenKind {
     Int_,
     Float_,
     Bool_,
+    RustBody, // opaque contents of an @ rust block
+    Invalid,  // lexical error; text is the diagnostic, source_text is the offending source
     Eof,
 }
 
@@ -215,7 +225,7 @@ pub fn keyword_table_dansk() -> KeywordTable {
         ("håndter", "handle", TokenKind::KW),
         ("genoptag", "resume", TokenKind::KW),
         ("udfør", "perform", TokenKind::KW),
-        // ---- persist ----
+        // Legacy fact keywords are retained for removal diagnostics.
         ("hævd", "assert", TokenKind::KW),
         ("tilbagetræk", "retract", TokenKind::KW),
         ("afbryd", "abort", TokenKind::KW),
@@ -355,7 +365,12 @@ pub fn keyword_table_dansk() -> KeywordTable {
         // logic
         ("ikke", "not", TokenKind::Ident),
         ("find_alle", "findall", TokenKind::Ident),
+        // Keep conjunction as an identifier: the rule parser uses it as a
+        // goal separator, while ordinary expressions interpret it as &&.
+        ("og", "and", TokenKind::Ident),
+        ("eller", "||", TokenKind::Op),
         // ---- English pass-throughs (bilingual mode) ----
+        ("or", "||", TokenKind::Op),
         ("match", "match", TokenKind::KW),
         ("if", "if", TokenKind::KW),
         ("else", "else", TokenKind::KW),
@@ -391,11 +406,12 @@ pub fn keyword_table_dansk() -> KeywordTable {
     t
 }
 
-/// Detect @ sprog / @ language declaration in first non-comment line
+/// Detect the initial @ sprog / @ language declaration, allowing whitespace,
+/// comment lines and empty statement separators before it.
 pub fn detect_language(source: &str) -> KeywordTable {
     let mut in_block_comment = false;
     for line in source.lines() {
-        let trimmed = line.trim();
+        let trimmed = line.trim_start_matches(|c: char| c.is_whitespace() || c == ';');
         if in_block_comment {
             if trimmed.contains("----") {
                 in_block_comment = false;
@@ -409,12 +425,15 @@ pub fn detect_language(source: &str) -> KeywordTable {
             }
             continue;
         }
-        if trimmed.is_empty() || trimmed.starts_with("--") {
+        if trimmed.trim().is_empty() || trimmed.starts_with("--") {
             continue;
         }
-        // Look for @ sprog <code> or @ language <code>
-        if trimmed.starts_with("@ sprog ") || trimmed.starts_with("@ language ") {
-            let code = trimmed.rsplit(' ').next().unwrap_or("en").trim();
+        // Token spacing and a trailing comment must not change the selected
+        // language. The parser diagnoses misplaced declarations separately.
+        let mut words = trimmed.strip_prefix('@').unwrap_or("").split_whitespace();
+        if matches!(words.next(), Some("sprog" | "language")) {
+            let code = words.next().unwrap_or("en");
+            let code = code.split(';').next().unwrap_or(code);
             return match code {
                 "da" | "dansk" => keyword_table_dansk(),
                 "en" | "english" => keyword_table_english(),
@@ -581,6 +600,63 @@ pub fn builtin_canonical(name: &str) -> &str {
     name
 }
 
+/// Names implemented by the ordinary `@` effect dispatcher. Functions and
+/// declared algebraic operations use normal calls, even when they are impure.
+fn is_builtin_effect(name: &str) -> bool {
+    matches!(
+        builtin_canonical(name),
+        "print"
+            | "spawn"
+            | "teardown"
+            | "sleep"
+            | "subscribe"
+            | "complete"
+            | "write_file"
+            | "append_file"
+            | "read_file"
+            | "file_exists"
+            | "read_lines"
+            | "env_var"
+            | "time"
+            | "random"
+            | "input"
+            | "http_get"
+            | "http_post"
+            | "http_serve"
+            | "http_respond"
+            | "http_request_path"
+            | "http_request_method"
+            | "http_request_body"
+            | "process_run"
+    )
+}
+
+fn removed_persistence_message(name: &str) -> Option<String> {
+    matches!(name, "store" | "persist" | "migrate").then(|| {
+        format!("database persistence was removed: `@ {name}` is no longer supported; manage storage in the host application and pass typed values to Futuruna")
+    })
+}
+
+fn removed_database_builtin_message(name: &str) -> Option<String> {
+    matches!(
+        name,
+        "db_open" | "db_exec" | "db_query" | "db_query_row" | "db_insert" | "db_close" | "watch"
+    )
+    .then(|| format!("database builtin `{name}` was removed; manage storage in the host application and pass typed values to Futuruna"))
+}
+
+fn unknown_effect_message(name: &str) -> String {
+    if let Some(message) = removed_database_builtin_message(name) {
+        return message;
+    }
+    let hint = match name {
+        "println" | "printf" => "; did you mean `print`?".to_string(),
+        "assert" | "assert_with_message" => format!("; call `{name}(...)` without `@`"),
+        _ => "; call functions and declared effect operations without `@`".to_string(),
+    };
+    format!("unknown effect `{name}`{hint}")
+}
+
 /// Returns alias→canonical map for runtime env registration.
 pub fn builtin_aliases() -> Vec<(String, String)> {
     BUILTIN_ALIASES
@@ -716,6 +792,15 @@ pub fn prepend_prelude(prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
             name.map(|n| !user_names.contains(n)).unwrap_or(true)
         })
         .collect();
+    // Preserve provenance through AST cloning and lowering. Source syntax
+    // cannot produce this marker; identical authored declarations stay local.
+    if !result.is_empty()
+        || !user_stmts
+            .iter()
+            .any(|stmt| matches!(stmt, Stmt::PreludeBoundary))
+    {
+        result.push(Stmt::PreludeBoundary);
+    }
     result.extend_from_slice(user_stmts);
     result
 }
@@ -806,6 +891,7 @@ impl Lexer {
                 self.advance();
                 self.advance();
                 // Scan until closing ----
+                let mut closed = false;
                 loop {
                     match self.peek() {
                         None => break, // EOF — unclosed block comment
@@ -818,12 +904,19 @@ impl Lexer {
                             self.advance();
                             self.advance();
                             self.advance();
+                            closed = true;
                             break;
                         }
                         _ => {
                             self.advance();
                         }
                     }
+                }
+                if !closed {
+                    tokens.push(
+                        Token::new(TokenKind::Invalid, "unterminated block comment", line, col)
+                            .with_source_text("----"),
+                    );
                 }
                 continue;
             }
@@ -855,6 +948,65 @@ impl Lexer {
                         tokens.push(Token::new(TokenKind::Semi, "\n", line, col));
                     }
                 }
+                continue;
+            }
+
+            // Rust has a separate lexical grammar (lifetimes, raw strings,
+            // comments and macros). Keep its body opaque to Futuruna lexing.
+            if c == '{' {
+                let mut previous = tokens
+                    .iter()
+                    .rev()
+                    .filter(|tok| tok.kind != TokenKind::Semi);
+                if previous
+                    .next()
+                    .is_some_and(|tok| tok.text == "rust" && tok.kind == TokenKind::Ident)
+                    && previous.next().is_some_and(|tok| tok.kind == TokenKind::At)
+                {
+                    tokens.push(Token::new(TokenKind::LBrace, "{", line, col));
+                    self.advance();
+                    let body_line = self.line;
+                    let body_col = self.col;
+                    if let Some((body, close_line, close_col)) = self.read_rust_block() {
+                        tokens.push(Token::new(TokenKind::RustBody, body, body_line, body_col));
+                        tokens.push(Token::new(TokenKind::RBrace, "}", close_line, close_col));
+                    } else {
+                        tokens.push(
+                            Token::new(
+                                TokenKind::Invalid,
+                                "unterminated embedded Rust block",
+                                line,
+                                col,
+                            )
+                            .with_source_text("{"),
+                        );
+                    }
+                    continue;
+                }
+            }
+
+            // Foreign comment/negation spellings cannot form valid Futuruna
+            // operators. Quoted text and opaque Rust bodies bypass this path.
+            let foreign = match (c, self.peek2()) {
+                ('/', Some('/')) => {
+                    Some(("//", "line comments use `--`; division uses a single `/`"))
+                }
+                ('/', Some('*')) => Some(("/*", "block comments use `---- ... ----`")),
+                ('\\', Some('+')) => Some(("\\+", "rule negation uses `not(...)`")),
+                _ => None,
+            };
+            if let Some((spelling, hint)) = foreign {
+                self.advance();
+                self.advance();
+                tokens.push(
+                    Token::new(
+                        TokenKind::Invalid,
+                        format!("unexpected `{spelling}`; {hint}"),
+                        line,
+                        col,
+                    )
+                    .with_source_text(spelling),
+                );
                 continue;
             }
 
@@ -1053,7 +1205,25 @@ impl Lexer {
 
             // Numbers
             if c.is_ascii_digit() {
-                let s = self.read_number();
+                let mut s = self.read_number();
+                if self.peek() == Some('_') {
+                    while self
+                        .peek()
+                        .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+                    {
+                        s.push(self.advance().unwrap());
+                    }
+                    tokens.push(
+                        Token::new(
+                            TokenKind::Invalid,
+                            "digit separators are not supported; write digits without `_`",
+                            line,
+                            col,
+                        )
+                        .with_source_text(s),
+                    );
+                    continue;
+                }
                 let kind = if s.contains('.') {
                     TokenKind::Float_
                 } else {
@@ -1071,10 +1241,22 @@ impl Lexer {
                     self.advance(); // consume first "
                     self.advance(); // consume second "
                     self.advance(); // consume third "
-                    let parts = self.read_triple_string();
+                    let (parts, closed) = self.read_triple_string_checked();
+                    if !closed {
+                        tokens.push(
+                            Token::new(
+                                TokenKind::Invalid,
+                                "unterminated triple-quoted string literal",
+                                line,
+                                col,
+                            )
+                            .with_source_text("\"\"\""),
+                        );
+                        continue;
+                    }
                     // Desugar template parts into concatenation tokens
                     let mut first = true;
-                    for part in &parts {
+                    for (part, part_line, part_col) in &parts {
                         match part {
                             TplPart::Lit(s) => {
                                 if !first {
@@ -1095,12 +1277,14 @@ impl Lexer {
                                 let sub_tokens = sub.tokenize();
                                 for st in &sub_tokens {
                                     if st.kind != TokenKind::Eof {
-                                        tokens.push(Token::new(
-                                            st.kind,
-                                            st.text.clone(),
-                                            line,
-                                            col,
-                                        ));
+                                        let mut token = st.clone();
+                                        token.line = part_line + st.line - 1;
+                                        token.col = if st.line == 1 {
+                                            part_col + st.col - 1
+                                        } else {
+                                            st.col
+                                        };
+                                        tokens.push(token);
                                     }
                                 }
                                 tokens.push(Token::new(TokenKind::RParen, ")", line, col));
@@ -1114,15 +1298,30 @@ impl Lexer {
                     }
                     continue;
                 }
-                let s = self.read_string();
-                tokens.push(Token::new(TokenKind::String_, s, line, col));
+                let (s, closed) = self.read_string_checked();
+                tokens.push(if closed {
+                    Token::new(TokenKind::String_, s, line, col)
+                } else {
+                    Token::new(TokenKind::Invalid, "unterminated string literal", line, col)
+                        .with_source_text("\"")
+                });
                 continue;
             }
 
             // Char literals
             if c == '\'' {
-                let s = self.read_char_lit();
-                tokens.push(Token::new(TokenKind::Char_, s, line, col));
+                let (s, closed) = self.read_char_lit_checked();
+                tokens.push(if closed {
+                    Token::new(TokenKind::Char_, s, line, col)
+                } else {
+                    Token::new(
+                        TokenKind::Invalid,
+                        "invalid or unterminated character literal; use double quotes for strings, such as \"hello\"",
+                        line,
+                        col,
+                    )
+                    .with_source_text("'")
+                });
                 continue;
             }
 
@@ -1159,7 +1358,16 @@ impl Lexer {
                 continue;
             }
 
-            // Skip unknown characters
+            // Preserve invalid source as an error instead of silently changing the program.
+            tokens.push(
+                Token::new(
+                    TokenKind::Invalid,
+                    format!("unexpected character {c:?}"),
+                    line,
+                    col,
+                )
+                .with_source_text(c.to_string()),
+            );
             self.advance();
         }
 
@@ -1174,6 +1382,103 @@ impl Lexer {
                 break;
             }
         }
+    }
+
+    // Opening brace already consumed. Find its matching brace without treating
+    // Rust comments or literals as Futuruna syntax. This only finds the boundary;
+    // rustc remains responsible for checking the embedded Rust program.
+    fn read_rust_block(&mut self) -> Option<(String, usize, usize)> {
+        let start = self.pos;
+        let mut depth = 1usize;
+        while let Some(c) = self.peek() {
+            if c == '/' && self.peek2() == Some('/') {
+                while self.peek().is_some_and(|c| c != '\n') {
+                    self.advance();
+                }
+                continue;
+            }
+            if c == '/' && self.peek2() == Some('*') {
+                self.advance();
+                self.advance();
+                let mut comments = 1usize;
+                while comments > 0 {
+                    match (self.peek()?, self.peek2()) {
+                        ('/', Some('*')) => {
+                            comments += 1;
+                            self.advance();
+                            self.advance();
+                        }
+                        ('*', Some('/')) => {
+                            comments -= 1;
+                            self.advance();
+                            self.advance();
+                        }
+                        _ => {
+                            self.advance();
+                        }
+                    }
+                }
+                continue;
+            }
+            // Also recognizes the r portion of br/cr-prefixed raw strings.
+            if c == 'r' {
+                let mut hashes = 0;
+                while self.peek_at(hashes + 1) == Some('#') {
+                    hashes += 1;
+                }
+                if self.peek_at(hashes + 1) == Some('"') {
+                    for _ in 0..hashes + 2 {
+                        self.advance();
+                    }
+                    loop {
+                        let c = self.peek()?;
+                        if c == '"' && (1..=hashes).all(|offset| self.peek_at(offset) == Some('#'))
+                        {
+                            for _ in 0..hashes + 1 {
+                                self.advance();
+                            }
+                            break;
+                        }
+                        self.advance();
+                    }
+                    continue;
+                }
+            }
+            if c == '"' {
+                if !self.read_string_checked().1 {
+                    return None;
+                }
+                continue;
+            }
+            // A lifetime such as 'a or 'static is not a character literal.
+            if c == '\'' && (self.peek2() == Some('\\') || self.peek_at(2) == Some('\'')) {
+                self.advance();
+                loop {
+                    match self.advance()? {
+                        '\\' => {
+                            self.advance()?;
+                        }
+                        '\'' => break,
+                        _ => {}
+                    }
+                }
+                continue;
+            }
+            if c == '{' {
+                depth += 1;
+            } else if c == '}' {
+                depth -= 1;
+                if depth == 0 {
+                    let body = self.chars[start..self.pos].iter().collect();
+                    let close_line = self.line;
+                    let close_col = self.col;
+                    self.advance();
+                    return Some((body, close_line, close_col));
+                }
+            }
+            self.advance();
+        }
+        None
     }
 
     pub fn read_word(&mut self) -> String {
@@ -1193,6 +1498,14 @@ impl Lexer {
     /// Opening `"""` already consumed. Strips leading/trailing newline.
     /// Supports `{{expr}}` interpolation.
     pub fn read_triple_string(&mut self) -> Vec<TplPart> {
+        self.read_triple_string_checked()
+            .0
+            .into_iter()
+            .map(|(part, _, _)| part)
+            .collect()
+    }
+
+    fn read_triple_string_checked(&mut self) -> (Vec<(TplPart, usize, usize)>, bool) {
         // Strip leading newline
         if self.peek() == Some('\n') {
             self.advance();
@@ -1203,8 +1516,10 @@ impl Lexer {
             }
         }
 
-        let mut parts: Vec<TplPart> = Vec::new();
+        let mut parts = Vec::new();
+        let literal_position = (self.line, self.col);
         let mut buf = String::new();
+        let mut closed = false;
 
         loop {
             match self.peek() {
@@ -1213,6 +1528,7 @@ impl Lexer {
                     self.advance();
                     self.advance();
                     self.advance();
+                    closed = true;
                     break;
                 }
                 // Check for interpolation {{...}}
@@ -1221,9 +1537,15 @@ impl Lexer {
                     self.advance(); // consume {{
                                     // Flush accumulated literal
                     if !buf.is_empty() {
-                        parts.push(TplPart::Lit(std::mem::take(&mut buf)));
+                        parts.push((
+                            TplPart::Lit(std::mem::take(&mut buf)),
+                            literal_position.0,
+                            literal_position.1,
+                        ));
                     }
                     // Read expression until }}
+                    let mut expr_line = self.line;
+                    let mut expr_col = self.col;
                     let mut expr = String::new();
                     let mut depth = 0i32;
                     loop {
@@ -1250,9 +1572,17 @@ impl Lexer {
                             None => break,
                         }
                     }
+                    for ch in expr.chars().take_while(|ch| ch.is_whitespace()) {
+                        if ch == '\n' {
+                            expr_line += 1;
+                            expr_col = 1;
+                        } else {
+                            expr_col += 1;
+                        }
+                    }
                     let trimmed = expr.trim().to_string();
                     if !trimmed.is_empty() {
-                        parts.push(TplPart::Interp(trimmed));
+                        parts.push((TplPart::Interp(trimmed), expr_line, expr_col));
                     }
                 }
                 Some(c) => {
@@ -1272,15 +1602,19 @@ impl Lexer {
         }
 
         if !buf.is_empty() {
-            parts.push(TplPart::Lit(buf));
+            parts.push((TplPart::Lit(buf), literal_position.0, literal_position.1));
         }
 
         // If no parts at all, return a single empty literal
         if parts.is_empty() {
-            parts.push(TplPart::Lit(String::new()));
+            parts.push((
+                TplPart::Lit(String::new()),
+                literal_position.0,
+                literal_position.1,
+            ));
         }
 
-        parts
+        (parts, closed)
     }
 
     pub fn read_number(&mut self) -> String {
@@ -1307,11 +1641,15 @@ impl Lexer {
     }
 
     pub fn read_string(&mut self) -> String {
+        self.read_string_checked().0
+    }
+
+    fn read_string_checked(&mut self) -> (String, bool) {
         self.advance(); // consume opening "
         let mut s = String::new();
         loop {
             match self.advance() {
-                Some('"') => break,
+                Some('"') => return (s, true),
                 Some('\\') => match self.advance() {
                     Some('n') => s.push('\n'),
                     Some('t') => s.push('\t'),
@@ -1327,10 +1665,15 @@ impl Lexer {
                 None => break,
             }
         }
-        s
+        (s, false)
     }
 
     pub fn read_char_lit(&mut self) -> String {
+        self.read_char_lit_checked().0
+    }
+
+    fn read_char_lit_checked(&mut self) -> (String, bool) {
+        let opening_line = self.line;
         self.advance(); // consume opening '
         let c = match self.advance() {
             Some('\\') => match self.advance() {
@@ -1344,10 +1687,23 @@ impl Lexer {
             Some(c) => c,
             None => ' ',
         };
-        if self.peek() == Some('\'') {
+        let closed = self.peek() == Some('\'');
+        if closed {
             self.advance();
+        } else if self.line == opening_line {
+            // Recover a malformed quoted string as one error, without eating
+            // the following line or reporting its closing quote as a new error.
+            while let Some(c) = self.peek() {
+                if c == '\n' || c == '\r' {
+                    break;
+                }
+                self.advance();
+                if c == '\'' {
+                    break;
+                }
+            }
         }
-        c.to_string()
+        (c.to_string(), closed)
     }
 }
 
@@ -2638,10 +2994,7 @@ impl MetaGroundEvaluator {
                 | Stmt::While(..)
                 | Stmt::Send(..)
                 | Stmt::StreamSub(..)
-                | Stmt::Prove { .. }
-                | Stmt::Assert(..)
-                | Stmt::Retract(..)
-                | Stmt::Abort => safe = false,
+                | Stmt::Prove { .. } => safe = false,
                 Stmt::Annot(name, _) if builtin_canonical(name) == "print" => safe = false,
                 _ => {}
             },
@@ -2890,12 +3243,6 @@ fn meta_impure_runtime_names() -> BTreeSet<String> {
         "combine_latest",
         "complete",
         "count",
-        "db_close",
-        "db_exec",
-        "db_insert",
-        "db_open",
-        "db_query",
-        "db_query_row",
         "delay",
         "env_var",
         "error",
@@ -2937,7 +3284,6 @@ fn meta_impure_runtime_names() -> BTreeSet<String> {
         "throttle",
         "time",
         "timeout",
-        "watch",
         "window",
         "write_file",
     ]
@@ -4402,12 +4748,22 @@ pub enum Severity {
 
 /// A structured compiler diagnostic with optional source location.
 #[derive(Debug, Clone)]
+pub struct DiagnosticOrigin {
+    pub path: PathBuf,
+    pub source: Arc<str>,
+    pub span: Option<Span>,
+}
+
+/// The primary span belongs to the caller's document. Imported errors retain
+/// their original source separately for CLI rendering and editor navigation.
+#[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub span: Option<Span>,
     pub message: String,
     pub severity: Severity,
     pub notes: Vec<String>,
     pub context: Vec<String>, // breadcrumb trail: ["in function `foo`", "in match arm 2"]
+    pub origin: Option<DiagnosticOrigin>,
 }
 
 impl Diagnostic {
@@ -4418,6 +4774,7 @@ impl Diagnostic {
             severity: Severity::Error,
             notes: Vec::new(),
             context: Vec::new(),
+            origin: None,
         }
     }
 
@@ -4428,6 +4785,7 @@ impl Diagnostic {
             severity: Severity::Error,
             notes: Vec::new(),
             context: Vec::new(),
+            origin: None,
         }
     }
 
@@ -4444,6 +4802,19 @@ impl Diagnostic {
     /// Format this diagnostic for display.
     /// If `use_color` is false, strips ANSI codes.
     pub fn display(&self, source: &str, filename: &str, use_color: bool) -> String {
+        let origin_filename = self
+            .origin
+            .as_ref()
+            .map(|origin| origin.path.to_string_lossy());
+        let (source, filename, diagnostic_span) = if let Some(origin) = &self.origin {
+            (
+                origin.source.as_ref(),
+                origin_filename.as_deref().unwrap(),
+                origin.span,
+            )
+        } else {
+            (source, filename, self.span)
+        };
         let mut out = String::new();
 
         // Colors
@@ -4474,7 +4845,7 @@ impl Diagnostic {
             out.push_str(&format!(" {}{}-->{} {}\n", dim, blue, reset, ctx));
         }
 
-        if let Some(span) = self.span {
+        if let Some(span) = diagnostic_span {
             let (line, col) = span.start_line_col(source);
             let (end_line, end_col) = span.end_line_col(source);
 
@@ -4530,15 +4901,16 @@ impl Diagnostic {
 
 /// Check if color output should be used.
 pub fn should_use_color() -> bool {
+    use std::io::IsTerminal;
     // NO_COLOR convention: https://no-color.org/
-    if env::var("NO_COLOR").is_ok() {
+    if env::var_os("NO_COLOR").is_some() {
         return false;
     }
     // Also check TERM=dumb
     if env::var("TERM").map(|t| t == "dumb").unwrap_or(false) {
         return false;
     }
-    true
+    std::io::stderr().is_terminal()
 }
 
 // ============================================================================
@@ -4864,11 +5236,25 @@ pub struct EffHandler {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MatchArm {
     pub pat: Pat,
+    /// Authored pattern range; dummy for compiler-generated arms.
+    pub pat_span: Span,
     pub guard: Option<Expr>,
     pub body: Expr,
+}
+
+// Content identities historically include the arm's Debug shape. Preserve
+// that exact shape: source positions are diagnostics, not program semantics.
+impl fmt::Debug for MatchArm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MatchArm")
+            .field("pat", &self.pat)
+            .field("guard", &self.guard)
+            .field("body", &self.body)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -5533,6 +5919,8 @@ fn explore_result_input_row_bindings(
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
+    /// Internal end of compiler-injected prelude declarations; no source syntax.
+    PreludeBoundary,
     Defn(Defn),
     TypeDecl(TypeDecl),
     Rule(Rule),
@@ -5568,12 +5956,6 @@ pub enum Stmt {
     },
     /// `? explore name { ... }` — finite relational exploration declaration.
     Explore(ExploreQuery),
-    /// assert TypeName(args...) — insert fact (persist/store/in-memory)
-    Assert(String, Vec<Expr>),
-    /// retract TypeName(args...) — remove fact (persist/store/in-memory)
-    Retract(String, Vec<Expr>),
-    /// abort — exit current scope with ROLLBACK
-    Abort,
     Expr(Expr),
 }
 
@@ -6445,17 +6827,17 @@ fn collect_true_free_symbol_uses_stmt(
             }
         }
         Stmt::Rule(_) => {}
-        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+        Stmt::Annot(_, args) => {
             for arg in args {
                 collect_true_free_symbol_uses(arg, uses, bound, typed_receivers);
             }
         }
-        Stmt::Use(_)
+        Stmt::PreludeBoundary
+        | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
         | Stmt::HashImport(_, _)
         | Stmt::Depend(_, _)
-        | Stmt::Abort
         | Stmt::Defn(_)
         | Stmt::TypeDecl(_)
         | Stmt::RustBlock(_) => {}
@@ -7524,6 +7906,24 @@ struct PreparedRuntimeRuleDispatch {
     body_goal_local_names: BTreeSet<String>,
 }
 
+/// Priority decisions belong to one enumeration, not to the interpreter's
+/// global memo tables. Retain whole argument rows so two projections cannot
+/// accidentally share a decision made for different witnesses.
+struct LogicQueryPriority<'a> {
+    namespace: &'a RuntimeNamespace,
+    family: &'a RuleDispatchKey,
+    dispatch: &'a PreparedRuntimeRuleDispatch,
+    caller_env: &'a Env,
+    overrides: Vec<usize>,
+    decisions: Vec<LogicQueryPriorityDecision>,
+}
+
+struct LogicQueryPriorityDecision {
+    arguments: Vec<Value>,
+    checked: usize,
+    selected: Option<Value>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RuntimeCallableKind {
     Function,
@@ -7719,7 +8119,7 @@ where
         Stmt::Defn(defn) => visit_ast_defn_children(defn, visit),
         Stmt::TypeDecl(decl) => visit_ast_type_decl_children(decl, visit),
         Stmt::Rule(rule) => visit_ast_rule_children(rule, visit),
-        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+        Stmt::Annot(_, args) => {
             for arg in args {
                 visit(AstChild::Expr(arg));
             }
@@ -7834,13 +8234,13 @@ where
             }
         }
         Stmt::Expr(expr) => visit(AstChild::Expr(expr)),
-        Stmt::Use(_)
+        Stmt::PreludeBoundary
+        | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
         | Stmt::HashImport(_, _)
         | Stmt::Depend(_, _)
-        | Stmt::RustBlock(_)
-        | Stmt::Abort => {}
+        | Stmt::RustBlock(_) => {}
     }
 }
 
@@ -7949,6 +8349,7 @@ fn strip_spans_eff_handler(handler: &EffHandler) -> EffHandler {
 
 fn strip_spans_match_arm(arm: &MatchArm) -> MatchArm {
     MatchArm {
+        pat_span: Span::dummy(),
         pat: arm.pat.clone(),
         guard: arm.guard.as_ref().map(strip_spans_expr),
         body: strip_spans_expr(&arm.body),
@@ -8295,6 +8696,7 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
 
 fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
     match stmt {
+        Stmt::PreludeBoundary => Stmt::PreludeBoundary,
         Stmt::Defn(defn) => Stmt::Defn(strip_spans_defn(defn)),
         Stmt::TypeDecl(td) => Stmt::TypeDecl(strip_spans_type_decl(td)),
         Stmt::Rule(rule) => Stmt::Rule(strip_spans_rule(rule)),
@@ -8353,13 +8755,6 @@ fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
                 .map(|stmts| stmts.iter().map(strip_spans_stmt).collect()),
         },
         Stmt::Explore(query) => Stmt::Explore(strip_spans_explore_query(query)),
-        Stmt::Assert(name, args) => {
-            Stmt::Assert(name.clone(), args.iter().map(strip_spans_expr).collect())
-        }
-        Stmt::Retract(name, args) => {
-            Stmt::Retract(name.clone(), args.iter().map(strip_spans_expr).collect())
-        }
-        Stmt::Abort => Stmt::Abort,
         Stmt::Expr(expr) => Stmt::Expr(strip_spans_expr(expr)),
     }
 }
@@ -8634,9 +9029,15 @@ fn classify_layout_newlines(tokens: Vec<Token>) -> Vec<Token> {
             let next = tokens[index + 1..]
                 .iter()
                 .find(|token| token.kind != TokenKind::Semi);
-            let soft = layout_inside_soft_delimiter(&delimiters)
-                || previous.is_some_and(|token| layout_previous_requires_continuation(token))
-                || next.is_some_and(layout_next_continues_statement);
+            // A Rust glob import ends in `::*`; its star completes the
+            // declaration instead of awaiting a multiplication operand.
+            let import_glob = matches!(output.as_slice(), [.., first, second, star]
+                if first.kind == TokenKind::Colon && second.kind == TokenKind::Colon
+                    && star.kind == TokenKind::Op && star.text == "*");
+            let soft = !import_glob
+                && (layout_inside_soft_delimiter(&delimiters)
+                    || previous.is_some_and(|token| layout_previous_requires_continuation(token))
+                    || next.is_some_and(layout_next_continues_statement));
             if soft {
                 softened_before_next = true;
                 continue;
@@ -8685,6 +9086,8 @@ pub struct Parser {
     pub source_chars: Vec<char>,
     pub line_starts: Vec<usize>, // line_starts[i] = char index of start of line (i+1)
     pub in_rule_body: bool,      // true when parsing | rule body (and = conjunction, not &&)
+    // Opt-in diagnostic indexing; excluded from the semantic AST and hashes.
+    type_name_spans: Option<Vec<(String, Span)>>,
 }
 
 impl Parser {
@@ -8703,6 +9106,7 @@ impl Parser {
             source_chars,
             line_starts,
             in_rule_body: false,
+            type_name_spans: None,
         }
     }
 
@@ -8804,7 +9208,7 @@ impl Parser {
             } else if tok.kind == TokenKind::Semi {
                 "\n  Hint: this newline ended the statement. Put an incomplete token such as `=`, `->`, `,`, or an operator before the break, or wrap the continued expression in `(...)`."
             } else {
-                ""
+                self.foreign_syntax_hint(self.pos - 1)
             };
             Err(format!(
                 "{}:{}: expected {}, got `{}`{}",
@@ -8896,14 +9300,15 @@ impl Parser {
             if self.peek_kind() != TokenKind::Comma {
                 let token = self.peek();
                 return Err(format!(
-                    "{}:{}: expected `,` or {} after {}, got `{}`\n  Hint: separate adjacent {} with commas; a trailing comma before {} is allowed.",
+                    "{}:{}: expected `,` or {} after {}, got `{}`\n  Hint: separate adjacent {} with commas; a trailing comma before {} is allowed.{}",
                     token.line,
                     token.col,
                     Self::token_display(closing),
                     item_description,
                     token.source_text,
                     item_description,
-                    Self::token_display(closing)
+                    Self::token_display(closing),
+                    self.foreign_syntax_hint(self.pos)
                 ));
             }
             self.advance();
@@ -9143,11 +9548,26 @@ impl Parser {
     // --- Top-level parsing ---
 
     pub fn parse_program(&mut self) -> Result<Vec<Stmt>, String> {
+        // Lexical failure is independent of parser recovery and specialized
+        // declaration loops. Invalid source must never produce an executable AST.
+        let lexical_errors: Vec<_> = self
+            .tokens
+            .iter()
+            .filter(|token| token.kind == TokenKind::Invalid)
+            .take(10)
+            .map(|token| format!("{}:{}: {}", token.line, token.col, token.text))
+            .collect();
+        if !lexical_errors.is_empty() {
+            return Err(lexical_errors.join("\n"));
+        }
         let mut stmts = Vec::new();
         let mut errors: Vec<String> = Vec::new();
         self.skip_semis();
         while self.peek_kind() != TokenKind::Eof {
-            match self.parse_statement() {
+            match self.parse_statement().and_then(|stmt| {
+                self.expect_statement_boundary(&stmt)?;
+                Ok(stmt)
+            }) {
                 Ok(stmt) => {
                     stmts.push(stmt);
                 }
@@ -9182,6 +9602,45 @@ impl Parser {
             }
             Err(msg)
         }
+    }
+
+    fn expect_statement_boundary(&self, stmt: &Stmt) -> Result<(), String> {
+        // Runes explicitly start another statement; annotations can prefix one.
+        // A closing block brace also provides an unambiguous boundary.
+        if matches!(stmt, Stmt::Annot(..))
+            || matches!(stmt, Stmt::Expr(expr) if matches!(expr.kind, ExprKind::Effect(..)))
+            || self
+                .pos
+                .checked_sub(1)
+                .and_then(|pos| self.tokens.get(pos))
+                .is_some_and(|tok| matches!(tok.kind, TokenKind::Semi | TokenKind::RBrace))
+            || matches!(
+                self.peek_kind(),
+                TokenKind::Semi
+                    | TokenKind::RBrace
+                    | TokenKind::Eof
+                    | TokenKind::Hash
+                    | TokenKind::At
+                    | TokenKind::Eq
+                    | TokenKind::Gt
+                    | TokenKind::Pipe
+                    | TokenKind::Tilde
+            )
+            || (self.peek_kind() == TokenKind::Op && self.peek().text == "?")
+        {
+            return Ok(());
+        }
+        let tok = self.peek();
+        if tok.kind == TokenKind::Invalid {
+            return Err(format!("{}:{}: {}", tok.line, tok.col, tok.text));
+        }
+        Err(format!(
+            "{}:{}: expected a statement separator (newline or `;`), got `{}`{}",
+            tok.line,
+            tok.col,
+            tok.source_text,
+            self.statement_syntax_hint(stmt)
+        ))
     }
 
     /// Skip tokens until we reach a likely statement boundary.
@@ -10338,7 +10797,22 @@ impl Parser {
         }))
     }
 
+    fn reject_removed_fact_statement(&self) -> Result<(), String> {
+        let token = self.peek();
+        if token.kind == TokenKind::KW
+            && (matches!(token.text.as_str(), "retract" | "abort")
+                || (token.text == "assert"
+                    && self.tokens.get(self.pos + 1).is_some_and(|next| {
+                        matches!(next.kind, TokenKind::Ident | TokenKind::Type)
+                    })))
+        {
+            return Err(format!("{}:{}: database persistence was removed: `{}` fact/transaction statements are no longer supported; use ordinary rules and typed values (ordinary `assert(condition)` remains available)", token.line, token.col, token.text));
+        }
+        Ok(())
+    }
+
     pub fn parse_statement(&mut self) -> Result<Stmt, String> {
+        self.reject_removed_fact_statement()?;
         self.skip_semis();
 
         // ── Detect common mistakes from other languages ──
@@ -10400,8 +10874,6 @@ impl Parser {
                         line, col
                     ));
                 }
-                // "assert" is now a real keyword for persist operations
-                // (old error removed — assert is parsed as Stmt::Assert below)
                 "test" if col == 1 => {
                     return Err(format!(
                         "{}:{}: Futuruna uses `?` for verification, not `test`.\n  \
@@ -10555,7 +11027,9 @@ impl Parser {
 
                     while self.peek_kind() == TokenKind::Pipe {
                         self.advance(); // consume |
+                        let pattern_start = self.peek().clone();
                         let pat = self.parse_pattern()?;
+                        let pat_span = self.span_since(&pattern_start);
                         let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
                         {
                             self.advance();
@@ -10573,7 +11047,12 @@ impl Parser {
                         }
 
                         let body = self.parse_expr()?;
-                        arms.push(MatchArm { pat, guard, body });
+                        arms.push(MatchArm {
+                            pat,
+                            pat_span,
+                            guard,
+                            body,
+                        });
                         self.skip_semis();
                     }
 
@@ -10671,41 +11150,6 @@ impl Parser {
                     pass_block,
                     else_block,
                 })
-            }
-            // assert TypeName(args...) — insert a fact
-            // Only when followed by an identifier (type name), not by ( which is assert(expr) function call
-            TokenKind::KW
-                if self.peek().text == "assert"
-                    && self.tokens.get(self.pos + 1).map_or(false, |t| {
-                        t.kind == TokenKind::Ident || t.kind == TokenKind::Type
-                    }) =>
-            {
-                self.advance(); // consume 'assert'
-                let type_name = self.expect_ident()?;
-                self.expect(TokenKind::LParen)?;
-                let args = self.parse_comma_separated(
-                    TokenKind::RParen,
-                    "assertion argument",
-                    |parser| parser.parse_expr(),
-                )?;
-                Ok(Stmt::Assert(type_name, args))
-            }
-            // retract TypeName(args...) — remove a fact (wildcards allowed)
-            TokenKind::KW if self.peek().text == "retract" => {
-                self.advance(); // consume 'retract'
-                let type_name = self.expect_ident()?;
-                self.expect(TokenKind::LParen)?;
-                let args = self.parse_comma_separated(
-                    TokenKind::RParen,
-                    "retraction argument",
-                    |parser| parser.parse_expr(),
-                )?;
-                Ok(Stmt::Retract(type_name, args))
-            }
-            // abort — exit current scope with ROLLBACK
-            TokenKind::KW if self.peek().text == "abort" => {
-                self.advance(); // consume 'abort'
-                Ok(Stmt::Abort)
             }
             // for x in expr { body }
             TokenKind::KW if self.peek().text == "for" => {
@@ -10871,6 +11315,7 @@ impl Parser {
         let mut body = Vec::new();
         while self.peek_kind() != TokenKind::RBrace {
             let stmt = self.parse_statement()?;
+            self.expect_statement_boundary(&stmt)?;
             body.push(stmt);
             self.skip_semis();
         }
@@ -10994,7 +11439,21 @@ impl Parser {
         if self.peek_kind() == TokenKind::KW && self.peek().text == "exception" {
             self.advance();
             let label = self.expect_ident()?;
+            let head_start = self.peek().clone();
+            if head_start.kind == TokenKind::LParen {
+                return Err(format!(
+                    "{}:{}: an exception needs a label before its rule head; use `| exception <label> rate(x) -> ...`",
+                    head_start.line, head_start.col
+                ));
+            }
             let head = self.parse_expr()?;
+            if !matches!(&head.kind, ExprKind::App(function, _) if matches!(&function.kind, ExprKind::Var(_)))
+            {
+                return Err(format!(
+                    "{}:{}: an exception needs a named rule call after its label; use `| exception <label> rate(x) -> ...`",
+                    head_start.line, head_start.col
+                ));
+            }
             self.expect(TokenKind::Arrow)?;
             let value = self.parse_expr()?;
             let condition = if self.peek_kind() == TokenKind::KW && self.peek().text == "under" {
@@ -11020,7 +11479,11 @@ impl Parser {
                 self.advance(); // consume ':'
                 let subject = self.parse_expr()?;
                 self.expect(TokenKind::Arrow)?;
-                let predicate = self.parse_expr()?;
+                let predicate_start = self.peek().clone();
+                let mut predicate = self.parse_expr()?;
+                if predicate.span.is_dummy() {
+                    predicate.span = self.span_since(&predicate_start);
+                }
                 return Ok(Stmt::Invariant {
                     name: name_tok.text.clone(),
                     subject,
@@ -11035,9 +11498,7 @@ impl Parser {
         let head = self.parse_expr()?;
         if self.peek_kind() == TokenKind::Arrow {
             self.advance();
-            self.in_rule_body = true;
-            let body_or_value = self.parse_expr()?;
-            self.in_rule_body = false;
+            let body_or_value = self.parse_rule_body_expression()?;
             if self.peek_kind() == TokenKind::KW && self.peek().text == "under" {
                 self.advance();
                 let condition = self.parse_expr()?;
@@ -11047,53 +11508,55 @@ impl Parser {
                     condition: Some(condition),
                 }))
             } else {
-                // Parse rule body with and/or precedence:
-                // `and` (,) binds tighter than `or`
-                // a and b or c and d → Disjunction([Conjunction([a,b]), Conjunction([c,d])])
-                let parse_and_group = |parser: &mut Self, first: Expr| -> Result<Expr, String> {
-                    let is_and = parser.peek_kind() == TokenKind::Comma
-                        || (parser.peek_kind() == TokenKind::Ident && parser.peek().text == "and");
-                    if is_and {
-                        let mut goals = vec![first];
-                        while parser.peek_kind() == TokenKind::Comma
-                            || (parser.peek_kind() == TokenKind::Ident
-                                && parser.peek().text == "and")
-                        {
-                            parser.advance();
-                            goals.push(parser.parse_expr()?);
-                        }
-                        Ok(ExprKind::Conjunction(goals).into())
-                    } else {
-                        Ok(first)
-                    }
-                };
-
-                let first_group = parse_and_group(self, body_or_value)?;
-
-                // Check for `or` between groups
-                let is_or = self.peek_kind() == TokenKind::Op && self.peek().text == "||";
-                if is_or {
-                    let mut alternatives = vec![first_group];
-                    while self.peek_kind() == TokenKind::Op && self.peek().text == "||" {
-                        self.advance(); // consume 'or' (lexed as ||)
-                        let next_expr = self.parse_expr()?;
-                        let group = parse_and_group(self, next_expr)?;
-                        alternatives.push(group);
-                    }
-                    Ok(Stmt::Rule(Rule::Clause {
-                        head,
-                        body: Some(ExprKind::Disjunction(alternatives).into()),
-                    }))
-                } else {
-                    Ok(Stmt::Rule(Rule::Clause {
-                        head,
-                        body: Some(first_group),
-                    }))
-                }
+                Ok(Stmt::Rule(Rule::Clause {
+                    head,
+                    body: Some(body_or_value),
+                }))
             }
         } else {
             // Bare fact
             Ok(Stmt::Rule(Rule::Clause { head, body: None }))
+        }
+    }
+
+    fn parse_rule_goal(&mut self) -> Result<Expr, String> {
+        let previous = std::mem::replace(&mut self.in_rule_body, true);
+        let result = self.parse_expr_prec(0);
+        self.in_rule_body = previous;
+        result
+    }
+
+    fn parse_rule_body_expression(&mut self) -> Result<Expr, String> {
+        // Goal conjunction binds more tightly than disjunction. Each branch
+        // is parsed in the same mode, so later goals can introduce bindings.
+        let mut alternatives = Vec::new();
+        loop {
+            let mut goals = vec![self.parse_rule_goal()?];
+            while self.peek_kind() == TokenKind::Comma
+                || (self.peek_kind() == TokenKind::Ident && self.peek().text == "and")
+            {
+                self.advance();
+                goals.push(self.parse_rule_goal()?);
+            }
+            let group = if goals.len() == 1 {
+                goals.pop().unwrap()
+            } else {
+                let span = goals[0].span.merge(goals.last().unwrap().span);
+                Expr::new(ExprKind::Conjunction(goals), span)
+            };
+            alternatives.push(group);
+            if self.peek_kind() != TokenKind::Op || self.peek().text != "||" {
+                break;
+            }
+            self.advance();
+        }
+        if alternatives.len() == 1 {
+            Ok(alternatives.pop().unwrap())
+        } else {
+            let span = alternatives[0]
+                .span
+                .merge(alternatives.last().unwrap().span);
+            Ok(Expr::new(ExprKind::Disjunction(alternatives), span))
         }
     }
 
@@ -11615,6 +12078,9 @@ impl Parser {
     pub fn parse_annotation(&mut self) -> Result<Stmt, String> {
         let tok = self.advance();
         let name = tok.text.clone();
+        if let Some(message) = removed_persistence_message(&name) {
+            return Err(format!("{}:{}: {message}", tok.line, tok.col));
+        }
 
         // @ use path::to::thing
         if name == "use" {
@@ -11636,57 +12102,18 @@ impl Parser {
             return self.parse_depend_decl();
         }
 
-        // @ store TypeName [delete_on_change] [in "scope"]
-        // Object store persistence (struct → JSON blob in SQLite)
-        // @ persist TypeName [in "scope"]
-        // Typed-column persistence (struct → SQLite table with one column per field)
-        if name == "store" || name == "persist" {
-            let kind = name.clone();
-            let type_name = self.expect_ident()?;
-            let mut args: Vec<Expr> = vec![ExprKind::Var(type_name.clone()).into()];
-            // Optional `delete_on_change` flag (only meaningful for @ store today,
-            // accepted in both for symmetry).
-            if self.peek_kind() == TokenKind::Ident && self.peek().text == "delete_on_change" {
-                self.advance();
-                args.push(ExprKind::Var("delete_on_change".to_string()).into());
-            }
-            // Optional `in "scope"` clause
-            if self.peek_kind() == TokenKind::KW && self.peek().text == "in" {
-                self.advance(); // consume `in`
-                if self.peek_kind() == TokenKind::String_ {
-                    let scope = self.advance().text.clone();
-                    args.push(ExprKind::Lit(Literal::Str(scope)).into());
-                } else {
-                    let p = self.peek();
-                    return Err(format!(
-                        "{}:{}: expected scope string after `in`\n  Try: @ {} {} in \"myapp\"",
-                        p.line, p.col, kind, type_name
-                    ));
-                }
-            }
-            return Ok(Stmt::Annot(kind, args));
-        }
-
-        // @ migrate Type(old_fields...) -> Type(new_fields...) [unsafe]
-        //
-        // Kept as an annotation payload so older compiler passes can ignore it
-        // unless they specifically care about persisted schema evolution.
-        if name == "migrate" {
-            let old_shape = self.parse_expr()?;
-            self.expect(TokenKind::Arrow)?;
-            let new_shape = self.parse_expr()?;
-            let mut args = vec![old_shape, new_shape];
-            if matches!(self.peek_kind(), TokenKind::Ident | TokenKind::KW)
-                && self.peek().text == "unsafe"
-            {
-                self.advance();
-                args.push(ExprKind::Var("unsafe".to_string()).into());
-            }
-            return Ok(Stmt::Annot(name, args));
-        }
-
-        // @ sprog / @ language — already consumed by lexer, skip the code token
+        // @ sprog / @ language selects one lexical mode for the complete file.
+        // A later declaration cannot change already-tokenized source.
         if name == "sprog" || name == "language" {
+            if self.tokens[..self.pos.saturating_sub(2)]
+                .iter()
+                .any(|token| token.kind != TokenKind::Semi)
+            {
+                return Err(format!(
+                    "{}:{}: `@ {name}` must be the first declaration in the file; move it before other declarations",
+                    tok.line, tok.col
+                ));
+            }
             if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::KW {
                 self.advance(); // consume the language code (da, en, etc.)
             }
@@ -11699,7 +12126,9 @@ impl Parser {
             if self.peek_kind() == TokenKind::LParen {
                 let _ = self.parse_arg_list()?; // consume empty parens
             }
-            return Ok(Stmt::Expr(ExprKind::Effect(name, vec![]).into()));
+            return Ok(Stmt::Expr(
+                self.spanned(ExprKind::Effect(name, vec![]), &tok),
+            ));
         }
 
         // `@ calculate` is a declaration marker, even when it carries the
@@ -11712,11 +12141,16 @@ impl Parser {
         // If followed by ( it's an effect invocation: @ print("hello")
         if self.peek_kind() == TokenKind::LParen {
             let args = self.parse_arg_list()?;
-            Ok(Stmt::Expr(ExprKind::Effect(name, args).into()))
-        } else if name == "export" && self.peek_kind() == TokenKind::Ident {
-            // Post-hoc export: `@ export add` — capture the name as arg
-            let export_name = self.advance().text.clone();
-            Ok(Stmt::Annot(name, vec![ExprKind::Var(export_name).into()]))
+            Ok(Stmt::Expr(self.spanned(ExprKind::Effect(name, args), &tok)))
+        } else if name == "export" && matches!(self.peek_kind(), TokenKind::Ident | TokenKind::Type)
+        {
+            // Post-hoc export names a value or a type declaration.
+            let token = self.advance();
+            let span = self.token_span(&token);
+            Ok(Stmt::Annot(
+                name,
+                vec![Expr::new(ExprKind::Var(token.text), span)],
+            ))
         } else {
             // Pure annotation: @ test, @ pure, @ total
             Ok(Stmt::Annot(name, Vec::new()))
@@ -11726,94 +12160,9 @@ impl Parser {
     /// Parse: @ rust { raw Rust code }
     /// Extracts raw source text between { }, preserving original formatting.
     pub fn parse_rust_block(&mut self) -> Result<Stmt, String> {
-        let open_brace = self.advance(); // consume {
-                                         // Find the char offset right after the opening brace
-        let start = self.char_offset(open_brace.line, open_brace.col) + 1;
-
-        // Scan raw source chars to find matching closing brace
-        let mut depth = 1i32;
-        let mut end = start;
-        let mut in_string = false;
-        let mut in_char = false;
-        let mut escape = false;
-        let mut in_line_comment = false;
-        let mut in_block_comment = false;
-        while end < self.source_chars.len() && depth > 0 {
-            let c = self.source_chars[end];
-            let next = self.source_chars.get(end + 1).copied();
-
-            if escape {
-                escape = false;
-                end += 1;
-                continue;
-            }
-            if in_line_comment {
-                if c == '\n' {
-                    in_line_comment = false;
-                }
-                end += 1;
-                continue;
-            }
-            if in_block_comment {
-                if c == '*' && next == Some('/') {
-                    in_block_comment = false;
-                    end += 2;
-                    continue;
-                }
-                end += 1;
-                continue;
-            }
-            if in_string {
-                if c == '\\' {
-                    escape = true;
-                } else if c == '"' {
-                    in_string = false;
-                }
-                end += 1;
-                continue;
-            }
-            if in_char {
-                if c == '\\' {
-                    escape = true;
-                } else if c == '\'' {
-                    in_char = false;
-                }
-                end += 1;
-                continue;
-            }
-
-            match c {
-                '/' if next == Some('/') => {
-                    in_line_comment = true;
-                    end += 2;
-                    continue;
-                }
-                '/' if next == Some('*') => {
-                    in_block_comment = true;
-                    end += 2;
-                    continue;
-                }
-                '"' => {
-                    in_string = true;
-                }
-                '\'' => {
-                    in_char = true;
-                }
-                '{' => {
-                    depth += 1;
-                }
-                '}' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
-                }
-                _ => {}
-            }
-            end += 1;
-        }
-
-        let raw: String = self.source_chars[start..end].iter().collect();
+        self.expect(TokenKind::LBrace)?;
+        let raw = self.expect(TokenKind::RustBody)?.text;
+        self.expect(TokenKind::RBrace)?;
         // Dedent: strip common leading whitespace
         let lines: Vec<&str> = raw.lines().collect();
         let min_indent = lines
@@ -11833,17 +12182,6 @@ impl Parser {
             })
             .collect::<Vec<_>>()
             .join("\n");
-
-        // Advance the token stream past the matching closing brace
-        let mut tok_depth = 1i32;
-        while tok_depth > 0 && self.peek_kind() != TokenKind::Eof {
-            let tok = self.advance();
-            match tok.kind {
-                TokenKind::LBrace => tok_depth += 1,
-                TokenKind::RBrace => tok_depth -= 1,
-                _ => {}
-            }
-        }
 
         Ok(Stmt::RustBlock(code.trim().to_string()))
     }
@@ -12089,6 +12427,13 @@ impl Parser {
                         break;
                     }
                 }
+                if self.type_name_spans.is_some() {
+                    let span = self.token_span(&tok);
+                    self.type_name_spans
+                        .as_mut()
+                        .unwrap()
+                        .push((name.clone(), span));
+                }
                 if self.peek_kind() == TokenKind::LParen {
                     let args = self.parse_type_list()?;
                     Ok(Ty::App(Box::new(Ty::Name(name)), args))
@@ -12264,11 +12609,19 @@ impl Parser {
     // --- Expression parsing (Pratt / precedence climbing) ---
 
     pub fn parse_expr(&mut self) -> Result<Expr, String> {
-        self.parse_expr_prec(0)
+        // Delimited arguments and nested expressions retain ordinary Boolean
+        // operators even when the surrounding expression is a rule goal.
+        let previous = std::mem::replace(&mut self.in_rule_body, false);
+        let result = self.parse_expr_prec(0);
+        self.in_rule_body = previous;
+        result
     }
 
     pub fn parse_expr_prec(&mut self, min_prec: u8) -> Result<Expr, String> {
-        let mut lhs = self.parse_atom()?;
+        let previous = std::mem::replace(&mut self.in_rule_body, false);
+        let atom = self.parse_atom();
+        self.in_rule_body = previous;
+        let mut lhs = atom?;
 
         loop {
             // Check for postfix / infix operations
@@ -12296,13 +12649,29 @@ impl Parser {
                 // Binary operators (including `or` which lexes as Op "||")
                 TokenKind::Op => {
                     let op = &self.peek().text;
+                    if op == "=" {
+                        let token = self.peek();
+                        return Err(format!(
+                            "{}:{}: `=` is a binding separator; use `==` for comparison",
+                            token.line, token.col
+                        ));
+                    }
+                    if self.in_rule_body && op == "||" {
+                        break;
+                    }
                     let prec = op_precedence(op);
                     if prec < min_prec {
                         break;
                     }
                     let start_span = lhs.span;
                     let op = self.advance().text;
-                    let rhs = self.parse_expr_prec(prec + 1)?;
+                    let rhs = self.parse_expr_prec(prec + 1).map_err(|error| {
+                        if op == "%" {
+                            format!("{error}\n  Hint: `%` is remainder and needs a right operand. For a percentage, use `25` or `0.25` according to your model's unit.")
+                        } else {
+                            error
+                        }
+                    })?;
                     let span = start_span.merge(rhs.span);
                     lhs = Expr::new(ExprKind::BinOp(op, Box::new(lhs), Box::new(rhs)), span);
                 }
@@ -12331,6 +12700,7 @@ impl Parser {
                         Box::new(lhs),
                         vec![
                             MatchArm {
+                                pat_span: Span::dummy(),
                                 pat: Pat::Con("Some".into(), vec![Pat::Var(v.clone())]),
                                 guard: None,
                                 body: ExprKind::App(
@@ -12341,6 +12711,7 @@ impl Parser {
                                 .into(),
                             },
                             MatchArm {
+                                pat_span: Span::dummy(),
                                 pat: Pat::Con("None".into(), vec![]),
                                 guard: None,
                                 body: ExprKind::Var("None".into()).into(),
@@ -12362,11 +12733,13 @@ impl Parser {
                         Box::new(lhs),
                         vec![
                             MatchArm {
+                                pat_span: Span::dummy(),
                                 pat: Pat::Con("Some".into(), vec![Pat::Var(v.clone())]),
                                 guard: None,
                                 body: ExprKind::Var(v).into(),
                             },
                             MatchArm {
+                                pat_span: Span::dummy(),
                                 pat: Pat::Con("None".into(), vec![]),
                                 guard: None,
                                 body: default,
@@ -12378,7 +12751,13 @@ impl Parser {
                 // Field access: expr.field
                 TokenKind::Dot => {
                     let start_span = lhs.span;
-                    self.advance();
+                    let dot = self.advance();
+                    if self.peek_kind() == TokenKind::Dot
+                        && self.peek().line == dot.line
+                        && self.peek().col == dot.col + 1
+                    {
+                        return Err(format!("{}:{}: ranges use `range(start, end)`; the end is exclusive (for example, `range(0, 3)`)", dot.line, dot.col));
+                    }
                     let field = self.expect_field_name()?;
                     let span =
                         start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
@@ -12741,18 +13120,25 @@ impl Parser {
             TokenKind::At => {
                 self.advance();
                 let name_tok = self.advance();
+                if let Some(message) = removed_persistence_message(&name_tok.text) {
+                    return Err(format!("{}:{}: {message}", name_tok.line, name_tok.col));
+                }
                 let args = if self.peek_kind() == TokenKind::LParen {
                     self.parse_arg_list()?
                 } else {
                     Vec::new()
                 };
-                Ok(ExprKind::Effect(name_tok.text, args).into())
+                Ok(self.spanned(ExprKind::Effect(name_tok.text.clone(), args), &name_tok))
             }
             // Keywords that start expressions
             TokenKind::KW => {
                 let tok = self.advance();
                 match tok.text.as_str() {
-                    "match" => self.parse_match_expr(),
+                    "match" => {
+                        let mut expression = self.parse_match_expr()?;
+                        expression.span = self.span_since(&tok);
+                        Ok(expression)
+                    }
                     "if" => self.parse_if_expr(tok),
                     _ => Ok(ExprKind::Var(tok.text).into()),
                 }
@@ -12853,6 +13239,7 @@ impl Parser {
         let mut stmts = Vec::new();
         while self.peek_kind() != TokenKind::RBrace {
             let stmt = self.parse_block_statement()?;
+            self.expect_statement_boundary(&stmt)?;
             stmts.push(stmt);
             self.skip_semis();
         }
@@ -12862,6 +13249,7 @@ impl Parser {
 
     pub fn parse_block_statement(&mut self) -> Result<Stmt, String> {
         self.skip_semis();
+        self.reject_removed_fact_statement()?;
         match self.peek_kind() {
             TokenKind::Eq => {
                 self.advance();
@@ -12921,7 +13309,9 @@ impl Parser {
 
                     while self.peek_kind() == TokenKind::Pipe {
                         self.advance(); // consume |
+                        let pattern_start = self.peek().clone();
                         let pat = self.parse_pattern()?;
+                        let pat_span = self.span_since(&pattern_start);
                         let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
                         {
                             self.advance();
@@ -12939,7 +13329,12 @@ impl Parser {
                         }
 
                         let body = self.parse_expr()?;
-                        arms.push(MatchArm { pat, guard, body });
+                        arms.push(MatchArm {
+                            pat,
+                            pat_span,
+                            guard,
+                            body,
+                        });
                         self.skip_semis();
                     }
 
@@ -13050,7 +13445,9 @@ impl Parser {
             if self.peek_kind() == TokenKind::Pipe {
                 self.advance();
             }
+            let pattern_start = self.peek().clone();
             let pat = self.parse_pattern()?;
+            let pat_span = self.span_since(&pattern_start);
             let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if" {
                 self.advance();
                 Some(self.parse_expr()?)
@@ -13059,7 +13456,12 @@ impl Parser {
             };
             self.expect(TokenKind::Arrow)?;
             let body = self.parse_expr()?;
-            arms.push(MatchArm { pat, guard, body });
+            arms.push(MatchArm {
+                pat,
+                pat_span,
+                guard,
+                body,
+            });
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
@@ -14727,6 +15129,21 @@ impl Env {
         }
     }
 
+    /// Hide declaration-local names from every lexical parent while retaining
+    /// shared snapshots for frames that contain none of those names.
+    fn remove_visible_bindings(&mut self, names: &BTreeSet<String>) {
+        for name in names {
+            self.remove(name);
+        }
+        if self
+            .parent
+            .as_ref()
+            .is_some_and(|parent| names.iter().any(|name| parent.get(name).is_some()))
+        {
+            Rc::make_mut(self.parent.as_mut().unwrap()).remove_visible_bindings(names);
+        }
+    }
+
     fn set_runtime_namespace(&mut self, namespace: RuntimeNamespace) {
         self.runtime_namespace = Some(namespace);
     }
@@ -15039,7 +15456,7 @@ struct RuntimeNamespaceState {
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
-    rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    rule_dispatch_runtime_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     exact_prepared_rule_dispatch: BTreeMap<RuleDispatchKey, Rc<PreparedRuntimeRuleDispatch>>,
     constructors: BTreeMap<String, (usize, bool)>,
     constructor_signatures: BTreeMap<String, Vec<RuntimeConstructorSignature>>,
@@ -15100,7 +15517,7 @@ impl RuntimeNamespaceState {
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
-            rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
+            rule_dispatch_runtime_boolean_miss_keys: BTreeSet::new(),
             exact_prepared_rule_dispatch: BTreeMap::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
@@ -15295,6 +15712,19 @@ struct ExplorationRuntimeDemandState {
     local_module_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
 }
 
+const RUNTIME_RULE_CALL_DEPTH_LIMIT: usize = 128;
+const RUNTIME_FUNCTION_CALL_DEPTH_LIMIT: usize = 128;
+
+/// Own the counter handle so recursive evaluation can still mutably borrow the
+/// interpreter. Unwinding and guarded failures both restore the caller depth.
+struct RuntimeCallDepthGuard(Rc<Cell<usize>>);
+
+impl Drop for RuntimeCallDepthGuard {
+    fn drop(&mut self) {
+        self.0.set(self.0.get() - 1);
+    }
+}
+
 pub struct Interpreter {
     /// Root declaration namespace. Inline modules own child overlays;
     /// plain/hash imports register in the current overlay. Qualified imports
@@ -15357,6 +15787,10 @@ pub struct Interpreter {
     pub step_count: usize,
     /// Set to true when step budget exceeded
     pub budget_exceeded: bool,
+    /// Active nested rule calls, independent of total evaluation steps.
+    runtime_rule_call_depth: Rc<Cell<usize>>,
+    /// Active named-function and anonymous-closure calls.
+    runtime_function_call_depth: Rc<Cell<usize>>,
     /// Shared xorshift64 state for random collection builtins
     pub(crate) rng_state: u64,
     /// Suppress stdout output (for comptime evaluation during codegen)
@@ -15373,6 +15807,7 @@ pub struct Interpreter {
     /// This does not enable Explore's effect whitelist or collection budgets.
     checking_calculation: bool,
     calculation_error: RefCell<Option<CalculationRuntimeFailure>>,
+    runtime_diagnostic_context: Option<runtime_diagnostics::RuntimeDiagnosticContext>,
     /// Runtime symbols reachable from the active calculation boundary.
     calculation_runtime_symbols: BTreeSet<String>,
     /// Top-level bindings needed to initialize the active calculation.
@@ -15421,6 +15856,8 @@ impl Interpreter {
             step_limit: 0,
             step_count: 0,
             budget_exceeded: false,
+            runtime_rule_call_depth: Rc::new(Cell::new(0)),
+            runtime_function_call_depth: Rc::new(Cell::new(0)),
             rng_state: 0x12345678_9abcdef0,
             suppress_output: false,
             exhaustive_preview_forbid_effects: false,
@@ -15429,6 +15866,7 @@ impl Interpreter {
             ground_error: RefCell::new(None),
             checking_calculation: false,
             calculation_error: RefCell::new(None),
+            runtime_diagnostic_context: None,
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
             exploration_runtime_demand: ExplorationRuntimeDemandState::default(),
@@ -15943,15 +16381,17 @@ impl Interpreter {
         if self.checking_calculation {
             self.calculation_fail(message)
         } else {
-            panic!("{}", message.into())
+            self.ordinary_runtime_fail(message.into())
         }
     }
 
     fn checked_arithmetic_fail(&self, message: &str) -> Value {
         if self.checking_calculation {
             self.calculation_fail(message.replace("in ground expression", "in calculation"))
-        } else {
+        } else if self.ground_collection_limit.is_some() || self.exhaustive_preview_forbid_effects {
             self.ground_fail(message)
+        } else {
+            self.panic_or_ground_fail(message.replace(" in ground expression", ""))
         }
     }
 
@@ -15965,10 +16405,8 @@ impl Interpreter {
         Value::Unit
     }
 
-    /// Preserve ordinary interpreter panic behavior while turning user-level
-    /// partial operations into typed exact-exploration failures.  Catching a
-    /// Rust panic is only a last-resort internal-error boundary: the default
-    /// panic hook writes to stderr before `catch_unwind` can classify it.
+    /// Preserve each runtime boundary's failure contract. The CLI opts into
+    /// source diagnostics; legacy unchecked library execution still panics.
     fn panic_or_ground_fail(&self, message: impl Into<String>) -> Value {
         let message = message.into();
         if self.checking_calculation {
@@ -15976,7 +16414,7 @@ impl Interpreter {
         } else if self.exhaustive_preview_forbid_effects || self.ground_collection_limit.is_some() {
             self.ground_fail(message)
         } else {
-            panic!("{}", message)
+            self.ordinary_runtime_fail(message)
         }
     }
 
@@ -16690,7 +17128,7 @@ impl Interpreter {
         self.install_rule_dispatch_return_metadata(
             &artifacts.rule_dispatch_backend_return_types,
             &artifacts.rule_dispatch_backend_return_issues,
-            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+            &artifacts.rule_dispatch_runtime_boolean_miss_keys,
         );
     }
 
@@ -16725,7 +17163,7 @@ impl Interpreter {
         let mut root = self.runtime_root.state.borrow_mut();
         root.rule_dispatch_return_types = return_types.clone();
         root.rule_dispatch_return_issues = return_issues.clone();
-        root.rule_dispatch_boolean_miss_safe_keys = boolean_miss_safe_keys.clone();
+        root.rule_dispatch_runtime_boolean_miss_keys = boolean_miss_safe_keys.clone();
     }
 
     fn install_calculation_namespace_return_types(
@@ -16757,7 +17195,7 @@ impl Interpreter {
     ) -> Option<Value> {
         let (_, safe) = Self::runtime_namespace_find(namespace, |state| {
             state.rule_dispatch_keys.contains(key).then(|| {
-                state.rule_dispatch_boolean_miss_safe_keys.contains(key) && {
+                state.rule_dispatch_runtime_boolean_miss_keys.contains(key) && {
                     !state.rule_dispatch_return_issues.contains_key(key)
                         && state
                             .rule_dispatch_return_types
@@ -17081,6 +17519,9 @@ impl Interpreter {
     /// Resolve an import path to a file path.
     /// Supports relative (`./module`) and manifest-based (`dep/module`) imports.
     pub fn resolve_import_path_for_source(import_path: &str, dir: &str) -> Option<String> {
+        // A bare source filename has an empty parent. Treat that as the
+        // working directory instead of turning a relative import into /name.
+        let dir = if dir.is_empty() { "." } else { dir };
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
@@ -17156,9 +17597,11 @@ impl Interpreter {
             stmt,
             Stmt::Defn(_)
                 | Stmt::TypeDecl(_)
+                | Stmt::PreludeBoundary
                 | Stmt::Use(_)
                 | Stmt::Rule(_)
                 | Stmt::Bind(..)
+                | Stmt::StreamBind(..)
                 | Stmt::Annot(..)
                 | Stmt::Import(_)
                 | Stmt::QualifiedImport(..)
@@ -17177,11 +17620,20 @@ impl Interpreter {
     fn with_runtime_source_dir<T>(
         &mut self,
         source_dir: String,
+        path: &str,
+        source: &str,
         operation: impl FnOnce(&mut Self) -> T,
     ) -> T {
         let previous = self.source_dir.replace(source_dir);
+        let diagnostic_context = self
+            .runtime_diagnostic_context
+            .is_some()
+            .then(|| self.diagnostic_source_context(Path::new(path), source));
+        let previous_diagnostics =
+            std::mem::replace(&mut self.runtime_diagnostic_context, diagnostic_context);
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         self.source_dir = previous;
+        self.runtime_diagnostic_context = previous_diagnostics;
         match result {
             Ok(value) => value,
             Err(payload) => std::panic::resume_unwind(payload),
@@ -17325,6 +17777,8 @@ impl Interpreter {
                         });
                     let value = interpreter.with_runtime_source_dir(
                         Self::imported_source_dir(&file_path),
+                        &canonical,
+                        module.source(),
                         |interpreter| {
                             interpreter.with_runtime_plain_type_source(
                                 Some((
@@ -17439,6 +17893,8 @@ impl Interpreter {
             let initialization = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 interpreter.with_runtime_source_dir(
                     Self::imported_source_dir(&file_path),
+                    &canonical,
+                    imported.source(),
                     |interpreter| {
                         interpreter.install_calculation_namespace_return_types(
                             &module_namespace,
@@ -17568,6 +18024,8 @@ impl Interpreter {
                     if matching.len() == 1 {
                         let value = interpreter.with_runtime_source_dir(
                             Self::imported_source_dir(&file_path),
+                            &canonical,
+                            module.source(),
                             |interpreter| {
                                 interpreter.with_runtime_plain_type_source(
                                     Some((
@@ -17972,13 +18430,6 @@ impl Interpreter {
             "http_request_body".into(),
             Value::Builtin("http_request_body".into()),
         );
-        // Database builtins (M14e)
-        env.set("db_open".into(), Value::Builtin("db_open".into()));
-        env.set("db_exec".into(), Value::Builtin("db_exec".into()));
-        env.set("db_query".into(), Value::Builtin("db_query".into()));
-        env.set("db_query_row".into(), Value::Builtin("db_query_row".into()));
-        env.set("db_insert".into(), Value::Builtin("db_insert".into()));
-        env.set("db_close".into(), Value::Builtin("db_close".into()));
         // Math builtins
         env.set("exp".into(), Value::Builtin("exp".into()));
         env.set("ln".into(), Value::Builtin("ln".into()));
@@ -18033,7 +18484,6 @@ impl Interpreter {
         env.set("sample".into(), Value::Builtin("sample".into()));
         // Subject + lifecycle builtins (M13)
         env.set("subject".into(), Value::Builtin("subject".into()));
-        env.set("watch".into(), Value::Builtin("watch".into()));
         env.set("as_stream".into(), Value::Builtin("as_stream".into()));
         env.set("complete".into(), Value::Builtin("complete".into()));
         env.set("error".into(), Value::Builtin("error".into()));
@@ -18540,14 +18990,12 @@ impl Interpreter {
             | Stmt::Send(..)
             | Stmt::For(..)
             | Stmt::While(..)
-            | Stmt::MonadicBind(..)
-            | Stmt::Assert(..)
-            | Stmt::Retract(..)
-            | Stmt::Abort => false,
+            | Stmt::MonadicBind(..) => false,
             Stmt::Defn(_)
             | Stmt::TypeDecl(_)
             | Stmt::Rule(_)
             | Stmt::Invariant { .. }
+            | Stmt::PreludeBoundary
             | Stmt::Use(_)
             | Stmt::RustBlock(_)
             | Stmt::Import(_)
@@ -18569,9 +19017,6 @@ impl Interpreter {
             Stmt::Rule(Rule::ReactiveScope { .. }) => Some("reactive rule scope"),
             Stmt::Prove { .. } => Some("proof execution"),
             Stmt::Explore(_) => Some("nested exploration"),
-            Stmt::Assert(..) => Some("persistent assertion"),
-            Stmt::Retract(..) => Some("persistent retraction"),
-            Stmt::Abort => Some("persistent scope abort"),
             _ => None,
         }
     }
@@ -19668,15 +20113,34 @@ impl Interpreter {
         let ordered_stmts = if order_value_bindings {
             analyze_top_level_binding_dependencies(stmts)
                 .order_statement_refs(&statement_refs)
-                .unwrap_or_else(|cycle| panic!("{cycle}"))
+                .unwrap_or_else(|cycle| self.ordinary_runtime_fail(cycle.to_string()))
         } else {
             statement_refs
         };
+        // The injected prelude supplies the initial dependency environment;
+        // its definitions must not trigger hoisting the user's declarations
+        // ahead of their prefix imports. The internal boundary distinguishes
+        // injection from identical declarations authored in the source.
+        let prelude_len = if order_value_bindings {
+            TypeChecker::leading_rule_dispatch_prelude_indices(stmts).len()
+        } else {
+            0
+        };
+        let (prelude, local_stmts) = stmts.split_at(prelude_len);
+        if !prelude.is_empty() {
+            self.register_static_declarations(prelude, env);
+        }
         let mut last = Value::Unit;
         let mut pending_annot: Option<String> = None;
         let mut static_declarations_registered = false;
 
         for stmt in ordered_stmts {
+            if prelude
+                .iter()
+                .any(|declaration| std::ptr::eq(declaration, stmt))
+            {
+                continue;
+            }
             if self.calculation_failed() {
                 break;
             }
@@ -19687,6 +20151,7 @@ impl Interpreter {
                 && !matches!(
                     stmt,
                     Stmt::Annot(_, _)
+                        | Stmt::PreludeBoundary
                         | Stmt::Use(_)
                         | Stmt::RustBlock(_)
                         | Stmt::Import(_)
@@ -19695,7 +20160,7 @@ impl Interpreter {
                         | Stmt::Depend(_, _)
                 )
             {
-                self.register_static_declarations(stmts, env);
+                self.register_static_declarations(local_stmts, env);
                 static_declarations_registered = true;
             }
 
@@ -19708,6 +20173,9 @@ impl Interpreter {
 
             match stmt {
                 Stmt::Annot(name, _) => {
+                    if let Some(message) = removed_persistence_message(name) {
+                        return self.panic_or_ground_fail(message);
+                    }
                     pending_annot = Some(name.clone());
                     continue;
                 }
@@ -19733,9 +20201,6 @@ impl Interpreter {
                         | Stmt::For(..)
                         | Stmt::While(..)
                         | Stmt::MonadicBind(..)
-                        | Stmt::Assert(..)
-                        | Stmt::Retract(..)
-                        | Stmt::Abort
                 )
             {
                 last = Value::Unit;
@@ -19879,7 +20344,7 @@ impl Interpreter {
                     }
                 }
                 Stmt::Annot(_, _) => {}
-                Stmt::Use(_) => {}
+                Stmt::PreludeBoundary | Stmt::Use(_) => {}
                 Stmt::RustBlock(_) => {} // @ rust { } blocks are transpile-time only
                 Stmt::Import(path) => {
                     if let Some(value) =
@@ -19988,10 +20453,10 @@ impl Interpreter {
                                 }
                             }
                             other => {
-                                panic!(
+                                return self.panic_or_ground_fail(format!(
                                     "invariant `{}` predicate must return Bool, got {}",
                                     inv_name, other
-                                );
+                                ));
                             }
                         }
                     }
@@ -20266,23 +20731,6 @@ impl Interpreter {
                             last = val;
                         }
                     }
-                }
-
-                // Persist: assert/retract/abort — interpreter stubs (real impl in codegen)
-                Stmt::Assert(type_name, args) => {
-                    let vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
-                    eprintln!("[runa interpreter] assert {}({}) — persist operations require `runa build`",
-                        type_name,
-                        vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
-                }
-                Stmt::Retract(type_name, args) => {
-                    let vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
-                    eprintln!("[runa interpreter] retract {}({}) — persist operations require `runa build`",
-                        type_name,
-                        vals.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", "));
-                }
-                Stmt::Abort => {
-                    eprintln!("[runa interpreter] abort — scope abort requires `runa build`");
                 }
             }
 
@@ -20852,8 +21300,19 @@ impl Interpreter {
             if let Some(result) = self.try_effect_dispatch(function_name, arguments, env) {
                 return result;
             }
+            if let Some(result) = self.try_active_rule_scope_call(function_name, arguments, env) {
+                return result;
+            }
+            let query_builtin = matches!(function_name.as_str(), "findall" | "search")
+                && !env.get(function_name).is_some_and(|value| {
+                    !matches!(value,
+                        Value::Builtin(name) | Value::NamespacedBuiltin { name, .. }
+                            if name == function_name)
+                })
+                && self.runtime_function(&namespace, function_name).is_none()
+                && self.rules_named(&namespace, function_name).is_none();
             // findall(template_var, goal) — collect all solutions.
-            if function_name == "findall" && arguments.len() == 2 {
+            if query_builtin && function_name == "findall" && arguments.len() == 2 {
                 if self.exhaustive_preview_forbid_effects {
                     return self.exhaustive_preview_fail(
                         "exact exploration refuses nested `findall` search",
@@ -20862,7 +21321,7 @@ impl Interpreter {
                 return self.eval_findall(&arguments[0], &arguments[1], env);
             }
             // search(template, goal) → first match.
-            if function_name == "search" && arguments.len() == 2 {
+            if query_builtin && function_name == "search" && arguments.len() == 2 {
                 if self.exhaustive_preview_forbid_effects {
                     return self.exhaustive_preview_fail(
                         "exact exploration refuses nested `search` evaluation",
@@ -20875,9 +21334,6 @@ impl Interpreter {
                     }
                     _ => Value::Constructor("None".into(), vec![].into()),
                 };
-            }
-            if let Some(result) = self.try_active_rule_scope_call(function_name, arguments, env) {
-                return result;
             }
             if let Some(local_callable) = env.get(function_name).cloned() {
                 if let Value::Closure { params, .. } = &local_callable {
@@ -21089,6 +21545,23 @@ impl Interpreter {
         result
     }
 
+    /// A malformed guard is an evaluation error, never a rejected candidate.
+    fn eval_rule_guard(&mut self, condition: &Expr, env: &Env, family: &str) -> Option<bool> {
+        let value = self.eval(condition, env);
+        if self.calculation_failed() || self.ground_error.borrow().is_some() {
+            return None;
+        }
+        match value {
+            Value::Bool(result) => Some(result),
+            other => {
+                self.panic_or_ground_fail(format!(
+                    "rule `{family}` guard must return Bool, got {other}"
+                ));
+                None
+            }
+        }
+    }
+
     fn eval_checked_if(
         &mut self,
         expression: &Expr,
@@ -21107,10 +21580,10 @@ impl Interpreter {
                 self.eval(else_expression, env),
                 CheckedInterpreterIfDecisionOutcome::Else,
             ),
-            _ => (
-                self.eval(then_expression, env),
-                CheckedInterpreterIfDecisionOutcome::Then,
-            ),
+            other => {
+                return self
+                    .panic_or_ground_fail(format!("if condition must return Bool, got {other}"));
+            }
         };
         self.checked_mechanism_record_expression_event(
             CheckedInterpreterMechanismExpressionKind::IfDecision,
@@ -21157,7 +21630,24 @@ impl Interpreter {
         if self.calculation_failed() {
             return Value::Unit;
         }
+        // Retain the innermost expression in the active source. A function or
+        // rule body may come from another file, so it keeps its caller's site
+        // rather than interpreting its offsets against the caller's text.
+        let previous_span = self
+            .runtime_diagnostic_context
+            .as_mut()
+            .and_then(|context| {
+                (context.function_depth == self.runtime_function_call_depth.get()
+                    && context.rule_depth == self.runtime_rule_call_depth.get()
+                    && !expr.span.is_dummy())
+                .then(|| context.span.replace(expr.span))
+            });
         let value = self.eval_inner(expr, env);
+        if let (Some(previous), Some(context)) =
+            (previous_span, self.runtime_diagnostic_context.as_mut())
+        {
+            context.span = previous;
+        }
         self.calculation_checked_value(value)
     }
 
@@ -21227,6 +21717,12 @@ impl Interpreter {
                         self.runtime_registry_builtin(&owner, format!("nctor:{}/{}", name, arity))
                     }
                 } else {
+                    // Retired builtins must not fall through to symbolic logic
+                    // values in unchecked embeddings. Authored declarations and
+                    // lexical bindings have already been resolved above.
+                    if let Some(message) = removed_database_builtin_message(name) {
+                        return self.panic_or_ground_fail(message);
+                    }
                     // Might be an unbound variable (used in logic rules)
                     Value::Constructor(name.clone(), vec![].into())
                 }
@@ -21260,16 +21756,11 @@ impl Interpreter {
                 let v = self.eval(operand, env);
                 match (op.as_str(), v) {
                     ("!", Value::Bool(b)) => Value::Bool(!b),
-                    ("-", Value::Int(n))
-                        if self.checking_calculation || self.ground_collection_limit.is_some() =>
-                    {
-                        n.checked_neg().map(Value::Int).unwrap_or_else(|| {
-                            self.checked_arithmetic_fail(
-                                "integer negation overflow in ground expression",
-                            )
-                        })
-                    }
-                    ("-", Value::Int(n)) => Value::Int(-n),
+                    ("-", Value::Int(n)) => n.checked_neg().map(Value::Int).unwrap_or_else(|| {
+                        self.checked_arithmetic_fail(
+                            "integer negation overflow in ground expression",
+                        )
+                    }),
                     ("-", Value::Float(f)) => Value::Float(-f),
                     ("&", v) | ("&mut", v) => v, // References are just values for now
                     _ => Value::Unit,
@@ -21285,18 +21776,20 @@ impl Interpreter {
             }
             ExprKind::Field(obj, field) => {
                 let obj_val = self.eval(obj, env);
+                let missing =
+                    || self.panic_or_ground_fail(format!("value has no field or method `{field}`"));
                 match &obj_val {
                     // Tuple field access: .fst/.snd/.trd → indices 0/1/2
                     // Also supports .0, .1, .2, etc.
                     Value::Tuple(elems) => match field.as_str() {
-                        "fst" | "0" => return elems.first().cloned().unwrap_or(Value::Unit),
-                        "snd" | "1" => return elems.get(1).cloned().unwrap_or(Value::Unit),
-                        "trd" | "2" => return elems.get(2).cloned().unwrap_or(Value::Unit),
+                        "fst" | "0" => return elems.first().cloned().unwrap_or_else(missing),
+                        "snd" | "1" => return elems.get(1).cloned().unwrap_or_else(missing),
+                        "trd" | "2" => return elems.get(2).cloned().unwrap_or_else(missing),
                         _ => {
                             if let Ok(idx) = field.parse::<usize>() {
-                                return elems.get(idx).cloned().unwrap_or(Value::Unit);
+                                return elems.get(idx).cloned().unwrap_or_else(missing);
                             }
-                            return Value::Unit;
+                            return missing();
                         }
                     },
                     Value::NamedConstructor(_, named_fields)
@@ -21315,10 +21808,10 @@ impl Interpreter {
                             named_fields
                                 .get(idx)
                                 .map(|(_, v)| v.clone())
-                                .unwrap_or(Value::Unit)
+                                .unwrap_or_else(missing)
                         } else {
                             self.bind_method_value(&obj_val, field, env)
-                                .unwrap_or(Value::Unit)
+                                .unwrap_or_else(missing)
                         }
                     }
                     Value::Constructor(ctor_name, fields)
@@ -21334,35 +21827,35 @@ impl Interpreter {
                         {
                             for (i, fname) in names.iter().enumerate() {
                                 if fname == field {
-                                    return fields.get(i).cloned().unwrap_or(Value::Unit);
+                                    return fields.get(i).cloned().unwrap_or_else(missing);
                                 }
                             }
                         }
                         // Numeric index access
                         if let Ok(idx) = field.parse::<usize>() {
-                            fields.get(idx).cloned().unwrap_or(Value::Unit)
+                            fields.get(idx).cloned().unwrap_or_else(missing)
                         } else {
                             self.bind_method_value(&obj_val, field, env)
-                                .unwrap_or(Value::Unit)
+                                .unwrap_or_else(missing)
                         }
                     }
                     // Subject: .latest returns the most recent value, .count returns length
                     Value::Subject(items) => match field.as_str() {
                         "latest" => items.last().cloned().unwrap_or(Value::Unit),
                         "count" => Value::Int(items.len() as i64),
-                        _ => Value::Unit,
+                        _ => missing(),
                     },
                     // Actor-subject unification: actors expose .state for current state
                     Value::Actor { state, .. } => match field.as_str() {
                         "state" => *state.clone(),
-                        _ => Value::Unit,
+                        _ => missing(),
                     },
                     Value::RuleScopeInstance { bindings, .. }
                     | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings
                         .get(field)
                         .cloned()
                         .or_else(|| self.bind_method_value(&obj_val, field, env))
-                        .unwrap_or(Value::Unit),
+                        .unwrap_or_else(missing),
                     // Scope field access: MyScope.field → look up field in scope bindings
                     Value::Scope {
                         bindings,
@@ -21398,12 +21891,12 @@ impl Interpreter {
                             }
                             value.clone()
                         } else {
-                            Value::Unit
+                            missing()
                         }
                     }
                     _ => self
                         .bind_method_value(&obj_val, field, env)
-                        .unwrap_or(Value::Unit),
+                        .unwrap_or_else(missing),
                 }
             }
             ExprKind::Index(arr, idx) => {
@@ -21575,6 +22068,15 @@ impl Interpreter {
                 ref body,
                 ref env,
             } => {
+                let depth = self.runtime_function_call_depth.get();
+                if depth >= RUNTIME_FUNCTION_CALL_DEPTH_LIMIT {
+                    return self.panic_or_ground_fail(format!(
+                        "function call `{}` exceeded its recursion limit of {RUNTIME_FUNCTION_CALL_DEPTH_LIMIT}; evaluation is incomplete",
+                        name.as_deref().unwrap_or("<closure>")
+                    ));
+                }
+                self.runtime_function_call_depth.set(depth + 1);
+                let _depth_guard = RuntimeCallDepthGuard(self.runtime_function_call_depth.clone());
                 let traced_activation = if name.is_some() {
                     self.checked_mechanism_enter_function(name.as_deref(), params, body)
                 } else {
@@ -21661,8 +22163,7 @@ impl Interpreter {
                     return self
                         .calculation_fail("attempted to call a non-callable value in calculation");
                 }
-                self.output.push(format!("Error: cannot apply {}", func));
-                Value::Unit
+                self.panic_or_ground_fail("value is not callable")
             }
         }
     }
@@ -21679,6 +22180,9 @@ impl Interpreter {
         args: Vec<Value>,
         env: &Env,
     ) -> Value {
+        if let Some(message) = removed_database_builtin_message(name) {
+            return self.panic_or_ground_fail(message);
+        }
         if self.calculation_failed() {
             return Value::Unit;
         }
@@ -21781,8 +22285,11 @@ impl Interpreter {
             },
             "length" => match args.first() {
                 Some(Value::Str(s)) => Value::Int(s.chars().count() as i64),
-                Some(v) => Value::Int(list_length(v)),
-                None => Value::Int(0),
+                Some(v) => match checked_list_length(v) {
+                    Some(length) => Value::Int(length),
+                    None => self.panic_or_ground_fail("length expects List or String"),
+                },
+                None => self.panic_or_ground_fail("length expects List or String"),
             },
             "head" => match args.first() {
                 Some(Value::Constructor(n, fields)) if n == "Cons" => {
@@ -21843,12 +22350,11 @@ impl Interpreter {
                 }
             }
             "abs" => match args.first() {
-                Some(Value::Int(n)) if self.checking_calculation => {
-                    n.checked_abs().map(Value::Int).unwrap_or_else(|| {
-                        self.calculation_fail("integer absolute-value overflow in calculation")
-                    })
-                }
-                Some(Value::Int(n)) => Value::Int(n.abs()),
+                Some(Value::Int(n)) => n.checked_abs().map(Value::Int).unwrap_or_else(|| {
+                    self.checked_arithmetic_fail(
+                        "integer absolute-value overflow in ground expression",
+                    )
+                }),
                 Some(Value::Float(f)) => Value::Float(f.abs()),
                 _ => Value::Int(0),
             },
@@ -22382,14 +22888,7 @@ impl Interpreter {
             "sum_list" => match args.first() {
                 Some(list) => {
                     let items = list_to_vec(list);
-                    if self.checking_calculation {
-                        return self.calculation_integer_sum(&items);
-                    }
-                    let total: i64 = items
-                        .into_iter()
-                        .filter_map(|v| if let Value::Int(n) = v { Some(n) } else { None })
-                        .sum();
-                    Value::Int(total)
+                    self.checked_integer_sum(&items)
                 }
                 _ => Value::Int(0),
             },
@@ -22980,6 +23479,13 @@ impl Interpreter {
                 _ => Value::Int(-1),
             },
             "format_float" => match (args.get(0), args.get(1)) {
+                (_, Some(Value::Int(decimals)))
+                    if !(0..=i64::from(u16::MAX)).contains(decimals) =>
+                {
+                    self.panic_or_ground_fail(format!(
+                        "format_float precision must be between 0 and 65535, got {decimals}"
+                    ))
+                }
                 (Some(Value::Float(f)), Some(Value::Int(decimals))) => {
                     Value::Str(format!("{:.prec$}", f, prec = *decimals as usize))
                 }
@@ -23207,39 +23713,27 @@ impl Interpreter {
                     Some(v) => list_to_vec(v),
                     None => vec![],
                 };
-                let mut parts = Vec::new();
+                let mut object = serde_json::Map::new();
                 for pair in &pairs {
                     let elems = list_to_vec(pair);
                     if elems.len() >= 2 {
-                        let key = match &elems[0] {
-                            Value::Str(s) => s.clone(),
-                            v => format!("{}", v),
-                        };
-                        let val = match &elems[1] {
-                            Value::Str(s)
-                                if s.starts_with('{')
-                                    || s.starts_with('[')
-                                    || s.starts_with('"')
-                                    || s == "true"
-                                    || s == "false"
-                                    || s == "null"
-                                    || s.parse::<f64>().is_ok() =>
-                            {
-                                s.clone()
+                        let key = elems[0].to_string();
+                        let value = match &elems[1] {
+                            Value::Str(_) | Value::Int(_) | Value::Float(_) | Value::Bool(_) => {
+                                let text = elems[1].to_string();
+                                // Values may contain JSON text by contract. Accept
+                                // only complete JSON, otherwise preserve the text.
+                                serde_json::from_str::<serde_json::Value>(&text)
+                                    .unwrap_or_else(|_| serde_json::Value::String(text))
                             }
-                            Value::Str(s) => {
-                                format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
-                            }
-                            Value::Int(n) => n.to_string(),
-                            Value::Float(f) => f.to_string(),
-                            Value::Bool(b) => b.to_string(),
-                            v => format!("\"{}\"", format!("{}", v).replace('"', "\\\"")),
+                            value => serde_json::Value::String(value.to_string()),
                         };
-                        parts.push(format!("\"{}\":{}", key, val));
+                        object.insert(key, value);
                     }
                 }
-                Value::Str(format!("{{{}}}", parts.join(",")))
+                Value::Str(serde_json::Value::Object(object).to_string())
             }
+
             // ---- M14d: HTTP builtins ----
             "http_get" => {
                 println!("[runa interpreter] http_get: use `runa run` for real HTTP requests");
@@ -23283,30 +23777,6 @@ impl Interpreter {
                 }
                 _ => Value::Unit,
             },
-            // ---- M14e: Database builtins (interpreter stubs — use `runa run` for real DB) ----
-            "db_open" => {
-                println!("[runa interpreter] db_open: use `runa run` for real database access");
-                Value::Str("__db_handle__".to_string())
-            }
-            "db_exec" => {
-                println!("[runa interpreter] db_exec: use `runa run` for real database access");
-                Value::Unit
-            }
-            "db_query" => {
-                println!("[runa interpreter] db_query: use `runa run` for real database access");
-                Value::List(vec![])
-            }
-            "db_query_row" => {
-                println!(
-                    "[runa interpreter] db_query_row: use `runa run` for real database access"
-                );
-                Value::List(vec![])
-            }
-            "db_insert" => {
-                println!("[runa interpreter] db_insert: use `runa run` for real database access");
-                Value::Int(0)
-            }
-            "db_close" => Value::Unit,
             "exp" => match args.first() {
                 Some(Value::Float(f)) => Value::Float(f.exp()),
                 Some(Value::Int(n)) => Value::Float((*n as f64).exp()),
@@ -23641,47 +24111,25 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => v,
                     other => list_to_vec(&other),
                 };
-                if self.checking_calculation {
-                    if items.iter().any(|item| matches!(item, Value::Float(_))) {
-                        let mut sum = 0.0;
-                        for item in &items {
-                            sum += match item {
-                                Value::Int(n) => *n as f64,
-                                Value::Float(n) => *n,
-                                _ => 0.0,
-                            };
-                            if !sum.is_finite() {
-                                return self.calculation_fail(
-                                    "non-finite floating-point sum in calculation",
-                                );
-                            }
+                if items.iter().any(|item| matches!(item, Value::Float(_))) {
+                    let mut sum = 0.0;
+                    for item in &items {
+                        sum += match item {
+                            Value::Int(n) => *n as f64,
+                            Value::Float(n) => *n,
+                            _ => 0.0,
+                        };
+                        if self.checking_calculation && !sum.is_finite() {
+                            return self
+                                .calculation_fail("non-finite floating-point sum in calculation");
                         }
-                        return Value::Float(sum);
                     }
-                    return self.calculation_integer_sum(&items);
-                }
-                let mut int_sum: i64 = 0;
-                let mut has_float = false;
-                let mut float_sum: f64 = 0.0;
-                for item in &items {
-                    match item {
-                        Value::Int(n) => {
-                            int_sum += n;
-                            float_sum += *n as f64;
-                        }
-                        Value::Float(f) => {
-                            has_float = true;
-                            float_sum += f;
-                        }
-                        _ => {}
-                    }
-                }
-                if has_float {
-                    Value::Float(float_sum)
+                    Value::Float(sum)
                 } else {
-                    Value::Int(int_sum)
+                    self.checked_integer_sum(&items)
                 }
             }
+
             "last" => {
                 // last(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
@@ -23976,11 +24424,7 @@ impl Interpreter {
                     (None, _) => Value::Subject(vec![]),
                 }
             }
-            "watch" => {
-                // The interpreter has no persisted change-feed runtime. Codegen
-                // lowers watch(Type) to a broadcast stream backed by TxGuard.
-                Value::Stream(vec![])
-            }
+
             "as_stream" => {
                 // as_stream(subject) → Stream — strips write access (Subject→Stream narrowing)
                 // In interpreter: converts Subject(items) to Stream(items)
@@ -24034,13 +24478,8 @@ impl Interpreter {
             "poll" => {
                 // poll(fn, interval_ms) → calls fn once in sync mode
                 // In async codegen: spawns interval + fn with switchMap cancellation
-                if let Some(Value::Closure {
-                    body,
-                    env: closure_env,
-                    ..
-                }) = args.first()
-                {
-                    self.eval(body, &closure_env.child())
+                if let Some(callback @ Value::Closure { .. }) = args.first() {
+                    self.apply(callback.clone(), vec![], env)
                 } else if let Some(Value::Builtin(fn_name)) = args.first() {
                     self.eval_builtin(fn_name, vec![], &Env::new())
                 } else {
@@ -24337,7 +24776,7 @@ impl Interpreter {
                         .to_string(),
                 )
             }
-            // HTTP + DB + process builtins: delegate to eval_builtin
+            // HTTP + process builtins: delegate to eval_builtin
             "http_get"
             | "http_post"
             | "http_serve"
@@ -24345,14 +24784,11 @@ impl Interpreter {
             | "http_request_path"
             | "http_request_method"
             | "http_request_body"
-            | "db_open"
-            | "db_exec"
-            | "db_query"
-            | "db_query_row"
-            | "db_insert"
-            | "db_close"
+            | "sleep"
+            | "subscribe"
+            | "complete"
             | "process_run" => self.eval_builtin(name, args, &Env::new()),
-            _ => Value::Unit,
+            _ => self.panic_or_ground_fail(unknown_effect_message(name)),
         }
     }
 
@@ -24393,12 +24829,13 @@ impl Interpreter {
         (current_state.clone(), Value::Unit)
     }
 
-    fn calculation_integer_sum(&self, items: &[Value]) -> Value {
+    fn checked_integer_sum(&self, items: &[Value]) -> Value {
         let mut sum: i64 = 0;
         for item in items {
             if let Value::Int(number) = item {
                 let Some(next) = sum.checked_add(*number) else {
-                    return self.calculation_fail("integer sum overflow in calculation");
+                    return self
+                        .checked_arithmetic_fail("integer sum overflow in ground expression");
                 };
                 sum = next;
             }
@@ -24421,55 +24858,35 @@ impl Interpreter {
                 );
             }
         }
-        if self.checking_calculation || self.ground_collection_limit.is_some() {
-            let checked = match (op, &l, &r) {
-                ("+", Value::Int(left), Value::Int(right)) => left
-                    .checked_add(*right)
-                    .map(Value::Int)
-                    .ok_or_else(|| "integer addition overflow in ground expression"),
-                ("-", Value::Int(left), Value::Int(right)) => left
-                    .checked_sub(*right)
-                    .map(Value::Int)
-                    .ok_or_else(|| "integer subtraction overflow in ground expression"),
-                ("*", Value::Int(left), Value::Int(right)) => left
-                    .checked_mul(*right)
-                    .map(Value::Int)
-                    .ok_or_else(|| "integer multiplication overflow in ground expression"),
-                ("/", Value::Int(left), Value::Int(right)) => left
-                    .checked_div(*right)
-                    .map(Value::Int)
-                    .ok_or_else(|| "integer division by zero or overflow in ground expression"),
-                ("%", Value::Int(left), Value::Int(right)) => left
-                    .checked_rem(*right)
-                    .map(Value::Int)
-                    .ok_or_else(|| "integer remainder by zero or overflow in ground expression"),
-                _ => return self.eval_binop_unchecked(op, l, r),
-            };
-            return checked.unwrap_or_else(|message| self.checked_arithmetic_fail(message));
-        }
-        self.eval_binop_unchecked(op, l, r)
+        let checked = match (op, &l, &r) {
+            ("+", Value::Int(left), Value::Int(right)) => left
+                .checked_add(*right)
+                .map(Value::Int)
+                .ok_or_else(|| "integer addition overflow in ground expression"),
+            ("-", Value::Int(left), Value::Int(right)) => left
+                .checked_sub(*right)
+                .map(Value::Int)
+                .ok_or_else(|| "integer subtraction overflow in ground expression"),
+            ("*", Value::Int(left), Value::Int(right)) => left
+                .checked_mul(*right)
+                .map(Value::Int)
+                .ok_or_else(|| "integer multiplication overflow in ground expression"),
+            ("/", Value::Int(left), Value::Int(right)) => left
+                .checked_div(*right)
+                .map(Value::Int)
+                .ok_or_else(|| "integer division by zero or overflow in ground expression"),
+            ("%", Value::Int(left), Value::Int(right)) => left
+                .checked_rem(*right)
+                .map(Value::Int)
+                .ok_or_else(|| "integer remainder by zero or overflow in ground expression"),
+            _ => return self.eval_binop_unchecked(op, l, r),
+        };
+        checked.unwrap_or_else(|message| self.checked_arithmetic_fail(message))
     }
 
     fn eval_binop_unchecked(&self, op: &str, l: Value, r: Value) -> Value {
         match (op, &l, &r) {
             // Int operations
-            ("+", Value::Int(a), Value::Int(b)) => Value::Int(a + b),
-            ("-", Value::Int(a), Value::Int(b)) => Value::Int(a - b),
-            ("*", Value::Int(a), Value::Int(b)) => Value::Int(a * b),
-            ("/", Value::Int(a), Value::Int(b)) => {
-                if *b == 0 {
-                    Value::Int(0)
-                } else {
-                    Value::Int(a / b)
-                }
-            }
-            ("%", Value::Int(a), Value::Int(b)) => {
-                if *b == 0 {
-                    Value::Int(0)
-                } else {
-                    Value::Int(a % b)
-                }
-            }
             ("==", Value::Int(a), Value::Int(b)) => Value::Bool(a == b),
             ("!=", Value::Int(a), Value::Int(b)) => Value::Bool(a != b),
             ("<", Value::Int(a), Value::Int(b)) => Value::Bool(a < b),
@@ -24482,6 +24899,7 @@ impl Interpreter {
             ("-", Value::Float(a), Value::Float(b)) => Value::Float(a - b),
             ("*", Value::Float(a), Value::Float(b)) => Value::Float(a * b),
             ("/", Value::Float(a), Value::Float(b)) => Value::Float(a / b),
+            ("%", Value::Float(a), Value::Float(b)) => Value::Float(a % b),
             ("==", Value::Float(a), Value::Float(b)) => Value::Bool(a == b),
             ("!=", Value::Float(a), Value::Float(b)) => Value::Bool(a != b),
             ("<", Value::Float(a), Value::Float(b)) => Value::Bool(a < b),
@@ -24513,6 +24931,28 @@ impl Interpreter {
             ("+", a, Value::Str(b)) => Value::Str(format!("{}{}", a, b)),
             ("==", Value::Str(a), Value::Str(b)) => Value::Bool(a == b),
             ("!=", Value::Str(a), Value::Str(b)) => Value::Bool(a != b),
+            ("<", Value::Str(a), Value::Str(b)) => Value::Bool(a < b),
+            (">", Value::Str(a), Value::Str(b)) => Value::Bool(a > b),
+            ("<=", Value::Str(a), Value::Str(b)) => Value::Bool(a <= b),
+            (">=", Value::Str(a), Value::Str(b)) => Value::Bool(a >= b),
+
+            ("==", Value::Char(a), Value::Char(b)) => Value::Bool(a == b),
+            ("!=", Value::Char(a), Value::Char(b)) => Value::Bool(a != b),
+            ("<", Value::Char(a), Value::Char(b)) => Value::Bool(a < b),
+            (">", Value::Char(a), Value::Char(b)) => Value::Bool(a > b),
+            ("<=", Value::Char(a), Value::Char(b)) => Value::Bool(a <= b),
+            (">=", Value::Char(a), Value::Char(b)) => Value::Bool(a >= b),
+
+            ("==", Value::Unit, Value::Unit) => Value::Bool(true),
+            ("==", Value::Tuple(left), Value::Tuple(right)) => Value::Bool(
+                left.len() == right.len()
+                    && left.iter().zip(right).all(|(left, right)| {
+                        matches!(
+                            self.eval_binop("==", left.clone(), right.clone()),
+                            Value::Bool(true)
+                        )
+                    }),
+            ),
 
             // Bool operations
             ("==", Value::Bool(a), Value::Bool(b)) => Value::Bool(a == b),
@@ -24561,14 +25001,14 @@ impl Interpreter {
             }
             ("!=", a, b) => match self.eval_binop("==", a.clone(), b.clone()) {
                 Value::Bool(v) => Value::Bool(!v),
-                _ => Value::Bool(true),
+                failure => failure,
             },
 
             ("+" | "-" | "*" | "/" | "%", _, _) if self.checking_calculation => self
                 .calculation_fail(format!(
                     "unsupported operands for arithmetic operator `{op}` in calculation"
                 )),
-            _ => Value::Unit,
+            _ => self.panic_or_ground_fail(format!("unsupported operands for operator `{op}`")),
         }
     }
 
@@ -24604,7 +25044,10 @@ impl Interpreter {
                 return (self.eval(&arm.body, &arm_env), Some(arm_index));
             }
         }
-        (Value::Unit, None) // no arm matched
+        (
+            self.panic_or_ground_fail("non-exhaustive match: no arm matched the value"),
+            None,
+        )
     }
 
     pub fn match_pattern(&self, pat: &Pat, val: &Value, env: &mut Env) -> bool {
@@ -25423,6 +25866,28 @@ impl Interpreter {
             arity: args.len(),
         };
         let (owner, matching) = self.rules_named(namespace, fn_name)?;
+        // An anonymous argument asks whether a matching tuple exists, including
+        // in a single-goal body or a nested call such as not(parent(x, _)).
+        // Never evaluate `_` as an ordinary constructor or environment binding.
+        if args
+            .iter()
+            .any(|argument| matches!(&argument.kind, ExprKind::Var(name) if name == "_"))
+        {
+            if self.exhaustive_preview_forbid_effects {
+                return Some(self.exhaustive_preview_fail(
+                    "exact exploration refuses anonymous existential rule queries",
+                ));
+            }
+            let unbound = Self::unbound_logic_arguments(args, env);
+            return Some(Value::Bool(self.search_bindings(
+                namespace,
+                fn_name,
+                args,
+                &unbound,
+                &[],
+                env,
+            )));
+        }
         if self.exact_prepared_rule_dispatch_is_active() {
             let prepared = self.exact_global_rule_dispatch(&owner, fn_name, args.len())?;
             return self.try_rule_call_from_prepared(&owner, args, env, prepared.as_ref(), &family);
@@ -25477,14 +25942,13 @@ impl Interpreter {
             BTreeSet::new()
         };
 
-        for name in &dispatch.head_local_names {
-            base_env.remove(name);
-        }
+        let mut local_names = dispatch.head_local_names.clone();
         for name in &dispatch.body_goal_local_names {
             if !scoped_binding_names.contains(name) {
-                base_env.remove(name);
+                local_names.insert(name.clone());
             }
         }
+        base_env.remove_visible_bindings(&local_names);
         Some(base_env)
     }
 
@@ -25496,6 +25960,16 @@ impl Interpreter {
         dispatch: &PreparedRuntimeRuleDispatch,
         family: &RuleDispatchKey,
     ) -> Option<Value> {
+        let depth = self.runtime_rule_call_depth.get();
+        if depth >= RUNTIME_RULE_CALL_DEPTH_LIMIT {
+            return Some(self.panic_or_ground_fail(format!(
+                "rule call `{}` exceeded its recursion limit of {RUNTIME_RULE_CALL_DEPTH_LIMIT}; evaluation is incomplete",
+                family.name
+            )));
+        }
+        self.runtime_rule_call_depth.set(depth + 1);
+        let _depth_guard = RuntimeCallDepthGuard(self.runtime_rule_call_depth.clone());
+
         // Evaluate arguments once (in caller's env so variables resolve correctly).
         // Named rule calls are normalized to the declaration-order head names here
         // so exception/default/clause matching stays purely positional below.
@@ -25591,7 +26065,12 @@ impl Interpreter {
                     };
                     let condition_met = match condition {
                         Some(condition) => {
-                            matches!(self.eval(condition, &rule_env), Value::Bool(true))
+                            let Some(result) =
+                                self.eval_rule_guard(condition, &rule_env, &family.name)
+                            else {
+                                break 'dispatch Some(Value::Unit);
+                            };
+                            result
                         }
                         None => true,
                     };
@@ -25649,7 +26128,12 @@ impl Interpreter {
                         }
                         continue;
                     };
-                    if !matches!(self.eval(condition, &rule_env), Value::Bool(true)) {
+                    let Some(condition_met) =
+                        self.eval_rule_guard(condition, &rule_env, &family.name)
+                    else {
+                        break 'dispatch Some(Value::Unit);
+                    };
+                    if !condition_met {
                         if traced_activation {
                             self.checked_mechanism_record_rule_attempt(
                                 family,
@@ -25714,9 +26198,9 @@ impl Interpreter {
                                         ExprKind::Conjunction(goals) => {
                                             self.eval_conjunction(goals, &rule_env)
                                         }
-                                        _ => !matches!(
-                                            self.eval(alternative, &rule_env),
-                                            Value::Bool(false)
+                                        _ => self.eval_conjunction(
+                                            std::slice::from_ref(alternative),
+                                            &rule_env,
                                         ),
                                     })
                                     .then_some(Value::Bool(true))
@@ -25906,7 +26390,7 @@ impl Interpreter {
                     out.push(name.clone());
                 }
             }
-            ExprKind::App(_, args) | ExprKind::Tuple(args) => {
+            ExprKind::App(_, args) | ExprKind::Tuple(args) | ExprKind::List(args) => {
                 for arg in args {
                     Self::collect_rule_head_vars(arg, out);
                 }
@@ -26208,13 +26692,22 @@ impl Interpreter {
         }
     }
 
-    fn rule_head_ground_value(&self, namespace: &RuntimeNamespace, expr: &Expr) -> Option<Value> {
+    /// Materialize a structural head term without executing an arbitrary call.
+    /// A derived clause can supply its term's variables through body bindings.
+    fn rule_head_value(
+        &self,
+        namespace: &RuntimeNamespace,
+        expr: &Expr,
+        env: Option<&Env>,
+    ) -> Option<Value> {
         if let Some((inner, _)) = Self::typed_rule_arg_parts(expr) {
-            return self.rule_head_ground_value(namespace, inner);
+            return self.rule_head_value(namespace, inner, env);
         }
 
         match &expr.kind {
             ExprKind::Lit(lit) => Some(self.literal_to_value(lit)),
+            ExprKind::Unit => Some(Value::Unit),
+            ExprKind::UnOp(_, _) => rule_head_numeric_value(expr),
             ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
                 if let Some((owner, _)) =
                     self.nullary_constructor_signature_in_namespace(namespace, name)
@@ -26229,13 +26722,21 @@ impl Interpreter {
                     None
                 }
             }
+            ExprKind::Var(name) if Self::is_rule_variable_name(name) => {
+                env.and_then(|env| env.get(name)).cloned()
+            }
             ExprKind::Tuple(items) => {
                 let values: Option<Vec<Value>> = items
                     .iter()
-                    .map(|item| self.rule_head_ground_value(namespace, item))
+                    .map(|item| self.rule_head_value(namespace, item, env))
                     .collect();
                 values.map(Value::Tuple)
             }
+            ExprKind::List(items) => items
+                .iter()
+                .map(|item| self.rule_head_value(namespace, item, env))
+                .collect::<Option<Vec<_>>>()
+                .map(Value::List),
             ExprKind::App(func, args) => {
                 let ExprKind::Var(ctor_name) = &func.kind else {
                     return None;
@@ -26245,7 +26746,7 @@ impl Interpreter {
                 let ordered = self.rule_constructor_pattern_args(&signature, args)?;
                 let values: Option<Vec<Value>> = ordered
                     .iter()
-                    .map(|arg| self.rule_head_ground_value(namespace, arg))
+                    .map(|arg| self.rule_head_value(namespace, arg, env))
                     .collect();
                 let values = values?;
                 if signature.positional {
@@ -26306,12 +26807,36 @@ impl Interpreter {
                 }
             }
             ExprKind::Var(name) => {
+                if let Some(bound) = env.get(name) {
+                    return runtime_values_semantically_equal(bound, val);
+                }
                 env.set(name.clone(), val.clone());
                 true
             }
             ExprKind::Lit(lit) => {
                 let expected = self.literal_to_value(lit);
                 values_equal(&expected, val)
+            }
+            ExprKind::Unit => matches!(val, Value::Unit),
+            ExprKind::UnOp(_, _) => {
+                if let Some(expected) = rule_head_numeric_value(param) {
+                    values_equal(&expected, val)
+                } else {
+                    self.panic_or_ground_fail(
+                        "unsupported rule-head pattern: expected a signed numeric literal",
+                    );
+                    false
+                }
+            }
+            ExprKind::List(items) => {
+                let Some(values) = list_items(val) else {
+                    return false;
+                };
+                items.len() == values.len()
+                    && items
+                        .iter()
+                        .zip(&values)
+                        .all(|(item, value)| self.match_rule_param(item, value, env))
             }
             ExprKind::Tuple(items) => {
                 let Value::Tuple(values) = val else {
@@ -26325,12 +26850,18 @@ impl Interpreter {
             }
             ExprKind::App(func, args) => {
                 let ExprKind::Var(ctor_name) = &func.kind else {
+                    self.panic_or_ground_fail(
+                        "unsupported rule-head pattern: expected a constructor",
+                    );
                     return false;
                 };
                 let namespace = self.namespace_for_env(env);
                 let Some((owner, signature)) =
                     self.constructor_signature_for_args_in_namespace(&namespace, ctor_name, args)
                 else {
+                    self.panic_or_ground_fail(
+                        "unsupported rule-head pattern: expected a known constructor signature",
+                    );
                     return false;
                 };
                 let Some(pattern_args) = self.rule_constructor_pattern_args(&signature, args)
@@ -26408,12 +26939,8 @@ impl Interpreter {
                 }
             }
             _ => {
-                if let Some(name) = self.extract_var_name(param) {
-                    if name != "_" {
-                        env.set(name, val.clone());
-                    }
-                }
-                true
+                self.panic_or_ground_fail("unsupported rule-head pattern");
+                false
             }
         }
     }
@@ -26429,13 +26956,48 @@ fn literal_to_value_static(lit: &Literal) -> Value {
     }
 }
 
-impl Interpreter {
-    /// Extract variable name from an expression (for non-trivial head patterns)
-    fn extract_var_name(&self, expr: &Expr) -> Option<String> {
-        match &expr.kind {
-            ExprKind::Var(name) => Some(name.clone()),
+/// Signed literals in rule heads are data, not executable expressions.
+#[doc(hidden)]
+pub fn rule_head_numeric_value(expression: &Expr) -> Option<Value> {
+    match &expression.kind {
+        ExprKind::Lit(Literal::Int(value)) => Some(Value::Int(*value)),
+        ExprKind::Lit(Literal::Float(value)) => Some(Value::Float(*value)),
+        ExprKind::UnOp(operator, inner) if operator == "+" => rule_head_numeric_value(inner),
+        ExprKind::UnOp(operator, inner) if operator == "-" => match rule_head_numeric_value(inner)?
+        {
+            Value::Int(value) => value.checked_neg().map(Value::Int),
+            Value::Float(value) => Some(Value::Float(-value)),
             _ => None,
-        }
+        },
+        _ => None,
+    }
+}
+
+impl Interpreter {
+    /// Anonymous occurrences are always free, regardless of the environment.
+    fn unbound_logic_arguments(args: &[Expr], env: &Env) -> Vec<(usize, String)> {
+        args.iter()
+            .enumerate()
+            .filter_map(|(index, argument)| match &argument.kind {
+                ExprKind::Var(name)
+                    if name == "_"
+                        || (Self::is_rule_variable_name(name) && env.get(name).is_none()) =>
+                {
+                    Some((index, name.clone()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn logic_argument_values(&mut self, args: &[Expr], env: &Env) -> Vec<Option<Value>> {
+        args.iter()
+            .map(|argument| match &argument.kind {
+                ExprKind::Var(name) if name == "_" => None,
+                ExprKind::Var(name) if Self::is_rule_variable_name(name) => env.get(name).cloned(),
+                _ => Some(self.eval(argument, env)),
+            })
+            .collect()
     }
 
     /// Evaluate a Prolog-style conjunction: all goals must succeed.
@@ -26452,24 +27014,12 @@ impl Interpreter {
         // (variables not yet in the environment that appear as arguments)
         if let ExprKind::App(func, args) = &goal.kind {
             let fn_name = self.expr_name(func);
-            let unbound: Vec<(usize, String)> = args
-                .iter()
-                .enumerate()
-                .filter_map(|(i, arg)| {
-                    if let ExprKind::Var(name) = &arg.kind {
-                        // _ is a wildcard: treated as unbound for existential search
-                        // but binding is discarded (never propagated to remaining goals)
-                        if name == "_" || env.get(name).is_none() {
-                            return Some((i, name.clone()));
-                        }
-                    }
-                    None
-                })
-                .collect();
+            let unbound = Self::unbound_logic_arguments(args, env);
 
             if !unbound.is_empty() {
                 // Existential search: find all facts/clauses that can provide bindings
-                return self.search_bindings(&fn_name, args, &unbound, remaining, env);
+                let namespace = self.namespace_for_env(env);
+                return self.search_bindings(&namespace, &fn_name, args, &unbound, remaining, env);
             }
         }
 
@@ -26490,117 +27040,23 @@ impl Interpreter {
     /// and try each binding of `b` to see if the remaining goals succeed.
     fn search_bindings(
         &mut self,
+        namespace: &RuntimeNamespace,
         fn_name: &str,
         goal_args: &[Expr],
         unbound: &[(usize, String)],
         remaining: &[Expr],
         env: &Env,
     ) -> bool {
-        let namespace = self.namespace_for_env(env);
-        let Some((owner, rules)) = self.rules_named(&namespace, fn_name) else {
-            return false;
-        };
-
-        // Evaluate bound arguments
-        let bound_vals: Vec<Option<Value>> = goal_args
-            .iter()
-            .map(|arg| {
-                if let ExprKind::Var(name) = &arg.kind {
-                    env.get(name).cloned()
-                } else {
-                    Some(self.eval(arg, env))
-                }
-            })
-            .collect();
-
-        // Try each rule/fact as a potential source of bindings
-        for (rule, declaration_env) in &rules {
-            if let Rule::Clause { head, body } = rule.as_ref() {
-                if let ExprKind::App(_, head_params) = &head.kind {
-                    if head_params.len() != goal_args.len() {
-                        continue;
-                    }
-
-                    let Some(mut rule_base_env) =
-                        self.registered_declaration_env(declaration_env, "rule", fn_name)
-                    else {
-                        return false;
-                    };
-                    rule_base_env.set_runtime_namespace(owner.clone());
-
-                    // Check if bound args match this fact's ground terms
-                    let mut matches = true;
-                    let mut rule_env = rule_base_env.child();
-                    let mut continuation_env = env.child();
-                    for (_, name) in unbound {
-                        continuation_env.remove(name);
-                    }
-
-                    for (i, (head_param, bound_val)) in
-                        head_params.iter().zip(bound_vals.iter()).enumerate()
-                    {
-                        match (&head_param.kind, bound_val) {
-                            // Head has a literal, we have a bound value — must match
-                            (ExprKind::Lit(lit), Some(val)) => {
-                                let expected = self.literal_to_value(lit);
-                                if !values_equal(&expected, val) {
-                                    matches = false;
-                                    break;
-                                }
-                            }
-                            // Head has a literal, we have an unbound var — bind it
-                            (ExprKind::Lit(lit), None) => {
-                                let val = self.literal_to_value(lit);
-                                if let Some((_, ref name)) =
-                                    unbound.iter().find(|(idx, _)| *idx == i)
-                                {
-                                    continuation_env.set(name.clone(), val);
-                                }
-                            }
-                            // Head has a variable — it can provide a binding for our unbound vars
-                            // but only if the fact itself has a body that can evaluate
-                            (ExprKind::Var(head_var), Some(val)) => {
-                                rule_env.set(head_var.clone(), val.clone());
-                            }
-                            (ExprKind::Var(head_var), None) => {
-                                // Both head and goal have unbound variables — skip
-                                // (can't resolve without more facts)
-                                matches = false;
-                                break;
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    if !matches {
-                        continue;
-                    }
-
-                    // Check clause body if present
-                    let clause_ok = match body.as_ref().map(|e| &e.kind) {
-                        None => true, // bare fact
-                        Some(ExprKind::Conjunction(goals)) => {
-                            self.eval_conjunction(goals, &rule_env)
-                        }
-                        Some(_) => {
-                            matches!(
-                                self.eval(body.as_ref().unwrap(), &rule_env),
-                                Value::Bool(true)
-                            )
-                        }
-                    };
-
-                    if clause_ok {
-                        // This fact/clause succeeded — try remaining goals with new bindings
-                        if self.eval_conjunction(remaining, &continuation_env) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        false
+        let bound_values = self.logic_argument_values(goal_args, env);
+        self.visit_logic_argument_bindings(
+            namespace,
+            fn_name,
+            &bound_values,
+            unbound,
+            env,
+            0,
+            &mut |interpreter, bindings| interpreter.eval_conjunction(remaining, bindings),
+        )
     }
 
     /// Evaluate findall(template, goal) — collect all solutions of a logic query.
@@ -26609,7 +27065,9 @@ impl Interpreter {
     fn eval_findall(&mut self, template: &Expr, goal: &Expr, env: &Env) -> Value {
         let template_name = match &template.kind {
             ExprKind::Var(name) => name.clone(),
-            _ => return Value::List(vec![]),
+            _ => {
+                return self.panic_or_ground_fail("logic query template must be a single variable")
+            }
         };
 
         // The goal should be a rule call: App(Var(fn_name), args)
@@ -26618,16 +27076,39 @@ impl Interpreter {
             let template_pos = goal_args
                 .iter()
                 .position(|a| matches!(&a.kind, ExprKind::Var(ref n) if n == &template_name));
+            let mut first_positions = BTreeMap::new();
+            let mut equal_positions = Vec::new();
+            for (position, argument) in goal_args.iter().enumerate() {
+                if let ExprKind::Var(name) = &argument.kind {
+                    if Self::is_rule_variable_name(name) {
+                        if let Some(first) = first_positions.get(name) {
+                            equal_positions.push((*first, position));
+                        } else {
+                            first_positions.insert(name.clone(), position);
+                        }
+                    }
+                }
+            }
             let bound_vals: Vec<Option<Value>> = goal_args
                 .iter()
                 .map(|arg| match &arg.kind {
                     ExprKind::Var(name) if name == "_" || name == &template_name => None,
-                    ExprKind::Var(name) => env.get(name).cloned(),
+                    ExprKind::Var(name) if Self::is_rule_variable_name(name) => {
+                        env.get(name).cloned()
+                    }
                     _ => Some(self.eval(arg, env)),
                 })
                 .collect();
             let mut results = Vec::new();
-            self.findall_enumerate(&fn_name, &bound_vals, template_pos, env, &mut results, 0);
+            self.findall_enumerate(
+                &fn_name,
+                &bound_vals,
+                template_pos,
+                &equal_positions,
+                env,
+                &mut results,
+                0,
+            );
             Value::List(results)
         } else {
             Value::List(vec![])
@@ -26697,28 +27178,351 @@ impl Interpreter {
         }
     }
 
-    /// Enumerate all solutions for a findall query by trying each rule.
-    /// For ground facts: direct match. For rules with bodies: recursively find values.
+    /// Propagate equal argument slots through finite typed-domain candidates.
+    fn constrain_logic_argument_values(
+        values: &mut [Option<Value>],
+        equal_positions: &[(usize, usize)],
+    ) -> bool {
+        for _ in 0..=equal_positions.len() {
+            for &(left, right) in equal_positions {
+                match (values[left].clone(), values[right].clone()) {
+                    (Some(left), Some(right)) => {
+                        if !runtime_values_semantically_equal(&left, &right) {
+                            return false;
+                        }
+                    }
+                    (Some(value), None) => values[right] = Some(value),
+                    (None, Some(value)) => values[left] = Some(value),
+                    (None, None) => {}
+                }
+            }
+        }
+        true
+    }
+
+    /// Propagate bindings implied by repeated query positions without executing
+    /// the rule again. Unknown variable pairs remain constraints for later goals.
+    fn constrain_logic_head_equalities(
+        &self,
+        head_params: &[Expr],
+        equal_positions: &[(usize, usize)],
+        env: &mut Env,
+    ) -> bool {
+        let mut substitutions = BTreeMap::new();
+        let namespace = self.namespace_for_env(env);
+        loop {
+            let before = (env.bindings.len(), substitutions.len());
+            for &(left, right) in equal_positions {
+                if !self.unify_logic_head_terms(
+                    &head_params[left],
+                    &head_params[right],
+                    env,
+                    &mut substitutions,
+                ) {
+                    return false;
+                }
+            }
+            for (name, term) in &substitutions {
+                let term = Self::resolve_logic_head_term(term, &substitutions);
+                if let Some(value) = self.rule_head_value(&namespace, &term, Some(env)) {
+                    if let Some(bound) = env.get(name) {
+                        if !runtime_values_semantically_equal(bound, &value) {
+                            return false;
+                        }
+                    } else {
+                        env.set(name.clone(), value);
+                    }
+                }
+            }
+            // Matching only adds previously unbound names, so this reaches a
+            // fixed point after at most the number of local head variables.
+            if (env.bindings.len(), substitutions.len()) == before {
+                return true;
+            }
+        }
+    }
+
+    fn resolve_logic_head_term(term: &Expr, substitutions: &BTreeMap<String, Expr>) -> Expr {
+        let kind = match &term.kind {
+            ExprKind::Var(name) => {
+                return substitutions
+                    .get(name)
+                    .map(|term| Self::resolve_logic_head_term(term, substitutions))
+                    .unwrap_or_else(|| term.clone());
+            }
+            ExprKind::Tuple(items) => ExprKind::Tuple(
+                items
+                    .iter()
+                    .map(|term| Self::resolve_logic_head_term(term, substitutions))
+                    .collect(),
+            ),
+            ExprKind::List(items) => ExprKind::List(
+                items
+                    .iter()
+                    .map(|term| Self::resolve_logic_head_term(term, substitutions))
+                    .collect(),
+            ),
+            ExprKind::App(function, arguments) => {
+                let typed = Self::typed_rule_arg_parts(term).is_some();
+                ExprKind::App(
+                    function.clone(),
+                    arguments
+                        .iter()
+                        .enumerate()
+                        .map(|(index, term)| {
+                            if typed && index != 0 {
+                                term.clone()
+                            } else {
+                                Self::resolve_logic_head_term(term, substitutions)
+                            }
+                        })
+                        .collect(),
+                )
+            }
+            _ => return term.clone(),
+        };
+        Expr::new(kind, term.span)
+    }
+
+    fn unify_logic_head_terms(
+        &self,
+        left: &Expr,
+        right: &Expr,
+        env: &mut Env,
+        substitutions: &mut BTreeMap<String, Expr>,
+    ) -> bool {
+        let left = Self::resolve_logic_head_term(left, substitutions);
+        let right = Self::resolve_logic_head_term(right, substitutions);
+        let (left, right) = (&left, &right);
+        let namespace = self.namespace_for_env(env);
+        match (
+            self.rule_head_value(&namespace, left, Some(env)),
+            self.rule_head_value(&namespace, right, Some(env)),
+        ) {
+            (Some(left), Some(right)) => return runtime_values_semantically_equal(&left, &right),
+            (Some(value), None) => return self.match_rule_param(right, &value, env),
+            (None, Some(value)) => return self.match_rule_param(left, &value, env),
+            (None, None) => {}
+        }
+        let left = Self::typed_rule_arg_parts(left).map_or(left, |(inner, _)| inner);
+        let right = Self::typed_rule_arg_parts(right).map_or(right, |(inner, _)| inner);
+        match (&left.kind, &right.kind) {
+            (ExprKind::Var(left), ExprKind::Var(right)) => {
+                if left == "_" || right == "_" {
+                    return true;
+                }
+                if !Self::is_rule_variable_name(left) || !Self::is_rule_variable_name(right) {
+                    return false;
+                }
+                if left == right {
+                    return true;
+                }
+                substitutions.insert(left.clone(), ExprKind::Var(right.clone()).into());
+                true
+            }
+            (ExprKind::Var(name), _) | (_, ExprKind::Var(name)) => {
+                if name == "_" {
+                    return true;
+                }
+                if !Self::is_rule_variable_name(name) {
+                    return false;
+                }
+                let other = if matches!(&left.kind, ExprKind::Var(_)) {
+                    right
+                } else {
+                    left
+                };
+                let mut variables = Vec::new();
+                Self::collect_rule_head_vars(other, &mut variables);
+                // Finite terms cannot contain themselves as a proper field.
+                if variables.contains(name) {
+                    return false;
+                }
+                substitutions.insert(name.clone(), other.clone());
+                true
+            }
+            (ExprKind::Tuple(left), ExprKind::Tuple(right))
+            | (ExprKind::List(left), ExprKind::List(right)) => {
+                left.len() == right.len()
+                    && left.iter().zip(right).all(|(left, right)| {
+                        self.unify_logic_head_terms(left, right, env, substitutions)
+                    })
+            }
+            (
+                ExprKind::App(left_function, left_args),
+                ExprKind::App(right_function, right_args),
+            ) => {
+                let (ExprKind::Var(left_name), ExprKind::Var(right_name)) =
+                    (&left_function.kind, &right_function.kind)
+                else {
+                    return false;
+                };
+                if left_name != right_name {
+                    return false;
+                }
+                let Some((_, left_signature)) = self
+                    .constructor_signature_for_args_in_namespace(&namespace, left_name, left_args)
+                else {
+                    return false;
+                };
+                let Some((_, right_signature)) = self.constructor_signature_for_args_in_namespace(
+                    &namespace, right_name, right_args,
+                ) else {
+                    return false;
+                };
+                let (Some(left), Some(right)) = (
+                    self.rule_constructor_pattern_args(&left_signature, left_args),
+                    self.rule_constructor_pattern_args(&right_signature, right_args),
+                ) else {
+                    return false;
+                };
+                left.len() == right.len()
+                    && left.iter().zip(&right).all(|(left, right)| {
+                        self.unify_logic_head_terms(left, right, env, substitutions)
+                    })
+            }
+            _ => false,
+        }
+    }
+
+    fn collect_logic_head_projection(
+        &self,
+        head_params: &[Expr],
+        template_pos: Option<usize>,
+        equal_positions: &[(usize, usize)],
+        env: &Env,
+        results: &mut Vec<Value>,
+    ) {
+        let mut projection_env = env.child();
+        if !self.constrain_logic_head_equalities(head_params, equal_positions, &mut projection_env)
+        {
+            return;
+        }
+        let namespace = self.namespace_for_env(&projection_env);
+        if let Some(value) = template_pos
+            .and_then(|position| head_params.get(position))
+            .and_then(|term| self.rule_head_value(&namespace, term, Some(&projection_env)))
+        {
+            if !results
+                .iter()
+                .any(|result| runtime_values_semantically_equal(result, &value))
+            {
+                results.push(value);
+            }
+        }
+    }
+
+    fn logic_query_priority_decision(
+        &self,
+        priority: &mut LogicQueryPriority<'_>,
+        arguments: &[Value],
+    ) -> usize {
+        if let Some(index) = priority.decisions.iter().position(|decision| {
+            decision.arguments.len() == arguments.len()
+                && decision
+                    .arguments
+                    .iter()
+                    .zip(arguments)
+                    .all(|(left, right)| runtime_values_semantically_equal(left, right))
+        }) {
+            return index;
+        }
+        priority.decisions.push(LogicQueryPriorityDecision {
+            arguments: arguments.to_vec(),
+            checked: 0,
+            selected: None,
+        });
+        priority.decisions.len() - 1
+    }
+
+    /// Resolve only the higher-priority tiers. Never call the whole family
+    /// again: its clause may already have produced these bindings with effects.
+    fn resolve_logic_query_priority(
+        &mut self,
+        priority: &mut LogicQueryPriority<'_>,
+        arguments: &[Value],
+        through: usize,
+    ) -> Option<usize> {
+        let decision_index = self.logic_query_priority_decision(priority, arguments);
+        while priority.decisions[decision_index].selected.is_none()
+            && priority.decisions[decision_index].checked < through
+        {
+            let position = priority.decisions[decision_index].checked;
+            let rule_index = priority.overrides[position];
+            let (rule, declaration_env) = &priority.dispatch.matching[rule_index];
+            let Some(base_env) = self.runtime_rule_candidate_base_env(
+                priority.namespace,
+                priority.family,
+                declaration_env,
+                priority.caller_env,
+                priority.dispatch,
+            ) else {
+                break;
+            };
+            let (Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            }
+            | Rule::Default {
+                head,
+                value,
+                condition,
+            }) = rule.as_ref()
+            else {
+                unreachable!("query priority contains only exceptions and guarded defaults");
+            };
+            if let Some(rule_env) = self.match_rule_head(head, arguments, &base_env) {
+                let condition_met = match condition {
+                    Some(condition) => {
+                        self.eval_rule_guard(condition, &rule_env, &priority.family.name)?
+                    }
+                    None => true,
+                };
+                if condition_met {
+                    priority.decisions[decision_index].selected = Some(self.eval(value, &rule_env));
+                }
+            }
+            priority.decisions[decision_index].checked += 1;
+        }
+        Some(decision_index)
+    }
+
+    /// Enumerate facts and derived clauses with the same projection constraints.
     fn findall_enumerate(
         &mut self,
         fn_name: &str,
         bound_vals: &[Option<Value>],
         template_pos: Option<usize>,
+        equal_positions: &[(usize, usize)],
         env: &Env,
         results: &mut Vec<Value>,
         depth: usize,
     ) {
         if depth > 50 {
+            self.panic_or_ground_fail(format!(
+                "logic query `{fn_name}` exceeded its recursion limit of 50; evaluation is incomplete"
+            ));
             return;
-        } // prevent infinite recursion
+        }
 
         let namespace = self.namespace_for_env(env);
         let Some((owner, rules)) = self.rules_named(&namespace, fn_name) else {
             return;
         };
+        let Some(dispatch) = Self::prepare_runtime_rule_dispatch(rules, bound_vals.len()) else {
+            return;
+        };
+        let family = RuleDispatchKey {
+            scope: None,
+            name: fn_name.to_string(),
+            arity: bound_vals.len(),
+        };
 
         if let Some(template_pos) = template_pos {
-            let matching_rules = rules
+            let matching_rules = dispatch
+                .matching
                 .iter()
                 .map(|(rule, _)| rule.clone())
                 .collect::<Vec<_>>();
@@ -26727,9 +27531,17 @@ impl Interpreter {
                     return;
                 };
                 for candidate in variants {
+                    let mut constrained_values = bound_vals.to_vec();
+                    constrained_values[template_pos] = Some(candidate.clone());
+                    if !Self::constrain_logic_argument_values(
+                        &mut constrained_values,
+                        equal_positions,
+                    ) {
+                        continue;
+                    }
                     let mut call_args = Vec::with_capacity(bound_vals.len());
                     let mut callable = true;
-                    for (position, bound) in bound_vals.iter().enumerate() {
+                    for (position, bound) in constrained_values.iter().enumerate() {
                         if position == template_pos {
                             call_args.push(candidate.clone());
                         } else if let Some(value) = bound {
@@ -26745,8 +27557,10 @@ impl Interpreter {
                     let rule_value =
                         self.apply_rule_value_in_namespace(&owner, fn_name, call_args, env);
                     if !matches!(rule_value, Value::Bool(false)) {
-                        let rendered = format!("{}", candidate);
-                        if !results.iter().any(|value| format!("{}", value) == rendered) {
+                        if !results
+                            .iter()
+                            .any(|value| runtime_values_semantically_equal(value, &candidate))
+                        {
                             results.push(candidate);
                         }
                     }
@@ -26755,339 +27569,390 @@ impl Interpreter {
             }
         }
 
-        for (rule, declaration_env) in &rules {
-            let Some(mut rule_base_env) =
-                self.registered_declaration_env(declaration_env, "rule", fn_name)
-            else {
+        let mut priority = LogicQueryPriority {
+            namespace: &owner,
+            family: &family,
+            dispatch: &dispatch,
+            caller_env: env,
+            overrides: dispatch
+                .exceptions
+                .iter()
+                .chain(&dispatch.conditional_defaults)
+                .copied()
+                .collect(),
+            decisions: Vec::new(),
+        };
+        // Preserve fact/derived discovery order, then discover additional
+        // candidates supplied only by exception or conditional-default heads.
+        let candidate_indices = dispatch
+            .clauses
+            .iter()
+            .chain(&priority.overrides)
+            .chain(&dispatch.unconditional_defaults)
+            .copied()
+            .collect::<Vec<_>>();
+        for rule_index in candidate_indices {
+            let (rule, declaration_env) = &dispatch.matching[rule_index];
+            let Some(rule_base_env) = self.runtime_rule_candidate_base_env(
+                &owner,
+                &family,
+                declaration_env,
+                env,
+                &dispatch,
+            ) else {
                 return;
             };
-            rule_base_env.set_runtime_namespace(owner.clone());
-            match rule.as_ref() {
-                Rule::Clause { head, body } => {
-                    if let ExprKind::App(_, head_params) = &head.kind {
-                        if head_params.len() != bound_vals.len() {
-                            continue;
-                        }
-
-                        // For ground facts (no body), directly extract the template value
-                        if body.is_none() {
-                            let mut ok = true;
-                            let mut candidate = None;
-                            let mut fact_env = rule_base_env.child();
-                            for (i, (hp, bv)) in
-                                head_params.iter().zip(bound_vals.iter()).enumerate()
-                            {
-                                match bv {
-                                    Some(val) => {
-                                        if !self.match_rule_param(hp, val, &mut fact_env) {
-                                            ok = false;
-                                            break;
-                                        }
-                                    }
-                                    None if Some(i) == template_pos => {
-                                        candidate = self.rule_head_ground_value(&owner, hp);
-                                    }
-                                    None => {}
-                                }
-                            }
-                            if ok {
-                                if let Some(val) = candidate {
-                                    {
-                                        let vs = format!("{}", val);
-                                        if !results.iter().any(|r| format!("{}", r) == vs) {
-                                            results.push(val);
-                                        }
-                                    }
-                                }
-                            }
-                            continue;
-                        }
-
-                        // For rules with bodies: bind head variables, then evaluate the body
-                        // to find all values the template var can take.
-                        let body_expr = body.as_ref().unwrap();
-                        let mut rule_env = rule_base_env.child();
-
-                        // Bind known (bound) values to head params
-                        for (i, hp) in head_params.iter().enumerate() {
-                            if let ExprKind::Var(hname) = &hp.kind {
-                                if let Some(val) = &bound_vals[i] {
-                                    rule_env.set(hname.clone(), val.clone());
-                                }
-                            }
-                        }
-
-                        // The body is a conjunction/disjunction/single goal
-                        // We need to enumerate all bindings of the free variable
-                        // Strategy: if the body is a single rule call, recursively findall
-                        // then for each result, check the conjunction holds
-
-                        match &body_expr.kind {
-                            ExprKind::Conjunction(goals) if goals.len() >= 1 => {
-                                // First goal provides candidates, remaining goals filter
-                                self.findall_conjunction(
-                                    goals,
-                                    head_params,
-                                    bound_vals,
-                                    template_pos,
-                                    &rule_env,
-                                    results,
-                                    depth,
-                                );
-                            }
-                            ExprKind::Disjunction(alts) => {
-                                // Try each alternative
-                                for alt in alts {
-                                    match &alt.kind {
-                                        ExprKind::Conjunction(goals) => {
-                                            self.findall_conjunction(
-                                                goals,
-                                                head_params,
-                                                bound_vals,
-                                                template_pos,
-                                                &rule_env,
-                                                results,
-                                                depth,
-                                            );
-                                        }
-                                        _ => {
-                                            // Single goal alternative
-                                            self.findall_conjunction(
-                                                &[alt.clone()],
-                                                head_params,
-                                                bound_vals,
-                                                template_pos,
-                                                &rule_env,
-                                                results,
-                                                depth,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                            _ => {
-                                // Single goal body
-                                self.findall_conjunction(
-                                    &[body_expr.clone()],
-                                    head_params,
-                                    bound_vals,
-                                    template_pos,
-                                    &rule_env,
-                                    results,
-                                    depth,
-                                );
-                            }
-                        }
-                    }
-                }
-                Rule::Default {
+            let (head, body, value) = match rule.as_ref() {
+                Rule::Clause { head, body } => (head, body.as_ref(), None),
+                Rule::Exception {
                     head,
                     value,
                     condition,
-                } => {
-                    // Value-returning rules: check if any bound vals match
-                    if let ExprKind::App(_, head_params) = &head.kind {
-                        if head_params.len() != bound_vals.len() {
-                            continue;
-                        }
-                        let mut ok = true;
-                        for (hp, bv) in head_params.iter().zip(bound_vals.iter()) {
-                            if let (ExprKind::Lit(lit), Some(val)) = (&hp.kind, bv) {
-                                if !values_equal(&self.literal_to_value(lit), val) {
-                                    ok = false;
-                                    break;
-                                }
-                            }
-                        }
-                        if !ok {
-                            continue;
-                        }
-                        let mut value_env = rule_base_env.child();
-                        for (hp, bv) in head_params.iter().zip(bound_vals.iter()) {
-                            if let ExprKind::Var(name) = &hp.kind {
-                                if let Some(value) = bv {
-                                    value_env.set(name.clone(), value.clone());
-                                }
-                            }
-                        }
-                        let cond_ok = condition.as_ref().map_or(true, |condition| {
-                            matches!(self.eval(condition, &value_env), Value::Bool(true))
-                        });
-                        if cond_ok {
-                            let val = self.eval(value, &value_env);
-                            {
-                                let vs = format!("{}", val);
-                                if !results.iter().any(|r| format!("{}", r) == vs) {
-                                    results.push(val);
-                                }
-                            }
-                        }
-                    }
+                    ..
                 }
-                _ => {}
+                | Rule::Default {
+                    head,
+                    value,
+                    condition,
+                } => (head, condition.as_ref(), Some(value)),
+                Rule::ReactiveScope { .. } => continue,
+            };
+            let ExprKind::App(_, head_params) = &head.kind else {
+                continue;
+            };
+            let mut rule_env = rule_base_env.child();
+            if !head_params.iter().zip(bound_vals).all(|(param, bound)| {
+                bound
+                    .as_ref()
+                    .is_none_or(|value| self.match_rule_param(param, value, &mut rule_env))
+            }) {
+                continue;
             }
+            let override_position = priority
+                .overrides
+                .iter()
+                .position(|index| *index == rule_index);
+            self.findall_conjunction(
+                body.map(std::slice::from_ref).unwrap_or(&[]),
+                head_params,
+                bound_vals,
+                template_pos,
+                equal_positions,
+                &rule_env,
+                results,
+                depth,
+                &mut priority,
+                override_position,
+                value,
+                false,
+            );
         }
     }
 
-    /// Enumerate solutions through a conjunction of goals.
-    /// The first goal generates candidate bindings, each subsequent goal filters.
+    /// Bind each free argument against the same goal, carrying earlier column
+    /// constraints into later searches. A continuation can stop at its first
+    /// witness or collect every binding. Bound expressions are captured by the
+    /// caller, so discovering more columns never evaluates them again.
+    fn visit_logic_argument_bindings(
+        &mut self,
+        namespace: &RuntimeNamespace,
+        fn_name: &str,
+        bound_values: &[Option<Value>],
+        free_positions: &[(usize, String)],
+        env: &Env,
+        depth: usize,
+        continuation: &mut dyn FnMut(&mut Self, &Env) -> bool,
+    ) -> bool {
+        let Some(((position, name), remaining)) = free_positions.split_first() else {
+            return continuation(self, env);
+        };
+        let mut candidates = Vec::new();
+        let mut enumeration_env = env.child();
+        enumeration_env.set_runtime_namespace(namespace.clone());
+        self.findall_enumerate(
+            fn_name,
+            bound_values,
+            Some(*position),
+            &[],
+            &enumeration_env,
+            &mut candidates,
+            depth + 1,
+        );
+        for candidate in candidates {
+            if name != "_"
+                && env
+                    .get(name)
+                    .is_some_and(|bound| !runtime_values_semantically_equal(bound, &candidate))
+            {
+                continue;
+            }
+            let mut values = bound_values.to_vec();
+            values[*position] = Some(candidate.clone());
+            let mut next_env = env.child();
+            if name != "_" {
+                next_env.set(name.clone(), candidate);
+            }
+            if self.visit_logic_argument_bindings(
+                namespace,
+                fn_name,
+                &values,
+                remaining,
+                &next_env,
+                depth,
+                continuation,
+            ) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Enumerate complete bindings through a conjunction of goals.
     fn findall_conjunction(
         &mut self,
         goals: &[Expr],
         head_params: &[Expr],
         bound_vals: &[Option<Value>],
         template_pos: Option<usize>,
+        equal_positions: &[(usize, usize)],
         env: &Env,
         results: &mut Vec<Value>,
         depth: usize,
+        priority: &mut LogicQueryPriority<'_>,
+        override_position: Option<usize>,
+        value: Option<&Expr>,
+        condition_started: bool,
     ) {
+        if self.calculation_failed() || self.ground_error.borrow().is_some() {
+            return;
+        }
+        let mut constrained_env = env.child();
+        if !self.constrain_logic_head_equalities(head_params, equal_positions, &mut constrained_env)
+        {
+            return;
+        }
+        let env = &constrained_env;
+        let head_values = (!priority.overrides.is_empty())
+            .then(|| {
+                head_params
+                    .iter()
+                    .zip(bound_vals)
+                    .map(|(param, bound)| {
+                        bound
+                            .clone()
+                            .or_else(|| self.rule_head_value(priority.namespace, param, Some(env)))
+                    })
+                    .collect::<Option<Vec<_>>>()
+            })
+            .flatten();
+        if let Some(arguments) = head_values.as_ref() {
+            let through = override_position.map_or(priority.overrides.len(), |position| {
+                position + usize::from(!condition_started)
+            });
+            let Some(index) = self.resolve_logic_query_priority(priority, arguments, through)
+            else {
+                return;
+            };
+            let decision = &priority.decisions[index];
+            if let Some(selected) = &decision.selected {
+                if !matches!(selected, Value::Bool(false)) {
+                    self.collect_logic_head_projection(
+                        head_params,
+                        template_pos,
+                        equal_positions,
+                        env,
+                        results,
+                    );
+                }
+                return;
+            }
+            if override_position.is_some_and(|position| decision.checked > position) {
+                // The ordinary priority check already rejected this guard.
+                return;
+            }
+        }
         if goals.is_empty() {
+            if !priority.overrides.is_empty() && head_values.is_none() {
+                // A rejecting override supplies no new witnesses of its own.
+                // Read only materialized data here; an effectful expression
+                // must not run with missing head arguments.
+                if value.is_some_and(|expression| {
+                    matches!(
+                        self.rule_head_value(priority.namespace, expression, Some(env)),
+                        Some(Value::Bool(false))
+                    )
+                }) {
+                    return;
+                }
+                self.panic_or_ground_fail(format!(
+                    "logic query `{}` cannot resolve exception/default priority for an unbound head; evaluation is incomplete",
+                    priority.family.name
+                ));
+                return;
+            }
+            if let Some(expression) = value {
+                let selected = self.eval(expression, env);
+                if let (Some(position), Some(arguments)) = (override_position, head_values.as_ref())
+                {
+                    let index = self.logic_query_priority_decision(priority, arguments);
+                    priority.decisions[index].checked = position + 1;
+                    priority.decisions[index].selected = Some(selected.clone());
+                }
+                if matches!(selected, Value::Bool(false)) {
+                    return;
+                }
+            }
+            self.collect_logic_head_projection(
+                head_params,
+                template_pos,
+                equal_positions,
+                env,
+                results,
+            );
             return;
         }
 
         let first_goal = &goals[0];
 
+        match &first_goal.kind {
+            ExprKind::Conjunction(nested) => {
+                let mut flattened = nested.clone();
+                flattened.extend_from_slice(&goals[1..]);
+                self.findall_conjunction(
+                    &flattened,
+                    head_params,
+                    bound_vals,
+                    template_pos,
+                    equal_positions,
+                    env,
+                    results,
+                    depth,
+                    priority,
+                    override_position,
+                    value,
+                    condition_started,
+                );
+                return;
+            }
+            ExprKind::Disjunction(alternatives) => {
+                for alternative in alternatives {
+                    let mut branch = vec![alternative.clone()];
+                    branch.extend_from_slice(&goals[1..]);
+                    self.findall_conjunction(
+                        &branch,
+                        head_params,
+                        bound_vals,
+                        template_pos,
+                        equal_positions,
+                        env,
+                        results,
+                        depth,
+                        priority,
+                        override_position,
+                        value,
+                        condition_started,
+                    );
+                }
+                return;
+            }
+            _ => {}
+        }
+
         // If the first goal is a rule call, enumerate its solutions
         if let ExprKind::App(func, args) = &first_goal.kind {
             let goal_fn = self.expr_name(func);
-            let goal_args_vals: Vec<Option<Value>> = args
-                .iter()
-                .map(|a| match &a.kind {
-                    ExprKind::Var(name) => env.get(name).cloned(),
-                    _ => Some(self.eval(a, env)),
-                })
-                .collect();
-
-            // Find which positions are free (unbound variables)
-            let free_positions: Vec<(usize, String)> = args
-                .iter()
-                .enumerate()
-                .filter_map(|(i, a)| {
-                    if let ExprKind::Var(name) = &a.kind {
-                        if goal_args_vals[i].is_none() {
-                            Some((i, name.clone()))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            if free_positions.is_empty() {
-                // All bound — just check if the goal holds
-                let result = self.try_rule_call(&goal_fn, args, env);
-                if result.is_some() && !matches!(result, Some(Value::Bool(false))) {
-                    // Check remaining goals
-                    if goals.len() <= 1 {
-                        // Extract template value from head params
-                        if let Some(tpos) = template_pos {
-                            if let ExprKind::Var(hname) = &head_params[tpos].kind {
-                                if let Some(val) = env.get(hname) {
-                                    {
-                                        let vs = format!("{}", val);
-                                        if !results.iter().any(|r| format!("{}", r) == vs) {
-                                            results.push(val.clone());
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        self.findall_conjunction(
+            // Anonymous positions constrain existence but introduce no name
+            // that a later goal or the result template can read.
+            let free_positions = Self::unbound_logic_arguments(args, env)
+                .into_iter()
+                .filter(|(_, name)| name != "_")
+                .collect::<Vec<_>>();
+            let namespace = self.namespace_for_env(env);
+            if !free_positions.is_empty()
+                && (override_position.is_none() || self.rules_named(&namespace, &goal_fn).is_some())
+            {
+                let goal_args_vals = self.logic_argument_values(args, env);
+                self.visit_logic_argument_bindings(
+                    &namespace,
+                    &goal_fn,
+                    &goal_args_vals,
+                    &free_positions,
+                    env,
+                    depth,
+                    &mut |interpreter, bindings| {
+                        interpreter.findall_conjunction(
                             &goals[1..],
                             head_params,
                             bound_vals,
                             template_pos,
-                            env,
+                            equal_positions,
+                            bindings,
                             results,
                             depth,
+                            priority,
+                            override_position,
+                            value,
+                            true,
                         );
-                    }
-                }
+                        false
+                    },
+                );
                 return;
             }
+        }
 
-            // Enumerate: for each free variable, find all values from the goal's facts
-            // Use the first free position to enumerate
-            let (free_idx, free_name) = &free_positions[0];
-            let mut candidates = Vec::new();
-            self.findall_enumerate(
-                &goal_fn,
-                &goal_args_vals,
-                Some(*free_idx),
-                env,
-                &mut candidates,
-                depth + 1,
+        if override_position.is_some() && head_values.is_none() {
+            let mut uses = FreeSymbolUses::default();
+            collect_true_free_symbol_uses(
+                first_goal,
+                &mut uses,
+                &BTreeSet::new(),
+                &BTreeMap::new(),
             );
+            if uses.values.iter().any(|name| {
+                name != "_" && Self::is_rule_variable_name(name) && env.get(name).is_none()
+            }) {
+                // A non-generating guard cannot invent its missing inputs.
+                // Rejecting overrides add no new positive witnesses here;
+                // their guards have already been applied to known candidates.
+                if value.is_some_and(|expression| {
+                    matches!(
+                        self.rule_head_value(priority.namespace, expression, Some(env)),
+                        Some(Value::Bool(false))
+                    )
+                }) {
+                    return;
+                }
+                self.panic_or_ground_fail(format!(
+                    "logic query `{}` cannot enumerate an unbound override predicate; evaluation is incomplete",
+                    priority.family.name
+                ));
+                return;
+            }
+        }
 
-            for candidate in candidates {
-                let mut new_env = env.clone();
-                new_env.set(free_name.clone(), candidate.clone());
-                // Also bind to head param if this variable appears there
-                for (i, hp) in head_params.iter().enumerate() {
-                    if let ExprKind::Var(hname) = &hp.kind {
-                        if hname == free_name {
-                            new_env.set(hname.clone(), candidate.clone());
-                        }
-                    }
-                }
-                // Check remaining goals with this binding
-                if goals.len() <= 1 {
-                    if let Some(tpos) = template_pos {
-                        if let ExprKind::Var(hname) = &head_params[tpos].kind {
-                            if let Some(val) = new_env.get(hname) {
-                                {
-                                    let vs = format!("{}", val);
-                                    if !results.iter().any(|r| format!("{}", r) == vs) {
-                                        results.push(val.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    self.findall_conjunction(
-                        &goals[1..],
-                        head_params,
-                        bound_vals,
-                        template_pos,
-                        &new_env,
-                        results,
-                        depth,
-                    );
-                }
-            }
+        // Ground predicates use normal call resolution, including builtins,
+        // functions, and negation. Evaluate arguments only inside this call.
+        let satisfied = if override_position.is_some() {
+            self.eval_rule_guard(first_goal, env, &priority.family.name) == Some(true)
         } else {
-            // Non-rule goal (comparison, etc.) — just check it
-            let val = self.eval(first_goal, env);
-            if matches!(val, Value::Bool(true)) {
-                if goals.len() <= 1 {
-                    if let Some(tpos) = template_pos {
-                        if let ExprKind::Var(hname) = &head_params[tpos].kind {
-                            if let Some(val) = env.get(hname) {
-                                {
-                                    let vs = format!("{}", val);
-                                    if !results.iter().any(|r| format!("{}", r) == vs) {
-                                        results.push(val.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    self.findall_conjunction(
-                        &goals[1..],
-                        head_params,
-                        bound_vals,
-                        template_pos,
-                        env,
-                        results,
-                        depth,
-                    );
-                }
-            }
+            matches!(self.eval(first_goal, env), Value::Bool(true))
+        };
+        if satisfied {
+            self.findall_conjunction(
+                &goals[1..],
+                head_params,
+                bound_vals,
+                template_pos,
+                equal_positions,
+                env,
+                results,
+                depth,
+                priority,
+                override_position,
+                value,
+                true,
+            );
         }
     }
 
@@ -27140,6 +28005,14 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
         (Value::Str(x), Value::Str(y)) => x == y,
         (Value::Bool(x), Value::Bool(y)) => x == y,
         (Value::Char(x), Value::Char(y)) => x == y,
+        (Value::Unit, Value::Unit) => true,
+        (Value::Tuple(left), Value::Tuple(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| values_equal(left, right))
+        }
         (Value::List(a), Value::List(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| values_equal(x, y))
         }
@@ -27220,12 +28093,23 @@ fn list_items(value: &Value) -> Option<Vec<Value>> {
 
 // Helper functions for list operations
 pub fn list_length(val: &Value) -> i64 {
-    match val {
-        Value::Constructor(name, fields) if name == "Cons" => {
-            1 + fields.get(1).map_or(0, |t| list_length(t))
+    checked_list_length(val).expect("list_length expects List")
+}
+
+fn checked_list_length(mut val: &Value) -> Option<i64> {
+    let mut count = 0;
+    loop {
+        match val {
+            Value::List(elems) => return Some(count + elems.len() as i64),
+            Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => {
+                return Some(count);
+            }
+            Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
+                count += 1;
+                val = &fields[1];
+            }
+            _ => return None,
         }
-        Value::List(elems) => elems.len() as i64,
-        _ => 0,
     }
 }
 
@@ -28689,6 +29573,7 @@ struct ExplorePurityExpression {
 #[derive(Clone)]
 struct InlineModuleConstructorCatalog {
     types: BTreeSet<String>,
+    annotation_environment: annotation_types::AnnotationEnvironment,
     constructors: BTreeMap<String, (String, usize)>,
     constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
     type_parameters_by_owner: BTreeMap<String, Vec<String>>,
@@ -28697,6 +29582,24 @@ struct InlineModuleConstructorCatalog {
     type_fields: BTreeMap<String, BTreeSet<String>>,
     type_field_types: BTreeMap<String, BTreeMap<String, String>>,
     type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
+}
+
+#[derive(Clone)]
+struct ImportedBodyScope {
+    constructors: InlineModuleConstructorCatalog,
+    scopes: Vec<BTreeSet<String>>,
+    ordinary_callable_scopes: Vec<BTreeMap<String, ordinary_calls::CallableBinding>>,
+    var_types: Vec<BTreeMap<String, String>>,
+    rule_scope_vars: Vec<BTreeMap<String, String>>,
+    actor_handle_scopes: Vec<BTreeMap<String, Option<String>>>,
+}
+
+struct ImportedBodyCheck {
+    statements: Arc<Vec<Stmt>>,
+    source: Arc<str>,
+    path: PathBuf,
+    import_span: Option<Span>,
+    scope: Option<Arc<ImportedBodyScope>>,
 }
 
 pub struct TypeChecker {
@@ -28715,6 +29618,8 @@ pub struct TypeChecker {
     rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
     pub types: BTreeSet<String>,
+    annotation_environment: annotation_types::AnnotationEnvironment,
+    annotation_source_spans: Option<(String, BTreeMap<String, Span>)>,
     /// constructor/variant name -> (parent type, field count)
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -28788,8 +29693,11 @@ pub struct TypeChecker {
     /// when Explore must refuse to consume the family as total.
     rule_dispatch_backend_return_types: BTreeMap<RuleDispatchKey, String>,
     rule_dispatch_backend_return_issues: BTreeMap<RuleDispatchKey, String>,
-    /// Exact Bool families proven context-closed for the runtime miss override.
+    /// Context-closed Boolean values and guards admitted by proof consumers.
     rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    /// Boolean hit values permit False after strict runtime guards finish.
+    /// This set grants no guard, parameter-sort, or totality proof authority.
+    rule_dispatch_runtime_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     /// Exact parameter schemas retained from the candidates in each canonical
     /// family.  The legacy name/arity map cannot distinguish scoped owners.
     rule_dispatch_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<Ty>>>,
@@ -28878,6 +29786,8 @@ pub struct TypeChecker {
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
     pub scopes: Vec<BTreeSet<String>>,
+    /// Lexical declaration contracts, separate from same-spelled value binders.
+    ordinary_callable_scopes: Vec<BTreeMap<String, ordinary_calls::CallableBinding>>,
     /// user-defined functions (distinct from rule functions for arity checks)
     pub user_functions: BTreeSet<String>,
     /// Declaration categories addressable through `refof(symbol)`.
@@ -28898,10 +29808,18 @@ pub struct TypeChecker {
     pub source_dir: Option<String>,
     /// already-imported file paths (prevents cycles)
     pub imported: BTreeSet<String>,
+    imported_body_checks: Vec<ImportedBodyCheck>,
+    /// Already-resolved plain import edges for lexical rule-family diagnostics.
+    /// Retain the declaration prepass's immutable syntax, never reread a file.
+    rule_contract_imports: BTreeMap<(String, String), (String, Arc<ParsedSourceModule>)>,
+    rule_contract_import_modules: BTreeMap<String, Arc<ParsedSourceModule>>,
+    import_diagnostic_anchor: Option<Span>,
     /// original source text (for error positions)
     pub source_text: String,
     /// error context stack — breadcrumb trail for where we are in the program
     pub error_context: Vec<String>,
+    /// Optional editor-only observation of one authored member expression.
+    editor_field_query: Option<editor_fields::FieldQuery>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29961,7 +30879,10 @@ pub struct TypeCheckArtifacts {
     pub rule_dispatch_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub rule_dispatch_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub rule_dispatch_parameter_issues: BTreeSet<RuleDispatchKey>,
+    /// Context-closed Boolean miss certificate for proof consumers.
     pub rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    /// Runtime False fallback after strict guards, with no proof authority.
+    pub rule_dispatch_runtime_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     pub rule_dispatch_total_value_keys: BTreeSet<RuleDispatchKey>,
     pub rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     pub exploration_queries: Vec<TypedExploreQuery>,
@@ -36313,7 +37234,7 @@ fn checked_exact_observer_type_is_first_order(
             match owner {
                 CheckedDataTypeId::Intrinsic { canonical_name } => !matches!(
                     canonical_name.as_ref(),
-                    "Stream" | "Subject" | "Db" | "TypeDef" | "ProgramReference" | "RuleScope"
+                    "Stream" | "Subject" | "TypeDef" | "ProgramReference" | "RuleScope"
                 ),
                 owner @ CheckedDataTypeId::Declared(model_owner) => {
                     if !visiting.insert(owner.clone()) {
@@ -41696,7 +42617,6 @@ impl<'a> CheckedResolutionRecorder<'a> {
             "Pair",
             "Stream",
             "Subject",
-            "Db",
             "TypeDef",
             "Set",
             "Map",
@@ -42521,6 +43441,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         declaration: &SourcedStmt,
         path: &[u32],
         expression: &Expr,
+        ordinary_type_hint: Option<Option<String>>,
     ) -> CheckedExpressionType {
         let site = self.expression_site(declaration, path);
         if TypeChecker::is_polymorphic_empty_list_expr(expression) {
@@ -42566,7 +43487,9 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 result: Box::new(result_type),
             };
         }
-        let Some(type_name) = self.infer_expr_type_name_in_active_scope(expression, &locals) else {
+        let Some(type_name) = ordinary_type_hint
+            .unwrap_or_else(|| self.infer_expr_type_name_in_active_scope(expression, &locals))
+        else {
             self.issue(&site, CheckedResolutionIssue::TypeNotResolved);
             return CheckedExpressionType::Unsupported;
         };
@@ -43804,7 +44727,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     self.define_rule_head_argument(declaration, argument, &argument_path, None);
                 }
             }
-            ExprKind::Tuple(items) => {
+            ExprKind::Tuple(items) | ExprKind::List(items) => {
                 for (index, item) in items.iter().enumerate() {
                     let item_path = Self::path_child(path, index);
                     self.define_rule_head_argument(declaration, item, &item_path, None);
@@ -44033,19 +44956,10 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 self.active_rule_scope = previous_scope;
             }
             Stmt::Rule(rule) => self.record_rule(declaration, rule, path),
-            Stmt::Annot(name, arguments) => {
+            Stmt::Annot(_, arguments) => {
                 for (index, argument) in arguments.iter().enumerate() {
                     let child_path = Self::path_child(path, index);
                     self.record_expr(declaration, argument, &child_path, false, false);
-                    if matches!(name.as_str(), "store" | "migrate") {
-                        let site = self.expression_site(declaration, &child_path);
-                        self.issue(
-                            &site,
-                            CheckedResolutionIssue::UnsupportedExpression(
-                                "unchecked metadata payload".into(),
-                            ),
-                        );
-                    }
                 }
             }
             Stmt::Bind(pattern, annotation, expression)
@@ -44203,23 +45117,17 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 self.pop_scope();
             }
             Stmt::Explore(query) => self.record_explore(declaration, query, path),
-            Stmt::Assert(_, arguments) | Stmt::Retract(_, arguments) => {
-                for (index, argument) in arguments.iter().enumerate() {
-                    let child_path = Self::path_child(path, index);
-                    self.record_expr(declaration, argument, &child_path, false, false);
-                }
-            }
             Stmt::Expr(expression) => {
                 let child_path = Self::path_child(path, 0);
                 self.record_expr(declaration, expression, &child_path, false, false);
             }
-            Stmt::Use(_)
+            Stmt::PreludeBoundary
+            | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
-            | Stmt::RustBlock(_)
-            | Stmt::Abort => {}
+            | Stmt::RustBlock(_) => {}
         }
     }
 
@@ -44811,7 +45719,16 @@ impl<'a> CheckedResolutionRecorder<'a> {
             .artifacts
             .unsupported_sites
             .get(&site)
-            .is_some_and(|issues| issues.len() == 1 && issues.contains(&ambiguity))
+            .is_some_and(|issues| {
+                // Ordinary inference deliberately leaves a shared constructor
+                // untyped until its nominal owner is known. The independently
+                // sealed comparison operand can resolve that type gap as well
+                // as the spelling ambiguity, but no other unsupported issue.
+                issues.contains(&ambiguity)
+                    && issues.iter().all(|issue| {
+                        issue == &ambiguity || issue == &CheckedResolutionIssue::TypeNotResolved
+                    })
+            })
         {
             return;
         }
@@ -44930,6 +45847,56 @@ impl<'a> CheckedResolutionRecorder<'a> {
         suppress_call: bool,
         declaration_callable: bool,
     ) {
+        self.record_expr_with_ordinary_type(
+            declaration,
+            expression,
+            path,
+            suppress_call,
+            declaration_callable,
+            false,
+        );
+    }
+
+    fn record_expr_with_ordinary_type(
+        &mut self,
+        declaration: &SourcedStmt,
+        expression: &Expr,
+        path: &[u32],
+        suppress_call: bool,
+        declaration_callable: bool,
+        return_ordinary_type: bool,
+    ) -> Option<String> {
+        // Binary expressions introduce no binders. Visit their connected tree
+        // bottom-up, carrying the same ordinary type inference that infer_type
+        // previously recomputed for every prefix. These hints do not replace
+        // exact target resolution, sealed types, or unsupported-site checks.
+        let ordinary_type_hint = if let ExprKind::BinOp(operator, left, right) = &expression.kind {
+            let left_type = self.record_expr_with_ordinary_type(
+                declaration,
+                left,
+                &Self::path_child(path, 0),
+                false,
+                false,
+                true,
+            );
+            let right_type = self.record_expr_with_ordinary_type(
+                declaration,
+                right,
+                &Self::path_child(path, 1),
+                false,
+                false,
+                true,
+            );
+            Some(TypeChecker::binary_expression_result_type(
+                operator,
+                left_type.as_deref(),
+                right_type.as_deref(),
+            ))
+        } else if return_ordinary_type {
+            Some(self.infer_expr_type_name_in_active_scope(expression, &self.type_locals()))
+        } else {
+            None
+        };
         let site = self.expression_site(declaration, path);
         if declaration.id.kind == DeclarationKind::RuleScope
             && self
@@ -45024,7 +45991,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         ) {
             CheckedExpressionType::CallableReference
         } else {
-            self.infer_type(declaration, path, expression)
+            self.infer_type(declaration, path, expression, ordinary_type_hint.clone())
         };
         if matches!(
             &resolved_type,
@@ -45207,10 +46174,10 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 self.pop_scope();
             }
             ExprKind::BinOp(operator, left, right) => {
+                // Both children were recorded above while deriving the parent
+                // hint. Keep equality contextualization after their resolution.
                 let left_path = Self::path_child(path, 0);
-                self.record_expr(declaration, left, &left_path, false, false);
                 let right_path = Self::path_child(path, 1);
-                self.record_expr(declaration, right, &right_path, false, false);
                 if matches!(operator.as_str(), "==" | "!=") {
                     let left_site = self.expression_site(declaration, &left_path);
                     let right_site = self.expression_site(declaration, &right_path);
@@ -45372,6 +46339,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
             }
             ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
         }
+        ordinary_type_hint.flatten()
     }
 }
 
@@ -45402,6 +46370,8 @@ impl TypeChecker {
             rule_param_types_by_arity: BTreeMap::new(),
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
+            annotation_environment: annotation_types::AnnotationEnvironment::default(),
+            annotation_source_spans: None,
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
             type_parameters_by_owner: BTreeMap::new(),
@@ -45435,6 +46405,7 @@ impl TypeChecker {
             rule_dispatch_backend_return_types: BTreeMap::new(),
             rule_dispatch_backend_return_issues: BTreeMap::new(),
             rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
+            rule_dispatch_runtime_boolean_miss_keys: BTreeSet::new(),
             rule_dispatch_parameter_types: BTreeMap::new(),
             rule_dispatch_parameter_names: BTreeMap::new(),
             rule_dispatch_parameter_issues: BTreeSet::new(),
@@ -45468,6 +46439,7 @@ impl TypeChecker {
             module_return_sources_in_progress: BTreeSet::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
+            ordinary_callable_scopes: vec![BTreeMap::new()],
             user_functions: BTreeSet::new(),
             reference_symbols: BTreeMap::new(),
             invariant_names: BTreeSet::new(),
@@ -45478,8 +46450,13 @@ impl TypeChecker {
             explore_inline_module_depth: 0,
             source_dir: None,
             imported: BTreeSet::new(),
+            imported_body_checks: Vec::new(),
+            rule_contract_imports: BTreeMap::new(),
+            rule_contract_import_modules: BTreeMap::new(),
+            import_diagnostic_anchor: None,
             source_text: String::new(),
             error_context: Vec::new(),
+            editor_field_query: None,
         };
         // Register builtins (name -> arity)
         for &(name, arity) in &[
@@ -45554,13 +46531,6 @@ impl TypeChecker {
             ("http_request_path", 1),
             ("http_request_method", 1),
             ("http_request_body", 1),
-            // Database
-            ("db_open", 1),
-            ("db_exec", 2),
-            ("db_query", 2),
-            ("db_query_row", 2),
-            ("db_insert", 2),
-            ("db_close", 1),
             // Misc
             ("assert", 1),
             ("assert_with_message", 2),
@@ -45616,7 +46586,6 @@ impl TypeChecker {
             ("set_from_list", 1),
             // Stream
             ("from_list", 1),
-            ("watch", 1),
             ("scan", 3),
             ("merge", 2),
             ("take", 2),
@@ -45678,7 +46647,7 @@ impl TypeChecker {
         // Built-in types
         for name in &[
             "Int", "Float", "String", "Bool", "Char", "List", "Unit", "Option", "Result", "Pair",
-            "Stream", "Subject", "Db", "TypeDef",
+            "Stream", "Subject", "TypeDef",
         ] {
             tc.types.insert(name.to_string());
         }
@@ -46007,6 +46976,7 @@ impl TypeChecker {
 
     pub fn push_scope(&mut self) {
         self.scopes.push(BTreeSet::new());
+        self.ordinary_callable_scopes.push(BTreeMap::new());
         self.rule_scope_vars.push(BTreeMap::new());
         self.var_types.push(BTreeMap::new());
         self.actor_handle_scopes.push(BTreeMap::new());
@@ -46014,12 +46984,16 @@ impl TypeChecker {
 
     pub fn pop_scope(&mut self) {
         self.scopes.pop();
+        self.ordinary_callable_scopes.pop();
         self.rule_scope_vars.pop();
         self.var_types.pop();
         self.actor_handle_scopes.pop();
     }
 
     pub fn define_var(&mut self, name: &str) {
+        if let Some(scope) = self.ordinary_callable_scopes.last_mut() {
+            scope.entry(name.into()).or_default().is_value = true;
+        }
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
         }
@@ -46171,8 +47145,47 @@ impl TypeChecker {
         self.var_type_name(name)
     }
 
-    /// Extract and define variable names from a rule head argument,
-    /// including __typed(var, Type) wrappers.
+    /// Reject expression forms that cannot participate in structural matching.
+    fn check_rule_head_patterns(&mut self, head: &Expr) {
+        if let ExprKind::App(_, arguments) = &head.kind {
+            for argument in arguments {
+                self.check_rule_pattern_annotations(argument);
+                if !self.rule_head_pattern_is_supported(argument) {
+                    let location = if argument.span.is_dummy() {
+                        head
+                    } else {
+                        argument
+                    };
+                    self.error_at_expr(location,
+                        "unsupported rule-head pattern; use a variable, literal, constructor, tuple, or list".to_string());
+                }
+            }
+        }
+    }
+
+    fn rule_head_pattern_is_supported(&self, pattern: &Expr) -> bool {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(pattern) {
+            return self.rule_head_pattern_is_supported(inner);
+        }
+        match &pattern.kind {
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => true,
+            ExprKind::UnOp(_, _) => rule_head_numeric_value(pattern).is_some(),
+            ExprKind::Tuple(items) | ExprKind::List(items) => items
+                .iter()
+                .all(|item| self.rule_head_pattern_is_supported(item)),
+            ExprKind::App(function, arguments) => {
+                matches!(&function.kind, ExprKind::Var(name)
+                    if self.constructor_signatures.contains_key(name))
+                    && arguments.iter().all(|argument| {
+                        let value = named_arg_parts(argument).map_or(argument, |(_, value)| value);
+                        self.rule_head_pattern_is_supported(value)
+                    })
+            }
+            _ => false,
+        }
+    }
+
+    /// Extract local names, including typed and nested structural patterns.
     fn define_rule_head_vars(arg: &Expr, scopes: &mut Vec<BTreeSet<String>>) {
         match &arg.kind {
             ExprKind::Var(name) if !name.starts_with(|c: char| c.is_uppercase()) && name != "_" => {
@@ -46193,7 +47206,7 @@ impl TypeChecker {
                     Self::define_rule_head_vars(a, scopes);
                 }
             }
-            ExprKind::Tuple(items) => {
+            ExprKind::Tuple(items) | ExprKind::List(items) => {
                 for item in items {
                     Self::define_rule_head_vars(item, scopes);
                 }
@@ -46221,7 +47234,7 @@ impl TypeChecker {
                     self.define_rule_head_var_types(arg);
                 }
             }
-            ExprKind::Tuple(items) => {
+            ExprKind::Tuple(items) | ExprKind::List(items) => {
                 for item in items {
                     self.define_rule_head_var_types(item);
                 }
@@ -46330,11 +47343,15 @@ impl TypeChecker {
     ) -> Option<String> {
         let parsed = parse_type_annotation(type_name).ok()?;
         match parsed {
-            Ty::App(constructor, arguments) if matches!(constructor.as_ref(), Ty::Name(name) if name == constructor_name) => {
-                arguments.get(index).and_then(Self::type_name_from_ty)
+            Ty::App(constructor, arguments) if matches!(constructor.as_ref(), Ty::Name(name) if name == constructor_name) =>
+            {
+                // Extract the complete element type. Erasing a generic,
+                // nullable, reference, arrow, or unit argument either invents
+                // a fresh type at the pattern or loses a layer of its value.
+                arguments.get(index).map(Self::canonical_explore_ty_name)
             }
             Ty::Optional(inner) if constructor_name == "Option" && index == 0 => {
-                Self::type_name_from_ty(&inner)
+                Some(Self::canonical_explore_ty_name(&inner))
             }
             _ => None,
         }
@@ -46403,18 +47420,12 @@ impl TypeChecker {
             .constructor_signatures
             .entry(constructor.to_string())
             .or_default();
-        // Broad hints may omit a generic variable while field_tys retains it.
-        // The builtin and authored prelude then describe one declaration, not
-        // two ambiguous constructors. Compare the authoritative field schemas.
-        // Nullary constructors have no positional/named layout to distinguish.
-        if !signatures.iter().any(|known| {
-            known.parent == signature.parent
-                && (known.positional == signature.positional || signature.fields.is_empty())
-                && known.fields == signature.fields
-                && known.field_tys == signature.field_tys
-        }) {
-            signatures.push(signature.clone());
-        }
+        // A later declaration replaces this owner's constructor schema (for
+        // example, an authored Pair replacing the generic prelude Pair).
+        // Other nominal owners may legitimately share the constructor name;
+        // retain those alternatives for contextual type resolution.
+        signatures.retain(|known| known.parent != signature.parent);
+        signatures.push(signature.clone());
 
         self.constructors.insert(
             constructor.to_string(),
@@ -46426,6 +47437,43 @@ impl TypeChecker {
             self.constructor_fields
                 .insert(constructor.to_string(), signature.fields);
         }
+    }
+
+    fn clear_constructor_owner(&mut self, owner: &str) {
+        if !self.types.contains(owner) {
+            return;
+        }
+        // Replacing a type replaces its variant set as well as each variant's
+        // fields. In particular, a user Pair = MkPair must not retain the
+        // prelude Pair constructor as an extra match-coverage obligation.
+        for (name, signatures) in &mut self.constructor_signatures {
+            signatures.retain(|signature| signature.parent != owner);
+            if self
+                .constructors
+                .get(name)
+                .is_some_and(|(parent, _)| parent == owner)
+            {
+                if let Some(signature) = signatures.last() {
+                    self.constructors
+                        .insert(name.clone(), (signature.parent.clone(), signature.arity()));
+                    if !signature.positional && !signature.fields.is_empty() {
+                        self.constructor_fields
+                            .insert(name.clone(), signature.fields.clone());
+                    } else {
+                        self.constructor_fields.remove(name);
+                    }
+                } else {
+                    self.constructors.remove(name);
+                    self.constructor_fields.remove(name);
+                }
+            }
+        }
+        self.constructor_signatures
+            .retain(|_, signatures| !signatures.is_empty());
+        self.type_variants.remove(owner);
+        self.type_fields.remove(owner);
+        self.type_field_types.remove(owner);
+        self.type_field_tys.remove(owner);
     }
 
     fn static_binding_name(pattern: &Pat) -> Option<&str> {
@@ -46534,6 +47582,7 @@ impl TypeChecker {
             Stmt::QualifiedImport(name, _) => {
                 Some((DeclarationKind::QualifiedModule, None, name.clone(), None))
             }
+            Stmt::PreludeBoundary => None,
             Stmt::Use(path) => Some((DeclarationKind::RustUse, None, path.clone(), None)),
             Stmt::Depend(name, version) => Some((
                 DeclarationKind::RustDependency,
@@ -46552,9 +47601,6 @@ impl TypeChecker {
             | Stmt::Send(_, _)
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
-            | Stmt::Assert(_, _)
-            | Stmt::Retract(_, _)
-            | Stmt::Abort
             | Stmt::Expr(_) => None,
         }
     }
@@ -46704,6 +47750,7 @@ impl TypeChecker {
             | Stmt::StreamBind(_, _)
             | Stmt::Invariant { .. }
             | Stmt::Explore(_)
+            | Stmt::PreludeBoundary
             | Stmt::Use(_)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
@@ -46713,9 +47760,6 @@ impl TypeChecker {
             | Stmt::Send(_, _)
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
-            | Stmt::Assert(_, _)
-            | Stmt::Retract(_, _)
-            | Stmt::Abort
             | Stmt::Expr(_) => None,
         }
     }
@@ -47113,6 +48157,7 @@ impl TypeChecker {
                 Stmt::Defn(_)
                     | Stmt::TypeDecl(_)
                     | Stmt::Rule(_)
+                    | Stmt::PreludeBoundary
                     | Stmt::Use(_)
                     | Stmt::RustBlock(_)
                     | Stmt::Annot(_, _)
@@ -47781,6 +48826,7 @@ impl TypeChecker {
             let retained_in_codegen_main = match &statement {
                 Stmt::Defn(_)
                 | Stmt::TypeDecl(_)
+                | Stmt::PreludeBoundary
                 | Stmt::Use(_)
                 | Stmt::Import(_)
                 | Stmt::QualifiedImport(_, _)
@@ -48656,6 +49702,22 @@ impl TypeChecker {
                     }
                 }
             }
+            ExprKind::List(items) => {
+                let element_type = expected_type
+                    .and_then(|name| parse_type_annotation(name).ok())
+                    .and_then(|ty| match ty {
+                        Ty::App(constructor, arguments)
+                            if matches!(constructor.as_ref(), Ty::Name(name) if name == "List")
+                                && arguments.len() == 1 =>
+                        {
+                            Self::type_name_from_ty(&arguments[0])
+                        }
+                        _ => None,
+                    });
+                for item in items {
+                    self.collect_rule_head_local_types(item, element_type.as_deref(), locals);
+                }
+            }
             ExprKind::Tuple(items) => {
                 for item in items {
                     self.collect_rule_head_local_types(item, None, locals);
@@ -49227,6 +50289,8 @@ impl TypeChecker {
             ("contains" | "map_contains" | "set_contains", 2)
             | ("is_some" | "is_none" | "not", 1) => Some("Bool".to_string()),
             ("map_len" | "set_len", 1) | ("count_by", 2) => Some("Int".to_string()),
+            ("map_new", 0) => Some("Map".to_string()),
+            ("set_new", 0) => Some("Set".to_string()),
             ("sum", 1) => {
                 let collection_type = argument_type(0)?;
                 let item_type =
@@ -49242,10 +50306,17 @@ impl TypeChecker {
             }
             ("tail", 1)
             | ("push", 2)
-            | ("map_insert", 3)
             | ("map_remove" | "map_merge", 2)
-            | ("set_insert" | "set_remove", 2)
+            | ("set_remove", 2)
             | ("set_union" | "set_intersect" | "set_diff", 2) => argument_type(0),
+            ("map_insert", 3) => argument_type(0).filter(|ty| ty != "Map").or_else(|| {
+                // A fresh map has a known collection kind but no element
+                // types until insertion supplies its parameters.
+                Some(format!("Map({}, {})", argument_type(1)?, argument_type(2)?))
+            }),
+            ("set_insert", 2) => argument_type(0)
+                .filter(|ty| ty != "Set")
+                .or_else(|| Some(format!("Set({})", argument_type(1)?))),
             ("map_get_or", 3) => argument_type(2),
             ("map_get", 2) => {
                 let map_type = argument_type(0)?;
@@ -49375,12 +50446,10 @@ impl TypeChecker {
                 None => self
                     .var_type_name(name)
                     .map(str::to_string)
-                    .or_else(|| self.nullary_constructor_parent(name))
-                    .or_else(|| {
-                        self.constructors
-                            .get(name)
-                            .map(|(parent, _)| parent.clone())
-                    }),
+                    // Shared variant names have no unique nominal parent.
+                    // The legacy constructor map retains only the last
+                    // declaration, so it cannot resolve this ambiguity.
+                    .or_else(|| self.nullary_constructor_parent(name)),
             },
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
@@ -49631,9 +50700,10 @@ impl TypeChecker {
                 )?;
                 self.field_type_name(&base_type, field)
             }
-            ExprKind::BinOp(operator, left, right) => match operator.as_str() {
-                "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => Some("Bool".to_string()),
-                _ => {
+            ExprKind::BinOp(operator, left, right) => {
+                if let Some(result) = Self::binary_expression_result_type(operator, None, None) {
+                    Some(result)
+                } else {
                     let left_type = self.infer_expr_type_name_with_locals_in_scope(
                         left,
                         locals,
@@ -49644,15 +50714,13 @@ impl TypeChecker {
                         locals,
                         active_rule_scope,
                     );
-                    if operator == "+"
-                        && (left_type.as_deref() == Some("String")
-                            || right_type.as_deref() == Some("String"))
-                    {
-                        return Some("String".to_string());
-                    }
-                    Self::merge_inferred_type_names(&left_type?, &right_type?)
+                    Self::binary_expression_result_type(
+                        operator,
+                        left_type.as_deref(),
+                        right_type.as_deref(),
+                    )
                 }
-            },
+            }
             ExprKind::UnOp(operator, inner) => {
                 if operator == "!" {
                     Some("Bool".to_string())
@@ -51967,6 +53035,7 @@ impl TypeChecker {
         self.rule_dispatch_backend_return_types.clear();
         self.rule_dispatch_backend_return_issues.clear();
         self.rule_dispatch_boolean_miss_safe_keys.clear();
+        self.rule_dispatch_runtime_boolean_miss_keys.clear();
         self.rule_dispatch_parameter_types.clear();
         self.rule_dispatch_parameter_names.clear();
         self.rule_dispatch_parameter_issues.clear();
@@ -52193,89 +53262,73 @@ impl TypeChecker {
             }
         }
         self.rule_dispatch_runtime_irrefutable_keys = self.rule_dispatch_irrefutable_keys.clone();
-        // Static return sorts are useful to Explore/SMT even when runtime
-        // lookup is context-dependent. The Interpreter's Bool miss override
-        // receives a strictly narrower proof: every possible hit expression
-        // must be closed over runtime-checked primitive head values. A scoped
-        // direct sibling is admitted only after that exact sibling has already
-        // been proven safe, producing a monotone fixed point.
+        // Runtime miss behavior only needs Boolean hit values: eval_rule_guard
+        // propagates invalid guards instead of treating them as a miss. Proof
+        // consumers also require context-closed Boolean guards. Compute each
+        // fixed point independently so a runtime-only sibling cannot grant a
+        // proof certificate to a caller.
         if !self.rule_dispatch_has_opaque_runtime_graph {
-            loop {
-                let mut newly_safe = Vec::new();
-                for (key, (_, rules)) in &groups {
-                    if self.rule_dispatch_boolean_miss_safe_keys.contains(key)
-                        || self.rule_dispatch_return_issues.contains_key(key)
-                        || self
-                            .rule_dispatch_return_types
-                            .get(key)
-                            .is_none_or(|return_type| {
-                                Self::canonical_explore_type_name(return_type) != "Bool"
-                            })
-                    {
-                        continue;
-                    }
-                    let safe = rules.iter().all(|rule| match rule {
-                        Rule::Clause {
-                            head,
-                            body: Some(body),
-                        } => {
-                            let locals = rule_head_boolean_miss_safe_locals(head);
-                            self.boolean_miss_safe_expr_type(
-                                body,
-                                &locals,
-                                key.scope.as_deref(),
-                                &self.rule_dispatch_boolean_miss_safe_keys,
-                            )
-                            .is_some_and(|return_type| {
-                                Self::canonical_explore_type_name(&return_type) == "Bool"
-                            })
+            for require_guard_certificate in [false, true] {
+                let mut safe_keys = BTreeSet::new();
+                loop {
+                    let mut newly_safe = Vec::new();
+                    for (key, (_, rules)) in &groups {
+                        if safe_keys.contains(key)
+                            || self.rule_dispatch_return_issues.contains_key(key)
+                            || self
+                                .rule_dispatch_return_types
+                                .get(key)
+                                .is_none_or(|return_type| {
+                                    Self::canonical_explore_type_name(return_type) != "Bool"
+                                })
+                        {
+                            continue;
                         }
-                        Rule::Default {
-                            head,
-                            value,
-                            condition,
-                        }
-                        | Rule::Exception {
-                            head,
-                            value,
-                            condition,
-                            ..
-                        } => {
-                            let locals = rule_head_boolean_miss_safe_locals(head);
-                            let value_is_bool = self
-                                .boolean_miss_safe_expr_type(
+                        let safe = rules.iter().all(|rule| {
+                            let (head, value, condition) = match rule {
+                                Rule::Clause { head, body } => (head, body.as_ref(), None),
+                                Rule::Default {
+                                    head,
                                     value,
+                                    condition,
+                                }
+                                | Rule::Exception {
+                                    head,
+                                    value,
+                                    condition,
+                                    ..
+                                } => (head, Some(value), condition.as_ref()),
+                                Rule::ReactiveScope { .. } => return false,
+                            };
+                            let locals = rule_head_boolean_miss_safe_locals(head);
+                            let is_boolean = |expression: &Expr| {
+                                self.boolean_miss_safe_expr_type(
+                                    expression,
                                     &locals,
                                     key.scope.as_deref(),
-                                    &self.rule_dispatch_boolean_miss_safe_keys,
+                                    &safe_keys,
                                 )
                                 .is_some_and(|return_type| {
                                     Self::canonical_explore_type_name(&return_type) == "Bool"
-                                });
-                            let condition_is_bool = condition.as_ref().is_none_or(|condition| {
-                                self.boolean_miss_safe_expr_type(
-                                    condition,
-                                    &locals,
-                                    key.scope.as_deref(),
-                                    &self.rule_dispatch_boolean_miss_safe_keys,
-                                )
-                                .is_some_and(|condition_type| {
-                                    Self::canonical_explore_type_name(&condition_type) == "Bool"
                                 })
-                            });
-                            value_is_bool && condition_is_bool
+                            };
+                            value.is_none_or(is_boolean)
+                                && (!require_guard_certificate || condition.is_none_or(is_boolean))
+                        });
+                        if safe {
+                            newly_safe.push(key.clone());
                         }
-                        Rule::Clause { body: None, .. } => true,
-                        Rule::ReactiveScope { .. } => false,
-                    });
-                    if safe {
-                        newly_safe.push(key.clone());
                     }
+                    if newly_safe.is_empty() {
+                        break;
+                    }
+                    safe_keys.extend(newly_safe);
                 }
-                if newly_safe.is_empty() {
-                    break;
+                if require_guard_certificate {
+                    self.rule_dispatch_boolean_miss_safe_keys = safe_keys;
+                } else {
+                    self.rule_dispatch_runtime_boolean_miss_keys = safe_keys;
                 }
-                self.rule_dispatch_boolean_miss_safe_keys.extend(newly_safe);
             }
         }
         // The broad pass above exists only to seed recursive result sorts.
@@ -52414,18 +53467,20 @@ impl TypeChecker {
                 break;
             }
         }
-        // The miss certificate is consumed by both endpoint proof and the
-        // ordinary interpreter. Keep it exactly within the backend Bool ABI
-        // that the interpreter checks before materializing `False`, so proof
-        // can never authorize a fallback the runtime would represent as a
-        // partial-rule miss.
-        self.rule_dispatch_boolean_miss_safe_keys.retain(|key| {
-            !self.rule_dispatch_backend_return_issues.contains_key(key)
-                && self
-                    .rule_dispatch_backend_return_types
-                    .get(key)
-                    .is_some_and(|result| Self::canonical_explore_type_name(result) == "Bool")
-        });
+        // Both sets remain within the final Boolean runtime ABI. Proof
+        // certificates are stricter than the ordinary execution fallback.
+        for keys in [
+            &mut self.rule_dispatch_boolean_miss_safe_keys,
+            &mut self.rule_dispatch_runtime_boolean_miss_keys,
+        ] {
+            keys.retain(|key| {
+                !self.rule_dispatch_backend_return_issues.contains_key(key)
+                    && self
+                        .rule_dispatch_backend_return_types
+                        .get(key)
+                        .is_some_and(|result| Self::canonical_explore_type_name(result) == "Bool")
+            });
+        }
         self.rule_dispatch_irrefutable_keys
             .retain(|key| self.rule_dispatch_return_types.contains_key(key));
     }
@@ -52749,6 +53804,8 @@ impl TypeChecker {
         module: &str,
         statements: &[Stmt],
         file_path: &str,
+        source_text: &str,
+        import_path: &str,
     ) {
         self.module_primitive_return_types
             .retain(|(owner, _, _), _| owner != module);
@@ -52759,6 +53816,7 @@ impl TypeChecker {
             return;
         }
         let mut child = Self::new();
+        child.source_text = source_text.to_string();
         child.source_dir = std::path::Path::new(file_path)
             .parent()
             .map(|path| path.to_string_lossy().to_string());
@@ -52773,6 +53831,15 @@ impl TypeChecker {
         child.prepare_rule_dispatch_metadata(statements);
         child.check_program(statements);
         if !child.diagnostics.is_empty() {
+            let start = self.diagnostics.len();
+            self.diagnostics.extend(child.diagnostics);
+            self.locate_import_diagnostics(
+                start,
+                Path::new(file_path),
+                Arc::from(source_text),
+                self.import_diagnostic_anchor
+                    .or_else(|| self.import_path_span(import_path)),
+            );
             return;
         }
         let Some(exports) = self.module_exports.get(module) else {
@@ -53030,6 +54097,17 @@ impl TypeChecker {
             self.user_functions.insert(method.clone());
         }
 
+        let previous_scope = self.active_rule_scope_inference.replace(name.to_string());
+        self.push_scope();
+        for param in params {
+            self.define_var(&param.name);
+            if let Some(ty) = &param.ty {
+                self.define_var_type(&param.name, ty);
+            }
+        }
+        self.check_rule_result_contracts(body);
+        self.pop_scope();
+
         for stmt in body {
             match stmt {
                 Stmt::Rule(Rule::Clause { .. })
@@ -53048,6 +54126,7 @@ impl TypeChecker {
                 Stmt::Defn(Defn::Fn {
                     name: method_name,
                     params: method_params,
+                    ret_ty,
                     body,
                     ..
                 }) => {
@@ -53071,7 +54150,13 @@ impl TypeChecker {
                             self.define_var_type(&param.name, ty);
                         }
                     }
-                    self.check_expr(body, Some(method_name));
+                    self.check_function_body(
+                        method_name,
+                        method_params,
+                        ret_ty.as_ref(),
+                        body,
+                        None,
+                    );
                     self.pop_scope();
                     self.pop_context();
                 }
@@ -53079,6 +54164,7 @@ impl TypeChecker {
             }
         }
 
+        self.active_rule_scope_inference = previous_scope;
         self.functions = old_functions;
         self.function_arities = old_function_arities;
         self.function_params = old_function_params;
@@ -53182,29 +54268,38 @@ impl TypeChecker {
         self.error_context.pop();
     }
 
-    /// Find a symbol name in source text, returning 1-based (line, col).
+    /// Last-resort location for diagnostics without an AST span. Only code
+    /// tokens can anchor a symbol; quoted prose and comments are not names.
     fn find_symbol_in_source(source: &str, name: &str) -> Option<(usize, usize)> {
-        for (line_idx, line) in source.lines().enumerate() {
-            // Skip comments
-            let trimmed = line.trim();
-            if trimmed.starts_with("--") {
+        let first = name.chars().next()?;
+        let lines = source.lines().collect::<Vec<_>>();
+        for token in Lexer::new(source).tokenize() {
+            if matches!(
+                token.kind,
+                TokenKind::String_
+                    | TokenKind::Char_
+                    | TokenKind::RustBody
+                    | TokenKind::Invalid
+                    | TokenKind::Eof
+            ) || !token.source_text.starts_with(first)
+            {
                 continue;
             }
-            // Search for whole-word match
-            let mut pos = 0;
-            while let Some(found) = line[pos..].find(name) {
-                let abs = pos + found;
-                let before_ok = abs == 0
-                    || !line.as_bytes()[abs - 1].is_ascii_alphanumeric()
-                        && line.as_bytes()[abs - 1] != b'_';
-                let after_pos = abs + name.len();
-                let after_ok = after_pos >= line.len()
-                    || !line.as_bytes()[after_pos].is_ascii_alphanumeric()
-                        && line.as_bytes()[after_pos] != b'_';
-                if before_ok && after_ok {
-                    return Some((line_idx + 1, abs + 1));
-                }
-                pos = abs + 1;
+            let Some(line) = lines.get(token.line.saturating_sub(1)) else {
+                continue;
+            };
+            let Some((offset, _)) = line.char_indices().nth(token.col.saturating_sub(1)) else {
+                continue;
+            };
+            let Some(rest) = line[offset..].strip_prefix(name) else {
+                continue;
+            };
+            if rest
+                .chars()
+                .next()
+                .is_none_or(|ch| !ch.is_alphanumeric() && ch != '_')
+            {
+                return Some((token.line, token.col));
             }
         }
         None
@@ -53255,6 +54350,7 @@ impl TypeChecker {
                     | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+                    | Stmt::PreludeBoundary
                     | Stmt::Use(_)
                     | Stmt::Import(_)
                     | Stmt::QualifiedImport(_, _)
@@ -53271,9 +54367,6 @@ impl TypeChecker {
                     | Stmt::Invariant { .. }
                     | Stmt::Prove { .. }
                     | Stmt::Explore(_)
-                    | Stmt::Assert(_, _)
-                    | Stmt::Retract(_, _)
-                    | Stmt::Abort
                     | Stmt::Expr(_) => {}
                 }
                 is_export = false;
@@ -53376,6 +54469,12 @@ impl TypeChecker {
                 {
                     self.checked_resolution_source_snapshot_coherent = false;
                 }
+                self.rule_contract_import_modules.insert(
+                    canonical_parsed_source_path(Path::new(file_path))
+                        .to_string_lossy()
+                        .to_string(),
+                    Arc::clone(&module),
+                );
                 Some(module)
             }
             Err(error) => {
@@ -53396,35 +54495,175 @@ impl TypeChecker {
 
     fn collect_declarations_from_imported_file(
         &mut self,
-        import_stmts: &[Stmt],
+        import_stmts: Arc<Vec<Stmt>>,
+        module: &Arc<ParsedSourceModule>,
+        import_path: &str,
         file_path: &str,
         fallback_dir: &str,
     ) {
+        self.rule_contract_imports.insert(
+            (
+                self.source_dir
+                    .clone()
+                    .unwrap_or_else(|| fallback_dir.to_string()),
+                import_path.to_string(),
+            ),
+            (file_path.to_string(), Arc::clone(module)),
+        );
         let imported_dir = std::path::Path::new(file_path)
             .parent()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| fallback_dir.to_string());
         let previous_dir = self.source_dir.clone();
+        let previous_anchor = self.import_diagnostic_anchor;
+        let import_span = previous_anchor.or_else(|| self.import_path_span(import_path));
+        self.import_diagnostic_anchor = import_span;
+        let previous_source = std::mem::replace(&mut self.source_text, module.source().to_string());
+        let diagnostic_start = self.diagnostics.len();
         self.source_dir = Some(imported_dir);
-        self.collect_declarations(import_stmts);
-        self.infer_rule_return_types(import_stmts);
+        self.collect_declarations(&import_stmts);
+        self.infer_rule_return_types(&import_stmts);
         // Exact Explore rule-return inference is a whole-program fixed point.
         // Running it at every nested import boundary repeatedly revisits the
         // entire accumulated rule graph (quadratic on deep corpora) and cannot
         // establish anything the root pass does not recompute after collection.
-        self.infer_top_level_binding_types(import_stmts);
+        self.infer_top_level_binding_types(&import_stmts);
+        self.locate_import_diagnostics(
+            diagnostic_start,
+            Path::new(file_path),
+            module.source.clone(),
+            import_span,
+        );
+        self.imported_body_checks.push(ImportedBodyCheck {
+            statements: import_stmts,
+            source: module.source.clone(),
+            path: PathBuf::from(file_path),
+            import_span,
+            scope: None,
+        });
         self.source_dir = previous_dir;
+        self.source_text = previous_source;
+        self.import_diagnostic_anchor = previous_anchor;
+    }
+
+    fn locate_import_diagnostics(
+        &mut self,
+        start: usize,
+        path: &Path,
+        source: Arc<str>,
+        anchor: Option<Span>,
+    ) {
+        let path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let imported = self.diagnostics.split_off(start);
+        for mut diagnostic in imported {
+            if diagnostic.origin.is_none() {
+                diagnostic.origin = Some(DiagnosticOrigin {
+                    path: path.clone(),
+                    source: source.clone(),
+                    span: diagnostic.span,
+                });
+            }
+            diagnostic.span = anchor;
+            if !self.diagnostics.iter().any(|existing| {
+                existing.message == diagnostic.message
+                    && match (&existing.origin, &diagnostic.origin) {
+                        (Some(left), Some(right)) => {
+                            left.path == right.path && left.span == right.span
+                        }
+                        _ => false,
+                    }
+            }) {
+                self.diagnostics.push(diagnostic);
+            }
+        }
+    }
+
+    fn check_imported_bodies(&mut self) {
+        // Plain imports share the completed declaration environment, while
+        // qualified imports are checked by their isolated child checker.
+        // Reuse parsed modules and the existing canonical-path cycle guard.
+        while !self.imported_body_checks.is_empty() {
+            for unit in std::mem::take(&mut self.imported_body_checks) {
+                let previous_scope = unit.scope.as_ref().map(|scope| {
+                    let previous = self.snapshot_import_body_scope();
+                    self.restore_import_body_scope((**scope).clone());
+                    previous
+                });
+                let previous_source =
+                    std::mem::replace(&mut self.source_text, unit.source.to_string());
+                let previous_dir = self.source_dir.replace(Interpreter::imported_source_dir(
+                    &unit.path.to_string_lossy(),
+                ));
+                let previous_anchor = self.import_diagnostic_anchor;
+                self.import_diagnostic_anchor = unit.import_span;
+                let start = self.diagnostics.len();
+                if unit.scope.is_some() {
+                    self.check_rule_result_contracts(&unit.statements);
+                }
+                for statement in unit
+                    .statements
+                    .iter()
+                    .filter(|stmt| Interpreter::is_runtime_import_statement(stmt))
+                {
+                    self.check_stmt(statement);
+                }
+                self.locate_import_diagnostics(start, &unit.path, unit.source, unit.import_span);
+                self.source_text = previous_source;
+                self.source_dir = previous_dir;
+                self.import_diagnostic_anchor = previous_anchor;
+                if let Some(scope) = previous_scope {
+                    self.restore_import_body_scope(scope);
+                }
+            }
+        }
     }
 
     fn collect_nested_declarations(&mut self, stmts: &[Stmt]) {
+        let imported_start = self.imported_body_checks.len();
         self.explore_inline_module_depth += 1;
         self.collect_declarations(stmts);
         self.explore_inline_module_depth -= 1;
+        // Deferred bodies must retain the lexical scope where their import
+        // appeared, before the caller restores its outer constructor catalog.
+        // Share a snapshot only for nested imports; ordinary flat imports use
+        // the completed root environment without copying the whole catalog.
+        if self.imported_body_checks[imported_start..]
+            .iter()
+            .any(|unit| unit.scope.is_none())
+        {
+            let scope = Arc::new(self.snapshot_import_body_scope());
+            for unit in &mut self.imported_body_checks[imported_start..] {
+                if unit.scope.is_none() {
+                    unit.scope = Some(scope.clone());
+                }
+            }
+        }
+    }
+
+    fn snapshot_import_body_scope(&self) -> ImportedBodyScope {
+        ImportedBodyScope {
+            constructors: self.snapshot_inline_module_constructor_catalog(),
+            scopes: self.scopes.clone(),
+            ordinary_callable_scopes: self.ordinary_callable_scopes.clone(),
+            var_types: self.var_types.clone(),
+            rule_scope_vars: self.rule_scope_vars.clone(),
+            actor_handle_scopes: self.actor_handle_scopes.clone(),
+        }
+    }
+
+    fn restore_import_body_scope(&mut self, scope: ImportedBodyScope) {
+        self.restore_inline_module_constructor_catalog(scope.constructors);
+        self.scopes = scope.scopes;
+        self.ordinary_callable_scopes = scope.ordinary_callable_scopes;
+        self.var_types = scope.var_types;
+        self.rule_scope_vars = scope.rule_scope_vars;
+        self.actor_handle_scopes = scope.actor_handle_scopes;
     }
 
     fn snapshot_inline_module_constructor_catalog(&self) -> InlineModuleConstructorCatalog {
         InlineModuleConstructorCatalog {
             types: self.types.clone(),
+            annotation_environment: self.annotation_environment.clone(),
             constructors: self.constructors.clone(),
             constructor_signatures: self.constructor_signatures.clone(),
             type_parameters_by_owner: self.type_parameters_by_owner.clone(),
@@ -53441,6 +54680,7 @@ impl TypeChecker {
         snapshot: InlineModuleConstructorCatalog,
     ) {
         self.types = snapshot.types;
+        self.annotation_environment = snapshot.annotation_environment;
         self.constructors = snapshot.constructors;
         self.constructor_signatures = snapshot.constructor_signatures;
         self.type_parameters_by_owner = snapshot.type_parameters_by_owner;
@@ -53451,45 +54691,12 @@ impl TypeChecker {
         self.type_field_tys = snapshot.type_field_tys;
     }
 
-    fn rule_dispatch_prelude_declaration_identity(
-        statement: &Stmt,
-    ) -> Option<(String, String, String)> {
-        match statement {
-            Stmt::Defn(definition) => Some((
-                "definition".to_string(),
-                defn_name(definition).to_string(),
-                content_hash_defn(definition),
-            )),
-            Stmt::TypeDecl(declaration) => Some((
-                "type".to_string(),
-                type_decl_name(declaration).to_string(),
-                content_hash_type(declaration),
-            )),
-            _ => None,
-        }
-    }
-
     fn leading_rule_dispatch_prelude_indices(statements: &[Stmt]) -> BTreeSet<usize> {
-        let prelude = parse_prelude()
+        statements
             .iter()
-            .filter_map(Self::rule_dispatch_prelude_declaration_identity)
-            .collect::<Vec<_>>();
-        let mut cursor = 0;
-        let mut indices = BTreeSet::new();
-        for (index, statement) in statements.iter().enumerate() {
-            let Some(identity) = Self::rule_dispatch_prelude_declaration_identity(statement) else {
-                break;
-            };
-            let Some(relative) = prelude[cursor..]
-                .iter()
-                .position(|candidate| candidate == &identity)
-            else {
-                break;
-            };
-            cursor += relative + 1;
-            indices.insert(index);
-        }
-        indices
+            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+            .map(|boundary| (0..=boundary).collect())
+            .unwrap_or_default()
     }
 
     fn nested_rule_dispatch_ast_mutates_shared_registry(child: AstChild<'_>) -> bool {
@@ -53693,6 +54900,12 @@ impl TypeChecker {
                     }
                     self.register_reference_symbol(name, ProgramSymbolKind::Function);
                     self.define_var(name);
+                    self.ordinary_callable_scopes.last_mut().unwrap().insert(
+                        name.clone(),
+                        ordinary_calls::CallableBinding::declaration(
+                            ordinary_calls::DeclaredCallable::Function(params.clone()),
+                        ),
+                    );
                 }
                 Stmt::Defn(Defn::Actor { name, .. }) => {
                     self.record_explore_non_rule_runtime_name(name);
@@ -53713,6 +54926,7 @@ impl TypeChecker {
                     methods,
                     ..
                 }) => {
+                    self.clear_constructor_owner(name);
                     self.types.insert(name.clone());
                     self.type_parameters_by_owner.insert(
                         name.clone(),
@@ -54063,7 +55277,7 @@ impl TypeChecker {
                             if self.explore_inline_module_depth == 0 {
                                 self.record_rule_signature(fname, head);
                             }
-                            self.define_var(fname);
+                            self.define_rule_callable(fname, args.len());
                         }
                     } else if let ExprKind::Var(fname) = &head.kind {
                         // Zero-arg rule without parens: | foo -> Bar
@@ -54077,7 +55291,7 @@ impl TypeChecker {
                         if self.explore_inline_module_depth == 0 {
                             self.record_rule_signature(fname, head);
                         }
-                        self.define_var(fname);
+                        self.define_rule_callable(fname, 0);
                     }
                     if let Stmt::Rule(rule) = stmt {
                         if self.explore_inline_module_depth == 0 {
@@ -54100,6 +55314,7 @@ impl TypeChecker {
                 Stmt::RustBlock(code) => {
                     // Register functions defined in @ rust { } blocks so the type
                     // checker doesn't reject calls to them. Parse fn signatures.
+                    self.collect_rust_annotation_names(stmt);
                     for line in code.lines() {
                         let trimmed = line.trim();
                         // Match: fn name(params) or pub fn name(params)
@@ -54143,13 +55358,23 @@ impl TypeChecker {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
                                 .unwrap_or(file_path.clone());
+                            if let Some(module) =
+                                self.rule_contract_import_modules.get(&canon).cloned()
+                            {
+                                self.rule_contract_imports.insert(
+                                    (dir.clone(), path.clone()),
+                                    (file_path.clone(), module),
+                                );
+                            }
                             if !self.imported.contains(&canon) {
                                 self.imported.insert(canon);
                                 if let Some(import_stmts) =
                                     self.parse_imported_source_for_tc(path, &file_path, true)
                                 {
                                     self.collect_declarations_from_imported_file(
-                                        import_stmts.statements(),
+                                        import_stmts.statements.clone(),
+                                        &import_stmts,
+                                        path,
                                         &file_path,
                                         &dir,
                                     );
@@ -54177,12 +55402,15 @@ impl TypeChecker {
                                     mod_name,
                                     import_stmts.statements(),
                                     &file_path,
+                                    import_stmts.source(),
+                                    path,
                                 );
                             }
                         }
                     }
                 }
-                Stmt::Use(_) => {}
+                Stmt::Use(_) => self.collect_rust_annotation_names(stmt),
+                Stmt::PreludeBoundary => {}
                 Stmt::HashImport(hash, path) => {
                     if let Some(dir) = self.source_dir.clone() {
                         if let Some(file_path) = Self::resolve_tc_import(path, &dir) {
@@ -54202,6 +55430,7 @@ impl TypeChecker {
                                             Stmt::Defn(d) => content_hash_defn(d) == *hash,
                                             Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
                                             Stmt::Rule(_)
+                                            | Stmt::PreludeBoundary
                                             | Stmt::Use(_)
                                             | Stmt::Import(_)
                                             | Stmt::QualifiedImport(_, _)
@@ -54219,9 +55448,6 @@ impl TypeChecker {
                                             | Stmt::Invariant { .. }
                                             | Stmt::Prove { .. }
                                             | Stmt::Explore(_)
-                                            | Stmt::Assert(_, _)
-                                            | Stmt::Retract(_, _)
-                                            | Stmt::Abort
                                             | Stmt::Expr(_) => false,
                                         })
                                         .cloned()
@@ -54238,7 +55464,11 @@ impl TypeChecker {
                                         );
                                     } else {
                                         self.collect_declarations_from_imported_file(
-                                            &matched, &file_path, &dir,
+                                            Arc::new(matched),
+                                            &import_stmts,
+                                            path,
+                                            &file_path,
+                                            &dir,
                                         );
                                     }
                                 }
@@ -54254,9 +55484,6 @@ impl TypeChecker {
                 | Stmt::StreamSub(_, _)
                 | Stmt::Prove { .. }
                 | Stmt::Explore(_)
-                | Stmt::Assert(_, _)
-                | Stmt::Retract(_, _)
-                | Stmt::Abort
                 | Stmt::Expr(_) => {}
             }
         }
@@ -54264,12 +55491,15 @@ impl TypeChecker {
 
     /// Pass 2: check the program for errors
     pub fn check_program(&mut self, stmts: &[Stmt]) {
+        self.check_rule_result_contracts(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
+        self.check_imported_bodies();
         // Check trait impl completeness
         self.check_trait_impls();
     }
 
     fn check_stmt_sequence(&mut self, stmts: &[Stmt]) {
+        self.check_rule_result_contracts(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, false);
     }
 
@@ -55436,7 +56666,7 @@ impl TypeChecker {
             Ty::Name(name) => {
                 if matches!(
                     name.as_str(),
-                    "Float" | "Stream" | "Subject" | "Db" | "TypeDef" | "ProgramReference"
+                    "Float" | "Stream" | "Subject" | "TypeDef" | "ProgramReference"
                 ) || self.rule_scope_methods.contains_key(name)
                     || self.rule_scope_value_methods.contains_key(name)
                     || self.effect_ops.contains_key(name)
@@ -55466,7 +56696,7 @@ impl TypeChecker {
             Ty::App(constructor, arguments) => {
                 !matches!(
                     type_name(constructor),
-                    Some("Stream" | "Subject" | "Db" | "Map" | "Set")
+                    Some("Stream" | "Subject" | "Map" | "Set")
                 ) && self.explore_key_ty_supported_inner(constructor, visiting)
                     && arguments
                         .iter()
@@ -56867,9 +58097,15 @@ impl TypeChecker {
     }
 
     pub fn check_stmt(&mut self, stmt: &Stmt) {
+        let annotation_parameters = self.annotation_environment.parameters.clone();
+        self.check_statement_annotations(stmt);
         match stmt {
             Stmt::Defn(Defn::Fn {
-                name, params, body, ..
+                name,
+                params,
+                ret_ty,
+                body,
+                ..
             }) => {
                 self.push_context(format!("in function `{}`", name));
                 self.push_scope();
@@ -56879,7 +58115,7 @@ impl TypeChecker {
                         self.define_var_type(&p.name, ty);
                     }
                 }
-                self.check_expr(body, Some(name));
+                self.check_function_body(name, params, ret_ty.as_ref(), body, None);
                 self.pop_scope();
                 self.pop_context();
             }
@@ -56912,11 +58148,27 @@ impl TypeChecker {
                 self.pop_scope();
                 self.pop_context();
             }
-            Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
+            Stmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params: type_params,
+                methods,
+                ..
+            }) => {
+                let arguments = type_params
+                    .iter()
+                    .filter(|param| param.ty.is_none())
+                    .map(|param| Ty::Var(param.name.clone()))
+                    .collect::<Vec<_>>();
+                let receiver = if arguments.is_empty() {
+                    Ty::Name(name.clone())
+                } else {
+                    Ty::App(Box::new(Ty::Name(name.clone())), arguments)
+                };
                 for defn in methods {
                     if let Defn::Fn {
                         name: mname,
                         params,
+                        ret_ty,
                         body,
                         ..
                     } = defn
@@ -56928,16 +58180,25 @@ impl TypeChecker {
                                 self.define_var_type(&p.name, ty);
                             }
                         }
-                        self.check_expr(body, Some(mname));
+                        self.check_function_body(
+                            mname,
+                            params,
+                            ret_ty.as_ref(),
+                            body,
+                            Some(&receiver),
+                        );
                         self.pop_scope();
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+            Stmt::TypeDecl(TypeDecl::ImplBlock {
+                for_type, methods, ..
+            }) => {
                 for defn in methods {
                     if let Defn::Fn {
                         name: mname,
                         params,
+                        ret_ty,
                         body,
                         ..
                     } = defn
@@ -56949,7 +58210,13 @@ impl TypeChecker {
                                 self.define_var_type(&p.name, ty);
                             }
                         }
-                        self.check_expr(body, Some(mname));
+                        self.check_function_body(
+                            mname,
+                            params,
+                            ret_ty.as_ref(),
+                            body,
+                            Some(&Ty::Name(for_type.clone())),
+                        );
                         self.pop_scope();
                     }
                 }
@@ -56967,7 +58234,13 @@ impl TypeChecker {
                                 self.define_var_type(&p.name, ty);
                             }
                         }
-                        self.check_expr(body, Some(&method.name));
+                        self.check_function_body(
+                            &method.name,
+                            &method.params,
+                            method.ret_ty.as_ref(),
+                            body,
+                            Some(&Ty::Name("Self".into())),
+                        );
                         self.pop_scope();
                     }
                 }
@@ -57064,6 +58337,7 @@ impl TypeChecker {
                 ..
             }) => {
                 self.push_scope();
+                self.check_rule_head_patterns(head);
                 // Rule head params are in scope for value/condition
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
@@ -57073,7 +58347,7 @@ impl TypeChecker {
                 }
                 self.check_expr(value, None);
                 if let Some(c) = condition {
-                    self.check_expr(c, None);
+                    self.check_rule_guard(c, head);
                 }
                 self.pop_scope();
             }
@@ -57084,6 +58358,7 @@ impl TypeChecker {
                 ..
             }) => {
                 self.push_scope();
+                self.check_rule_head_patterns(head);
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
                         Self::define_rule_head_vars(arg, &mut self.scopes);
@@ -57092,49 +58367,63 @@ impl TypeChecker {
                 }
                 self.check_expr(value, None);
                 if let Some(c) = condition {
-                    self.check_expr(c, None);
+                    self.check_rule_guard(c, head);
                 }
                 self.pop_scope();
             }
             Stmt::Rule(Rule::Clause { head, body }) => {
                 self.push_scope();
+                self.check_rule_head_patterns(head);
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
                         Self::define_rule_head_vars(arg, &mut self.scopes);
                         self.define_rule_head_var_types(arg);
                     }
                 }
-                // For conjunctive bodies, also define existential variables
-                // (variables that appear as arguments in goals but not in the head)
-                if let Some(Expr {
-                    kind: ExprKind::Conjunction(goals),
-                    ..
-                }) = body
-                {
-                    for goal in goals {
-                        if let ExprKind::App(_, goal_args) = &goal.kind {
-                            for arg in goal_args {
-                                if let ExprKind::Var(name) = &arg.kind {
-                                    self.define_var(name);
-                                }
-                            }
-                        }
-                    }
-                }
                 self.check_expr(head, None);
                 if let Some(b) = body {
-                    self.check_expr(b, None);
+                    self.check_rule_body_expression(b, false);
                 }
                 self.pop_scope();
             }
             Stmt::Invariant {
-                subject, predicate, ..
+                name,
+                subject,
+                predicate,
             } => {
+                // An invariant may refer to an already bound scenario. Keep
+                // its type when introducing the subject names in this scope;
+                // unlike function parameters these are not fresh unknowns.
+                let mut subject_names = vec![BTreeSet::new()];
+                Self::define_rule_head_vars(subject, &mut subject_names);
+                let subject_types = subject_names[0]
+                    .iter()
+                    .filter_map(|name| {
+                        self.ordinary_expression_type(&Expr::unspanned(ExprKind::Var(name.clone())))
+                            .map(|ty| (name.clone(), ty))
+                    })
+                    .collect::<Vec<_>>();
                 self.push_scope();
                 Self::define_rule_head_vars(subject, &mut self.scopes);
+                for (name, ty) in subject_types {
+                    self.define_inferred_var_type_name(&name, &ty);
+                }
                 self.define_rule_head_var_types(subject);
                 self.check_expr(subject, None);
                 self.check_expr(predicate, None);
+                let predicate_type = self.infer_expr_type_name(predicate).or_else(|| {
+                    Self::is_polymorphic_empty_list_expr(predicate).then(|| "List(_)".to_string())
+                });
+                if let Some(actual) = predicate_type {
+                    if actual != "Bool" && actual != "_" {
+                        self.error_at_expr(
+                            predicate,
+                            format!(
+                                "invariant `{name}` predicate must return Bool, found {actual}"
+                            ),
+                        );
+                    }
+                }
                 self.pop_scope();
             }
             Stmt::Prove {
@@ -57168,31 +58457,35 @@ impl TypeChecker {
                 self.pop_scope();
             }
             Stmt::Explore(query) => self.check_explore_query(query, false),
-            Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
-                for arg in args {
-                    self.check_expr(arg, None);
-                }
-            }
-            Stmt::Use(_)
+            Stmt::PreludeBoundary
+            | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
-            | Stmt::RustBlock(_)
-            | Stmt::Abort => {}
+            | Stmt::RustBlock(_) => {}
             Stmt::Annot(name, args) => {
-                // Skip metadata annotations whose payloads are declarations, not
-                // executable expressions in the current schema.
-                if name != "store" && name != "migrate" {
+                if let Some(message) = removed_persistence_message(name) {
+                    self.error(message);
+                } else {
                     for a in args {
+                        // A posthoc export may name the type itself even when
+                        // none of its value constructors share that name.
+                        if name == "export"
+                            && matches!(&a.kind, ExprKind::Var(symbol) if self.types.contains(symbol))
+                        {
+                            continue;
+                        }
                         self.check_expr(a, None);
                     }
                 }
             }
         }
+        self.annotation_environment.parameters = annotation_parameters;
     }
 
     pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {
+        self.record_editor_field_query(expr);
         match &expr.kind {
             ExprKind::Var(name) => {
                 if self.actor_message_arities.contains_key(name)
@@ -57220,6 +58513,11 @@ impl TypeChecker {
             }
             ExprKind::App(func, args) => {
                 if matches!(&func.kind, ExprKind::Var(name) if name == "__typed") {
+                    if let Some((_, type_name)) = Self::typed_rule_arg_parts(expr) {
+                        if let Ok(ty) = parse_type_annotation(type_name) {
+                            self.check_annotation_type(&ty);
+                        }
+                    }
                     if let Some(value) = args.first() {
                         self.check_expr(value, _in_fn);
                     }
@@ -57373,15 +58671,21 @@ impl TypeChecker {
                                 method
                             ),
                         );
+                    } else {
+                        self.check_ordinary_field(func, base, method);
                     }
                     for arg in args {
-                        self.check_expr(arg, _in_fn);
+                        self.check_expr(
+                            named_arg_parts(arg).map_or(arg, |(_, value)| value),
+                            _in_fn,
+                        );
                     }
                     return;
                 }
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
+                    let lexical_call_checked = self.check_ordinary_call(expr, name, args);
                     if has_named_args(args) {
                         if self.constructor_signatures.contains_key(name) {
                             let signature = self
@@ -57441,7 +58745,8 @@ impl TypeChecker {
                     }
 
                     if let Some(&expected) = self.functions.get(name) {
-                        if !self.function_has_arity(name, actual_arity)
+                        if !lexical_call_checked
+                            && !self.function_has_arity(name, actual_arity)
                             && actual_arity != expected
                             && !self.is_rule_function(name)
                         {
@@ -57456,7 +58761,11 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if let Some(&expected) = self.builtins.get(canonical) {
+                    } else if let Some(&expected) = self
+                        .builtins
+                        .get(canonical)
+                        .filter(|_| !lexical_call_checked)
+                    {
                         if actual_arity != expected {
                             self.error_at_expr(
                                 expr,
@@ -57481,6 +58790,34 @@ impl TypeChecker {
                                             format!(
                                             "assert_with_message expects {required}, got {actual}"
                                         ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        if canonical == "length" && actual_arity == 1 && !self.var_defined(name) {
+                            if let Some(actual) = self.infer_expr_type_name(&args[0]) {
+                                if let Ok(ty) = parse_type_annotation(&actual) {
+                                    let mut operand = &ty;
+                                    while let Ty::Ref(inner)
+                                    | Ty::MutRef(inner)
+                                    | Ty::Shared(inner) = operand
+                                    {
+                                        operand = inner;
+                                    }
+                                    let supported_or_unknown = match operand {
+                                        Ty::Name(name) => name == "String" || name == "List",
+                                        Ty::App(head, parameters) => {
+                                            matches!(head.as_ref(), Ty::Name(name) if name == "List")
+                                                && parameters.len() == 1
+                                        }
+                                        Ty::Var(_) | Ty::Hole => true,
+                                        _ => false,
+                                    };
+                                    if !supported_or_unknown {
+                                        self.error_at_expr(
+                                            &args[0],
+                                            format!("length expects List or String, got {actual}"),
                                         );
                                     }
                                 }
@@ -57518,13 +58855,23 @@ impl TypeChecker {
                 } else {
                     self.check_expr(func, _in_fn);
                 }
-                // findall(template_var, goal) — template var and goal vars are scoped
+                // Builtin query templates and goal variables introduce local names.
+                // Ordinary callables with these names keep ordinary arguments.
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if (name == "findall" || name == "search") && args.len() == 2 {
+                    if (name == "findall" || name == "search")
+                        && args.len() == 2
+                        && !self.var_defined(name)
+                        && !self.functions.contains_key(name)
+                    {
                         self.push_scope();
                         // Define the template variable
                         if let ExprKind::Var(tvar) = &args[0].kind {
                             self.define_var(tvar);
+                        } else {
+                            self.error_at_expr(
+                                func,
+                                format!("`{name}` template must be a single variable"),
+                            );
                         }
                         // Define unbound variables in the goal
                         if let ExprKind::App(_, goal_args) = &args[1].kind {
@@ -57546,24 +58893,8 @@ impl TypeChecker {
                     self.check_expr(arg, _in_fn);
                 }
             }
-            ExprKind::BinOp(operator, lhs, rhs) => {
-                self.check_expr(lhs, _in_fn);
-                self.check_expr(rhs, _in_fn);
-                if operator == "+" {
-                    let is_list = |operand: &Expr| {
-                        matches!(&operand.kind, ExprKind::List(_))
-                            || self.infer_expr_type_name(operand).is_some_and(|ty| {
-                                Self::applied_type_argument(&ty, "List", 0).is_some()
-                            })
-                    };
-                    if is_list(lhs) && is_list(rhs) {
-                        self.error_at_expr(
-                            expr,
-                            "operator `+` does not concatenate lists; use concat(left, right)"
-                                .to_string(),
-                        );
-                    }
-                }
+            ExprKind::BinOp(_, _, _) => {
+                self.check_binary_expression(expr, _in_fn);
             }
             ExprKind::UnOp(_, operand) => {
                 self.check_expr(operand, _in_fn);
@@ -57579,9 +58910,10 @@ impl TypeChecker {
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type: Option<String> = None;
                 for (index, arm) in arms.iter().enumerate() {
+                    let pattern_anchor = Expr::new(ExprKind::Unit, arm.pat_span);
                     self.check_pattern_constructor_arity(
                         &arm.pat,
-                        &arm.body,
+                        &pattern_anchor,
                         subject_type.as_deref(),
                     );
                     self.push_scope();
@@ -57620,7 +58952,7 @@ impl TypeChecker {
                     self.pop_scope();
                 }
                 // Exhaustiveness check
-                self.check_match_exhaustiveness(arms);
+                self.check_match_exhaustiveness(expr, subject_type.as_deref(), arms);
             }
             ExprKind::Block(stmts) => {
                 self.push_scope();
@@ -57629,6 +58961,7 @@ impl TypeChecker {
                 self.pop_scope();
             }
             ExprKind::Lambda(params, body) => {
+                self.check_parameter_annotations(params);
                 self.push_scope();
                 for p in params {
                     self.define_var(&p.name);
@@ -57651,16 +58984,7 @@ impl TypeChecker {
                         }
                     }
                 }
-                if let Some(type_name) = self.infer_expr_type_name(base) {
-                    if let Some(fields) = self.type_fields.get(&type_name) {
-                        if !fields.contains(field) {
-                            self.error_at_expr(
-                                expr,
-                                format!("type `{}` has no field `{}`", type_name, field),
-                            );
-                        }
-                    }
-                }
+                self.check_ordinary_field(expr, base, field);
             }
             ExprKind::Index(base, idx) => {
                 self.check_expr(base, _in_fn);
@@ -57681,7 +59005,9 @@ impl TypeChecker {
                     self.check_expr(a, _in_fn);
                 }
                 let canonical = builtin_canonical(name);
-                if let Some(&expected) = self.builtins.get(canonical) {
+                if !is_builtin_effect(canonical) {
+                    self.error_at_expr(expr, unknown_effect_message(name));
+                } else if let Some(&expected) = self.builtins.get(canonical) {
                     if args.len() != expected {
                         self.error_at_expr(
                             expr,
@@ -57734,6 +59060,204 @@ impl TypeChecker {
                     _ => self.check_expr(transform, _in_fn),
                 }
             }
+        }
+    }
+
+    // This diagnostic pass compares known result shapes only. It grants no
+    // totality/proof authority and does not reject unresolved dynamic results.
+    fn rule_result_types_conflict(left: &Ty, right: &Ty) -> bool {
+        match (left, right) {
+            (Ty::Var(_) | Ty::Hole, _) | (_, Ty::Var(_) | Ty::Hole) => false,
+            (Ty::App(lc, la), Ty::App(rc, ra)) => {
+                Self::rule_result_types_conflict(lc, rc)
+                    || la.len() != ra.len()
+                    || la
+                        .iter()
+                        .zip(ra)
+                        .any(|(l, r)| Self::rule_result_types_conflict(l, r))
+            }
+            (Ty::Name(name), Ty::App(constructor, _))
+            | (Ty::App(constructor, _), Ty::Name(name))
+                if matches!(constructor.as_ref(), Ty::Name(parent) if parent == name) =>
+            {
+                false
+            }
+            (Ty::Arrow(li, lo), Ty::Arrow(ri, ro)) => {
+                Self::rule_result_types_conflict(li, ri) || Self::rule_result_types_conflict(lo, ro)
+            }
+            _ => Self::canonical_explore_ty_name(left) != Self::canonical_explore_ty_name(right),
+        }
+    }
+
+    fn rule_result_conflict(
+        &self,
+        rule: &Rule,
+        known: &mut BTreeMap<(String, usize), Vec<String>>,
+    ) -> Option<String> {
+        let (name, arity) = Self::rule_name_arity(rule)?;
+        let (head, result) = match rule {
+            Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
+                (head, Some(value))
+            }
+            Rule::Clause { head, body } => (head, body.as_ref()),
+            Rule::ReactiveScope { .. } => return None,
+        };
+        let actual = match result {
+            Some(result) => self
+                .infer_expr_type_name_with_locals(result, &self.rule_contract_local_types(head))
+                .or_else(|| {
+                    Self::is_polymorphic_empty_list_expr(result).then(|| "List(_)".to_string())
+                })?,
+            None => "Bool".to_string(),
+        };
+        let actual_ty = parse_type_annotation(&Self::canonical_explore_type_name(&actual)).ok()?;
+        let candidates = known.entry((name.clone(), arity)).or_default();
+        let conflict = candidates.iter().find(|candidate| {
+            parse_type_annotation(&Self::canonical_explore_type_name(candidate)).is_ok_and(|candidate_ty| {
+                Self::rule_result_types_conflict(&candidate_ty, &actual_ty)
+            })
+        }).map(|previous| format!(
+            "rule `{name}` with arity {arity} has conflicting return types `{previous}` and `{actual}`"
+        ));
+        if !candidates.contains(&actual) {
+            candidates.push(actual);
+        }
+        conflict
+    }
+
+    fn check_rule_result_contracts(&mut self, stmts: &[Stmt]) {
+        let dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
+        self.check_rule_result_sequence(stmts, &dir, &mut BTreeMap::new(), &mut BTreeSet::new());
+    }
+
+    fn check_rule_result_sequence(
+        &mut self,
+        stmts: &[Stmt],
+        dir: &str,
+        known: &mut BTreeMap<(String, usize), Vec<String>>,
+        visited: &mut BTreeSet<PathBuf>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Rule(rule) => {
+                    if let Some(message) = self.rule_result_conflict(rule, known) {
+                        let head = match rule {
+                            Rule::Default { head, .. }
+                            | Rule::Exception { head, .. }
+                            | Rule::Clause { head, .. } => head,
+                            Rule::ReactiveScope { .. } => continue,
+                        };
+                        self.error_at_expr(head, message);
+                    }
+                }
+                Stmt::Import(path) => {
+                    let Some((file, module)) = self
+                        .rule_contract_imports
+                        .get(&(dir.to_string(), path.clone()))
+                        .cloned()
+                    else {
+                        continue; // Resolution/parsing diagnostics belong to the prepass.
+                    };
+                    let canonical = canonical_parsed_source_path(Path::new(&file));
+                    if !visited.insert(canonical.clone()) {
+                        continue;
+                    }
+                    let imported_dir = Interpreter::imported_source_dir(&file);
+                    let anchor = self
+                        .import_diagnostic_anchor
+                        .or_else(|| self.import_path_span(path));
+                    let previous_source =
+                        std::mem::replace(&mut self.source_text, module.source().to_string());
+                    let previous_anchor =
+                        std::mem::replace(&mut self.import_diagnostic_anchor, anchor);
+                    let start = self.diagnostics.len();
+                    self.check_rule_result_sequence(
+                        module.statements(),
+                        &imported_dir,
+                        known,
+                        visited,
+                    );
+                    self.locate_import_diagnostics(
+                        start,
+                        &canonical,
+                        module.source.clone(),
+                        anchor,
+                    );
+                    self.source_text = previous_source;
+                    self.import_diagnostic_anchor = previous_anchor;
+                }
+                // Nested namespaces are checked with their own captures and
+                // constructor catalog by the ordinary lexical checking walk.
+                _ => {}
+            }
+        }
+    }
+
+    fn rule_contract_local_types(&self, head: &Expr) -> BTreeMap<String, String> {
+        let mut bindings = vec![BTreeSet::new()];
+        if let ExprKind::App(_, args) = &head.kind {
+            for arg in args {
+                Self::define_rule_head_vars(arg, &mut bindings);
+            }
+        }
+        let mut locals = bindings
+            .pop()
+            .unwrap()
+            .into_iter()
+            .map(|name| (name, CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string()))
+            .collect::<BTreeMap<_, _>>();
+        locals.extend(self.rule_head_local_types(head));
+        locals
+    }
+
+    fn check_rule_guard(&mut self, guard: &Expr, head: &Expr) {
+        self.check_expr(guard, None);
+        let locals = self.rule_contract_local_types(head);
+        let guard_type = self
+            .infer_expr_type_name_with_locals(guard, &locals)
+            .or_else(|| Self::is_polymorphic_empty_list_expr(guard).then(|| "List(_)".to_string()));
+        if let Some(actual) = guard_type {
+            let unknown = matches!(parse_type_annotation(&actual), Ok(Ty::Var(_) | Ty::Hole));
+            if actual != "Bool" && !unknown {
+                self.error_at_expr(
+                    guard,
+                    format!("rule guard must return Bool, found {actual}"),
+                );
+            }
+        }
+    }
+
+    fn check_rule_body_expression(&mut self, body: &Expr, is_alternative: bool) {
+        if let ExprKind::Disjunction(alternatives) = &body.kind {
+            for alternative in alternatives {
+                // A witness from one alternative is not in scope in another.
+                self.push_scope();
+                self.check_rule_body_expression(alternative, true);
+                self.pop_scope();
+            }
+            return;
+        }
+        let goals = if let ExprKind::Conjunction(goals) = &body.kind {
+            goals.as_slice()
+        } else if !is_alternative {
+            self.check_expr(body, None);
+            return;
+        } else {
+            std::slice::from_ref(body)
+        };
+        for goal in goals {
+            if let ExprKind::App(_, arguments) = &goal.kind {
+                for argument in arguments {
+                    if let ExprKind::Var(name) = &argument.kind {
+                        if Interpreter::is_rule_variable_name(name) {
+                            self.define_var(name);
+                        }
+                    }
+                }
+            }
+        }
+        for goal in goals {
+            self.check_expr(goal, None);
         }
     }
 
@@ -57807,7 +59331,7 @@ impl TypeChecker {
         }
 
         if let Some(arm) = arms.iter().find(|arm| !Self::tag_only_pattern(&arm.pat)) {
-            self.error(format!(
+            self.error_at_expr(&Expr::new(ExprKind::Unit, arm.pat_span), format!(
                 "bare fielded variant refinement cannot be mixed with destructuring pattern `{}` in the same match",
                 Self::pattern_label(&arm.pat)
             ));
@@ -57877,68 +59401,167 @@ impl TypeChecker {
         }
     }
 
-    /// Check match exhaustiveness: are all variants of an ADT covered?
-    fn check_match_exhaustiveness(&mut self, arms: &[MatchArm]) {
-        if arms.is_empty() {
-            return;
+    fn coverage_pattern(pattern: &Pat) -> &Pat {
+        match pattern {
+            Pat::As(inner, _) => Self::coverage_pattern(inner),
+            _ => pattern,
         }
+    }
 
-        // If any arm has a wildcard or variable pattern (without a guard), match is exhaustive
-        for arm in arms {
-            if arm.guard.is_none() {
-                match &arm.pat {
-                    Pat::Wild | Pat::Var(_) => return, // catch-all
-                    _ => {}
-                }
+    /// Specialize whole pattern rows, retaining correlations between fields.
+    /// Checking each field independently would incorrectly accept diagonal
+    /// patterns such as Pair(True, True) and Pair(False, False).
+    fn match_pattern_rows_cover(
+        &self,
+        rows: &[Vec<Pat>],
+        types: &[Option<String>],
+        budget: &mut usize,
+        depth: usize,
+    ) -> Option<bool> {
+        if rows.is_empty() {
+            return Some(false);
+        }
+        if types.is_empty()
+            || rows.iter().any(|row| {
+                row.iter()
+                    .all(|pat| matches!(Self::coverage_pattern(pat), Pat::Wild | Pat::Var(_)))
+            })
+        {
+            return Some(true);
+        }
+        if *budget == 0 || depth >= 128 {
+            return None;
+        }
+        *budget -= 1;
+        let inferred = types[0].clone().or_else(|| {
+            rows.iter()
+                .find_map(|row| match Self::coverage_pattern(&row[0]) {
+                    Pat::Con(name, _) | Pat::NamedCon(name, _) => self
+                        .constructors
+                        .get(name)
+                        .map(|(parent, _)| parent.clone()),
+                    Pat::Lit(Literal::Bool(_)) => Some("Bool".to_string()),
+                    _ => None,
+                })
+        });
+        let owner = inferred.as_deref().and_then(Self::canonical_nominal_owner);
+        let variants = owner
+            .as_ref()
+            .map(|owner| {
+                self.constructor_signatures
+                    .iter()
+                    .filter_map(|(name, signatures)| {
+                        signatures
+                            .iter()
+                            .find(|signature| &signature.parent == owner)
+                            .map(|signature| (name, signature))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if variants.is_empty() {
+            // Literal patterns cannot cover an open domain such as Int/String.
+            // Only a default row can cover values not mentioned by the source.
+            let defaults = rows
+                .iter()
+                .filter(|row| matches!(Self::coverage_pattern(&row[0]), Pat::Wild | Pat::Var(_)))
+                .map(|row| row[1..].to_vec())
+                .collect::<Vec<_>>();
+            return self.match_pattern_rows_cover(&defaults, &types[1..], budget, depth + 1);
+        }
+        for (constructor, signature) in variants {
+            let mut specialized = Vec::new();
+            for row in rows {
+                let fields = match Self::coverage_pattern(&row[0]) {
+                    Pat::Wild | Pat::Var(_) => vec![Pat::Wild; signature.arity()],
+                    Pat::Con(name, fields) if name == constructor => {
+                        if fields.len() == signature.arity() {
+                            fields.clone()
+                        } else if depth == 0 && fields.is_empty() {
+                            // The checked root tag-refinement form covers every
+                            // payload. Nested bare tags do not destructure it.
+                            vec![Pat::Wild; signature.arity()]
+                        } else {
+                            continue;
+                        }
+                    }
+                    Pat::NamedCon(name, fields) if name == constructor => {
+                        if fields
+                            .iter()
+                            .any(|(name, _)| !signature.fields.contains(name))
+                        {
+                            continue;
+                        }
+                        signature
+                            .fields
+                            .iter()
+                            .map(|field| {
+                                fields
+                                    .iter()
+                                    .find(|(name, _)| name == field)
+                                    .map(|(_, pattern)| pattern.clone())
+                                    .unwrap_or(Pat::Wild)
+                            })
+                            .collect()
+                    }
+                    Pat::Lit(Literal::Bool(value))
+                        if (constructor == "True" && *value)
+                            || (constructor == "False" && !*value) =>
+                    {
+                        vec![]
+                    }
+                    _ => continue,
+                };
+                specialized.push(fields.into_iter().chain(row[1..].iter().cloned()).collect());
+            }
+            let field_types = (0..signature.arity())
+                .map(|index| {
+                    self.constructor_pattern_field_type_name(
+                        constructor,
+                        index,
+                        inferred.as_deref(),
+                    )
+                })
+                .chain(types[1..].iter().cloned())
+                .collect::<Vec<_>>();
+            if !self.match_pattern_rows_cover(&specialized, &field_types, budget, depth + 1)? {
+                return Some(false);
             }
         }
+        Some(true)
+    }
 
-        // Collect constructor names from top-level patterns
-        let mut matched_ctors: BTreeSet<String> = BTreeSet::new();
-        let mut has_lit_pattern = false;
-        for arm in arms {
-            match &arm.pat {
-                Pat::Con(name, _) | Pat::NamedCon(name, _) => {
-                    matched_ctors.insert(name.clone());
-                }
-                Pat::Lit(_) => {
-                    has_lit_pattern = true;
-                }
-                _ => {}
-            }
-        }
-
-        // If matching on literals (Int, String, etc.), we can't check exhaustiveness
-        if has_lit_pattern || matched_ctors.is_empty() {
-            return;
-        }
-
-        // Find the parent type from the first constructor
-        let first_ctor = matched_ctors.iter().next().unwrap();
-        let parent_type = match self.constructors.get(first_ctor) {
-            Some((ty, _)) => ty.clone(),
-            None => return, // unknown constructor, skip
-        };
-
-        // Look up all variants for this type
-        let all_variants = match self.type_variants.get(&parent_type) {
-            Some(v) => v.clone(),
-            None => return, // single-variant type or unknown, skip
-        };
-
-        // Find missing variants
-        let missing: Vec<&String> = all_variants
+    fn check_match_exhaustiveness(
+        &mut self,
+        expression: &Expr,
+        subject_type: Option<&str>,
+        arms: &[MatchArm],
+    ) {
+        let rows = arms
             .iter()
-            .filter(|v| !matched_ctors.contains(*v))
-            .collect();
-
-        if !missing.is_empty() {
-            let missing_names: Vec<&str> = missing.iter().map(|s| s.as_str()).collect();
-            self.error(format!(
-                "non-exhaustive match on `{}`: missing {}",
-                parent_type,
-                missing_names.join(", ")
-            ));
+            .filter(|arm| arm.guard.is_none())
+            .map(|arm| vec![arm.pat.clone()])
+            .collect::<Vec<_>>();
+        let mut budget = 10_000;
+        match self.match_pattern_rows_cover(
+            &rows,
+            &[subject_type.map(str::to_string)],
+            &mut budget,
+            0,
+        ) {
+            Some(true) => {}
+            Some(false) => self.error_at_expr(
+                expression,
+                format!(
+                "non-exhaustive match{}: an unguarded pattern is required for every possible value",
+                subject_type.map(|name| format!(" on `{name}`")).unwrap_or_default(),
+            ),
+            ),
+            None => self.error_at_expr(
+                expression,
+                "match coverage analysis exceeded its limit; add an unguarded fallback pattern"
+                    .to_string(),
+            ),
         }
     }
 
@@ -57962,7 +59585,7 @@ impl TypeChecker {
         (
             checker.rule_dispatch_backend_return_types,
             checker.rule_dispatch_backend_return_issues,
-            checker.rule_dispatch_boolean_miss_safe_keys,
+            checker.rule_dispatch_runtime_boolean_miss_keys,
         )
     }
 
@@ -58123,6 +59746,7 @@ impl TypeChecker {
             rule_dispatch_parameter_names: tc.rule_dispatch_parameter_names,
             rule_dispatch_parameter_issues: tc.rule_dispatch_parameter_issues,
             rule_dispatch_boolean_miss_safe_keys: tc.rule_dispatch_boolean_miss_safe_keys,
+            rule_dispatch_runtime_boolean_miss_keys: tc.rule_dispatch_runtime_boolean_miss_keys,
             rule_dispatch_total_value_keys: tc.rule_dispatch_irrefutable_keys,
             rule_dispatch_runtime_irrefutable_keys: tc.rule_dispatch_runtime_irrefutable_keys,
             exploration_queries,
@@ -58148,7 +59772,13 @@ impl TypeChecker {
         diags
             .iter()
             .map(|d| {
-                if let Some(span) = d.span {
+                if let Some(origin) = &d.origin {
+                    let (line, col) = origin
+                        .span
+                        .map(|span| span.start_line_col(&origin.source))
+                        .unwrap_or((1, 1));
+                    format!("{}:{}:{}: {}", origin.path.display(), line, col, d.message)
+                } else if let Some(span) = d.span {
                     let (line, col) = span.start_line_col(&source);
                     format!("{}:{}: {}", line, col, d.message)
                 } else {
@@ -60525,6 +62155,87 @@ __FINDS__
     }
 
     #[test]
+    fn checked_resolution_contextual_nullary_comparisons_preserve_nominal_identity() {
+        let types = "# First = FirstOnly | Shared\n# Second = SecondOnly | Shared\n";
+        for owner in ["First", "Second"] {
+            for comparison in [
+                "value == Shared",
+                "Shared == value",
+                "value != Shared",
+                "Shared != value",
+            ] {
+                let source =
+                    format!("{types}> compare(value: {owner}) -> Bool {{ {comparison} }}\n");
+                let artifacts = explore_artifacts_for_source(&source);
+                assert!(
+                    artifacts.diagnostics.is_empty(),
+                    "{:?}",
+                    artifacts.diagnostics
+                );
+                let declaration = artifacts
+                    .analysis_program
+                    .declarations
+                    .iter()
+                    .find(|declaration| declaration.id.name.as_ref() == "compare")
+                    .unwrap();
+                let path = checked_expression_paths(&declaration.statement)
+                    .into_iter()
+                    .find_map(|(path, expression)| {
+                        matches!(&expression.kind, ExprKind::Var(name) if name == "Shared")
+                            .then_some(path)
+                    })
+                    .unwrap();
+                let site = artifacts
+                    .analysis_program
+                    .expression_site(declaration, path);
+                let resolution = artifacts
+                    .checked_resolutions
+                    .expressions
+                    .get(&site)
+                    .unwrap();
+                assert!(
+                    !artifacts
+                        .checked_resolutions
+                        .unsupported_sites
+                        .contains_key(&site),
+                    "{source}"
+                );
+                assert!(
+                    matches!(&resolution.value_binding,
+                    Some(CheckedValueBinding::Constructor { owner_type, declaration: Some(occurrence), .. })
+                        if owner_type.as_ref() == owner && occurrence.declaration.name.as_ref() == owner),
+                    "{source}: {resolution:?}"
+                );
+                assert!(matches!(&resolution.resolved_type,
+                    CheckedExpressionType::Resolved(Ty::Name(name)) if name == owner));
+                assert!(resolution.exact_constructor.is_some());
+            }
+        }
+
+        for suffix in [
+            "> compare() -> Bool { Shared == Shared }\n",
+            "> compare(value: Int) -> Bool { value == Shared }\n",
+            "> Shared() -> First { FirstOnly }\n> compare(value: First) -> Bool { value == Shared }\n",
+            "| Shared(value: Int) -> True\n> compare(value: First) -> Bool { value == Shared }\n",
+            "# Payload = Shared(value: Int)\n> compare(value: First) -> Bool { value == Shared }\n",
+        ] {
+            let source = format!("{types}{suffix}");
+            let artifacts = explore_artifacts_for_source(&source);
+            let declaration = artifacts.analysis_program.declarations.iter()
+                .find(|declaration| declaration.id.name.as_ref() == "compare").unwrap();
+            for (path, expression) in checked_expression_paths(&declaration.statement) {
+                if !matches!(&expression.kind, ExprKind::Var(name) if name == "Shared") {
+                    continue;
+                }
+                let site = artifacts.analysis_program.expression_site(declaration, path);
+                assert!(artifacts.checked_resolutions.unsupported_sites.contains_key(&site), "{source}");
+                let resolution = artifacts.checked_resolutions.expressions.get(&site).unwrap();
+                assert!(resolution.exact_constructor.is_none(), "{source}: {resolution:?}");
+            }
+        }
+    }
+
+    #[test]
     fn checked_resolution_nested_module_index_matches_canonical_ast_children() {
         let source = r#"
 # Carrier = Carrier(Int) {
@@ -60658,7 +62369,7 @@ __FINDS__
             "full and lightweight runtime return issues diverged"
         );
         assert_eq!(
-            boolean_miss_safe_keys, artifacts.rule_dispatch_boolean_miss_safe_keys,
+            boolean_miss_safe_keys, artifacts.rule_dispatch_runtime_boolean_miss_keys,
             "full and lightweight Bool-miss safety metadata diverged"
         );
         (statements, artifacts)
@@ -63263,7 +64974,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         interpreter.install_rule_dispatch_return_metadata(
             &artifacts.rule_dispatch_return_types,
             &synthetic_issues,
-            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+            &artifacts.rule_dispatch_runtime_boolean_miss_keys,
         );
         assert!(interpreter
             .boolean_rule_miss_value(&condition_key)
@@ -63442,7 +65153,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn boolean_rule_miss_safety_rejects_context_dependent_values_and_guards() {
+    fn boolean_rule_miss_safety_rejects_context_dependent_values_and_invalid_guards() {
         let source = r#"
 = flag = False
 
@@ -63460,10 +65171,10 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = closed_miss = closed(0)
 = wrapper_miss = wrapper(0)
 = free_guard_miss = free_guard(0)
-= non_boolean_guard_miss = non_boolean_guard(0)
 = wildcard_hit = wildcard(True)
 = wildcard_miss = wildcard(0)
-= duplicate_hit = duplicate(True, 7)
+= duplicate_conflict = duplicate(True, 7)
+= duplicate_hit = duplicate(True, True)
 = duplicate_miss = duplicate(0, 0)
 = malformed_case = Case(7)
 = captured_hit = malformed_case.captured(1)
@@ -63471,7 +65182,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let statements = parse_test_program(source).expect("parse Bool-miss safety fixture");
         let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
         assert!(
-            artifacts.diagnostics.is_empty(),
+            artifacts.diagnostics.len() == 1
+                && artifacts.diagnostics[0].message == "rule guard must return Bool, found Int",
             "unexpected diagnostics: {:?}",
             artifacts.diagnostics
         );
@@ -63484,6 +65196,12 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert!(artifacts
             .rule_dispatch_boolean_miss_safe_keys
             .contains(&global("closed")));
+        assert!(
+            artifacts
+                .rule_dispatch_runtime_boolean_miss_keys
+                .contains(&global("free_guard")),
+            "a strict guard cannot change the family's literal Boolean result type"
+        );
         let duplicate = RuleDispatchKey {
             scope: None,
             name: "duplicate".to_string(),
@@ -63527,7 +65245,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 !artifacts
                     .rule_dispatch_boolean_miss_safe_keys
                     .contains(&key),
-                "context-dependent family must not authorize a runtime miss override: {key:?}"
+                "context-dependent family must not authorize a proof certificate: {key:?}"
             );
         }
         for key in [global("wrapper"), global("free_guard"), duplicate, captured] {
@@ -63560,12 +65278,15 @@ starters first from mechanisms paths for node activation "{digest}" using values
             env.get("closed_miss").map(ToString::to_string),
             Some("false".to_string())
         );
+        assert!(matches!(
+            env.get("free_guard_miss"),
+            Some(Value::Bool(false))
+        ));
         for binding in [
             "wrapper_miss",
-            "free_guard_miss",
-            "non_boolean_guard_miss",
             "wildcard_miss",
             "duplicate_miss",
+            "duplicate_conflict",
         ] {
             assert_eq!(
                 env.get(binding).map(ToString::to_string),
@@ -63580,13 +65301,45 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
         assert_eq!(
             env.get("duplicate_hit").map(ToString::to_string),
-            Some("7".to_string()),
-            "a later duplicate head binding overwrites the typed occurrence"
+            Some("true".to_string()),
+            "repeated head arguments must agree and preserve the typed binding"
         );
         assert_eq!(
             env.get("captured_hit").map(ToString::to_string),
             Some("7".to_string()),
             "a malformed positional RuleScope capture demonstrates why capture reads are unsafe"
+        );
+    }
+
+    #[test]
+    fn untyped_boolean_miss_does_not_invent_parameter_schemas_or_totality() {
+        let source = "| eligible(age) -> True under age >= 18\n";
+        let statements = parse_test_program(source).unwrap();
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "eligible".to_string(),
+            arity: 1,
+        };
+        assert_eq!(
+            artifacts.rule_dispatch_backend_return_types.get(&key),
+            Some(&"Bool".to_string())
+        );
+        assert!(artifacts
+            .rule_dispatch_runtime_boolean_miss_keys
+            .contains(&key));
+        assert!(!artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&key));
+        assert!(!artifacts.rule_dispatch_return_types.contains_key(&key));
+        assert_eq!(
+            artifacts.rule_dispatch_parameter_types.get(&key),
+            Some(&vec![None])
         );
     }
 
@@ -64250,6 +66003,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
             r#"
 @ export
 | answer(value: Int) -> value
+@ export
+| label("x") -> "ok"
+| label(value: String) -> ""
 | private_value() -> 7
 @ export
 | partial(0) -> 7
@@ -64266,7 +66022,17 @@ starters first from mechanisms paths for node activation "{digest}" using values
         checker.source_dir = Some(temp_dir.to_string_lossy().to_string());
         checker.collect_declarations(&statements);
         checker.prepare_rule_dispatch_metadata(&statements);
+        assert!(checker.diagnostics.is_empty(), "{:?}", checker.diagnostics);
         for alias in ["A", "B"] {
+            assert_eq!(
+                checker
+                    .module_primitive_return_types
+                    .get(&(alias.into(), "label".into(), 1))
+                    .map(String::as_str),
+                Some("String"),
+                "{:?}",
+                checker.module_primitive_return_types
+            );
             assert_eq!(
                 checker
                     .module_primitive_return_types
@@ -64635,7 +66401,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
         assert_eq!(return_types, artifacts.rule_dispatch_return_types);
         assert_eq!(return_issues, artifacts.rule_dispatch_return_issues);
-        assert_eq!(safe_keys, artifacts.rule_dispatch_boolean_miss_safe_keys);
+        assert_eq!(safe_keys, artifacts.rule_dispatch_runtime_boolean_miss_keys);
         let key = RuleDispatchKey {
             scope: None,
             name: "imported_condition".to_string(),
@@ -64729,7 +66495,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
         assert_eq!(
             hash_only_safe_keys,
-            hash_only_artifacts.rule_dispatch_boolean_miss_safe_keys
+            hash_only_artifacts.rule_dispatch_runtime_boolean_miss_keys
         );
         assert_eq!(
             hash_only_types.get(&RuleDispatchKey {
@@ -64759,7 +66525,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert_eq!(return_issues, artifacts.rule_dispatch_return_issues);
         assert_eq!(
             boolean_miss_safe_keys,
-            artifacts.rule_dispatch_boolean_miss_safe_keys
+            artifacts.rule_dispatch_runtime_boolean_miss_keys
         );
         assert!(
             artifacts.diagnostics.is_empty(),
@@ -65868,6 +67634,121 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
+    fn recursive_enumeration_depth_failure_is_a_calculation_error() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let mut source = String::new();
+                for node in 0..71 {
+                    source.push_str(&format!("| edge({node}, {})\n", node + 1));
+                }
+                source.push_str(
+                    "| reach(a, b) -> edge(a, b)\n\
+                     | reach(a, b) -> edge(a, m), reach(m, b)\n\
+                     = answer = findall(b, reach(0, b))\n",
+                );
+                let statements = parse_test_program(&source).expect("parse recursive query");
+                let mut interpreter = Interpreter::new();
+                let mut env = interpreter.default_env();
+                let result = interpreter.with_calculation_runtime(|interpreter| {
+                    interpreter.run_program(&statements, &mut env)
+                });
+                assert!(
+                    matches!(result, Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                        if message.contains("recursion limit") && message.contains("incomplete")),
+                    "expected a calculation error instead of a partial answer: {result:?}"
+                );
+            })
+            .expect("spawn recursive calculation")
+            .join()
+            .expect("join recursive calculation");
+    }
+
+    #[test]
+    fn direct_rule_depth_guard_restores_after_guarded_failure_and_unwind() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                for mode in ["calculation", "ground", "ordinary"] {
+                    let statements = parse_test_program(
+                        "| never_done(n) -> never_done(n + 1)\n| healthy(n) -> n + 1\n",
+                    ).unwrap();
+                    let mut interpreter = Interpreter::new();
+                    let mut env = interpreter.default_env();
+                    interpreter.run_program(&statements, &mut env);
+                    let query = parse_expr_from("never_done(0)");
+                    match mode {
+                        "calculation" => {
+                            let result = interpreter.with_calculation_runtime(|interpreter| {
+                                interpreter.eval(&query, &env)
+                            });
+                            assert!(matches!(result,
+                                Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                                    if message.contains("recursion limit") && message.contains("incomplete")),
+                                "{result:?}");
+                        }
+                        "ground" => {
+                            interpreter.ground_collection_limit = Some(1024);
+                            interpreter.eval(&query, &env);
+                            let error = interpreter.ground_error.take();
+                            assert!(matches!(error,
+                                Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                                    if message.contains("recursion limit") && message.contains("incomplete")),
+                                "{error:?}");
+                            interpreter.ground_collection_limit = None;
+                        }
+                        _ => {
+                            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                interpreter.eval(&query, &env)
+                            }));
+                            assert!(result.is_err());
+                        }
+                    }
+                    assert_eq!(interpreter.runtime_rule_call_depth.get(), 0, "{mode}");
+                    assert!(matches!(interpreter.eval(&parse_expr_from("healthy(41)"), &env), Value::Int(42)));
+                    assert_eq!(interpreter.runtime_rule_call_depth.get(), 0, "{mode}");
+                }
+            })
+            .expect("spawn recursive rule runtime")
+            .join()
+            .expect("join recursive rule runtime");
+    }
+
+    #[test]
+    fn unsupported_logic_template_is_a_calculation_error() {
+        let statements =
+            parse_test_program("| pair(1, 2)\n= answer = findall((x, y), pair(x, y))\n")
+                .expect("parse unsupported query template");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        let result = interpreter
+            .with_calculation_runtime(|interpreter| interpreter.run_program(&statements, &mut env));
+        assert!(
+            matches!(result, Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                if message.contains("template must be a single variable")),
+            "unchecked template must fail through the calculation boundary: {result:?}"
+        );
+    }
+
+    #[test]
+    fn unsupported_rule_head_is_a_calculation_error() {
+        for pattern in ["1 + 2", "length([1])", "-value"] {
+            let source = format!("| invalid({pattern}) -> True\n= answer = invalid(9)\n");
+            let statements = parse_test_program(&source).expect("parse unchecked rule head");
+            let mut interpreter = Interpreter::new();
+            let mut env = interpreter.default_env();
+            let result = interpreter.with_calculation_runtime(|interpreter| {
+                interpreter.run_program(&statements, &mut env)
+            });
+            assert!(
+                matches!(result, Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                    if message.contains("unsupported rule-head pattern")),
+                "unchecked pattern {pattern} must fail: {result:?}"
+            );
+        }
+    }
+
+    #[test]
     fn interpreted_findall_rejects_typed_domains_with_payload_variants() {
         let source = r#"
 # Animal = Cat | Tagged(String)
@@ -66947,6 +68828,32 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
+    fn typechecker_shared_nullary_names_preserve_nominal_binding_checks() {
+        let types = "# Legacy = Shared | LegacyOnly\n# Current = Shared | CurrentOnly\n# Entry(kind: Legacy)\n";
+        let valid = format!("{types}= entry = Entry(kind = Shared)\n");
+        assert!(check_source_for_diagnostics(&valid).is_empty());
+
+        // Known constructors, values, and local parameters still have nominal
+        // types. Ambiguous constructor lookup must not erase those judgments.
+        for suffix in [
+            "= entry = Entry(kind = CurrentOnly)\n",
+            "= Shared = CurrentOnly\n= entry = Entry(kind = Shared)\n",
+            "> wrap(Shared: Current) -> Entry { Entry(kind = Shared) }\n",
+        ] {
+            let source = format!("{types}{suffix}");
+            let diagnostics = check_source_for_diagnostics(&source);
+            assert!(
+                diagnostics.iter().any(|diagnostic| {
+                    diagnostic.message.contains(
+                    "constructor `Entry` field `kind` expects `Legacy` but expression has `Current`"
+                )
+                }),
+                "{source}: {diagnostics:?}"
+            );
+        }
+    }
+
+    #[test]
     fn typechecker_rejects_mixed_named_and_positional_constructor_args() {
         let source = r#"
 # TaxFact(first: Int, second: Bool, third: Int)
@@ -67232,26 +69139,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn typechecker_checks_assert_and_retract_args() {
-        let source = "assert Fact(missing_assert)\nretract Fact(missing_retract)\n";
-        let diags = check_source_for_diagnostics(source);
-        assert!(
-            diags
-                .iter()
-                .any(|diag| diag.message.contains("missing_assert")),
-            "expected undefined assert argument diagnostic, got {:?}",
-            diags
-        );
-        assert!(
-            diags
-                .iter()
-                .any(|diag| diag.message.contains("missing_retract")),
-            "expected undefined retract argument diagnostic, got {:?}",
-            diags
-        );
-    }
-
-    #[test]
     fn typechecker_checks_when_type_conditions_and_trait_defaults() {
         let source = "\
 # Flag WHEN missing_condition -> On | Off\n\
@@ -67312,6 +69199,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             Stmt::Defn(_) => "Defn",
             Stmt::TypeDecl(_) => "TypeDecl",
             Stmt::Rule(_) => "Rule",
+            Stmt::PreludeBoundary => "PreludeBoundary",
             Stmt::Use(_) => "Use",
             Stmt::Import(_) => "Import",
             Stmt::QualifiedImport(_, _) => "QualifiedImport",
@@ -67329,9 +69217,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             Stmt::Invariant { .. } => "Invariant",
             Stmt::Prove { .. } => "Prove",
             Stmt::Explore(_) => "Explore",
-            Stmt::Assert(_, _) => "Assert",
-            Stmt::Retract(_, _) => "Retract",
-            Stmt::Abort => "Abort",
             Stmt::Expr(_) => "Expr",
         }
     }
@@ -67372,21 +69257,17 @@ starters first from mechanisms paths for node activation "{digest}" using values
             | Stmt::Invariant { .. }
             | Stmt::Prove { .. }
             | Stmt::Explore(_)
-            | Stmt::Assert(_, _)
-            | Stmt::Retract(_, _)
             | Stmt::Expr(_) => TypecheckerPassCoverage::VisitsExpressions,
             Stmt::TypeDecl(decl) => typechecker_type_decl_coverage(decl),
-            Stmt::Annot(name, _) if name == "store" || name == "migrate" => {
-                TypecheckerPassCoverage::IntentionallyIgnored
-            }
+
             Stmt::Annot(_, _) => TypecheckerPassCoverage::VisitsExpressions,
-            Stmt::Use(_)
+            Stmt::PreludeBoundary
+            | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
-            | Stmt::RustBlock(_)
-            | Stmt::Abort => TypecheckerPassCoverage::IntentionallyIgnored,
+            | Stmt::RustBlock(_) => TypecheckerPassCoverage::IntentionallyIgnored,
         }
     }
 
@@ -67550,6 +69431,12 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 diagnostic_markers: vec!["missing_scope_body"],
             },
             TypecheckerPassCoverageCase {
+                label: "PreludeBoundary",
+                stmt: Stmt::PreludeBoundary,
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
                 label: "Use",
                 stmt: Stmt::Use("std::fmt".to_string()),
                 coverage: ignored,
@@ -67593,15 +69480,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 ),
                 coverage: visits,
                 diagnostic_markers: vec!["missing_annot_arg"],
-            },
-            TypecheckerPassCoverageCase {
-                label: "Annot::store",
-                stmt: Stmt::Annot(
-                    "store".to_string(),
-                    vec![typechecker_missing_expr("missing_store_arg")],
-                ),
-                coverage: ignored,
-                diagnostic_markers: vec![],
             },
             TypecheckerPassCoverageCase {
                 label: "Bind",
@@ -67665,6 +69543,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 stmt: Stmt::StreamSub(
                     typechecker_missing_expr("missing_stream_sub_expr"),
                     vec![MatchArm {
+                        pat_span: Span::dummy(),
                         pat: Pat::Wild,
                         guard: Some(typechecker_missing_expr("missing_stream_sub_guard")),
                         body: typechecker_missing_expr("missing_stream_sub_body"),
@@ -67831,30 +69710,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 ],
             },
             TypecheckerPassCoverageCase {
-                label: "Assert",
-                stmt: Stmt::Assert(
-                    "Fact".to_string(),
-                    vec![typechecker_missing_expr("missing_assert_arg")],
-                ),
-                coverage: visits,
-                diagnostic_markers: vec!["missing_assert_arg"],
-            },
-            TypecheckerPassCoverageCase {
-                label: "Retract",
-                stmt: Stmt::Retract(
-                    "Fact".to_string(),
-                    vec![typechecker_missing_expr("missing_retract_arg")],
-                ),
-                coverage: visits,
-                diagnostic_markers: vec!["missing_retract_arg"],
-            },
-            TypecheckerPassCoverageCase {
-                label: "Abort",
-                stmt: Stmt::Abort,
-                coverage: ignored,
-                diagnostic_markers: vec![],
-            },
-            TypecheckerPassCoverageCase {
                 label: "Expr",
                 stmt: typechecker_expr_stmt("missing_expr_stmt"),
                 coverage: visits,
@@ -67870,6 +69725,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "Defn",
             "TypeDecl",
             "Rule",
+            "PreludeBoundary",
             "Use",
             "Import",
             "QualifiedImport",
@@ -67887,9 +69743,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "Invariant",
             "Prove",
             "Explore",
-            "Assert",
-            "Retract",
-            "Abort",
             "Expr",
         ]
         .into_iter()
@@ -68040,7 +69893,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
     #[test]
     fn prove_rejects_unknown_invariant_target() {
-        let source = "= condition = true\n? assert(condition)";
+        let source = "? assert";
         let diags = check_source_for_diagnostics(source);
 
         assert!(
@@ -68111,6 +69964,324 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let mut env = interpreter.default_env();
 
         interpreter.run_program(&stmts, &mut env);
+    }
+
+    #[test]
+    fn unchecked_rule_guards_use_guarded_failure_channels_without_fallback() {
+        for source in [
+            "| allowed(value) -> { @ print(\"wrong branch\") True } under value\n| allowed(value) -> { @ print(\"wrong fallback\") True }\n= result = allowed(1)\n",
+            "| allowed(value) -> { @ print(\"wrong fallback\") True }\n| exception special allowed(value) -> { @ print(\"wrong branch\") True } under value\n= result = allowed(1)\n",
+            "| allowed(1)\n| exception special allowed(value) -> True under value\n= result = findall(x, allowed(x))\n",
+            "| allowed(value) -> True under 1\n= result = findall(x, allowed(x))\n",
+        ] {
+            let statements = parse_test_program(source).unwrap();
+            for mode in ["calculation", "ground", "ordinary"] {
+                let mut interpreter = Interpreter::new();
+                interpreter.suppress_output = true;
+                let mut env = interpreter.default_env();
+                match mode {
+                    "calculation" => {
+                        let result = interpreter.with_calculation_runtime(|interpreter| {
+                            interpreter.run_program(&statements, &mut env)
+                        });
+                        assert!(matches!(result,
+                            Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                                if message.contains("guard must return Bool")), "{source}: {result:?}");
+                    }
+                    "ground" => {
+                        interpreter.ground_collection_limit = Some(1024);
+                        interpreter.run_program(&statements, &mut env);
+                        let error = interpreter.ground_error.take();
+                        assert!(matches!(error,
+                            Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                                if message.contains("guard must return Bool")), "{source}: {error:?}");
+                    }
+                    _ => {
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            interpreter.run_program(&statements, &mut env)
+                        }));
+                        let error = result.expect_err("unchecked malformed guard must fail");
+                        let message = error.downcast_ref::<String>().map(String::as_str)
+                            .or_else(|| error.downcast_ref::<&str>().copied()).unwrap_or("");
+                        assert!(message.contains("guard must return Bool"), "{source}: {message}");
+                    }
+                }
+                assert!(interpreter.output.is_empty(), "{source}: {:?}", interpreter.output);
+            }
+        }
+    }
+
+    #[test]
+    fn unchecked_non_boolean_invariant_uses_guarded_failure_channels() {
+        let statements = parse_test_program(
+            "| non_boolean: 1 -> 11\n? non_boolean -> { @ print(\"wrong pass\") } else { @ print(\"wrong false\") }\n",
+        ).unwrap();
+        for calculation in [true, false] {
+            let mut interpreter = Interpreter::new();
+            let mut env = interpreter.default_env();
+            if calculation {
+                let result = interpreter.with_calculation_runtime(|interpreter| {
+                    interpreter.run_program(&statements, &mut env)
+                });
+                assert!(
+                    matches!(result,
+                    Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                        if message.contains("predicate must return Bool")),
+                    "{result:?}"
+                );
+            } else {
+                interpreter.ground_collection_limit = Some(1024);
+                interpreter.run_program(&statements, &mut env);
+                let error = interpreter.ground_error.take();
+                assert!(
+                    matches!(error,
+                    Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                        if message.contains("predicate must return Bool")),
+                    "{error:?}"
+                );
+            }
+            assert!(interpreter.output.is_empty());
+        }
+    }
+
+    #[test]
+    fn function_depth_guard_restores_after_guarded_failure_and_unwind() {
+        std::thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(|| {
+            let statements = parse_test_program(
+                "> forever() -> Int { forever() }\n> healthy(n: Int) -> Int { n + 1 }\n"
+            ).unwrap();
+            for mode in ["calculation", "ground", "ordinary"] {
+                let mut interpreter = Interpreter::new();
+                let mut env = interpreter.default_env();
+                interpreter.run_program(&statements, &mut env);
+                let query = parse_expr_from("forever()");
+                match mode {
+                    "calculation" => {
+                        let result = interpreter.with_calculation_runtime(|runtime| runtime.eval(&query, &env));
+                        assert!(matches!(result,
+                            Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                            if message.contains("function call `forever`") && message.contains("recursion limit")), "{result:?}");
+                    }
+                    "ground" => {
+                        interpreter.ground_collection_limit = Some(1024);
+                        interpreter.eval(&query, &env);
+                        let result = interpreter.ground_error.take();
+                        assert!(matches!(result,
+                            Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                            if message.contains("function call `forever`") && message.contains("recursion limit")), "{result:?}");
+                        interpreter.ground_collection_limit = None;
+                    }
+                    _ => {
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            interpreter.eval(&query, &env)
+                        }));
+                        assert!(result.is_err());
+                    }
+                }
+                assert_eq!(interpreter.runtime_function_call_depth.get(), 0, "{mode}");
+                assert!(matches!(interpreter.eval(&parse_expr_from("healthy(41)"), &env), Value::Int(42)));
+                assert_eq!(interpreter.runtime_function_call_depth.get(), 0, "{mode}");
+            }
+        }).expect("spawn function recursion runtime").join().expect("join function recursion runtime");
+    }
+
+    #[test]
+    fn invalid_float_precision_uses_guarded_failure_channels() {
+        for precision in [-1, i64::MIN, 65536, i64::MAX] {
+            for number in [Value::Float(3.14159), Value::Int(7)] {
+                for calculation in [true, false] {
+                    let mut interpreter = Interpreter::new();
+                    let env = interpreter.default_env();
+                    let args = vec![number.clone(), Value::Int(precision)];
+                    if calculation {
+                        let result = interpreter.with_calculation_runtime(|runtime| {
+                            runtime.eval_builtin("format_float", args, &env)
+                        });
+                        assert!(
+                            matches!(result,
+                            Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                            if message.contains("format_float precision must be between")),
+                            "{result:?}"
+                        );
+                    } else {
+                        interpreter.ground_collection_limit = Some(1024);
+                        interpreter.eval_builtin("format_float", args, &env);
+                        let result = interpreter.ground_error.take();
+                        assert!(
+                            matches!(result,
+                            Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                            if message.contains("format_float precision must be between")),
+                            "{result:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unmatched_runtime_values_use_guarded_failure_channels() {
+        let statements = parse_test_program("= result = match 1 { | 0 -> 99 }\n").unwrap();
+        for calculation in [true, false] {
+            let mut interpreter = Interpreter::new();
+            let mut env = interpreter.default_env();
+            if calculation {
+                let result = interpreter
+                    .with_calculation_runtime(|runtime| runtime.run_program(&statements, &mut env));
+                assert!(
+                    matches!(result,
+                    Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                    if message.contains("no arm matched")),
+                    "{result:?}"
+                );
+            } else {
+                interpreter.ground_collection_limit = Some(1024);
+                interpreter.run_program(&statements, &mut env);
+                let result = interpreter.ground_error.take();
+                assert!(
+                    matches!(result,
+                    Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                    if message.contains("no arm matched")),
+                    "{result:?}"
+                );
+            }
+        }
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            interpreter.run_program(&statements, &mut env)
+        }));
+        assert!(result.is_err(), "unchecked ordinary matches must fail too");
+    }
+
+    #[test]
+    fn invalid_length_values_use_guarded_failure_channels() {
+        for value in [
+            Value::Int(1),
+            Value::Bool(true),
+            Value::Map(BTreeMap::new()),
+            Value::Set(BTreeMap::new()),
+            Value::Constructor("Some".into(), vec![Value::Int(1)].into()),
+            Value::Constructor("Cons".into(), vec![Value::Int(1), Value::Int(2)].into()),
+        ] {
+            for calculation in [true, false] {
+                let mut interpreter = Interpreter::new();
+                let env = interpreter.default_env();
+                if calculation {
+                    let result = interpreter.with_calculation_runtime(|runtime| {
+                        runtime.eval_builtin("length", vec![value.clone()], &env)
+                    });
+                    assert!(
+                        matches!(result,
+                        Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                        if message == "length expects List or String"),
+                        "{result:?}"
+                    );
+                } else {
+                    interpreter.ground_collection_limit = Some(1024);
+                    interpreter.eval_builtin("length", vec![value.clone()], &env);
+                    let result = interpreter.ground_error.take();
+                    assert!(
+                        matches!(result,
+                        Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                        if message == "length expects List or String"),
+                        "{result:?}"
+                    );
+                }
+                assert!(interpreter.output.is_empty());
+            }
+        }
+        let nil = Value::Constructor("Nil".into(), vec![].into());
+        let cons = Value::Constructor("Cons".into(), vec![Value::Int(1), nil.clone()].into());
+        assert_eq!(list_length(&nil), 0);
+        assert_eq!(list_length(&cons), 1);
+        assert!(std::panic::catch_unwind(|| list_length(&Value::Int(1))).is_err());
+    }
+
+    #[test]
+    fn undefined_integer_arithmetic_uses_guarded_failure_channels() {
+        for expression in [
+            "maximum + 1",
+            "minimum - 1",
+            "maximum * 2",
+            "minimum / -1",
+            "minimum % -1",
+            "maximum / 0",
+            "maximum % 0",
+            "-minimum",
+            "abs(minimum)",
+            "sum_list([maximum, 1])",
+            "sum(from_list([maximum, 1]))",
+        ] {
+            for calculation in [true, false] {
+                // Ground expressions are pure; calculations additionally must
+                // suppress output after a failed value has been recorded.
+                let output = if calculation {
+                    "@ print(show(result))\n"
+                } else {
+                    ""
+                };
+                let source = format!(
+                    "= maximum = 9223372036854775807\n= minimum = -maximum - 1\n= result = {expression}\n{output}"
+                );
+                let statements = parse_test_program(&source).unwrap();
+                let mut interpreter = Interpreter::new();
+                let mut env = interpreter.default_env();
+                if calculation {
+                    let result = interpreter.with_calculation_runtime(|runtime| {
+                        runtime.run_program(&statements, &mut env)
+                    });
+                    assert!(
+                        matches!(result,
+                        Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                        if message.contains("overflow")),
+                        "{expression}: {result:?}"
+                    );
+                } else {
+                    interpreter.ground_collection_limit = Some(1024);
+                    interpreter.run_program(&statements, &mut env);
+                    let result = interpreter.ground_error.take();
+                    assert!(
+                        matches!(result,
+                        Some(ExploreRuntimeFailure::RuntimeError { ref message })
+                        if message.contains("overflow")),
+                        "{expression}: {result:?}"
+                    );
+                }
+                assert!(interpreter.output.is_empty(), "{expression}");
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_if_conditions_never_execute_branch_effects_in_guarded_modes() {
+        for condition in ["()", "1 < \"a\""] {
+            let source = format!(
+                "= result = if {condition} {{ @ print(\"wrong then\"); 1 }} else {{ @ print(\"wrong else\"); 2 }}\n"
+            );
+            let statements = parse_test_program(&source).unwrap();
+            for calculation in [true, false] {
+                let mut interpreter = Interpreter::new();
+                let mut env = interpreter.default_env();
+                if calculation {
+                    let result = interpreter.with_calculation_runtime(|interpreter| {
+                        interpreter.run_program(&statements, &mut env)
+                    });
+                    assert!(
+                        matches!(result, Err(CalculationRuntimeFailure::InvalidValue(_))),
+                        "{result:?}"
+                    );
+                } else {
+                    interpreter.ground_collection_limit = Some(1024);
+                    interpreter.run_program(&statements, &mut env);
+                    assert!(matches!(
+                        interpreter.ground_error.take(),
+                        Some(ExploreRuntimeFailure::RuntimeError { .. })
+                    ));
+                }
+                assert!(interpreter.output.is_empty(), "{condition}");
+            }
+        }
     }
 
     #[test]
@@ -69225,15 +71396,6 @@ handle <- Left
     )
 }
 
-assert Fact(
-    1,
-    "active",
-)
-retract Fact(
-    1,
-    "active",
-)
-
 = handled = | handle Console {
     | write(
         message,
@@ -69251,12 +71413,6 @@ retract Fact(
         assert!(
             matches!(&statements[0], Stmt::Use(path) if path == "std::collections::{HashMap, BTreeMap}")
         );
-        assert!(statements
-            .iter()
-            .any(|statement| matches!(statement, Stmt::Assert(_, args) if args.len() == 2)));
-        assert!(statements
-            .iter()
-            .any(|statement| matches!(statement, Stmt::Retract(_, args) if args.len() == 2)));
     }
 
     #[test]

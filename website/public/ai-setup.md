@@ -30,6 +30,25 @@ Use the [runtime compatibility check](#tax-audit-runtime-check) on the exact
 binary selected. If it fails, build from this checkout or obtain a newer verified
 release that passes it; do not proceed using an older binary.
 
+## Running shared models
+
+Treat a `.runa` model and its dependencies as executable code. Review their
+source and `runa.toml` before running a model obtained from someone else.
+The command name alone does not establish that it only inspects source:
+
+- Full `runa check` can evaluate `@ comptime` effects and build declared Rust
+  dependencies, including their build scripts.
+- `runa audit` currently initializes the program by executing top-level code.
+- A calculation rejects direct effects in its entry, but a called helper can
+  still perform effects. `runa call` is not an operating-system sandbox.
+- Resolving project dependencies, including through the editor, can fetch Git
+  repositories declared by the project.
+
+Use a separate environment with restricted file and network access when the
+source is untrusted. Keep private documents and credentials outside that
+environment. A successful check, schema, or audit is not an assurance that
+executing the model is safe.
+
 ## Your task
 
 1. Establish which operating system and processor will actually run `runa`.
@@ -489,8 +508,13 @@ to the valid subset and report every exclusion.
 
 Start with the
 [law-exploration workbook](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/exploration-workbook.md)
-and run its
+and inspect its
 [income-cliff audit](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa).
+The complete audit evaluates the full tax model 980 times across 490 transitions
+before printing its report. Allow for a substantial run and plan the search
+scope and time budget before starting it. Use the weather example or the small
+typed calculation above to check an installation. The workbook gives the
+execution commands; runtime varies with the compiler and model version.
 
 ### Encode a contract
 

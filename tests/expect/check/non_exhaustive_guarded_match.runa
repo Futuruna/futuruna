@@ -1,0 +1,13 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: non-exhaustive match
+
+# Color = Red | Green | Blue
+
+> name(color: Color) -> String {
+    match color {
+        | Red -> "red"
+        | Green -> "green"
+        | Blue if False -> "blue"
+    }
+}

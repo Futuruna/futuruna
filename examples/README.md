@@ -5,7 +5,7 @@ For a guided first program, start with the [tutorial](../docs/tutorial/README.md
 | Collection | Purpose |
 | --- | --- |
 | [Tutorial tax model](tutorial_tax.runa) and [scenarios](tutorial_tax.scenario.runa) | Small rule-model example |
-| [Applications](apps/README.md) | Inventory, link shortener, log analyzer, and task tracker demonstrations |
+| [Applications](apps/README.md) | Link shortener and log analyzer demonstrations |
 | [Rust inputs](from-rust/) | Source inputs for `runa from-rust` |
 | [Lexer](lexer.runa), [parser](parser.runa), and [parser audit](parser.audit.runa) | Futuruna compiler-component experiments |
 | [Danish income tax](danish-income-tax/website-overblik.md) | Research corpus with source provenance, scenarios, audits, and calculations |

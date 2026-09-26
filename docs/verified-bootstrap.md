@@ -8,6 +8,13 @@ Today Futuruna can check explicit proof terms with a small proof kernel and can 
 
 That is a real proof-carrying compiler fragment. It is not yet a verified Futuruna compiler.
 
+The kernel checks the toy models' mathematical lowering equations. Their
+recursive arithmetic is not a certificate that every evaluation completes
+within runtime `i64` and operational limits. The semantic `runa verify` path
+must discharge runtime arithmetic obligations separately and currently leaves
+these recursive arithmetic claims unsupported. Kernel unit tests alone do not
+establish a successful CLI proof over machine executions.
+
 ## Trust Boundary Today
 
 The current trust boundary is deliberately wider than the proof kernel alone.

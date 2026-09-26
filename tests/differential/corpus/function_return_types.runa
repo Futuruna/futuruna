@@ -1,0 +1,19 @@
+> identity(value: a) -> a { value }
+> empty(flag: Bool) -> List(Int) { if flag { [] } else { [1] } }
+> option_value(value: Option(Int)) -> Int {
+    match value { | Some(n) -> n | None -> 0 }
+}
+> make_adder(offset: Int) -> Int -> Int { (|value: Int| value + offset) }
+> apply_fn(value: Int, callback: Int -> Int) -> Int { callback(value) }
+> text(flag: Bool) -> String {
+    = greeting = "hello"
+    if flag { greeting } else { "goodbye" }
+}
+
+@ print(show(identity(42)))
+@ print(show(length(empty(True))))
+@ print(show(option_value(Some(7))))
+= add_two = make_adder(2)
+@ print(show(add_two(40)))
+@ print(show(apply_fn(41, |n: Int| n + 1)))
+@ print(text(True))

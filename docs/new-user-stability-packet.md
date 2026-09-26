@@ -63,7 +63,6 @@ Read this with:
 | `runa verify` theorem elaboration | Preview | Proof workflows, computation-lemma checker, selected tests | The compiler still decides which theorem to ask the kernel/solver to check | Add theorem-shape validation and snapshots before production promotion. |
 | Proof-backed compiler checking | Research-grade but strategically important | Computation-lemma validation and ownership-reuse translation check | Most compiler passes remain trusted Rust | Add the next translation-checked slice for import normalization/export preservation. |
 | WASM artifacts | Preview | WASM tests and canary with explicit missing-tool skip | JS/ABI/package shape is not frozen | Decide where `wasm-pack` is required and add package-shape expectations. |
-| `@ persist` and SQL-backed storage | Research-grade | Storage canaries and phase expectations | SQL schema/migration/runtime behavior still needs broader contracts | Finish storage phase work before any production claim. |
 | Law/constitution examples | Research-grade examples | Example checks and semantic pressure tests | Not legal advice, not legal-production reasoning | Keep as stress/examples; do not market as production legal semantics. |
 | `runa audit`, LSP, exploratory tooling | Research-grade or preview | Limited tests and feature-stage labels | Output/interface shape is not frozen | Add contracts and canaries before treating as first-user-critical. |
 

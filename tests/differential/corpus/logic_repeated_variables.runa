@@ -1,0 +1,10 @@
+| edge("a", "b")
+| edge("b", "c")
+| same(x: Int, x: Int)
+| has_self_loop() -> edge(n, n), True
+
+assert(same(1, 1))
+assert(not(same(1, 2)))
+assert(not(has_self_loop()))
+assert(length(findall(n, edge(n, n))) == 0)
+@ print("repeated logic variables passed")

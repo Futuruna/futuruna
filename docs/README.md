@@ -12,6 +12,7 @@ and historical material live.
 - [First-run contract](first-run-contract.md) and [AI setup](../website/public/ai-setup.md)
 - [Calculation contracts](reference/calculations.md) and [Rust interop](from-rust-contract.md)
 - [Artifact/codegen contracts](artifact-codegen-contracts.md) and [library hygiene](library-hygiene.md)
+- [CLI diagnostics](cli-diagnostics.md): runtime errors, terminal output and JSON check reports
 
 ## Implementation and verification
 

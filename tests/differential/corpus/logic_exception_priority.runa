@@ -1,0 +1,12 @@
+-- Reviewer #13: enumerating a rule must preserve its exception priority.
+| sanctioned("ann")
+| eligible("ann")
+| eligible("bob")
+| exception sanctions eligible(person) -> False under sanctioned(person)
+| anyone_but_bob() -> eligible(person), person != "bob"
+
+assert(not(eligible("ann")))
+assert(eligible("bob"))
+assert(findall(person, eligible(person)) == ["bob"])
+assert(not(anyone_but_bob()))
+@ print("logic exception priority passed")

@@ -3,9 +3,19 @@
 //! This binary provides the CLI interface for the Futuruna compiler.
 //! Core language implementation is in the library crate (src/lib.rs).
 
+mod runa_check_output;
 mod runa_explore_heap;
 mod runa_explore_retry;
 mod runa_explore_supervisor;
+mod runa_parse_diagnostics;
+mod runa_verification_arithmetic;
+
+macro_rules! status_eprintln {
+    ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), true, true) }};
+}
+macro_rules! status_println {
+    ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), false, true) }};
+}
 
 use futuruna::*;
 use quote::ToTokens;
@@ -28,6 +38,25 @@ static RUSTC_FINGERPRINT: OnceLock<Option<String>> = OnceLock::new();
 fn unique_temp_workspace(prefix: &str) -> PathBuf {
     let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("{prefix}-{}-{sequence}", std::process::id()))
+}
+
+// Claim a new directory atomically. A stale process ID or another compiler
+// invocation must never make us reuse a different build's writable artifacts.
+fn create_native_build_workspace(parent: &Path) -> std::io::Result<PathBuf> {
+    std::fs::create_dir_all(parent)?;
+    for _ in 0..128 {
+        let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = parent.join(format!("build-{}-{sequence}", std::process::id()));
+        match std::fs::create_dir(&path) {
+            Ok(()) => return Ok(path),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::AlreadyExists,
+        "could not claim a fresh native build directory",
+    ))
 }
 
 fn feature_stage_metadata_json() -> &'static str {
@@ -85,6 +114,7 @@ fn main_inner() {
     let mut verify_mode = false; // --verify flag for `runa from-rust --verify`
     let mut fmt_check = false; // --check flag for `runa fmt --check`
     let mut check_frontend_only = false; // --frontend flag for `runa check --frontend`
+    let mut check_json = false;
     let mut use_fir = false; // --fir flag for `runa emit --fir`
     let mut emit_imports = false; // --imports flag for `runa emit --imports`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
@@ -204,6 +234,10 @@ fn main_inner() {
                 i += 1;
             }
             "--json" if mode == "feature-stages" => {
+                i += 1;
+            }
+            "--json" if mode == "check" => {
+                check_json = true;
                 i += 1;
             }
             "--json" if mode == "meta" => {
@@ -477,6 +511,7 @@ fn main_inner() {
             "--help" | "-h" | "help" => {
                 eprintln!("runa — the Futuruna compiler");
                 eprintln!("Usage: runa [COMMAND] [OPTIONS] <file.runa|directory>");
+                eprintln!("Source commands require an explicit file, such as src/main.runa.");
                 eprintln!();
                 eprintln!("Commands:");
                 eprintln!("  (none)        Interpret directly (default)");
@@ -488,6 +523,7 @@ fn main_inner() {
                 eprintln!("  run           Compile and execute");
                 eprintln!("  lib           Emit Rust library source (no main)");
                 eprintln!("  hashes        Show content hashes for all definitions");
+                eprintln!("  registry      Update the source file's definition-hash registry");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse, type-check, generate, and validate Rust");
                 eprintln!("  check --frontend  Skip Rust generation and backend validation");
@@ -522,6 +558,7 @@ fn main_inner() {
                 eprintln!("  --version     Show version");
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
                 eprintln!("  check --frontend  Run frontend validation only");
+                eprintln!("  check --json      Emit one structured diagnostic report");
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
@@ -905,8 +942,7 @@ fn main_inner() {
 
     // ── runa lsp — language server ──
     if mode == "lsp" {
-        run_lsp_server();
-        return;
+        std::process::exit(run_lsp_server());
     }
 
     // ── runa from-rust [--test|--verify] <file.rs|dir> — transpile Rust → Futuruna ──
@@ -1051,6 +1087,29 @@ fn main_inner() {
             );
             return;
         }
+        if std::path::Path::new(path).is_dir() {
+            let command = if mode == "interpret" {
+                "runa".to_string()
+            } else {
+                format!("runa {mode}")
+            };
+            let message = format!(
+                "{command} requires a source file, not a directory; \
+                 pass a filename such as src/main.runa"
+            );
+            if mode == "check" && check_json {
+                runa_check_output::CheckOutput {
+                    filename: path,
+                    source: "",
+                    frontend_only: check_frontend_only,
+                    json: true,
+                }
+                .failure("usage", message);
+            } else {
+                eprintln!("error: {message}");
+            }
+            std::process::exit(1);
+        }
         match std::fs::read_to_string(path) {
             Ok(source) => match mode {
                 "emit" if emit_imports => {
@@ -1065,7 +1124,9 @@ fn main_inner() {
                 "interface" => print_semantic_interface_graph(&source, path, use_prelude),
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
-                "check" => check_source(&source, path, use_prelude, check_frontend_only),
+                "check" => {
+                    check_source(&source, path, use_prelude, check_frontend_only, check_json)
+                }
                 "meta" => print_meta_index(
                     &source,
                     path,
@@ -1101,10 +1162,37 @@ fn main_inner() {
                 _ => run_source(&source, path, use_prelude),
             },
             Err(e) => {
-                eprintln!("Error reading {}: {}", path, e);
+                if mode == "check" && check_json {
+                    runa_check_output::CheckOutput {
+                        filename: path,
+                        source: "",
+                        frontend_only: check_frontend_only,
+                        json: true,
+                    }
+                    .failure("read", format!("Error reading {path}: {e}"));
+                } else {
+                    eprintln!("Error reading {}: {}", path, e);
+                }
                 std::process::exit(1);
             }
         }
+    } else if mode == "check" && check_json {
+        runa_check_output::CheckOutput {
+            filename: "",
+            source: "",
+            frontend_only: check_frontend_only,
+            json: true,
+        }
+        .failure(
+            "usage",
+            "runa check --json requires a source filename".into(),
+        );
+        std::process::exit(1);
+    } else if mode != "interpret" {
+        eprintln!("error: runa {mode} requires a source filename");
+        eprintln!("Usage: runa {mode} [OPTIONS] <file.runa>");
+        eprintln!("For an initialized project, pass src/main.runa explicitly.");
+        std::process::exit(1);
     } else {
         // REPL mode
         run_repl();
@@ -1128,10 +1216,12 @@ fn print_explore_supervisor_operational_report(
     );
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v7";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v8";
+const CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v7";
 const CALCULATION_XLSX_LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
+const CALCULATION_XLSX_STRING_HELP: &str = "For empty text, enter \"\" (two double quotes). Clearing a cell means no value. For text starting with a double quote, use JSON string quoting.";
 const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
 const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 2;
 const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
@@ -2108,10 +2198,18 @@ fn read_calculation_template_input(
             .collect::<Vec<_>>()
             .join("; "));
     }
+    let mut errors = Vec::new();
     for case in &envelope.cases {
-        contract.decode_input(&case.input).map_err(|error| {
-            format!("case `{}` {}: {}", case.case_id, error.path, error.message)
-        })?;
+        if let Err(diagnostics) = contract.decode_input_diagnostics(&case.input) {
+            errors.extend(
+                diagnostics.into_iter().map(|error| {
+                    format!("case `{}` {}: {}", case.case_id, error.path, error.message)
+                }),
+            );
+        }
+    }
+    if !errors.is_empty() {
+        return Err(errors.join("; "));
     }
     Ok(envelope)
 }
@@ -2650,6 +2748,9 @@ fn write_calculation_xlsx_collection_sheet(
         }
         calculate::CalculationCollectionKind::Map => {
             worksheet.set_column_width(payload_start, 28)?;
+            let note =
+                rust_xlsxwriter::Note::new(CALCULATION_XLSX_STRING_HELP).set_author("Futuruna");
+            worksheet.insert_note(1, payload_start, &note)?;
             payload_start += 1;
         }
         calculate::CalculationCollectionKind::Set => {}
@@ -2688,7 +2789,7 @@ fn write_calculation_xlsx_collection_sheet(
                 worksheet.write_string_with_format(
                     row,
                     excel_column,
-                    item.key.as_deref().unwrap_or(""),
+                    calculation_xlsx_string(item.key.as_deref().unwrap_or("")),
                     &text_format,
                 )?;
                 excel_column += 1;
@@ -2960,6 +3061,12 @@ fn add_calculation_xlsx_column_note(
     column: &calculate::CalculationColumn,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
     let mut lines = vec![format!("Futuruna path: {}", column.input_path)];
+    if matches!(
+        column.encoding,
+        calculate::CalculationColumnEncoding::String
+    ) {
+        lines.push(CALCULATION_XLSX_STRING_HELP.to_string());
+    }
     if let Some(metadata) = column.metadata.as_ref() {
         if let Some(question) = &metadata.question {
             lines.push(format!("Question: {question}"));
@@ -3085,8 +3192,17 @@ fn write_calculation_xlsx_value(
                 worksheet.write_boolean(row, column_index, value)?;
             }
         }
-        calculate::CalculationColumnEncoding::String
-        | calculate::CalculationColumnEncoding::Character => {
+        calculate::CalculationColumnEncoding::String => {
+            if let Some(value) = value.as_str() {
+                worksheet.write_string_with_format(
+                    row,
+                    column_index,
+                    calculation_xlsx_string(value),
+                    text_format,
+                )?;
+            }
+        }
+        calculate::CalculationColumnEncoding::Character => {
             if let Some(value) = value.as_str() {
                 worksheet.write_string_with_format(row, column_index, value, text_format)?;
             }
@@ -3255,8 +3371,9 @@ fn read_calculation_xlsx(
     }
     let schema = metadata.get("schema").map(String::as_str).unwrap_or("");
     let legacy = schema == CALCULATION_XLSX_LEGACY_INPUT_SCHEMA;
-    if !legacy && schema != CALCULATION_XLSX_INPUT_SCHEMA {
-        return Err(format!("workbook metadata `schema` is `{schema}`, expected `{CALCULATION_XLSX_INPUT_SCHEMA}` or `{CALCULATION_XLSX_LEGACY_INPUT_SCHEMA}`"));
+    let quoted_strings = schema == CALCULATION_XLSX_INPUT_SCHEMA;
+    if !legacy && !quoted_strings && schema != CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA {
+        return Err(format!("workbook metadata `schema` is `{schema}`, expected `{CALCULATION_XLSX_INPUT_SCHEMA}`, `{CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA}` or `{CALCULATION_XLSX_LEGACY_INPUT_SCHEMA}`"));
     }
     for (key, expected) in [
         ("contract_schema", calculate::CONTRACT_SCHEMA),
@@ -3393,7 +3510,7 @@ fn read_calculation_xlsx(
                 }
                 continue;
             }
-            let value = match calculation_json_from_cell(cell, column) {
+            let value = match calculation_json_from_cell(cell, column, quoted_strings) {
                 Ok(value) => value,
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
@@ -3640,26 +3757,51 @@ fn read_calculation_xlsx(
                     column_index += 1;
                 }
                 calculate::CalculationCollectionKind::Map => {
-                    let value = row
-                        .get(column_index)
-                        .map(calculation_cell_text)
-                        .unwrap_or_default();
-                    if value.trim().is_empty() {
-                        diagnostics.push(calculate::CalculationCaseDiagnostic {
-                            case_id: case_id.clone(),
-                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
-                            message: "map key must not be empty".to_string(),
-                        });
-                        row_valid = false;
-                    } else if !seen_keys.insert((case_id.clone(), scope, value.clone())) {
-                        diagnostics.push(calculate::CalculationCaseDiagnostic {
-                            case_id: case_id.clone(),
-                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
-                            message: format!("duplicate map key `{}` for the same parent", value),
-                        });
-                        row_valid = false;
+                    let cell = row.get(column_index).unwrap_or(&Data::Empty);
+                    let text = calculation_cell_text(cell);
+                    let parsed = if quoted_strings {
+                        if matches!(cell, Data::Empty) {
+                            Err("map key cell is empty; enter \"\" for empty text".to_string())
+                        } else {
+                            calculation_xlsx_parse_string(&text, true)
+                        }
+                    } else if text.trim().is_empty() {
+                        Err("map key must not be empty".to_string())
+                    } else {
+                        Ok(text)
+                    };
+                    match parsed {
+                        Ok(value) => {
+                            if !seen_keys.insert((case_id.clone(), scope, value.clone())) {
+                                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                                    case_id: case_id.clone(),
+                                    path: calculation_xlsx_cell_path(
+                                        &table.sheet,
+                                        column_index,
+                                        excel_row,
+                                    ),
+                                    message: format!(
+                                        "duplicate map key `{}` for the same parent",
+                                        value
+                                    ),
+                                });
+                                row_valid = false;
+                            }
+                            key = Some(value);
+                        }
+                        Err(message) => {
+                            diagnostics.push(calculate::CalculationCaseDiagnostic {
+                                case_id: case_id.clone(),
+                                path: calculation_xlsx_cell_path(
+                                    &table.sheet,
+                                    column_index,
+                                    excel_row,
+                                ),
+                                message,
+                            });
+                            row_valid = false;
+                        }
                     }
-                    key = Some(value);
                     column_index += 1;
                 }
                 calculate::CalculationCollectionKind::Set => {}
@@ -3687,7 +3829,7 @@ fn read_calculation_xlsx(
                     column_index += 1;
                     continue;
                 }
-                match calculation_json_from_cell(cell, column) {
+                match calculation_json_from_cell(cell, column, quoted_strings) {
                     Ok(parsed) => {
                         if let Err(error) = calculate::set_calculation_input_path(
                             &mut value,
@@ -4062,9 +4204,28 @@ fn calculation_cell_text(cell: &calamine::Data) -> String {
     }
 }
 
+fn calculation_xlsx_string(value: &str) -> std::borrow::Cow<'_, str> {
+    if value.is_empty() || value.starts_with('"') {
+        std::borrow::Cow::Owned(serde_json::to_string(value).expect("JSON string"))
+    } else {
+        std::borrow::Cow::Borrowed(value)
+    }
+}
+
+fn calculation_xlsx_parse_string(value: &str, quoted_strings: bool) -> Result<String, String> {
+    if quoted_strings && value.starts_with('"') {
+        serde_json::from_str::<String>(value).map_err(|error| {
+            format!("invalid quoted text: {error}; use JSON string quoting, or \"\" for empty text")
+        })
+    } else {
+        Ok(value.to_string())
+    }
+}
+
 fn calculation_json_from_cell(
     cell: &calamine::Data,
     column: &calculate::CalculationColumn,
+    quoted_strings: bool,
 ) -> Result<serde_json::Value, String> {
     use calamine::Data;
 
@@ -4122,7 +4283,9 @@ fn calculation_json_from_cell(
             Ok(serde_json::Value::Bool(value))
         }
         calculate::CalculationColumnEncoding::String => match cell {
-            Data::String(value) => Ok(serde_json::Value::String(value.clone())),
+            Data::String(value) => {
+                calculation_xlsx_parse_string(value, quoted_strings).map(serde_json::Value::String)
+            }
             _ => Err("expected a text cell".to_string()),
         },
         calculate::CalculationColumnEncoding::Character => match cell {
@@ -4582,7 +4745,7 @@ fn write_lock_file(toml_path: &str, manifest: &RunaManifest) {
 fn runa_init(name: &str) {
     let project_dir = std::path::Path::new(name);
     if project_dir.exists() {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31merror\x1b[0m: directory '{}' already exists",
             name
         );
@@ -4592,7 +4755,7 @@ fn runa_init(name: &str) {
     // Create directory structure
     let src_dir = project_dir.join("src");
     if let Err(e) = std::fs::create_dir_all(&src_dir) {
-        eprintln!("\x1b[1;31merror\x1b[0m: cannot create directory: {}", e);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: cannot create directory: {}", e);
         std::process::exit(1);
     }
 
@@ -4610,7 +4773,7 @@ entry = "src/main.runa"
 
     let toml_path = project_dir.join("runa.toml");
     if let Err(e) = std::fs::write(&toml_path, toml_content) {
-        eprintln!("\x1b[1;31merror\x1b[0m: cannot write runa.toml: {}", e);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: cannot write runa.toml: {}", e);
         std::process::exit(1);
     }
 
@@ -4625,11 +4788,11 @@ entry = "src/main.runa"
 
     let main_path = src_dir.join("main.runa");
     if let Err(e) = std::fs::write(&main_path, main_content) {
-        eprintln!("\x1b[1;31merror\x1b[0m: cannot write src/main.runa: {}", e);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: cannot write src/main.runa: {}", e);
         std::process::exit(1);
     }
 
-    eprintln!("\x1b[1;32mCreated\x1b[0m project '{}' with:", name);
+    status_eprintln!("\x1b[1;32mCreated\x1b[0m project '{}' with:", name);
     eprintln!("  {}/runa.toml", name);
     eprintln!("  {}/src/main.runa", name);
     eprintln!();
@@ -4692,7 +4855,7 @@ fn ensure_git_dep(url: &str, rev: Option<&str>) -> Result<String, String> {
     } else {
         // Clone
         std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create cache dir: {}", e))?;
-        eprintln!("\x1b[1;36mCloning\x1b[0m {} ...", url);
+        status_eprintln!("\x1b[1;36mCloning\x1b[0m {} ...", url);
         let status = std::process::Command::new("git")
             .args([
                 "clone",
@@ -4745,7 +4908,7 @@ fn resolve_dep_to_path(spec: &DepSpec, toml_dir: &str) -> Option<String> {
         DepSpec::Git { url, rev } => match ensure_git_dep(url, rev.as_deref()) {
             Ok(path) => Some(path),
             Err(e) => {
-                eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
+                status_eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
                 None
             }
         },
@@ -4758,7 +4921,7 @@ fn runa_add(dep_arg: &str) {
     let toml_path = match find_runa_toml(&cwd.to_string_lossy()) {
         Some(p) => p,
         None => {
-            eprintln!(
+            status_eprintln!(
                 "\x1b[1;31merror\x1b[0m: no runa.toml found in current or parent directories"
             );
             eprintln!("  Run 'runa init <name>' to create a project first");
@@ -4774,7 +4937,7 @@ fn runa_add(dep_arg: &str) {
         match ensure_git_dep(dep_arg, None) {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
+                status_eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }
@@ -4790,7 +4953,7 @@ fn runa_add(dep_arg: &str) {
         };
 
         if !abs_dep.exists() {
-            eprintln!("\x1b[1;31merror\x1b[0m: path '{}' does not exist", dep_arg);
+            status_eprintln!("\x1b[1;31merror\x1b[0m: path '{}' does not exist", dep_arg);
             std::process::exit(1);
         }
 
@@ -4811,7 +4974,7 @@ fn runa_add(dep_arg: &str) {
     let content = match std::fs::read_to_string(&toml_path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("\x1b[1;31merror\x1b[0m: cannot read {}: {}", toml_path, e);
+            status_eprintln!("\x1b[1;31merror\x1b[0m: cannot read {}: {}", toml_path, e);
             std::process::exit(1);
         }
     };
@@ -4820,7 +4983,7 @@ fn runa_add(dep_arg: &str) {
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with(&dep_name) && trimmed.contains('=') {
-            eprintln!(
+            status_eprintln!(
                 "\x1b[1;33mwarning\x1b[0m: dependency '{}' already exists in runa.toml",
                 dep_name
             );
@@ -4832,7 +4995,7 @@ fn runa_add(dep_arg: &str) {
     let new_content = append_dep_to_toml(&content, &dep_line);
 
     if let Err(e) = std::fs::write(&toml_path, new_content) {
-        eprintln!("\x1b[1;31merror\x1b[0m: cannot write {}: {}", toml_path, e);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: cannot write {}: {}", toml_path, e);
         std::process::exit(1);
     }
 
@@ -4849,9 +5012,10 @@ fn runa_add(dep_arg: &str) {
             .unwrap_or_else(|| std::path::Path::new("."));
         pathdiff_relative(&abs_dep, toml_dir)
     };
-    eprintln!(
+    status_eprintln!(
         "\x1b[1;32mAdded\x1b[0m dependency '{}' → {}",
-        dep_name, display
+        dep_name,
+        display
     );
 
     // Regenerate lock file
@@ -4972,10 +5136,29 @@ fn find_rust_tool(name: &str) -> String {
     name.to_string()
 }
 
+fn rust_tool_launch_error(tool: &str, operation: &str, error: &std::io::Error) -> String {
+    let remedy = if error.kind() == std::io::ErrorKind::NotFound {
+        "Install the Rust toolchain from https://rustup.rs, or make an existing installation available to runa."
+    } else {
+        "Check the Rust tool's executable path and permissions."
+    };
+    format!(
+        "Cannot launch `{tool}` for `runa {operation}`: {error}\n\
+         This command requires the Rust toolchain. {remedy}\n\
+         For source without Rust interop, use `runa check --frontend <file.runa>` \
+         for frontend validation, or `runa <file.runa>` for interpreted execution.\n\
+         Frontend validation does not validate generated Rust."
+    )
+}
+
 fn source_dir_for(filename: &str) -> Option<String> {
-    std::path::Path::new(filename)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
+    std::path::Path::new(filename).parent().map(|parent| {
+        if parent.as_os_str().is_empty() {
+            ".".to_string()
+        } else {
+            parent.to_string_lossy().to_string()
+        }
+    })
 }
 
 fn file_stem_for_source(filename: &str, fallback: &str) -> String {
@@ -5258,14 +5441,9 @@ fn use_cached_native_artifact(
     true
 }
 
-fn compiler_validation_diagnostics(
-    stmts: &[Stmt],
-    source_dir: Option<String>,
-    source_name: Option<String>,
-) -> Vec<Diagnostic> {
+fn compiler_validation_diagnostics(stmts: &[Stmt], source_dir: Option<String>) -> Vec<Diagnostic> {
     let mut cg = RustCodegen::new();
     cg.source_dir = source_dir;
-    cg.source_name = source_name;
     cg.collect_compiler_validation_issues(stmts)
 }
 
@@ -5308,9 +5486,6 @@ fn type_check_artifacts_with_backend_metadata(
     collect_backend_metadata: bool,
 ) -> TypeCheckArtifacts {
     let source_dir = source_dir_for(filename);
-    let source_name = std::path::Path::new(filename)
-        .file_stem()
-        .map(|s| s.to_string_lossy().to_string());
     let mut artifacts = if collect_backend_metadata {
         TypeChecker::check_with_backend_artifacts(stmts, source_dir.clone(), source)
     } else {
@@ -5319,11 +5494,7 @@ fn type_check_artifacts_with_backend_metadata(
     if artifacts.diagnostics.is_empty() {
         artifacts
             .diagnostics
-            .extend(compiler_validation_diagnostics(
-                stmts,
-                source_dir,
-                source_name,
-            ));
+            .extend(compiler_validation_diagnostics(stmts, source_dir));
     }
     artifacts
 }
@@ -5383,67 +5554,25 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             cg.install_canonical_rule_metadata(&type_check);
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
 
             let stem = file_stem_for_source(filename, "tau_out");
             let artifact_stem = rust_artifact_stem_for_source(filename, "tau_out");
 
-            // Incremental compilation: hash the generated code, skip if unchanged
-            let code_hash = hash_string(&code);
-
             if cg.cargo_deps.is_empty() {
                 // No dependencies — use raw rustc (fast path)
-                let cache_dir = std::env::temp_dir().join("runa-cache");
-                std::fs::create_dir_all(&cache_dir).ok();
-                let hash_path = cache_dir
-                    .join(format!("{}.hash", artifact_stem))
-                    .to_string_lossy()
-                    .to_string();
-                let cached_bin = cache_dir.join(&artifact_stem).to_string_lossy().to_string();
-
-                // Check if binary exists and hash matches (incremental: skip recompilation)
-                let cached_hash = std::fs::read_to_string(&hash_path).unwrap_or_default();
-                let bin_path = if execute {
-                    cached_bin.clone()
-                } else {
-                    stem.clone()
-                };
-
-                if cached_hash.trim() == code_hash && std::path::Path::new(&cached_bin).exists() {
-                    if let Some(source_graph) = source_graph.clone() {
-                        store_native_artifact_cache(
-                            filename,
-                            use_prelude,
-                            source_graph,
-                            Path::new(&cached_bin),
-                        );
-                    }
-                    eprintln!(
-                        "runa: {} unchanged (hash #{}), using cached binary",
-                        filename,
-                        &code_hash[..8]
-                    );
-                    if execute {
-                        let status = Command::new(&cached_bin).status().unwrap_or_else(|e| {
-                            eprintln!("Error running {}: {}", cached_bin, e);
+                // Reuse only the compiler/source-graph keyed cache checked at
+                // entry. The former stem-only scratch cache ignored compiler
+                // identity and cache controls, and raced concurrent builds.
+                let workspace =
+                    create_native_build_workspace(&std::env::temp_dir().join("runa-native"))
+                        .unwrap_or_else(|error| {
+                            eprintln!("Error creating native build directory: {error}");
                             std::process::exit(1);
                         });
-                        std::process::exit(status.code().unwrap_or(1));
-                    } else if !execute {
-                        // Copy cached binary to output location
-                        std::fs::copy(&cached_bin, &bin_path).ok();
-                        eprintln!("runa: {} -> {} (cached)", filename, bin_path);
-                    }
-                    return;
-                }
-
-                let rs_path = cache_dir
+                let built_binary = workspace.join(&artifact_stem);
+                let rs_path = workspace
                     .join(format!("{}.rs", artifact_stem))
                     .to_string_lossy()
                     .to_string();
@@ -5455,13 +5584,16 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
 
                 let rustc_bin = find_rust_tool("rustc");
                 let rustc = Command::new(&rustc_bin)
-                    .args(&[&rs_path, "-o", &cached_bin, "--edition", "2021"])
+                    .arg(&rs_path)
+                    .arg("-o")
+                    .arg(&built_binary)
+                    .args(["--edition", "2021"])
                     .output();
 
                 match rustc {
                     Ok(output) => {
                         if !output.status.success() {
-                            eprintln!(
+                            status_eprintln!(
                                 "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
                             );
                             eprintln!("  Source: {}", filename);
@@ -5473,43 +5605,60 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                         if !cg.has_raw_rust_blocks {
                             store_rustc_validation_cache(&sha256_hex(code.as_bytes()));
                         }
-                        // Save hash for incremental compilation
-                        std::fs::write(&hash_path, &code_hash).ok();
                         if let Some(source_graph) = source_graph {
                             store_native_artifact_cache(
                                 filename,
                                 use_prelude,
                                 source_graph,
-                                Path::new(&cached_bin),
+                                &built_binary,
                             );
                         }
                         if execute {
-                            let status = Command::new(&cached_bin).status().unwrap_or_else(|e| {
-                                eprintln!("Error running {}: {}", cached_bin, e);
+                            let status = Command::new(&built_binary).status().unwrap_or_else(|e| {
+                                eprintln!("Error running {}: {}", built_binary.display(), e);
                                 std::process::exit(1);
                             });
+                            std::fs::remove_dir_all(&workspace).ok();
                             std::process::exit(status.code().unwrap_or(1));
                         } else {
-                            // Copy from cache to output location
-                            if bin_path != cached_bin {
-                                std::fs::copy(&cached_bin, &bin_path).ok();
-                            }
+                            std::fs::copy(&built_binary, &stem).unwrap_or_else(|error| {
+                                eprintln!("Error copying compiled binary: {error}");
+                                std::process::exit(1);
+                            });
+                            std::fs::remove_dir_all(&workspace).ok();
                             eprintln!(
                                 "runa: {} -> {} ({} lines of Rust)",
                                 filename,
-                                bin_path,
+                                stem,
                                 code.lines().count()
                             );
                         }
                     }
                     Err(e) => {
-                        eprintln!("Error running rustc: {}. Is Rust installed?", e);
+                        eprintln!(
+                            "{}",
+                            rust_tool_launch_error(
+                                "rustc",
+                                if execute { "run" } else { "build" },
+                                &e
+                            )
+                        );
                         std::process::exit(1);
                     }
                 }
             } else {
-                // Has dependencies — generate Cargo project in .runa-build/
-                let build_dir = format!(".runa-build/{}", artifact_stem);
+                // Cargo also needs an owned manifest, source and target tree:
+                // Cargo's build lock alone does not protect our source writes
+                // or the interval between compilation and copying/execution.
+                let build_dir =
+                    create_native_build_workspace(&Path::new(".runa-build").join(&artifact_stem))
+                        .and_then(std::fs::canonicalize)
+                        .unwrap_or_else(|error| {
+                            eprintln!("Error creating Cargo build directory: {error}");
+                            std::process::exit(1);
+                        })
+                        .to_string_lossy()
+                        .into_owned();
                 let src_dir = format!("{}/src", build_dir);
                 std::fs::create_dir_all(&src_dir).unwrap_or_else(|e| {
                     eprintln!("Error creating {}: {}", src_dir, e);
@@ -5557,13 +5706,15 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 let cargo_bin = find_rust_tool("cargo");
                 let cargo = Command::new(&cargo_bin)
                     .args(&["build", "--release"])
+                    .arg("--target-dir")
+                    .arg(Path::new(&build_dir).join("target"))
                     .current_dir(&build_dir)
                     .output();
 
                 match cargo {
                     Ok(output) => {
                         if !output.status.success() {
-                            eprintln!(
+                            status_eprintln!(
                                 "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
                             );
                             eprintln!("  Source: {}", filename);
@@ -5605,7 +5756,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                         }
                     }
                     Err(e) => {
-                        eprintln!("Error running cargo: {}. Is Rust installed?", e);
+                        eprintln!(
+                            "{}",
+                            rust_tool_launch_error(
+                                "cargo",
+                                if execute { "run" } else { "build" },
+                                &e
+                            )
+                        );
                         std::process::exit(1);
                     }
                 }
@@ -5639,15 +5797,10 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             let mut validation_cg = RustCodegen::new();
             validation_cg.lib_mode = true;
             validation_cg.wasm_mode = true;
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                validation_cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            validation_cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            validation_cg.source_dir = source_dir_for(filename);
             let wasm_issues = validation_cg.collect_wasm_export_issues(&stmts);
             if !wasm_issues.is_empty() {
-                eprintln!(
+                status_eprintln!(
                     "\x1b[1;31merror\x1b[0m: unsupported WASM exports in {}",
                     filename
                 );
@@ -5663,12 +5816,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             let mut cg = RustCodegen::new();
             cg.lib_mode = true;
             cg.wasm_mode = true;
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
 
             let stem = std::path::Path::new(filename)
@@ -5758,7 +5906,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             match output {
                 Ok(o) if o.status.success() => {
                     let pkg_dir = format!("{}/pkg", build_dir);
-                    eprintln!("\x1b[1;32mwasm ok\x1b[0m: {} → {}/", filename, pkg_dir);
+                    status_eprintln!("\x1b[1;32mwasm ok\x1b[0m: {} → {}/", filename, pkg_dir);
                     // List generated files
                     if let Ok(entries) = std::fs::read_dir(&pkg_dir) {
                         for entry in entries.flatten() {
@@ -5776,15 +5924,15 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                             }
                         }
                     }
-                    eprintln!("\x1b[2m[{:.1}s]\x1b[0m", elapsed.as_secs_f64());
+                    status_eprintln!("\x1b[2m[{:.1}s]\x1b[0m", elapsed.as_secs_f64());
                 }
                 Ok(o) => {
-                    eprintln!("\x1b[1;31mwasm build failed\x1b[0m:");
+                    status_eprintln!("\x1b[1;31mwasm build failed\x1b[0m:");
                     eprintln!("{}", String::from_utf8_lossy(&o.stderr));
                     std::process::exit(1);
                 }
                 Err(e) => {
-                    eprintln!("\x1b[1;31merror\x1b[0m: cannot run wasm-pack: {}", e);
+                    status_eprintln!("\x1b[1;31merror\x1b[0m: cannot run wasm-pack: {}", e);
                     eprintln!("  Install with: cargo install wasm-pack");
                     std::process::exit(1);
                 }
@@ -6411,11 +6559,23 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             let mut interp = Interpreter::new();
             interp.install_rule_dispatch_metadata(&artifacts);
             // Set source directory for @ import resolution
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                interp.source_dir = Some(parent.to_string_lossy().to_string());
-            }
+            interp.source_dir = source_dir_for(filename);
             let mut env = interp.default_env();
-            let result = interp.run_program(&stmts, &mut env);
+            let result = match interp.run_program_with_diagnostics(
+                &stmts,
+                &mut env,
+                Path::new(filename),
+                source,
+            ) {
+                Ok(value) => value,
+                Err(diagnostic) => {
+                    eprint!(
+                        "{}",
+                        diagnostic.display(source, filename, should_use_color())
+                    );
+                    std::process::exit(1);
+                }
+            };
 
             match result {
                 Value::Unit => {}
@@ -8543,6 +8703,7 @@ fn explore_native_classifier_cache_hash_rule_metadata_v3(
     for keys in [
         &metadata.parameter_issues,
         &metadata.boolean_miss_safe_keys,
+        &metadata.runtime_boolean_miss_keys,
         &metadata.runtime_irrefutable_keys,
     ] {
         explore_native_classifier_cache_hash_usize_v3(hasher, keys.len())?;
@@ -8900,10 +9061,8 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
                 }
             }
         }
-        Stmt::Assert(name, _) | Stmt::Retract(name, _) => {
-            names.insert(name.clone());
-        }
         Stmt::Rule(_)
+        | Stmt::PreludeBoundary
         | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
@@ -8914,7 +9073,6 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
         | Stmt::While(_, _)
         | Stmt::Send(_, _)
         | Stmt::Explore(_)
-        | Stmt::Abort
         | Stmt::Expr(_) => {}
     }
 }
@@ -10249,7 +10407,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
     let target_path = std::path::Path::new(target);
     let mut files = Vec::new();
     if let Err(err) = collect_expectation_files(target_path, &mut files) {
-        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
         std::process::exit(1);
     }
     files.sort();
@@ -10273,7 +10431,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
     let mut skipped = 0usize;
     let mut failures = Vec::new();
 
-    eprintln!(
+    status_eprintln!(
         "\x1b[1mruna expect\x1b[0m: running {} expectation cases from {}\n",
         files.len(),
         target
@@ -10291,7 +10449,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
             Err(err) => {
                 failed += 1;
                 failures.push(name.clone());
-                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, err);
+                status_eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, err);
                 continue;
             }
         };
@@ -10301,14 +10459,14 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
             Err(err) => {
                 failed += 1;
                 failures.push(name.clone());
-                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — {}", name, err);
+                status_eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — {}", name, err);
                 continue;
             }
         };
 
         if let Some(reason) = case.skip {
             skipped += 1;
-            eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, reason);
+            status_eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, reason);
             continue;
         }
 
@@ -10327,9 +10485,10 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
             Err(err) => {
                 failed += 1;
                 failures.push(name.clone());
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}",
-                    name, err
+                    name,
+                    err
                 );
                 continue;
             }
@@ -10384,7 +10543,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
 
         if missing.is_empty() {
             passed += 1;
-            eprintln!(
+            status_eprintln!(
                 "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({} {}, {})\x1b[0m",
                 name,
                 case.command.label(),
@@ -10394,7 +10553,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
         } else {
             failed += 1;
             failures.push(name.clone());
-            eprintln!(
+            status_eprintln!(
                 "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({} {}, {})\x1b[0m",
                 name,
                 missing.join("; "),
@@ -10410,14 +10569,19 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
     let suite_time = short_duration(suite_start.elapsed());
     eprintln!();
     if failed == 0 {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;32mExpectations: {} passed\x1b[0m, {} skipped in {}.",
-            passed, skipped, suite_time
+            passed,
+            skipped,
+            suite_time
         );
     } else {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31mExpectations: {} passed, {} failed\x1b[0m, {} skipped in {}:",
-            passed, failed, skipped, suite_time
+            passed,
+            failed,
+            skipped,
+            suite_time
         );
         for failure in failures {
             eprintln!("  - {}", failure);
@@ -10519,7 +10683,7 @@ fn parse_test_file_kind(raw: &str) -> Result<TestFileKind, String> {
 fn collect_test_paths(dir: &str, kind: TestFileKind) -> Vec<std::path::PathBuf> {
     let path = std::path::Path::new(dir);
     if !path.is_dir() {
-        eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
         std::process::exit(1);
     }
 
@@ -10576,9 +10740,12 @@ fn run_tests_parallel(
     } else {
         "runa test"
     };
-    eprintln!(
+    status_eprintln!(
         "\x1b[1m{}\x1b[0m: running {} tests from {}/ with {} jobs\n",
-        mode_label, total, dir, worker_count
+        mode_label,
+        total,
+        dir,
+        worker_count
     );
 
     let suite_start = Instant::now();
@@ -10648,9 +10815,10 @@ fn run_tests_parallel(
                 }
             }
             Err(error) => {
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}",
-                    name, error
+                    name,
+                    error
                 );
                 failures.push(name);
             }
@@ -10660,12 +10828,13 @@ fn run_tests_parallel(
     let suite_time = short_duration(suite_start.elapsed());
     eprintln!();
     if failures.is_empty() {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;32mAll {} tests passed\x1b[0m in {}.",
-            total, suite_time
+            total,
+            suite_time
         );
     } else {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
             failures.len(),
             total,
@@ -10707,9 +10876,11 @@ fn run_test_paths_serial(
         "runa test"
     };
     if show_suite {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1m{}\x1b[0m: running {} tests from {}/\n",
-            mode_label, total, dir
+            mode_label,
+            total,
+            dir
         );
     }
 
@@ -10731,7 +10902,7 @@ fn run_test_paths_serial(
         let source = match std::fs::read_to_string(&file_path) {
             Ok(source) => source,
             Err(e) => {
-                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, e);
+                status_eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, e);
                 failed += 1;
                 failures.push(name);
                 continue;
@@ -10750,9 +10921,10 @@ fn run_test_paths_serial(
                 } else {
                     format!("{}ms", ms)
                 };
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative test, {})\x1b[0m",
-                    name, time_str
+                    name,
+                    time_str
                 );
                 continue;
             }
@@ -10777,12 +10949,13 @@ fn run_test_paths_serial(
                     };
                     if output.status.success() {
                         if expected_runtime_errors.is_empty() {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
-                                name, time_str
+                                name,
+                                time_str
                             );
                         } else {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;31mFAIL\x1b[0m  {} — expected runtime error but program succeeded \x1b[2m({})\x1b[0m",
                                 name, time_str
                             );
@@ -10796,12 +10969,12 @@ fn run_test_paths_serial(
                             .filter(|expected| !stderr.contains(expected.as_str()))
                             .collect();
                         if missing.is_empty() {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-runtime-error, {})\x1b[0m",
                                 name, time_str
                             );
                         } else {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;31mFAIL\x1b[0m  {} — runtime error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
                                 name, missing, time_str
                             );
@@ -10818,7 +10991,7 @@ fn run_test_paths_serial(
                                     || l.contains("panicked")
                             })
                             .unwrap_or("(compilation or runtime error)");
-                        eprintln!(
+                        status_eprintln!(
                             "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
                             name,
                             err_line.trim(),
@@ -10829,7 +11002,7 @@ fn run_test_paths_serial(
                     }
                 }
                 Err(e) => {
-                    eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}", name, e);
+                    status_eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}", name, e);
                     failed += 1;
                     failures.push(name);
                 }
@@ -10864,12 +11037,13 @@ fn run_test_paths_serial(
                             .all(|expected| stderr.contains(expected.as_str()));
 
                         if did_error && all_found {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-error, {})\x1b[0m",
-                                name, time_str
+                                name,
+                                time_str
                             );
                         } else if !did_error {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;31mFAIL\x1b[0m  {} — expected error but program succeeded \x1b[2m({})\x1b[0m",
                                 name, time_str
                             );
@@ -10880,7 +11054,7 @@ fn run_test_paths_serial(
                                 .iter()
                                 .filter(|e| !stderr.contains(e.as_str()))
                                 .collect();
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;31mFAIL\x1b[0m  {} — error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
                                 name, missing, time_str
                             );
@@ -10889,9 +11063,11 @@ fn run_test_paths_serial(
                         }
                     }
                     Err(e) => {
-                        eprintln!(
+                        status_eprintln!(
                             "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {} \x1b[2m({})\x1b[0m",
-                            name, e, time_str
+                            name,
+                            e,
+                            time_str
                         );
                         failed += 1;
                         failures.push(name);
@@ -10934,12 +11110,13 @@ fn run_test_paths_serial(
                 match result {
                     Ok(Ok(())) => {
                         if expected_runtime_errors.is_empty() {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
-                                name, time_str
+                                name,
+                                time_str
                             );
                         } else {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;31mFAIL\x1b[0m  {} — expected runtime error but program succeeded \x1b[2m({})\x1b[0m",
                                 name, time_str
                             );
@@ -10948,18 +11125,21 @@ fn run_test_paths_serial(
                         }
                     }
                     Ok(Err(e)) => {
-                        eprintln!(
+                        status_eprintln!(
                             "  \x1b[1;31mFAIL\x1b[0m  {} — parse error: {} \x1b[2m({})\x1b[0m",
-                            name, e, time_str
+                            name,
+                            e,
+                            time_str
                         );
                         failed += 1;
                         failures.push(name);
                     }
                     Err(payload) => {
                         if expected_runtime_errors.is_empty() {
-                            eprintln!(
+                            status_eprintln!(
                                 "  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic \x1b[2m({})\x1b[0m",
-                                name, time_str
+                                name,
+                                time_str
                             );
                             failed += 1;
                             failures.push(name);
@@ -10970,12 +11150,12 @@ fn run_test_paths_serial(
                                 .filter(|e| !panic_text.contains(e.as_str()))
                                 .collect();
                             if missing.is_empty() {
-                                eprintln!(
+                                status_eprintln!(
                                     "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-runtime-error, {})\x1b[0m",
                                     name, time_str
                                 );
                             } else {
-                                eprintln!(
+                                status_eprintln!(
                                     "  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic missing expected text: {:?} \x1b[2m({})\x1b[0m",
                                     name, missing, time_str
                                 );
@@ -11006,14 +11186,17 @@ fn run_test_paths_serial(
 
     eprintln!();
     if failed == 0 {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;32mAll {} tests passed\x1b[0m in {}.",
-            total, suite_time
+            total,
+            suite_time
         );
     } else {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
-            failed, total, suite_time
+            failed,
+            total,
+            suite_time
         );
         for f in &failures {
             eprintln!("  - {}", f);
@@ -11113,7 +11296,7 @@ fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) 
         .map(std::time::Duration::from_secs_f64)
         .unwrap_or_else(|| std::time::Duration::from_secs(10));
 
-    eprintln!(
+    status_eprintln!(
         "\x1b[1mruna stress-gen\x1b[0m — generating {} random programs",
         count
     );
@@ -11290,38 +11473,38 @@ fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) 
     }
 
     let elapsed = start.elapsed();
-    eprintln!("\x1b[1mResults:\x1b[0m ({:.1}s)\n", elapsed.as_secs_f64());
-    eprintln!(
+    status_eprintln!("\x1b[1mResults:\x1b[0m ({:.1}s)\n", elapsed.as_secs_f64());
+    status_eprintln!(
         "  \x1b[1;32m{:4}\x1b[0m  pass (interpreter == compiled)",
         pass
     );
     if parse_fail > 0 {
-        eprintln!(
+        status_eprintln!(
             "  \x1b[2m{:4}\x1b[0m  parse fail (invalid generated program)",
             parse_fail
         );
     }
     if codegen_fail > 0 {
-        eprintln!(
+        status_eprintln!(
             "  \x1b[1;33m{:4}\x1b[0m  codegen fail (Rust didn't compile)",
             codegen_fail
         );
     }
     if roundtrip_diverge > 0 {
-        eprintln!(
+        status_eprintln!(
             "  \x1b[1;31m{:4}\x1b[0m  roundtrip diverge (interpreter ≠ compiled)",
             roundtrip_diverge
         );
     }
     if interp_crash > 0 {
-        eprintln!(
+        status_eprintln!(
             "  \x1b[2m{:4}\x1b[0m  interpreter crash/timeout",
             interp_crash
         );
     }
 
     if !failures.is_empty() {
-        eprintln!("\n\x1b[1;31m── Failures ──\x1b[0m\n");
+        status_eprintln!("\n\x1b[1;31m── Failures ──\x1b[0m\n");
         for (id, source, reason, saved) in failures.iter().take(5) {
             eprintln!("  Program #{}: {}", id, reason);
             if let Some(path) = saved {
@@ -11559,7 +11742,7 @@ impl SimpleRng {
 fn run_benchmarks() {
     use std::time::Instant;
 
-    eprintln!("\x1b[1mruna bench\x1b[0m — Performance Baselines\n");
+    status_eprintln!("\x1b[1mruna bench\x1b[0m — Performance Baselines\n");
 
     // Benchmark programs
     let programs = [
@@ -11569,7 +11752,7 @@ fn run_benchmarks() {
     ];
 
     // ── 1. Interpreter benchmarks ──
-    eprintln!("\x1b[1;36m── Interpreter ──\x1b[0m\n");
+    status_eprintln!("\x1b[1;36m── Interpreter ──\x1b[0m\n");
     for (path, desc) in &programs {
         if !std::path::Path::new(path).exists() {
             continue;
@@ -11605,7 +11788,7 @@ fn run_benchmarks() {
     }
 
     // ── 2. Parse + type-check benchmarks ──
-    eprintln!("\n\x1b[1;36m── Parse + Type-check ──\x1b[0m\n");
+    status_eprintln!("\n\x1b[1;36m── Parse + Type-check ──\x1b[0m\n");
     for (path, desc) in &programs {
         if !std::path::Path::new(path).exists() {
             continue;
@@ -11627,7 +11810,7 @@ fn run_benchmarks() {
     }
 
     // ── 3. Codegen (emit) benchmarks ──
-    eprintln!("\n\x1b[1;36m── Codegen (emit Rust) ──\x1b[0m\n");
+    status_eprintln!("\n\x1b[1;36m── Codegen (emit Rust) ──\x1b[0m\n");
     for (path, desc) in &programs {
         if !std::path::Path::new(path).exists() {
             continue;
@@ -11665,7 +11848,7 @@ fn run_benchmarks() {
     }
 
     // ── 4. Test suite benchmark ──
-    eprintln!("\n\x1b[1;36m── Test Suite ──\x1b[0m\n");
+    status_eprintln!("\n\x1b[1;36m── Test Suite ──\x1b[0m\n");
     {
         let start = Instant::now();
         let test_dir = "tests";
@@ -11682,13 +11865,8 @@ fn run_benchmarks() {
                     {
                         continue;
                     }
-                    // Skip noisy tests (DB, HTTP, invariants, stores)
-                    if source.contains("db_open")
-                        || source.contains("http_")
-                        || source.contains("@ store")
-                        || source.contains("? ")
-                        || source.contains("assert Item")
-                    {
+                    // Skip HTTP effects and invariants in this interpreter pass.
+                    if source.contains("http_") || source.contains("? ") {
                         continue;
                     }
                     let mut lexer = Lexer::new(&source);
@@ -11714,7 +11892,7 @@ fn run_benchmarks() {
     }
 
     // ── 5. From-rust transpiler benchmark ──
-    eprintln!("\n\x1b[1;36m── From-rust Transpiler ──\x1b[0m\n");
+    status_eprintln!("\n\x1b[1;36m── From-rust Transpiler ──\x1b[0m\n");
     {
         let dir = "examples/from-rust";
         let p = std::path::Path::new(dir);
@@ -11745,14 +11923,14 @@ fn run_benchmarks() {
     }
 
     // ── 6. Compiler binary size ──
-    eprintln!("\n\x1b[1;36m── Binary Size ──\x1b[0m\n");
+    status_eprintln!("\n\x1b[1;36m── Binary Size ──\x1b[0m\n");
     if let Ok(meta) = std::fs::metadata("target/release/runa") {
         let size_mb = meta.len() as f64 / (1024.0 * 1024.0);
         eprintln!("  {:40} {:>8.1} MB", "runa compiler binary", size_mb);
     }
 
     // ── Summary ──
-    eprintln!("\n\x1b[2m(Run `runa bench` after changes to detect regressions)\x1b[0m");
+    status_eprintln!("\n\x1b[2m(Run `runa bench` after changes to detect regressions)\x1b[0m");
 }
 
 fn print_from_rust_help() {
@@ -11831,9 +12009,9 @@ fn run_from_rust_verify(path: &str) {
         runa_source = harness_source;
     }
     eprintln!("from-rust verify: translated {}", name);
-    eprintln!("\x1b[1;36m── Transpiled: {} → Futuruna ──\x1b[0m\n", name);
+    status_eprintln!("\x1b[1;36m── Transpiled: {} → Futuruna ──\x1b[0m\n", name);
     for (i, line) in runa_source.lines().enumerate() {
-        eprintln!("  \x1b[2m{:3}\x1b[0m  {}", i + 1, line);
+        status_eprintln!("  \x1b[2m{:3}\x1b[0m  {}", i + 1, line);
     }
     eprintln!();
 
@@ -11883,9 +12061,9 @@ fn run_from_rust_verify(path: &str) {
                 "from-rust verify: translated-parse-failed {}: {}",
                 name, first
             );
-            eprintln!("\x1b[1;31mFuturuna parse error:\x1b[0m {}", first);
+            status_eprintln!("\x1b[1;31mFuturuna parse error:\x1b[0m {}", first);
             eprintln!();
-            eprintln!("\x1b[1;36m── Rust output ──\x1b[0m");
+            status_eprintln!("\x1b[1;36m── Rust output ──\x1b[0m");
             for line in rust_output.lines() {
                 eprintln!("  {}", line);
             }
@@ -11914,7 +12092,7 @@ fn run_from_rust_verify(path: &str) {
             name,
             rust_lines.len()
         );
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;32m── Output: MATCH ({} lines) ──\x1b[0m\n",
             rust_lines.len()
         );
@@ -11937,14 +12115,14 @@ fn run_from_rust_verify(path: &str) {
             .min(40);
         let col_width = max_rust_width + 4;
 
-        eprintln!("\x1b[1;31m── Output: DIVERGE ──\x1b[0m\n");
-        eprintln!(
+        status_eprintln!("\x1b[1;31m── Output: DIVERGE ──\x1b[0m\n");
+        status_eprintln!(
             "  \x1b[2m{:<width$}  {}\x1b[0m",
             "Rust",
             "Futuruna",
             width = col_width
         );
-        eprintln!("  \x1b[2m{}\x1b[0m", "─".repeat(col_width + col_width + 2));
+        status_eprintln!("  \x1b[2m{}\x1b[0m", "─".repeat(col_width + col_width + 2));
 
         for i in 0..max_lines {
             let r = rust_lines.get(i).unwrap_or(&"");
@@ -12004,7 +12182,7 @@ fn run_from_rust_tests(path: &str) {
         vec![p.to_path_buf()]
     };
 
-    eprintln!(
+    status_eprintln!(
         "\x1b[1mruna from-rust --test\x1b[0m: verifying {} files\n",
         files.len()
     );
@@ -12020,7 +12198,7 @@ fn run_from_rust_tests(path: &str) {
         let source = match std::fs::read_to_string(file) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("  \x1b[1;31mERROR\x1b[0m  {} — {}", name, e);
+                status_eprintln!("  \x1b[1;31mERROR\x1b[0m  {} — {}", name, e);
                 failed += 1;
                 failures.push(format!("{} (read error)", name));
                 continue;
@@ -12035,7 +12213,7 @@ fn run_from_rust_tests(path: &str) {
                 Ok(_) => {}
                 Err(err) => {
                     expected_unsupported += 1;
-                    eprintln!(
+                    status_eprintln!(
                         "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed {} \x1b[2m({}ms)\x1b[0m",
                         name,
                         reason,
@@ -12056,9 +12234,10 @@ fn run_from_rust_tests(path: &str) {
             Ok(out) if out.status.success() => match Command::new(&tmp_bin).output() {
                 Ok(run) => String::from_utf8_lossy(&run.stdout).to_string(),
                 Err(e) => {
-                    eprintln!(
+                    status_eprintln!(
                         "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(run failed: {})\x1b[0m",
-                        name, e
+                        name,
+                        e
                     );
                     continue;
                 }
@@ -12069,7 +12248,7 @@ fn run_from_rust_tests(path: &str) {
                     .lines()
                     .find(|l| l.contains("error"))
                     .unwrap_or("compile failed");
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m",
                     name,
                     first_err.trim()
@@ -12077,9 +12256,10 @@ fn run_from_rust_tests(path: &str) {
                 continue;
             }
             Err(e) => {
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(rustc: {})\x1b[0m",
-                    name, e
+                    name,
+                    e
                 );
                 continue;
             }
@@ -12092,7 +12272,7 @@ fn run_from_rust_tests(path: &str) {
             Err(err) => {
                 if let Some(reason) = &expected_unsupported_reason {
                     expected_unsupported += 1;
-                    eprintln!(
+                    status_eprintln!(
                         "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed {} \x1b[2m({}ms)\x1b[0m",
                         name,
                         reason,
@@ -12103,7 +12283,7 @@ fn run_from_rust_tests(path: &str) {
                 }
                 failed += 1;
                 failures.push(format!("{} ({})", name, from_rust_error_summary(&err)));
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;31mUNSUPPORTED\x1b[0m  {} - {} \x1b[2m({}ms)\x1b[0m",
                     name,
                     from_rust_error_summary(&err),
@@ -12122,7 +12302,7 @@ fn run_from_rust_tests(path: &str) {
             Err(e) => {
                 if let Some(reason) = &expected_unsupported_reason {
                     expected_unsupported += 1;
-                    eprintln!(
+                    status_eprintln!(
                         "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed parse failure: {} \x1b[2m({}ms)\x1b[0m",
                         name,
                         reason,
@@ -12137,7 +12317,7 @@ fn run_from_rust_tests(path: &str) {
                     name,
                     e.split('\n').next().unwrap_or(&e)
                 ));
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;33mPARSE\x1b[0m  {} — {} \x1b[2m({}ms)\x1b[0m",
                     name,
                     e.split('\n').next().unwrap_or(&e),
@@ -12169,15 +12349,16 @@ fn run_from_rust_tests(path: &str) {
                     "{} (marked expected-unsupported but now matches; remove the directive or promote the fixture; reason: {})",
                     name, reason
                 ));
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;31mXPASS\x1b[0m  {} - marked expected-unsupported but matched \x1b[2m({}ms)\x1b[0m",
                     name, elapsed
                 );
             } else {
                 passed += 1;
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;32mMATCH\x1b[0m  {} \x1b[2m({}ms)\x1b[0m",
-                    name, elapsed
+                    name,
+                    elapsed
                 );
             }
         } else {
@@ -12203,16 +12384,18 @@ fn run_from_rust_tests(path: &str) {
             };
             if let Some(reason) = &expected_unsupported_reason {
                 expected_unsupported += 1;
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed divergence: {} \x1b[2m({}ms)\x1b[0m",
                     name, reason, diff_info, elapsed
                 );
                 continue;
             }
             failed += 1;
-            eprintln!(
+            status_eprintln!(
                 "  \x1b[1;31mDIVERGE\x1b[0m  {} — {} \x1b[2m({}ms)\x1b[0m",
-                name, diff_info, elapsed
+                name,
+                diff_info,
+                elapsed
             );
             failures.push(name.clone());
         }
@@ -12222,18 +12405,21 @@ fn run_from_rust_tests(path: &str) {
     eprintln!();
     if failed == 0 && parse_fail == 0 {
         if expected_unsupported == 0 {
-            eprintln!(
+            status_eprintln!(
                 "\x1b[1;32mFrom-rust: {} matched\x1b[0m in {}.",
-                passed, suite_time
+                passed,
+                suite_time
             );
         } else {
-            eprintln!(
+            status_eprintln!(
                 "\x1b[1;32mFrom-rust: {} matched, {} expected-unsupported\x1b[0m in {}.",
-                passed, expected_unsupported, suite_time
+                passed,
+                expected_unsupported,
+                suite_time
             );
         }
     } else {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31mFrom-rust: {} matched, {} expected-unsupported, {} failed, {} parse-failed\x1b[0m in {}:",
             passed, expected_unsupported, failed, parse_fail, suite_time
         );
@@ -12250,7 +12436,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
 
     let path = std::path::Path::new(dir);
     if !path.is_dir() {
-        eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
         std::process::exit(1);
     }
 
@@ -12270,7 +12456,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
     let mut skipped = 0usize;
     let mut divergences: Vec<String> = Vec::new();
 
-    eprintln!(
+    status_eprintln!(
         "\x1b[1mruna test --roundtrip\x1b[0m: comparing interpreter vs compiled for {} files\n",
         total
     );
@@ -12307,16 +12493,12 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
 
         // Skip tests that need external crates or async (can't compile standalone)
         let needs_skip = source.contains("@ depend")
-            || source.contains("db_open")
-            || source.contains("db_exec")
             || source.contains("http_get")
             || source.contains("http_serve")
             || source.contains("json_parse")
             || source.contains("json_get")
             || source.contains("regex_match")
             || source.contains("regex_find")
-            || source.contains("@ store")
-            || source.contains("@ persist")
             || source.contains("subject(")
             || source.contains("> actor")
             || source.contains("spawn(")
@@ -12379,15 +12561,17 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
                 let compiled_stdout = String::from_utf8_lossy(&o.stdout).to_string();
 
                 if interp_stdout == compiled_stdout {
-                    eprintln!(
+                    status_eprintln!(
                         "  \x1b[1;32mMATCH\x1b[0m {} \x1b[2m({})\x1b[0m",
-                        name, time_str
+                        name,
+                        time_str
                     );
                     matched += 1;
                 } else {
-                    eprintln!(
+                    status_eprintln!(
                         "  \x1b[1;31mDIVERGE\x1b[0m {} \x1b[2m({})\x1b[0m",
-                        name, time_str
+                        name,
+                        time_str
                     );
                     // Show first difference
                     let interp_lines: Vec<&str> = interp_stdout.lines().collect();
@@ -12421,7 +12605,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
                     .lines()
                     .find(|l| l.contains("error"))
                     .unwrap_or("(build failed)");
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;33mSKIP\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
                     name,
                     first_err.trim(),
@@ -12444,14 +12628,19 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
 
     eprintln!();
     if diverged == 0 {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;32mRoundtrip: {} matched\x1b[0m, {} skipped in {}.",
-            matched, skipped, suite_time
+            matched,
+            skipped,
+            suite_time
         );
     } else {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31mRoundtrip: {} matched, {} diverged\x1b[0m, {} skipped in {}:",
-            matched, diverged, skipped, suite_time
+            matched,
+            diverged,
+            skipped,
+            suite_time
         );
         for d in &divergences {
             eprintln!("  - {}", d);
@@ -12464,16 +12653,12 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
 /// Uses rustc directly for no-dep files, skips files that need external crates.
 fn codegen_check_direct_skip_reason(source: &str) -> Option<&'static str> {
     if source.contains("@ depend")
-        || source.contains("db_open")
-        || source.contains("db_exec")
         || source.contains("http_get")
         || source.contains("http_serve")
         || source.contains("json_parse")
         || source.contains("json_get")
         || source.contains("regex_match")
         || source.contains("regex_find")
-        || source.contains("@ store")
-        || source.contains("@ persist")
     {
         return Some("needs external crate");
     }
@@ -12546,7 +12731,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
 
     let path = std::path::Path::new(dir);
     if !path.is_dir() {
-        eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
+        status_eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
         std::process::exit(1);
     }
 
@@ -12566,9 +12751,10 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
     let mut skipped = 0usize;
     let mut failures: Vec<String> = Vec::new();
 
-    eprintln!(
+    status_eprintln!(
         "\x1b[1mruna test --check-codegen\x1b[0m: checking {} files from {}/\n",
-        total, dir
+        total,
+        dir
     );
 
     let suite_start = Instant::now();
@@ -12595,7 +12781,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
         };
         if source.contains("-- expect-error:") || source.contains("-- expect-runtime-error:") {
             skipped += 1;
-            eprintln!(
+            status_eprintln!(
                 "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative/runtime-error test)\x1b[0m",
                 name
             );
@@ -12607,7 +12793,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
         // covered by this lane instead of skipped as external crates.
         if let Some(reason) = codegen_check_skip_reason_for_file(&file_path, &source) {
             skipped += 1;
-            eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, reason);
+            status_eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, reason);
             continue;
         }
 
@@ -12625,7 +12811,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             }
             Err(_) => {
                 skipped += 1;
-                eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(parse error)\x1b[0m", name);
+                status_eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(parse error)\x1b[0m", name);
                 continue;
             }
         };
@@ -12666,9 +12852,10 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
 
         match output {
             Ok(o) if o.status.success() => {
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
-                    name, time_str
+                    name,
+                    time_str
                 );
                 passed += 1;
             }
@@ -12678,7 +12865,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
                     .lines()
                     .find(|l| l.starts_with("error"))
                     .unwrap_or("(unknown error)");
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
                     name,
                     first_err.trim(),
@@ -12688,9 +12875,11 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
                 failures.push(name);
             }
             Err(e) => {
-                eprintln!(
+                status_eprintln!(
                     "  \x1b[1;31mFAIL\x1b[0m  {} — rustc error: {} \x1b[2m({})\x1b[0m",
-                    name, e, time_str
+                    name,
+                    e,
+                    time_str
                 );
                 failed += 1;
                 failures.push(name);
@@ -12710,14 +12899,19 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
 
     eprintln!();
     if failed == 0 {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;32mCodegen: {} passed\x1b[0m, {} skipped in {}.",
-            passed, skipped, suite_time
+            passed,
+            skipped,
+            suite_time
         );
     } else {
-        eprintln!(
+        status_eprintln!(
             "\x1b[1;31mCodegen: {} passed, {} failed\x1b[0m, {} skipped in {}:",
-            passed, failed, skipped, suite_time
+            passed,
+            failed,
+            skipped,
+            suite_time
         );
         for f in &failures {
             eprintln!("  - {}", f);
@@ -13035,6 +13229,27 @@ impl SmtProgramResolver {
         output: &mut Vec<Stmt>,
         qualified_imports: &mut BTreeMap<String, String>,
     ) -> Result<(), String> {
+        // A late plain import can replace a callable after an earlier binding
+        // or assertion has used it. This verifier has a single static symbol
+        // graph, so moving such an import to the front would prove a different
+        // program. Require a prefix until source-ordered rebinding is modeled.
+        let user_start = statements
+            .iter()
+            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+            .map_or(0, |index| index + 1);
+        let mut local_started = false;
+        for statement in &statements[user_start..] {
+            match statement {
+                Stmt::Import(path) if local_started => return Err(format!(
+                    "verification cannot reorder late plain import `{}` in `{}`; place imports before local declarations and executable statements",
+                    path, namespace_display_name
+                )),
+                Stmt::Import(_) | Stmt::QualifiedImport(_, _) | Stmt::HashImport(_, _)
+                | Stmt::Use(_) | Stmt::Depend(_, _) | Stmt::Annot(_, _)
+                | Stmt::RustBlock(_) | Stmt::PreludeBoundary => {}
+                _ => local_started = true,
+            }
+        }
         // Plain imports are declaration overlays in the current namespace and
         // precede the importing source, matching interpreter/codegen lookup.
         for statement in statements {
@@ -13140,6 +13355,20 @@ impl SmtProgramResolver {
             }
         }
 
+        // Plain-import functions are overlays: declarations in this source
+        // replace earlier imported definitions by name, as interpreter lookup
+        // and native emission do. Keep duplicates within this source visible
+        // to the symbol index; qualified namespaces retain separate outputs.
+        let local_functions: BTreeSet<&str> = statements
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::Defn(Defn::Fn { name, .. }) => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        output.retain(|statement| {
+            !matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if local_functions.contains(name.as_str()))
+        });
         output.extend(
             statements
                 .iter()
@@ -13727,6 +13956,7 @@ fn rewrite_smt_expr_for_namespace(
                     let mut arm_bound = bound.clone();
                     collect_smt_pattern_bindings(&arm.pat, &mut arm_bound);
                     Ok(MatchArm {
+                        pat_span: arm.pat_span,
                         pat: arm.pat.clone(),
                         guard: arm
                             .guard
@@ -15026,6 +15256,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             arm_environment.substitutions.remove(&name);
                         }
                         Ok(MatchArm {
+                            pat_span: arm.pat_span,
                             pat: arm.pat.clone(),
                             guard: arm
                                 .guard
@@ -15429,11 +15660,13 @@ fn smt_constructor_test(constructor: &str, value: Expr) -> Expr {
         Box::new(value),
         vec![
             MatchArm {
+                pat_span: Span::dummy(),
                 pat: Pat::Con(constructor.to_string(), Vec::new()),
                 guard: None,
                 body: smt_bool(true),
             },
             MatchArm {
+                pat_span: Span::dummy(),
                 pat: Pat::Wild,
                 guard: None,
                 body: smt_bool(false),
@@ -15466,6 +15699,7 @@ fn smt_expr_support_reason(
     ctor_names: &BTreeSet<String>,
 ) -> Option<String> {
     match &expr.kind {
+        ExprKind::Lit(Literal::Str(text)) => smt_string_literal(text).err(),
         ExprKind::Var(_) | ExprKind::Lit(_) => None,
         ExprKind::BinOp(op, lhs, rhs) => {
             if !matches!(
@@ -15564,63 +15798,19 @@ fn collect_smt_called_functions(
     fn_names: &BTreeSet<String>,
     used: &mut BTreeSet<String>,
 ) {
-    match &expr.kind {
-        ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = &func.kind {
+    walk_ast_expr(expr, &mut |node| {
+        if let AstChild::Expr(Expr {
+            kind: ExprKind::App(function, _),
+            ..
+        }) = node
+        {
+            if let ExprKind::Var(name) = &function.kind {
                 if fn_names.contains(name) {
                     used.insert(name.clone());
                 }
-            } else {
-                collect_smt_called_functions(func, fn_names, used);
-            }
-            for arg in args {
-                collect_smt_called_functions(arg, fn_names, used);
             }
         }
-        ExprKind::BinOp(_, lhs, rhs) => {
-            collect_smt_called_functions(lhs, fn_names, used);
-            collect_smt_called_functions(rhs, fn_names, used);
-        }
-        ExprKind::UnOp(_, inner) => collect_smt_called_functions(inner, fn_names, used),
-        ExprKind::If(cond, then_, else_) => {
-            collect_smt_called_functions(cond, fn_names, used);
-            collect_smt_called_functions(then_, fn_names, used);
-            collect_smt_called_functions(else_, fn_names, used);
-        }
-        ExprKind::Field(obj, _) => collect_smt_called_functions(obj, fn_names, used),
-        ExprKind::Match(scrutinee, arms) => {
-            collect_smt_called_functions(scrutinee, fn_names, used);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_smt_called_functions(guard, fn_names, used);
-                }
-                collect_smt_called_functions(&arm.body, fn_names, used);
-            }
-        }
-        ExprKind::Block(stmts) => {
-            for stmt in stmts {
-                match stmt {
-                    Stmt::Bind(_, _, expr) | Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
-                        collect_smt_called_functions(expr, fn_names, used);
-                    }
-                    _ => {}
-                }
-            }
-        }
-        ExprKind::Var(_)
-        | ExprKind::Lit(_)
-        | ExprKind::Lambda(_, _)
-        | ExprKind::Index(_, _)
-        | ExprKind::List(_)
-        | ExprKind::Tuple(_)
-        | ExprKind::Effect(_, _)
-        | ExprKind::Handle { .. }
-        | ExprKind::Try(_)
-        | ExprKind::Conjunction(_)
-        | ExprKind::Disjunction(_)
-        | ExprKind::Pipe(_, _)
-        | ExprKind::Unit => {}
-    }
+    });
 }
 
 #[cfg(test)]
@@ -15899,7 +16089,50 @@ fn smt_skip_reason_for_invariant(
     None
 }
 
-/// Generate SMT-LIB2 from a Futuruna expression
+/// Keep ordinary ASCII names readable while encoding other spellings into
+/// simple SMT symbols. Reserve the encoded prefix so authored ASCII names
+/// cannot collide with an encoded Unicode name.
+fn smt_symbol(name: &str) -> String {
+    if name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && !name.starts_with("runa_s_")
+    {
+        return name.to_string();
+    }
+    let mut encoded = String::from("runa_s_");
+    for byte in name.as_bytes() {
+        use std::fmt::Write;
+        let _ = write!(encoded, "{byte:02x}");
+    }
+    encoded
+}
+
+/// SMT-LIB Strings uses doubled quotes and Unicode escapes, not Rust/JSON
+/// escaping. Encode backslashes too, so authored `\u{61}` stays literal text.
+/// https://smt-lib.org/theories-UnicodeStrings.shtml
+fn smt_string_literal(text: &str) -> Result<String, String> {
+    let mut literal = String::from("\"");
+    for c in text.chars() {
+        if c as u32 > 0x2ffff {
+            return Err(format!(
+                "character U+{:X} is outside the SMT string alphabet (U+0000..U+2FFFF)",
+                c as u32
+            ));
+        }
+        match c {
+            '"' => literal.push_str("\"\""),
+            '\\' => literal.push_str("\\u{5c}"),
+            ' '..='~' => literal.push(c),
+            _ => {
+                use std::fmt::Write;
+                let _ = write!(literal, "\\u{{{:x}}}", c as u32);
+            }
+        }
+    }
+    literal.push('"');
+    Ok(literal)
+}
+
 fn smt_value_symbol(name: &str) -> String {
     let mut encoded = String::with_capacity(name.len() * 2 + 7);
     encoded.push_str("runa_v_");
@@ -15921,7 +16154,9 @@ fn expr_to_smt(expr: &Expr) -> String {
                 "false".to_string()
             }
         }
-        ExprKind::Lit(Literal::Str(s)) => format!("\"{}\"", s),
+        ExprKind::Lit(Literal::Str(s)) => {
+            smt_string_literal(s).unwrap_or_else(|reason| format!("; {reason}"))
+        }
         ExprKind::Var(name) => smt_value_symbol(name),
         ExprKind::BinOp(op, lhs, rhs) => {
             let l = expr_to_smt(lhs);
@@ -15930,8 +16165,11 @@ fn expr_to_smt(expr: &Expr) -> String {
                 "+" => format!("(+ {} {})", l, r),
                 "-" => format!("(- {} {})", l, r),
                 "*" => format!("(* {} {})", l, r),
-                "/" => format!("(div {} {})", l, r),
-                "%" => format!("(mod {} {})", l, r),
+                "/" => runa_verification_arithmetic::trunc_div(&l, &r),
+                "%" => format!(
+                    "(- {l} (* {r} {}))",
+                    runa_verification_arithmetic::trunc_div(&l, &r)
+                ),
                 "<" => format!("(< {} {})", l, r),
                 ">" => format!("(> {} {})", l, r),
                 "<=" => format!("(<= {} {})", l, r),
@@ -15953,7 +16191,7 @@ fn expr_to_smt(expr: &Expr) -> String {
         }
         ExprKind::App(func, args) => {
             let fname = match &func.kind {
-                ExprKind::Var(name) => name.clone(),
+                ExprKind::Var(name) => smt_symbol(name),
                 _ => expr_to_smt(func),
             };
             let smt_args: Vec<String> = args.iter().map(|a| expr_to_smt(a)).collect();
@@ -15973,7 +16211,7 @@ fn expr_to_smt(expr: &Expr) -> String {
         }
         // Field access: obj.field → (field obj) — Z3 selector function
         ExprKind::Field(obj, field) => {
-            format!("({} {})", field, expr_to_smt(obj))
+            format!("({} {})", smt_symbol(field), expr_to_smt(obj))
         }
         // Match expression → nested ite with Z3 (_ is Ctor) testers
         ExprKind::Match(scrutinee, arms) => {
@@ -16021,126 +16259,8 @@ fn expr_to_smt(expr: &Expr) -> String {
 
 /// Convert match arms to nested Z3 ite expressions with (_ is Ctor) testers
 fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
-    if idx >= arms.len() {
-        return format!("; match: no arm matched");
-    }
-    let arm = &arms[idx];
-    let body = expr_to_smt(&arm.body);
-    let guarded_body = if let Some(ref guard) = arm.guard {
-        let g = expr_to_smt(guard);
-        if idx + 1 < arms.len() {
-            format!(
-                "(ite {} {} {})",
-                g,
-                body,
-                smt_match_arms(scrut, arms, idx + 1)
-            )
-        } else {
-            body.clone()
-        }
-    } else {
-        body.clone()
-    };
-
-    match &arm.pat {
-        Pat::Wild => guarded_body,
-        Pat::Var(name) => format!(
-            "(let (({} {})) {})",
-            smt_value_symbol(name),
-            scrut,
-            guarded_body
-        ),
-        Pat::Con(ctor, pats) if pats.is_empty() => {
-            if idx + 1 < arms.len() {
-                let rest = smt_match_arms(scrut, arms, idx + 1);
-                format!(
-                    "(ite ((_ is {}) {}) {} {})",
-                    ctor, scrut, guarded_body, rest
-                )
-            } else {
-                guarded_body
-            }
-        }
-        Pat::Con(ctor, pats) => {
-            let mut binds = Vec::new();
-            for (i, p) in pats.iter().enumerate() {
-                if let Pat::Var(v) = p {
-                    binds.push(format!(
-                        "({} ({}_f{} {}))",
-                        smt_value_symbol(v),
-                        ctor,
-                        i,
-                        scrut
-                    ));
-                }
-            }
-            let inner = if binds.is_empty() {
-                guarded_body.clone()
-            } else {
-                format!("(let ({}) {})", binds.join(" "), guarded_body)
-            };
-            if idx + 1 < arms.len() {
-                format!(
-                    "(ite ((_ is {}) {}) {} {})",
-                    ctor,
-                    scrut,
-                    inner,
-                    smt_match_arms(scrut, arms, idx + 1)
-                )
-            } else {
-                inner
-            }
-        }
-        Pat::NamedCon(ctor, named_pats) => {
-            let mut binds = Vec::new();
-            for (field, p) in named_pats {
-                if let Pat::Var(v) = p {
-                    binds.push(format!("({} ({} {}))", smt_value_symbol(v), field, scrut));
-                }
-            }
-            let inner = if binds.is_empty() {
-                guarded_body.clone()
-            } else {
-                format!("(let ({}) {})", binds.join(" "), guarded_body)
-            };
-            if idx + 1 < arms.len() {
-                format!(
-                    "(ite ((_ is {}) {}) {} {})",
-                    ctor,
-                    scrut,
-                    inner,
-                    smt_match_arms(scrut, arms, idx + 1)
-                )
-            } else {
-                inner
-            }
-        }
-        Pat::Lit(lit) => {
-            let lit_smt = match lit {
-                Literal::Int(n) => format!("{}", n),
-                Literal::Bool(b) => {
-                    if *b {
-                        "true".to_string()
-                    } else {
-                        "false".to_string()
-                    }
-                }
-                _ => format!("; unsupported literal pattern"),
-            };
-            if idx + 1 < arms.len() {
-                format!(
-                    "(ite (= {} {}) {} {})",
-                    scrut,
-                    lit_smt,
-                    guarded_body,
-                    smt_match_arms(scrut, arms, idx + 1)
-                )
-            } else {
-                guarded_body
-            }
-        }
-        _ => format!("; unsupported match pattern"),
-    }
+    runa_verification_arithmetic::match_value(scrut, &arms[idx..])
+        .unwrap_or_else(|reason| format!("; {reason}"))
 }
 
 /// Infer Z3 sort with ADT awareness — returns owned String (ADT type name or "Int"/"Bool")
@@ -16149,6 +16269,7 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
         ExprKind::Lit(Literal::Int(_)) => "Int".into(),
         ExprKind::Lit(Literal::Float(_)) => "Real".into(),
         ExprKind::Lit(Literal::Bool(_)) => "Bool".into(),
+        ExprKind::Lit(Literal::Str(_)) => "String".into(),
         ExprKind::BinOp(op, _, _) => match op.as_str() {
             "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => "Bool".into(),
             _ => "Int".into(),
@@ -16162,12 +16283,12 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
         }
         ExprKind::Var(name) => ctor_to_type
             .get(name)
-            .cloned()
+            .map(|name| smt_symbol(name))
             .unwrap_or_else(|| "Int".into()),
         ExprKind::App(func, _) => {
             if let ExprKind::Var(name) = &func.as_ref().kind {
                 if let Some(ty) = ctor_to_type.get(name) {
-                    return ty.clone();
+                    return smt_symbol(ty);
                 }
             }
             "Int".into()
@@ -16182,7 +16303,7 @@ fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
     let mut ctors = Vec::new();
     for v in variants {
         if v.fields.is_empty() {
-            ctors.push(v.name.clone());
+            ctors.push(smt_symbol(&v.name));
         } else {
             let fields: Vec<String> = v
                 .fields
@@ -16195,13 +16316,17 @@ fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
                         f.name.clone()
                     };
                     let sort = ty_to_smt_sort(&f.ty);
-                    format!("({} {})", fname, sort)
+                    format!("({} {})", smt_symbol(&fname), sort)
                 })
                 .collect();
-            ctors.push(format!("({} {})", v.name, fields.join(" ")));
+            ctors.push(format!("({} {})", smt_symbol(&v.name), fields.join(" ")));
         }
     }
-    format!("(declare-datatype {} ({}))", name, ctors.join(" "))
+    format!(
+        "(declare-datatype {} ({}))",
+        smt_symbol(name),
+        ctors.join(" ")
+    )
 }
 
 /// Map a Futuruna type annotation to a Z3 sort name
@@ -16212,7 +16337,7 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
             "Float" => "Real".into(),
             "Bool" => "Bool".into(),
             "String" => "String".into(),
-            other => other.to_string(), // ADT name
+            other => smt_symbol(other), // ADT name
         },
         _ => "Int".into(),
     }
@@ -16224,7 +16349,7 @@ fn smt_type_name_to_sort(type_name: &str) -> String {
         "Float" => "Real".to_string(),
         "Bool" => "Bool".to_string(),
         "String" => "String".to_string(),
-        other => other.to_string(),
+        other => smt_symbol(other),
     }
 }
 
@@ -16483,49 +16608,55 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     let rules_snapshot = interp.registered_rules().to_vec();
 
     // Determine resolution path for a rule (which layer resolved it)
-    let rule_resolution = |rule_name: &str, snapshot: &[(String, Rc<Rule>)]| -> String {
-        let matching: Vec<&Rule> = snapshot
-            .iter()
-            .filter(|(n, _)| n == rule_name)
-            .map(|(_, r)| r.as_ref())
-            .collect();
-        let has_exception = matching.iter().any(|r| matches!(r, Rule::Exception { .. }));
-        let has_cond_default = matching.iter().any(|r| {
-            matches!(
-                r,
-                Rule::Default {
-                    condition: Some(_),
-                    ..
-                }
-            )
-        });
-        let has_default = matching.iter().any(|r| {
-            matches!(
-                r,
-                Rule::Default {
-                    condition: None,
-                    ..
-                }
-            )
-        });
-        let has_clause = matching.iter().any(|r| matches!(r, Rule::Clause { .. }));
-        let layers = matching.len();
-        if has_exception {
-            format!(
-                "exception (overrides {} layer{})",
-                layers,
-                if layers > 1 { "s" } else { "" }
-            )
-        } else if has_cond_default && has_default {
-            format!("conditional default ({} layers)", layers)
-        } else if has_default {
-            "default".into()
-        } else if has_clause {
-            "clause".into()
-        } else {
-            "unknown".into()
-        }
-    };
+    let rule_resolution =
+        |rule_name: &str, arity: usize, snapshot: &[(String, Rc<Rule>)]| -> String {
+            let matching: Vec<&Rule> = snapshot
+                .iter()
+                .filter(|(n, rule)| {
+                    n == rule_name
+                        && rule
+                            .callable_name_arity()
+                            .is_some_and(|(_, count)| count == arity)
+                })
+                .map(|(_, r)| r.as_ref())
+                .collect();
+            let has_exception = matching.iter().any(|r| matches!(r, Rule::Exception { .. }));
+            let has_cond_default = matching.iter().any(|r| {
+                matches!(
+                    r,
+                    Rule::Default {
+                        condition: Some(_),
+                        ..
+                    }
+                )
+            });
+            let has_default = matching.iter().any(|r| {
+                matches!(
+                    r,
+                    Rule::Default {
+                        condition: None,
+                        ..
+                    }
+                )
+            });
+            let has_clause = matching.iter().any(|r| matches!(r, Rule::Clause { .. }));
+            let layers = matching.len();
+            if has_exception {
+                format!(
+                    "exception (overrides {} layer{})",
+                    layers,
+                    if layers > 1 { "s" } else { "" }
+                )
+            } else if has_cond_default && has_default {
+                format!("conditional default ({} layers)", layers)
+            } else if has_default {
+                "default".into()
+            } else if has_clause {
+                "clause".into()
+            } else {
+                "unknown".into()
+            }
+        };
 
     let mut results: Vec<RuleResult> = Vec::new();
     let mut seen_names: BTreeSet<String> = BTreeSet::new();
@@ -16537,27 +16668,14 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     }
 
     for rule_name in &rule_names {
-        let param_count = rules_snapshot
+        let arities = rules_snapshot
             .iter()
-            .find(|(n, _)| n == rule_name)
-            .and_then(|(_, rule)| {
-                let head = match rule.as_ref() {
-                    Rule::Clause { head, .. }
-                    | Rule::Default { head, .. }
-                    | Rule::Exception { head, .. } => head,
-                    Rule::ReactiveScope { .. } => return None,
-                };
-                match &head.kind {
-                    ExprKind::App(_, args) => Some(
-                        args.iter()
-                            .filter(|a| matches!(a.kind, ExprKind::Var(_)))
-                            .count(),
-                    ),
-                    ExprKind::Var(_) => Some(0),
-                    _ => None,
-                }
-            })
-            .unwrap_or(0);
+            .filter(|(name, _)| name == rule_name)
+            .filter_map(|(_, rule)| rule.callable_name_arity().map(|(_, arity)| arity))
+            .collect::<BTreeSet<_>>();
+        // Prefer an actual zero-argument overload. Literal and annotated head
+        // arguments still count toward arity; they are not zero-argument calls.
+        let param_count = arities.first().copied().unwrap_or(0);
 
         if param_count == 0 {
             if let Some(val) = interp.try_rule_call(rule_name, &[], &env) {
@@ -16565,7 +16683,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                 let (type_domain, constructor) = classify_value(&val);
                 let is_bool = matches!(&val, Value::Bool(_));
                 let is_true = matches!(&val, Value::Bool(true));
-                let resolution = rule_resolution(rule_name, &rules_snapshot);
+                let resolution = rule_resolution(rule_name, param_count, &rules_snapshot);
                 results.push(RuleResult {
                     name: rule_name.clone(),
                     value_str: val_str,
@@ -16586,7 +16704,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                 is_bool: false,
                 is_true: false,
                 param_count,
-                resolution: rule_resolution(rule_name, &rules_snapshot),
+                resolution: rule_resolution(rule_name, param_count, &rules_snapshot),
             });
         }
     }
@@ -16700,7 +16818,11 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
         let mut active_by_tier: BTreeMap<&'static str, Vec<(String, String)>> = BTreeMap::new();
         for (index, (name, rule)) in rules_snapshot.iter().enumerate() {
-            if name != &result.name {
+            if name != &result.name
+                || !rule
+                    .callable_name_arity()
+                    .is_some_and(|(_, arity)| arity == 0)
+            {
                 continue;
             }
 
@@ -16731,17 +16853,32 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                     value,
                     None,
                 ),
-                Rule::Clause { .. } | Rule::ReactiveScope { .. } => continue,
+                Rule::Clause {
+                    body: Some(body), ..
+                } => (
+                    "ordinary clause",
+                    format!("ordinary clause #{}", index + 1),
+                    body,
+                    None,
+                ),
+                Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => continue,
             };
 
             let applies = condition
                 .map(|condition| matches!(interp.eval(condition, &env), Value::Bool(true)))
                 .unwrap_or(true);
             if applies {
+                let evaluated = interp.eval(value, &env);
+                // Boolean clauses are alternative proofs of a predicate:
+                // a false body does not contradict a later successful body.
+                // Value-returning clauses instead select the first outcome.
+                if tier == "ordinary clause" && matches!(evaluated, Value::Bool(_)) {
+                    continue;
+                }
                 active_by_tier
                     .entry(tier)
                     .or_default()
-                    .push((branch, format!("{}", interp.eval(value, &env))));
+                    .push((branch, format!("{}", evaluated)));
             }
         }
 
@@ -16788,7 +16925,12 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         // Find what the default/clause layer says (evaluate without exceptions)
         let matching: Vec<Rc<Rule>> = rules_snapshot
             .iter()
-            .filter(|(n, _)| n == &r.name)
+            .filter(|(n, rule)| {
+                n == &r.name
+                    && rule
+                        .callable_name_arity()
+                        .is_some_and(|(_, arity)| arity == 0)
+            })
             .map(|(_, rule)| rule.clone())
             .collect();
 
@@ -16975,9 +17117,9 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     // Header
     println!();
-    println!("\x1b[1;36m======================================================\x1b[0m");
-    println!("\x1b[1m  runa audit\x1b[0m -- automated gap discovery");
-    println!("\x1b[1;36m======================================================\x1b[0m");
+    status_println!("\x1b[1;36m======================================================\x1b[0m");
+    status_println!("\x1b[1m  runa audit\x1b[0m -- automated gap discovery");
+    status_println!("\x1b[1;36m======================================================\x1b[0m");
     println!();
     println!("  Source: {}", filename);
     println!(
@@ -17049,7 +17191,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         if group.is_empty() {
             continue;
         }
-        println!("{}-- {} ({}) --\x1b[0m", color, label, group.len());
+        status_println!("{}-- {} ({}) --\x1b[0m", color, label, group.len());
         println!();
         for (i, f) in group.iter().enumerate() {
             let icon = match f.kind {
@@ -17058,7 +17200,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                 FindingKind::Asymmetry => "<>",
                 FindingKind::Gap => "??",
             };
-            println!("  {}{} [{}] {}\x1b[0m", color, icon, f.severity, f.title);
+            status_println!("  {}{} [{}] {}\x1b[0m", color, icon, f.severity, f.title);
             for rule_name in &f.rules_involved {
                 if let Some(r) = results.iter().find(|r| &r.name == rule_name) {
                     if r.param_count == 0 {
@@ -17071,7 +17213,12 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                         } else {
                             "\x1b[1;33m"
                         };
-                        println!("     | {}() -> {}{}\x1b[0m", r.name, val_color, r.value_str);
+                        status_println!(
+                            "     | {}() -> {}{}\x1b[0m",
+                            r.name,
+                            val_color,
+                            r.value_str
+                        );
                     }
                 }
             }
@@ -17085,7 +17232,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     let interesting = contradiction_count + asymmetry_count + gap_count + tension_count;
     if interesting > 0 {
-        println!(
+        status_println!(
             "\x1b[1m{} findings\x1b[0m from {} rules across {} type domains.",
             interesting,
             results.iter().filter(|r| r.param_count == 0).count(),
@@ -18353,6 +18500,9 @@ fn explicit_proof_ctx(
     ctx
 }
 
+// This checks the mathematical proposition only. The public verifier must
+// also discharge source arithmetic obligations before reporting a runtime
+// guarantee or registering this result as an available local lemma.
 fn evaluate_explicit_proof(
     subject_expr: &Expr,
     pred_expr: &Expr,
@@ -18538,7 +18688,50 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
     statuses
 }
 
-/// Generate SMT-LIB2 for all invariants and verify with Z3
+/// Run one complete solver request. Drain output while supplying input, and
+/// treat process, pipe, encoding, and solver diagnostics as failures rather
+/// than trusting a success-looking first line from a failed process.
+fn run_z3_script(script: &str) -> Result<String, String> {
+    let mut child = std::process::Command::new("z3")
+        .arg("-in")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "Z3 not found — install with: apt install z3 / brew install z3".to_string()
+            } else {
+                format!("Z3 execution error: {}", error)
+            }
+        })?;
+    let mut stdin = child.stdin.take().expect("piped Z3 stdin");
+    let script = script.to_string();
+    let writer = std::thread::spawn(move || {
+        use std::io::Write;
+        stdin.write_all(script.as_bytes())
+    });
+    let output = child.wait_with_output();
+    let written = writer.join();
+    let output = output.map_err(|error| format!("Z3 execution error: {}", error))?;
+    let stdout = String::from_utf8(output.stdout)
+        .map_err(|error| format!("Z3 returned invalid UTF-8: {}", error))?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !output.status.success() || !stderr.trim().is_empty() {
+        return Err(format!(
+            "Z3 execution failed ({}): {}{}",
+            output.status, stdout, stderr
+        ));
+    }
+    written
+        .map_err(|_| "Z3 input writer failed".to_string())?
+        .map_err(|error| format!("Z3 input error: {}", error))?;
+    Ok(stdout)
+}
+
+/// Generate SMT-LIB2 for all invariants and verify with Z3.
+/// Successful exit requires every claim and any authored explicit proof to
+/// pass. Unsupported claims and unavailable solvers are incomplete checks.
 fn verify_with_z3(source: &str, filename: &str) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
@@ -18748,7 +18941,7 @@ fn verify_with_z3(source: &str, filename: &str) {
 
     if invariants.is_empty() {
         println!("runa --verify: no invariants found in {}", filename);
-        return;
+        std::process::exit(1);
     }
 
     let function_param_types = collect_function_param_types_from_defs(&functions);
@@ -18759,6 +18952,8 @@ fn verify_with_z3(source: &str, filename: &str) {
         };
     let constructors = ProofConstructorTable::from_adts(&adts);
     let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
+    let mut proved_count = 0usize;
+    let mut explicit_proof_failed = false;
     let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
     let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
     let function_map: BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)> = functions
@@ -18786,86 +18981,6 @@ fn verify_with_z3(source: &str, filename: &str) {
             continue;
         }
 
-        if let Some(proof_block) = proof_blocks.get(inv_name) {
-            if let Some(err) = &computation_lemma_error {
-                println!(
-                    "  ✗ explicit proof failed in kernel: computation lemma validation failed: {}",
-                    err
-                );
-                println!("  falling back to Z3 for semantic verification\n");
-            } else {
-                match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
-                    Ok(reg) => match evaluate_explicit_proof(
-                        subject_expr,
-                        pred_expr,
-                        &bindings,
-                        &binding_types,
-                        &function_param_types,
-                        &constructors,
-                        proof_block,
-                        &reg,
-                    ) {
-                        ExplicitProofStatus::Proved => {
-                            match invariant_proof_schema(pred_expr, &bindings) {
-                                Ok(schema) => {
-                                    let mut next_reg = reg;
-                                    if let Err(err) =
-                                        next_reg.register(inv_name.clone(), schema.clone())
-                                    {
-                                        println!("  ✗ explicit proof failed in kernel: {}", err);
-                                        println!(
-                                            "  falling back to Z3 for semantic verification\n"
-                                        );
-                                    } else {
-                                        proved_invariants.insert(inv_name.clone(), schema);
-                                        println!(
-                                            "  ✓ PROVED by kernel: |{}| closed explicit proof",
-                                            inv_name
-                                        );
-                                        println!();
-                                        continue;
-                                    }
-                                }
-                                Err(err) => {
-                                    println!(
-                                        "  ? explicit proof unsupported in kernel path: {}",
-                                        err
-                                    );
-                                    println!("  falling back to Z3\n");
-                                }
-                            }
-                        }
-                        ExplicitProofStatus::Failed(err) => {
-                            println!("  ✗ explicit proof failed in kernel: {}", err);
-                            println!("  falling back to Z3 for semantic verification\n");
-                        }
-                        ExplicitProofStatus::Unsupported(reason) => {
-                            println!("  ? explicit proof unsupported in kernel path: {}", reason);
-                            println!("  falling back to Z3\n");
-                        }
-                    },
-                    Err(err) => {
-                        println!("  ✗ explicit proof failed in kernel: {}", err);
-                        println!("  falling back to Z3 for semantic verification\n");
-                    }
-                }
-            }
-        }
-
-        let mut smt = String::new();
-        smt.push_str("; Auto-generated by runa --verify\n");
-        smt.push_str(&format!("; Invariant: | {}\n", inv_name));
-        smt.push_str("(set-logic ALL)\n\n");
-
-        // Emit ADT datatype declarations
-        for (adt_name, variants) in &adts {
-            smt.push_str(&emit_z3_datatype(adt_name, variants));
-            smt.push_str("\n");
-        }
-        if !adts.is_empty() {
-            smt.push('\n');
-        }
-
         let mut function_free_vars = BTreeSet::new();
         let (ordered_vars, used_functions) = loop {
             let ordered_vars = ordered_smt_free_vars_with_extra(
@@ -18889,6 +19004,139 @@ fn verify_with_z3(source: &str, filename: &str) {
             }
             function_free_vars.extend(discovered);
         };
+        let arithmetic_expressions: Vec<&Expr> = std::iter::once(pred_expr)
+            .chain(std::iter::once(subject_expr))
+            .chain(ordered_vars.iter().filter_map(|name| bindings.get(name)))
+            .chain(
+                used_functions
+                    .iter()
+                    .filter_map(|name| function_map.get(name).map(|(_, _, body)| body)),
+            )
+            .collect();
+        let arithmetic_types: Vec<&Ty> = ordered_vars
+            .iter()
+            .filter_map(|name| binding_types.get(name).and_then(Option::as_ref))
+            .chain(
+                used_functions
+                    .iter()
+                    .filter_map(|name| function_map.get(name))
+                    .flat_map(|(params, ret, _)| {
+                        params
+                            .iter()
+                            .filter_map(|param| param.ty.as_ref())
+                            .chain(ret.iter())
+                    }),
+            )
+            .collect();
+        let float_error = arithmetic_expressions
+            .iter()
+            .find_map(|expr| runa_verification_arithmetic::check_float_expression(expr).err())
+            .or_else(|| {
+                arithmetic_types
+                    .iter()
+                    .find_map(|ty| runa_verification_arithmetic::check_float_type(ty, &adts).err())
+            });
+        if let Some(reason) = float_error {
+            println!("  ? Verification unsupported: {}", reason);
+            println!();
+            continue;
+        }
+        let known_calls = fn_names.union(&ctor_names).cloned().collect();
+        let needs_arithmetic_check = arithmetic_expressions
+            .iter()
+            .any(|expr| runa_verification_arithmetic::needs_arithmetic_check(expr, &known_calls));
+        let mut pending_kernel_schema = None;
+
+        if let Some(proof_block) = proof_blocks.get(inv_name) {
+            if let Some(err) = &computation_lemma_error {
+                explicit_proof_failed = true;
+                println!(
+                    "  ✗ explicit proof failed in kernel: computation lemma validation failed: {}",
+                    err
+                );
+                println!("  falling back to Z3 for semantic verification\n");
+            } else {
+                match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
+                    Ok(reg) => match evaluate_explicit_proof(
+                        subject_expr,
+                        pred_expr,
+                        &bindings,
+                        &binding_types,
+                        &function_param_types,
+                        &constructors,
+                        proof_block,
+                        &reg,
+                    ) {
+                        ExplicitProofStatus::Proved if needs_arithmetic_check => {
+                            println!("  explicit mathematical proof checked; verifying runtime arithmetic with Z3");
+                            pending_kernel_schema =
+                                invariant_proof_schema(pred_expr, &bindings).ok();
+                        }
+                        ExplicitProofStatus::Proved => {
+                            match invariant_proof_schema(pred_expr, &bindings) {
+                                Ok(schema) => {
+                                    let mut next_reg = reg;
+                                    if let Err(err) =
+                                        next_reg.register(inv_name.clone(), schema.clone())
+                                    {
+                                        explicit_proof_failed = true;
+                                        println!("  ✗ explicit proof failed in kernel: {}", err);
+                                        println!(
+                                            "  falling back to Z3 for semantic verification\n"
+                                        );
+                                    } else {
+                                        proved_invariants.insert(inv_name.clone(), schema);
+                                        proved_count += 1;
+                                        println!(
+                                            "  ✓ PROVED by kernel: |{}| closed explicit proof",
+                                            inv_name
+                                        );
+                                        println!();
+                                        continue;
+                                    }
+                                }
+                                Err(err) => {
+                                    println!(
+                                        "  ? explicit proof unsupported in kernel path: {}",
+                                        err
+                                    );
+                                    println!("  falling back to Z3\n");
+                                }
+                            }
+                        }
+                        ExplicitProofStatus::Failed(err) => {
+                            explicit_proof_failed = true;
+                            println!("  ✗ explicit proof failed in kernel: {}", err);
+                            println!("  falling back to Z3 for semantic verification\n");
+                        }
+                        ExplicitProofStatus::Unsupported(reason) => {
+                            println!("  ? explicit proof unsupported in kernel path: {}", reason);
+                            println!("  falling back to Z3\n");
+                        }
+                    },
+                    Err(err) => {
+                        explicit_proof_failed = true;
+                        println!("  ✗ explicit proof failed in kernel: {}", err);
+                        println!("  falling back to Z3 for semantic verification\n");
+                    }
+                }
+            }
+        }
+
+        let mut smt = String::new();
+        smt.push_str("; Auto-generated by runa --verify\n");
+        smt.push_str(&format!("; Invariant: | {}\n", inv_name));
+        smt.push_str("(set-logic ALL)\n\n");
+
+        // Emit ADT datatype declarations
+        for (adt_name, variants) in &adts {
+            smt.push_str(&emit_z3_datatype(adt_name, variants));
+            smt.push_str("\n");
+        }
+        if !adts.is_empty() {
+            smt.push('\n');
+        }
+
         if let Some((binding, reason)) = ordered_vars.iter().find_map(|name| {
             binding_lowering_errors
                 .get(name)
@@ -18932,6 +19180,32 @@ fn verify_with_z3(source: &str, filename: &str) {
             }
         };
 
+        let mut guarded_functions = BTreeSet::new();
+        let mut function_guards = BTreeMap::new();
+        let arithmetic_guards = (|| -> Result<Vec<String>, String> {
+            for name in &function_order {
+                let (_, _, body) = &function_map[name];
+                let guard = runa_verification_arithmetic::definedness(body, &guarded_functions)?;
+                if guard != "true" {
+                    guarded_functions.insert(name.clone());
+                    function_guards.insert(name.clone(), guard);
+                }
+            }
+            std::iter::once(pred_expr)
+                .chain(std::iter::once(subject_expr))
+                .chain(ordered_vars.iter().filter_map(|name| bindings.get(name)))
+                .map(|expr| runa_verification_arithmetic::definedness(expr, &guarded_functions))
+                .collect()
+        })();
+        let arithmetic_guard = match arithmetic_guards {
+            Ok(guards) => runa_verification_arithmetic::and(guards),
+            Err(reason) => {
+                println!("  ? SMT fallback skipped: {}", reason);
+                println!();
+                continue;
+            }
+        };
+
         // Declare values before functions. A generated rule may close over a
         // top-level binding, while that binding's value may itself call a rule.
         // Declarations followed by equality constraints represent both sides
@@ -18953,6 +19227,15 @@ fn verify_with_z3(source: &str, filename: &str) {
                 smt_value_symbol(var),
                 sort
             ));
+            // Bound values are constrained by their source expressions below.
+            // Restricting an overflowing bound value here would erase the
+            // witness and turn undefined arithmetic into a vacuous proof.
+            if !bindings.contains_key(var) && sort == "Int" {
+                smt.push_str(&format!(
+                    "(assert {})\n",
+                    runa_verification_arithmetic::int_domain(&smt_value_symbol(var))
+                ));
+            }
         }
 
         // Emit functions with type-aware param/return sorts
@@ -18977,11 +19260,19 @@ fn verify_with_z3(source: &str, filename: &str) {
             let body_smt = expr_to_smt(body);
             smt.push_str(&format!(
                 "(define-fun {} ({}) {} {})\n",
-                fname,
+                smt_symbol(&fname),
                 param_decls.join(" "),
                 ret_sort,
                 body_smt
             ));
+            if let Some(guard) = function_guards.get(&fname) {
+                smt.push_str(&format!(
+                    "(define-fun {} ({}) Bool {})\n",
+                    runa_verification_arithmetic::guard_name(&fname),
+                    param_decls.join(" "),
+                    guard
+                ));
+            }
         }
 
         // Constrain bound constants after every referenced function exists.
@@ -18993,15 +19284,19 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
 
         // The proof strategy: try to find a counterexample.
-        // Assert NOT(predicate) — if UNSAT, the invariant holds for all values.
+        // A witness is either undefined source arithmetic or a false predicate.
+        // Definedness is part of the claim, never an assumption that filters
+        // away precisely the executions the verifier needs to detect.
         let pred_smt = expr_to_smt(pred_expr);
         smt.push_str(&format!(
             "\n; Try to find counterexample to: {}\n",
             inv_name
         ));
-        smt.push_str(&format!("(assert (not {}))\n", pred_smt));
+        smt.push_str(&format!(
+            "(assert (not {}))\n",
+            runa_verification_arithmetic::and([arithmetic_guard, pred_smt])
+        ));
         smt.push_str("(check-sat)\n");
-        smt.push_str("(get-model)\n"); // only meaningful if sat
 
         println!("  SMT-LIB2:");
         for line in smt.lines() {
@@ -19009,54 +19304,68 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
         println!();
 
-        // Try to invoke Z3
-        match std::process::Command::new("z3")
-            .arg("-in")
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
-        {
-            Ok(mut child) => {
-                if let Some(ref mut stdin) = child.stdin {
-                    use std::io::Write;
-                    let _ = stdin.write_all(smt.as_bytes());
-                }
-                match child.wait_with_output() {
-                    Ok(output) => {
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        let first_line = stdout.lines().next().unwrap_or("");
-                        match first_line.trim() {
-                            "unsat" => {
-                                println!("  ✓ PROVED: |{}| holds for all values", inv_name);
+        // A model request after unsat is itself a Z3 error. First establish
+        // satisfiability, then request a witness only for a counterexample.
+        match run_z3_script(&smt) {
+            Ok(stdout) => match stdout.trim() {
+                "unsat" => {
+                    proved_count += 1;
+                    println!("  ✓ PROVED: |{}| holds for all values", inv_name);
+                    // Only a theorem already checked mathematically may become
+                    // a kernel lemma; a bounded SMT proof is not an axiom over
+                    // the unbounded mathematical integer domain.
+                    if let Some(schema) = pending_kernel_schema {
+                        match build_explicit_proof_registry(&computation_lemmas, &proved_invariants)
+                            .and_then(|mut registry| {
+                                registry
+                                    .register(inv_name.clone(), schema.clone())
+                                    .map_err(|error| error.to_string())
+                            }) {
+                            Ok(()) => {
+                                proved_invariants.insert(inv_name.clone(), schema);
                             }
-                            "sat" => {
-                                println!("  ✗ COUNTEREXAMPLE found for |{}|:", inv_name);
-                                for line in stdout.lines().skip(1) {
-                                    println!("    {}", line);
-                                }
-                            }
-                            other => {
-                                println!("  ? Z3 returned: {}", other);
-                                for line in stdout.lines().skip(1) {
-                                    println!("    {}", line);
-                                }
+                            Err(reason) => {
+                                explicit_proof_failed = true;
+                                println!("  local kernel lemma unavailable: {}", reason);
                             }
                         }
                     }
-                    Err(e) => {
-                        println!("  (Z3 execution error: {})", e);
-                        println!("  SMT-LIB2 output above can be piped to z3 manually:");
-                        println!("    echo '<smt>' | z3 -in");
+                }
+                "sat" => {
+                    println!("  ✗ COUNTEREXAMPLE found for |{}|:", inv_name);
+                    match run_z3_script(&format!("{}(get-model)\n", smt)) {
+                        Ok(model)
+                            if model.lines().next().map(str::trim) == Some("sat")
+                                && !model.contains("(error ") =>
+                        {
+                            for line in model.lines().skip(1) {
+                                println!("    {}", line);
+                            }
+                        }
+                        Ok(response) => println!("  ? Z3 witness unavailable: {}", response.trim()),
+                        Err(error) => println!("  ? Z3 witness unavailable: {}", error),
                     }
                 }
-            }
-            Err(_) => {
-                println!("  (Z3 not found — install with: apt install z3 / brew install z3)");
+                "unknown" => println!("  ? Z3 returned unknown; verification is incomplete"),
+                other => println!("  ? Z3 returned unexpected output: {}", other),
+            },
+            Err(error) => {
+                println!("  ? {}", error);
                 println!("  SMT-LIB2 output above can be piped to z3 manually.");
             }
         }
         println!();
+    }
+    println!(
+        "Verification: {} of {} invariant(s) proved.",
+        proved_count,
+        invariants.len()
+    );
+    if explicit_proof_failed {
+        eprintln!("Verification failed: explicit proof validation failed.");
+    }
+    if proved_count != invariants.len() || explicit_proof_failed {
+        std::process::exit(1);
     }
 }
 
@@ -19236,29 +19545,21 @@ fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<St
 }
 
 /// Parse and type-check without running, optionally skipping Rust backend validation.
-fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: bool) {
+fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: bool, json: bool) {
     use std::process::Command;
     use std::time::Instant;
 
     let start = Instant::now();
+    let check_output = runa_check_output::CheckOutput {
+        filename,
+        source,
+        frontend_only,
+        json,
+    };
     if !frontend_only {
         if let Some(summary) = load_check_artifact_cache(filename, source, use_prelude) {
             trace_compiler_artifact_cache("check hit");
-            let dependency_text = if summary.cargo_dependency_count == 0 {
-                String::new()
-            } else {
-                format!(", {} deps", summary.cargo_dependency_count)
-            };
-            eprintln!(
-                "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types{}, {} lines of Rust, cached) \x1b[2m[{:.1}s]\x1b[0m",
-                filename,
-                summary.statement_count,
-                summary.function_count,
-                summary.type_count,
-                dependency_text,
-                summary.rust_line_count,
-                start.elapsed().as_secs_f64()
-            );
+            check_output.success(&summary, Some("cached"), start.elapsed());
             return;
         }
     }
@@ -19304,30 +19605,28 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 backend_type_check_artifacts(&stmts, source, filename)
             };
             trace_compiler_timing("type check", type_check_start.elapsed());
-            if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
+            if check_output.frontend_errors(&type_check.diagnostics) {
                 std::process::exit(1);
             }
 
             if frontend_only {
-                eprintln!(
-                    "\x1b[1;32mfrontend check ok\x1b[0m: {} ({} stmts, {} fns, {} types; Rust backend not validated) \x1b[2m[{:.1}s]\x1b[0m",
-                    filename,
-                    stmt_count,
-                    fn_count,
-                    type_count,
-                    start.elapsed().as_secs_f64()
+                check_output.success(
+                    &CheckArtifactSummary {
+                        statement_count: stmt_count,
+                        function_count: fn_count,
+                        type_count,
+                        cargo_dependency_count: 0,
+                        rust_line_count: 0,
+                    },
+                    None,
+                    start.elapsed(),
                 );
                 return;
             }
 
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let codegen_start = Instant::now();
             let code = cg.emit_program(&stmts);
             trace_compiler_timing("Rust codegen", codegen_start.elapsed());
@@ -19351,15 +19650,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                             summary.clone(),
                         );
                     }
-                    eprintln!(
-                        "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust, rustc cached) \x1b[2m[{:.1}s]\x1b[0m",
-                        filename,
-                        stmt_count,
-                        fn_count,
-                        type_count,
-                        summary.rust_line_count,
-                        start.elapsed().as_secs_f64()
-                    );
+                    check_output.success(&summary, Some("rustc cached"), start.elapsed());
                     return;
                 }
                 if cg.has_raw_rust_blocks {
@@ -19385,6 +19676,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 rustc
                     .arg(&rs_path)
                     .args([
+                        "--color=never",
                         "--edition",
                         RUSTC_CHECK_EDITION,
                         "--crate-type",
@@ -19411,7 +19703,6 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 if persistent_workspace.is_none() {
                     let _ = std::fs::remove_dir_all(&check_workspace);
                 }
-                let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
                         if !cg.has_raw_rust_blocks {
@@ -19425,23 +19716,16 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                                 summary.clone(),
                             );
                         }
-                        eprintln!(
-                            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename,
-                            stmt_count,
-                            fn_count,
-                            type_count,
-                            summary.rust_line_count,
-                            elapsed.as_secs_f64()
-                        );
+                        check_output.success(&summary, None, start.elapsed());
                     }
                     Ok(o) => {
-                        eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
-                        eprintln!("{}", String::from_utf8_lossy(&o.stderr));
+                        check_output
+                            .failure("backend", String::from_utf8_lossy(&o.stderr).into_owned());
                         std::process::exit(1);
                     }
                     Err(e) => {
-                        eprintln!("Error running rustc: {}", e);
+                        check_output
+                            .failure("backend", rust_tool_launch_error("rustc", "check", &e));
                         std::process::exit(1);
                     }
                 }
@@ -19494,11 +19778,10 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 let cargo_bin = find_rust_tool("cargo");
                 let cargo_start = Instant::now();
                 let output = Command::new(&cargo_bin)
-                    .args(&["check"])
+                    .args(["check", "--color", "never"])
                     .current_dir(&build_dir)
                     .output();
                 trace_compiler_timing("cargo validation", cargo_start.elapsed());
-                let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
                         if let Some(source_graph) = source_graph {
@@ -19509,31 +19792,23 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                                 summary.clone(),
                             );
                         }
-                        eprintln!(
-                            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} deps, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename,
-                            stmt_count,
-                            fn_count,
-                            type_count,
-                            cg.cargo_deps.len(),
-                            summary.rust_line_count,
-                            elapsed.as_secs_f64()
-                        );
+                        check_output.success(&summary, None, start.elapsed());
                     }
                     Ok(o) => {
-                        eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
-                        eprintln!("{}", String::from_utf8_lossy(&o.stderr));
+                        check_output
+                            .failure("backend", String::from_utf8_lossy(&o.stderr).into_owned());
                         std::process::exit(1);
                     }
                     Err(e) => {
-                        eprintln!("Error running cargo: {}", e);
+                        check_output
+                            .failure("backend", rust_tool_launch_error("cargo", "check", &e));
                         std::process::exit(1);
                     }
                 }
             }
         }
         Err(e) => {
-            display_error_in(source, &e, filename);
+            check_output.parse_failure(&e);
             std::process::exit(1);
         }
     }
@@ -19701,6 +19976,7 @@ fn emit_via_fir(
             | Stmt::Depend(..)
             | Stmt::RustBlock(_)
             | Stmt::Annot(..)
+            | Stmt::PreludeBoundary
             | Stmt::Use(_) => {
                 // These are declarations/metadata — handled by TypeRegistry scan, not emitted here
             }
@@ -19775,12 +20051,7 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
 
             // Scan declarations to populate TypeRegistry (without emitting Rust)
             let mut cg = RustCodegen::new();
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let resolved_stmts = cg.scan_declarations(&stmts);
 
             // Emit FIR version
@@ -19794,12 +20065,7 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
 
             // Also run old path for comparison
             let mut cg2 = RustCodegen::new();
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg2.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg2.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg2.source_dir = source_dir_for(filename);
             let old_code = cg2.emit_program(&stmts);
             println!("// === FIR pipeline output ===");
             print!("{}", code);
@@ -19912,12 +20178,7 @@ fn emit_import_normalization_source(source: &str, filename: &str, use_prelude: b
             }
 
             let mut cg = RustCodegen::new();
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let normalized_stmts = cg.scan_declarations(&stmts);
             print!(
                 "{}",
@@ -19953,12 +20214,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
             print!("{}", code);
             eprintln!(
@@ -20047,12 +20303,7 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
             };
             let mut cg = RustCodegen::new();
             cg.lib_mode = true;
-            if let Some(parent) = std::path::Path::new(filename).parent() {
-                cg.source_dir = Some(parent.to_string_lossy().to_string());
-            }
-            cg.source_name = std::path::Path::new(filename)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string());
+            cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
             let code = add_rust_lib_dependency_guidance(&code, &cg.cargo_deps);
             print!("{}", code);
@@ -20074,17 +20325,16 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
 // PART 8b: SOURCE CODE FORMATTER (M18)
 // ============================================================================
 //
-// Line-based formatter that preserves comments and normalizes indentation.
-// Works without the AST — tracks brace depth to determine nesting.
+// Line-based layout with lexer-aware protection of verbatim source. The CLI
+// validates tokens and parsed structure before reporting success or writing.
 //
 // Rules:
 //   - 4 spaces per indentation level
-//   - Trailing whitespace removed
-//   - Max 1 consecutive blank line
+//   - Trailing whitespace removed outside literals and source quotations
+//   - Max 1 consecutive blank line outside literals and source quotations
 //   - Single newline at end of file
-//   - `@ rust { }` blocks: content reindented preserving relative structure
-//   - `----` and `{-` block comments: preserved, indentation normalized
-//   - Triple-quoted strings: preserved verbatim
+//   - `@ rust { }` blocks: preserved verbatim
+//   - `----` source quotations and all string/character literals: verbatim
 
 fn format_target(path: &str, check: bool) {
     let meta = std::fs::metadata(path);
@@ -20114,28 +20364,45 @@ fn format_directory(dir: &str, check: bool) {
     }
 
     let mut changed = 0usize;
+    let mut failed = 0usize;
     let mut total = 0usize;
     for path in &files {
         total += 1;
         let source = match std::fs::read_to_string(path) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("  \x1b[1;33mskip\x1b[0m {}: {}", path, e);
+                status_eprintln!("  \x1b[1;31merror\x1b[0m {}: {}", path, e);
+                failed += 1;
                 continue;
             }
         };
-        let formatted = format_runa_source(&source);
+        let formatted = match checked_format_runa_source(&source) {
+            Ok(formatted) => formatted,
+            Err(error) => {
+                status_eprintln!("  \x1b[1;31merror\x1b[0m {}: {}", path, error);
+                failed += 1;
+                continue;
+            }
+        };
         if formatted != source {
             changed += 1;
             if check {
-                eprintln!("  \x1b[1;31mneeds fmt\x1b[0m  {}", path);
+                status_eprintln!("  \x1b[1;31mneeds fmt\x1b[0m  {}", path);
             } else {
                 match std::fs::write(path, &formatted) {
-                    Ok(_) => eprintln!("  \x1b[1;32mformatted\x1b[0m  {}", path),
-                    Err(e) => eprintln!("  \x1b[1;31merror\x1b[0m  {}: {}", path, e),
+                    Ok(_) => status_eprintln!("  \x1b[1;32mformatted\x1b[0m  {}", path),
+                    Err(e) => {
+                        status_eprintln!("  \x1b[1;31merror\x1b[0m  {}: {}", path, e);
+                        failed += 1;
+                    }
                 }
             }
         }
+    }
+
+    if failed > 0 {
+        eprintln!("\nFormatting failed for {} of {} files.", failed, total);
+        std::process::exit(1);
     }
 
     if check {
@@ -20250,7 +20517,7 @@ fn lint_library_import_graph_target(path: &str) {
     }
 
     if !issues.is_empty() {
-        eprintln!("  \x1b[1;31mimport hygiene fail\x1b[0m {}", path);
+        status_eprintln!("  \x1b[1;31mimport hygiene fail\x1b[0m {}", path);
         for issue in issues {
             eprintln!("    - {}", issue);
         }
@@ -20276,7 +20543,7 @@ fn lint_library_directory(dir: &str) {
         let source = match std::fs::read_to_string(&path) {
             Ok(source) => source,
             Err(e) => {
-                eprintln!("  \x1b[1;33mskip\x1b[0m {}: {}", path, e);
+                status_eprintln!("  \x1b[1;33mskip\x1b[0m {}: {}", path, e);
                 continue;
             }
         };
@@ -20344,10 +20611,10 @@ fn lint_library_file_with_source(path: &str, source: &str) -> bool {
     };
     let issues = library_hygiene_issues_for_stmts(&stmts);
     if issues.is_empty() {
-        eprintln!("  \x1b[1;32mlibrary ok\x1b[0m {}", path);
+        status_eprintln!("  \x1b[1;32mlibrary ok\x1b[0m {}", path);
         true
     } else {
-        eprintln!("  \x1b[1;31mlibrary fail\x1b[0m {}", path);
+        status_eprintln!("  \x1b[1;31mlibrary fail\x1b[0m {}", path);
         for issue in issues {
             eprintln!("    - {}", issue);
         }
@@ -20680,33 +20947,10 @@ fn collect_library_scope_issues(
                     "top-level `?` proof execution is script-only in importable library files",
                 ));
             }
-            Stmt::Assert(name, _) => {
-                issues.push(format_scope_issue(
-                    scope,
-                    &format!(
-                        "top-level `assert {}` is script-only in importable library files",
-                        name
-                    ),
-                ));
-            }
-            Stmt::Retract(name, _) => {
-                issues.push(format_scope_issue(
-                    scope,
-                    &format!(
-                        "top-level `retract {}` is script-only in importable library files",
-                        name
-                    ),
-                ));
-            }
-            Stmt::Abort => {
-                issues.push(format_scope_issue(
-                    scope,
-                    "top-level `abort` is script-only in importable library files",
-                ));
-            }
             Stmt::Defn(_)
             | Stmt::TypeDecl(_)
             | Stmt::Rule(_)
+            | Stmt::PreludeBoundary
             | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
@@ -20867,16 +21111,12 @@ fn stmt_is_impure_in_expr(
                     .iter()
                     .any(|stmt| stmt_is_impure_in_expr(stmt, impure_builtins, impure_helpers))
         }
-        Stmt::Send(_, _)
-        | Stmt::StreamSub(_, _)
-        | Stmt::Prove { .. }
-        | Stmt::Assert(_, _)
-        | Stmt::Retract(_, _)
-        | Stmt::Abort => true,
+        Stmt::Send(_, _) | Stmt::StreamSub(_, _) | Stmt::Prove { .. } => true,
         Stmt::Defn(_)
         | Stmt::TypeDecl(_)
         | Stmt::Rule(_)
         | Stmt::Explore(_)
+        | Stmt::PreludeBoundary
         | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
@@ -20887,7 +21127,13 @@ fn stmt_is_impure_in_expr(
 }
 
 fn format_one_file(source: &str, filename: &str, check: bool) {
-    let formatted = format_runa_source(source);
+    let formatted = match checked_format_runa_source(source) {
+        Ok(formatted) => formatted,
+        Err(error) => {
+            eprintln!("{}: {}", filename, error);
+            std::process::exit(1);
+        }
+    };
     if check {
         if formatted != source {
             eprintln!("{} needs formatting", filename);
@@ -20899,7 +21145,10 @@ fn format_one_file(source: &str, filename: &str, check: bool) {
         if formatted != source {
             match std::fs::write(filename, &formatted) {
                 Ok(_) => eprintln!("formatted {}", filename),
-                Err(e) => eprintln!("error writing {}: {}", filename, e),
+                Err(e) => {
+                    eprintln!("error writing {}: {}", filename, e);
+                    std::process::exit(1);
+                }
             }
         } else {
             eprintln!("{} unchanged", filename);
@@ -20907,7 +21156,166 @@ fn format_one_file(source: &str, filename: &str, check: bool) {
     }
 }
 
+/// Compare both lexical content and parsed structure. Newlines may move, but
+/// their grammatical effect must not change. No type checking or import
+/// execution is needed to format a syntactically valid source file.
+fn validate_format_preservation(source: &str, formatted: &str) -> Result<(), String> {
+    fn signature(source: &str) -> Result<(Vec<(TokenKind, String, String)>, String), String> {
+        let tokens = Lexer::new(source).tokenize();
+        let mut parser = Parser::new(tokens.clone(), source);
+        let body = parser.parse_program()?;
+        let structure = content_hash_defn(&Defn::Module {
+            name: "formatter".to_string(),
+            body,
+        });
+        let content = tokens
+            .into_iter()
+            .filter(|token| token.kind != TokenKind::Semi)
+            .map(|token| (token.kind, token.text, token.source_text))
+            .collect();
+        Ok((content, structure))
+    }
+
+    let before =
+        signature(source).map_err(|error| format!("cannot format invalid syntax: {}", error))?;
+    let after = signature(formatted).map_err(|error| {
+        format!(
+            "formatter produced invalid syntax; file unchanged: {}",
+            error
+        )
+    })?;
+    if before != after {
+        return Err("formatting would change program structure; file unchanged".to_string());
+    }
+    Ok(())
+}
+
+fn checked_format_runa_source(source: &str) -> Result<String, String> {
+    let formatted = format_runa_source(source);
+    validate_format_preservation(source, &formatted)?;
+    Ok(formatted)
+}
+
+/// Embedded Rust has its own literal/comment grammar. Preserve each complete
+/// block using the parser's statement boundary, without formatting its body
+/// as Futuruna or changing the parser's dedentation of multiline literals.
+fn fmt_rust_block_spans(source: &str) -> BTreeMap<usize, usize> {
+    let mut parser = Parser::new(Lexer::new(source).tokenize(), source);
+    let mut spans = BTreeMap::new();
+    while parser.pos + 2 < parser.tokens.len() {
+        if parser.tokens[parser.pos].kind == TokenKind::At
+            && parser.tokens[parser.pos + 1].text == "rust"
+            && parser.tokens[parser.pos + 2].kind == TokenKind::LBrace
+        {
+            let token = &parser.tokens[parser.pos];
+            let start = parser.char_offset(token.line, token.col);
+            parser.pos += 2;
+            if parser.parse_rust_block().is_ok() {
+                let close = &parser.tokens[parser.pos - 1];
+                let end = parser.char_offset(close.line, close.col) + 1;
+                if close.kind == TokenKind::RBrace
+                    && parser.source_chars.get(start) == Some(&'@')
+                    && parser.source_chars.get(end - 1) == Some(&'}')
+                {
+                    spans.insert(start, end);
+                }
+            }
+        } else {
+            parser.pos += 1;
+        }
+    }
+    spans
+}
+
 fn format_runa_source(source: &str) -> String {
+    // Protect opaque spans before line layout. Use the actual lexer readers,
+    // including escapes and template interpolation, rather than a second
+    // approximation of the literal grammar. Character offsets remain Unicode
+    // safe; the original text is restored without decoding or re-encoding it.
+    let mut prefix = "__runa_fmt_verbatim_".to_string();
+    while source.contains(&prefix) {
+        prefix.push('_');
+    }
+    let mut lexer = Lexer::new(source);
+    let rust_blocks = fmt_rust_block_spans(source);
+    let mut protected = String::with_capacity(source.len());
+    let mut fragments = Vec::new();
+    while let Some(c) = lexer.peek() {
+        let start = lexer.pos;
+        let block_comment = (0..4).all(|offset| lexer.peek_at(offset) == Some('-'));
+        if let Some(end) = rust_blocks.get(&start) {
+            while lexer.pos < *end {
+                lexer.advance();
+            }
+        } else if block_comment {
+            for _ in 0..4 {
+                lexer.advance();
+            }
+            while lexer.peek().is_some() {
+                if (0..4).all(|offset| lexer.peek_at(offset) == Some('-')) {
+                    for _ in 0..4 {
+                        lexer.advance();
+                    }
+                    break;
+                }
+                lexer.advance();
+            }
+        } else if c == '-' && lexer.peek2() == Some('-') {
+            // Quotes in a line comment are not literals.
+            while let Some(c) = lexer.peek().filter(|c| *c != '\n') {
+                protected.push(c);
+                lexer.advance();
+            }
+            continue;
+        } else if c == '"' {
+            if lexer.peek2() == Some('"') && lexer.peek_at(2) == Some('"') {
+                for _ in 0..3 {
+                    lexer.advance();
+                }
+                lexer.read_triple_string();
+            } else {
+                lexer.read_string();
+            }
+        } else if c == '\'' {
+            lexer.read_char_lit();
+        } else {
+            protected.push(c);
+            lexer.advance();
+            continue;
+        }
+        let marker = format!("{}{}__", prefix, fragments.len());
+        if block_comment {
+            protected.push_str(&format!("----{}----", marker));
+        } else {
+            protected.push_str(&marker);
+        }
+        fragments.push((
+            lexer.chars[start..lexer.pos].iter().collect::<String>(),
+            block_comment,
+        ));
+    }
+
+    let formatted = fmt_layout_source(&protected);
+    let mut remaining = formatted.as_str();
+    let mut output = String::with_capacity(source.len());
+    // Restore in one pass, avoiding a whole-file replacement for every
+    // quotation in a large legal model. The unique prefix cannot occur in
+    // authored text, including the fragments being restored.
+    while let Some(start) = remaining.find(&prefix) {
+        let digits_start = start + prefix.len();
+        let digits_end = digits_start + remaining[digits_start..].find("__").unwrap();
+        let index: usize = remaining[digits_start..digits_end].parse().unwrap();
+        let (original, block_comment) = &fragments[index];
+        let wrapper = if *block_comment { 4 } else { 0 };
+        output.push_str(&remaining[..start - wrapper]);
+        output.push_str(original);
+        remaining = &remaining[digits_end + 2 + wrapper..];
+    }
+    output.push_str(remaining);
+    output
+}
+
+fn fmt_layout_source(source: &str) -> String {
     let lines: Vec<&str> = source.lines().collect();
     let mut result: Vec<String> = Vec::new();
     let mut depth: i32 = 0;
@@ -20915,76 +21323,10 @@ fn format_runa_source(source: &str) -> String {
     let mut previous_line_requires_continuation = false;
     let mut statement_rune_depth: Option<i32> = None;
     let mut prev_blank = false;
-    let mut in_block_comment_dash = false;
-    let mut in_block_comment_brace = false;
-    let mut in_rust_block = false;
-    let mut rust_brace_depth: i32 = 0;
-    let mut in_triple_string = false;
-    let mut rust_block_lines: Vec<String> = Vec::new();
     let mut i = 0;
 
     while i < lines.len() {
         let trimmed = lines[i].trim();
-
-        // ── Triple-quoted strings: preserve verbatim ──
-        if in_triple_string {
-            // Keep the line exactly as-is (content of triple-quoted string)
-            result.push(lines[i].trim_end().to_string());
-            if trimmed.contains("\"\"\"") {
-                in_triple_string = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        // ── @ rust { } blocks: collect and reindent preserving relative structure ──
-        if in_rust_block {
-            let net = fmt_count_raw_braces(trimmed);
-            rust_brace_depth += net;
-            if rust_brace_depth <= 0 {
-                // Closing } of @ rust block — first reindent collected lines
-                let reindented = fmt_reindent_block(&rust_block_lines, depth + 1);
-                result.extend(reindented);
-                rust_block_lines.clear();
-                result.push(format!("{}}}", fmt_indent(depth)));
-                in_rust_block = false;
-            } else {
-                rust_block_lines.push(lines[i].to_string());
-            }
-            prev_blank = false;
-            i += 1;
-            continue;
-        }
-
-        // ── ---- block comments ──
-        if in_block_comment_dash {
-            if trimmed.is_empty() {
-                result.push(String::new());
-            } else {
-                result.push(format!("{}{}", fmt_indent(depth), trimmed));
-            }
-            if trimmed.contains("----") {
-                in_block_comment_dash = false;
-            }
-            prev_blank = false;
-            i += 1;
-            continue;
-        }
-
-        // ── {- -} block comments ──
-        if in_block_comment_brace {
-            if trimmed.is_empty() {
-                result.push(String::new());
-            } else {
-                result.push(format!("{}{}", fmt_indent(depth), trimmed));
-            }
-            if trimmed.contains("-}") {
-                in_block_comment_brace = false;
-            }
-            prev_blank = false;
-            i += 1;
-            continue;
-        }
 
         // ── Blank lines: max 1 consecutive ──
         if trimmed.is_empty() {
@@ -20997,56 +21339,11 @@ fn format_runa_source(source: &str) -> String {
         }
         prev_blank = false;
 
-        // ── Check for ---- block comment opening ──
+        // Source quotation placeholders already contain their delimiters.
         if trimmed.starts_with("----") {
             result.push(format!("{}{}", fmt_indent(depth), trimmed));
-            // Count ---- occurrences: odd means unclosed
-            let dash_count = trimmed.matches("----").count();
-            if dash_count % 2 == 1 {
-                in_block_comment_dash = true;
-            }
             i += 1;
             continue;
-        }
-
-        // ── Check for {- block comment opening ──
-        if trimmed.starts_with("{-") {
-            result.push(format!("{}{}", fmt_indent(depth), trimmed));
-            if !trimmed.contains("-}") {
-                in_block_comment_brace = true;
-            }
-            i += 1;
-            continue;
-        }
-
-        // ── Check for @ rust { block ──
-        if trimmed.starts_with("@ rust") && trimmed.contains('{') {
-            result.push(format!("{}{}", fmt_indent(depth), trimmed));
-            rust_brace_depth = fmt_count_raw_braces(trimmed);
-            if rust_brace_depth > 0 {
-                in_rust_block = true;
-            }
-            i += 1;
-            continue;
-        }
-
-        // ── Check for triple-quoted string opening ──
-        if !trimmed.starts_with("--") {
-            let tq_count = count_triple_quotes(trimmed);
-            if tq_count % 2 == 1 {
-                // Odd number of """ means one is unclosed → enter triple-string mode
-                // Output this line normally first
-                if trimmed.starts_with('}') {
-                    depth = (depth - 1).max(0);
-                }
-                result.push(format!("{}{}", fmt_indent(depth), trimmed));
-                if let Some('{') = fmt_effective_last_char(trimmed) {
-                    depth += 1;
-                }
-                in_triple_string = true;
-                i += 1;
-                continue;
-            }
         }
 
         // ── Normal line formatting ──
@@ -21315,13 +21612,13 @@ fn fmt_operator_spacing(line: &str) -> String {
             continue;
         }
 
-        // Two-char operators: ==, !=, <=, >=, ->, &&, ||, |>
+        // Two-char operators: ==, !=, <=, >=, ->, <-, &&, ||, |>
         if i + 1 < len {
             let next = chars[i + 1];
             let pair = format!("{}{}", c, next);
             let after_op = chars.get(i + 2).copied();
             match pair.as_str() {
-                "==" | "!=" | "<=" | ">=" | "&&" | "||" => {
+                "==" | "!=" | "<=" | ">=" | "&&" | "||" | "<-" => {
                     fmt_ensure_space_around(&mut result, &pair, after_op);
                     i += 2;
                     continue;
@@ -21614,113 +21911,6 @@ fn fmt_effective_last_char(line: &str) -> Option<char> {
     last_significant
 }
 
-/// Count net braces in a line of raw Rust code (for @ rust blocks).
-/// Aware of Rust strings, char literals, and // comments.
-fn fmt_count_raw_braces(line: &str) -> i32 {
-    let mut net: i32 = 0;
-    let mut in_string = false;
-    let mut in_char = false;
-    let mut escape = false;
-    let chars: Vec<char> = line.chars().collect();
-
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-
-        if escape {
-            escape = false;
-            i += 1;
-            continue;
-        }
-
-        if in_char {
-            if c == '\\' {
-                escape = true;
-            } else if c == '\'' {
-                in_char = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        if in_string {
-            if c == '\\' {
-                escape = true;
-            } else if c == '"' {
-                in_string = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        // Rust // comment
-        if c == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
-            break;
-        }
-        // Runa -- comment (also skip in @ rust line detection)
-        if c == '-' && i + 1 < chars.len() && chars[i + 1] == '-' {
-            break;
-        }
-
-        if c == '"' {
-            in_string = true;
-        } else if c == '\'' {
-            in_char = true;
-        } else if c == '{' {
-            net += 1;
-        } else if c == '}' {
-            net -= 1;
-        }
-
-        i += 1;
-    }
-
-    net
-}
-
-/// Count occurrences of `"""` in a line (char-safe).
-fn count_triple_quotes(line: &str) -> usize {
-    let mut count = 0;
-    let chars: Vec<char> = line.chars().collect();
-    let mut i = 0;
-    while i + 2 < chars.len() {
-        if chars[i] == '"' && chars[i + 1] == '"' && chars[i + 2] == '"' {
-            count += 1;
-            i += 3;
-        } else {
-            i += 1;
-        }
-    }
-    count
-}
-
-/// Reindent a block of lines (e.g. @ rust content) preserving relative indentation.
-/// Finds the minimum indent among non-blank lines, strips it, and applies target_depth.
-fn fmt_reindent_block(lines: &[String], target_depth: i32) -> Vec<String> {
-    let base = fmt_indent(target_depth);
-    // Find minimum indentation among non-empty lines
-    let min_indent = lines
-        .iter()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| l.len() - l.trim_start().len())
-        .min()
-        .unwrap_or(0);
-
-    lines
-        .iter()
-        .map(|line| {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                String::new()
-            } else {
-                let current_indent = line.len() - line.trim_start().len();
-                let relative = current_indent.saturating_sub(min_indent);
-                format!("{}{}{}", base, " ".repeat(relative), trimmed)
-            }
-        })
-        .collect()
-}
-
 // ============================================================================
 // PART 8c: LANGUAGE SERVER PROTOCOL (M19)
 // ============================================================================
@@ -21734,27 +21924,90 @@ fn fmt_reindent_block(lines: &[String], target_depth: i32) -> Vec<String> {
 //   - Hover: show function signatures and type definitions
 //   - Completion: rune-aware snippets + builtins + user-defined symbols
 
-fn run_lsp_server() {
-    use std::collections::HashMap;
-
+fn run_lsp_server() -> i32 {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut reader = std::io::BufReader::new(stdin.lock());
     let mut writer = stdout.lock();
 
+    match lsp_session(&mut reader, &mut writer) {
+        Ok(code) => code,
+        Err(error) => {
+            eprintln!("runa lsp: {error}");
+            1
+        }
+    }
+}
+
+fn lsp_session(
+    reader: &mut impl std::io::BufRead,
+    writer: &mut impl std::io::Write,
+) -> std::io::Result<i32> {
+    use std::collections::HashMap;
+
     // Cache prelude once at startup
     let prelude = parse_prelude();
     let mut documents: HashMap<String, String> = HashMap::new();
+    let mut initialized = false;
+    let mut shutdown = false;
 
     loop {
         // Read JSON-RPC message
-        let msg = match lsp_read_message(&mut reader) {
-            Some(m) => m,
-            None => break,
+        let msg = match lsp_read_message(reader)? {
+            Some(LspIncoming::Message(message)) => message,
+            Some(LspIncoming::ParseError) => {
+                lsp_send_error(writer, serde_json::Value::Null, -32700, "Parse error")?;
+                continue;
+            }
+            None => return Ok(if shutdown { 0 } else { 1 }),
         };
 
-        let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or("");
         let id = msg.get("id").cloned();
+        let valid_id = id
+            .as_ref()
+            .is_none_or(|id| id.is_string() || id.is_i64() || id.is_u64() || id.is_null());
+        let method = msg.get("method").and_then(|m| m.as_str());
+        // We currently issue no requests. Ignore unsolicited client responses;
+        // answering a response with another response can create an error loop.
+        if msg["jsonrpc"] == "2.0"
+            && valid_id
+            && id.is_some()
+            && msg.get("method").is_none()
+            && (msg.get("result").is_some() ^ msg.get("error").is_some())
+        {
+            continue;
+        }
+        if msg["jsonrpc"] != "2.0" || !valid_id || method.is_none() {
+            let error_id = if valid_id { id } else { None };
+            lsp_send_error(
+                writer,
+                error_id.unwrap_or(serde_json::Value::Null),
+                -32600,
+                "Invalid Request",
+            )?;
+            continue;
+        }
+        let method = method.unwrap();
+        if method == "exit" && id.is_none() {
+            return Ok(if shutdown { 0 } else { 1 });
+        }
+        if shutdown {
+            if let Some(id) = id {
+                lsp_send_error(writer, id, -32600, "Server has shut down")?;
+            }
+            continue;
+        }
+        if !initialized {
+            if let Some(id) = id {
+                if method == "initialize" {
+                    lsp_send_response(writer, id, lsp_server_capabilities())?;
+                    initialized = true;
+                } else {
+                    lsp_send_error(writer, id, -32002, "Server not initialized")?;
+                }
+            }
+            continue;
+        }
         let params = msg
             .get("params")
             .cloned()
@@ -21762,19 +22015,19 @@ fn run_lsp_server() {
 
         match method {
             "initialize" => {
-                if let Some(id) = id.clone() {
-                    lsp_send_response(&mut writer, id, lsp_server_capabilities());
+                if let Some(id) = id {
+                    lsp_send_error(writer, id, -32600, "Server already initialized")?;
                 }
             }
-            "initialized" => {} // client ready, nothing to do
+            "initialized" if id.is_none() => {} // client ready, nothing to do
             "shutdown" => {
-                if let Some(id) = id.clone() {
-                    lsp_send_response(&mut writer, id, serde_json::Value::Null);
+                if let Some(id) = id {
+                    lsp_send_response(writer, id, serde_json::Value::Null)?;
+                    shutdown = true;
                 }
             }
-            "exit" => break,
 
-            "textDocument/didOpen" => {
+            "textDocument/didOpen" if id.is_none() => {
                 let uri = params["textDocument"]["uri"]
                     .as_str()
                     .unwrap_or("")
@@ -21784,9 +22037,9 @@ fn run_lsp_server() {
                     .unwrap_or("")
                     .to_string();
                 documents.insert(uri.clone(), text.clone());
-                lsp_analyze(&mut writer, &uri, &text, &prelude);
+                lsp_analyze(writer, &uri, &text, &prelude)?;
             }
-            "textDocument/didChange" => {
+            "textDocument/didChange" if id.is_none() => {
                 let uri = params["textDocument"]["uri"]
                     .as_str()
                     .unwrap_or("")
@@ -21795,53 +22048,53 @@ fn run_lsp_server() {
                     if let Some(change) = changes.first() {
                         let text = change["text"].as_str().unwrap_or("").to_string();
                         documents.insert(uri.clone(), text.clone());
-                        lsp_analyze(&mut writer, &uri, &text, &prelude);
+                        lsp_analyze(writer, &uri, &text, &prelude)?;
                     }
                 }
             }
-            "textDocument/didClose" => {
+            "textDocument/didClose" if id.is_none() => {
                 let uri = params["textDocument"]["uri"]
                     .as_str()
                     .unwrap_or("")
                     .to_string();
                 documents.remove(&uri);
                 lsp_send_notification(
-                    &mut writer,
+                    writer,
                     "textDocument/publishDiagnostics",
                     serde_json::json!({"uri": uri, "diagnostics": []}),
-                );
+                )?;
             }
-            "textDocument/didSave" => {
+            "textDocument/didSave" if id.is_none() => {
                 let uri = params["textDocument"]["uri"]
                     .as_str()
                     .unwrap_or("")
                     .to_string();
                 if let Some(text) = documents.get(&uri).cloned() {
-                    lsp_analyze(&mut writer, &uri, &text, &prelude);
+                    lsp_analyze(writer, &uri, &text, &prelude)?;
                 }
             }
 
-            "textDocument/completion" => {
+            "textDocument/completion" if id.is_some() => {
                 let uri = params["textDocument"]["uri"].as_str().unwrap_or("");
                 let line = params["position"]["line"].as_u64().unwrap_or(0) as u32;
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(uri).cloned().unwrap_or_default();
-                let items = lsp_completions(&text, line, col);
+                let items = lsp_completions_in_document(&text, line, col, lsp_source_dir(uri));
                 if let Some(id) = id.clone() {
-                    lsp_send_response(&mut writer, id, serde_json::json!(items));
+                    lsp_send_response(writer, id, serde_json::json!(items))?;
                 }
             }
-            "textDocument/hover" => {
+            "textDocument/hover" if id.is_some() => {
                 let uri = params["textDocument"]["uri"].as_str().unwrap_or("");
                 let line = params["position"]["line"].as_u64().unwrap_or(0) as u32;
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(uri).cloned().unwrap_or_default();
-                let hover = lsp_hover(&text, line, col);
+                let hover = lsp_hover_in_document(&text, line, col, lsp_source_dir(uri));
                 if let Some(id) = id.clone() {
-                    lsp_send_response(&mut writer, id, hover);
+                    lsp_send_response(writer, id, hover)?;
                 }
             }
-            "textDocument/definition" => {
+            "textDocument/definition" if id.is_some() => {
                 let uri = params["textDocument"]["uri"]
                     .as_str()
                     .unwrap_or("")
@@ -21851,14 +22104,14 @@ fn run_lsp_server() {
                 let text = documents.get(&uri).cloned().unwrap_or_default();
                 let loc = lsp_definition(&uri, &text, line, col);
                 if let Some(id) = id.clone() {
-                    lsp_send_response(&mut writer, id, loc);
+                    lsp_send_response(writer, id, loc)?;
                 }
             }
 
             _ => {
-                // Unknown request → null response
+                // Notifications never receive responses, including unknown ones.
                 if let Some(id) = id {
-                    lsp_send_response(&mut writer, id, serde_json::Value::Null);
+                    lsp_send_error(writer, id, -32601, "Method not found")?;
                 }
             }
         }
@@ -21867,49 +22120,110 @@ fn run_lsp_server() {
 
 // ── JSON-RPC transport ──────────────────────────────────────────────
 
-fn lsp_read_message(reader: &mut impl std::io::BufRead) -> Option<serde_json::Value> {
-    let mut content_length: usize = 0;
+enum LspIncoming {
+    Message(serde_json::Value),
+    ParseError,
+}
+
+fn lsp_read_message(reader: &mut impl std::io::BufRead) -> std::io::Result<Option<LspIncoming>> {
+    use std::io::{Error, ErrorKind, Read};
+
+    let invalid = |message| Error::new(ErrorKind::InvalidData, message);
+    let mut content_length = None;
+    let mut started = false;
     loop {
         let mut header = String::new();
-        if reader.read_line(&mut header).ok()? == 0 {
-            return None;
+        if reader.read_line(&mut header)? == 0 {
+            return if started {
+                Err(Error::new(
+                    ErrorKind::UnexpectedEof,
+                    "incomplete LSP header",
+                ))
+            } else {
+                Ok(None)
+            };
+        }
+        started = true;
+        if !header.is_ascii() {
+            return Err(invalid("LSP headers must be ASCII"));
         }
         let header = header.trim();
         if header.is_empty() {
             break;
         }
-        if let Some(len) = header.strip_prefix("Content-Length: ") {
-            content_length = len.parse().ok()?;
+        let (name, value) = header
+            .split_once(':')
+            .ok_or_else(|| invalid("invalid LSP header field"))?;
+        if name.eq_ignore_ascii_case("Content-Length") {
+            if content_length.is_some() {
+                return Err(invalid("duplicate LSP Content-Length header"));
+            }
+            let value = value.trim();
+            if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err(invalid("invalid LSP Content-Length"));
+            }
+            content_length = Some(
+                value
+                    .parse::<usize>()
+                    .map_err(|_| invalid("invalid LSP Content-Length"))?,
+            );
         }
     }
-    if content_length == 0 {
-        return None;
+    let content_length = content_length.ok_or_else(|| invalid("missing LSP Content-Length"))?;
+    // Grow only as bytes arrive, rather than allocating an untrusted declared
+    // length up front. A complete bad JSON frame can be skipped; a truncated
+    // frame or ambiguous length cannot be safely resynchronized.
+    let mut body = Vec::new();
+    reader.take(content_length as u64).read_to_end(&mut body)?;
+    if body.len() != content_length {
+        return Err(Error::new(ErrorKind::UnexpectedEof, "incomplete LSP body"));
     }
-    let mut body = vec![0u8; content_length];
-    reader.read_exact(&mut body).ok()?;
-    serde_json::from_slice(&body).ok()
+    Ok(Some(match serde_json::from_slice(&body) {
+        Ok(message) => LspIncoming::Message(message),
+        Err(_) => LspIncoming::ParseError,
+    }))
+}
+
+fn lsp_write_message(
+    writer: &mut impl std::io::Write,
+    message: serde_json::Value,
+) -> std::io::Result<()> {
+    let body = serde_json::to_vec(&message)?;
+    write!(writer, "Content-Length: {}\r\n\r\n", body.len())?;
+    writer.write_all(&body)?;
+    writer.flush()
+}
+
+fn lsp_send_error(
+    writer: &mut impl std::io::Write,
+    id: serde_json::Value,
+    code: i32,
+    message: &str,
+) -> std::io::Result<()> {
+    lsp_write_message(
+        writer,
+        serde_json::json!({
+            "jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}
+        }),
+    )
 }
 
 fn lsp_send_response(
     writer: &mut impl std::io::Write,
     id: serde_json::Value,
     result: serde_json::Value,
-) {
+) -> std::io::Result<()> {
     let msg = serde_json::json!({"jsonrpc": "2.0", "id": id, "result": result});
-    let body = serde_json::to_string(&msg).unwrap();
-    let _ = write!(writer, "Content-Length: {}\r\n\r\n{}", body.len(), body);
-    let _ = writer.flush();
+    lsp_write_message(writer, msg)
 }
 
 fn lsp_send_notification(
     writer: &mut impl std::io::Write,
     method: &str,
     params: serde_json::Value,
-) {
+) -> std::io::Result<()> {
     let msg = serde_json::json!({"jsonrpc": "2.0", "method": method, "params": params});
-    let body = serde_json::to_string(&msg).unwrap();
-    let _ = write!(writer, "Content-Length: {}\r\n\r\n{}", body.len(), body);
-    let _ = writer.flush();
+    lsp_write_message(writer, msg)
 }
 
 fn lsp_server_capabilities() -> serde_json::Value {
@@ -21932,7 +22246,12 @@ fn lsp_server_capabilities() -> serde_json::Value {
 
 // ── Diagnostics ─────────────────────────────────────────────────────
 
-fn lsp_analyze(writer: &mut impl std::io::Write, uri: &str, source: &str, prelude: &[Stmt]) {
+fn lsp_analyze(
+    writer: &mut impl std::io::Write,
+    uri: &str,
+    source: &str,
+    prelude: &[Stmt],
+) -> std::io::Result<()> {
     let mut diagnostics = Vec::new();
 
     let mut lexer = Lexer::new(source);
@@ -21941,13 +22260,17 @@ fn lsp_analyze(writer: &mut impl std::io::Write, uri: &str, source: &str, prelud
 
     match parser.parse_program() {
         Err(error) => {
-            diagnostics.push(lsp_parse_error_to_diag(&error));
+            diagnostics.extend(
+                runa_parse_diagnostics::parse_diagnostics(source, &error)
+                    .iter()
+                    .map(|diagnostic| diagnostic_to_lsp(diagnostic, source)),
+            );
         }
         Ok(user_stmts) => {
             let stmts = prepend_prelude(prelude.to_vec(), &user_stmts);
             let src_dir = lsp_source_dir(uri);
             let mut tc_diags = TypeChecker::check_with_diagnostics(&stmts, src_dir.clone(), source);
-            tc_diags.extend(compiler_validation_diagnostics(&stmts, src_dir, None));
+            tc_diags.extend(compiler_validation_diagnostics(&stmts, src_dir));
             for diag in &tc_diags {
                 diagnostics.push(diagnostic_to_lsp(diag, source));
             }
@@ -21958,53 +22281,31 @@ fn lsp_analyze(writer: &mut impl std::io::Write, uri: &str, source: &str, prelud
         writer,
         "textDocument/publishDiagnostics",
         serde_json::json!({"uri": uri, "diagnostics": diagnostics}),
-    );
-}
-
-fn lsp_parse_error_to_diag(error: &str) -> serde_json::Value {
-    let parts: Vec<&str> = error.splitn(3, ':').collect();
-    let (line, col, message) = if parts.len() >= 3 {
-        if let (Ok(l), Ok(c)) = (
-            parts[0].trim().parse::<u32>(),
-            parts[1].trim().parse::<u32>(),
-        ) {
-            (
-                l.saturating_sub(1),
-                c.saturating_sub(1),
-                parts[2..].join(":").trim().to_string(),
-            )
-        } else {
-            (0, 0, error.to_string())
-        }
-    } else {
-        (0, 0, error.to_string())
-    };
-
-    serde_json::json!({
-        "range": {
-            "start": {"line": line, "character": col},
-            "end": {"line": line, "character": col + 1}
-        },
-        "severity": 1,
-        "source": "runa",
-        "message": message
-    })
+    )
 }
 
 /// Convert a structured Diagnostic to LSP JSON format.
 fn diagnostic_to_lsp(diag: &Diagnostic, source: &str) -> serde_json::Value {
-    let (line, col, end_line, end_col) = if let Some(span) = diag.span {
-        let (l, c) = span.start_line_col(source);
-        let (el, ec) = span.end_line_col(source);
-        (
-            l.saturating_sub(1) as u32,
-            c.saturating_sub(1) as u32,
-            el.saturating_sub(1) as u32,
-            ec.saturating_sub(1) as u32,
-        )
-    } else {
-        (0, 0, 0, 1)
-    };
+    fn range(source: &str, span: Option<Span>) -> serde_json::Value {
+        fn position(source: &str, offset: usize) -> serde_json::Value {
+            let mut line = 0;
+            let mut character = 0;
+            for c in source.chars().take(offset) {
+                if c == '\n' {
+                    line += 1;
+                    character = 0;
+                } else {
+                    character += c.len_utf16();
+                }
+            }
+            serde_json::json!({"line": line, "character": character})
+        }
+        let span = span.unwrap_or(Span::new(0, 1));
+        serde_json::json!({
+            "start": position(source, span.start),
+            "end": position(source, span.end),
+        })
+    }
 
     let severity = match diag.severity {
         Severity::Error => 1,
@@ -22017,24 +22318,65 @@ fn diagnostic_to_lsp(diag: &Diagnostic, source: &str) -> serde_json::Value {
         message.push_str(&format!(" ({})", diag.context.join(", ")));
     }
 
-    serde_json::json!({
-        "range": {
-            "start": {"line": line, "character": col},
-            "end": {"line": end_line, "character": end_col}
-        },
+    let mut diagnostic = serde_json::json!({
+        "range": range(source, diag.span),
         "severity": severity,
         "source": "runa",
         "message": message
-    })
+    });
+    if let Some(origin) = &diag.origin {
+        diagnostic["relatedInformation"] = serde_json::json!([{
+            "location": {
+                "uri": lsp_document_uri(&origin.path),
+                "range": range(&origin.source, origin.span),
+            },
+            "message": diag.message,
+        }]);
+    }
+    diagnostic
 }
 
 fn lsp_source_dir(uri: &str) -> Option<String> {
-    let path = uri.strip_prefix("file://").unwrap_or(uri);
-    // Handle percent-encoded spaces on macOS
-    let decoded = path.replace("%20", " ");
-    std::path::Path::new(&decoded)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
+    let path = if let Some(path) = uri.strip_prefix("file://") {
+        // Local file URIs use an empty authority or localhost. Other schemes
+        // and hosts do not identify a local compiler source directory.
+        let path = path
+            .strip_prefix("localhost")
+            .filter(|path| path.starts_with('/'))
+            .unwrap_or(path);
+        if !path.starts_with('/') || path.contains(['?', '#']) {
+            return None;
+        }
+        let mut decoded = Vec::with_capacity(path.len());
+        let mut bytes = path.as_bytes().iter().copied();
+        while let Some(byte) = bytes.next() {
+            if byte == b'%' {
+                let high = (bytes.next()? as char).to_digit(16)?;
+                let low = (bytes.next()? as char).to_digit(16)?;
+                decoded.push((high * 16 + low) as u8);
+            } else {
+                decoded.push(byte);
+            }
+        }
+        let decoded = String::from_utf8(decoded).ok()?;
+        if decoded.contains('\0') {
+            return None;
+        }
+        #[cfg(windows)]
+        let decoded = if decoded.as_bytes().get(2) == Some(&b':') {
+            decoded[1..].to_string()
+        } else {
+            decoded
+        };
+        PathBuf::from(decoded)
+    } else {
+        let path = PathBuf::from(uri);
+        if !path.is_absolute() {
+            return None;
+        }
+        path
+    };
+    path.parent().map(|p| p.to_string_lossy().to_string())
 }
 
 // ── Go-to-definition ────────────────────────────────────────────────
@@ -22076,7 +22418,22 @@ enum LspPathCursor {
 }
 
 fn lsp_document_uri(path: &std::path::Path) -> String {
-    format!("file://{}", path.to_string_lossy().replace(' ', "%20"))
+    let text = path.to_string_lossy();
+    #[cfg(windows)]
+    let text = text.replace('\\', "/");
+    let mut uri = String::from("file://");
+    if !text.starts_with('/') {
+        uri.push('/');
+    }
+    for byte in text.bytes() {
+        if byte.is_ascii_alphanumeric() || b"-._~/:".contains(&byte) {
+            uri.push(byte as char);
+        } else {
+            use std::fmt::Write;
+            write!(uri, "%{byte:02X}").expect("writing URI into String");
+        }
+    }
+    uri
 }
 
 fn lsp_collect_path_documents(
@@ -22274,14 +22631,15 @@ fn lsp_path_cursor_step(
 
 fn lsp_cursor_char_offset(source: &str, line: u32, col: u32) -> Option<usize> {
     let mut offset = 0usize;
-    for (index, source_line) in source.split_inclusive('\n').enumerate() {
+    for (index, source_line) in source.split('\n').enumerate() {
         if index == line as usize {
-            let line_chars = source_line.trim_end_matches('\n').chars().count();
-            return Some(offset + (col as usize).min(line_chars));
+            let text = source_line.strip_suffix('\r').unwrap_or(source_line);
+            let byte = lsp_utf16_byte_offset(text, col);
+            return Some(offset + text[..byte].chars().count());
         }
-        offset += source_line.chars().count();
+        offset += source_line.chars().count() + 1;
     }
-    (line as usize == source.lines().count()).then_some(offset)
+    None
 }
 
 fn lsp_pathof_reference_at(
@@ -22376,7 +22734,7 @@ fn lsp_refof_reference_at(
     found
 }
 
-fn lsp_identifier_pos_after(line: &str, name: &str, start: usize) -> Option<u32> {
+fn lsp_identifier_pos_after(line: &str, name: &str, start: usize) -> Option<usize> {
     for (relative, _) in line.get(start..)?.match_indices(name) {
         let byte = start + relative;
         let before = line[..byte].chars().next_back();
@@ -22385,7 +22743,7 @@ fn lsp_identifier_pos_after(line: &str, name: &str, start: usize) -> Option<u32>
         if before.is_none_or(|character| !is_identifier(character))
             && after.is_none_or(|character| !is_identifier(character))
         {
-            return Some(line[..byte].chars().count() as u32);
+            return Some(byte);
         }
     }
     None
@@ -22396,27 +22754,17 @@ fn lsp_find_type_member_pos(
     owner: &str,
     section: Option<&str>,
     member: &str,
-) -> Option<(u32, u32)> {
-    let (line_index, owner_col) = lsp_find_def_pos(source, owner)?;
+) -> Option<(u32, usize)> {
+    let (line_index, owner_byte) = lsp_find_def_pos(source, owner)?;
     let line = source.lines().nth(line_index as usize)?;
-    let owner_byte = line
-        .char_indices()
-        .nth(owner_col as usize)
-        .map(|(byte, _)| byte)
-        .unwrap_or(line.len());
     let mut start = owner_byte + owner.len();
     if let Some(section) = section {
-        let section_col = lsp_identifier_pos_after(line, section, start)? as usize;
-        start = line
-            .char_indices()
-            .nth(section_col)
-            .map(|(byte, _)| byte + section.len())
-            .unwrap_or(line.len());
+        start = lsp_identifier_pos_after(line, section, start)? + section.len();
     }
     Some((line_index, lsp_identifier_pos_after(line, member, start)?))
 }
 
-fn lsp_find_rule_scope_member_pos(source: &str, owner: &str, member: &str) -> Option<(u32, u32)> {
+fn lsp_find_rule_scope_member_pos(source: &str, owner: &str, member: &str) -> Option<(u32, usize)> {
     let (owner_line, _) = lsp_find_def_pos(source, owner)?;
     let mut entered_body = false;
     let mut brace_depth = 0i32;
@@ -22431,7 +22779,7 @@ fn lsp_find_rule_scope_member_pos(source: &str, owner: &str, member: &str) -> Op
                 if rest.starts_with(member) {
                     let after = &rest[member.len()..];
                     if after.starts_with('(') || after.starts_with(' ') || after.starts_with("->") {
-                        let column = line.find(member)? as u32;
+                        let column = line.find(member)?;
                         return Some((line_index as u32, column));
                     }
                 }
@@ -22459,18 +22807,12 @@ fn lsp_path_location(
     symbol: &str,
 ) -> Option<serde_json::Value> {
     let document = documents.get(document)?;
-    let (line, character) = if symbol == owner && section.is_none() {
+    let position = if symbol == owner && section.is_none() {
         lsp_find_def_pos(&document.source, owner)?
     } else {
         lsp_find_type_member_pos(&document.source, owner, section, symbol)?
     };
-    Some(serde_json::json!({
-        "uri": document.uri,
-        "range": {
-            "start": {"line": line, "character": character},
-            "end": {"line": line, "character": character + symbol.chars().count() as u32}
-        }
-    }))
+    lsp_symbol_location(&document.uri, &document.source, position, symbol)
 }
 
 fn lsp_pathof_definition(
@@ -22537,18 +22879,9 @@ fn lsp_structural_reference_definition(
             }
             if declaration.scoped_members.contains(target) {
                 let document = documents.get(declaration.document)?;
-                let (line, character) =
+                let position =
                     lsp_find_rule_scope_member_pos(&document.source, &declaration.owner, target)?;
-                return Some(serde_json::json!({
-                    "uri": document.uri,
-                    "range": {
-                        "start": {"line": line, "character": character},
-                        "end": {
-                            "line": line,
-                            "character": character + target.chars().count() as u32
-                        }
-                    }
-                }));
+                return lsp_symbol_location(&document.uri, &document.source, position, target);
             }
             declaration.fields.get(target)?;
             lsp_path_location(
@@ -22589,17 +22922,8 @@ fn lsp_refof_definition(uri: &str, source: &str, line: u32, col: u32) -> Option<
     let mut documents = Vec::new();
     lsp_collect_path_documents(uri, source, &mut BTreeSet::new(), &mut documents);
     for document in documents.iter().rev() {
-        if let Some((line, character)) = lsp_find_def_pos(&document.source, symbol) {
-            return Some(serde_json::json!({
-                "uri": document.uri,
-                "range": {
-                    "start": {"line": line, "character": character},
-                    "end": {
-                        "line": line,
-                        "character": character + symbol.chars().count() as u32
-                    }
-                }
-            }));
+        if let Some(position) = lsp_find_def_pos(&document.source, symbol) {
+            return lsp_symbol_location(&document.uri, &document.source, position, symbol);
         }
     }
     None
@@ -22617,19 +22941,37 @@ fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::V
         None => return serde_json::Value::Null,
     };
 
-    if let Some((dl, dc)) = lsp_find_def_pos(source, &word) {
-        return serde_json::json!({
-            "uri": uri,
-            "range": {
-                "start": {"line": dl, "character": dc},
-                "end": {"line": dl, "character": dc + word.len() as u32}
-            }
-        });
+    if let Some(position) = lsp_find_def_pos(source, &word) {
+        return lsp_symbol_location(uri, source, position, &word)
+            .unwrap_or(serde_json::Value::Null);
+    }
+    let text = source.lines().nth(line as usize).unwrap_or("");
+    let prefix = &text[..lsp_utf16_byte_offset(text, col)];
+    if prefix
+        .trim_end_matches(|character: char| character.is_alphanumeric() || character == '_')
+        .ends_with('.')
+    {
+        // Do not resolve a qualified/field member to an unrelated plain import.
+        return serde_json::Value::Null;
+    }
+    let mut documents = Vec::new();
+    lsp_collect_path_documents(uri, source, &mut BTreeSet::new(), &mut documents);
+    for document in documents
+        .iter()
+        .rev()
+        .filter(|document| document.uri != uri)
+    {
+        if let Some(position) = lsp_find_def_pos(&document.source, &word) {
+            return lsp_symbol_location(&document.uri, &document.source, position, &word)
+                .unwrap_or(serde_json::Value::Null);
+        }
     }
     serde_json::Value::Null
 }
 
-fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
+// Definition search uses byte offsets for slicing; convert only at the LSP
+// response boundary. Compiler expression spans continue to count scalars.
+fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, usize)> {
     for (idx, line) in source.lines().enumerate() {
         let t = line.trim();
         // Function: > name(
@@ -22639,7 +22981,7 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
                 let after = &rest[name.len()..];
                 if after.starts_with('(') || after.starts_with(' ') {
                     let col = line.find(name).unwrap_or(0);
-                    return Some((idx as u32, col as u32));
+                    return Some((idx as u32, col));
                 }
             }
         }
@@ -22650,7 +22992,7 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
                 let after = &rest[name.len()..];
                 if after.starts_with('(') || after.starts_with(' ') || after.starts_with("->") {
                     let col = line.find(name).unwrap_or(0);
-                    return Some((idx as u32, col as u32));
+                    return Some((idx as u32, col));
                 }
             }
         }
@@ -22665,7 +23007,7 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
                     || after.starts_with('=')
                 {
                     let col = line.find(name).unwrap_or(0);
-                    return Some((idx as u32, col as u32));
+                    return Some((idx as u32, col));
                 }
             }
         }
@@ -22676,7 +23018,7 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
                 let after = rest[name.len()..].trim();
                 if after.starts_with('=') {
                     let col = line.find(name).unwrap_or(0);
-                    return Some((idx as u32, col as u32));
+                    return Some((idx as u32, col));
                 }
             }
         }
@@ -22687,7 +23029,7 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
                 let after = rest[name.len()..].trim();
                 if after.starts_with('=') {
                     let col = line.find(name).unwrap_or(0);
-                    return Some((idx as u32, col as u32));
+                    return Some((idx as u32, col));
                 }
             }
         }
@@ -22697,7 +23039,28 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
 
 // ── Hover ───────────────────────────────────────────────────────────
 
+#[cfg(test)]
 fn lsp_hover(source: &str, line: u32, col: u32) -> serde_json::Value {
+    lsp_hover_in_document(source, line, col, None)
+}
+
+fn lsp_hover_in_document(
+    source: &str,
+    line: u32,
+    col: u32,
+    source_dir: Option<String>,
+) -> serde_json::Value {
+    if let Some((name, _, fields)) = lsp_member_fields(source, line, col, source_dir) {
+        return fields
+            .iter()
+            .find(|field| field.name == name)
+            .map(|field| {
+                serde_json::json!({"contents": {"kind": "markdown", "value": format!(
+                    "```runa\n{}.{}: {}\n```", field.owner, field.name, field.type_name
+                )}})
+            })
+            .unwrap_or(serde_json::Value::Null);
+    }
     let word = match lsp_word_at(source, line, col) {
         Some(w) => w,
         None => return serde_json::Value::Null,
@@ -22845,15 +23208,80 @@ fn lsp_hover_from_ast(name: &str, stmts: &[Stmt]) -> Option<String> {
 
 // ── Completion ──────────────────────────────────────────────────────
 
+#[cfg(test)]
 fn lsp_completions(source: &str, line: u32, col: u32) -> Vec<serde_json::Value> {
+    lsp_completions_in_document(source, line, col, None)
+}
+
+/// Recognize a member slot and parse a temporary, syntactically complete name.
+/// No buffer is changed. Returning Some with no fields deliberately suppresses
+/// unrelated global suggestions and builtin hovers for an unknown receiver.
+fn lsp_member_fields(
+    source: &str,
+    line: u32,
+    col: u32,
+    source_dir: Option<String>,
+) -> Option<(String, String, Vec<EditorField>)> {
+    let offset = lsp_cursor_char_offset(source, line, col)?;
+    let byte = source
+        .char_indices()
+        .nth(offset)
+        .map(|(byte, _)| byte)
+        .unwrap_or(source.len());
+    let is_name = |c: char| c.is_alphanumeric() || c == '_';
+    let start = source[..byte]
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !is_name(*c))
+        .map(|(byte, c)| byte + c.len_utf8())
+        .unwrap_or(0);
+    let end = source[byte..]
+        .char_indices()
+        .find(|(_, c)| !is_name(*c))
+        .map(|(offset, _)| byte + offset)
+        .unwrap_or(source.len());
+    if !source[..start].trim_end().ends_with('.') {
+        return None;
+    }
+    let name = source[start..end].to_string();
+    let prefix = source[start..byte].to_string();
+    let marker = "__lsp_member_query";
+    let mut query_source = source.to_string();
+    query_source.replace_range(start..end, marker);
+    let member_end = source[..start].chars().count() + marker.len();
+    let mut lexer = Lexer::new(&query_source);
+    let mut parser = Parser::new(lexer.tokenize(), &query_source);
+    let fields = parser
+        .parse_program()
+        .ok()
+        .map(|statements| {
+            TypeChecker::editor_fields_at(&statements, source_dir, &query_source, member_end)
+        })
+        .unwrap_or_default();
+    Some((name, prefix, fields))
+}
+
+fn lsp_completions_in_document(
+    source: &str,
+    line: u32,
+    col: u32,
+    source_dir: Option<String>,
+) -> Vec<serde_json::Value> {
     let lines: Vec<&str> = source.lines().collect();
     let line_text = lines.get(line as usize).copied().unwrap_or("");
-    let prefix = if (col as usize) <= line_text.len() {
-        &line_text[..col as usize]
-    } else {
-        ""
-    };
+    let prefix = &line_text[..lsp_utf16_byte_offset(line_text, col)];
     let trimmed = prefix.trim();
+
+    if let Some((_, prefix, fields)) = lsp_member_fields(source, line, col, source_dir) {
+        return fields
+            .into_iter()
+            .filter(|field| field.name.starts_with(&prefix))
+            .map(|field| {
+                serde_json::json!({"label": field.name, "kind": 5,
+                "detail": format!("{}.{}: {}", field.owner, field.name, field.type_name)})
+            })
+            .collect();
+    }
 
     let mut items = Vec::new();
 
@@ -22864,7 +23292,7 @@ fn lsp_completions(source: &str, line: u32, col: u32) -> Vec<serde_json::Value> 
     }
 
     // Word being typed
-    let word = lsp_word_before(line_text, col as usize);
+    let word = lsp_word_before(line_text, col);
 
     // Parse source for user-defined symbols
     let mut lexer = Lexer::new(source);
@@ -22946,12 +23374,28 @@ fn lsp_completions(source: &str, line: u32, col: u32) -> Vec<serde_json::Value> 
     }
 
     // Keywords
-    for kw in &["match", "for", "if", "true", "false", "in", "inout"] {
+    for kw in &[
+        "match",
+        "for",
+        "if",
+        "True",
+        "False",
+        "in",
+        "inout",
+        "under",
+        "exception",
+        "scope",
+        "not",
+        "and",
+        "or",
+    ] {
         if word.is_empty() || kw.starts_with(&word) {
             items.push(serde_json::json!({"label": kw, "kind": 14}));
         }
     }
 
+    let mut seen = BTreeSet::new();
+    items.retain(|item| seen.insert(item["label"].as_str().unwrap_or("").to_string()));
     items
 }
 
@@ -23025,11 +23469,41 @@ fn lsp_rune_snippets() -> Vec<serde_json::Value> {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+/// Convert an LSP UTF-16 column to a safe byte boundary. Out-of-range columns
+/// clamp to line end; a position inside a surrogate pair uses its start.
+fn lsp_utf16_byte_offset(text: &str, column: u32) -> usize {
+    let mut units = 0;
+    for (byte, character) in text.char_indices() {
+        units += character.len_utf16();
+        if units > column as usize {
+            return byte;
+        }
+    }
+    text.len()
+}
+
+fn lsp_symbol_location(
+    uri: &str,
+    source: &str,
+    (line, byte): (u32, usize),
+    symbol: &str,
+) -> Option<serde_json::Value> {
+    let text = source.lines().nth(line as usize)?;
+    let character = text.get(..byte)?.encode_utf16().count();
+    Some(serde_json::json!({
+        "uri": uri,
+        "range": {
+            "start": {"line": line, "character": character},
+            "end": {"line": line, "character": character + symbol.encode_utf16().count()}
+        }
+    }))
+}
+
 fn lsp_word_at(source: &str, line: u32, col: u32) -> Option<String> {
     let lines: Vec<&str> = source.lines().collect();
     let text = lines.get(line as usize)?;
     let chars: Vec<char> = text.chars().collect();
-    let c = (col as usize).min(chars.len());
+    let c = text[..lsp_utf16_byte_offset(text, col)].chars().count();
     let is_wc = |ch: char| ch.is_alphanumeric() || ch == '_';
 
     let mut start = c;
@@ -23053,9 +23527,9 @@ fn lsp_word_at(source: &str, line: u32, col: u32) -> Option<String> {
     Some(chars[start..end].iter().collect())
 }
 
-fn lsp_word_before(line: &str, col: usize) -> String {
+fn lsp_word_before(line: &str, col: u32) -> String {
     let chars: Vec<char> = line.chars().collect();
-    let c = col.min(chars.len());
+    let c = line[..lsp_utf16_byte_offset(line, col)].chars().count();
     let mut s = c;
     while s > 0 && (chars[s - 1].is_alphanumeric() || chars[s - 1] == '_') {
         s -= 1;
@@ -23088,7 +23562,6 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("distinct", 1),
     ("window", 2),
     ("from_list", 1),
-    ("watch", 1),
     ("sort", 1),
     ("sort_by", 2),
     ("list_min", 1),
@@ -23137,10 +23610,6 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("json_object", 1),
     ("http_get", 1),
     ("http_post", 2),
-    ("db_open", 1),
-    ("db_exec", 2),
-    ("db_query", 2),
-    ("db_close", 1),
     ("tap", 2),
     ("first", 1),
     ("last", 1),
@@ -23196,10 +23665,6 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
         "sum" => Some(("~ sum(stream) -> Int", "Sum all elements")),
         "distinct" => Some(("~ distinct(stream) -> Stream", "Remove duplicates")),
         "from_list" => Some(("~ from_list(list) -> Stream", "Create stream from list")),
-        "watch" => Some((
-            "~ watch(Type) -> Stream(ChangeEvent(Type))",
-            "Subscribe to persisted assert/retract changes for a type",
-        )),
         "sort" => Some(("> sort(list) -> [a]", "Sort in ascending order")),
         "join" => Some((
             "> join(list: [String], sep: String) -> String",
@@ -23324,10 +23789,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("axum", "0.8"),
         ("tokio", "{ version = \"1\", features = [\"full\"] }"),
     ];
-    const RSQL: &[(&str, &str)] = &[(
-        "rusqlite",
-        "{ version = \"0.32\", features = [\"bundled\"] }",
-    )];
 
     let entries: Vec<(&str, BuiltinDef)> = vec![
         // ---- Math (not shadowable, pure) ----
@@ -23378,7 +23839,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "({0}).abs()",
+                rust_tpl: "__futuruna_abs({0})",
             },
         ),
         (
@@ -23559,7 +24020,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)",
+                rust_tpl: "{ let __number = ({0}) as f64; let __precision: i64 = {1}; assert!((0..=65535).contains(&__precision), \"format_float precision must be between 0 and 65535, got {}\", __precision); format!(\"{:.prec$}\", __number, prec = __precision as usize) }",
             },
         ),
         (
@@ -23875,67 +24336,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 rust_tpl: "{0}.2.clone()",
             },
         ),
-        // ---- Database (shadowable, impure, deps: rusqlite) ----
-        (
-            "db_open",
-            BuiltinDef {
-                arity: 1,
-                shadowable: true,
-                impure: true,
-                deps: RSQL,
-                rust_tpl: "std::sync::Arc::new(std::sync::Mutex::new(rusqlite::Connection::open(&*{0}).expect(\"Failed to open database\")))",
-            },
-        ),
-        (
-            "db_exec",
-            BuiltinDef {
-                arity: 2,
-                shadowable: true,
-                impure: true,
-                deps: RSQL,
-                rust_tpl: "{0}.lock().unwrap().execute_batch(&*{1}).expect(\"db_exec failed\")",
-            },
-        ),
-        (
-            "db_query",
-            BuiltinDef {
-                arity: 2,
-                shadowable: true,
-                impure: true,
-                deps: RSQL,
-                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<Vec<String>> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).collect(); __result }",
-            },
-        ),
-        (
-            "db_query_row",
-            BuiltinDef {
-                arity: 2,
-                shadowable: true,
-                impure: true,
-                deps: RSQL,
-                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<String> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().unwrap_or_default(); __result }",
-            },
-        ),
-        (
-            "db_insert",
-            BuiltinDef {
-                arity: 2,
-                shadowable: true,
-                impure: true,
-                deps: RSQL,
-                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }",
-            },
-        ),
-        (
-            "db_close",
-            BuiltinDef {
-                arity: 1,
-                shadowable: true,
-                impure: true,
-                deps: D,
-                rust_tpl: "drop({0})",
-            },
-        ),
         // ---- Misc ----
         (
             "assert",
@@ -24168,7 +24568,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.iter().map(|x| *x as i64).sum::<i64>()",
+                rust_tpl: "__futuruna_sum::<i64, _>(({0}).iter().copied())",
             },
         ),
         (
@@ -24249,7 +24649,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.get({1}.as_str()).cloned()",
+                rust_tpl: "__futuruna_map_get(&({0}), &({1})).cloned()",
             },
         ),
         (
@@ -24259,7 +24659,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())",
+                rust_tpl: "__futuruna_map_get(&({0}), &({1})).cloned().unwrap_or_else(|| {2}.clone())",
             },
         ),
         (
@@ -24269,7 +24669,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.contains_key({1}.as_str())",
+                rust_tpl: "__futuruna_map_get(&({0}), &({1})).is_some()",
             },
         ),
         (
@@ -24531,7 +24931,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()",
+                rust_tpl: "__futuruna_sum(({0}).clone().into_iter())",
             },
         ),
         (
@@ -24883,14 +25283,6 @@ fn rust_builtin_registry() -> &'static BTreeMap<String, BuiltinDef> {
 /// Shared type metadata: types, variants, constructors, field info.
 /// Populated once during declaration scanning, consumed by analysis passes and emission.
 #[derive(Debug, Clone)]
-struct PersistMigration {
-    type_name: String,
-    old_fields: Vec<String>,
-    new_exprs: Vec<Expr>,
-    unsafe_allowed: bool,
-}
-
-#[derive(Debug, Clone)]
 struct ModuleVariantMetadata {
     source_parent: String,
     parent: String,
@@ -25031,29 +25423,12 @@ struct TypeRegistry {
     rule_clone_params: BTreeSet<String>,
     /// Prolog-style rule functions: fn_name -> param types (e.g., ["&str", "&str"])
     prolog_rule_fns: BTreeMap<String, Vec<String>>,
-    /// Prolog-style rule groups retained for specialized query lowering such as
-    /// findall over rules backed by persisted fact predicates.
+    /// Prolog-style rule groups retained for in-memory query lowering.
     prolog_rule_groups: BTreeMap<String, Vec<Rule>>,
     /// Value-returning Prolog rule functions: fn_name -> return type (e.g., "String")
     prolog_value_fns: BTreeMap<String, String>,
     /// Simple literal = bindings at top level: name -> (rust_literal, rust_type)
     literal_bindings: BTreeMap<String, (String, String)>,
-    /// M26: Types with `@ store` annotation
-    stored_types: BTreeSet<String>,
-    /// M26: For stored types, the name of the first field (primary key)
-    stored_type_key_field: BTreeMap<String, String>,
-    /// M26: Store scope — determines DB filename
-    store_scope: Option<String>,
-    /// M26: Types with `delete_on_change` strategy
-    store_delete_on_change: BTreeSet<String>,
-    /// M26: Schema hash per stored type
-    stored_type_schema_hash: BTreeMap<String, String>,
-    /// M26b: Types with `@ persist` annotation — typed-column lowering
-    persisted_types: BTreeSet<String>,
-    /// M26g: Declared persisted schema migrations by type.
-    persist_migrations: BTreeMap<String, Vec<PersistMigration>>,
-    /// M26b: Persisted types observed through `watch(Type)` change streams.
-    watched_persist_types: BTreeSet<String>,
     /// User-defined function names (avoid overriding with builtins)
     user_functions: BTreeSet<String>,
     /// Declared function types: fn_name -> Arrow(param1, ... -> ret), using Unknown for gaps
@@ -25127,14 +25502,6 @@ impl TypeRegistry {
             prolog_rule_groups: BTreeMap::new(),
             prolog_value_fns: BTreeMap::new(),
             literal_bindings: BTreeMap::new(),
-            stored_types: BTreeSet::new(),
-            stored_type_key_field: BTreeMap::new(),
-            store_scope: None,
-            store_delete_on_change: BTreeSet::new(),
-            stored_type_schema_hash: BTreeMap::new(),
-            persisted_types: BTreeSet::new(),
-            persist_migrations: BTreeMap::new(),
-            watched_persist_types: BTreeSet::new(),
             user_functions: BTreeSet::new(),
             fn_types: BTreeMap::new(),
             fn_types_by_arity: BTreeMap::new(),
@@ -25693,6 +26060,7 @@ struct RustRuleHeadBinding {
 struct RustRuleHeadApplicability {
     subject: String,
     pattern: String,
+    nested_patterns: Vec<(String, String)>,
     guards: Vec<String>,
     bindings: Vec<RustRuleHeadBinding>,
 }
@@ -25700,6 +26068,7 @@ struct RustRuleHeadApplicability {
 struct RustRuleHeadPatternState {
     used_names: BTreeSet<String>,
     next_temporary: usize,
+    nested_patterns: Vec<(String, String)>,
     guards: Vec<String>,
     bindings: Vec<RustRuleHeadBinding>,
 }
@@ -25791,7 +26160,7 @@ struct RustCodegen {
     canonical_rule_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     canonical_rule_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     canonical_rule_parameter_issues: BTreeSet<RuleDispatchKey>,
-    canonical_rule_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    runtime_rule_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     runtime_rule_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     canonical_rule_metadata_installed: bool,
     rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode,
@@ -25873,8 +26242,6 @@ struct RustCodegen {
     builtin_registry: &'static BTreeMap<String, BuiltinDef>,
     /// Counter for generating unique async stream operator variable names
     async_stream_counter: usize,
-    /// Source file stem (e.g. "weather" from "weather.runa") — used for store DB naming
-    source_name: Option<String>,
     /// Inferred map variable value types: var_name -> "String" or "i64" etc.
     /// Populated by pre-scanning for map_insert calls.
     map_var_value_types: BTreeMap<String, String>,
@@ -25883,12 +26250,6 @@ struct RustCodegen {
     empty_list_bindings: BTreeSet<String>,
     /// Contextual Rust types for bare empty-list bindings, e.g. xs -> Vec<CouplingPair>.
     empty_list_var_types: BTreeMap<String, String>,
-    /// Nested persisted transaction scope depth while emitting `| scope` bodies.
-    persist_tx_depth: usize,
-    /// Unique counter for generated persisted transaction guard names.
-    persist_tx_counter: usize,
-    /// Persisted transaction guards currently surrounding emitted statements.
-    persist_tx_stack: Vec<String>,
     /// Sanitized Rust module path currently being emitted.
     current_module_path: Vec<String>,
 }
@@ -26452,9 +26813,6 @@ enum FirStmt {
     /// Analysis-only declaration. Solver lowering consumes typed exploration
     /// artifacts; ordinary FIR/Rust execution emits no runtime statement.
     Explore,
-    Assert(String, Vec<FirExpr>),
-    Retract(String, Vec<FirExpr>),
-    Abort,
     Expr(FirExpr),
 }
 
@@ -26599,7 +26957,7 @@ where
 {
     match stmt {
         FirStmt::Defn(defn) => visit_fir_defn_children(defn, visit),
-        FirStmt::Annot(_, args) | FirStmt::Assert(_, args) | FirStmt::Retract(_, args) => {
+        FirStmt::Annot(_, args) => {
             for arg in args {
                 visit(FirChild::Expr(arg));
             }
@@ -26657,8 +27015,7 @@ where
         | FirStmt::HashImport(_, _)
         | FirStmt::Depend(_, _)
         | FirStmt::RustBlock(_)
-        | FirStmt::Explore
-        | FirStmt::Abort => {}
+        | FirStmt::Explore => {}
     }
 }
 
@@ -26750,7 +27107,7 @@ where
 {
     match stmt {
         FirStmt::Defn(defn) => visit_fir_defn_children_mut(defn, visit),
-        FirStmt::Annot(_, args) | FirStmt::Assert(_, args) | FirStmt::Retract(_, args) => {
+        FirStmt::Annot(_, args) => {
             for arg in args {
                 visit(FirChildMut::Expr(arg));
             }
@@ -26808,8 +27165,7 @@ where
         | FirStmt::HashImport(_, _)
         | FirStmt::Depend(_, _)
         | FirStmt::RustBlock(_)
-        | FirStmt::Explore
-        | FirStmt::Abort => {}
+        | FirStmt::Explore => {}
     }
 }
 
@@ -28308,6 +28664,11 @@ impl<'a> LoweringCtx<'a> {
             }),
             Stmt::TypeDecl(td) => FirStmt::TypeDecl(td.clone()),
             Stmt::Rule(r) => FirStmt::Rule(r.clone()),
+            // Prelude origin is consumed by AST initialization, so it has no
+            // executable FIR operation beyond a unit expression.
+            Stmt::PreludeBoundary => {
+                FirStmt::Expr(self.lower_expr(&Expr::new(ExprKind::Unit, Span::dummy())))
+            }
             Stmt::Use(s) => FirStmt::Use(s.clone()),
             Stmt::Import(s) => FirStmt::Import(s.clone()),
             Stmt::QualifiedImport(a, b) => FirStmt::QualifiedImport(a.clone(), b.clone()),
@@ -28396,15 +28757,6 @@ impl<'a> LoweringCtx<'a> {
                     .map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
             },
             Stmt::Explore(_) => FirStmt::Explore,
-            Stmt::Assert(name, args) => FirStmt::Assert(
-                name.clone(),
-                args.iter().map(|a| self.lower_expr(a)).collect(),
-            ),
-            Stmt::Retract(name, args) => FirStmt::Retract(
-                name.clone(),
-                args.iter().map(|a| self.lower_expr(a)).collect(),
-            ),
-            Stmt::Abort => FirStmt::Abort,
             Stmt::While(cond, body) => FirStmt::For(
                 "__while".to_string(),
                 self.lower_expr(cond),
@@ -30242,10 +30594,9 @@ fn stmt_contains_try(stmt: &Stmt) -> bool {
         }
         Stmt::MonadicBind(_, _, _) => true, // MonadicBind IS a ? operation
         Stmt::Send(target, msg) => expr_contains_try(target) || expr_contains_try(msg),
-        Stmt::Assert(_, args) | Stmt::Retract(_, args) => args.iter().any(expr_contains_try),
-        Stmt::Abort => false,
         Stmt::Defn(_)
         | Stmt::TypeDecl(_)
+        | Stmt::PreludeBoundary
         | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
@@ -30259,145 +30610,6 @@ fn stmt_contains_try(stmt: &Stmt) -> bool {
         | Stmt::Invariant { .. }
         | Stmt::Prove { .. }
         | Stmt::Explore(_) => false,
-    }
-}
-
-/// Check whether an expression contains a persisted assert/retract mutation.
-fn expr_contains_persisted_mutation(expr: &Expr, persisted_types: &BTreeSet<String>) -> bool {
-    match &expr.kind {
-        ExprKind::App(f, args) => {
-            expr_contains_persisted_mutation(f, persisted_types)
-                || args
-                    .iter()
-                    .any(|arg| expr_contains_persisted_mutation(arg, persisted_types))
-        }
-        ExprKind::BinOp(_, l, r) => {
-            expr_contains_persisted_mutation(l, persisted_types)
-                || expr_contains_persisted_mutation(r, persisted_types)
-        }
-        ExprKind::UnOp(_, e) | ExprKind::Try(e) => {
-            expr_contains_persisted_mutation(e, persisted_types)
-        }
-        ExprKind::If(c, t, e) => {
-            expr_contains_persisted_mutation(c, persisted_types)
-                || expr_contains_persisted_mutation(t, persisted_types)
-                || expr_contains_persisted_mutation(e, persisted_types)
-        }
-        ExprKind::Match(s, arms) => {
-            expr_contains_persisted_mutation(s, persisted_types)
-                || arms.iter().any(|arm| {
-                    arm.guard
-                        .as_ref()
-                        .map(|guard| expr_contains_persisted_mutation(guard, persisted_types))
-                        .unwrap_or(false)
-                        || expr_contains_persisted_mutation(&arm.body, persisted_types)
-                })
-        }
-        ExprKind::Block(stmts) => stmts
-            .iter()
-            .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types)),
-        ExprKind::Field(e, _) => expr_contains_persisted_mutation(e, persisted_types),
-        ExprKind::Index(base, index) => {
-            expr_contains_persisted_mutation(base, persisted_types)
-                || expr_contains_persisted_mutation(index, persisted_types)
-        }
-        ExprKind::Lambda(_, body) => expr_contains_persisted_mutation(body, persisted_types),
-        ExprKind::List(es)
-        | ExprKind::Tuple(es)
-        | ExprKind::Effect(_, es)
-        | ExprKind::Conjunction(es)
-        | ExprKind::Disjunction(es) => es
-            .iter()
-            .any(|expr| expr_contains_persisted_mutation(expr, persisted_types)),
-        ExprKind::Handle { body, handlers, .. } => {
-            expr_contains_persisted_mutation(body, persisted_types)
-                || handlers
-                    .iter()
-                    .any(|handler| expr_contains_persisted_mutation(&handler.body, persisted_types))
-        }
-        ExprKind::Pipe(input, transform) => {
-            expr_contains_persisted_mutation(input, persisted_types)
-                || expr_contains_persisted_mutation(transform, persisted_types)
-        }
-        ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => false,
-    }
-}
-
-fn stmt_contains_persisted_mutation(stmt: &Stmt, persisted_types: &BTreeSet<String>) -> bool {
-    match stmt {
-        Stmt::Assert(name, args) | Stmt::Retract(name, args) => {
-            persisted_types.contains(name.as_str())
-                || args
-                    .iter()
-                    .any(|arg| expr_contains_persisted_mutation(arg, persisted_types))
-        }
-        Stmt::Bind(_, _, e)
-        | Stmt::MonadicBind(_, _, e)
-        | Stmt::StreamBind(_, e)
-        | Stmt::Expr(e) => expr_contains_persisted_mutation(e, persisted_types),
-        Stmt::For(_, iter, body) | Stmt::While(iter, body) => {
-            expr_contains_persisted_mutation(iter, persisted_types)
-                || body
-                    .iter()
-                    .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types))
-        }
-        Stmt::Send(target, msg) => {
-            expr_contains_persisted_mutation(target, persisted_types)
-                || expr_contains_persisted_mutation(msg, persisted_types)
-        }
-        Stmt::StreamSub(expr, arms) => {
-            expr_contains_persisted_mutation(expr, persisted_types)
-                || arms.iter().any(|arm| {
-                    arm.guard
-                        .as_ref()
-                        .map(|guard| expr_contains_persisted_mutation(guard, persisted_types))
-                        .unwrap_or(false)
-                        || expr_contains_persisted_mutation(&arm.body, persisted_types)
-                })
-        }
-        Stmt::Invariant {
-            subject, predicate, ..
-        } => {
-            expr_contains_persisted_mutation(subject, persisted_types)
-                || expr_contains_persisted_mutation(predicate, persisted_types)
-        }
-        Stmt::Prove {
-            pass_block,
-            else_block,
-            ..
-        } => {
-            pass_block
-                .as_ref()
-                .map(|block| {
-                    block
-                        .iter()
-                        .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types))
-                })
-                .unwrap_or(false)
-                || else_block
-                    .as_ref()
-                    .map(|block| {
-                        block
-                            .iter()
-                            .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types))
-                    })
-                    .unwrap_or(false)
-        }
-        Stmt::Rule(Rule::ReactiveScope { body, .. }) => body
-            .iter()
-            .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types)),
-        Stmt::Defn(_)
-        | Stmt::TypeDecl(_)
-        | Stmt::Use(_)
-        | Stmt::Import(_)
-        | Stmt::QualifiedImport(_, _)
-        | Stmt::HashImport(_, _)
-        | Stmt::Depend(_, _)
-        | Stmt::RustBlock(_)
-        | Stmt::Annot(_, _)
-        | Stmt::Rule(_)
-        | Stmt::Explore(_)
-        | Stmt::Abort => false,
     }
 }
 
@@ -30484,7 +30696,7 @@ fn collect_called_targets(
                 collect_called_targets(stmt, called, member_calls, call_signatures);
             }
         }
-        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+        Stmt::Annot(_, args) => {
             for arg in args {
                 collect_called_targets_expr(arg, called, member_calls, call_signatures);
             }
@@ -30697,83 +30909,6 @@ fn is_copy_type(ty: &Ty) -> bool {
         || matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Unit" | "Int" | "Float" | "Char" | "Nat" | "Bool"))
 }
 
-/// M26b: Map a Futuruna type to a SQLite column type for `@ persist` typed-column lowering.
-/// Only primitive types are supported in this slice; richer types (Option, List, nested structs)
-/// will land as follow-up subtasks under td-c0a7a1.
-fn futuruna_ty_to_sql_column(ty: &Ty) -> &'static str {
-    match ty {
-        Ty::App(con, args) if matches!(con.as_ref(), Ty::Name(n) if n == "Option") => args
-            .first()
-            .map(futuruna_ty_to_sql_nullable_column)
-            .unwrap_or("TEXT"),
-        Ty::Optional(inner) => futuruna_ty_to_sql_nullable_column(inner),
-        Ty::Name(n) => match n.as_str() {
-            "Int" | "Nat" | "Bool" => "INTEGER NOT NULL",
-            "Float" => "REAL NOT NULL",
-            "String" | "Char" => "TEXT NOT NULL",
-            _ => "TEXT NOT NULL", // fallback: serialize unknown types as JSON text
-        },
-        _ => "TEXT NOT NULL",
-    }
-}
-
-fn futuruna_ty_to_sql_nullable_column(ty: &Ty) -> &'static str {
-    match ty {
-        Ty::Name(n) => match n.as_str() {
-            "Int" | "Nat" | "Bool" => "INTEGER",
-            "Float" => "REAL",
-            "String" | "Char" => "TEXT",
-            _ => "TEXT",
-        },
-        _ => "TEXT",
-    }
-}
-
-fn futuruna_ty_to_sql_storage_type(ty: &Ty) -> &'static str {
-    match ty {
-        Ty::App(con, args) if matches!(con.as_ref(), Ty::Name(n) if n == "Option") => args
-            .first()
-            .map(|inner| futuruna_ty_to_sql_storage_type(inner))
-            .unwrap_or("TEXT"),
-        Ty::Optional(inner) => futuruna_ty_to_sql_storage_type(inner),
-        Ty::Name(n) => match n.as_str() {
-            "Int" | "Nat" | "Bool" => "INTEGER",
-            "Float" => "REAL",
-            "String" | "Char" => "TEXT",
-            _ => "TEXT",
-        },
-        _ => "TEXT",
-    }
-}
-
-fn futuruna_ty_sql_default(ty: &Ty) -> &'static str {
-    match ty {
-        Ty::App(con, _) if matches!(con.as_ref(), Ty::Name(n) if n == "Option") => "NULL",
-        Ty::Optional(_) => "NULL",
-        Ty::Name(n) => match n.as_str() {
-            "Int" | "Nat" | "Bool" => "0",
-            "Float" => "0.0",
-            "String" | "Char" => "''",
-            _ => "''",
-        },
-        _ => "''",
-    }
-}
-
-fn persist_schema_hash_from_fields(fields: &[(String, Ty)]) -> String {
-    let mut schema_str = String::new();
-    for (name, ty) in fields {
-        schema_str.push_str(name);
-        schema_str.push(':');
-        schema_str.push_str(&format!("{:?}", ty));
-        schema_str.push(';');
-    }
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    schema_str.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
-}
-
 /// Single source of truth for builtins whose return type is fixed regardless of
 /// argument types. Used by lowering, top-level getter inference, and codegen
 /// heuristics like expr_is_float/expr_is_string.
@@ -30782,8 +30917,9 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float"
         | "random_float" | "json_number" => Some(FirTy::Float),
         "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
-        | "parse_int" | "abs" | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff"
-        | "db_insert" => Some(FirTy::Int),
+        | "parse_int" | "abs" | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff" => {
+            Some(FirTy::Int)
+        }
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
         | "set_contains" | "file_exists" | "json_bool" | "regex_match" | "is_some" | "is_none"
         | "not" => Some(FirTy::Bool),
@@ -30807,12 +30943,11 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "http_request_method"
         | "http_request_body"
         | "regex_replace" => Some(FirTy::String),
-        "read_lines" | "json_array" | "regex_find_all" | "db_query_row" => {
+        "read_lines" | "json_array" | "regex_find_all" => {
             Some(FirTy::List(Box::new(FirTy::String)))
         }
         "range" => Some(FirTy::List(Box::new(FirTy::Int))),
         "regex_find" => Some(FirTy::Option(Box::new(FirTy::String))),
-        "db_query" => Some(FirTy::List(Box::new(FirTy::List(Box::new(FirTy::String))))),
         "http_respond" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         "print"
@@ -30822,8 +30957,6 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "append_file"
         | "sleep"
         | "http_serve"
-        | "db_exec"
-        | "db_close"
         | "subscribe" => Some(FirTy::Unit),
         _ => None,
     }
@@ -30921,7 +31054,7 @@ impl RustCodegen {
             canonical_rule_parameter_types: BTreeMap::new(),
             canonical_rule_parameter_names: BTreeMap::new(),
             canonical_rule_parameter_issues: BTreeSet::new(),
-            canonical_rule_boolean_miss_safe_keys: BTreeSet::new(),
+            runtime_rule_boolean_miss_keys: BTreeSet::new(),
             runtime_rule_irrefutable_keys: BTreeSet::new(),
             canonical_rule_metadata_installed: false,
             rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode::RequireStaticTotality,
@@ -30961,13 +31094,9 @@ impl RustCodegen {
             subject_elem_type: BTreeMap::new(),
             builtin_registry: rust_builtin_registry(),
             async_stream_counter: 0,
-            source_name: None,
             map_var_value_types: BTreeMap::new(),
             empty_list_bindings: BTreeSet::new(),
             empty_list_var_types: BTreeMap::new(),
-            persist_tx_depth: 0,
-            persist_tx_counter: 0,
-            persist_tx_stack: Vec::new(),
             current_module_path: Vec::new(),
         }
     }
@@ -30981,8 +31110,8 @@ impl RustCodegen {
         self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
         self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
         self.canonical_rule_parameter_issues = artifacts.rule_dispatch_parameter_issues.clone();
-        self.canonical_rule_boolean_miss_safe_keys =
-            artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
+        self.runtime_rule_boolean_miss_keys =
+            artifacts.rule_dispatch_runtime_boolean_miss_keys.clone();
         self.runtime_rule_irrefutable_keys =
             artifacts.rule_dispatch_runtime_irrefutable_keys.clone();
         self.canonical_rule_metadata_installed = true;
@@ -30997,7 +31126,7 @@ impl RustCodegen {
         self.canonical_rule_parameter_types = metadata.parameter_types.clone();
         self.canonical_rule_parameter_names = metadata.parameter_names.clone();
         self.canonical_rule_parameter_issues = metadata.parameter_issues.clone();
-        self.canonical_rule_boolean_miss_safe_keys = metadata.boolean_miss_safe_keys.clone();
+        self.runtime_rule_boolean_miss_keys = metadata.runtime_boolean_miss_keys.clone();
         self.runtime_rule_irrefutable_keys = metadata.runtime_irrefutable_keys.clone();
         self.canonical_rule_metadata_installed = true;
     }
@@ -31018,552 +31147,6 @@ impl RustCodegen {
                 !matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
             })
             .unwrap_or(true)
-    }
-
-    fn migration_shape(expr: &Expr) -> Option<(String, Vec<Expr>)> {
-        let ExprKind::App(func, args) = &expr.kind else {
-            return None;
-        };
-        let ExprKind::Var(type_name) = &func.as_ref().kind else {
-            return None;
-        };
-        Some((type_name.clone(), args.clone()))
-    }
-
-    fn migration_old_field_name(expr: &Expr) -> Option<String> {
-        match &expr.kind {
-            ExprKind::Var(name) if name != "_" => Some(name.clone()),
-            _ => None,
-        }
-    }
-
-    fn collect_migration_expr_vars(expr: &Expr, out: &mut BTreeSet<String>) {
-        match &expr.kind {
-            ExprKind::Var(name) if name != "_" => {
-                out.insert(name.clone());
-            }
-            ExprKind::App(func, args) => {
-                Self::collect_migration_expr_vars(func, out);
-                for arg in args {
-                    Self::collect_migration_expr_vars(arg, out);
-                }
-            }
-            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
-                Self::collect_migration_expr_vars(lhs, out);
-                Self::collect_migration_expr_vars(rhs, out);
-            }
-            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) | ExprKind::Try(inner) => {
-                Self::collect_migration_expr_vars(inner, out);
-            }
-            ExprKind::If(cond, then_, else_) => {
-                Self::collect_migration_expr_vars(cond, out);
-                Self::collect_migration_expr_vars(then_, out);
-                Self::collect_migration_expr_vars(else_, out);
-            }
-            ExprKind::Match(scrutinee, arms) => {
-                Self::collect_migration_expr_vars(scrutinee, out);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        Self::collect_migration_expr_vars(guard, out);
-                    }
-                    Self::collect_migration_expr_vars(&arm.body, out);
-                }
-            }
-            ExprKind::Block(stmts) => {
-                for stmt in stmts {
-                    match stmt {
-                        Stmt::Bind(_, _, expr)
-                        | Stmt::MonadicBind(_, _, expr)
-                        | Stmt::StreamBind(_, expr)
-                        | Stmt::Expr(expr) => Self::collect_migration_expr_vars(expr, out),
-                        Stmt::Assert(_, args) | Stmt::Retract(_, args) | Stmt::Annot(_, args) => {
-                            for arg in args {
-                                Self::collect_migration_expr_vars(arg, out);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            ExprKind::Lambda(_, body) => Self::collect_migration_expr_vars(body, out),
-            ExprKind::List(items)
-            | ExprKind::Tuple(items)
-            | ExprKind::Effect(_, items)
-            | ExprKind::Conjunction(items)
-            | ExprKind::Disjunction(items) => {
-                for item in items {
-                    Self::collect_migration_expr_vars(item, out);
-                }
-            }
-            ExprKind::Handle { body, handlers, .. } => {
-                Self::collect_migration_expr_vars(body, out);
-                for handler in handlers {
-                    Self::collect_migration_expr_vars(&handler.body, out);
-                }
-            }
-            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
-        }
-    }
-
-    fn parse_persist_migration(args: &[Expr]) -> Option<PersistMigration> {
-        let (old_type, old_args) = Self::migration_shape(args.first()?)?;
-        let (new_type, new_args) = Self::migration_shape(args.get(1)?)?;
-        if old_type != new_type {
-            return None;
-        }
-        let old_fields = old_args
-            .iter()
-            .map(Self::migration_old_field_name)
-            .collect::<Option<Vec<_>>>()?;
-        let unsafe_allowed = args
-            .iter()
-            .skip(2)
-            .any(|arg| matches!(&arg.kind, ExprKind::Var(name) if name == "unsafe"));
-        Some(PersistMigration {
-            type_name: old_type,
-            old_fields,
-            new_exprs: new_args,
-            unsafe_allowed,
-        })
-    }
-
-    fn rust_string_vec(values: &[String]) -> String {
-        let items: Vec<String> = values
-            .iter()
-            .map(|value| format!("{:?}.to_string()", value))
-            .collect();
-        format!("vec![{}]", items.join(", "))
-    }
-
-    fn persisted_current_fields(&self, type_name: &str) -> Vec<String> {
-        self.types
-            .variant_fields
-            .get(type_name)
-            .cloned()
-            .unwrap_or_default()
-    }
-
-    fn persisted_field_ty_value(&self, type_name: &str, field: &str) -> Ty {
-        self.types
-            .variant_field_types
-            .get(type_name)
-            .and_then(|fields| fields.get(field))
-            .cloned()
-            .unwrap_or(Ty::Hole)
-    }
-
-    fn persisted_create_table_sql(
-        &self,
-        type_name: &str,
-        table_name: &str,
-        fields: &[String],
-        if_not_exists: bool,
-    ) -> String {
-        let mut col_defs: Vec<String> = Vec::new();
-        for (idx, fname) in fields.iter().enumerate() {
-            let ty = self.persisted_field_ty_value(type_name, fname);
-            let sql_ty = futuruna_ty_to_sql_column(&ty);
-            let pk_suffix = if idx == 0 { " PRIMARY KEY" } else { "" };
-            col_defs.push(format!("{} {}{}", sanitize_name(fname), sql_ty, pk_suffix));
-        }
-        let if_not_exists = if if_not_exists { "IF NOT EXISTS " } else { "" };
-        format!(
-            "CREATE TABLE {}{} ({})",
-            if_not_exists,
-            table_name,
-            col_defs.join(", ")
-        )
-    }
-
-    fn persisted_insert_sql(&self, table_name: &str, fields: &[String]) -> String {
-        let cols: Vec<String> = fields.iter().map(|field| sanitize_name(field)).collect();
-        let placeholders: Vec<String> = (1..=cols.len()).map(|idx| format!("?{}", idx)).collect();
-        format!(
-            "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
-            table_name,
-            cols.join(", "),
-            placeholders.join(", ")
-        )
-    }
-
-    fn persisted_migration_source_ty(
-        &self,
-        type_name: &str,
-        field: &str,
-        migration: &PersistMigration,
-        target_fields: &[String],
-    ) -> Ty {
-        if let Some(ty) = self
-            .types
-            .variant_field_types
-            .get(type_name)
-            .and_then(|fields| fields.get(field))
-            .cloned()
-        {
-            return ty;
-        }
-
-        for (idx, expr) in migration.new_exprs.iter().enumerate() {
-            if matches!(&expr.kind, ExprKind::Var(name) if name == field) {
-                if let Some(target_field) = target_fields.get(idx) {
-                    return self.persisted_field_ty_value(type_name, target_field);
-                }
-            }
-        }
-
-        Ty::Name("String".to_string())
-    }
-
-    fn emit_persist_migration_new_exprs(
-        &mut self,
-        type_name: &str,
-        migration: &PersistMigration,
-        referenced_fields: &[String],
-        target_fields: &[String],
-    ) -> Vec<String> {
-        let saved_local_bindings = self.local_bindings.clone();
-        let saved_var_types = self.var_types.clone();
-        let saved_copy_vars = self.copy_vars.clone();
-        let saved_var_use_counts = self.var_use_counts.clone();
-        let saved_var_consuming_counts = self.var_consuming_counts.clone();
-
-        let mut use_counts = BTreeMap::new();
-        let mut consuming_counts = BTreeMap::new();
-        for expr in &migration.new_exprs {
-            count_var_uses(expr, &mut use_counts);
-            count_consuming_uses(expr, &mut consuming_counts);
-        }
-
-        for field in referenced_fields {
-            let rust_name = sanitize_name(field);
-            let ty = self.persisted_migration_source_ty(type_name, field, migration, target_fields);
-            self.local_bindings.insert(field.clone());
-            self.var_types.insert(field.clone(), self.emit_type(&ty));
-            if is_copy_type(&ty) {
-                self.copy_vars.insert(field.clone());
-            }
-            if let Some(count) = use_counts.get(field).copied() {
-                self.var_use_counts.insert(field.clone(), count);
-            }
-            if let Some(count) = consuming_counts.get(field).copied() {
-                self.var_consuming_counts.insert(field.clone(), count);
-            }
-            if rust_name != *field {
-                self.local_bindings.insert(rust_name);
-            }
-        }
-
-        let emitted: Vec<String> = migration
-            .new_exprs
-            .iter()
-            .map(|expr| self.emit_expr(expr))
-            .collect();
-
-        self.local_bindings = saved_local_bindings;
-        self.var_types = saved_var_types;
-        self.copy_vars = saved_copy_vars;
-        self.var_use_counts = saved_var_use_counts;
-        self.var_consuming_counts = saved_var_consuming_counts;
-
-        emitted
-    }
-
-    fn emit_persisted_migration_branch(
-        &mut self,
-        type_name: &str,
-        table_name: &str,
-        migration: &PersistMigration,
-        current_fields: &[String],
-        loop_indent: &str,
-    ) -> Option<String> {
-        let target_fields: Vec<String> = current_fields
-            .iter()
-            .take(migration.new_exprs.len())
-            .cloned()
-            .collect();
-        if target_fields.len() != migration.new_exprs.len() || target_fields.is_empty() {
-            return None;
-        }
-
-        let old_cols: Vec<String> = migration
-            .old_fields
-            .iter()
-            .map(|field| sanitize_name(field))
-            .collect();
-        let mut referenced_vars = BTreeSet::new();
-        for expr in &migration.new_exprs {
-            Self::collect_migration_expr_vars(expr, &mut referenced_vars);
-        }
-        let referenced_fields: Vec<String> = migration
-            .old_fields
-            .iter()
-            .filter(|field| referenced_vars.contains(*field))
-            .cloned()
-            .collect();
-        let referenced_set: BTreeSet<String> = referenced_fields.iter().cloned().collect();
-        let dropped_fields: Vec<String> = migration
-            .old_fields
-            .iter()
-            .filter(|field| !referenced_set.contains(*field))
-            .cloned()
-            .collect();
-
-        let old_cols_expr = Self::rust_string_vec(&old_cols);
-        let mut out = String::new();
-        out.push_str(&format!("{loop_indent}if __cols == {old_cols_expr} {{\n"));
-
-        if !dropped_fields.is_empty() && !migration.unsafe_allowed {
-            let msg = format!(
-                "persist migration for {} drops columns [{}] and requires unsafe",
-                type_name,
-                dropped_fields.join(", ")
-            );
-            out.push_str(&format!("{loop_indent}    panic!({:?});\n", msg));
-            out.push_str(&format!("{loop_indent}}}\n"));
-            return Some(out);
-        }
-
-        let select_cols: Vec<String> = referenced_fields
-            .iter()
-            .map(|field| sanitize_name(field))
-            .collect();
-        let select_sql = if select_cols.is_empty() {
-            format!(
-                "SELECT 1 FROM {} ORDER BY {}",
-                table_name,
-                old_cols.join(", ")
-            )
-        } else {
-            format!(
-                "SELECT {} FROM {} ORDER BY {}",
-                select_cols.join(", "),
-                table_name,
-                old_cols.join(", ")
-            )
-        };
-        let create_sql =
-            self.persisted_create_table_sql(type_name, table_name, &target_fields, false);
-        let insert_sql = self.persisted_insert_sql(table_name, &target_fields);
-        let new_exprs = self.emit_persist_migration_new_exprs(
-            type_name,
-            migration,
-            &referenced_fields,
-            &target_fields,
-        );
-        let tuple_expr = if new_exprs.len() == 1 {
-            format!("({},)", new_exprs[0])
-        } else {
-            format!("({})", new_exprs.join(", "))
-        };
-        let insert_params: Vec<String> = (0..target_fields.len())
-            .map(|idx| format!("__row.{}", idx))
-            .collect();
-
-        out.push_str(&format!("{loop_indent}    let __rows = {{\n"));
-        out.push_str(&format!(
-            "{loop_indent}        let mut __stmt = __db_lock.prepare({:?}).expect(\"persist migration select prepare failed\");\n",
-            select_sql
-        ));
-        out.push_str(&format!(
-            "{loop_indent}        let __rows = __stmt.query_map(rusqlite::params![], |row| {{\n"
-        ));
-        for (idx, field) in referenced_fields.iter().enumerate() {
-            let ty =
-                self.persisted_migration_source_ty(type_name, field, migration, &target_fields);
-            let rust_ty = self.emit_type(&ty);
-            out.push_str(&format!(
-                "{loop_indent}            let {}: {} = row.get::<_, {}>({})?;\n",
-                sanitize_name(field),
-                rust_ty,
-                rust_ty,
-                idx
-            ));
-        }
-        out.push_str(&format!("{loop_indent}            Ok({tuple_expr})\n"));
-        out.push_str(&format!(
-            "{loop_indent}        }}).expect(\"persist migration select failed\");\n"
-        ));
-        out.push_str(&format!(
-            "{loop_indent}        __rows.filter_map(|row| row.ok()).collect::<Vec<_>>()\n"
-        ));
-        out.push_str(&format!("{loop_indent}    }};\n"));
-        out.push_str(&format!(
-            "{loop_indent}    __db_lock.execute({:?}, rusqlite::params![]).expect(\"persist migration drop failed\");\n",
-            format!("DROP TABLE IF EXISTS {}", table_name)
-        ));
-        out.push_str(&format!(
-            "{loop_indent}    __db_lock.execute({:?}, rusqlite::params![]).expect(\"persist migration create failed\");\n",
-            create_sql
-        ));
-        out.push_str(&format!("{loop_indent}    for __row in __rows {{\n"));
-        out.push_str(&format!(
-            "{loop_indent}        __db_lock.execute({:?}, rusqlite::params![{}]).expect(\"persist migration insert failed\");\n",
-            insert_sql,
-            insert_params.join(", ")
-        ));
-        out.push_str(&format!("{loop_indent}    }}\n"));
-        out.push_str(&format!("{loop_indent}    continue;\n"));
-        out.push_str(&format!("{loop_indent}}}\n"));
-
-        Some(out)
-    }
-
-    fn emit_persisted_schema_startup(
-        &mut self,
-        type_name: &str,
-        table_name: &str,
-        hash: &str,
-    ) -> String {
-        let current_fields = self.persisted_current_fields(type_name);
-        let current_cols: Vec<String> = current_fields
-            .iter()
-            .map(|field| sanitize_name(field))
-            .collect();
-        let current_schema: Vec<(String, String)> = current_fields
-            .iter()
-            .map(|field| {
-                let ty = self.persisted_field_ty_value(type_name, field);
-                (
-                    sanitize_name(field),
-                    futuruna_ty_to_sql_storage_type(&ty).to_string(),
-                )
-            })
-            .collect();
-        let current_cols_expr = Self::rust_string_vec(&current_cols);
-        let current_schema_items: Vec<String> = current_schema
-            .iter()
-            .map(|(name, ty)| format!("({:?}.to_string(), {:?}.to_string())", name, ty))
-            .collect();
-        let current_schema_expr = format!("vec![{}]", current_schema_items.join(", "));
-        let create_sql =
-            self.persisted_create_table_sql(type_name, table_name, &current_fields, true);
-        let migrations = self
-            .types
-            .persist_migrations
-            .get(type_name)
-            .cloned()
-            .unwrap_or_default();
-
-        let i = self.ind();
-        let loop_indent = format!("{i}        ");
-        let mut out = String::new();
-        out.push_str(&format!(
-            "{i}{{ // persisted schema startup for {type_name}\n"
-        ));
-        out.push_str(&format!("{i}    let __db_lock = __db.lock().unwrap();\n"));
-        out.push_str(&format!("{i}    let __new_hash = {:?};\n", hash));
-        out.push_str(&format!(
-            "{i}    let __current_cols = {current_cols_expr};\n"
-        ));
-        out.push_str(&format!(
-            "{i}    let __current_schema = {current_schema_expr};\n"
-        ));
-        out.push_str(&format!(
-            "{i}    __db_lock.execute({:?}, rusqlite::params![]).expect(\"Failed to create table {table_name}\");\n",
-            create_sql
-        ));
-        out.push_str(&format!("{i}    loop {{\n"));
-        out.push_str(&format!(
-            "{i}        let __old_hash: Option<String> = __db_lock.query_row(\n"
-        ));
-        out.push_str(&format!(
-            "{i}            \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"
-        ));
-        out.push_str(&format!(
-            "{i}            rusqlite::params![\"{type_name}\"],\n"
-        ));
-        out.push_str(&format!("{i}            |row| row.get(0)\n"));
-        out.push_str(&format!("{i}        ).ok();\n"));
-        out.push_str(&format!(
-            "{i}        let __schema: Vec<(String, String)> = {{\n"
-        ));
-        out.push_str(&format!(
-            "{i}            let mut __stmt = __db_lock.prepare({:?}).expect(\"persist schema inspect prepare failed\");\n",
-            format!("PRAGMA table_info({})", table_name)
-        ));
-        out.push_str(&format!(
-            "{i}            let __rows = __stmt.query_map(rusqlite::params![], |row| {{\n"
-        ));
-        out.push_str(&format!(
-            "{i}                let __name: String = row.get(1)?;\n"
-        ));
-        out.push_str(&format!(
-            "{i}                let __ty: String = row.get::<_, String>(2)?.to_uppercase();\n"
-        ));
-        out.push_str(&format!("{i}                Ok((__name, __ty))\n"));
-        out.push_str(&format!(
-            "{i}            }}).expect(\"persist schema inspect failed\");\n"
-        ));
-        out.push_str(&format!(
-            "{i}            __rows.filter_map(|row| row.ok()).collect()\n"
-        ));
-        out.push_str(&format!("{i}        }};\n"));
-        out.push_str(&format!(
-            "{i}        let __cols: Vec<String> = __schema.iter().map(|(name, _)| name.clone()).collect();\n"
-        ));
-        out.push_str(&format!(
-            "{i}        if __old_hash.as_deref() == Some(__new_hash) && __schema == __current_schema {{ break; }}\n"
-        ));
-        out.push_str(&format!("{i}        if __schema == __current_schema {{\n"));
-        out.push_str(&format!(
-            "{i}            __db_lock.execute(\"INSERT OR REPLACE INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\", rusqlite::params![\"{type_name}\", __new_hash]).expect(\"persist schema meta update failed\");\n"
-        ));
-        out.push_str(&format!("{i}            break;\n"));
-        out.push_str(&format!("{i}        }}\n"));
-
-        for migration in &migrations {
-            if let Some(branch) = self.emit_persisted_migration_branch(
-                type_name,
-                table_name,
-                migration,
-                &current_fields,
-                &loop_indent,
-            ) {
-                out.push_str(&branch);
-            }
-        }
-
-        out.push_str(&format!(
-            "{i}        if __cols.len() < __current_cols.len() && __current_cols.starts_with(&__cols) {{\n"
-        ));
-        out.push_str(&format!(
-            "{i}            for __field in __current_cols.iter().skip(__cols.len()) {{\n"
-        ));
-        out.push_str(&format!("{i}                match __field.as_str() {{\n"));
-        for field in &current_fields {
-            let col = sanitize_name(field);
-            let ty = self.persisted_field_ty_value(type_name, field);
-            let add_sql = format!(
-                "ALTER TABLE {} ADD COLUMN {} {} DEFAULT {}",
-                table_name,
-                col,
-                futuruna_ty_to_sql_column(&ty),
-                futuruna_ty_sql_default(&ty)
-            );
-            out.push_str(&format!(
-                "{i}                    {:?} => {{ __db_lock.execute({:?}, rusqlite::params![]).expect(\"persist auto-migrate add column failed\"); }}\n",
-                col,
-                add_sql
-            ));
-        }
-        out.push_str(&format!("{i}                    _ => {{}}\n"));
-        out.push_str(&format!("{i}                }}\n"));
-        out.push_str(&format!("{i}            }}\n"));
-        out.push_str(&format!(
-            "{i}            __db_lock.execute(\"INSERT OR REPLACE INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\", rusqlite::params![\"{type_name}\", __new_hash]).expect(\"persist schema meta update failed\");\n"
-        ));
-        out.push_str(&format!("{i}            break;\n"));
-        out.push_str(&format!("{i}        }}\n"));
-        out.push_str(&format!("{i}        if __cols == __current_cols {{\n"));
-        out.push_str(&format!("{i}            panic!(\"persist schema mismatch for {type_name}; column names match but stored SQL types differ; add @ migrate {type_name}(old_fields...) -> {type_name}(new_fields...) unsafe\");\n"));
-        out.push_str(&format!("{i}        }}\n"));
-
-        out.push_str(&format!(
-            "{i}        panic!(\"persist schema mismatch for {type_name}; add @ migrate {type_name}(old_fields...) -> {type_name}(new_fields...) or use a safe appended field\");\n"
-        ));
-        out.push_str(&format!("{i}    }}\n"));
-        out.push_str(&format!("{i}}}\n"));
-        out
     }
 
     /// Resolve and parse an imported .runa file from a specific base directory.
@@ -31627,7 +31210,7 @@ impl RustCodegen {
                         } else if std::path::Path::new(&dep_file_src).exists() {
                             dep_file_src
                         } else {
-                            eprintln!(
+                            status_eprintln!(
                                 "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
                                 module, dep_name
                             );
@@ -31734,7 +31317,7 @@ impl RustCodegen {
                         } else if std::path::Path::new(&dep_file_src).exists() {
                             dep_file_src
                         } else {
-                            eprintln!(
+                            status_eprintln!(
                                 "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
                                 module, dep_name
                             );
@@ -31788,9 +31371,10 @@ impl RustCodegen {
             Ok(source) => match parse_source_module_cached(Path::new(file_path), &source) {
                 Ok(module) => module.statements().to_vec(),
                 Err(error) => {
-                    eprintln!(
+                    status_eprintln!(
                         "\x1b[1;31merror\x1b[0m: parse error in {}: {}",
-                        file_path, error
+                        file_path,
+                        error
                     );
                     Vec::new()
                 }
@@ -32176,37 +31760,6 @@ impl RustCodegen {
         "    ".repeat(self.indent)
     }
 
-    fn watch_type_name(expr: &Expr) -> Option<String> {
-        let ExprKind::App(func, args) = &expr.kind else {
-            return None;
-        };
-        if args.len() != 1 {
-            return None;
-        }
-        let ExprKind::Var(name) = &func.as_ref().kind else {
-            return None;
-        };
-        if name != "watch" {
-            return None;
-        }
-        let ExprKind::Var(type_name) = &args[0].kind else {
-            return None;
-        };
-        Some(type_name.clone())
-    }
-
-    fn collect_watch_type_names_from_stmt_list(stmts: &[Stmt], out: &mut BTreeSet<String>) {
-        for stmt in stmts {
-            walk_ast_stmt(stmt, &mut |child| {
-                if let AstChild::Expr(expr) = child {
-                    if let Some(type_name) = Self::watch_type_name(expr) {
-                        out.insert(type_name);
-                    }
-                }
-            });
-        }
-    }
-
     fn collect_exported_names_from_stmts(&self, stmts: &[Stmt]) -> BTreeSet<String> {
         let mut exported = BTreeSet::new();
         let mut is_export = false;
@@ -32250,6 +31803,7 @@ impl RustCodegen {
                     | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+                    | Stmt::PreludeBoundary
                     | Stmt::Use(_)
                     | Stmt::Import(_)
                     | Stmt::QualifiedImport(_, _)
@@ -32266,9 +31820,6 @@ impl RustCodegen {
                     | Stmt::Invariant { .. }
                     | Stmt::Prove { .. }
                     | Stmt::Explore(_)
-                    | Stmt::Assert(_, _)
-                    | Stmt::Retract(_, _)
-                    | Stmt::Abort
                     | Stmt::Expr(_) => {}
                 }
                 is_export = false;
@@ -32294,6 +31845,7 @@ impl RustCodegen {
             Stmt::Defn(_)
             | Stmt::TypeDecl(_)
             | Stmt::Rule(_)
+            | Stmt::PreludeBoundary
             | Stmt::Use(_)
             | Stmt::RustBlock(_)
             | Stmt::Annot(_, _)
@@ -32307,9 +31859,6 @@ impl RustCodegen {
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
             | Stmt::Explore(_)
-            | Stmt::Assert(_, _)
-            | Stmt::Retract(_, _)
-            | Stmt::Abort
             | Stmt::Expr(_) => ImportedStmtExpansion::IgnoredScriptFlow,
         }
     }
@@ -32556,7 +32105,7 @@ impl RustCodegen {
         for stmt in stmts {
             match stmt {
                 Stmt::Import(_) => {}
-                Stmt::Use(_) => all_stmts.push(stmt.clone()),
+                Stmt::PreludeBoundary | Stmt::Use(_) => all_stmts.push(stmt.clone()),
                 Stmt::QualifiedImport(mod_name, path) => {
                     if let Some(module) =
                         self.build_qualified_import_module_stmt(mod_name, path, &root_dir)
@@ -32586,9 +32135,6 @@ impl RustCodegen {
                 | Stmt::Invariant { .. }
                 | Stmt::Prove { .. }
                 | Stmt::Explore(_)
-                | Stmt::Assert(_, _)
-                | Stmt::Retract(_, _)
-                | Stmt::Abort
                 | Stmt::Expr(_) => all_stmts.push(stmt.clone()),
             }
         }
@@ -32713,6 +32259,7 @@ impl RustCodegen {
                         | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                         | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                         | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+                        | Stmt::PreludeBoundary
                         | Stmt::Use(_)
                         | Stmt::Import(_)
                         | Stmt::QualifiedImport(_, _)
@@ -32729,112 +32276,12 @@ impl RustCodegen {
                         | Stmt::Invariant { .. }
                         | Stmt::Prove { .. }
                         | Stmt::Explore(_)
-                        | Stmt::Assert(_, _)
-                        | Stmt::Retract(_, _)
-                        | Stmt::Abort
                         | Stmt::Expr(_) => {}
                     }
                     is_export = false;
                 }
             }
         }
-
-        // M26: Pre-scan for @ store / @ persist annotations — collect persistence-typed
-        // ADTs and their key fields. @ store keeps JSON-blob lowering (Phase A);
-        // @ persist (M26b) lowers to typed columns instead.
-        {
-            for stmt in stmts {
-                if let Stmt::Annot(name, args) = stmt {
-                    let is_store = name == "store";
-                    let is_persist = name == "persist";
-                    if name == "migrate" {
-                        if let Some(migration) = Self::parse_persist_migration(args) {
-                            self.types
-                                .persist_migrations
-                                .entry(migration.type_name.clone())
-                                .or_default()
-                                .push(migration);
-                        }
-                        continue;
-                    }
-                    if is_store || is_persist {
-                        if let Some(Expr {
-                            kind: ExprKind::Var(type_name),
-                            ..
-                        }) = args.first()
-                        {
-                            self.types.stored_types.insert(type_name.clone());
-                            if is_persist {
-                                self.types.persisted_types.insert(type_name.clone());
-                            }
-                            // Scan remaining args for flags and scope
-                            for arg in args.iter().skip(1) {
-                                match &arg.kind {
-                                    ExprKind::Var(flag) if flag == "delete_on_change" => {
-                                        self.types.store_delete_on_change.insert(type_name.clone());
-                                    }
-                                    ExprKind::Lit(Literal::Str(scope)) => {
-                                        self.types.store_scope = Some(scope.clone());
-                                    }
-                                    _ => {}
-                                }
-                            }
-                            // Auto-add dependencies
-                            self.cargo_deps.insert(
-                                "rusqlite".into(),
-                                "{ version = \"0.32\", features = [\"bundled\"] }".into(),
-                            );
-                            self.cargo_deps.insert(
-                                "serde".into(),
-                                "{ version = \"1\", features = [\"derive\"] }".into(),
-                            );
-                            self.cargo_deps.insert("serde_json".into(), "1".into());
-                        }
-                    }
-                }
-            }
-            // Find key fields and compute schema hashes for stored types
-            for stmt in stmts {
-                if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
-                    if self.types.stored_types.contains(name.as_str()) {
-                        if let Some(v) = variants.first() {
-                            if let Some(f) = v.fields.first() {
-                                self.types
-                                    .stored_type_key_field
-                                    .insert(name.clone(), f.name.clone());
-                            }
-                            let fields: Vec<(String, Ty)> = v
-                                .fields
-                                .iter()
-                                .map(|field| (field.name.clone(), field.ty.clone()))
-                                .collect();
-                            let hash = persist_schema_hash_from_fields(&fields);
-                            self.types
-                                .stored_type_schema_hash
-                                .insert(name.clone(), hash);
-                        }
-                    }
-                }
-            }
-        }
-
-        {
-            let mut watched_types = BTreeSet::new();
-            Self::collect_watch_type_names_from_stmt_list(stmts, &mut watched_types);
-            for type_name in watched_types {
-                if self.types.persisted_types.contains(type_name.as_str()) {
-                    self.types.watched_persist_types.insert(type_name);
-                }
-            }
-            if !self.types.watched_persist_types.is_empty() {
-                self.has_async = true;
-                self.cargo_deps.insert(
-                    "tokio".to_string(),
-                    "{ version = \"1\", features = [\"full\"] }".to_string(),
-                );
-            }
-        }
-
         // M13c: Pre-scan for async mode — only async when subjects have for-loop subscribers
         {
             // Pass 1: collect subject variable names
@@ -33225,9 +32672,7 @@ impl RustCodegen {
                                     stream_bind_exprs,
                                 );
                             }
-                            Stmt::Annot(_, args)
-                            | Stmt::Assert(_, args)
-                            | Stmt::Retract(_, args) => {
+                            Stmt::Annot(_, args) => {
                                 for arg in args {
                                     scan_expr_for_subject_sends(
                                         arg,
@@ -33480,12 +32925,6 @@ impl RustCodegen {
                         match name.as_str() {
                             "subject" => args.first().and_then(|init| {
                                 expr_to_rust_type(init, fn_types, local_tys, subject_tys)
-                            }),
-                            "watch" => args.first().and_then(|arg| match &arg.kind {
-                                ExprKind::Var(type_name) => {
-                                    Some(RustCodegen::watch_change_type_name(type_name))
-                                }
-                                _ => None,
                             }),
                             "as_stream" | "filter" | "take" | "skip" | "tap" | "distinct"
                             | "delay" | "debounce" | "throttle" | "timeout" | "sample" => {
@@ -34780,7 +34219,7 @@ impl RustCodegen {
                         );
                     }
                 }
-                Stmt::Assert(_, args) | Stmt::Retract(_, args) | Stmt::Annot(_, args) => {
+                Stmt::Annot(_, args) => {
                     for arg in args {
                         self.prescan_hof_named_callback_param_types_expr(
                             arg,
@@ -34789,7 +34228,8 @@ impl RustCodegen {
                         );
                     }
                 }
-                Stmt::Use(_)
+                Stmt::PreludeBoundary
+                | Stmt::Use(_)
                 | Stmt::Import(_)
                 | Stmt::QualifiedImport(_, _)
                 | Stmt::HashImport(_, _)
@@ -34798,8 +34238,7 @@ impl RustCodegen {
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
-                | Stmt::Explore(_)
-                | Stmt::Abort => {}
+                | Stmt::Explore(_) => {}
             }
         }
     }
@@ -35225,20 +34664,20 @@ impl RustCodegen {
                     self.prescan_map_types(block);
                 }
             }
-            Stmt::Assert(_, args) | Stmt::Retract(_, args) | Stmt::Annot(_, args) => {
+            Stmt::Annot(_, args) => {
                 for arg in args {
                     self.prescan_map_types_expr(arg);
                 }
             }
-            Stmt::Use(_)
+            Stmt::PreludeBoundary
+            | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
             | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
-            | Stmt::Explore(_)
-            | Stmt::Abort => {}
+            | Stmt::Explore(_) => {}
         }
     }
 
@@ -35532,6 +34971,37 @@ impl RustCodegen {
         }
         out.push_str("use std::fmt;\n");
         out.push_str("use std::collections::{BTreeMap, HashMap, HashSet};\n\n");
+        // Shared by direct and higher-order numeric builtins. Integer failures
+        // must not depend on rustc's overflow-checks setting; Float behavior
+        // remains separate from the checked integer domain.
+        out.push_str(
+            r#"
+trait __FuturunaNumber: Default + Sized {
+    fn checked_sum_step(self, other: Self) -> Self;
+    fn magnitude(self) -> Self;
+}
+impl __FuturunaNumber for i64 {
+    fn checked_sum_step(self, other: Self) -> Self {
+        self.checked_add(other).expect("integer sum overflow")
+    }
+    fn magnitude(self) -> Self {
+        self.checked_abs().expect("integer absolute-value overflow")
+    }
+}
+impl __FuturunaNumber for f64 {
+    fn checked_sum_step(self, other: Self) -> Self { self + other }
+    fn magnitude(self) -> Self { self.abs() }
+}
+fn __futuruna_sum<T: __FuturunaNumber, I: Iterator<Item = T>>(items: I) -> T {
+    items.fold(T::default(), T::checked_sum_step)
+}
+fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
+// Fix the key type from the map so compiler-inserted borrows can coerce to &K.
+fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
+    map.get(key)
+}
+"#,
+        );
         for collision in Self::prolog_ordinary_name_collisions(stmts) {
             out.push_str(&format!(
                 "compile_error!({:?});\n",
@@ -35624,55 +35094,7 @@ impl RustCodegen {
                 }
             }
         }
-        if !self.types.stored_types.is_empty() {
-            out.push_str("static __FUT_STORE_DB: std::sync::OnceLock<std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>> = std::sync::OnceLock::new();\n");
-            out.push_str("fn __fut_persist_db() -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {\n");
-            out.push_str("    __FUT_STORE_DB.get().expect(\"persist store database not initialized\").clone()\n");
-            out.push_str("}\n");
-            out.push_str("struct __FutPersistTxGuard {\n");
-            out.push_str("    db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,\n");
-            out.push_str("    rollback_sql: &'static str,\n");
-            out.push_str("    committed: bool,\n");
-            out.push_str("    pending_events: Vec<Box<dyn FnOnce() + Send>>,\n");
-            out.push_str("}\n");
-            out.push_str("impl __FutPersistTxGuard {\n");
-            out.push_str("    fn begin(db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, begin_sql: &'static str, rollback_sql: &'static str) -> Self {\n");
-            out.push_str("        {\n");
-            out.push_str("            let __db_lock = db.lock().unwrap();\n");
-            out.push_str("            __db_lock.execute_batch(begin_sql).expect(\"persist transaction begin failed\");\n");
-            out.push_str("        }\n");
-            out.push_str(
-                "        Self { db, rollback_sql, committed: false, pending_events: Vec::new() }\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn enqueue_event<F>(&mut self, event: F) where F: FnOnce() + Send + 'static {\n");
-            out.push_str("        self.pending_events.push(Box::new(event));\n");
-            out.push_str("    }\n");
-            out.push_str(
-                "    fn absorb_events(&mut self, mut events: Vec<Box<dyn FnOnce() + Send>>) {\n",
-            );
-            out.push_str("        self.pending_events.append(&mut events);\n");
-            out.push_str("    }\n");
-            out.push_str("    fn take_events_after_commit(&mut self, commit_sql: &'static str) -> Vec<Box<dyn FnOnce() + Send>> {\n");
-            out.push_str("        self.db.lock().unwrap().execute_batch(commit_sql).expect(\"persist transaction commit failed\");\n");
-            out.push_str("        self.committed = true;\n");
-            out.push_str("        std::mem::take(&mut self.pending_events)\n");
-            out.push_str("    }\n");
-            out.push_str("    fn commit(&mut self, commit_sql: &'static str) {\n");
-            out.push_str("        let events = self.take_events_after_commit(commit_sql);\n");
-            out.push_str("        for event in events { event(); }\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
-            out.push_str("impl Drop for __FutPersistTxGuard {\n");
-            out.push_str("    fn drop(&mut self) {\n");
-            out.push_str("        if !self.committed {\n");
-            out.push_str(
-                "            let _ = self.db.lock().unwrap().execute_batch(self.rollback_sql);\n",
-            );
-            out.push_str("        }\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
-        }
+
         // M13c: emit ScopeGuard struct when async mode is active
         if self.has_async {
             out.push_str("use tokio::sync::broadcast;\n");
@@ -35827,7 +35249,6 @@ impl RustCodegen {
             );
             out.push_str("    }\n");
             out.push_str("}\n");
-            out.push_str(&self.emit_watch_runtime());
             out.push_str(
                 "async fn __fut_settle<T: Clone + Send + 'static>(stream: &__FutStream<T>) {\n",
             );
@@ -35910,7 +35331,7 @@ impl RustCodegen {
                     fn_stmts.push(stmt);
                 }
                 Stmt::TypeDecl(_) => {}                    // already emitted
-                Stmt::Use(_) => {}                         // already emitted in header
+                Stmt::PreludeBoundary | Stmt::Use(_) => {} // already emitted in header
                 Stmt::RustBlock(_) => fn_stmts.push(stmt), // emit at top level
                 Stmt::Annot(name, _) if name == "comptime" => main_stmts.push(stmt), // keep comptime annotations
                 Stmt::Annot(_, _) => {}                                              // skip others
@@ -36558,160 +35979,6 @@ impl RustCodegen {
             let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
             self.binary_global_env_arg_in_scope = self.uses_binary_global_env();
             self.binary_global_value_refs_in_scope = false;
-
-            // M26: Object store — open DB, version check, create tables for stored types
-            // DB named per scope: explicit `@ store T in "scope"` or derived from source file stem
-            if !self.types.stored_types.is_empty() {
-                let db_name = if let Some(ref scope) = self.types.store_scope {
-                    format!(".{}.store.db", scope)
-                } else if let Some(ref stem) = self.source_name {
-                    format!(".{}.store.db", stem)
-                } else {
-                    ".store.db".to_string()
-                };
-                let i = self.ind();
-                out.push_str(&format!("{i}// M26: Object store initialization\n"));
-                out.push_str(&format!(
-                    "{i}let __db = std::sync::Arc::new(std::sync::Mutex::new(\n"
-                ));
-                out.push_str(&format!("{i}    rusqlite::Connection::open(\"{db_name}\").expect(\"Failed to open store database\")\n"));
-                out.push_str(&format!("{i}));\n"));
-                out.push_str(&format!("{i}let _ = __FUT_STORE_DB.set(__db.clone());\n"));
-                out.push_str(&format!(
-                    "{i}__db.lock().unwrap().execute_batch(\"PRAGMA journal_mode=WAL;\").ok();\n"
-                ));
-                // Create meta table for schema versioning
-                out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
-                out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS schema_meta (type_name TEXT PRIMARY KEY, schema_hash TEXT NOT NULL)\",\n"));
-                out.push_str(&format!("{i}    rusqlite::params![]\n"));
-                out.push_str(&format!("{i}).ok();\n"));
-                out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
-                out.push_str(&format!("{i}    \"INSERT OR IGNORE INTO schema_meta (type_name, schema_hash) SELECT type_name, schema_hash FROM __store_meta\",\n"));
-                out.push_str(&format!("{i}    rusqlite::params![]\n"));
-                out.push_str(&format!("{i}).ok();\n"));
-                for type_name in &self.types.stored_types.clone() {
-                    let table_name = sanitize_name(type_name).to_lowercase();
-                    let hash = self
-                        .types
-                        .stored_type_schema_hash
-                        .get(type_name)
-                        .cloned()
-                        .unwrap_or_default();
-                    if self.types.persisted_types.contains(type_name.as_str()) {
-                        out.push_str(&self.emit_persisted_schema_startup(
-                            type_name,
-                            &table_name,
-                            &hash,
-                        ));
-                        continue;
-                    }
-                    let is_dump = self.types.store_delete_on_change.contains(type_name);
-                    // Check stored schema hash vs current
-                    out.push_str(&format!("{i}{{\n"));
-                    out.push_str(&format!("{i}    let __db_lock = __db.lock().unwrap();\n"));
-                    out.push_str(&format!(
-                        "{i}    let __old_hash: Option<String> = __db_lock.query_row(\n"
-                    ));
-                    out.push_str(&format!(
-                        "{i}        \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"
-                    ));
-                    out.push_str(&format!("{i}        rusqlite::params![\"{type_name}\"],\n"));
-                    out.push_str(&format!("{i}        |row| row.get(0)\n"));
-                    out.push_str(&format!("{i}    ).ok();\n"));
-                    out.push_str(&format!("{i}    let __new_hash = \"{hash}\";\n"));
-                    out.push_str(&format!("{i}    match __old_hash.as_deref() {{\n"));
-                    out.push_str(&format!("{i}        Some(h) if h == __new_hash => {{}}\n"));
-                    out.push_str(&format!("{i}        Some(_) => {{\n"));
-                    out.push_str(&format!("{i}            // Schema changed\n"));
-                    if is_dump {
-                        // delete_on_change: export data to dump file, then drop table
-                        let dump_file = format!(
-                            ".{}.dump.runa",
-                            self.types
-                                .store_scope
-                                .as_ref()
-                                .or(self.source_name.as_ref())
-                                .map(|s| s.as_str())
-                                .unwrap_or("store")
-                        );
-                        out.push_str(&format!("{i}            eprintln!(\"store: {type_name} schema changed — dumping old data to {dump_file}\");\n"));
-                        out.push_str(&format!("{i}            let mut __dump = String::new();\n"));
-                        out.push_str(&format!("{i}            let mut __stmt = __db_lock.prepare(\"SELECT data FROM {table_name}\").unwrap();\n"));
-                        out.push_str(&format!("{i}            let __rows = __stmt.query_map([], |row| row.get::<_, String>(0)).unwrap();\n"));
-                        out.push_str(&format!("{i}            for __row in __rows {{ if let Ok(json) = __row {{ __dump.push_str(&format!(\"| {type_name}({{}})\n\", json)); }} }}\n"));
-                        out.push_str(&format!("{i}            if !__dump.is_empty() {{ std::fs::write(\"{dump_file}\", &__dump).ok(); }}\n"));
-                        out.push_str(&format!("{i}            __db_lock.execute(\"DROP TABLE IF EXISTS {table_name}\", []).ok();\n"));
-                    } else {
-                        // default: keep data, log that schema changed (serde defaults handle missing fields)
-                        out.push_str(&format!("{i}            eprintln!(\"store: {type_name} schema changed — keeping data (new fields get defaults)\");\n"));
-                    }
-                    out.push_str(&format!("{i}            __db_lock.execute(\n"));
-                    out.push_str(&format!("{i}                \"INSERT OR REPLACE INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
-                    out.push_str(&format!(
-                        "{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"
-                    ));
-                    out.push_str(&format!("{i}            ).ok();\n"));
-                    out.push_str(&format!("{i}        }}\n"));
-                    out.push_str(&format!("{i}        None => {{\n"));
-                    out.push_str(&format!(
-                        "{i}            // First run — record schema hash\n"
-                    ));
-                    out.push_str(&format!("{i}            __db_lock.execute(\n"));
-                    out.push_str(&format!("{i}                \"INSERT INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
-                    out.push_str(&format!(
-                        "{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"
-                    ));
-                    out.push_str(&format!("{i}            ).ok();\n"));
-                    out.push_str(&format!("{i}        }}\n"));
-                    out.push_str(&format!("{i}    }}\n"));
-                    out.push_str(&format!("{i}}}\n"));
-                    // Create the data table (after potential DROP)
-                    let create_sql = if self.types.persisted_types.contains(type_name) {
-                        // M26b: typed columns. Each struct field becomes one SQLite column.
-                        let fields = self
-                            .types
-                            .variant_fields
-                            .get(type_name.as_str())
-                            .cloned()
-                            .unwrap_or_default();
-                        let field_types = self
-                            .types
-                            .variant_field_types
-                            .get(type_name.as_str())
-                            .cloned()
-                            .unwrap_or_default();
-                        let mut col_defs: Vec<String> = Vec::new();
-                        for (idx, fname) in fields.iter().enumerate() {
-                            let ty = field_types.get(fname).cloned().unwrap_or(Ty::Hole);
-                            let sql_ty = futuruna_ty_to_sql_column(&ty);
-                            let pk_suffix = if idx == 0 { " PRIMARY KEY" } else { "" };
-                            col_defs.push(format!(
-                                "{} {}{}",
-                                sanitize_name(fname),
-                                sql_ty,
-                                pk_suffix
-                            ));
-                        }
-                        format!(
-                            "CREATE TABLE IF NOT EXISTS {} ({})",
-                            table_name,
-                            col_defs.join(", ")
-                        )
-                    } else {
-                        format!(
-                            "CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY, data TEXT NOT NULL)",
-                            table_name
-                        )
-                    };
-                    out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
-                    out.push_str(&format!("{i}    \"{create_sql}\",\n"));
-                    out.push_str(&format!("{i}    rusqlite::params![]\n"));
-                    out.push_str(&format!(
-                        "{i}).expect(\"Failed to create table {table_name}\");\n"
-                    ));
-                }
-                out.push_str("\n");
-            }
 
             let mut emit_main_stmts = |cg: &mut Self| {
                 if cg.uses_binary_global_env() {
@@ -39255,9 +38522,7 @@ impl RustCodegen {
         }
         let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
         let bool_miss_is_safe = !canonical_contract_applies
-            || self
-                .canonical_rule_boolean_miss_safe_keys
-                .contains(&canonical_key)
+            || self.runtime_rule_boolean_miss_keys.contains(&canonical_key)
             || (self.rule_dispatch_miss_mode == RustCodegenRuleDispatchMissMode::ProcessFailure
                 && matches!(ret_ty, FirTy::Bool));
         let mut sig_params = vec!["&self".to_string()];
@@ -39914,25 +39179,10 @@ impl RustCodegen {
                 if is_struct {
                     // Single-variant with same name → emit Rust struct
                     let v = &variants[0];
-                    let serde_derives = if self.types.stored_types.contains(name) {
-                        ", serde::Serialize, serde::Deserialize"
-                    } else {
-                        ""
-                    };
                     if derives_default {
-                        out.push_str(&format!(
-                            "#[derive(Debug, Clone, PartialEq, Default{})]\n",
-                            serde_derives
-                        ));
+                        out.push_str("#[derive(Debug, Clone, PartialEq, Default)]\n");
                     } else {
-                        out.push_str(&format!(
-                            "#[derive(Debug, Clone, PartialEq{})]\n",
-                            serde_derives
-                        ));
-                    }
-                    // For stored types, allow missing fields during deserialization (schema flex)
-                    if self.types.stored_types.contains(name) && derives_default {
-                        out.push_str("#[serde(default)]\n");
+                        out.push_str("#[derive(Debug, Clone, PartialEq)]\n");
                     }
                     if v.positional {
                         // Tuple struct: struct Point(f64, f64);
@@ -41165,8 +40415,6 @@ impl RustCodegen {
                     if is_subject {
                         self.subject_vars.insert(name.clone());
                         self.async_stream_vars.insert(name.clone());
-                    } else if Self::watch_type_name(expr).is_some() {
-                        self.async_stream_vars.insert(name.clone());
                     } else {
                         self.seed_async_stream_bindings_from_expr(expr);
                         if self.is_live_stream_expr_for_validation(expr) {
@@ -41689,8 +40937,11 @@ impl RustCodegen {
 
         match &arg.kind {
             ExprKind::Lit(_) => true,
+            ExprKind::UnOp(_, _) => rule_head_numeric_value(arg).is_some(),
             ExprKind::Var(name) => Self::is_uppercase_ident(name),
-            ExprKind::Tuple(items) => items.iter().all(Self::rule_head_arg_is_ground_term),
+            ExprKind::Tuple(items) | ExprKind::List(items) => {
+                items.iter().all(Self::rule_head_arg_is_ground_term)
+            }
             ExprKind::App(func, args) => {
                 if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
                     return args
@@ -41711,6 +40962,7 @@ impl RustCodegen {
 
         match &arg.kind {
             ExprKind::Lit(_) => false,
+            ExprKind::UnOp(_, _) if rule_head_numeric_value(arg).is_some() => false,
             ExprKind::Var(name) => !Self::is_uppercase_ident(name),
             ExprKind::App(func, _) => {
                 if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
@@ -41732,6 +40984,22 @@ impl RustCodegen {
 
         match &arg.kind {
             ExprKind::Lit(lit) => Some(Self::literal_rust_type(lit).to_string()),
+            ExprKind::UnOp(_, _) => match rule_head_numeric_value(arg)? {
+                Value::Int(_) => Some("i64".to_string()),
+                Value::Float(_) => Some("f64".to_string()),
+                _ => None,
+            },
+            ExprKind::List(items) => items
+                .iter()
+                .find_map(|item| self.rule_head_arg_rust_type_hint(item))
+                .map(|element| format!("Vec<{element}>")),
+            ExprKind::Tuple(items) => {
+                let types = items
+                    .iter()
+                    .map(|item| self.rule_head_arg_rust_type_hint(item))
+                    .collect::<Option<Vec<_>>>()?;
+                Some(format!("({},)", types.join(", ")))
+            }
             ExprKind::Var(name) if Self::is_uppercase_ident(name) => self
                 .types
                 .variant_parent
@@ -41774,7 +41042,9 @@ impl RustCodegen {
             }
             ExprKind::Lit(lit) => Some(Self::emit_literal_value(lit)),
             ExprKind::Var(name) if Self::is_uppercase_ident(name) => Some(self.emit_expr(arg)),
-            ExprKind::Tuple(_) | ExprKind::App(_, _) if Self::rule_head_arg_is_ground_term(arg) => {
+            ExprKind::Tuple(_) | ExprKind::List(_) | ExprKind::App(_, _) | ExprKind::UnOp(_, _)
+                if Self::rule_head_arg_is_ground_term(arg) =>
+            {
                 Some(self.emit_expr(arg))
             }
             _ => None,
@@ -42026,7 +41296,7 @@ impl RustCodegen {
             {
                 names.insert(name.clone());
             }
-            ExprKind::Tuple(items) => {
+            ExprKind::Tuple(items) | ExprKind::List(items) => {
                 for item in items {
                     Self::collect_rule_head_binding_names(item, names);
                 }
@@ -42190,6 +41460,56 @@ impl RustCodegen {
                 state.guards.push(guard);
                 Ok(temporary_name)
             }
+            ExprKind::UnOp(_, _) => {
+                let literal = match rule_head_numeric_value(argument) {
+                    Some(Value::Int(value)) => Literal::Int(value),
+                    Some(Value::Float(value)) => Literal::Float(value),
+                    _ => return Err("rule-head sign must apply to a numeric literal".into()),
+                };
+                let mut signed_literal = argument.clone();
+                signed_literal.kind = ExprKind::Lit(literal);
+                self.emit_rule_head_pattern_argument(
+                    &signed_literal,
+                    expected_ty,
+                    borrowed_string,
+                    boxed,
+                    state,
+                )
+            }
+            ExprKind::List(items) => {
+                let FirTy::List(element_ty) = expected_ty else {
+                    return Err("list rule-head pattern has no exact list parameter ABI".into());
+                };
+                let temporary_name = Self::fresh_rule_head_temporary(state);
+                // Match owned elements only after checking the exact length. This
+                // preserves nested constructor/list patterns and their local binders.
+                let insertion = state.nested_patterns.len();
+                let patterns = items
+                    .iter()
+                    .map(|item| {
+                        self.emit_rule_head_pattern_argument(item, element_ty, false, false, state)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let values = (0..items.len())
+                    .map(|index| format!("{temporary_name}[{index}].clone()"))
+                    .collect::<Vec<_>>();
+                let pattern = if patterns.is_empty() {
+                    "Some(())".to_string()
+                } else {
+                    format!("Some(({},))", patterns.join(", "))
+                };
+                let subject = if values.is_empty() {
+                    format!("{temporary_name}.is_empty().then_some(())")
+                } else {
+                    format!(
+                        "({temporary_name}.len() == {}).then(|| ({},))",
+                        items.len(),
+                        values.join(", ")
+                    )
+                };
+                state.nested_patterns.insert(insertion, (pattern, subject));
+                Ok(temporary_name)
+            }
             ExprKind::Tuple(items) => {
                 let FirTy::Tuple(item_tys) = expected_ty else {
                     return Err("tuple rule-head pattern has no exact tuple parameter ABI".into());
@@ -42347,6 +41667,7 @@ impl RustCodegen {
         let mut state = RustRuleHeadPatternState {
             used_names,
             next_temporary: 0,
+            nested_patterns: Vec::new(),
             guards: Vec::new(),
             bindings: Vec::new(),
         };
@@ -42382,6 +41703,7 @@ impl RustCodegen {
         Ok(RustRuleHeadApplicability {
             subject,
             pattern,
+            nested_patterns: state.nested_patterns,
             guards: state.guards,
             bindings: state.bindings,
         })
@@ -42466,7 +41788,11 @@ impl RustCodegen {
                     "{indent}if let {} = {} {{\n",
                     applicability.pattern, applicability.subject
                 );
-                let inner_indent = format!("{indent}    ");
+                let mut inner_indent = format!("{indent}    ");
+                for (pattern, subject) in &applicability.nested_patterns {
+                    output.push_str(&format!("{inner_indent}if let {pattern} = {subject} {{\n"));
+                    inner_indent.push_str("    ");
+                }
                 for binding in &applicability.bindings {
                     let value = match binding.materialization {
                         RustRuleHeadBindingMaterialization::Direct => {
@@ -42494,6 +41820,10 @@ impl RustCodegen {
                     ));
                     let guarded_indent = format!("{inner_indent}    ");
                     output.push_str(&emit_match(cg, &guarded_indent));
+                    output.push_str(&format!("{inner_indent}}}\n"));
+                }
+                for _ in &applicability.nested_patterns {
+                    inner_indent.truncate(inner_indent.len() - 4);
                     output.push_str(&format!("{inner_indent}}}\n"));
                 }
                 output.push_str(&format!("{indent}}}\n"));
@@ -42762,24 +42092,7 @@ impl RustCodegen {
             return Err("an existential conjunction must start with a named goal".into());
         };
         let goal_name = Self::expr_fn_name(function);
-        let persisted_source = self.types.persisted_types.contains(goal_name.as_str());
-        let goal_param_types = if persisted_source {
-            let fields = self.persisted_fields(&goal_name).ok_or_else(|| {
-                format!("persisted existential goal `{goal_name}` has no field schema")
-            })?;
-            if arguments.len() > fields.len() {
-                return Err(format!(
-                    "persisted existential goal `{}({})` exceeds its field schema",
-                    goal_name,
-                    arguments.len()
-                ));
-            }
-            fields
-                .iter()
-                .take(arguments.len())
-                .map(|field| self.persisted_field_rust_type(&goal_name, field))
-                .collect::<Vec<_>>()
-        } else {
+        let goal_param_types = {
             self.types
                 .prolog_rule_fns
                 .get(goal_name.as_str())
@@ -42819,24 +42132,7 @@ impl RustCodegen {
             ));
         }
 
-        let (source_iter, fact_strings_are_owned) = if persisted_source {
-            // Do not push equality into SQL here. Futuruna fact matching has
-            // type-specific equality (notably epsilon Float equality), while
-            // the storage engine's `=` has different semantics. Scan the
-            // durable source and apply the same generated matcher as in-memory
-            // facts below.
-            let scan_arguments = arguments
-                .iter()
-                .map(|argument| Expr::new(ExprKind::Var("_".to_string()), argument.span))
-                .collect::<Vec<_>>();
-            (
-                self.emit_persisted_query_expr(&goal_name, &scan_arguments, None, &BTreeMap::new())
-                    .ok_or_else(|| {
-                        format!("persisted existential goal `{goal_name}` cannot be lowered")
-                    })?,
-                true,
-            )
-        } else {
+        let (source_iter, fact_strings_are_owned) = {
             let (table_name, lazy_fact_table) =
                 self.complete_prolog_ground_fact_source(&goal_name, arguments.len())?;
             (format!("{table_name}.iter()"), lazy_fact_table)
@@ -42847,7 +42143,7 @@ impl RustCodegen {
         let mut setup = Vec::new();
         for (index, argument) in arguments.iter().enumerate() {
             let argument = Self::rule_head_arg_expr(argument);
-            let fact_value = if arguments.len() == 1 && !persisted_source {
+            let fact_value = if arguments.len() == 1 {
                 "(*fact)".to_string()
             } else {
                 format!("fact.{index}")
@@ -42931,6 +42227,7 @@ impl RustCodegen {
         let existential_context = RustRuleHeadApplicability {
             subject: String::new(),
             pattern: String::new(),
+            nested_patterns: Vec::new(),
             guards: Vec::new(),
             bindings: existential_bindings,
         };
@@ -42940,30 +42237,7 @@ impl RustCodegen {
             self.with_rule_head_binding_context(&existential_context, &expressions, |cg| {
                 remaining
                     .iter()
-                    .map(|goal| {
-                        if let ExprKind::App(function, arguments) = &goal.kind {
-                            let called = Self::expr_fn_name(function);
-                            if cg.types.persisted_types.contains(called.as_str()) {
-                                let bound_variables = arguments
-                                    .iter()
-                                    .filter_map(|argument| match &argument.kind {
-                                        ExprKind::Var(name) if name != "_" => {
-                                            Some((name.clone(), sanitize_name(name)))
-                                        }
-                                        _ => None,
-                                    })
-                                    .collect::<BTreeMap<_, _>>();
-                                return cg
-                                    .emit_persisted_exists_expr(
-                                        &called,
-                                        arguments,
-                                        &bound_variables,
-                                    )
-                                    .unwrap_or_else(|| "false".to_string());
-                            }
-                        }
-                        cg.emit_expr(goal)
-                    })
+                    .map(|goal| cg.emit_expr(goal))
                     .collect::<Vec<_>>()
             });
 
@@ -43524,405 +42798,6 @@ impl RustCodegen {
         out
     }
 
-    fn persisted_fields(&self, type_name: &str) -> Option<Vec<String>> {
-        if !self.types.persisted_types.contains(type_name) {
-            return None;
-        }
-        let fields = self.types.variant_fields.get(type_name)?.clone();
-        (!fields.is_empty()).then_some(fields)
-    }
-
-    fn persisted_field_rust_type(&mut self, type_name: &str, field: &str) -> String {
-        let ty = self
-            .types
-            .variant_field_types
-            .get(type_name)
-            .and_then(|fields| fields.get(field))
-            .cloned()
-            .unwrap_or(Ty::Hole);
-        self.emit_type(&ty)
-    }
-
-    fn watch_change_type_name(type_name: &str) -> String {
-        format!("__Fut{}Change", sanitize_name(type_name))
-    }
-
-    fn watch_static_name(type_name: &str) -> String {
-        format!("__FUT_WATCH_{}", sanitize_name(type_name).to_uppercase())
-    }
-
-    fn watch_fn_name(type_name: &str) -> String {
-        format!("__fut_watch_{}", sanitize_name(type_name).to_lowercase())
-    }
-
-    fn watch_emit_fn_name(type_name: &str) -> String {
-        format!(
-            "__fut_emit_{}_change",
-            sanitize_name(type_name).to_lowercase()
-        )
-    }
-
-    fn emit_watch_runtime(&self) -> String {
-        if self.types.watched_persist_types.is_empty() {
-            return String::new();
-        }
-
-        let mut out = String::new();
-        out.push_str("#[derive(Debug, Clone, PartialEq)]\n");
-        out.push_str("enum __FutChangeOp {\n");
-        out.push_str("    Asserted,\n");
-        out.push_str("    Retracted,\n");
-        out.push_str("}\n");
-        out.push_str("impl fmt::Display for __FutChangeOp {\n");
-        out.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
-        out.push_str("        match self {\n");
-        out.push_str("            __FutChangeOp::Asserted => write!(f, \"Asserted\"),\n");
-        out.push_str("            __FutChangeOp::Retracted => write!(f, \"Retracted\"),\n");
-        out.push_str("        }\n");
-        out.push_str("    }\n");
-        out.push_str("}\n");
-
-        for type_name in &self.types.watched_persist_types {
-            let row_ty = sanitize_name(type_name);
-            let event_ty = Self::watch_change_type_name(type_name);
-            let static_name = Self::watch_static_name(type_name);
-            let watch_fn = Self::watch_fn_name(type_name);
-            let emit_fn = Self::watch_emit_fn_name(type_name);
-            out.push_str(&format!(
-                "#[derive(Debug, Clone, PartialEq)]\nstruct {event_ty} {{\n"
-            ));
-            out.push_str("    pub op: __FutChangeOp,\n");
-            out.push_str(&format!("    pub row: {row_ty},\n"));
-            out.push_str("    pub matched_fields: Vec<String>,\n");
-            out.push_str("}\n");
-            out.push_str(&format!("impl fmt::Display for {event_ty} {{\n"));
-            out.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
-            out.push_str("        write!(f, \"{}: {} matched={:?}\", self.op, self.row, self.matched_fields)\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
-            out.push_str(&format!(
-                "static {static_name}: std::sync::OnceLock<__FutStream<{event_ty}>> = std::sync::OnceLock::new();\n"
-            ));
-            out.push_str(&format!("fn {watch_fn}() -> __FutStream<{event_ty}> {{\n"));
-            out.push_str(&format!(
-                "    {static_name}.get_or_init(|| __FutStream::new()).clone()\n"
-            ));
-            out.push_str("}\n");
-            out.push_str(&format!("fn {emit_fn}(event: {event_ty}) {{\n"));
-            out.push_str(&format!(
-                "    if let Some(stream) = {static_name}.get() {{ stream.send(event); }}\n"
-            ));
-            out.push_str("}\n");
-        }
-
-        out
-    }
-
-    fn emit_persisted_row_literal(&self, type_name: &str, args: &[String]) -> String {
-        let sname = sanitize_name(type_name);
-        let is_positional = self
-            .types
-            .variant_positional
-            .get(type_name)
-            .copied()
-            .unwrap_or(false);
-        if is_positional {
-            format!("{}({})", sname, args.join(", "))
-        } else {
-            let fields = self
-                .types
-                .variant_fields
-                .get(type_name)
-                .cloned()
-                .unwrap_or_default();
-            let pairs: Vec<String> = fields
-                .iter()
-                .zip(args.iter())
-                .map(|(field, value)| format!("{}: {}", sanitize_name(field), value))
-                .collect();
-            format!("{} {{ {} }}", sname, pairs.join(", "))
-        }
-    }
-
-    fn emit_watch_event_delivery(&self, type_name: &str, event_var: &str) -> String {
-        let emit_fn = Self::watch_emit_fn_name(type_name);
-        let mut out = String::new();
-        if let Some(guard_name) = self.persist_tx_stack.last() {
-            out.push_str(&format!(
-                "{}{}.enqueue_event(move || {}({}));\n",
-                self.ind(),
-                guard_name,
-                emit_fn,
-                event_var
-            ));
-        } else {
-            out.push_str(&format!("{}{}({});\n", self.ind(), emit_fn, event_var));
-            if self.in_async_context() {
-                out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-            }
-        }
-        out
-    }
-
-    fn emit_persisted_query_expr(
-        &mut self,
-        type_name: &str,
-        goal_args: &[Expr],
-        projection: Option<usize>,
-        bound_vars: &BTreeMap<String, String>,
-    ) -> Option<String> {
-        let fields = self.persisted_fields(type_name)?;
-        if goal_args.len() > fields.len() {
-            return None;
-        }
-        let table_name = sanitize_name(type_name).to_lowercase();
-        let columns: Vec<String> = fields.iter().map(|field| sanitize_name(field)).collect();
-
-        let mut where_parts = Vec::new();
-        let mut params = Vec::new();
-        let mut first_bound_col: Option<String> = None;
-        for (idx, arg) in goal_args.iter().enumerate() {
-            let col = columns[idx].clone();
-            let value = match &arg.kind {
-                ExprKind::Var(name) if name == "_" => None,
-                ExprKind::Var(name) => bound_vars.get(name).cloned(),
-                _ => Some(self.emit_expr(arg)),
-            };
-            if let Some(value) = value {
-                if first_bound_col.is_none() {
-                    first_bound_col = Some(col.clone());
-                }
-                params.push(value);
-                where_parts.push(format!("{} = ?{}", col, params.len()));
-            }
-        }
-
-        let select_columns = match projection {
-            Some(idx) => vec![columns.get(idx)?.clone()],
-            None => columns.clone(),
-        };
-        let select_sql = select_columns.join(", ");
-        let where_sql = if where_parts.is_empty() {
-            String::new()
-        } else {
-            format!(" WHERE {}", where_parts.join(" AND "))
-        };
-        let order_sql = if columns.is_empty() {
-            String::new()
-        } else {
-            format!(" ORDER BY {}", columns.join(", "))
-        };
-        let sql = format!(
-            "SELECT {} FROM {}{}{}",
-            select_sql, table_name, where_sql, order_sql
-        );
-        let params_expr = if params.is_empty() {
-            "rusqlite::params![]".to_string()
-        } else {
-            format!("rusqlite::params![{}]", params.join(", "))
-        };
-        let index_stmt = first_bound_col
-            .as_ref()
-            .filter(|col| columns.first().map(|pk| pk != *col).unwrap_or(false))
-            .map(|col| {
-                let index_name = format!("__idx_{}_{}", table_name, col);
-                format!(
-                    "__db_lock.execute(\"CREATE INDEX IF NOT EXISTS {} ON {} ({})\", rusqlite::params![]).ok(); ",
-                    index_name, table_name, col
-                )
-            })
-            .unwrap_or_default();
-
-        let row_get = match projection {
-            Some(idx) => {
-                let ty = self.persisted_field_rust_type(type_name, fields.get(idx)?);
-                format!("row.get::<_, {}>(0)", ty)
-            }
-            None => {
-                let getters: Vec<String> = fields
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, field)| {
-                        let ty = self.persisted_field_rust_type(type_name, field);
-                        format!("row.get::<_, {}>({})?", ty, idx)
-                    })
-                    .collect();
-                if getters.len() == 1 {
-                    format!("Ok(({},))", getters[0])
-                } else {
-                    format!("Ok(({},))", getters.join(", "))
-                }
-            }
-        };
-
-        Some(format!(
-            "{{ let __db = __fut_persist_db(); let __db_lock = __db.lock().unwrap(); {}let mut __stmt = __db_lock.prepare({:?}).expect(\"persist findall prepare failed\"); let __rows = __stmt.query_map({}, |row| {}).expect(\"persist findall query failed\"); __rows.filter_map(|row| row.ok()).collect::<Vec<_>>() }}",
-            index_stmt, sql, params_expr, row_get
-        ))
-    }
-
-    fn emit_persisted_exists_expr(
-        &mut self,
-        type_name: &str,
-        goal_args: &[Expr],
-        bound_vars: &BTreeMap<String, String>,
-    ) -> Option<String> {
-        self.emit_persisted_query_expr(type_name, goal_args, Some(0), bound_vars)
-            .map(|query| format!("!({}).is_empty()", query))
-    }
-
-    fn emit_persisted_rule_goal_condition(&mut self, goal: &Expr) -> String {
-        if let ExprKind::App(func, args) = &goal.kind {
-            let fn_name = Self::expr_fn_name(func);
-            if self.types.persisted_types.contains(fn_name.as_str()) {
-                let mut bound_vars = BTreeMap::new();
-                for arg in args {
-                    if let ExprKind::Var(name) = &arg.kind {
-                        if name != "_" {
-                            bound_vars.insert(name.clone(), sanitize_name(name));
-                        }
-                    }
-                }
-                if let Some(expr) = self.emit_persisted_exists_expr(&fn_name, args, &bound_vars) {
-                    return expr;
-                }
-            }
-
-            let gargs: Vec<String> = args
-                .iter()
-                .enumerate()
-                .map(|(idx, arg)| match &arg.kind {
-                    ExprKind::Var(name) if name != "_" => {
-                        let base = sanitize_name(name);
-                        let wants_str = self
-                            .types
-                            .prolog_rule_fns
-                            .get(&fn_name)
-                            .and_then(|types| types.get(idx))
-                            .map(|ty| ty == "&str")
-                            .unwrap_or(false);
-                        if wants_str {
-                            format!("&*{}", base)
-                        } else {
-                            base
-                        }
-                    }
-                    ExprKind::Lit(Literal::Str(s)) => format!("{:?}", s),
-                    _ => self.emit_expr(arg),
-                })
-                .collect();
-            return format!("{}({})", sanitize_name(&fn_name), gargs.join(", "));
-        }
-        self.emit_expr(goal)
-    }
-
-    fn emit_persisted_rule_findall(
-        &mut self,
-        template_name: &str,
-        fn_name: &str,
-        goal_args: &[Expr],
-    ) -> Option<String> {
-        let rules = self.types.prolog_rule_groups.get(fn_name)?.clone();
-        for rule in rules {
-            let Rule::Clause {
-                head,
-                body: Some(body),
-            } = rule
-            else {
-                continue;
-            };
-            let ExprKind::App(_, head_args) = &head.kind else {
-                continue;
-            };
-            if head_args.len() != goal_args.len() {
-                continue;
-            }
-
-            let mut head_bindings: BTreeMap<String, Expr> = BTreeMap::new();
-            for (head_arg, goal_arg) in head_args.iter().zip(goal_args.iter()) {
-                if let Some(name) = Self::rule_head_var_name(head_arg) {
-                    head_bindings.insert(name.clone(), goal_arg.clone());
-                }
-            }
-            let output_var = head_bindings.iter().find_map(|(head_var, goal_arg)| {
-                if matches!(&goal_arg.kind, ExprKind::Var(name) if name == template_name) {
-                    Some(head_var.clone())
-                } else {
-                    None
-                }
-            })?;
-
-            let body_goals: Vec<Expr> = match body.kind {
-                ExprKind::Conjunction(goals) => goals,
-                _ => vec![body],
-            };
-            let Some(first_goal) = body_goals.first() else {
-                continue;
-            };
-            let ExprKind::App(first_func, first_args) = &first_goal.kind else {
-                continue;
-            };
-            let first_fn = Self::expr_fn_name(first_func);
-            if !self.types.persisted_types.contains(first_fn.as_str()) {
-                continue;
-            }
-
-            let mut query_bound_vars = BTreeMap::new();
-            for arg in first_args {
-                if let ExprKind::Var(name) = &arg.kind {
-                    if name == "_" {
-                        continue;
-                    }
-                    if let Some(bound_expr) = head_bindings.get(name) {
-                        if !matches!(&bound_expr.kind, ExprKind::Var(v) if v == template_name || v == "_")
-                        {
-                            query_bound_vars.insert(name.clone(), self.emit_expr(bound_expr));
-                        }
-                    }
-                }
-            }
-
-            let rows_expr =
-                self.emit_persisted_query_expr(&first_fn, first_args, None, &query_bound_vars)?;
-            let mut out = format!(
-                "{{ let mut __out = Vec::new(); for fact in {} {{ ",
-                rows_expr
-            );
-            let mut bound_names = BTreeSet::new();
-            for (idx, arg) in first_args.iter().enumerate() {
-                if let ExprKind::Var(name) = &arg.kind {
-                    if name == "_" || !bound_names.insert(name.clone()) {
-                        continue;
-                    }
-                    let value = query_bound_vars
-                        .get(name)
-                        .cloned()
-                        .unwrap_or_else(|| format!("fact.{}", idx));
-                    out.push_str(&format!("let {} = {}; ", sanitize_name(name), value));
-                }
-            }
-
-            let remaining: Vec<String> = body_goals
-                .iter()
-                .skip(1)
-                .map(|goal| self.emit_persisted_rule_goal_condition(goal))
-                .collect();
-            let output_expr = sanitize_name(&output_var);
-            if remaining.is_empty() {
-                out.push_str(&format!("__out.push({}.clone()); ", output_expr));
-            } else {
-                out.push_str(&format!(
-                    "if {} {{ __out.push({}.clone()); }} ",
-                    remaining.join(" && "),
-                    output_expr
-                ));
-            }
-            out.push_str("} __out }");
-            return Some(out);
-        }
-        None
-    }
-
     fn typed_rule_param_type(&self, fn_name: &str, position: usize) -> Option<String> {
         self.types
             .prolog_rule_groups
@@ -43975,30 +42850,6 @@ impl RustCodegen {
                 .position(|a| matches!(a.kind, ExprKind::Var(ref n) if n == &template_name));
 
             if let Some(t_pos) = template_pos {
-                if self.types.persisted_types.contains(fn_name.as_str()) {
-                    let mut bound_vars = BTreeMap::new();
-                    for arg in goal_args {
-                        if let ExprKind::Var(name) = &arg.kind {
-                            if name != "_" && name != &template_name {
-                                bound_vars.insert(name.clone(), self.emit_expr(arg));
-                            }
-                        }
-                    }
-                    if let Some(query) = self.emit_persisted_query_expr(
-                        &fn_name,
-                        goal_args,
-                        Some(t_pos),
-                        &bound_vars,
-                    ) {
-                        return query;
-                    }
-                }
-                if let Some(query) =
-                    self.emit_persisted_rule_findall(&template_name, &fn_name, goal_args)
-                {
-                    return query;
-                }
-
                 let arity = goal_args.len();
                 let is_unary = arity == 1;
 
@@ -44448,9 +43299,7 @@ impl RustCodegen {
             );
         }
         let bool_miss_is_safe = !canonical_contract_applies
-            || self
-                .canonical_rule_boolean_miss_safe_keys
-                .contains(&canonical_key);
+            || self.runtime_rule_boolean_miss_keys.contains(&canonical_key);
         if Self::rules_have_prolog_features(rules) && arity > 0 {
             let canonical_parameters = canonical_contract_applies
                 .then(|| {
@@ -46171,44 +45020,6 @@ impl RustCodegen {
                 if let Rule::ReactiveScope { name, body } = rule {
                     let mut out = String::new();
                     out.push_str(&format!("{}// | scope {}\n", self.ind(), name));
-                    let transactional_scope = body.iter().any(|stmt| {
-                        stmt_contains_persisted_mutation(stmt, &self.types.persisted_types)
-                    });
-                    let parent_tx_guard = if transactional_scope {
-                        self.persist_tx_stack.last().cloned()
-                    } else {
-                        None
-                    };
-                    let tx_guard = if transactional_scope {
-                        let tx_idx = self.persist_tx_counter;
-                        self.persist_tx_counter += 1;
-                        let guard_name = format!("__fut_persist_tx_{}", tx_idx);
-                        let db_var = format!("__fut_tx_db_{}", tx_idx);
-                        if self.persist_tx_depth == 0 {
-                            Some((
-                                guard_name,
-                                db_var,
-                                "BEGIN IMMEDIATE".to_string(),
-                                "COMMIT".to_string(),
-                                "ROLLBACK".to_string(),
-                            ))
-                        } else {
-                            let savepoint = format!("__fut_scope_tx_{}", tx_idx);
-                            Some((
-                                guard_name,
-                                db_var,
-                                format!("SAVEPOINT {}", savepoint),
-                                format!("RELEASE SAVEPOINT {}", savepoint),
-                                format!(
-                                    "ROLLBACK TO SAVEPOINT {}; RELEASE SAVEPOINT {}",
-                                    savepoint, savepoint
-                                ),
-                            ))
-                        }
-                    } else {
-                        None
-                    };
-
                     // Collect scope bindings for struct generation
                     let mut scope_binds: Vec<(String, String)> = Vec::new(); // (name, value_expr)
                     let mut scope_stream_binds: Vec<String> = Vec::new();
@@ -46224,24 +45035,6 @@ impl RustCodegen {
                             }
                             _ => other_stmts.push(s),
                         }
-                    }
-
-                    if let Some((guard_name, db_var, begin_sql, _, rollback_sql)) = &tx_guard {
-                        out.push_str(&format!(
-                            "{}let {} = __fut_persist_db();\n",
-                            self.ind(),
-                            db_var
-                        ));
-                        out.push_str(&format!(
-                            "{}let mut {} = __FutPersistTxGuard::begin({}.clone(), {:?}, {:?});\n",
-                            self.ind(),
-                            guard_name,
-                            db_var,
-                            begin_sql,
-                            rollback_sql
-                        ));
-                        self.persist_tx_depth += 1;
-                        self.persist_tx_stack.push(guard_name.clone());
                     }
 
                     if self.has_async {
@@ -46270,46 +45063,6 @@ impl RustCodegen {
                         }
                     }
 
-                    if let Some((guard_name, _, _, commit_sql, _)) = &tx_guard {
-                        if let Some(parent_guard) = parent_tx_guard
-                            .as_ref()
-                            .filter(|_| !self.types.watched_persist_types.is_empty())
-                        {
-                            let pending_name = format!("__fut_pending_events_{}", guard_name);
-                            out.push_str(&format!(
-                                "{}let {} = {}.take_events_after_commit({:?});\n",
-                                self.ind(),
-                                pending_name,
-                                guard_name,
-                                commit_sql
-                            ));
-                            out.push_str(&format!(
-                                "{}{}.absorb_events({});\n",
-                                self.ind(),
-                                parent_guard,
-                                pending_name
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "{}{}.commit({:?});\n",
-                                self.ind(),
-                                guard_name,
-                                commit_sql
-                            ));
-                            if self.has_async
-                                && !self.types.watched_persist_types.is_empty()
-                                && self.in_async_context()
-                            {
-                                out.push_str(&format!(
-                                    "{}tokio::task::yield_now().await;\n",
-                                    self.ind()
-                                ));
-                            }
-                        }
-                        self.persist_tx_depth = self.persist_tx_depth.saturating_sub(1);
-                        self.persist_tx_stack.pop();
-                    }
-
                     // Track scope bindings for qualified access (ScopeName.field → field)
                     for (vname, _) in &scope_binds {
                         self.scope_bindings
@@ -46328,6 +45081,7 @@ impl RustCodegen {
                 }
                 String::new() // other rules emitted as top-level functions
             }
+            Stmt::PreludeBoundary => String::new(),
             Stmt::Use(path) => {
                 format!(
                     "{}// use {} (already emitted in header)\n",
@@ -47065,24 +45819,7 @@ impl RustCodegen {
                         }
                         return out;
                     }
-                    if let Some(type_name) = Self::watch_type_name(expr) {
-                        if self
-                            .types
-                            .watched_persist_types
-                            .contains(type_name.as_str())
-                        {
-                            self.async_stream_vars.insert(name.clone());
-                            let event_ty = Self::watch_change_type_name(&type_name);
-                            let watch_fn = Self::watch_fn_name(&type_name);
-                            return format!(
-                                "{}let {}: __FutStream<{}> = {}();\n",
-                                self.ind(),
-                                name,
-                                event_ty,
-                                watch_fn
-                            );
-                        }
-                    }
+
                     if self.is_async_stream_expr(expr) {
                         self.async_stream_vars.insert(name.clone());
                     }
@@ -47300,383 +46037,6 @@ impl RustCodegen {
                 out
             }
 
-            // ---- Persist: assert / retract / abort ----
-            Stmt::Assert(type_name, args) => {
-                let mut out = String::new();
-                let sname = sanitize_name(type_name);
-                let table_name = sname.to_lowercase();
-                if self.types.persisted_types.contains(type_name.as_str()) {
-                    // M26b: typed-column INSERT OR REPLACE.
-                    let fields = self
-                        .types
-                        .variant_fields
-                        .get(type_name.as_str())
-                        .cloned()
-                        .unwrap_or_default();
-                    let cols: Vec<String> = fields
-                        .iter()
-                        .map(|f| sanitize_name(f).to_string())
-                        .collect();
-                    let placeholders: Vec<String> =
-                        (1..=cols.len()).map(|i| format!("?{}", i)).collect();
-                    if self
-                        .types
-                        .watched_persist_types
-                        .contains(type_name.as_str())
-                    {
-                        let temp_names: Vec<String> = (0..args.len())
-                            .map(|idx| format!("__fut_arg_{}", idx))
-                            .collect();
-                        out.push_str(&format!(
-                            "{}{{ // assert {} with watch\n",
-                            self.ind(),
-                            type_name
-                        ));
-                        self.indent += 1;
-                        out.push_str(&format!("{}let __db = __fut_persist_db();\n", self.ind()));
-                        for (temp, arg) in temp_names.iter().zip(args.iter()) {
-                            let value = self.emit_expr(arg);
-                            out.push_str(&format!("{}let {} = {};\n", self.ind(), temp, value));
-                        }
-                        let params: Vec<String> = temp_names
-                            .iter()
-                            .map(|name| format!("{}.clone()", name))
-                            .collect();
-                        out.push_str(&format!(
-                            "{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} ({}) VALUES ({})\", rusqlite::params![{}]).expect(\"assert failed\");\n",
-                            self.ind(),
-                            table_name,
-                            cols.join(", "),
-                            placeholders.join(", "),
-                            params.join(", ")
-                        ));
-                        let row_args: Vec<String> = temp_names
-                            .iter()
-                            .map(|name| format!("{}.clone()", name))
-                            .collect();
-                        let row = self.emit_persisted_row_literal(type_name, &row_args);
-                        let event_ty = Self::watch_change_type_name(type_name);
-                        out.push_str(&format!(
-                            "{}let __fut_event = {} {{ op: __FutChangeOp::Asserted, row: {}, matched_fields: vec![] }};\n",
-                            self.ind(),
-                            event_ty,
-                            row
-                        ));
-                        out.push_str(&self.emit_watch_event_delivery(type_name, "__fut_event"));
-                        self.indent -= 1;
-                        out.push_str(&format!("{}}}\n", self.ind()));
-                    } else {
-                        let arg_strs: Vec<String> =
-                            args.iter().map(|a| self.emit_expr(a)).collect();
-                        out.push_str(&format!(
-                            "{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} ({}) VALUES ({})\", rusqlite::params![{}]).expect(\"assert failed\");\n",
-                            self.ind(),
-                            table_name,
-                            cols.join(", "),
-                            placeholders.join(", "),
-                            arg_strs.join(", ")
-                        ));
-                    }
-                } else if self.types.stored_types.contains(type_name.as_str()) {
-                    // Object store: serialize struct to JSON, INSERT OR REPLACE
-                    let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
-                    // Build struct literal with named fields (named struct) or positional (tuple struct)
-                    let is_positional = self
-                        .types
-                        .variant_positional
-                        .get(type_name.as_str())
-                        .copied()
-                        .unwrap_or(false);
-                    let construct = if is_positional {
-                        format!("{}({})", sname, arg_strs.join(", "))
-                    } else {
-                        // Named fields
-                        let fields = self
-                            .types
-                            .variant_fields
-                            .get(type_name.as_str())
-                            .cloned()
-                            .unwrap_or_default();
-                        let pairs: Vec<String> = fields
-                            .iter()
-                            .zip(arg_strs.iter())
-                            .map(|(f, v)| format!("{}: {}", sanitize_name(f), v))
-                            .collect();
-                        format!("{} {{ {} }}", sname, pairs.join(", "))
-                    };
-                    out.push_str(&format!(
-                        "{}{{ // assert {} (object store)\n",
-                        self.ind(),
-                        type_name
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!("{}let __val = {};\n", self.ind(), construct));
-                    out.push_str(&format!("{}let __json = serde_json::to_string(&__val).expect(\"serialize failed\");\n", self.ind()));
-                    // First field is the key — use Display for the key value
-                    out.push_str(&format!(
-                        "{}let __key = format!(\"{{}}\", __val.{});\n",
-                        self.ind(),
-                        self.types
-                            .stored_type_key_field
-                            .get(type_name.as_str())
-                            .cloned()
-                            .unwrap_or_else(|| "0".to_string())
-                    ));
-                    out.push_str(&format!("{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} (id, data) VALUES (?1, ?2)\", rusqlite::params![__key, __json]).expect(\"assert failed\");\n",
-                        self.ind(), table_name));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                } else {
-                    // Not a stored type — emit as constructor expression (future: in-memory facts)
-                    let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
-                    out.push_str(&format!(
-                        "{}// assert {}({}) — not a stored type, no-op\n",
-                        self.ind(),
-                        type_name,
-                        arg_strs.join(", ")
-                    ));
-                }
-                out
-            }
-            Stmt::Retract(type_name, args) => {
-                let mut out = String::new();
-                let sname = sanitize_name(type_name);
-                let table_name = sname.to_lowercase();
-                if self.types.persisted_types.contains(type_name.as_str()) {
-                    // M26b: typed-column DELETE. Each non-wildcard argument
-                    // becomes an equality predicate; `_` is a pattern wildcard.
-                    let fields = self
-                        .types
-                        .variant_fields
-                        .get(type_name.as_str())
-                        .cloned()
-                        .unwrap_or_default();
-                    let cols: Vec<String> = fields
-                        .iter()
-                        .map(|f| sanitize_name(f).to_string())
-                        .collect();
-                    let mut where_parts = Vec::new();
-                    let mut params = Vec::new();
-                    for (idx, arg) in args.iter().enumerate().take(cols.len()) {
-                        if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
-                            continue;
-                        }
-                        params.push(self.emit_expr(arg));
-                        where_parts.push(format!("{} = ?{}", cols[idx], params.len()));
-                    }
-                    let where_sql = if where_parts.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" WHERE {}", where_parts.join(" AND "))
-                    };
-                    if self
-                        .types
-                        .watched_persist_types
-                        .contains(type_name.as_str())
-                        && !args.is_empty()
-                    {
-                        let temp_names: Vec<String> = args
-                            .iter()
-                            .enumerate()
-                            .map(|(idx, _)| format!("__fut_arg_{}", idx))
-                            .collect();
-                        out.push_str(&format!(
-                            "{}{{ // retract {} with watch\n",
-                            self.ind(),
-                            type_name
-                        ));
-                        self.indent += 1;
-                        out.push_str(&format!("{}let __db = __fut_persist_db();\n", self.ind()));
-                        for (idx, arg) in args.iter().enumerate().take(cols.len()) {
-                            if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
-                                continue;
-                            }
-                            let value = self.emit_expr(arg);
-                            out.push_str(&format!(
-                                "{}let {} = {};\n",
-                                self.ind(),
-                                temp_names[idx],
-                                value
-                            ));
-                        }
-                        let param_vars: Vec<String> = args
-                            .iter()
-                            .enumerate()
-                            .take(cols.len())
-                            .filter_map(|(idx, arg)| {
-                                if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
-                                    None
-                                } else {
-                                    Some(format!("{}.clone()", temp_names[idx]))
-                                }
-                            })
-                            .collect();
-                        let params_expr = if param_vars.is_empty() {
-                            "rusqlite::params![]".to_string()
-                        } else {
-                            format!("rusqlite::params![{}]", param_vars.join(", "))
-                        };
-                        let select_sql = format!(
-                            "SELECT {} FROM {}{}",
-                            cols.join(", "),
-                            table_name,
-                            where_sql
-                        );
-                        let row_construct = if self
-                            .types
-                            .variant_positional
-                            .get(type_name.as_str())
-                            .copied()
-                            .unwrap_or(false)
-                        {
-                            let positional_getters: Vec<String> = fields
-                                .iter()
-                                .enumerate()
-                                .map(|(idx, field)| {
-                                    let ty = self.persisted_field_rust_type(type_name, field);
-                                    format!("row.get::<_, {}>({})?", ty, idx)
-                                })
-                                .collect();
-                            format!("{}({})", sname, positional_getters.join(", "))
-                        } else {
-                            let getters: Vec<String> = fields
-                                .iter()
-                                .enumerate()
-                                .map(|(idx, field)| {
-                                    let ty = self.persisted_field_rust_type(type_name, field);
-                                    format!(
-                                        "{}: row.get::<_, {}>({})?",
-                                        sanitize_name(field),
-                                        ty,
-                                        idx
-                                    )
-                                })
-                                .collect();
-                            format!("{} {{ {} }}", sname, getters.join(", "))
-                        };
-                        out.push_str(&format!(
-                            "{}let __fut_rows: Vec<{}> = {{\n",
-                            self.ind(),
-                            sname
-                        ));
-                        self.indent += 1;
-                        out.push_str(&format!(
-                            "{}let __db_lock = __db.lock().unwrap();\n",
-                            self.ind()
-                        ));
-                        out.push_str(&format!(
-                            "{}let mut __stmt = __db_lock.prepare({:?}).expect(\"retract watch select prepare failed\");\n",
-                            self.ind(),
-                            select_sql
-                        ));
-                        out.push_str(&format!(
-                            "{}let __rows = __stmt.query_map({}, |row| Ok({})).expect(\"retract watch select failed\");\n",
-                            self.ind(),
-                            params_expr,
-                            row_construct
-                        ));
-                        out.push_str(&format!(
-                            "{}__rows.filter_map(|row| row.ok()).collect()\n",
-                            self.ind()
-                        ));
-                        self.indent -= 1;
-                        out.push_str(&format!("{}}};\n", self.ind()));
-                        out.push_str(&format!(
-                            "{}__db.lock().unwrap().execute(\"DELETE FROM {}{}\", {}).expect(\"retract failed\");\n",
-                            self.ind(),
-                            table_name,
-                            where_sql,
-                            params_expr
-                        ));
-                        let matched_fields: Vec<String> = args
-                            .iter()
-                            .enumerate()
-                            .take(cols.len())
-                            .filter_map(|(idx, arg)| {
-                                if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
-                                    None
-                                } else {
-                                    fields.get(idx).cloned()
-                                }
-                            })
-                            .map(|field| format!("{:?}.to_string()", field))
-                            .collect();
-                        let matched_expr = if matched_fields.is_empty() {
-                            "vec![]".to_string()
-                        } else {
-                            format!("vec![{}]", matched_fields.join(", "))
-                        };
-                        let event_ty = Self::watch_change_type_name(type_name);
-                        out.push_str(&format!(
-                            "{}let __fut_matched_fields = {};\n",
-                            self.ind(),
-                            matched_expr
-                        ));
-                        out.push_str(&format!("{}for __fut_row in __fut_rows {{\n", self.ind()));
-                        self.indent += 1;
-                        out.push_str(&format!(
-                            "{}let __fut_event = {} {{ op: __FutChangeOp::Retracted, row: __fut_row, matched_fields: __fut_matched_fields.clone() }};\n",
-                            self.ind(),
-                            event_ty
-                        ));
-                        out.push_str(&self.emit_watch_event_delivery(type_name, "__fut_event"));
-                        self.indent -= 1;
-                        out.push_str(&format!("{}}}\n", self.ind()));
-                        self.indent -= 1;
-                        out.push_str(&format!("{}}}\n", self.ind()));
-                    } else if !args.is_empty() {
-                        let params_expr = if params.is_empty() {
-                            "rusqlite::params![]".to_string()
-                        } else {
-                            format!("rusqlite::params![{}]", params.join(", "))
-                        };
-                        out.push_str(&format!(
-                            "{}__db.lock().unwrap().execute(\"DELETE FROM {}{}\", {}).expect(\"retract failed\");\n",
-                            self.ind(),
-                            table_name,
-                            where_sql,
-                            params_expr
-                        ));
-                    } else {
-                        out.push_str(&format!(
-                            "{}// retract {} — no arguments\n",
-                            self.ind(),
-                            type_name
-                        ));
-                    }
-                } else if self.types.stored_types.contains(type_name.as_str()) {
-                    // Object store: DELETE by key (first arg)
-                    // For now, use first arg as key
-                    if let Some(first) = args.first() {
-                        let key_str = self.emit_expr(first);
-                        out.push_str(&format!("{}__db.lock().unwrap().execute(\"DELETE FROM {} WHERE id = ?1\", rusqlite::params![format!(\"{{}}\", {})] ).expect(\"retract failed\");\n",
-                            self.ind(), table_name, key_str));
-                    } else {
-                        out.push_str(&format!(
-                            "{}// retract {} — no arguments\n",
-                            self.ind(),
-                            type_name
-                        ));
-                    }
-                } else {
-                    let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
-                    out.push_str(&format!(
-                        "{}// retract {}({}) — not a stored type, no-op\n",
-                        self.ind(),
-                        type_name,
-                        arg_strs.join(", ")
-                    ));
-                }
-                out
-            }
-            Stmt::Abort => {
-                // For now, emit a comment. Transactional abort (break 'scope) comes in M26e.
-                format!(
-                    "{}// abort — transactional abort (M26e)\n{}panic!(\"abort outside transactional scope\");\n",
-                    self.ind(),
-                    self.ind()
-                )
-            }
             Stmt::Explore(_) => format!("{}// exploration declaration\n", self.ind()),
         }
     }
@@ -48681,7 +47041,7 @@ impl RustCodegen {
                 | Stmt::StreamBind(_, expr) => {
                     self.collect_subject_send_targets_from_expr(expr, targets);
                 }
-                Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                Stmt::Annot(_, args) => {
                     for arg in args {
                         self.collect_subject_send_targets_from_expr(arg, targets);
                     }
@@ -49328,17 +47688,24 @@ impl RustCodegen {
         None
     }
 
-    /// Infer a parameter's type from how it's used in rule body expressions.
+    /// Infer a parameter's type from how it's used in rule values and guards.
     /// Detects comparisons (>=, <=, >, <) and arithmetic (+, -, *, /) → i64 or f64.
     fn infer_param_type_from_body(&self, param: &str, rules: &[&Rule]) -> Option<String> {
         for rule in rules {
-            let body = match rule {
-                Rule::Clause { body: Some(b), .. } => b,
-                Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
+            let (body, guard) = match rule {
+                Rule::Clause { body: Some(b), .. } => (b, None),
+                Rule::Default {
+                    value, condition, ..
+                }
+                | Rule::Exception {
+                    value, condition, ..
+                } => (value, condition.as_ref()),
                 _ => continue,
             };
-            if let Some(ty) = self.infer_param_type_from_expr_usage(param, body) {
-                return Some(ty);
+            for expression in std::iter::once(body).chain(guard) {
+                if let Some(ty) = self.infer_param_type_from_expr_usage(param, expression) {
+                    return Some(ty);
+                }
             }
         }
         None
@@ -49731,20 +48098,7 @@ impl RustCodegen {
                         "start_with",
                         "concat",
                     ];
-                    if name == "watch" {
-                        return args
-                            .first()
-                            .and_then(|arg| match &arg.kind {
-                                ExprKind::Var(type_name) => Some(type_name),
-                                _ => None,
-                            })
-                            .map(|type_name| {
-                                self.types
-                                    .watched_persist_types
-                                    .contains(type_name.as_str())
-                            })
-                            .unwrap_or(false);
-                    }
+
                     if name == "as_stream" && !args.is_empty() {
                         return self.is_live_stream_expr_for_validation(&args[0]);
                     }
@@ -49806,10 +48160,7 @@ impl RustCodegen {
         let snapshot = self.emit_async_stream_snapshot(&args[0]);
         match name {
             "count" if args.len() == 1 => Some(format!("({}.len() as i64)", snapshot)),
-            "sum" if args.len() == 1 => Some(format!(
-                "{}.into_iter().reduce(|a, b| a + b).unwrap_or_default()",
-                snapshot
-            )),
+            "sum" if args.len() == 1 => Some(format!("__futuruna_sum({}.into_iter())", snapshot)),
             "collect" if args.len() == 1 => Some(snapshot),
             "last" if args.len() == 1 => Some(format!(
                 "{}.into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))",
@@ -51161,7 +49512,7 @@ impl RustCodegen {
                 if let Some(key) = canonical_key {
                     if self.canonical_rule_return_types.contains_key(&key)
                         && !self.runtime_rule_irrefutable_keys.contains(&key)
-                        && !self.canonical_rule_boolean_miss_safe_keys.contains(&key)
+                        && !self.runtime_rule_boolean_miss_keys.contains(&key)
                         && !(return_type == FirTy::Bool
                             && self.static_bool_rule_head_matches_call(&rules, args))
                     {
@@ -51294,7 +49645,7 @@ impl RustCodegen {
         };
         let safe_global_predicate = match &func.kind {
             ExprKind::Var(name) if !scoped_predicate => self
-                .canonical_rule_boolean_miss_safe_keys
+                .runtime_rule_boolean_miss_keys
                 .contains(&RuleDispatchKey {
                     scope: None,
                     name: name.clone(),
@@ -52321,17 +50672,7 @@ impl RustCodegen {
                         }
                     }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
-                    if name == "watch" && args.len() == 1 {
-                        if let ExprKind::Var(type_name) = &args[0].kind {
-                            if self
-                                .types
-                                .watched_persist_types
-                                .contains(type_name.as_str())
-                            {
-                                return format!("{}()", Self::watch_fn_name(type_name));
-                            }
-                        }
-                    }
+
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
                         if args_str.len() == def.arity
                             && (!def.shadowable || !self.builtin_shadowed_by_callable(name))
@@ -52716,66 +51057,77 @@ impl RustCodegen {
                 }
                 // Futuruna uses = for equality; Rust uses ==
                 let rust_op = if op == "=" { "==" } else { op.as_str() };
-                let exact_int_candidate = self.int_arithmetic_mode
-                    == RustCodegenIntArithmeticMode::ExploreClassifierExact
-                    && matches!(rust_op, "+" | "-" | "*" | "/" | "%");
-                let is_float_arithmetic = if exact_int_candidate || matches!(rust_op, "/" | "%") {
-                    match self.infer_expr_fir_ty(expr) {
+                let arithmetic = matches!(rust_op, "+" | "-" | "*" | "/" | "%");
+                let exact_mode = self.int_arithmetic_mode
+                    == RustCodegenIntArithmeticMode::ExploreClassifierExact;
+                let inferred = self.infer_expr_fir_ty(expr);
+                let is_float_arithmetic = arithmetic
+                    && match inferred {
                         FirTy::Float => true,
                         FirTy::Int => false,
                         _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
-                    }
-                } else {
-                    false
-                };
-                if exact_int_candidate && !is_float_arithmetic {
-                    let checked_method = match rust_op {
-                        "+" => "checked_add",
-                        "-" => "checked_sub",
-                        "*" => "checked_mul",
-                        "/" => "checked_div",
-                        "%" => "checked_rem",
-                        _ => unreachable!("guarded exact Int operator"),
+                    };
+                if arithmetic
+                    && !is_float_arithmetic
+                    && (exact_mode
+                        || matches!(inferred, FirTy::Int)
+                        || matches!(rust_op, "/" | "%"))
+                {
+                    let (method, diagnostic) = match rust_op {
+                        "+" => ("checked_add", "integer addition overflow"),
+                        "-" => ("checked_sub", "integer subtraction overflow"),
+                        "*" => ("checked_mul", "integer multiplication overflow"),
+                        "/" => ("checked_div", "integer division by zero or overflow"),
+                        "%" => ("checked_rem", "integer remainder by zero or overflow"),
+                        _ => unreachable!("guarded Int operator"),
+                    };
+                    let failure = if exact_mode {
+                        format!(
+                            "unwrap_or_else(|| std::process::exit({}))",
+                            EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2
+                        )
+                    } else {
+                        format!("expect({diagnostic:?})")
                     };
                     return format!(
-                        "{{ let __fut_l: i64 = {}; let __fut_r: i64 = {}; __fut_l.{}(__fut_r).unwrap_or_else(|| std::process::exit({})) }}",
-                        l, r, checked_method, EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+                        "{{ let __fut_l: i64 = {}; let __fut_r: i64 = {}; __fut_l.{}(__fut_r).{} }}",
+                        l, r, method, failure,
                     );
                 }
-                // Safe division/modulo: return 0 on division by zero (matches interpreter).
-                // Prefer the inferred type of the full expression so Int-valued helpers like
-                // round(...) % 64 do not get pulled onto the float path just because a child
-                // subtree mentions floats somewhere upstream.
-                if rust_op == "/" || rust_op == "%" {
-                    let l_for_op = if l.trim_start().starts_with('{') {
+                // Float zero-divisor behavior is a separate compatibility
+                // boundary; this correction changes the Int domain only.
+                if matches!(rust_op, "/" | "%") && is_float_arithmetic {
+                    let numerator = if l.trim_start().starts_with('{') {
                         format!("({})", l)
                     } else {
-                        l.clone()
+                        l
                     };
-                    if is_float_arithmetic {
-                        return format!(
-                            "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
-                            r, l_for_op, rust_op
-                        );
-                    } else {
-                        return format!(
-                            "{{ let __d = {}; if __d == 0 {{ 0 }} else {{ {} {} __d }} }}",
-                            r, l_for_op, rust_op
-                        );
-                    }
+                    return format!(
+                        "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
+                        r, numerator, rust_op
+                    );
                 }
                 format!("({} {} {})", l, rust_op, r)
             }
             ExprKind::UnOp(op, operand) => {
                 let emitted_operand = self.emit_expr(operand);
-                if self.int_arithmetic_mode == RustCodegenIntArithmeticMode::ExploreClassifierExact
-                    && op == "-"
+                if op == "-"
                     && !matches!(self.infer_expr_fir_ty(expr), FirTy::Float)
                     && !self.expr_is_float(operand)
                 {
+                    let failure = if self.int_arithmetic_mode
+                        == RustCodegenIntArithmeticMode::ExploreClassifierExact
+                    {
+                        format!(
+                            "unwrap_or_else(|| std::process::exit({}))",
+                            EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2
+                        )
+                    } else {
+                        "expect(\"integer negation overflow\")".to_string()
+                    };
                     format!(
-                        "{{ let __fut_v: i64 = {}; __fut_v.checked_neg().unwrap_or_else(|| std::process::exit({})) }}",
-                        emitted_operand, EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+                        "{{ let __fut_v: i64 = {}; __fut_v.checked_neg().{} }}",
+                        emitted_operand, failure,
                     )
                 } else {
                     format!("{}{}", op, emitted_operand)
@@ -53379,9 +51731,13 @@ impl RustCodegen {
             }
             ExprKind::Unit => "()".to_string(),
             ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
-                // Emit as && chain for simple conjunction
+                let operator = if matches!(&expr.kind, ExprKind::Conjunction(_)) {
+                    " && "
+                } else {
+                    " || "
+                };
                 let parts: Vec<String> = goals.iter().map(|g| self.emit_expr(g)).collect();
-                parts.join(" && ")
+                format!("({})", parts.join(operator))
             }
             ExprKind::Handle {
                 effect,
@@ -55305,7 +53661,7 @@ impl RustCodegen {
                         self.scan_actor_message_site_expr(&arm.body, actor_handles, local_tys);
                     }
                 }
-                Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                Stmt::Annot(_, args) => {
                     for arg in args {
                         self.scan_actor_message_site_expr(arg, actor_handles, local_tys);
                     }
@@ -55341,13 +53697,13 @@ impl RustCodegen {
                     }
                 }
                 Stmt::RustBlock(_)
+                | Stmt::PreludeBoundary
                 | Stmt::Use(_)
                 | Stmt::Import(_)
                 | Stmt::QualifiedImport(_, _)
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::Explore(_)
-                | Stmt::Abort
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
                     self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
@@ -55593,7 +53949,7 @@ impl RustCodegen {
             Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::Expr(expr) => {
                 self.collect_actor_payload_hints(expr, hints)
             }
-            Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+            Stmt::Annot(_, args) => {
                 for arg in args {
                     self.collect_actor_payload_hints(arg, hints);
                 }
@@ -56511,6 +54867,27 @@ mod tests {
             calculation_humanize_input_path("MedLigningslov9D"),
             "Med Ligningslov9D"
         );
+    }
+
+    #[test]
+    fn formatter_guard_rejects_lexical_and_structural_changes() {
+        for (source, candidate) in [
+            ("@ print(\"a+b\")\n", "@ print(\"a + b\")\n"),
+            ("s<-\"a\"\n", "s < -\"a\"\n"),
+            ("= x = 1; -2\n", "= x = 1 - 2\n"),
+        ] {
+            assert!(validate_format_preservation(source, source).is_ok());
+            assert!(validate_format_preservation(candidate, candidate).is_ok());
+            assert!(
+                validate_format_preservation(source, candidate).is_err(),
+                "accepted meaning change: {source} -> {candidate}"
+            );
+        }
+        // Formatting does not require dependencies, a prelude, or valid types.
+        assert!(
+            checked_format_runa_source("@ import ./not-installed\n= x = missing(1+2)\n").is_ok()
+        );
+        assert!(checked_format_runa_source("> wrong() -> Int { \"text\" }\n").is_ok());
     }
 
     #[test]
@@ -58270,6 +56647,43 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     }
 
     #[test]
+    fn smt_symbol_encoding_is_ascii_and_does_not_merge_distinct_names() {
+        let names = [
+            "øre",
+            "runa_s_c3b87265",
+            "læse",
+            "read",
+            "",
+            "1st",
+            "two words",
+            "Namespace::øre",
+        ];
+        let symbols: BTreeSet<_> = names.iter().map(|name| smt_symbol(name)).collect();
+        assert_eq!(symbols.len(), names.len());
+        assert!(symbols.iter().all(|symbol| {
+            symbol.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                && symbol
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }));
+        assert_eq!(smt_symbol("read"), "read");
+    }
+
+    #[test]
+    fn smt_string_encoding_follows_theory_escapes_and_alphabet_limits() {
+        assert_eq!(smt_string_literal("a\"b").unwrap(), "\"a\"\"b\"");
+        assert_eq!(smt_string_literal("\\u{61}").unwrap(), "\"\\u{5c}u{61}\"");
+        assert_eq!(
+            smt_string_literal("æ\n\t\0\r").unwrap(),
+            "\"\\u{e6}\\u{a}\\u{9}\\u{0}\\u{d}\""
+        );
+        assert_eq!(smt_string_literal("\u{2ffff}").unwrap(), "\"\\u{2ffff}\"");
+        assert!(smt_string_literal("\u{30000}")
+            .unwrap_err()
+            .contains("SMT string alphabet"));
+    }
+
+    #[test]
     fn smt_skip_reason_reports_unsupported_ordinary_pipeline_invariant_cleanly() {
         let source = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -58601,6 +57015,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             Stmt::StreamSub(
                 owned_expr("stream_sub_expr"),
                 vec![MatchArm {
+                    pat_span: Span::dummy(),
                     pat: Pat::Wild,
                     guard: Some(owned_expr("stream_sub_guard")),
                     body: owned_expr("stream_sub_body"),
@@ -58618,8 +57033,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 pass_block: Some(vec![expr_stmt("prove_pass")]),
                 else_block: Some(vec![expr_stmt("prove_else")]),
             },
-            Stmt::Assert("Fact".to_string(), vec![owned_expr("assert_arg")]),
-            Stmt::Retract("Fact".to_string(), vec![owned_expr("retract_arg")]),
             expr_stmt("expr_stmt"),
         ];
 
@@ -58659,8 +57072,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "invariant_predicate",
             "prove_pass",
             "prove_else",
-            "assert_arg",
-            "retract_arg",
             "expr_stmt",
         ];
 
@@ -59089,13 +57500,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 traversal_expectation: "emit expression-bearing children through checked ownership/type metadata paths",
                 module_leak_guard: "library exports are public only when exported and helper script output is suppressed",
                 traversal_audit: vec![
-                    TraversalAudit {
-                        path: "RustCodegen::collect_watch_type_names_from_stmt_list",
-                        kind: TraversalAuditKind::CanonicalAstWalker,
-                        source: ContractSourceFile::RunaRs,
-                        evidence_marker: "            walk_ast_stmt(stmt, &mut |child| {",
-                        reason: "watch-type discovery is generic expression discovery over AST statements",
-                    },
+
                     TraversalAudit {
                         path: "RustCodegen::emit_stmt/emit_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
@@ -59170,14 +57575,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         ExprKind::App(
             Box::new(ExprKind::Var("consume".to_string()).into()),
             vec![ExprKind::Var(name.to_string()).into()],
-        )
-        .into()
-    }
-
-    fn watch_expr(type_name: &str) -> Expr {
-        ExprKind::App(
-            Box::new(ExprKind::Var("watch".to_string()).into()),
-            vec![ExprKind::Var(type_name.to_string()).into()],
         )
         .into()
     }
@@ -59296,6 +57693,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             Stmt::Defn(_) => "Defn",
             Stmt::TypeDecl(_) => "TypeDecl",
             Stmt::Rule(_) => "Rule",
+            Stmt::PreludeBoundary => "PreludeBoundary",
             Stmt::Use(_) => "Use",
             Stmt::Import(_) => "Import",
             Stmt::QualifiedImport(_, _) => "QualifiedImport",
@@ -59313,9 +57711,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             Stmt::Invariant { .. } => "Invariant",
             Stmt::Prove { .. } => "Prove",
             Stmt::Explore(_) => "Explore",
-            Stmt::Assert(_, _) => "Assert",
-            Stmt::Retract(_, _) => "Retract",
-            Stmt::Abort => "Abort",
             Stmt::Expr(_) => "Expr",
         }
     }
@@ -59491,6 +57886,12 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 import_expansion: retained,
             },
             AstPassCoverageCase {
+                label: "PreludeBoundary",
+                stmt: Stmt::PreludeBoundary,
+                ownership_markers: vec![],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
                 label: "Use",
                 stmt: Stmt::Use("std::fmt".to_string()),
                 ownership_markers: vec![],
@@ -59594,6 +57995,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 stmt: Stmt::StreamSub(
                     coverage_expr("stream_sub_expr"),
                     vec![MatchArm {
+                        pat_span: Span::dummy(),
                         pat: Pat::Wild,
                         guard: Some(coverage_expr("stream_sub_guard")),
                         body: coverage_expr("stream_sub_body"),
@@ -59631,24 +58033,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 import_expansion: ignored,
             },
             AstPassCoverageCase {
-                label: "Assert",
-                stmt: Stmt::Assert("Fact".to_string(), vec![coverage_expr("assert_arg")]),
-                ownership_markers: vec!["assert_arg"],
-                import_expansion: ignored,
-            },
-            AstPassCoverageCase {
-                label: "Retract",
-                stmt: Stmt::Retract("Fact".to_string(), vec![coverage_expr("retract_arg")]),
-                ownership_markers: vec!["retract_arg"],
-                import_expansion: ignored,
-            },
-            AstPassCoverageCase {
-                label: "Abort",
-                stmt: Stmt::Abort,
-                ownership_markers: vec![],
-                import_expansion: ignored,
-            },
-            AstPassCoverageCase {
                 label: "Expr",
                 stmt: coverage_expr_stmt("expr_stmt"),
                 ownership_markers: vec!["expr_stmt"],
@@ -59678,9 +58062,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             FirStmt::Invariant { .. } => "Invariant",
             FirStmt::Prove { .. } => "Prove",
             FirStmt::Explore => "Explore",
-            FirStmt::Assert(_, _) => "Assert",
-            FirStmt::Retract(_, _) => "Retract",
-            FirStmt::Abort => "Abort",
             FirStmt::Expr(_) => "Expr",
         }
     }
@@ -59870,21 +58251,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 coverage: ignored,
             },
             FirPassCoverageCase {
-                label: "FirStmt::Assert",
-                stmt: FirStmt::Assert("Fact".to_string(), vec![fir_invalid_expr("assert_arg")]),
-                coverage: visits,
-            },
-            FirPassCoverageCase {
-                label: "FirStmt::Retract",
-                stmt: FirStmt::Retract("Fact".to_string(), vec![fir_invalid_expr("retract_arg")]),
-                coverage: visits,
-            },
-            FirPassCoverageCase {
-                label: "FirStmt::Abort",
-                stmt: FirStmt::Abort,
-                coverage: ignored,
-            },
-            FirPassCoverageCase {
                 label: "FirStmt::Expr",
                 stmt: FirStmt::Expr(fir_invalid_expr("expr_stmt")),
                 coverage: visits,
@@ -59941,54 +58307,13 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     }
 
     #[test]
-    fn rust_codegen_watch_collection_reaches_nested_ast_shapes() {
-        let stmts = vec![
-            Stmt::Invariant {
-                name: "watch_invariant".to_string(),
-                subject: watch_expr("InvariantFact"),
-                predicate: coverage_expr("invariant_predicate"),
-            },
-            Stmt::Prove {
-                name: "watch_prove".to_string(),
-                proof_block: None,
-                capture: None,
-                pass_block: Some(vec![Stmt::Expr(watch_expr("ProvePassFact"))]),
-                else_block: Some(vec![Stmt::StreamSub(
-                    watch_expr("StreamFact"),
-                    vec![MatchArm {
-                        pat: Pat::Wild,
-                        guard: Some(watch_expr("GuardFact")),
-                        body: watch_expr("BodyFact"),
-                    }],
-                )]),
-            },
-            Stmt::Expr(ExprKind::Block(vec![Stmt::Expr(watch_expr("BlockFact"))]).into()),
-        ];
-
-        let mut watched = BTreeSet::new();
-        RustCodegen::collect_watch_type_names_from_stmt_list(&stmts, &mut watched);
-        let expected: BTreeSet<String> = [
-            "InvariantFact",
-            "ProvePassFact",
-            "StreamFact",
-            "GuardFact",
-            "BodyFact",
-            "BlockFact",
-        ]
-        .into_iter()
-        .map(str::to_string)
-        .collect();
-
-        assert_eq!(watched, expected);
-    }
-
-    #[test]
     fn compiler_pass_coverage_matrix_classifies_stmt_type_decl_and_fir_variants() {
         let ast_rows = ast_pass_coverage_cases();
         let expected_stmt_variants: BTreeSet<_> = [
             "Defn",
             "TypeDecl",
             "Rule",
+            "PreludeBoundary",
             "Use",
             "Import",
             "QualifiedImport",
@@ -60006,9 +58331,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "Invariant",
             "Prove",
             "Explore",
-            "Assert",
-            "Retract",
-            "Abort",
             "Expr",
         ]
         .into_iter()
@@ -60084,9 +58406,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "Invariant",
             "Prove",
             "Explore",
-            "Assert",
-            "Retract",
-            "Abort",
             "Expr",
         ]
         .into_iter()
@@ -60275,7 +58594,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "RustCodegen::scan_declarations import expansion",
             "TypeInference::substitute_expr",
             "LoweringCtx::lower_stmt/lower_expr",
-            "RustCodegen::collect_watch_type_names_from_stmt_list",
             "RustCodegen::emit_stmt/emit_expr",
             "RustCodegen::scan_declarations export pre-scan",
         ];
@@ -60315,14 +58633,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             }),
             "FIR lowering should keep generic FIR substitution on the canonical FIR walker"
         );
-        assert!(
-            audit_rows.iter().any(|(id, audit)| {
-                *id == CompilerPassId::RustCodegen
-                    && audit.path == "RustCodegen::collect_watch_type_names_from_stmt_list"
-                    && audit.kind == TraversalAuditKind::CanonicalAstWalker
-            }),
-            "Rust codegen watch discovery should use the canonical AST walker"
-        );
+
         assert!(
             audit_rows.iter().any(|(id, audit)| {
                 *id == CompilerPassId::ImportResolution
@@ -60497,7 +58808,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "RustCodegen::scan_declarations export pre-scan",
                 source: include_str!("runa.rs"),
                 start_marker: "        // Pre-scan: collect @ export annotations (M3b)",
-                end_marker: "        // M26: Pre-scan for @ store / @ persist annotations",
+                end_marker: "        // M13c: Pre-scan for async mode",
             },
         ]
     }
@@ -60572,7 +58883,7 @@ match stmt {
         let explicit = r#"
 match stmt {
     Stmt::Defn(_) => {}
-    Stmt::TypeDecl(_) | Stmt::Abort | Stmt::Expr(_) => {}
+    Stmt::TypeDecl(_) | Stmt::Expr(_) => {}
 }
 "#;
         assert!(broad_stmt_wildcard_ignore_violations(explicit, 20).is_empty());
@@ -60895,6 +59206,7 @@ match stmt {
                     import_expr_snapshot(expr)
                 ));
             }
+            Stmt::PreludeBoundary => {}
             Stmt::Use(path) => out.push_str(&format!("{}use {}\n", pad, path)),
             Stmt::Import(path) => out.push_str(&format!("{}import {}\n", pad, path)),
             Stmt::QualifiedImport(name, path) => {
@@ -60955,13 +59267,6 @@ match stmt {
             )),
             Stmt::Prove { name, .. } => out.push_str(&format!("{}prove {}\n", pad, name)),
             Stmt::Explore(query) => out.push_str(&format!("{}explore {}\n", pad, query.name)),
-            Stmt::Assert(name, args) => {
-                out.push_str(&format!("{}assert {} /{}\n", pad, name, args.len()))
-            }
-            Stmt::Retract(name, args) => {
-                out.push_str(&format!("{}retract {} /{}\n", pad, name, args.len()))
-            }
-            Stmt::Abort => out.push_str(&format!("{}abort\n", pad)),
             Stmt::Expr(expr) => {
                 out.push_str(&format!("{}expr {}\n", pad, import_expr_snapshot(expr)));
             }
@@ -61003,7 +59308,6 @@ match stmt {
         let mut cg = RustCodegen::new();
         if let Some(filename) = filename {
             cg.source_dir = source_dir_for(filename);
-            cg.source_name = Some(filename.to_string());
         }
         let resolved = cg.scan_declarations(&stmts);
         render_import_normalization_snapshot(&cg, &resolved)
@@ -61557,6 +59861,7 @@ module Local
             Stmt::StreamSub(
                 expr(),
                 vec![MatchArm {
+                    pat_span: Span::dummy(),
                     pat: Pat::Wild,
                     guard: None,
                     body: expr(),
@@ -61574,9 +59879,6 @@ module Local
                 else_block: None,
             },
             coverage_explore_stmt(),
-            Stmt::Assert("Fact".to_string(), vec![expr()]),
-            Stmt::Retract("Fact".to_string(), vec![expr()]),
-            Stmt::Abort,
             Stmt::Expr(expr()),
         ];
         for stmt in ignored {
@@ -62737,12 +61039,6 @@ assert_with_message(true, message())
             ("http_request_path", FirTy::String),
             ("http_request_method", FirTy::String),
             ("http_request_body", FirTy::String),
-            (
-                "db_query",
-                FirTy::List(Box::new(FirTy::List(Box::new(FirTy::String)))),
-            ),
-            ("db_query_row", FirTy::List(Box::new(FirTy::String))),
-            ("db_insert", FirTy::Int),
             ("regex_match", FirTy::Bool),
             ("regex_find", FirTy::Option(Box::new(FirTy::String))),
             ("regex_find_all", FirTy::List(Box::new(FirTy::String))),
@@ -63034,11 +61330,7 @@ assert_with_message(true, message())
         let source_dir = filename.and_then(source_dir_for);
         let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
         let mut diags = artifacts.diagnostics.clone();
-        diags.extend(compiler_validation_diagnostics(
-            &stmts,
-            source_dir.clone(),
-            None,
-        ));
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir.clone()));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled regression: {:?}",
@@ -63048,7 +61340,6 @@ assert_with_message(true, message())
         let mut cg = RustCodegen::new();
         if let Some(filename) = filename {
             cg.source_dir = source_dir_for(filename);
-            cg.source_name = Some(filename.to_string());
         }
         let code = cg.emit_program(&stmts);
         compile_and_capture_generated_test_code(&code)
@@ -63186,6 +61477,516 @@ assert_with_message(true, message())
             expected
         );
         assert_eq!(compile_and_run_test_file(&path).trim(), expected);
+    }
+
+    #[test]
+    fn lsp_transport_propagates_write_and_flush_failures() {
+        struct FailedOutput {
+            on_flush: bool,
+        }
+        impl std::io::Write for FailedOutput {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                if self.on_flush {
+                    Ok(bytes.len())
+                } else {
+                    Err(std::io::ErrorKind::BrokenPipe.into())
+                }
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                Err(std::io::ErrorKind::BrokenPipe.into())
+            }
+        }
+        let body = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
+        let input = format!("Content-Length: {}\r\n\r\n{body}", body.len());
+        for on_flush in [false, true] {
+            let error =
+                lsp_session(&mut input.as_bytes(), &mut FailedOutput { on_flush }).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe);
+        }
+    }
+
+    fn lsp_member_test_cursor(marked: &str) -> (String, u32, u32) {
+        let before = marked.split_once('↕').unwrap().0;
+        let line = before.bytes().filter(|byte| *byte == b'\n').count() as u32;
+        let col = before.rsplit('\n').next().unwrap().encode_utf16().count() as u32;
+        (marked.replace('↕', ""), line, col)
+    }
+
+    #[test]
+    fn lsp_record_fields_complete_an_unfinished_member_and_filter_prefixes() {
+        for (suffix, labels) in [("p.↕", vec!["income", "name"]), ("p.in↕", vec!["income"])] {
+            let (source, line, col) = lsp_member_test_cursor(&format!(
+                "# Person(name: String, income: Int)\n= p = Person(\"Ada\", 42)\n{suffix}"
+            ));
+            let items = lsp_completions(&source, line, col);
+            assert_eq!(
+                items
+                    .iter()
+                    .map(|item| item["label"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                labels
+            );
+            assert!(items.iter().all(|item| item["kind"] == 5));
+            assert_eq!(items[0]["detail"], "Person.income: Int");
+        }
+    }
+
+    #[test]
+    fn lsp_record_fields_hover_uses_the_receiver_and_utf16_cursor() {
+        let (source, line, col) = lsp_member_test_cursor(
+            "# Person(name: String, income: Int)\n= p = Person(\"Ada\", 42)\n= label = \"ø😀\"; p.in↕come"
+        );
+        assert_eq!(
+            lsp_hover(&source, line, col)["contents"]["value"],
+            "```runa\nPerson.income: Int\n```"
+        );
+    }
+
+    #[test]
+    fn lsp_record_fields_respect_typed_and_untyped_lexical_shadowing() {
+        let declarations = "# Person(income: Int)\n# Company(revenue: Int)\n= p = Person(1)\n";
+        for (body, expected) in [
+            ("> inspect(p: Company) { p.↕ }", vec!["revenue"]),
+            ("> inspect(p) { p.↕ }", vec![]),
+            ("> inspect() { = p = Company(2); p.↕ }", vec!["revenue"]),
+            ("> inspect(p: Int) { p.↕ }", vec![]),
+        ] {
+            let (source, line, col) = lsp_member_test_cursor(&format!("{declarations}{body}"));
+            let items = lsp_completions(&source, line, col);
+            assert_eq!(
+                items
+                    .iter()
+                    .map(|item| item["label"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                expected,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn lsp_record_fields_follow_nested_and_generic_record_types() {
+        let (source, line, col) = lsp_member_test_cursor(
+            "# Person(income: Int)\n# Box(a) = Box(value: a)\n= b: Box(Person) = Box(Person(1))\nb.value.↕"
+        );
+        let items = lsp_completions(&source, line, col);
+        assert_eq!(items.len(), 1, "{items:?}");
+        assert_eq!(items[0]["detail"], "Person.income: Int");
+    }
+
+    #[test]
+    fn lsp_record_fields_do_not_borrow_global_or_other_variant_members() {
+        for source in [
+            "# Person(length: Int)\nunknown.↕",
+            "# Person(length: Int)\n= p = 1\np.↕",
+            "# Person(length: Int)\n= text = \"p.↕\"",
+            "# Choice = One(only: Int) | Two(other: String)\n> inspect(p: Choice) { p.↕ }",
+        ] {
+            let (source, line, col) = lsp_member_test_cursor(source);
+            assert!(lsp_completions(&source, line, col).is_empty(), "{source}");
+        }
+        let (source, line, col) = lsp_member_test_cursor("= p = 1\np.len↕gth");
+        assert_eq!(lsp_hover(&source, line, col), serde_json::Value::Null);
+    }
+
+    #[test]
+    fn lsp_record_fields_global_completions_do_not_repeat_record_names() {
+        let (source, line, col) = lsp_member_test_cursor("# Person(income: Int)\nPer↕");
+        let items = lsp_completions(&source, line, col);
+        assert_eq!(
+            items
+                .iter()
+                .filter(|item| item["label"] == "Person")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn lsp_keyword_completions_offer_documented_booleans_and_rule_words() {
+        for word in [
+            "True",
+            "False",
+            "under",
+            "exception",
+            "scope",
+            "not",
+            "and",
+            "or",
+        ] {
+            let prefix = &word[..2];
+            let items = lsp_completions(prefix, 0, 2);
+            assert!(
+                items
+                    .iter()
+                    .any(|item| item["label"] == word && item["kind"] == 14),
+                "{word}"
+            );
+        }
+    }
+
+    #[test]
+    fn lsp_record_fields_use_annotated_call_results_and_common_variant_fields() {
+        for marked in [
+            "# Person(income: Int)\n> make() -> Person { Person(1) }\nmake().↕",
+            "# Person(income: Int)\n= p = Person(1)\n= alias = p\nalias.↕",
+            "# Choice = One(income: Int, a: String) | Two(income: Int, b: Bool)\n> inspect(p: Choice) { p.↕ }",
+        ] {
+            let (source, line, col) = lsp_member_test_cursor(marked);
+            let items = lsp_completions(&source, line, col);
+            assert_eq!(items.len(), 1, "{source}: {items:?}");
+            assert_eq!(items[0]["label"], "income");
+        }
+    }
+
+    #[test]
+    fn lsp_record_fields_resolve_imported_schemas_relative_to_the_document() {
+        let directory = unique_temp_workspace("futuruna-lsp-fields-ø");
+        std::fs::create_dir(&directory).unwrap();
+        let library = directory.join("schema.runa");
+        std::fs::write(&library, "# Person(income: Int)\n").unwrap();
+        let uri = lsp_document_uri(&directory.join("main.runa"));
+        let (source, line, col) =
+            lsp_member_test_cursor("@ import ./schema\n= p = Person(42)\np.in↕come");
+        let items = lsp_completions_in_document(&source, line, col, lsp_source_dir(&uri));
+        let hover = lsp_hover_in_document(&source, line, col, lsp_source_dir(&uri));
+        std::fs::remove_file(&library).unwrap();
+        std::fs::remove_dir(&directory).unwrap();
+        assert_eq!(items.len(), 1, "{items:?}");
+        assert_eq!(items[0]["detail"], "Person.income: Int");
+        assert_eq!(
+            hover["contents"]["value"],
+            "```runa\nPerson.income: Int\n```"
+        );
+    }
+
+    fn lsp_test_diagnostics(source: &str) -> Vec<serde_json::Value> {
+        lsp_test_diagnostics_for_uri("file:///tmp/editor.runa", source)
+    }
+
+    fn lsp_test_diagnostics_for_uri(uri: &str, source: &str) -> Vec<serde_json::Value> {
+        let mut output = Vec::new();
+        lsp_analyze(&mut output, uri, source, &parse_prelude()).unwrap();
+        let output = String::from_utf8(output).unwrap();
+        let (_, body) = output.split_once("\r\n\r\n").unwrap();
+        let notification: serde_json::Value = serde_json::from_str(body).unwrap();
+        assert_eq!(notification["method"], "textDocument/publishDiagnostics");
+        notification["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .clone()
+    }
+
+    #[test]
+    fn lsp_import_file_uris_round_trip_unicode_and_reserved_characters() {
+        let path = Path::new("/tmp/dir ø/%#?😀.runa");
+        let uri = "file:///tmp/dir%20%C3%B8/%25%23%3F%F0%9F%98%80.runa";
+        assert_eq!(lsp_document_uri(path), uri);
+        assert_eq!(lsp_source_dir(uri).as_deref(), Some("/tmp/dir ø"));
+        assert_eq!(
+            lsp_source_dir("file://localhost/tmp/dir%20%c3%b8/main.runa").as_deref(),
+            Some("/tmp/dir ø")
+        );
+        assert_eq!(
+            lsp_source_dir("/tmp/literal%20name/main.runa").as_deref(),
+            Some("/tmp/literal%20name")
+        );
+        for invalid in [
+            "untitled:buffer",
+            "https://example.com/a.runa",
+            "file:///tmp/%ZZ/main.runa",
+            "file:///tmp/%FF/main.runa",
+            "file:///tmp/%",
+            "file:///tmp/%0",
+            "file:///tmp/%00/main.runa",
+        ] {
+            assert_eq!(lsp_source_dir(invalid), None, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn lsp_import_diagnostics_resolve_percent_encoded_danish_directories() {
+        let root = unique_temp_workspace("futuruna-lsp-dir ø");
+        std::fs::create_dir(&root).unwrap();
+        let main = root.join("main.runa");
+        let dependency = root.join("libø.runa");
+        let source = "@ import ./libø\n@ print(show(helper(2)))\n";
+        std::fs::write(&main, source).unwrap();
+        std::fs::write(&dependency, "> helper(value: Int) -> Int { value + 1 }\n").unwrap();
+        let main = std::fs::canonicalize(main).unwrap();
+        // Construct the URI a client sends independently of the URI encoder.
+        let uri = format!(
+            "file://{}",
+            main.to_string_lossy()
+                .replace(' ', "%20")
+                .replace('ø', "%C3%B8")
+        );
+        let diagnostics = lsp_test_diagnostics_for_uri(&uri, source);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        std::fs::remove_file(main).unwrap();
+        std::fs::remove_file(dependency).unwrap();
+        std::fs::remove_dir(root).unwrap();
+    }
+
+    #[test]
+    fn lsp_import_definition_follows_plain_imports_transitively_and_preserves_locals() {
+        let root = unique_temp_workspace("futuruna-lsp-definitions");
+        std::fs::create_dir(&root).unwrap();
+        let source = "@ import ./direct\n@ print(show(helper(2)))\n@ print(show(deep(2)))\n";
+        std::fs::write(root.join("main.runa"), source).unwrap();
+        std::fs::write(
+            root.join("direct.runa"),
+            "@ import ./nested\n> helper(value: Int) -> Int { value + 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("nested.runa"),
+            "@ import ./direct\n> deep(value: Int) -> Int { value + 2 }\n",
+        )
+        .unwrap();
+        let uri = lsp_document_uri(&std::fs::canonicalize(root.join("main.runa")).unwrap());
+        for (line, symbol, file) in [(1, "helper", "direct.runa"), (2, "deep", "nested.runa")] {
+            let text = source.lines().nth(line).unwrap();
+            let col = text[..text.find(symbol).unwrap()].encode_utf16().count();
+            let location = lsp_definition(&uri, source, line as u32, col as u32);
+            assert_eq!(
+                location["uri"],
+                lsp_document_uri(&std::fs::canonicalize(root.join(file)).unwrap())
+            );
+            assert_eq!(
+                location["range"]["start"],
+                serde_json::json!({"line": 1, "character": 2})
+            );
+        }
+        let local = format!("{source}> helper(value: Int) -> Int {{ value + 3 }}\n");
+        let location = lsp_definition(&uri, &local, 1, 15);
+        assert_eq!(location["uri"], uri);
+        assert_eq!(location["range"]["start"]["line"], 3);
+        let qualified = format!("{source}@ import Q from ./direct\n@ print(show(Q.helper(2)))\n");
+        assert_eq!(
+            lsp_definition(&uri, &qualified, 4, 17),
+            serde_json::Value::Null,
+            "qualified members must not borrow a plain import's same-named target"
+        );
+        for name in ["main.runa", "direct.runa", "nested.runa"] {
+            std::fs::remove_file(root.join(name)).unwrap();
+        }
+        std::fs::remove_dir(root).unwrap();
+    }
+
+    #[test]
+    fn lsp_utf16_definition_and_hover_use_cursor_units_and_identifier_widths() {
+        let source = "= beløb = 7\r\n= text = \"😀😀\"; @ print(show(beløb))\r\n";
+        let line = source.lines().nth(1).unwrap();
+        let col = line[..line.rfind("beløb").unwrap()].encode_utf16().count() as u32;
+        // Use the last character: a scalar-based cursor would land beyond it.
+        let definition = lsp_definition("file:///tmp/unicode.runa", source, 1, col + 4);
+        assert_eq!(
+            definition["range"]["start"],
+            serde_json::json!({"line": 0, "character": 2})
+        );
+        assert_eq!(
+            definition["range"]["end"],
+            serde_json::json!({"line": 0, "character": 7})
+        );
+        let source = "> beløb() -> Int { 7 }\r\n= text = \"😀😀\"; @ print(show(beløb()))\r\n";
+        let line = source.lines().nth(1).unwrap();
+        let col = line[..line.rfind("beløb").unwrap()].encode_utf16().count() as u32;
+        assert!(lsp_hover(source, 1, col + 4)["contents"]["value"]
+            .as_str()
+            .unwrap()
+            .contains("beløb"));
+
+        let source = "= 𐐨x = 7\n@ print(show(𐐨x))\n";
+        let definition = lsp_definition("file:///tmp/unicode.runa", source, 1, 15);
+        assert_eq!(definition["range"]["start"]["character"], 2);
+        assert_eq!(definition["range"]["end"]["character"], 5);
+    }
+
+    #[test]
+    fn lsp_utf16_structural_references_keep_cursor_and_member_positions() {
+        let source = "# År(beløb: Int, 𐐨x: Int)\n= text = \"😀😀\"; = selected = pathof(År::beløb)\n= text2 = \"😀😀\"; = selected2 = refof(År::𐐨x)\n";
+        for (row, name) in [(1, "beløb"), (2, "𐐨x")] {
+            let line = source.lines().nth(row).unwrap();
+            let col = line[..line.rfind(name).unwrap()].encode_utf16().count() as u32;
+            let location = if row == 1 {
+                lsp_pathof_definition("file:///tmp/unicode.runa", source, row as u32, col)
+            } else {
+                lsp_refof_definition("file:///tmp/unicode.runa", source, row as u32, col)
+            }
+            .expect("Unicode member definition");
+            let declaration = source.lines().next().unwrap();
+            let start = declaration[..declaration.find(name).unwrap()]
+                .encode_utf16()
+                .count();
+            assert_eq!(
+                location["range"]["start"],
+                serde_json::json!({"line": 0, "character": start})
+            );
+            assert_eq!(
+                location["range"]["end"],
+                serde_json::json!({"line": 0, "character": start + name.encode_utf16().count()})
+            );
+        }
+    }
+
+    #[test]
+    fn lsp_utf16_completion_never_slices_inside_a_character() {
+        // UTF-16 column 3 is after x, but UTF-8 byte 3 is inside the second æ.
+        let _items = lsp_completions("ææx", 0, 3);
+        assert_eq!(lsp_word_before("😀😀sho", 6), "sh");
+        let source = "= beløb = 7\n= text = \"😀😀\"; @ print(show(beløb))\n";
+        let line = source.lines().nth(1).unwrap();
+        let col = line[..line.rfind("beløb").unwrap()].encode_utf16().count() as u32 + 3;
+        let items = lsp_completions(source, 1, col);
+        assert!(
+            items.iter().any(|item| item["label"] == "beløb"),
+            "{items:?}"
+        );
+        assert!(
+            !items.iter().any(|item| item["label"] == "print"),
+            "{items:?}"
+        );
+    }
+
+    #[test]
+    fn lsp_utf16_cursor_offsets_clamp_columns_without_crossing_lines() {
+        let source = "æ😀x\r\nnext\n";
+        assert_eq!(lsp_cursor_char_offset(source, 0, 3), Some(2));
+        assert_eq!(lsp_cursor_char_offset(source, 0, 2), Some(1));
+        assert_eq!(lsp_cursor_char_offset(source, 0, 200), Some(3));
+        assert_eq!(lsp_cursor_char_offset(source, 1, 2), Some(7));
+        assert_eq!(lsp_cursor_char_offset(source, 2, 0), Some(10));
+        assert_eq!(lsp_cursor_char_offset(source, 3, 0), None);
+        assert_eq!(lsp_cursor_char_offset("last", 1, 0), None);
+        assert_eq!(lsp_cursor_char_offset("", 0, 0), Some(0));
+    }
+
+    #[test]
+    fn lsp_utf16_semantic_diagnostics_after_emoji_are_already_correct() {
+        let source = "= ok = 1\n= text = \"😀\"; @ print(show(nope))\n";
+        let diagnostics = lsp_test_diagnostics(source);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| {
+                diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("undefined variable `nope`")
+            })
+            .unwrap();
+        let line = source.lines().nth(1).unwrap();
+        let column = line[..line.find("nope").unwrap()].encode_utf16().count();
+        assert_eq!(
+            diagnostic["range"]["start"],
+            serde_json::json!({"line": 1, "character": column})
+        );
+        assert_eq!(
+            diagnostic["range"]["end"],
+            serde_json::json!({"line": 1, "character": column + 4})
+        );
+    }
+
+    #[test]
+    fn lsp_parse_errors_use_the_actual_line_and_preserve_hints() {
+        let diagnostics = lsp_test_diagnostics("= ok = 1\n@ print(\"hello\" 2)\n");
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = &diagnostics[0];
+        assert_eq!(
+            diagnostic["range"]["start"],
+            serde_json::json!({"line": 1, "character": 16})
+        );
+        assert_eq!(
+            diagnostic["range"]["end"],
+            serde_json::json!({"line": 1, "character": 17})
+        );
+        let message = diagnostic["message"].as_str().unwrap();
+        assert!(message.starts_with("expected `,` or `)`"), "{message}");
+        assert!(message.contains("Hint:"), "{message}");
+        assert!(!message.contains("parse error:"), "{message}");
+    }
+
+    #[test]
+    fn lsp_parse_errors_split_recovered_errors_with_utf16_and_crlf_positions() {
+        let diagnostics =
+            lsp_test_diagnostics("= ok = 1\r\n@ print(\"æ😀\" 2)\r\n@ print(\"x\" 3)\r\n");
+        assert_eq!(diagnostics.len(), 2, "{diagnostics:?}");
+        for (diagnostic, line, character, token) in
+            [(&diagnostics[0], 1, 14, "2"), (&diagnostics[1], 2, 12, "3")]
+        {
+            assert_eq!(
+                diagnostic["range"]["start"],
+                serde_json::json!({"line": line, "character": character})
+            );
+            assert_eq!(
+                diagnostic["range"]["end"],
+                serde_json::json!({"line": line, "character": character + 1})
+            );
+            assert!(diagnostic["message"]
+                .as_str()
+                .unwrap()
+                .contains(&format!("got `{token}`")));
+        }
+    }
+
+    #[test]
+    fn lsp_parse_errors_at_eof_have_an_empty_in_bounds_range() {
+        let diagnostics = lsp_test_diagnostics("= ok = 1\n> f(");
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0]["range"]["start"],
+            serde_json::json!({"line": 1, "character": 4})
+        );
+        assert_eq!(
+            diagnostics[0]["range"]["end"],
+            diagnostics[0]["range"]["start"]
+        );
+    }
+
+    #[test]
+    fn lsp_parse_errors_split_lexical_errors_and_clear_after_a_valid_edit() {
+        let diagnostics = lsp_test_diagnostics("= ok = 1\n$\n`\n");
+        assert_eq!(diagnostics.len(), 2);
+        for (index, diagnostic) in diagnostics.iter().enumerate() {
+            assert_eq!(
+                diagnostic["range"]["start"],
+                serde_json::json!({"line": index + 1, "character": 0})
+            );
+            assert!(diagnostic["message"]
+                .as_str()
+                .unwrap()
+                .contains("unexpected character"));
+        }
+        assert!(lsp_test_diagnostics("= ok = 1\n").is_empty());
+    }
+
+    #[test]
+    fn lsp_import_diagnostics_keep_caller_anchor_and_original_utf16_location() {
+        let source = "@ import ./broken\n";
+        let mut diagnostic = Diagnostic::error_at(Span::new(9, 17), "undefined variable `missing`");
+        diagnostic.origin = Some(DiagnosticOrigin {
+            path: PathBuf::from("/tmp/import model.runa"),
+            source: std::sync::Arc::from("æ😀 missing\n"),
+            span: Some(Span::new(3, 10)),
+        });
+        let lsp = diagnostic_to_lsp(&diagnostic, source);
+        assert_eq!(lsp["range"]["start"]["character"], 9);
+        assert_eq!(lsp["range"]["end"]["character"], 17);
+        let related = &lsp["relatedInformation"][0];
+        assert_eq!(
+            related["location"]["uri"],
+            "file:///tmp/import%20model.runa"
+        );
+        assert_eq!(related["location"]["range"]["start"]["character"], 4);
+        assert_eq!(related["location"]["range"]["end"]["character"], 11);
+        assert_eq!(related["message"], diagnostic.message);
+        let displayed = diagnostic.display(source, "caller.runa", false);
+        assert!(
+            displayed.contains("/tmp/import model.runa:1:4"),
+            "{displayed}"
+        );
+        assert!(displayed.contains("æ😀 missing"), "{displayed}");
     }
 
     #[test]
@@ -63352,11 +62153,7 @@ assert_with_message(true, message())
         let source_dir = filename.and_then(source_dir_for);
         let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
         let mut diags = artifacts.diagnostics.clone();
-        diags.extend(compiler_validation_diagnostics(
-            &stmts,
-            source_dir.clone(),
-            None,
-        ));
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir.clone()));
         assert!(
             diags.is_empty(),
             "typecheck failed for interpreter regression: {:?}",
@@ -63555,7 +62352,7 @@ assert_with_message(true, message())
                 "{rust}"
             );
             assert!(!codegen
-                .canonical_rule_boolean_miss_safe_keys
+                .runtime_rule_boolean_miss_keys
                 .contains(&RuleDispatchKey {
                     scope: None,
                     name: "captured".into(),
@@ -63640,7 +62437,7 @@ assert_with_message(true, message())
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
         let mut diags = TypeChecker::check_with_diagnostics(&stmts, None, source);
-        diags.extend(compiler_validation_diagnostics(&stmts, None, None));
+        diags.extend(compiler_validation_diagnostics(&stmts, None));
         assert!(
             diags.is_empty(),
             "typecheck failed for interpreter runtime regression: {:?}",
@@ -63683,7 +62480,7 @@ assert_with_message(true, message())
 
         let source_dir = filename.and_then(source_dir_for);
         let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
-        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled runtime regression: {:?}",
@@ -63693,7 +62490,6 @@ assert_with_message(true, message())
         let mut cg = RustCodegen::new();
         if let Some(filename) = filename {
             cg.source_dir = source_dir_for(filename);
-            cg.source_name = Some(filename.to_string());
         }
         let code = cg.emit_program(&stmts);
 
@@ -63760,7 +62556,7 @@ assert_with_message(true, message())
         let source_dir = source_dir_for(path.to_str().expect("utf-8 test path"));
         let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), &source);
         if diags.is_empty() {
-            diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+            diags.extend(compiler_validation_diagnostics(&stmts, source_dir));
         }
         assert!(
             !diags.is_empty(),
@@ -64107,13 +62903,13 @@ assert_with_message(true, message())
     }
 
     #[test]
-    fn legacy_emit_program_keeps_integer_modulo_guard_for_int_returning_helpers() {
+    fn legacy_emit_program_checks_integer_modulo_for_int_returning_helpers() {
         let source = "> signature_value(x: Float) -> Int { round(pow(x, 2.0)) % 64 }\n= y = signature_value(0.7)";
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("if __d == 0 { 0 } else {"),
-            "Int-returning modulo helpers should keep integer zero guards: {}",
+            rust.contains("checked_rem(__fut_r).expect(\"integer remainder by zero or overflow\")"),
+            "Int-returning modulo helpers must reject undefined results: {}",
             rust
         );
         assert!(
@@ -64550,7 +63346,7 @@ assert_with_message(true, message())
     }
 
     #[test]
-    fn checked_emit_rulescope_rejects_conflicting_duplicate_nullary_constructor() {
+    fn checked_emit_rulescope_rejects_ambiguous_duplicate_nullary_constructor() {
         let source = r#"
 # Desired = Shared | DesiredOnly
 # Other = Shared | OtherOnly
@@ -64562,10 +63358,11 @@ assert_with_message(true, message())
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
-        // Bare runtime lookup selects the later Other::Shared declaration.
-        // Silently qualifying it as Desired::Shared would change the program.
+        // The checker now leaves shared nullary names ambiguous instead of
+        // inferring the last imported owner. Emission must still fail closed;
+        // silently qualifying Shared as Desired::Shared changes runtime lookup.
         assert!(
-            rust.contains("conflicting return types `Desired` and `Other`"),
+            rust.contains("cannot infer every return clause of rule `Decision.pick` with arity 0"),
             "{rust}"
         );
         compile_generated_test_code_expect_failure(&rust);
@@ -65441,14 +64238,16 @@ assert_with_message(true, message())
         let rust = cg.emit_program(&stmts);
 
         assert!(rust.contains("let metadata_leaf = 40i64;"), "{rust}");
-        assert!(
-            rust.contains("let metadata_root = (metadata_leaf + 1i64);"),
-            "{rust}"
-        );
-        assert!(
-            rust.contains("let runtime_value = (metadata_root + 1i64);"),
-            "{rust}"
-        );
+        for (binding, dependency) in [
+            ("metadata_root", "metadata_leaf"),
+            ("runtime_value", "metadata_root"),
+        ] {
+            let declaration = rust
+                .lines()
+                .find(|line| line.contains(&format!("let {binding} =")))
+                .unwrap_or_else(|| panic!("missing runtime dependency binding {binding}: {rust}"));
+            assert!(declaration.contains(dependency), "{declaration}");
+        }
     }
 
     #[test]
@@ -66621,7 +65420,6 @@ readings <- "score"
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         let output = compile_and_capture_generated_test_code(&rust);
         assert!(
@@ -66672,7 +65470,6 @@ readings <- "score"
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         let metadata = codegen
             .module_callable_metadata
@@ -66709,7 +65506,6 @@ readings <- "score"
         let mut wasm_codegen = RustCodegen::new();
         wasm_codegen.wasm_mode = true;
         wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        wasm_codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let wasm_rust = wasm_codegen.emit_program(&stmts);
         assert_eq!(
             wasm_codegen
@@ -67010,7 +65806,6 @@ readings <- "score"
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
 
         assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
@@ -67072,9 +65867,31 @@ Q.append_shared(value = 3, values = shared_values)
 
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let artifacts = TypeChecker::check_with_artifacts(
+            &stmts,
+            source_dir_for(main_path.to_str().unwrap()),
+            source,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts
+                .rule_dispatch_backend_return_types
+                .get(&RuleDispatchKey {
+                    scope: None,
+                    name: "wrapped".into(),
+                    arity: 1
+                })
+                .map(String::as_str),
+            Some("String"),
+            "{:?}",
+            artifacts.rule_dispatch_backend_return_issues
+        );
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         let output = compile_and_capture_generated_test_code(&rust);
         assert!(
@@ -67148,11 +65965,8 @@ Q.append_shared(value = 3, values = shared_values)
 
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
-        let diags = compiler_validation_diagnostics(
-            &stmts,
-            source_dir_for(main_path.to_str().unwrap()),
-            Some(main_path.to_string_lossy().to_string()),
-        );
+        let diags =
+            compiler_validation_diagnostics(&stmts, source_dir_for(main_path.to_str().unwrap()));
         let messages = diags
             .iter()
             .map(|diag| diag.message.as_str())
@@ -67452,7 +66266,6 @@ Q.append_shared(value = 3, values = shared_values)
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         assert!(rust.contains("mod Remote {"), "generated Rust: {rust}");
         assert!(rust.contains("mod Second {"), "generated Rust: {rust}");
@@ -67711,7 +66524,6 @@ Q.append_shared(value = 3, values = shared_values)
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         assert!(
             rust.contains("X::RemotePacket::Packet(3i64, 4i64)")
@@ -67810,7 +66622,6 @@ Q.append_shared(value = 3, values = shared_values)
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         let output = compile_and_capture_generated_test_code(&rust);
         assert!(
@@ -67926,7 +66737,6 @@ Q.append_shared(value = 3, values = shared_values)
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         let output = compile_and_capture_generated_test_code(&rust);
         assert!(
@@ -68019,7 +66829,6 @@ Q.append_shared(value = 3, values = shared_values)
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        codegen.source_name = Some(main_path.to_string_lossy().to_string());
         let rust = codegen.emit_program(&stmts);
         assert!(
             rust.lines().any(|line| line == "fn shared() -> i64 {"),
@@ -68414,284 +67223,6 @@ Q.append_shared(value = 3, values = shared_values)
         assert_eq!(
             output,
             "true\ntrue\n2\ncanary collection lambda context record field passed\n"
-        );
-    }
-
-    #[test]
-    fn compiled_db_query_row_returns_a_row_vector() {
-        let source = r#"
-= db = db_open(":memory:")
-@ db_exec(db, "CREATE TABLE users (name TEXT, age INTEGER)")
-@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Bob', 25)")
-= row = db_query_row(db, "SELECT name, age FROM users")
-@ print(show(length(row)))
-@ print(head(row))
-@ print(nth(row, 1))
-@ db_close(db)
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let __result: Vec<String> ="),
-            "db_query_row should emit a row vector, not a flattened string: {}",
-            rust
-        );
-        assert!(
-            rust.contains(".next().unwrap_or_default();"),
-            "db_query_row should return the first row vector directly: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("cols.join(\", \")"),
-            "db_query_row should not flatten multiple columns into a joined string: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_findall_over_persisted_type_uses_sql_select() {
-        let source = r#"
-# Item(id: Int, name: String, qty: Int)
-@ persist Item
-assert Item(1, "Widget", 100)
-assert Item(2, "Gadget", 50)
-= names = findall(name, Item(_, name, _))
-= gadget_ids = findall(id, Item(id, "Gadget", _))
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("static __FUT_STORE_DB"),
-            "persisted findall should use a shared DB handle reachable from generated functions: {}",
-            rust
-        );
-        assert!(
-            rust.contains("SELECT name FROM item ORDER BY id, name, qty"),
-            "unfiltered persisted findall should project the requested column with deterministic ordering: {}",
-            rust
-        );
-        assert!(
-            rust.contains("SELECT id FROM item WHERE name = ?1 ORDER BY id, name, qty"),
-            "bound persisted findall should lower to a SQL WHERE clause: {}",
-            rust
-        );
-        assert!(
-            rust.contains("CREATE INDEX IF NOT EXISTS __idx_item_name ON item (name)"),
-            "first non-primary-key bound arg should get a basic index hint: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("ITEM_FACTS"),
-            "persisted findall must not fall back to an in-memory fact table: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_retract_over_persisted_type_uses_typed_where_clause() {
-        let source = r#"
-# Item(id: Int, name: String, qty: Int)
-@ persist Item
-= target_name = "Widget"
-= target_qty = 50
-retract Item(2, "Gadget", target_qty)
-retract Item(_, target_name, _)
-retract Item(_, _, _)
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("DELETE FROM item WHERE id = ?1 AND name = ?2 AND qty = ?3"),
-            "full persisted retract should lower every provided field to SQL predicates: {}",
-            rust
-        );
-        assert!(
-            rust.contains("rusqlite::params![2i64, \"Gadget\".to_string(), target_qty]"),
-            "full persisted retract should bind typed parameters in field order: {}",
-            rust
-        );
-        assert!(
-            rust.contains("DELETE FROM item WHERE name = ?1"),
-            "wildcard persisted retract should omit wildcard fields and keep bound fields: {}",
-            rust
-        );
-        assert!(
-            rust.contains("rusqlite::params![target_name]"),
-            "wildcard persisted retract should bind runtime variables: {}",
-            rust
-        );
-        assert!(
-            rust.contains("DELETE FROM item\", rusqlite::params![]"),
-            "all-wildcard persisted retract should delete all rows explicitly: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_persist_migration_uses_schema_meta_and_rebuild_branch() {
-        let source = r#"
-# Item(id: Int, name: String, qty: Int)
-@ persist Item
-@ migrate Item(id, name) -> Item(id, name, 10)
-@ print("ready")
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("CREATE TABLE IF NOT EXISTS schema_meta"),
-            "persisted schema hashes should use the public schema_meta table: {}",
-            rust
-        );
-        assert!(
-            rust.contains("PRAGMA table_info(item)"),
-            "persisted startup should inspect existing columns before accepting a hash: {}",
-            rust
-        );
-        assert!(
-            rust.contains("ALTER TABLE item ADD COLUMN qty INTEGER NOT NULL DEFAULT 0"),
-            "safe appended fields should auto-migrate with a default: {}",
-            rust
-        );
-        assert!(
-            rust.contains("SELECT id, name FROM item ORDER BY id, name"),
-            "matching @ migrate rules should read old columns deterministically: {}",
-            rust
-        );
-        assert!(
-            rust.contains("DROP TABLE IF EXISTS item"),
-            "matching @ migrate rules should rebuild the persisted table: {}",
-            rust
-        );
-        assert!(
-            rust.contains("INSERT OR REPLACE INTO item (id, name, qty) VALUES (?1, ?2, ?3)"),
-            "matching @ migrate rules should insert rows in the migrated shape: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_persist_migration_refuses_unsafe_drop_without_marker() {
-        let source = r#"
-# Item(id: Int, name: String)
-@ persist Item
-@ migrate Item(id, name, qty) -> Item(id, name)
-@ print("ready")
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("drops columns [qty] and requires unsafe"),
-            "dropped persisted columns should require explicit unsafe migration marker: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_persist_scope_uses_transaction_guard_and_savepoints() {
-        let source = r#"
-# Item(id: Int, name: String, qty: Int)
-@ persist Item
-= qty = -1
-| qty_positive: qty -> qty > 0
-| scope Outer {
-    assert Item(1, "Outer", 10)
-    | scope Inner {
-        assert Item(2, "Inner", qty)
-        ? qty_positive
-    }
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("struct __FutPersistTxGuard"),
-            "persisted transaction scopes should emit rollback-on-drop guard support: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__FutPersistTxGuard::begin(__fut_tx_db_0.clone(), \"BEGIN IMMEDIATE\", \"ROLLBACK\")"),
-            "outer persisted scope should begin an immediate SQLite transaction: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_persist_tx_0.commit(\"COMMIT\")"),
-            "outer persisted scope should commit on clean exit: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__FutPersistTxGuard::begin(__fut_tx_db_1.clone(), \"SAVEPOINT __fut_scope_tx_1\", \"ROLLBACK TO SAVEPOINT __fut_scope_tx_1; RELEASE SAVEPOINT __fut_scope_tx_1\")"),
-            "nested persisted scope should use a savepoint with rollback SQL: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_persist_tx_1.commit(\"RELEASE SAVEPOINT __fut_scope_tx_1\")"),
-            "nested persisted scope should release its savepoint on clean exit: {}",
-            rust
-        );
-        assert!(
-            rust.contains("panic!(\"? qty_positive FAILED\")"),
-            "failed bare ? inside a persisted scope should panic before commit so the guard rolls back: {}",
-            rust
-        );
-        let begin = rust.find("BEGIN IMMEDIATE").unwrap();
-        let insert = rust.find("INSERT OR REPLACE INTO item").unwrap();
-        let commit = rust.find("__fut_persist_tx_0.commit").unwrap();
-        assert!(
-            begin < insert && insert < commit,
-            "transaction boundary should wrap persisted mutations: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_plain_scope_with_persisted_type_has_no_transaction_overhead() {
-        let source = r#"
-# Item(id: Int, name: String, qty: Int)
-@ persist Item
-| scope Plain {
-    = x = 1
-    @ print(show(x))
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            !rust.contains("BEGIN IMMEDIATE"),
-            "scope without persisted mutations should not begin a transaction: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("__fut_persist_tx_"),
-            "scope without persisted mutations should not allocate a transaction guard: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_findall_over_rule_joining_persisted_and_memory_predicates() {
-        let source = r#"
-# Item(id: Int, name: String, qty: Int)
-@ persist Item
-| restock(50)
-| stocked_name(name) -> Item(_, name, qty), restock(qty)
-= names = findall(name, stocked_name(name))
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("fn stocked_name"),
-            "derived rule should still be emitted as a callable predicate: {}",
-            rust
-        );
-        assert!(
-            rust.contains("SELECT id, name, qty FROM item ORDER BY id, name, qty"),
-            "rule-backed findall should enumerate persisted rows instead of ITEM_FACTS: {}",
-            rust
-        );
-        assert!(
-            rust.contains("if restock(qty) { __out.push(name.clone()); }"),
-            "rule-backed findall should join persisted row bindings against in-memory predicates: {}",
-            rust
         );
     }
 
@@ -69319,7 +67850,7 @@ routes <- "b"
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("move |x: i64| (x + n)"),
+            rust.contains("move |x: i64|"),
             "returned lambdas should move even Copy captures so they do not borrow stack locals: {}",
             rust
         );
@@ -69864,6 +68395,24 @@ routes <- "b"
                 .expect("derive changed metadata cache key"),
             baseline
         );
+        let mut runtime_miss_change = plan.clone();
+        runtime_miss_change
+            .rule_metadata
+            .runtime_boolean_miss_keys
+            .insert(RuleDispatchKey {
+                scope: None,
+                name: "runtime_boolean_miss_probe".to_string(),
+                arity: 1,
+            });
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &runtime_miss_change,
+                &compiler,
+                &rustc,
+            )
+            .expect("derive changed runtime Boolean-miss cache key"),
+            baseline
+        );
         let mut rule_metadata_change = plan;
         rule_metadata_change.rule_metadata.return_issues.insert(
             RuleDispatchKey {
@@ -70083,8 +68632,8 @@ routes <- "b"
             metadata.parameter_issues
         );
         assert_eq!(
-            codegen.canonical_rule_boolean_miss_safe_keys,
-            metadata.boolean_miss_safe_keys
+            codegen.runtime_rule_boolean_miss_keys,
+            metadata.runtime_boolean_miss_keys
         );
         assert_eq!(
             codegen.runtime_rule_irrefutable_keys,
@@ -70143,7 +68692,7 @@ routes <- "b"
             "a nullary Bool clause head matches this call without a miss certificate: {matched_bool}"
         );
         assert!(!strict_bool_codegen
-            .canonical_rule_boolean_miss_safe_keys
+            .runtime_rule_boolean_miss_keys
             .contains(&partial_bool_key));
         let mut classifier_bool_codegen = RustCodegen::new();
         classifier_bool_codegen.rule_dispatch_miss_mode =
@@ -70993,9 +69542,7 @@ routes <- "b"
             | Stmt::MonadicBind(_, _, expr)
             | Stmt::Expr(expr)
             | Stmt::StreamBind(_, expr) => expr_references_var(expr, name),
-            Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
-                args.iter().any(|arg| expr_references_var(arg, name))
-            }
+            Stmt::Annot(_, args) => args.iter().any(|arg| expr_references_var(arg, name)),
             Stmt::For(var, iter_expr, body) => {
                 expr_references_var(iter_expr, name)
                     || (var != name && body.iter().any(|stmt| stmt_references_var(stmt, name)))
@@ -71035,13 +69582,13 @@ routes <- "b"
                 .any(|handler| expr_references_var(&handler.body, name)),
             Stmt::TypeDecl(_)
             | Stmt::Rule(_)
+            | Stmt::PreludeBoundary
             | Stmt::Use(_)
             | Stmt::Import(_)
             | Stmt::QualifiedImport(_, _)
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
-            | Stmt::RustBlock(_)
-            | Stmt::Abort => false,
+            | Stmt::RustBlock(_) => false,
         }
     }
 
@@ -71323,7 +69870,7 @@ routes <- "b"
     fn compiler_validation_diags_for_source(source: &str) -> Vec<Diagnostic> {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
-        compiler_validation_diagnostics(&stmts, None, None)
+        compiler_validation_diagnostics(&stmts, None)
     }
 
     fn emit_wasm_program(source: &str) -> String {

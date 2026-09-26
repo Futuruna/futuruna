@@ -59,8 +59,12 @@ fn finite_rule_dispatch_domain_matches_interpreter_generated_rust_and_smt() {
     assert_eq!(interpreted_stdout.trim(), expected);
     assert_eq!(compiled_stdout.trim(), expected);
 
-    assert!(
+    assert_eq!(
         verified.status.success(),
+        Command::new("z3")
+            .arg("--version")
+            .output()
+            .is_ok_and(|output| output.status.success()),
         "verify stdout:\n{}\nverify stderr:\n{}",
         String::from_utf8_lossy(&verified.stdout),
         String::from_utf8_lossy(&verified.stderr)
@@ -123,8 +127,12 @@ fn qualified_namespace_calls_match_interpreter_generated_rust_and_smt() {
         String::from_utf8_lossy(&interpreted.stdout).trim()
     );
 
-    assert!(
+    assert_eq!(
         verified.status.success(),
+        Command::new("z3")
+            .arg("--version")
+            .output()
+            .is_ok_and(|output| output.status.success()),
         "verify stdout:\n{}\nverify stderr:\n{}",
         String::from_utf8_lossy(&verified.stdout),
         String::from_utf8_lossy(&verified.stderr)
@@ -213,8 +221,12 @@ fn unused_qualified_nominal_metadata_does_not_perturb_root_smt() {
     let fixture = qualified_namespace_metadata_isolation_fixture();
     let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
 
-    assert!(
+    assert_eq!(
         verified.status.success(),
+        Command::new("z3")
+            .arg("--version")
+            .output()
+            .is_ok_and(|output| output.status.success()),
         "verify stdout:\n{}\nverify stderr:\n{}",
         String::from_utf8_lossy(&verified.stdout),
         String::from_utf8_lossy(&verified.stderr)
@@ -241,7 +253,7 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
     let fixture = fixture();
     let output = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
     assert!(
-        output.status.success(),
+        !output.status.success(),
         "stdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)

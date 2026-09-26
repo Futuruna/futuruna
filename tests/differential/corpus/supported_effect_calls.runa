@@ -1,0 +1,7 @@
+-- Reviewer #54: actual effects and ordinary assertions execute on both paths.
+@ print("supported")
+@ skriv("aliases")
+@ subscribe([1, 2], |value| { @ print(show(value)) })
+@ sleep(0)
+assert(True)
+@ print("done")

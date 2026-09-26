@@ -1,0 +1,26 @@
+# Status = Active | Retired
+# Id = Id(name: String)
+
+| parent("alice", "bob")
+| parent("alice", "carol")
+| wanted("carol")
+| anc(x, y) -> parent(x, y)
+| has_desc(x) -> anc(x, y), wanted(y)
+| childless(x) -> not(anc(x, _))
+
+| status("ann", Active)
+| owns(Id("ann"), "car")
+| anyone_retired() -> status(person, Retired), True
+| has_status(person) -> status(person, state), True
+| has_item(person) -> owns(person, item), True
+
+assert(has_desc("alice"))
+assert(not(has_desc("nobody")))
+assert(not(childless("alice")))
+assert(childless("bob"))
+assert(length(findall(y, anc("alice", y))) == 2)
+assert(not(anyone_retired()))
+assert(has_status("ann"))
+assert(has_item(Id("ann")))
+assert(not(has_item(Id("bob"))))
+@ print("derived existential queries passed")

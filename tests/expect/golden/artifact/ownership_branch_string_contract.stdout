@@ -5,6 +5,31 @@
 use std::fmt;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+
+trait __FuturunaNumber: Default + Sized {
+    fn checked_sum_step(self, other: Self) -> Self;
+    fn magnitude(self) -> Self;
+}
+impl __FuturunaNumber for i64 {
+    fn checked_sum_step(self, other: Self) -> Self {
+        self.checked_add(other).expect("integer sum overflow")
+    }
+    fn magnitude(self) -> Self {
+        self.checked_abs().expect("integer absolute-value overflow")
+    }
+}
+impl __FuturunaNumber for f64 {
+    fn checked_sum_step(self, other: Self) -> Self { self + other }
+    fn magnitude(self) -> Self { self.abs() }
+}
+fn __futuruna_sum<T: __FuturunaNumber, I: Iterator<Item = T>>(items: I) -> T {
+    items.fold(T::default(), T::checked_sum_step)
+}
+fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
+// Fix the key type from the map so compiler-inserted borrows can coerce to &K.
+fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
+    map.get(key)
+}
 fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!("{}", v) }
 fn __futuruna_show_any<T: fmt::Debug>(v: &T) -> String {
     let s = format!("{:?}", v);
