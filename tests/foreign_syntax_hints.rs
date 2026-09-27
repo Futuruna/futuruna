@@ -73,12 +73,17 @@ fn valid_similar_spellings_keep_their_meaning() {
     for source in [
         "# TODO\n",
         "= _000 = 1\n",
-        "= s = \"// /* */ \\+ 1_000_000 'hello'\"\n",
+        "= s = \"// /* */ \\\\+ 1_000_000 'hello'\"\n",
         "@ rust { fn foo() { let x = 1_000; /* note */ // note\n } }\n",
         "| positive(x) -> x > 0\n| accepted(x) -> positive(x), x < 10\n",
     ] {
         parse(source).unwrap_or_else(|error| panic!("{source}: {error}"));
     }
+    let literal = r#"@ print("// /* */ \\+ 1_000_000 'hello'")"#;
+    assert_eq!(
+        eval_source_with_prelude(literal, false).unwrap().trim(),
+        "// /* */ \\+ 1_000_000 'hello'"
+    );
 }
 
 #[test]
