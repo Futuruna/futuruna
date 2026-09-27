@@ -62,11 +62,11 @@ an entirely unbound fact does not provide a finite collection of answers.
 Generic matching of structured values and aliases reused at different concrete
 types still have native lowering limits.
 
-Native builds support recursive Boolean clause queries over scalar values,
-including negation, correlated bindings, conjunctions, and alternatives. Some
-derived queries involving structured values, captured values, exception priority, or scoped
-rules still require interpreted execution; unsupported native searches must
-produce a diagnostic rather than an empty answer list.
+Native builds support recursive Boolean queries over scalar values, including
+negation, correlated bindings, conjunctions, alternatives, exceptions, and
+guarded defaults. Some derived queries involving structured values, captured
+values, or scoped rules still require interpreted execution; unsupported native
+searches must produce a diagnostic rather than an empty answer list.
 
 Use lowercase names such as `x`, `y`, and `z` for logic variables. Uppercase
 names denote declared constructors; undeclared names such as Prolog-style
@@ -87,6 +87,19 @@ appear as values or patterns in rules.
 ```
 
 Exception beats conditional, conditional beats default. Legal/regulatory logic made explicit.
+
+Queries apply the same priorities as direct calls. Among exceptions, and among
+guarded defaults, the first applicable rule wins. Once a candidate's arguments are known, its
+overrides are checked before the remaining clause goals; an excluded candidate
+does not run those remaining effects. Duplicate candidates share that priority
+decision within one query.
+
+Facts and derived clauses supply candidates in discovery order. Positive
+exceptions and guarded defaults can supply additional candidates through their
+heads or generating conditions. A condition such as `person(p)` can bind `p`
+from facts; a condition such as `p > 0` cannot enumerate all possible integers.
+An unbound positive override reports incomplete evaluation instead of claiming
+that its answer set is empty or complete.
 
 ## Invariants and verification
 

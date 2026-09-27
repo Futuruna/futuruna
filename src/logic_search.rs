@@ -169,9 +169,86 @@ pub struct Clause {
     pub body: Goal,
 }
 
+#[derive(Clone, Debug)]
+pub struct RuleValue {
+    pub setup: Goal,
+    pub result: Term,
+}
+
+impl RuleValue {
+    fn renamed(&self, offset: usize) -> Self {
+        Self {
+            setup: self.setup.renamed(offset),
+            result: self.result.renamed(offset),
+        }
+    }
+
+    fn variable_bound(&self) -> usize {
+        self.setup
+            .variable_bound()
+            .max(self.result.variable_bound())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Override {
+    pub head: Vec<Term>,
+    pub condition: Goal,
+    pub value: RuleValue,
+}
+
+#[derive(Default)]
+pub struct Relation {
+    pub clauses: Vec<Clause>,
+    /// Exceptions first, then guarded defaults; source order within each tier.
+    pub overrides: Vec<Override>,
+    pub defaults: Vec<Override>,
+}
+
 #[derive(Default)]
 pub struct Program {
-    pub relations: BTreeMap<(String, usize), Vec<Clause>>,
+    pub relations: BTreeMap<(String, usize), Relation>,
+}
+
+struct PriorityDecision {
+    arguments: Vec<Term>,
+    checked: usize,
+    selected: Option<bool>,
+}
+
+struct Priority<'a> {
+    overrides: &'a [Override],
+    decisions: Vec<PriorityDecision>,
+}
+
+impl Priority<'_> {
+    fn decision(&mut self, arguments: &[Term]) -> usize {
+        if let Some(index) = self.decisions.iter().position(|decision| {
+            decision.arguments.len() == arguments.len()
+                && decision
+                    .arguments
+                    .iter()
+                    .zip(arguments)
+                    .all(|(a, b)| a.same_value(b))
+        }) {
+            return index;
+        }
+        self.decisions.push(PriorityDecision {
+            arguments: arguments.to_vec(),
+            checked: 0,
+            selected: None,
+        });
+        self.decisions.len() - 1
+    }
+}
+
+/// One freshened candidate and its progress through a generating guard.
+#[derive(Clone, Copy)]
+struct Candidate<'a> {
+    head: &'a [Term],
+    override_position: Option<usize>,
+    value: Option<&'a RuleValue>,
+    condition_started: bool,
 }
 
 #[derive(Clone, Default)]
@@ -316,7 +393,7 @@ where
                 if depth > 50 {
                     return Err(format!("logic query `{name}` exceeded its recursion limit of 50; evaluation is incomplete"));
                 }
-                let clauses = self
+                let relation = self
                     .program
                     .relations
                     .get(&(name.clone(), arguments.len()))
@@ -329,33 +406,50 @@ where
                     })?;
                 let enumerate = binders.iter().any(|term| bindings.ground(term).is_err());
                 let mut seen: Vec<Vec<Term>> = Vec::new();
-                for clause in clauses {
-                    let variable_count = clause
-                        .head
+                let mut priority = Priority {
+                    overrides: &relation.overrides,
+                    decisions: Vec::new(),
+                };
+                let candidates = relation
+                    .clauses
+                    .iter()
+                    .map(|clause| (&clause.head, &clause.body, None, None))
+                    .chain(relation.overrides.iter().enumerate().map(|(index, rule)| {
+                        (&rule.head, &rule.condition, Some(&rule.value), Some(index))
+                    }))
+                    .chain(
+                        relation
+                            .defaults
+                            .iter()
+                            .map(|rule| (&rule.head, &rule.condition, Some(&rule.value), None)),
+                    );
+                for (head, body, value, override_position) in candidates {
+                    let variable_count = head
                         .iter()
                         .map(Term::variable_bound)
-                        .chain(std::iter::once(clause.body.variable_bound()))
+                        .chain(std::iter::once(body.variable_bound()))
+                        .chain(value.map(RuleValue::variable_bound))
                         .max()
                         .unwrap_or(0);
-                    let offset = self.next_variable;
-                    self.next_variable = offset
-                        .checked_add(variable_count)
-                        .ok_or_else(|| "logic query exhausted its variable space".to_string())?;
+                    let offset = self.reserve_variables(variable_count)?;
                     let mut next = bindings.clone();
-                    if !clause
-                        .head
+                    let head = head
+                        .iter()
+                        .map(|term| term.renamed(offset))
+                        .collect::<Vec<_>>();
+                    if !head
                         .iter()
                         .zip(arguments)
-                        .all(|(head, value)| next.unify(&head.renamed(offset), value))
+                        .all(|(head, value)| next.unify(head, value))
                     {
                         continue;
                     }
-                    let body = clause.body.renamed(offset);
-                    if !enumerate {
-                        if self.visit(&body, &next, depth + 1, &mut |_, _| Ok(true))? {
-                            return visitor(self, bindings);
+                    let body = body.renamed(offset);
+                    let value = value.map(|value| value.renamed(offset));
+                    let mut accepted = |search: &mut Self, next: &Bindings| {
+                        if !enumerate {
+                            return Ok(true);
                         }
-                    } else if self.visit(&body, &next, depth + 1, &mut |search, next| {
                         let values = binders
                             .iter()
                             .map(|term| next.ground(term))
@@ -370,13 +464,216 @@ where
                         }
                         seen.push(values);
                         visitor(search, next)
-                    })? {
-                        return Ok(true);
+                    };
+                    let found = if relation.overrides.is_empty() && value.is_none() {
+                        self.visit(&body, &next, depth + 1, &mut accepted)?
+                    } else {
+                        self.visit_priority_goals(
+                            std::slice::from_ref(&body),
+                            Candidate {
+                                head: &head,
+                                override_position,
+                                value: value.as_ref(),
+                                condition_started: false,
+                            },
+                            &next,
+                            depth + 1,
+                            &mut priority,
+                            &mut accepted,
+                        )?
+                    };
+                    if found {
+                        return if enumerate {
+                            Ok(true)
+                        } else {
+                            visitor(self, bindings)
+                        };
                     }
                 }
                 Ok(false)
             }
         }
+    }
+
+    fn reserve_variables(&mut self, count: usize) -> Result<usize, String> {
+        let offset = self.next_variable;
+        self.next_variable = offset
+            .checked_add(count)
+            .ok_or_else(|| "logic query exhausted its variable space".to_string())?;
+        Ok(offset)
+    }
+
+    fn rule_value(
+        &mut self,
+        value: &RuleValue,
+        bindings: &Bindings,
+        depth: usize,
+    ) -> Result<bool, String> {
+        let mut result = None;
+        self.visit(&value.setup, bindings, depth, &mut |_, next| {
+            result = Some(next.ground(&value.result)?);
+            Ok(true)
+        })?;
+        match result {
+            Some(Term::Bool(value)) => Ok(value),
+            _ => Err("logic override did not produce a Boolean value".into()),
+        }
+    }
+
+    /// Resolve only higher-priority candidates, never re-evaluate a clause
+    /// that has already produced bindings (and may have performed effects).
+    fn resolve_priority(
+        &mut self,
+        priority: &mut Priority<'_>,
+        arguments: &[Term],
+        through: usize,
+        depth: usize,
+    ) -> Result<usize, String> {
+        let index = priority.decision(arguments);
+        while priority.decisions[index].selected.is_none()
+            && priority.decisions[index].checked < through
+        {
+            let position = priority.decisions[index].checked;
+            let rule = &priority.overrides[position];
+            let count = rule
+                .head
+                .iter()
+                .map(Term::variable_bound)
+                .chain([rule.condition.variable_bound(), rule.value.variable_bound()])
+                .max()
+                .unwrap_or(0);
+            let offset = self.reserve_variables(count)?;
+            let mut bindings = Bindings::default();
+            if rule
+                .head
+                .iter()
+                .zip(arguments)
+                .all(|(head, value)| bindings.unify(&head.renamed(offset), value))
+                && self.visit(
+                    &rule.condition.renamed(offset),
+                    &bindings,
+                    depth,
+                    &mut |_, _| Ok(true),
+                )?
+            {
+                priority.decisions[index].selected =
+                    Some(self.rule_value(&rule.value.renamed(offset), &bindings, depth)?);
+            }
+            priority.decisions[index].checked += 1;
+        }
+        Ok(index)
+    }
+
+    fn visit_priority_goals(
+        &mut self,
+        goals: &[Goal],
+        candidate: Candidate<'_>,
+        bindings: &Bindings,
+        depth: usize,
+        priority: &mut Priority<'_>,
+        visitor: &mut dyn FnMut(&mut Self, &Bindings) -> Result<bool, String>,
+    ) -> Result<bool, String> {
+        let Candidate {
+            head,
+            override_position,
+            value,
+            condition_started,
+        } = candidate;
+        let arguments = (!priority.overrides.is_empty())
+            .then(|| {
+                head.iter()
+                    .map(|term| bindings.ground(term))
+                    .collect::<Result<Vec<_>, _>>()
+                    .ok()
+            })
+            .flatten();
+        if let Some(arguments) = &arguments {
+            let through = override_position.map_or(priority.overrides.len(), |position| {
+                position + usize::from(!condition_started)
+            });
+            let index = self.resolve_priority(priority, arguments, through, depth)?;
+            let decision = &priority.decisions[index];
+            if let Some(selected) = decision.selected {
+                return if selected {
+                    visitor(self, bindings)
+                } else {
+                    Ok(false)
+                };
+            }
+            if override_position.is_some_and(|position| decision.checked > position) {
+                return Ok(false);
+            }
+        }
+        let Some((first, rest)) = goals.split_first() else {
+            if !priority.overrides.is_empty() && arguments.is_none() {
+                if value.is_some_and(|value| {
+                    matches!(bindings.resolve(&value.result), Term::Bool(false))
+                }) {
+                    return Ok(false);
+                }
+                return Err("logic query cannot resolve exception/default priority for an unbound head; evaluation is incomplete".into());
+            }
+            if let Some(value) = value {
+                let selected = self.rule_value(value, bindings, depth)?;
+                if let (Some(position), Some(arguments)) = (override_position, &arguments) {
+                    let index = priority.decision(arguments);
+                    priority.decisions[index].checked = position + 1;
+                    priority.decisions[index].selected = Some(selected);
+                }
+                if !selected {
+                    return Ok(false);
+                }
+            }
+            return visitor(self, bindings);
+        };
+        match first {
+            Goal::All(nested) => {
+                let mut flattened = nested.clone();
+                flattened.extend_from_slice(rest);
+                return self.visit_priority_goals(
+                    &flattened, candidate, bindings, depth, priority, visitor,
+                );
+            }
+            Goal::Any(alternatives) => {
+                for alternative in alternatives {
+                    let mut branch = vec![alternative.clone()];
+                    branch.extend_from_slice(rest);
+                    if self.visit_priority_goals(
+                        &branch, candidate, bindings, depth, priority, visitor,
+                    )? {
+                        return Ok(true);
+                    }
+                }
+                return Ok(false);
+            }
+            Goal::Evaluate {
+                arguments: inputs, ..
+            } if override_position.is_some()
+                && arguments.is_none()
+                && inputs.iter().any(|term| bindings.ground(term).is_err()) =>
+            {
+                if value.is_some_and(|value| {
+                    matches!(bindings.resolve(&value.result), Term::Bool(false))
+                }) {
+                    return Ok(false);
+                }
+                return Err("logic query cannot enumerate an unbound override predicate; evaluation is incomplete".into());
+            }
+            _ => {}
+        }
+        self.visit(first, bindings, depth, &mut |search, next| {
+            search.visit_priority_goals(
+                rest,
+                Candidate {
+                    condition_started: true,
+                    ..candidate
+                },
+                next,
+                depth,
+                priority,
+                visitor,
+            )
+        })
     }
 
     fn visit_all(
@@ -408,11 +705,107 @@ mod tests {
             .relations
             .entry((name.into(), head.len()))
             .or_default()
+            .clauses
             .push(Clause { head, body });
     }
 
     fn no_expressions(_: usize, _: &[Term]) -> Result<Term, String> {
         Err("unexpected expression".into())
+    }
+
+    #[test]
+    fn exclusions_run_before_remaining_body_effects_and_once_per_argument_row() {
+        let mut program = Program::default();
+        for value in [1, 1, 2] {
+            add(&mut program, "item", vec![Term::Int(value)], Goal::Succeed);
+        }
+        let variable = Term::Variable(0);
+        add(
+            &mut program,
+            "selected",
+            vec![variable.clone()],
+            Goal::All(vec![
+                call("item", vec![variable.clone()]),
+                Goal::Evaluate {
+                    expression: 1,
+                    arguments: vec![variable.clone()],
+                    result: Term::Bool(true),
+                },
+            ]),
+        );
+        program
+            .relations
+            .get_mut(&("selected".into(), 1))
+            .unwrap()
+            .overrides
+            .push(Override {
+                head: vec![variable.clone()],
+                condition: Goal::Evaluate {
+                    expression: 0,
+                    arguments: vec![variable.clone()],
+                    result: Term::Bool(true),
+                },
+                value: RuleValue {
+                    setup: Goal::Succeed,
+                    result: Term::Bool(false),
+                },
+            });
+        let mut effects = Vec::new();
+        let values = Search::new(&program, |expression, arguments: &[Term]| {
+            let Term::Int(value) = arguments[0] else {
+                panic!("expected Int")
+            };
+            effects.push((expression, value));
+            Ok(Term::Bool(expression == 1 || value == 1))
+        })
+        .findall(&call("selected", vec![variable.clone()]), &variable)
+        .unwrap();
+        assert_eq!(effects, [(0, 1), (0, 2), (1, 2)]);
+        assert_eq!(values.len(), 1);
+        assert!(values[0].same_value(&Term::Int(2)));
+    }
+
+    #[test]
+    fn positive_overrides_generate_witnesses_and_cache_the_selected_value() {
+        let mut program = Program::default();
+        for value in [1, 2] {
+            add(&mut program, "item", vec![Term::Int(value)], Goal::Succeed);
+        }
+        for _ in 0..2 {
+            add(&mut program, "selected", vec![Term::Int(1)], Goal::Succeed);
+        }
+        let variable = Term::Variable(0);
+        program
+            .relations
+            .get_mut(&("selected".into(), 1))
+            .unwrap()
+            .overrides
+            .push(Override {
+                head: vec![variable.clone()],
+                condition: call("item", vec![variable.clone()]),
+                value: RuleValue {
+                    setup: Goal::Evaluate {
+                        expression: 0,
+                        arguments: vec![variable.clone()],
+                        result: Term::Variable(1),
+                    },
+                    result: Term::Variable(1),
+                },
+            });
+        let mut effects = Vec::new();
+        let values = Search::new(&program, |_, arguments: &[Term]| {
+            let Term::Int(value) = arguments[0] else {
+                panic!("expected Int")
+            };
+            effects.push(value);
+            Ok(Term::Bool(true))
+        })
+        .findall(&call("selected", vec![variable.clone()]), &variable)
+        .unwrap();
+        assert_eq!(effects, [1, 2]);
+        assert_eq!(values.len(), 2);
+        assert!(values[0].same_value(&Term::Int(1)));
+        assert!(values[1].same_value(&Term::Int(2)));
     }
 
     #[test]
