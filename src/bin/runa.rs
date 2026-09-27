@@ -13088,27 +13088,12 @@ impl SmtProgramResolver {
         output: &mut Vec<Stmt>,
         qualified_imports: &mut BTreeMap<String, String>,
     ) -> Result<(), String> {
-        // A late plain import can replace a callable after an earlier binding
-        // or assertion has used it. This verifier has a single static symbol
-        // graph, so moving such an import to the front would prove a different
-        // program. Require a prefix until source-ordered rebinding is modeled.
-        let user_start = statements
+        let prelude_len = statements
             .iter()
             .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
             .map_or(0, |index| index + 1);
-        let mut local_started = false;
-        for statement in &statements[user_start..] {
-            match statement {
-                Stmt::Import(path) if local_started => return Err(format!(
-                    "verification cannot reorder late plain import `{}` in `{}`; place imports before local declarations and executable statements",
-                    path, namespace_display_name
-                )),
-                Stmt::Import(_) | Stmt::QualifiedImport(_, _) | Stmt::HashImport(_, _)
-                | Stmt::Use(_) | Stmt::Depend(_, _) | Stmt::Annot(_, _)
-                | Stmt::RustBlock(_) | Stmt::PreludeBoundary => {}
-                _ => local_started = true,
-            }
-        }
+        let (prelude, statements) = statements.split_at(prelude_len);
+        output.extend_from_slice(prelude);
         // Plain imports are declaration overlays in the current namespace and
         // precede the importing source, matching interpreter/codegen lookup.
         for statement in statements {
@@ -31990,8 +31975,8 @@ impl RustCodegen {
         let mut all_stmts: Vec<Stmt> = Vec::new();
         let root_dir = self.source_dir.clone().unwrap_or_default();
 
-        // Resolve flat imports first so their declarations keep source-order
-        // independence from later qualified module instances.
+        // Resolve flat imports before authored declarations. Functions from
+        // an imported source override compiler-injected prelude defaults.
         for stmt in stmts {
             if let Stmt::Import(path) = stmt {
                 let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
@@ -31999,7 +31984,27 @@ impl RustCodegen {
             }
         }
 
-        for stmt in stmts {
+        let imported_functions = all_stmts
+            .iter()
+            .filter_map(|statement| {
+                if let Stmt::Defn(Defn::Fn { name, .. }) = statement {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeSet<_>>();
+        let prelude_len = stmts
+            .iter()
+            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+            .map_or(0, |index| index + 1);
+        for (index, stmt) in stmts.iter().enumerate() {
+            if index < prelude_len
+                && matches!(stmt,
+                Stmt::Defn(Defn::Fn { name, .. }) if imported_functions.contains(name))
+            {
+                continue;
+            }
             match stmt {
                 Stmt::Import(_) => {}
                 Stmt::PreludeBoundary | Stmt::Use(_) => all_stmts.push(stmt.clone()),

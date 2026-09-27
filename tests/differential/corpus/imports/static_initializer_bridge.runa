@@ -1,0 +1,2 @@
+@ import ./static_initializer_base
+> imported_total(x: Int) -> Int { fee(x) }

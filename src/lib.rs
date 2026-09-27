@@ -51,6 +51,7 @@ mod parser_hints;
 pub mod proof_kernel;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
+mod runtime_imports;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub mod semantic_interface;
 
@@ -17781,84 +17782,6 @@ impl Interpreter {
         }
     }
 
-    fn load_plain_runtime_import(
-        &mut self,
-        path: &str,
-        env: &mut Env,
-        initialization_mode: RuntimeInitializationMode,
-    ) -> Option<Value> {
-        let source_dir = self.source_dir.clone()?;
-        let file_path = Self::resolve_import_path_for_source(path, &source_dir)?;
-        let canonical = std::fs::canonicalize(&file_path)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| file_path.clone());
-        let namespace = self.namespace_for_env(env);
-        let completion_key = format!("plain:{canonical}");
-        if namespace
-            .state
-            .borrow()
-            .completed_imports
-            .contains(&completion_key)
-        {
-            return Some(Value::Unit);
-        }
-        let result = self.with_active_runtime_import(&canonical, |interpreter| {
-            match parse_source_module_file_cached(Path::new(&file_path)) {
-                Ok(module) => {
-                    let definitions = module
-                        .statements()
-                        .iter()
-                        .filter(|statement| Self::is_runtime_import_statement(statement))
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    let roots = (initialization_mode == RuntimeInitializationMode::Exploration)
-                        .then(|| {
-                            interpreter
-                                .exploration_runtime_demand
-                                .plain_import_roots
-                                .clone()
-                        });
-                    let value = interpreter.with_runtime_source_dir(
-                        Self::imported_source_dir(&file_path),
-                        &canonical,
-                        module.source(),
-                        |interpreter| {
-                            interpreter.with_runtime_plain_type_source(
-                                Some((
-                                    Rc::from(format!("{canonical:?}#{}", module.content_hash())),
-                                    namespace.identity_key(),
-                                )),
-                                |interpreter| {
-                                    interpreter.run_imported_runtime_statements(
-                                        &definitions,
-                                        env,
-                                        initialization_mode,
-                                        roots,
-                                    )
-                                },
-                            )
-                        },
-                    );
-                    namespace
-                        .state
-                        .borrow_mut()
-                        .completed_imports
-                        .insert(completion_key);
-                    interpreter.runtime_loaded_sources.insert(canonical.clone());
-                    Some(value)
-                }
-                Err(error) => {
-                    interpreter.report_runtime_import_failure(format!(
-                        "Cannot import {}: {}",
-                        file_path, error
-                    ));
-                    None
-                }
-            }
-        });
-        result.unwrap_or(Some(Value::Unit))
-    }
-
     fn load_qualified_runtime_import(
         &mut self,
         module_name: &str,
@@ -18938,6 +18861,15 @@ impl Interpreter {
     }
 
     fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
+        self.register_sourced_static_declarations(stmts, env, None);
+    }
+
+    fn register_sourced_static_declarations(
+        &mut self,
+        stmts: &[Stmt],
+        env: &mut Env,
+        sources: Option<&runtime_imports::RuntimeStatementSources>,
+    ) {
         if !Self::statements_define_runtime_declarations(stmts) {
             return;
         }
@@ -18946,6 +18878,7 @@ impl Interpreter {
         self.invalidate_checked_exact_observer_memo();
         let namespace = self.namespace_for_env(env);
         for stmt in stmts {
+            self.activate_program_statement_source(stmt, sources);
             match stmt {
                 Stmt::Defn(defn @ Defn::Fn { name, .. }) => {
                     self.register_runtime_callable_declaration(
@@ -20115,12 +20048,13 @@ impl Interpreter {
         }
     }
 
-    fn run_program_internal(
+    fn run_program_body(
         &mut self,
         stmts: &[Stmt],
         env: &mut Env,
         initialization_mode: RuntimeInitializationMode,
         order_value_bindings: bool,
+        sources: Option<&runtime_imports::RuntimeStatementSources>,
     ) -> Value {
         let publishes_declaration_env =
             order_value_bindings || Self::statements_define_runtime_declarations(stmts);
@@ -20171,7 +20105,7 @@ impl Interpreter {
         };
         let (prelude, local_stmts) = stmts.split_at(prelude_len);
         if !prelude.is_empty() {
-            self.register_static_declarations(prelude, env);
+            self.register_sourced_static_declarations(prelude, env, sources);
         }
         let mut last = Value::Unit;
         let mut pending_annot: Option<String> = None;
@@ -20187,9 +20121,9 @@ impl Interpreter {
             if self.calculation_failed() {
                 break;
             }
-            // Imports establish the dependency environment first. Once the local
-            // module starts, hoist its static declarations before evaluating any
-            // binding, matching codegen without reversing local import overrides.
+            // Plain imports are already merged into this declaration scope.
+            // Load any prefix qualified/hash namespaces, then install the final
+            // static declarations before evaluating the merged initializers.
             if !static_declarations_registered
                 && !matches!(
                     stmt,
@@ -20203,9 +20137,11 @@ impl Interpreter {
                         | Stmt::Depend(_, _)
                 )
             {
-                self.register_static_declarations(local_stmts, env);
+                self.register_sourced_static_declarations(local_stmts, env, sources);
                 static_declarations_registered = true;
             }
+
+            self.activate_program_statement_source(stmt, sources);
 
             // Publish only the lexical state completed before this statement.
             // The current RHS and any call-local bindings cannot enter its own
@@ -20389,12 +20325,8 @@ impl Interpreter {
                 Stmt::Annot(_, _) => {}
                 Stmt::PreludeBoundary | Stmt::Use(_) => {}
                 Stmt::RustBlock(_) => {} // @ rust { } blocks are transpile-time only
-                Stmt::Import(path) => {
-                    if let Some(value) =
-                        self.load_plain_runtime_import(path, env, initialization_mode)
-                    {
-                        last = value;
-                    }
+                Stmt::Import(_) => {
+                    unreachable!("plain imports must be normalized before runtime evaluation")
                 }
                 Stmt::QualifiedImport(mod_name, path) => {
                     if let Some(value) =
@@ -48309,7 +48241,21 @@ impl TypeChecker {
         let model_module = Self::model_interface_module_id(statements, dir, &model_module_key);
         let mut declaration_ordinal = 0usize;
         let mut model_declaration_ordinal = 0usize;
-        for statement in statements {
+        let prelude_len = Self::leading_rule_dispatch_prelude_indices(statements).len();
+        let (prelude, authored) = statements.split_at(prelude_len);
+        let ordered = prelude
+            .iter()
+            .chain(
+                authored
+                    .iter()
+                    .filter(|statement| matches!(statement, Stmt::Import(_))),
+            )
+            .chain(
+                authored
+                    .iter()
+                    .filter(|statement| !matches!(statement, Stmt::Import(_))),
+            );
+        for statement in ordered {
             let statement_ordinal = Self::analysis_declaration_signature(statement).map(|_| {
                 let ordinal = declaration_ordinal;
                 declaration_ordinal += 1;
@@ -54899,21 +54845,15 @@ impl TypeChecker {
     }
     fn rule_dispatch_program_has_opaque_runtime_graph(statements: &[Stmt]) -> bool {
         let injected_prelude = Self::leading_rule_dispatch_prelude_indices(statements);
-        let mut program_started = false;
         for (index, statement) in statements.iter().enumerate() {
             if injected_prelude.contains(&index) {
                 continue;
             }
-            match statement {
-                Stmt::HashImport(_, _) => return true,
-                Stmt::Import(_) => {
-                    if program_started {
-                        return true;
-                    }
-                }
-                Stmt::QualifiedImport(_, _) => return true,
-                Stmt::Annot(_, _) | Stmt::Use(_) | Stmt::Depend(_, _) | Stmt::RustBlock(_) => {}
-                _ => program_started = true,
+            if matches!(
+                statement,
+                Stmt::HashImport(_, _) | Stmt::QualifiedImport(_, _)
+            ) {
+                return true;
             }
             if Self::top_level_rule_dispatch_stmt_mutates_shared_registry(statement) {
                 return true;
@@ -63021,11 +62961,18 @@ __FINDS__
                 .iter()
                 .map(|declaration| declaration.id.name.as_ref())
                 .collect::<Vec<_>>(),
-            vec!["Qualified", "helper", "eligible", "scan"]
+            vec!["helper", "eligible", "Qualified", "scan"]
         );
-        assert!(declarations[1..3]
+        assert!(declarations[..2]
             .iter()
             .all(|declaration| matches!(&declaration.import_kind, SourcedImportKind::PlainImport)));
+        assert!(matches!(
+            &declarations[2].import_kind,
+            SourcedImportKind::QualifiedImport { module_name } if module_name.as_ref() == "Qualified"
+        ));
+        assert!(declarations[2].qualified_target_module.is_some());
+        assert!(declarations[2].qualified_target_model_module.is_some());
+        assert!(declarations[2].qualified_target_source_path.is_some());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -65483,7 +65430,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn boolean_rule_miss_safety_rejects_opaque_registry_graphs_and_late_imports() {
+    fn boolean_rule_miss_safety_distinguishes_static_imports_from_opaque_registry_graphs() {
         let opaque_sources = [
             r#"
 > module Hidden { | collision(value: Int) -> value + 1 under value > 0 }
@@ -65498,8 +65445,11 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | condition(value: Int) -> True under value > 0
 "#,
             r#"
-= seed = 0
-@ import ./missing
+@ import Hidden from ./missing
+| condition(value: Int) -> True under value > 0
+"#,
+            r#"
+@ import #a1b2c3 from ./missing
 | condition(value: Int) -> True under value > 0
 "#,
         ];
@@ -65519,17 +65469,16 @@ starters first from mechanisms paths for node activation "{digest}" using values
             );
         }
 
-        let prefix_import = parse_test_program(
-            "@ import ./missing\n| condition(value: Int) -> True under value > 0\n",
-        )
-        .expect("parse prefix import fixture");
-        let effective_program = prepend_prelude(parse_prelude(), &prefix_import);
-        let (_, _, safe_keys) =
-            TypeChecker::rule_dispatch_metadata_for_runtime(&effective_program, None);
-        assert!(
-            safe_keys.contains(&key),
-            "the injected prelude must not make a user prefix import look late"
-        );
+        for prefix in ["", "= seed = 0\n"] {
+            let source = format!(
+                "{prefix}@ import ./missing\n| condition(value: Int) -> True under value > 0\n"
+            );
+            let statements = parse_test_program(&source).expect("parse static import fixture");
+            let effective_program = prepend_prelude(parse_prelude(), &statements);
+            let (_, _, safe_keys) =
+                TypeChecker::rule_dispatch_metadata_for_runtime(&effective_program, None);
+            assert!(safe_keys.contains(&key), "static plain import: {source}");
+        }
 
         let mut prelude_shaped_user_declaration = parse_prelude()
             .into_iter()
@@ -65553,8 +65502,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let (_, _, safe_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(&near_shape_program, None);
         assert!(
-            safe_keys.is_empty(),
-            "a differently named declaration with a prelude-shaped body must make the import late"
+            safe_keys.contains(&key),
+            "an authored declaration before a plain import remains in the static graph"
         );
     }
 
