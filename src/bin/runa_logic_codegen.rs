@@ -1,4 +1,4 @@
-use super::runa_logic_search::{Clause, Goal, Program, Term};
+use super::runa_logic_search::{Clause, Goal, Override, Program, Relation, RuleValue, Term};
 use super::*;
 
 struct Variable {
@@ -24,6 +24,48 @@ struct Builder {
 }
 
 impl Builder {
+    fn query(
+        cg: &RustCodegen,
+        template: Option<&Expr>,
+        goal: &Expr,
+    ) -> Result<(Self, Goal, Option<(Term, FirTy)>), String> {
+        if !cg.current_module_path.is_empty() || cg.current_rule_scope_name.is_some() {
+            return Err("native derived query needs an owner-scoped plan".into());
+        }
+        let mut builder = Builder::default();
+        if let Some(template) = template {
+            let ExprKind::Var(name) = &template.kind else {
+                return Err("logic query template must be a single variable".into());
+            };
+            let ExprKind::App(_, arguments) = &goal.kind else {
+                return Err("logic query goal must be a named rule call".into());
+            };
+            if !arguments.iter().any(
+                |argument| matches!(&argument.kind, ExprKind::Var(candidate) if candidate == name),
+            ) {
+                return Err("query template must occur as a direct goal argument".into());
+            }
+            builder.projection = Some(name.clone());
+        }
+        let query = builder.goal(cg, goal, true)?;
+        let projection = if let Some(name) = &builder.projection {
+            let variable = builder
+                .variables
+                .get(name)
+                .ok_or_else(|| "query template is not bound by its goal".to_string())?;
+            Some((
+                Term::Variable(variable.index),
+                variable
+                    .ty
+                    .clone()
+                    .ok_or_else(|| "query template has no checked type".to_string())?,
+            ))
+        } else {
+            None
+        };
+        Ok((builder, query, projection))
+    }
+
     fn variable(&mut self, name: &str, ty: Option<FirTy>) -> Result<Term, String> {
         if name != "_" {
             if let Some(variable) = self.variables.get_mut(name) {
@@ -353,13 +395,33 @@ impl Builder {
                 .prolog_rule_groups
                 .get(&key.0)
                 .ok_or_else(|| "query relation is missing".to_string())?;
-            let mut clauses = Vec::new();
+            let mut relation = Relation::default();
+            let mut conditional_defaults = Vec::new();
             for rule in rules {
                 if RustCodegen::rule_exact_arity(rule) != Some(key.1) {
                     continue;
                 }
-                let Rule::Clause { head, body } = rule else {
-                    return Err("native query priority needs a checked lowering".into());
+                let (head, body, value) = match rule {
+                    Rule::Clause { head, body } => (head, body.as_ref(), None),
+                    Rule::Exception {
+                        head,
+                        condition,
+                        value,
+                        ..
+                    } => (head, condition.as_ref(), Some(value)),
+                    Rule::Default {
+                        head,
+                        condition: Some(condition),
+                        value,
+                    } => (head, Some(condition), Some(value)),
+                    Rule::Default {
+                        head,
+                        condition: None,
+                        value,
+                    } => (head, None, Some(value)),
+                    Rule::ReactiveScope { .. } => {
+                        return Err("native query needs an owner-scoped plan".into())
+                    }
                 };
                 let ExprKind::App(_, arguments) = &head.kind else {
                     return Err("native query head has no positional arguments".into());
@@ -382,16 +444,36 @@ impl Builder {
                     return Err("native query head needs structural term lowering".into());
                 }
                 let body = body
-                    .as_ref()
                     .map(|body| self.goal(cg, body, false))
                     .transpose()?
                     .unwrap_or(Goal::Succeed);
-                clauses.push(Clause { head, body });
+                if let Some(value) = value {
+                    let mut setup = Vec::new();
+                    let result = self.term(cg, value, Some(FirTy::Bool), false, &mut setup)?;
+                    let candidate = Override {
+                        head,
+                        condition: body,
+                        value: RuleValue {
+                            setup: Goal::All(setup),
+                            result,
+                        },
+                    };
+                    match rule {
+                        Rule::Exception { .. } => relation.overrides.push(candidate),
+                        Rule::Default {
+                            condition: Some(_), ..
+                        } => conditional_defaults.push(candidate),
+                        Rule::Default {
+                            condition: None, ..
+                        } => relation.defaults.push(candidate),
+                        _ => unreachable!("value candidates are defaults or exceptions"),
+                    }
+                } else {
+                    relation.clauses.push(Clause { head, body });
+                }
             }
-            if clauses.is_empty() {
-                return Err("native query has no clauses".into());
-            }
-            program.relations.insert(key, clauses);
+            relation.overrides.extend(conditional_defaults);
+            program.relations.insert(key, relation);
         }
         Ok(program)
     }
@@ -597,45 +679,17 @@ impl RustCodegen {
         ))
     }
 
+    pub(super) fn native_logic_result_type(&self, template: &Expr, goal: &Expr) -> Option<FirTy> {
+        let (_, _, projection) = Builder::query(self, Some(template), goal).ok()?;
+        projection.map(|(_, ty)| FirTy::List(Box::new(ty)))
+    }
+
     pub(super) fn emit_native_logic_search(
         &mut self,
         template: Option<&Expr>,
         goal: &Expr,
     ) -> Result<String, String> {
-        if !self.current_module_path.is_empty() || self.current_rule_scope_name.is_some() {
-            return Err("native derived query needs an owner-scoped plan".into());
-        }
-        let mut builder = Builder::default();
-        if let Some(template) = template {
-            let ExprKind::Var(name) = &template.kind else {
-                return Err("logic query template must be a single variable".into());
-            };
-            let ExprKind::App(_, arguments) = &goal.kind else {
-                return Err("logic query goal must be a named rule call".into());
-            };
-            if !arguments.iter().any(
-                |argument| matches!(&argument.kind, ExprKind::Var(candidate) if candidate == name),
-            ) {
-                return Err("query template must occur as a direct goal argument".into());
-            }
-            builder.projection = Some(name.clone());
-        }
-        let query = builder.goal(self, goal, true)?;
-        let projection = if let Some(name) = &builder.projection {
-            let variable = builder
-                .variables
-                .get(name)
-                .ok_or_else(|| "query template is not bound by its goal".to_string())?;
-            Some((
-                Term::Variable(variable.index),
-                variable
-                    .ty
-                    .clone()
-                    .ok_or_else(|| "query template has no checked type".to_string())?,
-            ))
-        } else {
-            None
-        };
+        let (mut builder, query, projection) = Builder::query(self, template, goal)?;
         let program = builder.program(self)?;
         let runtime_name = self.native_logic_runtime_name.clone();
         let runtime = runtime_name.as_str();
@@ -653,25 +707,36 @@ impl RustCodegen {
         let arguments_name = fresh_generated_rust_name("__arguments", &mut used);
         let value_name = fresh_generated_rust_name("__value", &mut used);
         let mut output = format!("{{ let mut {program_name} = {runtime}::Program::default();");
-        for ((name, arity), clauses) in program.relations {
-            let clauses = clauses
+        for ((name, arity), relation) in program.relations {
+            let head = |terms: &[Term]| {
+                terms
+                    .iter()
+                    .map(|term| quote_term(term, runtime))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            };
+            let clauses = relation
+                .clauses
                 .iter()
                 .map(|clause| {
                     format!(
                         "{runtime}::Clause {{ head: vec![{}], body: {} }}",
-                        clause
-                            .head
-                            .iter()
-                            .map(|term| quote_term(term, runtime))
-                            .collect::<Vec<_>>()
-                            .join(","),
+                        head(&clause.head),
                         quote_goal(&clause.body, runtime)
                     )
                 })
                 .collect::<Vec<_>>()
                 .join(",");
+            let overrides = |rules: &[Override]| {
+                rules.iter().map(|rule| format!(
+                "{runtime}::Override {{ head: vec![{}], condition: {}, value: {runtime}::RuleValue {{ setup: {}, result: {} }} }}",
+                head(&rule.head), quote_goal(&rule.condition, runtime),
+                quote_goal(&rule.value.setup, runtime), quote_term(&rule.value.result, runtime)
+            )).collect::<Vec<_>>().join(",")
+            };
             output.push_str(&format!(
-                "{program_name}.relations.insert(({name:?}.to_string(),{arity}),vec![{clauses}]);"
+                "{program_name}.relations.insert(({name:?}.to_string(),{arity}),{runtime}::Relation {{ clauses: vec![{clauses}], overrides: vec![{}], defaults: vec![{}] }});",
+                overrides(&relation.overrides), overrides(&relation.defaults)
             ));
         }
         output.push_str(&format!("let mut {search_name} = {runtime}::Search::new(&{program_name}, |{expression_name}, {arguments_name}: &[{runtime}::Term]| -> Result<{runtime}::Term, String> {{ match {expression_name} {{"));
