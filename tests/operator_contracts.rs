@@ -148,3 +148,30 @@ fn supported_operators_agree_in_interpretation_and_native_execution() {
         }
     }
 }
+
+#[test]
+fn unannotated_parameters_shadow_outer_operand_types() {
+    let fixture = Fixture::new(
+        "= x = Some(42)\n\
+         > apply(f: Int -> Int, value: Int) -> Int { f(value) }\n\
+         = answer = apply(|x| x * 2, 21)\n\
+         @ print(show(answer))\n\
+         @ print(show(x == Some(42)))\n",
+    );
+    for args in [
+        vec![],
+        vec!["run"],
+        vec!["check", "--frontend"],
+        vec!["check"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+            .args(&args)
+            .arg(&fixture.0)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        if !args.contains(&"check") {
+            assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "42\ntrue");
+        }
+    }
+}
