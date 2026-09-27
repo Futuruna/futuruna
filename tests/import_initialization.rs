@@ -165,12 +165,71 @@ fn plain_import_planning_keeps_qualified_initialization_isolated() {
         ("dependency.runa", "@ export fee\n@ export seed\n> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n"),
         ("main.runa", "@ import ./dependency\n@ import Lib from ./dependency\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(seed))\n@ print(show(Lib.seed))\n@ print(show(Lib.fee(5)))\n"),
     ]);
-    let output = fixture.run(&[]);
-    assert!(output.status.success(), "{output:?}");
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout).trim(),
-        "6\n500\n500"
-    );
+    fixture.agrees("6\n500\n500");
+}
+
+#[test]
+fn qualified_initializers_do_not_reuse_caller_comptime_types() {
+    let fixture = Fixture::new(&[
+        ("dependency.runa", "@ export seed\n> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n"),
+        ("main.runa", "@ import Lib from ./dependency\n= seed = identity(\"root\")\n@ print(seed)\n@ print(show(Lib.seed + 1))\n"),
+    ]);
+    fixture.agrees("root\n501");
+}
+
+#[test]
+fn qualified_functions_do_not_collide_with_caller_comptime_getters() {
+    let fixture = Fixture::new(&[
+        ("dependency.runa", "@ export fee\n> fee(x: Int) -> Int { x * 100 }\n"),
+        ("main.runa", "@ import Lib from ./dependency\n= fee = identity(7)\n@ print(show(fee))\n@ print(show(Lib.fee(5)))\n"),
+    ]);
+    fixture.agrees("7\n500");
+}
+
+#[test]
+fn nested_qualified_initializers_keep_their_own_values_across_aliases() {
+    let fixture = Fixture::new(&[
+        ("leaf.runa", "@ export seed\n> initial() -> Int { 500 }\n= seed = initial()\n"),
+        ("dependency.runa", "@ import Leaf from ./leaf\n@ export seed\n= seed = Leaf.seed + 1\n"),
+        ("main.runa", "@ import First from ./dependency\n@ import Second from ./dependency\n@ import First from ./dependency\n= seed = identity(7)\n@ print(show(seed))\n@ print(show(First.seed))\n@ print(show(Second.seed))\n"),
+    ]);
+    fixture.agrees("7\n501\n501");
+}
+
+#[test]
+fn qualified_initializer_proofs_agree_with_native_values() {
+    let fixture = Fixture::new(&[
+        ("dependency.runa", "@ export fee\n@ export seed\n@ export snapshot\n> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n> snapshot() -> Int { seed }\n"),
+        ("main.runa", "@ import ./dependency\n@ import Lib from ./dependency\n> fee(x: Int) -> Int { x + 1 }\n| correct: 0 -> Lib.snapshot() == 500\n| wrong: 0 -> Lib.snapshot() == 6\n? correct else { @ print(\"incorrect value\") }\n? wrong else { @ print(\"counterexample\") }\n"),
+    ]);
+    fixture.agrees("counterexample");
+    if Command::new("z3")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+    {
+        let output = fixture.run(&["verify"]);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("PROVED: |correct|"), "{output:?}");
+        assert!(!stdout.contains("PROVED: |wrong|"), "{stdout}");
+        assert!(stdout.contains("COUNTEREXAMPLE"), "{stdout}");
+    }
+}
+
+#[test]
+fn maintained_qualified_initializer_corpus_agrees_in_both_execution_modes() {
+    let fixture = Fixture::new(&[
+        (
+            "main.runa",
+            include_str!("differential/corpus/imports/qualified_initializer_context.runa"),
+        ),
+        (
+            "qualified_initializer_context_dep.runa",
+            include_str!("differential/corpus/imports/qualified_initializer_context_dep.runa"),
+        ),
+    ]);
+    fixture.agrees("6\n500\n500\n500\n500");
 }
 
 #[test]

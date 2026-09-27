@@ -44233,6 +44233,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 self.current_module_path.push(sanitize_name(name));
                 let saved_types = self.types.clone();
                 self.types.active_module_path = self.current_module_path.clone();
+                // Folded bindings belong to their declaration namespace. A
+                // caller's same-named constant must not replace a module's
+                // initializer or supply its getter's return type.
+                self.types.comptime_values.clear();
+                self.types.comptime_types.clear();
                 let saved_fn_return_types = self.fn_return_types.clone();
                 let saved_string_returning_fns = self.string_returning_fns.clone();
                 let saved_borrow_only_params = self.borrow_only_params.clone();
