@@ -6620,13 +6620,11 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 | Stmt::StreamBind(_, _)
                 | Stmt::StreamSub(_, _)
                 | Stmt::Invariant { .. }
-                | Stmt::Prove { .. }
-                | Stmt::Assert(_, _)
-                | Stmt::Retract(_, _)
-                | Stmt::Abort => ShallowBlockStatement::EffectfulOrControl,
+                | Stmt::Prove { .. } => ShallowBlockStatement::EffectfulOrControl,
                 Stmt::Defn(_)
                 | Stmt::TypeDecl(_)
                 | Stmt::Rule(_)
+                | Stmt::PreludeBoundary
                 | Stmt::Use(_)
                 | Stmt::Import(_)
                 | Stmt::QualifiedImport(_, _)
@@ -11263,10 +11261,7 @@ fn concat_sequences(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        CheckedDataFieldId, CheckedExploreQueryAccessError, CheckedExploreQueryArtifactIssue,
-        Lexer, Parser, TypeChecker,
-    };
+    use crate::{CheckedDataFieldId, Lexer, Parser, TypeChecker};
 
     #[test]
     fn flat_map_bounds_include_empty_products_and_refuse_overflow() {
@@ -11586,18 +11581,61 @@ mod tests {
             .parse_program()
             .expect("parse result-conformance fixture");
         let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(artifacts
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("return type mismatch")));
+
+        // Exercise the proof's result contract independently, using a valid
+        // checked program to supply its identities. Invalid authored literals
+        // no longer reach this phase through normal frontend preparation.
+        let valid_source = source.replace("\"not an Int\"", "state");
+        let statements = Parser::new(Lexer::new(&valid_source).tokenize(), &valid_source)
+            .parse_program()
+            .expect("parse valid endpoint fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, &valid_source);
         assert!(
             artifacts.diagnostics.is_empty(),
-            "ordinary source checking should leave endpoint authorization to the checked proof: {:?}",
-            artifacts.diagnostics,
+            "{:?}",
+            artifacts.diagnostics
         );
-        let issue = match artifacts.checked_exploration_query(0) {
-            Err(CheckedExploreQueryAccessError::Producer(
-                CheckedExploreQueryArtifactIssue::EndpointTotality(issue),
-            )) => issue,
-            Err(other) => panic!("unexpected checked-query rejection: {other:?}"),
-            Ok(_) => panic!("a mismatched endpoint return must not mint a certificate"),
-        };
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("valid checked endpoint");
+        let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+        let prover = EndpointTotalityProver::new(
+            &index,
+            &artifacts.checked_resolutions,
+            checked.relation_id(),
+        );
+        let site = artifacts
+            .checked_resolutions
+            .expressions
+            .keys()
+            .find(|site| {
+                site.declaration.name.as_ref() == "endpoint_bad_result"
+                    && site.ast_path.as_ref() == [0]
+            })
+            .expect("checked function body site");
+        let expected = Ty::Name("Int".into());
+        prover
+            .require_value_type(
+                &site,
+                "result of endpoint helper",
+                &expected,
+                &AbstractValue::Int(IntInterval::singleton(1)),
+                &mut BTreeMap::new(),
+            )
+            .expect("matching abstract result");
+        let issue = prover
+            .require_value_type(
+                &site,
+                "result of endpoint helper",
+                &expected,
+                &AbstractValue::String(Some("not an Int".into())),
+                &mut BTreeMap::new(),
+            )
+            .expect_err("the proof must independently reject a mismatched result");
         assert_eq!(
             issue.reason(),
             RelationalEndpointTotalityIssueReason::CheckedResolutionUnavailable,

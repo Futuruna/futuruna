@@ -22,7 +22,6 @@ FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" cargo test --quiet
 ./target/release/runa test --check-codegen
 ./target/release/runa test --roundtrip tests
 ./target/release/runa run tests/codegen_integration_regression_test.runa
-./scripts/storage-canary.sh
 ./scripts/wasm-canary.sh
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-02.runa
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-03.runa
@@ -45,6 +44,9 @@ that default mode too; mint then checks the optimized executable.
 These lanes are the core mint contract because they cover:
 
 - Rust unit and integration tests
+- formatting and source-preservation regressions across `tests/`, including
+  required rejection of intentionally malformed parser fixtures, through
+  `tests/formatter_preservation.rs`
 - the first-run golden path: `runa init`, generated project metadata/source,
   `check`, `fmt --check`, `run`, `build`, feature-stage metadata visibility,
   a local qualified import/library smoke, intentional first-hour diagnostic
@@ -70,7 +72,7 @@ These lanes are the core mint contract because they cover:
 - Rust codegen validation across the test corpus
 - interpreter-vs-compiled roundtrip parity across the test corpus
 - the blocking codegen regression program
-- offline compiled persisted-storage transaction runtime canaries
+- database-retirement diagnostics and preserved host-boundary behavior
 - WASM export build canaries, with an explicit skip when `wasm-pack` is unavailable
 - real example programs outside `tests/` that have previously exposed compiler bugs
 
@@ -83,7 +85,6 @@ Intentionally omitted from the core mint gate:
   example corpus, which is a separate CI-blocking translational-tooling lane
   documented in
   [from-rust-contract.md](from-rust-contract.md)
-- `./target/release/runa fmt --check tests/`
 - standalone solver-dependent flows such as `runa verify file.runa`
 - tests that the `runa test` runner already skips because they require optional external crates
 
@@ -104,12 +105,13 @@ diagnostics still print because they are real failures, not progress chatter.
 The downstream lane includes `runa lint-library tests/downstream` and
 `runa lint-library --imports tests/downstream`, so the stable importable-library
 contract is enforced there even though it remains outside the fast core mint
-gate.
+gate. It runs `runa test tests/downstream` as well as the native checks, so
+imported subject initialization is exercised by the interpreter even when a
+fixture is excluded from generic roundtrip testing.
 
-The storage canary lane runs compiled persisted transaction fixtures from a
-temporary directory with `CARGO_NET_OFFLINE=true`. It is inside mint because the
-generic `runa test --run` and phase expectations do not prove the SQLite-backed
-transaction guard's commit, rollback, and nested savepoint behavior at runtime.
+Database retirement regressions run in the ordinary Rust test lane. They check
+explicit errors for removed persistence syntax and builtins, plus preserved
+in-memory logic, typed calculations, ordinary assertions, and scope behavior.
 
 The WASM canary lane discovers fixtures marked with `-- wasm-build-canary` and
 runs `runa wasm` for each one. By default, a missing `wasm-pack` is reported as

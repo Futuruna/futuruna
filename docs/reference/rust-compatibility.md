@@ -45,6 +45,9 @@ sort_vec(data)
 ```
 
 Compiles to `fn sort_vec(xs: &mut Vec<i64>)`. The caller's binding is mutated directly.
+Save this example as `sort.runa` and execute it with `runa run sort.runa`.
+The interpreter does not execute embedded Rust, so this example requires
+native execution.
 
 ## Rust Escape Hatch
 
@@ -100,9 +103,19 @@ The cache records the root source, every transitive plain, qualified, and hash
 import, its resolved import edges and manifest-resolution contexts, prelude mode,
 and exact Futuruna compiler. An unchanged graph reuses the validated binary
 before type checking or Rust code generation. Any source, import-resolution,
-manifest, prelude-mode, or compiler change causes a miss. Programs with Cargo
-dependencies also retain their generated Cargo project under `.runa-build/` for
-Cargo's own incremental compilation.
+manifest, prelude-mode, or compiler change causes a miss. Builds on a miss use
+separate, freshly claimed directories for generated source and executables,
+including when projects share a filename such as `src/main.runa`. The old
+stem-only temporary binary cache is no longer used. Cache overrides and cache
+disabling apply to all native executable reuse.
+
+Successful direct-rustc builds remove their temporary workspace after copying
+or running the executable. Failed compilations retain the generated source at
+the path in the diagnostic. Programs with Cargo dependencies retain each
+generated project under `.runa-build/<stem>/build-<id>/`, with its own target
+directory. This prevents concurrent source or target replacement, including
+when `CARGO_TARGET_DIR` is set. An unchanged validated source graph still uses
+the native artifact cache; a cache miss starts a fresh Cargo build.
 
 `runa check` uses the same graph validation and caches only successful checks.
 Its Rust metadata lane additionally fingerprints `rustc` and retains the

@@ -26,9 +26,30 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 19 September 2026 predate calculation-safety fixes now present in this checkout.
 They must not be used for this checkout's tax-audit workflow. A development
 binary may also report `0.2.0`, so the version string alone is insufficient.
+Use [v0.2.1](https://github.com/Futuruna/futuruna/releases/tag/v0.2.1) or a newer
+verified release with these fixes.
 Use the [runtime compatibility check](#tax-audit-runtime-check) on the exact
 binary selected. If it fails, build from this checkout or obtain a newer verified
 release that passes it; do not proceed using an older binary.
+
+## Running shared models
+
+Treat a `.runa` model and its dependencies as executable code. Review their
+source and `runa.toml` before running a model obtained from someone else.
+The command name alone does not establish that it only inspects source:
+
+- Full `runa check` can evaluate `@ comptime` effects and build declared Rust
+  dependencies, including their build scripts.
+- `runa audit` currently initializes the program by executing top-level code.
+- A calculation rejects direct effects in its entry, but a called helper can
+  still perform effects. `runa call` is not an operating-system sandbox.
+- Resolving project dependencies, including through the editor, can fetch Git
+  repositories declared by the project.
+
+Use a separate environment with restricted file and network access when the
+source is untrusted. Keep private documents and credentials outside that
+environment. A successful check, schema, or audit is not an assurance that
+executing the model is safe.
 
 ## Your task
 
@@ -137,6 +158,13 @@ or verification fails. If the operating system blocks the downloaded program,
 show the user the exact message and ask before changing any security setting.
 Use Cargo or a local source build when that is the safer available route.
 
+**macOS browser downloads:** Check the selected release's signing status in its
+release notes. The `v0.2.0` macOS downloads are not Apple Developer ID signed or
+notarized. A browser download can carry a quarantine flag, so Gatekeeper may
+block it even when its checksum matches. A checksum confirms file integrity;
+it is not Apple notarization. If blocked, use the local source build below.
+Do not disable Gatekeeper or remove quarantine as an automatic setup step.
+
 If there is no download for the user's computer, use one of the installation
 methods below instead of trying to build from an unrelated AI sandbox.
 
@@ -159,7 +187,7 @@ diagnose the error before continuing with the source build below. Do not change
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.2.0 supports Rust
+installing software or changing a shell profile. Futuruna 0.2.1 supports Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary
@@ -204,6 +232,16 @@ When setup succeeds, tell the user:
 - where the `runa` binary is located.
 
 Do not add the compiler to a global path or edit the user's environment unless they ask you to.
+
+### Optional: VS Code or Cursor
+
+For syntax colors, diagnostics, completion, hover and go-to-definition, follow
+the [editor installation guide](https://github.com/Futuruna/futuruna/blob/main/editors/vscode/README.md).
+It covers installing the extension's npm dependencies and local extension copy.
+Set `futuruna.serverPath` in workspace settings to the **same absolute executable
+path verified above**, then reload the editor window. A compiler in a
+`target/runa-download.XXXXXX` directory works directly; no global `PATH` change
+or rename is needed. Install or configure the editor when the user requests it.
 
 ### Tax-audit runtime check
 
@@ -499,8 +537,13 @@ to the valid subset and report every exclusion.
 
 Start with the
 [law-exploration workbook](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/exploration-workbook.md)
-and run its
+and inspect its
 [income-cliff audit](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa).
+The complete audit evaluates the full tax model 980 times across 490 transitions
+before printing its report. Allow for a substantial run and plan the search
+scope and time budget before starting it. Use the weather example or the small
+typed calculation above to check an installation. The workbook gives the
+execution commands; runtime varies with the compiler and model version.
 
 ### Encode a contract
 

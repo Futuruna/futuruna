@@ -1,7 +1,7 @@
 -- expect-command: emit-lib
 -- expect-status: pass
 -- expect-stdout: pub fn later_export_value() -> i64 { 41i64 }
--- expect-stdout: pub fn exported_forward_value() -> i64 { (later_export_value() + 1i64) }
+-- expect-stdout: pub fn exported_forward_value() -> i64 { { let __fut_l: i64 = later_export_value(); let __fut_r: i64 = 1i64; __fut_l.checked_add(__fut_r).expect("integer addition overflow") } }
 
 @ export
 = exported_forward_value = later_export_value + 1

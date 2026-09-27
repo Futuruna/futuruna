@@ -1,0 +1,9 @@
+@ sprog da
+-- Reviewer #59: Danish connectors use the ordinary Boolean operator semantics.
+@ print(show(Sandt eller Falskt og Falskt))
+@ print(show((Sandt eller Falskt) og Falskt))
+@ print(show(Sandt or Falskt and Falskt))
+@ print(show(Sandt eller (1 / 0 == 0)))
+@ print(show(Falskt og (1 / 0 == 0)))
+| eligible(age: Heltal) -> Sandt under age >= 18 og age < 70
+@ print(hvis eligible(30) { "accepted" } ellers { "rejected" })

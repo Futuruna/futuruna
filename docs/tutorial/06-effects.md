@@ -28,7 +28,7 @@ Effects make side effects explicit and composable:
     | log(msg) -> { @ print("[LOG] " + msg); resume(()) }
 } in process("hello")
 
-@ print(result)  -- "HELLO"
+@ print(result) -- HELLO
 ```
 
 Different handlers = different behaviors. Same code, testable in isolation.

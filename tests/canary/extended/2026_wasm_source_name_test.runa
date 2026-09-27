@@ -1,0 +1,7 @@
+-- wasm-build-canary
+-- Date-prefixed source filenames remain valid for generated Cargo packages.
+@ export
+> add_year_offset(year: Int, offset: Int) -> Int { year + offset }
+
+assert(add_year_offset(2026, 1) == 2027)
+@ print(show(add_year_offset(2026, 1)))

@@ -1,0 +1,17 @@
+@ sprog da
+-- Reviewer #53: exception labels and heads are distinct, in both languages.
+| rate(x) -> 25
+| exception reduced rate(x) -> 10 under x < 10
+# ExceptionPolicy(value: Int) {
+    | charge() -> 25
+    | exception reduced charge() -> 10 under value < 10
+}
+@ print(show(rate(5)))
+@ print(show(rate(50)))
+@ print(show(ExceptionPolicy(5).charge()))
+@ print(show(ExceptionPolicy(50).charge()))
+
+| sats(x: Int) -> 25
+| undtagelse reduceret sats(x: Int) -> 10 under x < 10
+@ print(show(sats(5)))
+@ print(show(sats(50)))

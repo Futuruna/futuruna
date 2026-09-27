@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: an exception needs a label
+-- expect-stderr-not: check.rs
+| rate(x) -> 25
+| exception rate(x) -> 10 under x < 10

@@ -22,12 +22,6 @@ phase-specific structural markers, use:
 ./scripts/expectations.sh
 ```
 
-For persisted-storage runtime coverage, use:
-
-```bash
-./scripts/storage-canary.sh
-```
-
 For the new-user project scaffold and first tutorial examples, use:
 
 ```bash
@@ -87,17 +81,11 @@ explicitly, and async runtime artifact expectations cover emitted Rust shapes
 that the generic lanes intentionally skip.
 
 - `tests/canary/extended/`
-Heavier authored programs for JSON, DB, HTTP, WASM, regex, or import-heavy
+Heavier authored programs for JSON, HTTP, WASM, regex, or import-heavy
 flows.
 
 - `tests/canary/regressions/`
 Broader authored workflows distilled from user bug classes.
-
-- `tests/canary/storage/`
-Persisted SQLite-backed runtime canaries. This tier has a dedicated script
-because it runs from a temporary directory with `CARGO_NET_OFFLINE=true` and one
-fixture is intentionally expected to fail so a follow-up fixture can verify
-rollback state.
 
 - `tests/canary/interop/`
 Rust-facing integration fixtures. These use a dedicated script because the
@@ -147,22 +135,6 @@ use constructs the generic runners intentionally exclude, such as live
 for the stable stateful surface; the required evidence is compiled execution,
 stateful canary invariants, stream lifetime diagnostics, and emitted-Rust
 artifact expectations under `tests/expect/artifact/`.
-
-## Storage Runtime Lane
-
-`./scripts/storage-canary.sh` is the blocking lane for persisted transaction
-runtime behavior. It runs compiled fixtures from `tests/canary/storage/` in a
-temporary working directory so generated `.runa-build/` projects and SQLite
-databases do not dirty the repository.
-
-The script sets `CARGO_NET_OFFLINE=true` by default. With the generated Cargo
-dependencies already present in the local Cargo cache, this proves the runtime
-canary does not rely on ambient network access. The lane checks:
-
-- committed persisted writes are visible after a transactional `| scope`
-- nested persisted scopes use savepoint/release behavior
-- a failing scope rolls back its persisted write
-- the rollback proof is read back through a separate compiled Futuruna program
 
 ## Downstream Consumer Lane
 

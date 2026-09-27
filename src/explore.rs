@@ -3109,77 +3109,15 @@ fn collect_ground_bindings(
     }
 }
 
-fn ground_declaration_identity(statement: &Stmt) -> Option<(String, String, String)> {
-    match statement {
-        Stmt::Defn(definition) => {
-            let name = match definition {
-                Defn::Fn { name, .. } | Defn::Actor { name, .. } | Defn::Module { name, .. } => {
-                    name
-                }
-            };
-            Some((
-                "definition".to_string(),
-                name.clone(),
-                content_hash_defn(definition),
-            ))
-        }
-        Stmt::TypeDecl(declaration) => {
-            let (kind, name) = match declaration {
-                TypeDecl::ADT { name, .. } => ("adt", name),
-                TypeDecl::WhenType { name, .. } => ("when", name),
-                TypeDecl::EffectDecl { name, .. } => ("effect", name),
-                TypeDecl::TraitDecl { name, .. } => ("trait", name),
-                TypeDecl::ImplBlock {
-                    trait_name,
-                    for_type,
-                    ..
-                } => {
-                    return Some((
-                        "impl".to_string(),
-                        format!("{} for {}", trait_name, for_type),
-                        content_hash_type(declaration),
-                    ));
-                }
-                TypeDecl::RuleScope { name, .. } => ("rule-scope", name),
-            };
-            Some((
-                kind.to_string(),
-                name.clone(),
-                content_hash_type(declaration),
-            ))
-        }
-        _ => None,
-    }
-}
-
-fn standard_prelude_declaration_identities() -> Vec<(String, String, String)> {
-    parse_prelude()
-        .iter()
-        .filter_map(ground_declaration_identity)
-        .collect()
-}
-
 fn leading_injected_prelude_indices(statements: &[&Stmt], origin: &str) -> BTreeSet<usize> {
     if origin != "<root>" {
         return BTreeSet::new();
     }
-    let prelude = standard_prelude_declaration_identities();
-    let mut cursor = 0;
-    let mut indices = BTreeSet::new();
-    for (index, statement) in statements.iter().copied().enumerate() {
-        let Some(identity) = ground_declaration_identity(statement) else {
-            break;
-        };
-        let Some(relative) = prelude[cursor..]
-            .iter()
-            .position(|candidate| candidate == &identity)
-        else {
-            break;
-        };
-        cursor += relative + 1;
-        indices.insert(index);
-    }
-    indices
+    statements
+        .iter()
+        .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+        .map(|boundary| (0..=boundary).collect())
+        .unwrap_or_default()
 }
 
 fn collect_ground_bindings_inner(
@@ -5599,6 +5537,27 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
+        let statements = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let injected = prepend_prelude(parse_prelude(), &statements);
+        let repeated = prepend_prelude(parse_prelude(), &injected);
+        for program in [&injected, &repeated] {
+            collect_ground_bindings(program, Some(&directory.to_string_lossy()))
+                .expect("injected prelude must preserve the import prefix");
+        }
+        let mut authored = parse_prelude();
+        authored.extend(statements);
+        let failure = collect_ground_bindings(&authored, Some(&directory.to_string_lossy()))
+            .err()
+            .expect("authored declarations cannot masquerade as injected prelude");
+        assert!(
+            failure
+                .iter()
+                .any(|error| error.contains("appears after a local declaration")),
+            "{failure:?}"
+        );
+
         let query = &artifacts.exploration_universes[0];
         let ExploreSourceBindingKindIr::Finite {
             domain: ExploreFiniteDomainIr::Exact(ExploreExactDomain::FiniteType { plan, .. }),

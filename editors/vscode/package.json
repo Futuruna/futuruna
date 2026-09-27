@@ -46,5 +46,12 @@
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.cjs"
+  },
+  "devDependencies": {
+    "vscode-oniguruma": "1.7.0",
+    "vscode-textmate": "9.2.0"
   }
 }

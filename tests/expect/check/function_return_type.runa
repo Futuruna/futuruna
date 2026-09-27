@@ -1,0 +1,5 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: return type mismatch: function `bad` expects `Int` but expression has `String`
+
+> bad(value: Int) -> Int { "wrong" }

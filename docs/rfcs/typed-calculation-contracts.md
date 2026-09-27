@@ -231,21 +231,27 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v9`. It retains complete `_tables` and
-`_columns` metadata, uses `_sheets` and materializes only collections reached
-through selected alternatives and existing parent items. Reachable empty
+`futuruna.calculate.xlsx.input.v9`. Version 9 adds per-case readiness and
+retains version 8's encoding of empty strings as `""` and strings beginning
+with a quotation mark as JSON string literals in text cells and map keys.
+Other text remains literal. Blank cells remain missing or null, and malformed
+quoted strings invalidate the affected case. Versions 6 and 7 retain
+literal-text decoding; version 8 retains quoted-text decoding. Refresh older
+workbooks to version 9, then review their draft cases before marking them ready.
+Older binaries reject version 9 instead of ignoring readiness.
+
+The workbook retains complete `_tables` and `_columns` metadata, uses
+`_sheets` and materializes only collections reached through selected alternatives
+and existing parent items. Reachable empty
 collections retain an entry sheet. The manifest must contain unique, sorted,
 canonical sheet names with their parents present. Declared missing sheets and
 unlisted input sheets are errors. A case that activates an omitted sheet must
 refresh its template before invocation; other valid cases may still run.
 The `input_status` column follows `case_id`; only explicitly ready cases run.
-String cells distinguish intentional empty text (`""`) from absent cells.
-Text starting with a double quote uses JSON string quoting, including collection
-values and map keys. Complete v6/v7/v8 workbooks remain readable for refresh,
-with unmarked cases becoming draft. Older binaries cannot read v9 workbooks. Every input worksheet
-has a validated visible calculation title, human-readable fallback headers and
-canonical paths in header notes. Pre-v6 workbooks are rejected rather than
-silently interpreting their older topology or payload encoding.
+Every input worksheet has a validated visible calculation title, human-readable
+fallback headers and canonical paths in header notes. Pre-v6 workbooks are
+rejected rather than silently interpreting their older topology or payload
+encoding.
 
 Version 6 and 7 string cells retain their literal text interpretation when read;
 version 8 and 9 decode JSON-quoted string cells. Refresh preserves the decoded

@@ -1,0 +1,5 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stderr: unsupported operands for operator `<`
+
+@ print(show(1 < "a"))

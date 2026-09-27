@@ -8,9 +8,7 @@ Target shape:
 - `core`: 15 blocking canaries with interpreter, compiled, codegen, and roundtrip parity
 - `stateful`: 10 canaries for subjects, actors, lifecycle, and effectful workflows
   (7 implemented, including one adversarial cross-surface workflow)
-- `extended`: 10 canaries for JSON, regex, DB, HTTP, WASM, and import-heavy programs
-- `storage`: dedicated persisted-storage runtime canaries for compiled SQLite
-  behavior that needs isolated temp databases
+- `extended`: 10 canaries for JSON, regex, HTTP, WASM, and import-heavy programs
 - `interop`: dedicated Rust-facing library consumer canaries for `runa lib`
   output and Cargo integration
 - `from-rust-downstream`: dedicated Rust-to-Futuruna differential canaries that
@@ -44,7 +42,6 @@ Target shape:
 | `tests/canary/stateful/stateful_adversarial_workflow_test.runa` | `stateful` | subjects, scoped derived streams, teardown, effect handlers, actor-backed audit state, deterministic adversarial invariants |
 | `tests/canary/extended/json_report_pipeline_test.runa` | `extended` | JSON parse/build, nested arrays, list/map/set aggregation, deterministic report emission |
 | `tests/canary/extended/regex_classifier_test.runa` | `extended` | regex matching, extraction, replacement, tag collection, deterministic triage summaries |
-| `tests/canary/extended/db_reconciliation_test.runa` | `extended` | SQLite-backed ingest, reconciliation, deterministic query/report summaries |
 | `tests/canary/extended/http_handler_contract_test.runa` | `extended` | request routing, response shaping, deterministic handler contract summaries |
 | `tests/canary/extended/import_mesh_test.runa` | `extended` | transitive flat imports, qualified imports, content-addressed imports, deterministic cross-module summaries |
 | `tests/canary/extended/wasm_export_surface_test.runa` | `extended` | WASM-facing exported primitive/string/list-numeric/option functions, private helpers, zero-arg exports |
@@ -75,9 +72,6 @@ Target shape:
 | `tests/from-rust/downstream/unsupported/external_module_declaration.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for Rust `mod` declarations outside the flat single-file FRSS-v0 boundary |
 | `tests/from-rust/downstream/unsupported/unsupported_expr_fallback.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for Rust expression statements with no checked lowering |
 | `tests/from-rust/downstream/unsupported/unsupported_item_union.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for top-level Rust items outside the checked item subset |
-| `tests/canary/storage/persist_tx_commit_savepoint_test.runa` | `storage` | compiled persisted transaction commit plus nested savepoint release |
-| `tests/canary/storage/persist_tx_rollback_fail_test.runa` | `storage` | intentionally failing transactional scope used to prove rollback through a follow-up fixture |
-| `tests/canary/storage/persist_tx_rollback_check_test.runa` | `storage` | compiled persisted readback proving rollback left only the committed baseline row |
 
 ## Planned Next
 

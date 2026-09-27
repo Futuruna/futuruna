@@ -1,4 +1,3 @@
--- roundtrip-skip: negation-as-failure semantic difference
 -- Prolog test 3: negation, findall, wildcards
 -- Complete Datalog+ logic programming in Futuruna
 
@@ -32,6 +31,8 @@
 
 = t2 = childless("bob")
 @ print("childless(bob) = " + show(t2))
+assert(t1)
+assert(not(t2))
 
 -- === FINDALL: collect all solutions ===
 

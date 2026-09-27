@@ -1,0 +1,16 @@
+# Input(year: Int)
+# Amount(value: Int)
+| partial(input: Input) -> Amount(7) under input.year >= 2026
+| result(input: Input) -> 0
+| exception reform result(input: Input) -> partial(input).value under input.year >= 2026
+| pre_reform(input: Input) -> Amount(3) under input.year < 2026
+| before(input: Input) -> 0
+| exception old before(input: Input) -> pre_reform(input).value under input.year < 2026
+| second(first: Input, selected: Input) -> Amount(9) under selected.year >= 2026
+| reordered(selected: Input, other: Input) -> 0
+| exception chosen reordered(selected: Input, other: Input) -> second(other, selected).value under selected.year >= 2026
+@ print(show(result(Input(2025))))
+@ print(show(result(Input(2026))))
+@ print(show(before(Input(2025))))
+@ print(show(before(Input(2026))))
+@ print(show(reordered(Input(2026), Input(2020))))

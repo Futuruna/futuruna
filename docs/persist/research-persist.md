@@ -1,5 +1,11 @@
 # Futuruna Persist: The Database That Falls Out of the Language
 
+> Historical design research. The language-level database feature was removed
+> for 0.2.3. The syntax, implementation claims, proposed commands and milestones
+> below describe the retired experiment, not current Futuruna behavior or a
+> committed roadmap. Kept at this path to preserve design references.
+> See [the removal and migration guidance](../compatibility-guides/0.2.x.md#database-feature-removal).
+
 ## The Observation
 
 Futuruna already contains every concept a database needs. No new runes are required. The mapping is structural, not metaphorical:

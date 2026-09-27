@@ -1,0 +1,22 @@
+# TODO
+-- ordinary comment
+---- literal source: // /* */ \+ 1_000_000 'hello' ----
+> names(return: Int, when: Int, where: Int, elif: Int, let: Int) -> Int {
+    return + when + where + elif + let
+}
+= remainder = 25 %
+    7
+@ print(show(names(1, 2, 3, 4, 5)))
+@ print(show(remainder))
+@ print(show(12 / 3))
+@ print("Hello {name}")
+@ print("10" + 5)
+= name = "Ada"
+@ print("""Hello {{name}}""")
+= character = 'ø'
+@ print(show(character == 'ø'))
+| positive(x: Int) -> x > 0
+| accepted(x: Int) -> positive(x), x < 10
+@ print(show(accepted(5)))
+| negative: -1 -> True
+@ print(show((1, 2).0))

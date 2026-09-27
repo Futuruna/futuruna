@@ -7,7 +7,7 @@
 -- DEMO 1: In-place mutation via inout (zero-copy)
 -- ============================================================================
 
-> push_squares(xs: inout Vec(Int), n: Int) -> () {
+> push_squares(xs: inout List(Int), n: Int) -> () {
     for i in range(0, n) {
         push(xs, i * i)
     }
@@ -28,7 +28,7 @@ push_squares(data, 5)
 @ print("=== Demo 2: Function-Level Accumulators ===")
 @ print("")
 
-> sum_list(xs: Vec(Int)) -> Int {
+> sum_list(xs: List(Int)) -> Int {
     = total = 0
     for x in xs {
         = total = total + x
@@ -36,7 +36,7 @@ push_squares(data, 5)
     total
 }
 
-> product_list(xs: Vec(Int)) -> Int {
+> product_list(xs: List(Int)) -> Int {
     = product = 1
     for x in xs {
         = product = product * x
@@ -44,10 +44,10 @@ push_squares(data, 5)
     product
 }
 
-> count_positive(xs: Vec(Int)) -> Int {
+> count_positive(xs: List(Int)) -> Int {
     = count = 0
     for x in xs {
-        if x > 0 { = count = count + 1 }
+        = count = count + (if x > 0 { 1 } else { 0 })
     }
     count
 }
@@ -57,7 +57,10 @@ push_squares(data, 5)
 @ print("  product(1..10) = " + show(product_list(nums)))
 
 = mixed = [3, -1, 4, -1, 5, 9, -2, 6]
-@ print("  positives in [3,-1,4,-1,5,9,-2,6] = " + show(count_positive(mixed)))
+= positive_count = count_positive(mixed)
+| positives_counted: positive_count -> positive_count == 5
+? positives_counted
+@ print("  positives in [3,-1,4,-1,5,9,-2,6] = " + show(positive_count))
 @ print("")
 
 -- ============================================================================
@@ -67,7 +70,7 @@ push_squares(data, 5)
 @ print("=== Demo 3: Move Semantics (zero clones) ===")
 @ print("")
 
-> double_all(xs: Vec(Int)) -> Vec(Int) {
+> double_all(xs: List(Int)) -> List(Int) {
     map(xs, |x: Int| x * 2)
 }
 
@@ -84,7 +87,7 @@ push_squares(data, 5)
 @ print("=== Demo 4: Borrow Inference (&T for read-only) ===")
 @ print("")
 
-> list_length(xs: Vec(Int)) -> Int {
+> list_length(xs: List(Int)) -> Int {
     = count = 0
     for x in xs {
         = count = count + 1
@@ -92,7 +95,7 @@ push_squares(data, 5)
     count
 }
 
-> first_element(xs: Vec(Int)) -> Int {
+> first_element(xs: List(Int)) -> Int {
     xs[0]
 }
 
