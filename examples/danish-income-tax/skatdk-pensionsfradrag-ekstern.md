@@ -2,20 +2,16 @@
 
 Den 25. september 2026 viste otte **fiktive** beregninger hos Skattestyrelsen,
 at det ekstra pensionsfradrag oprundes til hele kroner i de undersøgte
-2025- og 2026-tilfælde. Futuruna afrundede tidligere til nærmeste krone.
-Et privat ratebidrag på 40.001 kr. gav derfor 4.800 kr. i modellen, men
-4.801 kr. hos SKAT. Den forskel blev reproduceret gennem `runa call` før
-rettelsen, ikke kun i en isoleret procentformel.
+2025- og 2026-tilfælde.
 
-Modellen bruger nu oprunding af det **samlede grundlag efter modregning og
-loft**. Den afrunder ikke hver pensionspost for sig. Satser, pensionsalder,
-fradragsret og lofter ændres ikke.
+Modellen oprunder fradraget fra det **samlede grundlag efter modregning og
+loft**. Den afrunder ikke hver pensionspost for sig.
 
 ## Kilder og fiktive fakta
 
 - [Ligningslovens § 9 L](https://www.retsinformation.dk/eli/lta/2025/1500)
   fastlægger grundlag, modregning, satser og henvisningen til årets regulering.
-  Lovcitatet i [modellen](ligningsloven_fradrag.runa) er bevaret.
+  Lovcitatet findes i [modellen](ligningsloven_fradrag.runa).
 - [SKATs vejledning om ekstra pensionsfradrag](https://skat.dk/borger/fradrag/ekstra-pensionsfradrag)
   beskriver 12/32-procentsatserne og grundlaget. Den er ikke her anvendt som
   dokumentation for en lovbestemt helkroneafrunding.
@@ -74,9 +70,8 @@ at forskellen indgår i beregningen og ikke blot er visningsafrunding.
 aflæste fradrag. Det kontrollerer også seks **afledte modelkanter**: nul,
 samlet afrunding af flere bidrag, modregning før afrunding, intet negativt
 fradrag og årets loft på og lige over grænsen. Disse seks er ikke yderligere
-observationer hos SKAT. Eksisterende scenarier for pensionsalder, ugyldig dato,
-historiske satser, udbetalingsundtagelse og kombination med seniorfradrag
-bevares.
+observationer hos SKAT. Scenarierne dækker også pensionsalder, ugyldig dato,
+historiske satser, udbetalingsundtagelse og kombination med seniorfradrag.
 
 Den [kanoniske integrationstest](../../tests/personskat_pension_timing.rs)
 kontrollerer fem af tilfældene frem til samlet skat i øre: 2025-bidraget på
@@ -109,7 +104,7 @@ rateobservationer her må ikke bruges som bevis for arbejdsgiverkonformitet.
 De tre kendte 2026-afvigelser for **arbejdsfradrag**
 i [den særskilte kontrol](skatdk-fradrag-oere-ekstern.md) er ikke løst her.
 
-Inputtyper ændres ikke. Genberegn berørte resultater fra de samme kildefakta;
+Genberegn berørte resultater fra de samme kildefakta;
 ret ikke indbetalinger eller andre fakta for at udligne en forskel. Et
-fradrag kan stige med én krone, hvilket ikke er det samme som én krone mindre
-skat. Modellen er forskningssoftware, ikke individuel skatterådgivning.
+fradrag på én krone er ikke det samme som én krone mindre skat.
+Modellen er forskningssoftware, ikke individuel skatterådgivning.

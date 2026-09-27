@@ -19,7 +19,7 @@ bankbetalinger ikke tilstrækkelig til at udfylde alle felterne:
 | `frivillig_indbetaling_par59` | Faktisk frivillig indbetaling, men kun det godskrevne skattebeløb efter eventuel indeholdt § 59-rente. |
 | `tilbagebetalt_par55` | Tilbagebetalt foreløbig skat efter § 55, som modellen fratrækker én gang. |
 
-Feltnavnene `b_skat_betalt_*` og `par68_indbetalt_*` er historiske maskinnøgler,
+Feltnavnene `b_skat_betalt_*` og `par68_indbetalt_*` er maskinnøgler,
 ikke en regel om kun at medregne kontant betaling. Sondringen mellem pålignet
 B-skat og restskat ses også i
 [denne offentliggjorte henstandsafgørelse](https://info.skat.dk/data.aspx?oid=2459943).
@@ -75,7 +75,7 @@ for komplette linjer og afstemningskontroller.
 
 De rå kreditfelter er **ikke-negative bruttobeløb**. § 55-feltet angiver også
 tilbagebetalingens størrelse uden minus; modellen foretager fradraget efter
-§ 60, stk. 3. Et negativt felt tilbageholder nu den kanoniske sammenligning
+§ 60, stk. 3. Et negativt felt tilbageholder den kanoniske sammenligning
 med en fejl ved `årsopgørelse.kreditter`, også i den ældre hele-kroneindgang.
 Kontrollen tilhører `kontrolgrundlag.beregning`, ikke den senere betalingsfase.
 
@@ -87,9 +87,7 @@ Et negativt forskelsbeløb fra en rettelse er heller ikke en ny årstotal;
 brug det dokumenterede korrigerede grundlag eller afklar korrektionsforløbet.
 
 Dette er inputkonventionen for disse felter, ikke et generelt forbud mod
-negative indkomster eller korrektioner. En negativ § 55-værdi vendte tidligere
-fradraget til ekstra kredit: -1.000 kr. gav 2.000 kr. mindre restskat end en
-korrekt oplyst tilbagebetaling på 1.000 kr. Rå tal bevares som diagnostik ved
+negative indkomster eller korrektioner. Rå tal bevares som diagnostik ved
 afvisningen; modellen tager ikke absolut værdi og omskriver ikke kilderne.
 
 Fortegnskontrollen beviser ikke kreditternes størrelse, indkomstår eller
@@ -107,9 +105,8 @@ ikke alene afgøre, hvor beløbet hører til.
 
 I [kildemappingen](personskat-aarsopgoerelse-kildemapping.runa) kræver
 `personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje)`
-derfor nu afgørelse/betalingsopgørelse og afklaring af hjemmel og år. Den
-tidligere direkte mapping til § 55 var forkert. Hverken positivt beløb,
-minus, nul eller en bestemt linjeetiket ophæver afklaringskravet.
+derfor afgørelse/betalingsopgørelse og afklaring af hjemmel og år. Hverken
+positivt beløb, minus, nul eller en bestemt linjeetiket ophæver afklaringskravet.
 
 Når kilden faktisk dokumenterer § 55-forskudsskat, kan man bruge
 `personskat_aarsopgoerelse_kortlaeg_tilbagebetalt_forskudsskat_par55(linje, indkomstår)`.
@@ -134,10 +131,10 @@ Den [eksekverbare regression](../../tests/personskat_refund_mapping_test.runa)
 bevarer sondringen med fiktive linjer. Typede `Source`/`Warning`-metadata
 knytter lovgrundlag og forbehold til begge hjælpere, så `runa meta --json`
 kan følge dem. Den kanoniske `@ calculate`-kontrakt importerer ikke denne
-mappingfil: dette er en rettelse af en interviewhjælper, ikke automatisk
-PDF-læsning eller en ny kontrol af ethvert indsendt kreditbeløb.
+mappingfil: den understøtter interviewet, ikke automatisk PDF-læsning
+eller kontrol af ethvert indsendt kreditbeløb.
 
-## Fiktivt eksempel på fejlen
+## Fiktivt eksempel
 
 Den [fokuserede regression](../../tests/tax_credit_input.test.mjs) bruger en
 fiktiv almindelig 2025-profil med 600.000 kr. i løn. Den eksisterende models
@@ -166,8 +163,6 @@ Spørgsmål, hjælp, enheder og kilder er knyttet til de to kredittyper med
 typede meta-ankre. Vejledningen følger derfor typerne gennem indlejrede input,
 ikke kun ét hårdkodet felt i Personskat.
 
-Vejledningen og den efterfølgende fortegnskontrol bevarer skatteformler,
-inputtyper og maskinnøgler. Negative bruttobeløb accepteres ikke længere som
-grundlag for sammenligning. Metadata indgår i kontrakthashen, så generér frisk schema/skabelon.
+Metadata indgår i kontrakthashen, så generér frisk schema/skabelon.
 Gennemgå eksisterende kreditbeløb mod deres kilder før overførsel. Ret ikke
 beløb for at få et bestemt resultat, og genbrug ikke eksemplets opdigtede fakta.

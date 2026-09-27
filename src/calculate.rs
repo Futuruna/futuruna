@@ -24,7 +24,8 @@ thread_local! {
 }
 
 pub const CONTRACT_SCHEMA: &str = "futuruna.calculate.v1";
-pub const INPUT_SCHEMA: &str = "futuruna.calculate.input.v1";
+pub const INPUT_SCHEMA: &str = "futuruna.calculate.input.v2";
+pub const LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.input.v1";
 pub const OUTPUT_SCHEMA: &str = "futuruna.calculate.output.v1";
 const CALCULATION_WORKER_STACK_BYTES: usize = 64 * 1024 * 1024;
 const DEFAULT_MAX_CALCULATION_WORKERS: usize = 8;
@@ -191,6 +192,7 @@ impl CalculationContract {
             },
             cases: vec![CalculationInputCase {
                 case_id: "case-1".to_string(),
+                input_status: Some(CalculationInputStatus::Draft),
                 input: template_value(&self.input, self, &BTreeMap::new(), &mut BTreeSet::new()),
             }],
         }
@@ -289,7 +291,30 @@ pub struct CalculationEnvelopeMetadata {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalculationInputCase {
     pub case_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_status: Option<CalculationInputStatus>,
     pub input: JsonValue,
+}
+
+/// An explicit input-review acknowledgement, not document authentication
+/// or a statement about the correctness of the model or its result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationInputStatus {
+    Draft,
+    Ready,
+}
+
+impl CalculationInputCase {
+    fn readiness_diagnostic(&self, index: usize) -> Option<CalculationCaseDiagnostic> {
+        (self.input_status != Some(CalculationInputStatus::Ready)).then(|| {
+            CalculationCaseDiagnostic {
+                case_id: self.case_id.clone(),
+                path: format!("$.cases[{index}].input_status"),
+                message: "case inputs are not marked ready; review all supplied values, including zeros, empty collections and optional facts, then set input_status to `ready`. Readiness is not verification of documents or model correctness".to_string(),
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4179,13 +4204,13 @@ pub fn validate_input_envelope(
     envelope: &CalculationInputEnvelope,
 ) -> Result<(), Vec<CalculationCaseDiagnostic>> {
     let mut diagnostics = Vec::new();
-    if envelope.futuruna.schema != INPUT_SCHEMA {
+    if envelope.futuruna.schema != INPUT_SCHEMA && envelope.futuruna.schema != LEGACY_INPUT_SCHEMA {
         diagnostics.push(CalculationCaseDiagnostic {
             case_id: String::new(),
             path: "$.$futuruna.schema".to_string(),
             message: format!(
-                "unsupported input schema `{}`; expected `{}`",
-                envelope.futuruna.schema, INPUT_SCHEMA
+                "unsupported input schema `{}`; expected `{}` or `{}`",
+                envelope.futuruna.schema, INPUT_SCHEMA, LEGACY_INPUT_SCHEMA
             ),
         });
     }
@@ -4444,29 +4469,32 @@ fn calculation_worker_count(case_count: usize, requested_jobs: Option<usize>) ->
 fn invoke_calculation_case_stride(
     worker: &mut CalculationWorker,
     contract: &CalculationContract,
-    cases: &[CalculationInputCase],
+    cases: &[(usize, &CalculationInputCase)],
     start: usize,
     step: usize,
 ) -> Vec<(usize, CalculationCaseOutcome)> {
     (start..cases.len())
         .step_by(step)
-        .map(|index| (index, worker.invoke(contract, &cases[index])))
+        .map(|position| {
+            let (index, case) = cases[position];
+            (index, worker.invoke(contract, case))
+        })
         .collect()
 }
 
 fn invoke_calculation_case_queue(
     worker: &mut CalculationWorker,
     contract: &CalculationContract,
-    cases: &[CalculationInputCase],
+    cases: &[(usize, &CalculationInputCase)],
     next_case: &AtomicUsize,
 ) -> Vec<(usize, CalculationCaseOutcome)> {
     let mut outcomes = Vec::new();
     loop {
         let index = next_case.fetch_add(1, Ordering::Relaxed);
-        let Some(case) = cases.get(index) else {
+        let Some((original_index, case)) = cases.get(index) else {
             return outcomes;
         };
-        outcomes.push((index, worker.invoke(contract, case)));
+        outcomes.push((*original_index, worker.invoke(contract, case)));
     }
 }
 
@@ -4478,7 +4506,6 @@ fn invoke_calculation_cases_with_jobs(
     requested_jobs: Option<usize>,
 ) -> CalculationOutputEnvelope {
     let started = Instant::now();
-    let worker_count = calculation_worker_count(envelope.cases.len(), requested_jobs);
     let mut output = CalculationOutputEnvelope {
         futuruna: CalculationEnvelopeMetadata {
             schema: OUTPUT_SCHEMA.to_string(),
@@ -4492,7 +4519,29 @@ fn invoke_calculation_cases_with_jobs(
         output.diagnostics = diagnostics;
         return output;
     }
+    // Do not initialize an interpreter for an entirely unfinished batch. A
+    // draft in a mixed batch also never enters a calculation worker.
+    let mut readiness_outcomes = Vec::new();
+    let cases: Vec<_> = envelope
+        .cases
+        .iter()
+        .enumerate()
+        .filter_map(|(index, case)| {
+            if let Some(diagnostic) = case.readiness_diagnostic(index) {
+                readiness_outcomes.push((index, CalculationCaseOutcome::Diagnostic(diagnostic)));
+                None
+            } else {
+                Some((index, case))
+            }
+        })
+        .collect();
+    let worker_count = calculation_worker_count(cases.len(), requested_jobs);
     if worker_count == 0 {
+        for (_, outcome) in readiness_outcomes {
+            if let CalculationCaseOutcome::Diagnostic(diagnostic) = outcome {
+                output.diagnostics.push(diagnostic);
+            }
+        }
         return output;
     }
 
@@ -4516,7 +4565,7 @@ fn invoke_calculation_cases_with_jobs(
     );
     let initialized_after = started.elapsed();
     let mut outcomes = if worker_count == 1 {
-        invoke_calculation_case_stride(&mut primary, contract, &envelope.cases, 0, 1)
+        invoke_calculation_case_stride(&mut primary, contract, &cases, 0, 1)
     } else {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -4524,6 +4573,7 @@ fn invoke_calculation_cases_with_jobs(
             let rule_dispatch_return_types = &rule_dispatch_return_types;
             let rule_dispatch_return_issues = &rule_dispatch_return_issues;
             let rule_dispatch_runtime_boolean_miss_keys = &rule_dispatch_runtime_boolean_miss_keys;
+            let cases = &cases;
             std::thread::scope(|scope| {
                 let mut handles = Vec::with_capacity(worker_count - 1);
                 for worker_index in 1..worker_count {
@@ -4545,19 +4595,15 @@ fn invoke_calculation_cases_with_jobs(
                                 invoke_calculation_case_queue(
                                     &mut worker,
                                     contract,
-                                    &envelope.cases,
+                                    cases,
                                     next_case,
                                 )
                             })
                             .expect("start calculation worker"),
                     );
                 }
-                let mut outcomes = invoke_calculation_case_queue(
-                    &mut primary,
-                    contract,
-                    &envelope.cases,
-                    &next_case,
-                );
+                let mut outcomes =
+                    invoke_calculation_case_queue(&mut primary, contract, cases, &next_case);
                 for handle in handles {
                     outcomes.extend(handle.join().expect("calculation worker panicked"));
                 }
@@ -4570,6 +4616,7 @@ fn invoke_calculation_cases_with_jobs(
         }
     };
 
+    outcomes.extend(readiness_outcomes);
     outcomes.sort_by_key(|(index, _)| *index);
     for (_, outcome) in outcomes {
         match outcome {
@@ -4636,6 +4683,7 @@ mod calculation_execution_tests {
                 .enumerate()
                 .map(|(index, input)| CalculationInputCase {
                     case_id: format!("case-{index}"),
+                    input_status: Some(CalculationInputStatus::Ready),
                     input,
                 })
                 .collect(),
@@ -5230,6 +5278,7 @@ mod calculation_execution_tests {
         let cases = (0..12)
             .map(|index| CalculationInputCase {
                 case_id: format!("case-{index:02}"),
+                input_status: Some(CalculationInputStatus::Ready),
                 input: if index == 7 {
                     serde_json::json!({"value": "invalid"})
                 } else {
@@ -5246,6 +5295,98 @@ mod calculation_execution_tests {
             cases,
         };
         (stmts, contract, envelope)
+    }
+
+    #[test]
+    fn generated_calculation_cases_require_explicit_readiness() {
+        let source = r#"
+# Intake(amount: Int, items: List(Int), optional: Int?, enabled: Bool)
+@ calculate
+> echo(input: Intake) -> Intake { input }
+"#;
+        let facts =
+            serde_json::json!({"amount": 0, "items": [], "optional": null, "enabled": false});
+        let (stmts, contract, _) = runtime_failure_fixture(source, vec![facts.clone()]);
+        let mut template = contract.template_envelope();
+        assert_eq!(template.futuruna.schema, "futuruna.calculate.input.v2");
+        assert_eq!(
+            template.cases[0].input_status,
+            Some(CalculationInputStatus::Draft)
+        );
+        assert_eq!(template.cases[0].input, facts);
+        let draft = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &template, Some(1));
+        assert!(draft.results.is_empty());
+        assert_eq!(draft.diagnostics.len(), 1);
+        assert_eq!(draft.diagnostics[0].path, "$.cases[0].input_status");
+        assert!(draft.diagnostics[0]
+            .message
+            .contains("zeros, empty collections"));
+
+        template.cases[0].input_status = Some(CalculationInputStatus::Ready);
+        let ready = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &template, Some(1));
+        assert!(ready.diagnostics.is_empty(), "{:?}", ready.diagnostics);
+        assert_eq!(ready.results[0].result, facts);
+
+        for schema in [INPUT_SCHEMA, LEGACY_INPUT_SCHEMA] {
+            template.futuruna.schema = schema.to_string();
+            template.cases[0].input_status = None;
+            let missing =
+                invoke_calculation_cases_with_jobs(&contract, &stmts, None, &template, Some(1));
+            assert!(missing.results.is_empty());
+            assert_eq!(missing.diagnostics[0].path, "$.cases[0].input_status");
+        }
+    }
+
+    #[test]
+    fn calculation_readiness_precedes_required_runtime_initialization() {
+        let (statements, contract, mut envelope) = runtime_failure_fixture(
+            "# Input(value: Int)\n= parameter = 7 / 0\n@ calculate\n> calculate(input: Input) -> Int { parameter + input.value }\n",
+            vec![serde_json::json!({"value": 1}), serde_json::json!({"value": 2})],
+        );
+        envelope.cases[0].input_status = Some(CalculationInputStatus::Draft);
+        envelope.cases[1].input_status = None;
+        let draft =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(2));
+        assert!(draft.results.is_empty());
+        assert_eq!(draft.diagnostics.len(), 2);
+        assert!(draft
+            .diagnostics
+            .iter()
+            .all(|case| case.message.contains("not marked ready")));
+
+        envelope.cases[1].input_status = Some(CalculationInputStatus::Ready);
+        let mixed =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(2));
+        assert!(mixed.results.is_empty());
+        assert_eq!(mixed.diagnostics.len(), 2);
+        assert!(mixed.diagnostics[0].message.contains("not marked ready"));
+        assert!(mixed.diagnostics[1]
+            .message
+            .contains("initialization failed"));
+    }
+
+    #[test]
+    fn calculation_readiness_keeps_mixed_batch_order_and_isolation() {
+        let (stmts, contract, mut envelope) = batch_fixture();
+        envelope.cases[1].input_status = Some(CalculationInputStatus::Draft);
+        envelope.cases[3].input_status = None;
+        let serial =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
+        let parallel =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(3));
+        assert_eq!(serial, parallel);
+        assert_eq!(serial.results.len(), 9);
+        assert_eq!(serial.results[0].result, serde_json::json!({"doubled": 0}));
+        assert_eq!(
+            serial
+                .diagnostics
+                .iter()
+                .map(|row| row.case_id.as_str())
+                .collect::<Vec<_>>(),
+            ["case-01", "case-03", "case-07"]
+        );
+        assert_eq!(serial.diagnostics[0].path, "$.cases[1].input_status");
+        assert_eq!(serial.diagnostics[1].path, "$.cases[3].input_status");
     }
 
     #[test]
@@ -5342,6 +5483,7 @@ mod calculation_execution_tests {
             },
             cases: vec![CalculationInputCase {
                 case_id: "miss".to_string(),
+                input_status: Some(CalculationInputStatus::Ready),
                 input: serde_json::json!({"value": 0}),
             }],
         };

@@ -1216,7 +1216,8 @@ fn print_explore_supervisor_operational_report(
     );
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v8";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v9";
+const CALCULATION_XLSX_QUOTED_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v8";
 const CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v7";
 const CALCULATION_XLSX_LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
@@ -2163,7 +2164,7 @@ fn read_calculation_template_input(
     path: &str,
 ) -> Result<calculate::CalculationInputEnvelope, String> {
     let format = calculation_format(None, Some(path), "json");
-    let envelope = match format.as_str() {
+    let mut envelope = match format.as_str() {
         "json" => read_calculation_json(path)?,
         "toml" => read_calculation_toml(path)?,
         "xlsx" => {
@@ -2199,7 +2200,7 @@ fn read_calculation_template_input(
             .join("; "));
     }
     let mut errors = Vec::new();
-    for case in &envelope.cases {
+    for case in &mut envelope.cases {
         if let Err(diagnostics) = contract.decode_input_diagnostics(&case.input) {
             errors.extend(
                 diagnostics.into_iter().map(|error| {
@@ -2207,10 +2208,13 @@ fn read_calculation_template_input(
                 }),
             );
         }
+        case.input_status
+            .get_or_insert(calculate::CalculationInputStatus::Draft);
     }
     if !errors.is_empty() {
         return Err(errors.join("; "));
     }
+    envelope.futuruna.schema = calculate::INPUT_SCHEMA.to_string();
     Ok(envelope)
 }
 
@@ -2630,13 +2634,22 @@ fn write_calculation_xlsx_cases(
     write_calculation_xlsx_title(
         worksheet,
         calculation_xlsx_entry_title(contract),
-        columns.len() as u16,
+        columns.len() as u16 + 1,
     )?;
     worksheet.set_active(true);
     worksheet.write_string_with_format(1, 0, "case_id", &header)?;
+    worksheet.write_string_with_format(1, 1, "input_status", &header)?;
+    worksheet.insert_note(
+        1,
+        1,
+        &rust_xlsxwriter::Note::new("Keep draft until you have reviewed all inputs for this case, including zeros, empty collections and optional facts on related sheets. Select ready only when the supplied facts are intentional. This does not verify documents or tax correctness. Review again after changing any inputs."),
+    )?;
+    let readiness_validation =
+        rust_xlsxwriter::DataValidation::new().allow_list_strings(&["draft", "ready"])?;
+    worksheet.add_data_validation(2, 1, 1000, 1, &readiness_validation)?;
     add_calculation_xlsx_entry_note(worksheet, contract)?;
     for (index, column) in columns.iter().enumerate() {
-        let excel_column = index as u16 + 1;
+        let excel_column = index as u16 + 2;
         worksheet.write_string_with_format(
             1,
             excel_column,
@@ -2648,12 +2661,22 @@ fn write_calculation_xlsx_cases(
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
     worksheet.set_column_width(0, 18)?;
-    worksheet.set_freeze_panes(2, 1)?;
-    worksheet.autofilter(1, 0, 1000, columns.len() as u16)?;
+    worksheet.set_column_width(1, 16)?;
+    worksheet.set_freeze_panes(2, 2)?;
+    worksheet.autofilter(1, 0, 1000, columns.len() as u16 + 1)?;
 
     for (index, case) in envelope.cases.iter().enumerate() {
         let row = index as u32 + 2;
         worksheet.write_string_with_format(row, 0, &case.case_id, &text_format)?;
+        worksheet.write_string_with_format(
+            row,
+            1,
+            match case.input_status {
+                Some(calculate::CalculationInputStatus::Ready) => "ready",
+                _ => "draft",
+            },
+            &text_format,
+        )?;
         for (index, column) in columns.iter().enumerate() {
             let value = if calculation_variant_guards_match(&case.input, &column.variant_guards) {
                 calculation_value_at_column_path(&case.input, &column.value_path)
@@ -2664,7 +2687,7 @@ fn write_calculation_xlsx_cases(
             write_calculation_xlsx_value(
                 worksheet,
                 row,
-                index as u16 + 1,
+                index as u16 + 2,
                 column,
                 value,
                 &text_format,
@@ -3371,9 +3394,10 @@ fn read_calculation_xlsx(
     }
     let schema = metadata.get("schema").map(String::as_str).unwrap_or("");
     let legacy = schema == CALCULATION_XLSX_LEGACY_INPUT_SCHEMA;
-    let quoted_strings = schema == CALCULATION_XLSX_INPUT_SCHEMA;
+    let has_readiness = schema == CALCULATION_XLSX_INPUT_SCHEMA;
+    let quoted_strings = has_readiness || schema == CALCULATION_XLSX_QUOTED_INPUT_SCHEMA;
     if !legacy && !quoted_strings && schema != CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA {
-        return Err(format!("workbook metadata `schema` is `{schema}`, expected `{CALCULATION_XLSX_INPUT_SCHEMA}`, `{CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA}` or `{CALCULATION_XLSX_LEGACY_INPUT_SCHEMA}`"));
+        return Err(format!("workbook metadata `schema` is `{schema}`, expected `{CALCULATION_XLSX_INPUT_SCHEMA}`, `{CALCULATION_XLSX_QUOTED_INPUT_SCHEMA}`, `{CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA}` or `{CALCULATION_XLSX_LEGACY_INPUT_SCHEMA}`"));
     }
     for (key, expected) in [
         ("contract_schema", calculate::CONTRACT_SCHEMA),
@@ -3451,6 +3475,7 @@ fn read_calculation_xlsx(
         .ok_or_else(|| "`cases` sheet has no header row".to_string())?;
     let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
     let expected_headers: Vec<String> = std::iter::once("case_id".to_string())
+        .chain(has_readiness.then(|| "input_status".to_string()))
         .chain(
             layout
                 .root_columns
@@ -3494,13 +3519,36 @@ fn read_calculation_xlsx(
         }
         let mut input = serde_json::Value::Object(serde_json::Map::new());
         let mut row_valid = true;
+        let input_status = if has_readiness {
+            match row.get(1).map(calculation_cell_text).as_deref() {
+                Some("ready") => Some(calculate::CalculationInputStatus::Ready),
+                Some("draft") => Some(calculate::CalculationInputStatus::Draft),
+                Some("") | None => None,
+                _ => {
+                    diagnostics.push(calculate::CalculationCaseDiagnostic {
+                        case_id: case_id.clone(),
+                        path: calculation_xlsx_cell_path("cases", 1, row_index + 3),
+                        message: "input_status must be draft or ready".to_string(),
+                    });
+                    row_valid = false;
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let input_offset = if has_readiness { 2 } else { 1 };
         for (index, column) in layout.root_columns.iter().enumerate() {
-            let cell = row.get(index + 1).unwrap_or(&Data::Empty);
+            let cell = row.get(index + input_offset).unwrap_or(&Data::Empty);
             if !calculation_variant_guards_match(&input, &column.variant_guards) {
                 if !matches!(cell, Data::Empty) {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
                         case_id: case_id.clone(),
-                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 3),
+                        path: calculation_xlsx_cell_path(
+                            "cases",
+                            index + input_offset,
+                            row_index + 3,
+                        ),
                         message: format!(
                             "input column is inactive unless {}",
                             calculation_variant_guards_description(&column.variant_guards)
@@ -3515,7 +3563,11 @@ fn read_calculation_xlsx(
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
                         case_id: case_id.clone(),
-                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 3),
+                        path: calculation_xlsx_cell_path(
+                            "cases",
+                            index + input_offset,
+                            row_index + 3,
+                        ),
                         message,
                     });
                     row_valid = false;
@@ -3534,7 +3586,11 @@ fn read_calculation_xlsx(
             }
         }
         if row_valid {
-            cases.push(calculate::CalculationInputCase { case_id, input });
+            cases.push(calculate::CalculationInputCase {
+                case_id,
+                input_status,
+                input,
+            });
         }
     }
 
@@ -3543,25 +3599,33 @@ fn read_calculation_xlsx(
     let mut item_ids_by_table: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
     for table in &layout.collection_tables {
         if !materialized.contains(&table.sheet) {
-            if !hydrate {
-                let active_cases: BTreeSet<String> = match &table.parent_path {
-                    None => cases
-                        .iter()
-                        .filter(|case| {
-                            calculation_variant_guards_match(&case.input, &table.variant_guards)
-                        })
-                        .map(|case| case.case_id.clone())
-                        .collect(),
-                    Some(parent) => collection_rows
-                        .get(parent)
-                        .into_iter()
-                        .flatten()
-                        .filter(|row| {
-                            calculation_variant_guards_match(&row.value, &table.variant_guards)
-                        })
-                        .map(|row| row.case_id.clone())
-                        .collect(),
-                };
+            let active_cases: BTreeSet<String> = match &table.parent_path {
+                None => cases
+                    .iter()
+                    .filter(|case| {
+                        calculation_variant_guards_match(&case.input, &table.variant_guards)
+                    })
+                    .map(|case| case.case_id.clone())
+                    .collect(),
+                Some(parent) => collection_rows
+                    .get(parent)
+                    .into_iter()
+                    .flatten()
+                    .filter(|row| {
+                        calculation_variant_guards_match(&row.value, &table.variant_guards)
+                    })
+                    .map(|row| row.case_id.clone())
+                    .collect(),
+            };
+            if hydrate {
+                // Refresh introduces empty collection placeholders here, not
+                // reviewed evidence that the new collection is truly empty.
+                for case in &mut cases {
+                    if active_cases.contains(&case.case_id) {
+                        case.input_status = Some(calculate::CalculationInputStatus::Draft);
+                    }
+                }
+            } else {
                 for case_id in active_cases {
                     invalid_cases.insert(case_id.clone());
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
@@ -24359,7 +24423,31 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __unique = Vec::new(); for __value in {0}.clone() { if !__unique.contains(&__value) { __unique.push(__value); } } __unique }",
+                // Compare values, never their display text. Autoref dispatch keeps
+                // Hash + Eq inputs (including document/line tuples) linear on
+                // average; other PartialEq values retain exact witnesses.
+                rust_tpl: r#"{
+                    struct __DistinctInput<T>(Vec<T>);
+                    trait __CollectDistinct { type Item; fn collect_distinct(self) -> Vec<Self::Item>; }
+                    impl<T: Clone + Eq + std::hash::Hash> __CollectDistinct for &__DistinctInput<T> {
+                        type Item = T;
+                        fn collect_distinct(self) -> Vec<T> {
+                            let mut seen = std::collections::HashSet::new();
+                            self.0.iter().filter(|value| seen.insert(*value)).cloned().collect()
+                        }
+                    }
+                    impl<T: Clone + PartialEq> __CollectDistinct for &&__DistinctInput<T> {
+                        type Item = T;
+                        fn collect_distinct(self) -> Vec<T> {
+                            let mut unique = Vec::new();
+                            for value in &self.0 {
+                                if !unique.contains(&value) { unique.push(value); }
+                            }
+                            unique.into_iter().cloned().collect()
+                        }
+                    }
+                    (&__DistinctInput({0}.clone())).collect_distinct()
+                }"#,
             },
         ),
         (
@@ -29660,7 +29748,16 @@ fn has_consuming_non_field_use(
             self_fn_name,
             self_param_names,
         ),
-        ExprKind::Field(_, _) => false, // Field access is a borrow — never consuming
+        // Reading a field borrows its result, but computing the receiver may
+        // consume a parameter (for example, owned_rule(record).field).
+        // A plain or nested field read still reaches the non-consuming Var arm.
+        ExprKind::Field(base, _) => has_consuming_non_field_use(
+            base,
+            param,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         ExprKind::Index(base, idx) => {
             has_consuming_non_field_use(
                 base,
@@ -62328,6 +62425,155 @@ assert_with_message(true, message())
     }
 
     #[test]
+    fn compiled_distinct_preserves_structural_values_and_order() {
+        let source =
+            include_str!("../../tests/differential/corpus/distinct_structural_values.runa");
+        let expected =
+            "4\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\n5\ntrue\nfalse";
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+    }
+
+    #[test]
+    fn compiled_distinct_hashes_values_and_retains_collision_witnesses() {
+        let template = rust_builtin_registry().get("distinct").unwrap().rust_tpl;
+        let hashed = apply_builtin_template(template, &["input".into()]);
+        let colliding = apply_builtin_template(template, &["collisions".into()]);
+        let fallback = apply_builtin_template(template, &["fallback".into()]);
+        let code = format!(
+            r#"
+use std::sync::atomic::{{AtomicUsize, Ordering}};
+static HASHES: AtomicUsize = AtomicUsize::new(0);
+#[derive(Clone, PartialEq, Eq)]
+struct Key(i64);
+impl std::hash::Hash for Key {{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {{
+        HASHES.fetch_add(1, Ordering::Relaxed);
+        self.0.hash(state);
+    }}
+}}
+#[derive(Clone, PartialEq, Eq)]
+struct Collision(i64);
+impl std::hash::Hash for Collision {{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {{ state.write_u8(0); }}
+}}
+#[derive(Clone, PartialEq)]
+struct Unhashed(i64);
+fn main() {{
+    let input = (0..256).map(Key).collect::<Vec<_>>();
+    let unique = {hashed};
+    assert!(unique == input);
+    assert!(HASHES.load(Ordering::Relaxed) >= 256);
+    let collisions = vec![Collision(2), Collision(1), Collision(2)];
+    let unique = {colliding};
+    assert!(unique == vec![Collision(2), Collision(1)]);
+    let fallback = vec![Unhashed(2), Unhashed(1), Unhashed(2)];
+    let unique = {fallback};
+    assert!(unique == vec![Unhashed(2), Unhashed(1)]);
+}}
+"#
+        );
+        let result = compile_and_capture_generated_test_code(&code);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+
+    #[test]
+    fn compiled_field_projection_preserves_receiver_ownership() {
+        let source =
+            include_str!("../../tests/differential/corpus/field_projection_consumes_receiver.runa");
+        let (mut codegen, stmts) = scan_with_codegen(source);
+        let rust = codegen.emit_program(&stmts);
+        for name in [
+            "rule_field",
+            "function_field",
+            "constructor_field",
+            "conditional_field",
+            "indexed_field",
+        ] {
+            assert!(
+                rust.contains(&format!("fn {name}(report: Report")),
+                "{name}: receiver evaluation consumes the record"
+            );
+        }
+        for name in ["direct_field", "borrowed_field", "borrowed_function"] {
+            assert!(
+                rust.contains(&format!("fn {name}(report: &Report")),
+                "{name}: read-only field access should still borrow"
+            );
+        }
+        let expected = "42\n42\n42\n42\n42\n42\n42\n42\nsource";
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+    }
+
+    #[test]
+    fn compiled_optional_equality_and_map_scope_preserve_interpreted_values() {
+        let source = include_str!(
+            "../../tests/differential/corpus/rule_optional_equality_and_map_scope.runa"
+        );
+        let expected = "true\nfalse\nfalse\ntrue\nfalse\nfalse\ntrue\nfalse\ntrue\n5\n0";
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+    }
+
+    #[test]
+    fn compiled_boolean_rule_heads_accept_contextual_none_without_certifying_misses() {
+        let declarations = r#"
+# Fact(value: Int)
+# Other(value: Int)
+= flag = False
+| valid(known: Bool, fact: Fact?) -> match fact {
+    | None -> known == False
+    | Some(value) -> known && value.value >= 0
+}
+# Case(known: Bool) {
+    | valid(fact: Fact?) -> match fact {
+        | None -> known == False
+        | Some(value) -> known && value.value >= 0
+    }
+}
+"#;
+        let source = format!(
+            "{declarations}\n@ print(show(valid(False, None)))\n@ print(show(valid(True, None)))\n@ print(show(valid(True, Some(Fact(1)))))\n@ print(show(Case(False).valid(None)))\n@ print(show(Case(True).valid(None)))\n"
+        );
+        assert_eq!(
+            compile_and_run_test_program(&source).trim(),
+            "true\nfalse\ntrue\ntrue\nfalse"
+        );
+        assert_eq!(
+            interpret_test_source(&source, None).trim(),
+            "true\nfalse\ntrue\ntrue\nfalse"
+        );
+        for probe in [
+            "= miss = valid(True, Some(Other(1)))",
+            "= miss = valid(True, unknown_input)",
+            "| wrong(value: Fact) -> flag\n= miss = wrong(None)",
+            "| repeated(value: Fact?, value: Fact?) -> flag\n= miss = repeated(None, Some(Fact(1)))",
+        ] {
+            let (mut codegen, statements) =
+                scan_with_codegen(&format!("{declarations}\n{probe}\n"));
+            let rust = codegen.emit_program(&statements);
+            assert!(
+                rust.contains(
+                    "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+                ),
+                "{rust}"
+            );
+            assert!(!codegen.canonical_rule_boolean_miss_safe_keys.contains(
+                &RuleDispatchKey {
+                    scope: Some("Case".into()),
+                    name: "valid".into(),
+                    arity: 1,
+                }
+            ));
+        }
+    }
+
+    #[test]
     fn compiled_nullary_rule_reads_top_level_bindings_through_hidden_globals() {
         let output = compile_and_run_test_program(
             r#"
@@ -64125,6 +64371,15 @@ assert_with_message(true, message())
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "4\n2");
+    }
+
+    #[test]
+    fn compiled_reference_intrinsics_in_lambdas_preserve_runtime_captures() {
+        let source =
+            include_str!("../../tests/differential/corpus/reference_intrinsics_in_lambdas.runa");
+        let expected = "true\ntrue\n3\ntrue\ntrue";
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
     }
 
     #[test]

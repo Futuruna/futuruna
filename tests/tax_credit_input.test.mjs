@@ -135,7 +135,7 @@ test('fictional assessed credits reconcile independently of bank payments and co
           indkomstår: 2025, oplysningspligt_ikke_rettidigt_opfyldt: false,
           påbegyndte_måneder_fra_1_september: 0, øvrige_skyldige_renter_øre: 0,
         } }) });
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const unresolved = structuredClone(envelope.cases[0]);
   unresolved.case_id = 'unresolved-b-skat';

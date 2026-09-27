@@ -108,7 +108,7 @@ test('honorarium costs reduce personal income while preserving gross AM and work
     rows(fakta)[0] = depreciationFee(true); rows(input).length = 0;
     input.ægtefælle = { $variant: 'MedÆgtefælle', fakta, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] };
   }, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(evidence, 'cases.json', envelope)]);
   save(evidence, 'results.json', output); assert.deepEqual(output.diagnostics, []);
   assert.equal(output.results.length, cases.length);
@@ -224,7 +224,7 @@ test('part-year composition preserves gross fees, distinct costs and the loss co
     const personskat = structuredClone(person); rows(personskat)[0] = fee(amount);
     const source = (id, field, value) => ({ identifikation: id, beregningsfelt: v(field), delårsbeløb_kroner: value,
       omregningsmetode: v('Par14ForholdsmæssigtLøbendeBeløb'), faktisk_helårsbeløb_kroner: null });
-    return { case_id: `cost-${amount}`, input: { personskat, skattepligtsændring: v('FuldSkattepligtOphører'),
+    return { case_id: `cost-${amount}`, input_status: 'ready', input: { personskat, skattepligtsændring: v('FuldSkattepligtOphører'),
       skattepligtsperiode: { fra_dato: { år: 2025, måned: 1, dag: 1 }, til_dato: { år: 2025, måned: 6, dag: 30 } },
       valg_afgivet_ved_oplysninger: false, omvalg_dato: null, helårsgrundlag: v('AfledtFraIdentificeredeKilder'),
       // Explicit fiction: recurring fee and costs; no inference from employment duration.

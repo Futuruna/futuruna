@@ -1,0 +1,23 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / skattekontrolloven
+
+-- Fiktive datofakta; kalender- og klokkeslætsvalidering er ikke en del af denne test.
+| frist_efter_ordinær(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde, dato: Heltal) -> dato > skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(indkomstår, kilde)
+| frist_testresultat(kilde: SkattekontrollovOplysningsfristKilde, udskudt: Boolsk, hverdag: Heltal, handling: Heltal) -> skattekontrollov_oplysningsfrist_resultat(SkattekontrollovOplysningsfristInput(2026, kilde, udskudt, hverdag, handling))
+
+= frist_grænser = flat_map([SkattekontrollovenLbk12Af2024Par10Stk2, SkattekontrollovenLbk12Af2024Par11], |kilde: SkattekontrollovOplysningsfristKilde| [
+    skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(2025, kilde) == 20260701,
+    skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(2026, kilde) == 20270701,
+    frist_efter_ordinær(2026, kilde, 20270701) == Falskt,
+    frist_efter_ordinær(2026, kilde, 20270702),
+    frist_testresultat(kilde, Falskt, 0, 20270701).rettidigt,
+    frist_testresultat(kilde, Falskt, 0, 20270702).rettidigt == Falskt,
+    frist_testresultat(kilde, Sandt, 20270702, 20270702).rettidigt,
+    frist_testresultat(kilde, Sandt, 20270702, 20270703).rettidigt == Falskt,
+    frist_testresultat(kilde, Sandt, 20270702, 20270702).frist_efter_par13_yyyymmdd == 20270702,
+    frist_testresultat(kilde, Sandt, 20270701, 20270702).frist_efter_par13_yyyymmdd == 20270701,
+    frist_testresultat(kilde, Falskt, 0, 0).rettidigt == Falskt
+])
+| ordinære_og_udskudte_frister: frist_grænser -> length(frist_grænser) == 22 && all(frist_grænser, |gyldig: Boolsk| gyldig)
+? ordinære_og_udskudte_frister
+@ print("22 fristkontroller bestået")

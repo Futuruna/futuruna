@@ -1,0 +1,31 @@
+-- References are data, not runtime captures or calls to their targets.
+# Ledger(amount: Int)
+
+> described(value: Int) -> Int { value + 1 }
+> make_label(prefix: String) -> (Int -> String) {
+    |value| prefix + pathof(Ledger::amount) + show(value)
+}
+
+= expected = refof(Ledger::amount)
+= checked = all([1, 2], |value: Int| {
+        = target = refof(Ledger::amount)
+        target == expected && pathof(Ledger::amount) == "amount" && value > 0
+    })
+= nested = flat_map([1, 2], |outer: Int| {
+        map([1, 2], |inner: Int| {
+                = type_reference = refof(Ledger)
+                = function_reference = refof(described)
+                type_reference == refof(Ledger) && function_reference == refof(described) && outer + inner > 0
+            })
+    })
+= total = foldl([1, 2], 0, |sum: Int, value: Int| {
+        if refof(Ledger::amount) == expected { sum + value } else { sum }
+    })
+= label = make_label("input.")
+= reference_check = |value: Int| refof(Ledger::amount) == expected && value > 0
+
+@ print(show(checked))
+@ print(show(all(nested, |value: Bool| value)))
+@ print(show(total))
+@ print(show(label(2) == "input.amount2"))
+@ print(show(reference_check(1)))

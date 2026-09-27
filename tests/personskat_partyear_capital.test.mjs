@@ -69,9 +69,9 @@ test('part-year bundskat and PSL11 retain each documented spouse capital context
       helårsgrundlag: v('DokumenteretHelårsPersonskat', { personskat: annual }) };
   }
   const cases = [
-    { case_id: 'partial-offset', input: input([20000, 40000], [-10000, -15000]) },
-    { case_id: 'no-cohabitation', input: input([20000, 40000], [-10000, -15000], false) },
-    { case_id: 'negative-capital', input: input([-60000, -120000], [20000, 40000]) },
+    { case_id: 'partial-offset', input_status: 'ready', input: input([20000, 40000], [-10000, -15000]) },
+    { case_id: 'no-cohabitation', input_status: 'ready', input: input([20000, 40000], [-10000, -15000], false) },
+    { case_id: 'negative-capital', input_status: 'ready', input: input([-60000, -120000], [20000, 40000]) },
   ];
   const single = input([0, 0], [0, 0]);
   single.personskat.ægtefælle = v('UdenÆgtefælle');
@@ -80,7 +80,7 @@ test('part-year bundskat and PSL11 retain each documented spouse capital context
   single.skattepligtsperiode = { fra_dato: { år: 2025, måned: 1, dag: 1 }, til_dato: { år: 2025, måned: 6, dag: 30 } };
   single.helårsgrundlag = v('AfledtFraIdentificeredeKilder');
   single.kilder = [{ ...source('Par14Bruttoløn', 300000, 0), omregningsmetode: v('Par14ForholdsmæssigtLøbendeBeløb') }];
-  cases.push({ case_id: 'single-control', input: single });
+  cases.push({ case_id: 'single-control', input_status: 'ready', input: single });
   envelope.cases = cases;
   const output = run(['call', model, '--input', save(directory, 'input.json', envelope)]);
   save(directory, 'results.json', output);

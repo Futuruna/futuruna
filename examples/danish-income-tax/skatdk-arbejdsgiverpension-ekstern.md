@@ -1,4 +1,4 @@
-# Arbejdsgiverpension og ATP: ekstern kontrol, 2025
+# Arbejdsgiverpension og ATP: ekstern kontrol
 
 Den 25. september 2026 blev seks **fiktive** profiler beregnet gennem
 [SKATs anonyme årsberegner for 2025](https://www.tastselv.skat.dk/borger/beregn2025/profil.do).
@@ -7,6 +7,10 @@ arbejdsgiveradministreret ratepension gør **ikke**. Afvigelserne er ikke
 afrundingsforskelle og er ikke løst ved at ændre input eller skatteformler.
 To yderligere indtastninger blev afvist af formularens beløbsgrænse og gav
 ingen skattespecifikation; de er ikke numeriske sammenligninger.
+
+En særskilt **2026-forskudsprofil** matcher modellens beskæftigelsesfradrag,
+ekstra pensionsfradrag, skattepligtige indkomst, kommuneskat og samlede skat.
+Den bruger en anden formular og løser ikke de fire 2025-afvigelser.
 
 Dette er observationer af den offentlige beregner, ikke personlige
 årsopgørelser eller dokumentation for, at Skattestyrelsens faktiske
@@ -25,10 +29,10 @@ beskriver også ekstra fradrag for både egne og arbejdsgiverens indbetalinger.
 De kilder giver ikke grundlag for at fjerne det almindelige ratebidrag fra
 modellens ekstra pensionsfradrag for at efterligne nedenstående observationer.
 Samme lovs § 9 J omfatter relevante arbejdsgiverindbetalinger i grundlaget
-for beskæftigelsesfradrag. Den nye lavtlønsprofil undersøger også denne del,
-som de første rateprofiler ikke kunne skelne, fordi de nåede fradragsloftet.
+for beskæftigelsesfradrag. Lavtlønsprofilen undersøger også denne del;
+rateprofilerne med højere løn når fradragsloftet og kan ikke skelne den.
 
-Der var ingen tilgængelig browserforbindelse ved denne kontrol. Friske,
+Der var ingen tilgængelig browserforbindelse ved 2025-kontrollen. Friske,
 anonyme HTTP-sessioner fulgte den offentlige formulars faktiske felter og
 handlinger: `profil.do` → `indberet.do` → `kvit.do` → `spec.do`.
 Specifikationen blev åbnet med formularens `person=hop`. Tilbagefunktionen
@@ -58,7 +62,7 @@ eller serverens interne feltfortolkning. Det er samme økonomiske profil, ikke
 en syvende uafhængig skatteprofil eller et nyt match.
 
 Det er **ikke** en ny afprøvning af den grafiske browsers samlede forløb.
-Beregnerens versionsnummer blev ikke registreret. Årsagen til afvigelserne,
+2025-beregnerens versionsnummer blev ikke registreret. Årsagen til afvigelserne,
 herunder den præcise feltfortolkning og forskelle fra en virkelig
 årsopgørelse, er fortsat åben (`td-0e5d15`).
 
@@ -147,8 +151,8 @@ interne implementering eller en forklaring på dens feltfortolkning.
 Man må **ikke** flytte ratebidraget til `PRATPA`, ændre dokumenterede fakta
 eller bruge en tolerance for at erklære konformitet.
 
-Den kanoniske `vurdering.forbehold` og den danske resultatviser oplyser nu
-denne begrænsning. Gyldighed, inputtyper og skatteformler er uændrede.
+Den kanoniske `vurdering.forbehold` og den danske resultatviser oplyser
+denne begrænsning.
 Et beløb mærket »beregnet med forbehold« er ikke en godkendt årsopgørelse,
 og en forskel her er ikke en anbefaling om at rette sin indberetning.
 
@@ -175,22 +179,64 @@ hvorfor beløbet ikke ses i de to undersøgte fradrag. Grafisk reproduktion
 og dokumentation af feltfortolkningen mangler fortsat; ingen ændring af
 lovmodellen er begrundet alene af disse observationer.
 
+## Særskilt forskudsprofil, 2026
+
+[SKATs vejledende forskudsberegner for 2026](https://www.tastselv.skat.dk/fskbrgn2/Skprofil.aspx?indkomstaar=2026),
+version `26.3.5.1`, gav nedenstående resultat ved en anonym HTTP-observation
+den 27. september 2026. Det er ikke en årsopgørelse eller en grafisk
+browserafprøvning.
+
+Profilen er udtrykkeligt fiktiv: indkomstår 2026, født 1. januar 1990,
+enlig, København (101), ingen kirkeskat og fuld dansk skattepligt/DBO-hjemsted
+hele året. Ingen ATP, privat pension, pensionsudbetalinger i 2025/2026,
+børn, virksomhed, ejendom, udenlandske forhold, øvrige indkomster eller
+fradrag. Lønnen er 100.000 kr. efter eget pensionsbidrag, men før løn-AM.
+Ét almindeligt arbejdsgiverratebidrag er 50.000 kr. brutto med 4.000 kr.
+indeholdt AM og 46.000 kr. netto; både forfaldsår og betalingsår er 2026.
+
+Formularen modtog `201=100000`, `628=46000` og `629=46000`.
+Her beskriver 628 en samlet pensionspost, mens 629 beskriver ratedelen
+af samme post: der er **én indbetaling**, ikke to. Den historiske
+[UFST SLUT-vejledning 2020, bilag B](https://ufst.dk/media/fnbmcrxy/bilag-b.pdf),
+trykte sider 121 og 194–195, dokumenterer denne total/heraf-relation.
+Den er ikke en kilde til 2026-satser eller en afklaring af den særskilte
+2025-formulars `PRA`/`PRATPA`-felter.
+
+| Kontrolpunkt | Offentlig forskudsberegner | Kanonisk model |
+| --- | ---: | ---: |
+| Beskæftigelsesfradrag, kr. | 19125 | 19125 |
+| Ekstra pensionsfradrag, kr. | 5520 | 5520 |
+| Skattepligtig indkomst, kr. | 67355 | 67355 |
+| Kommuneskat før personfradrag, øre | 1575433 | 1575433 |
+| Samlet skat inklusive løn-AM, øre | 1565213 | 1565213 |
+
+Sammenligningen bruger specifikationens eksakte beløb uden tolerance.
+Modellens løn-AM er 8.000 kr., personlig indkomst efter løn-AM 92.000 kr.
+og arbejdsfradragsgrundlag 150.000 kr. Den danske resultatviser bevarer
+`BeregnetMedForbehold`, manglende bekræftelse af samlet modeldækning og
+forbeholdene om de åbne 2025-afvigelser og skattekreditafregning.
+Et match for denne profil bekræfter ikke vilkårlige rapporter eller andre
+pensionsordninger.
+
 ## Reproduktion
 
 [Regressionen](../../tests/tax_employer_pension_conformance.test.mjs) bruger
 faste eksterne observationer, ikke netværk eller forventninger udledt af
-Futurunas output. Den skelner udtrykkeligt mellem **to match og fire åbne
+Futurunas output. 2025-delen skelner udtrykkeligt mellem **to match og fire åbne
 afvigelser**. En syvende, rent modelbaseret kontrol bevarer ukendt ATP som
 ugyldigt grundlag uden sammenligningsbeløb. Den danske visning skal bevare
 forbeholdet om både pensions- og beskæftigelsesfradrag, også i den blandede
 batch. Formularafvisningerne er dokumenterede observationer ovenfor, ikke
 numeriske cases eller nye HTTP-kald i regressionen.
 
+En separat test sammenligner 2026-forskudsprofilen ovenfor med de fem
+uafhængigt aflæste beløb og kontrollerer den danske visnings forbehold.
+
 ```sh
 FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" node --test tests/tax_employer_pension_conformance.test.mjs
 ```
 
 En bestået regression betyder, at disse forventninger og synlige
-begrænsninger bevares. Den betyder ikke seks konforme profiler, fuld
-Personskat-dækning, korrekt AI-læsning af vilkårlige bilag eller verificeret
-officiel adfærd i andre år.
+begrænsninger bevares. Den betyder ikke seks konforme 2025-profiler, fuld
+Personskat-dækning, korrekt AI-læsning af vilkårlige bilag eller generel
+konformitet i 2026.

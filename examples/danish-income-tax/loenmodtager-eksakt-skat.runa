@@ -109,12 +109,12 @@ skatteberegningen.
         cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
     )).skattepligtig_indkomst_kroner - penge_positivt_beløb(par13_forhold.egne_tidligere_underskud_kroner) - indgående_par13_indkomstfradrag_kroner()
     | bundskat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_bundskat_grundlag_med_skatteforhold(input, skatteforhold), nationalparametre_for(input.skatteår).bundskat_basispoint)
-    | par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, nationalparametre_for(input.skatteår).topskat_basispoint) under input.skatteår < 2026
+    | par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, nationalparametre_for(input.skatteår).topskat_basispoint)
     | exception reform_par7_mellemskat_eksakt par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_reform_mellemskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, lønmodtager_par7_reform_mellemskat_resultat(input).sats_basispoint) under input.skatteår >= 2026
     | par7a_skat_øre() -> {
         = resultat = par7a_udligningsskat_resultat(lønmodtager_par7a_udligningsskat_input(input))
         lønmodtager_eksakt_skat_øre(resultat.udligningsskattegrundlag_kroner, resultat.sats_basispoint)
-    } under input.skatteår < 2026
+    }
     | exception reform_par7a_topskat_eksakt par7a_skat_øre() -> {
         = resultat = lønmodtager_par7a_reform_topskat_resultat(input)
         lønmodtager_eksakt_skat_øre(resultat.personlig_over_bundfradrag_kroner, resultat.sats_basispoint)
@@ -122,7 +122,7 @@ skatteberegningen.
     | par8_skat_øre() -> {
         = resultat = par8_sundhedsbidrag_resultat(lønmodtager_par8_sundhedsbidrag_input(input))
         lønmodtager_eksakt_skat_øre(resultat.skattegrundlag_kroner, resultat.sats_basispoint)
-    } under input.skatteår < 2026
+    }
     | exception reform_par8_toptopskat_eksakt par8_skat_øre() -> {
         = resultat = lønmodtager_par8_reform_toptopskat_resultat(input)
         lønmodtager_eksakt_skat_øre(resultat.personlig_over_bundfradrag_kroner, resultat.sats_basispoint)

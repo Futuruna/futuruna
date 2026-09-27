@@ -46,13 +46,13 @@ test('each gross credit and refund field has the same sign boundary in both unit
   const expected = [];
   envelope.cases = [0, 1].map(n => {
     expected.push({ exact_nonnegative: true, whole_nonnegative: true });
-    return { case_id: `all-${n}`, input: { exact: credits('øre', n), whole: credits('kroner', n) } };
+    return { case_id: `all-${n}`, input_status: 'ready', input: { exact: credits('øre', n), whole: credits('kroner', n) } };
   });
   for (const [branch, suffix] of [['exact', 'øre'], ['whole', 'kroner']]) {
     for (const name of names) {
       const input = { exact: credits('øre'), whole: credits('kroner') };
       input[branch][name + '_' + suffix] = -1;
-      envelope.cases.push({ case_id: `${branch}-${name}`, input });
+      envelope.cases.push({ case_id: `${branch}-${name}`, input_status: 'ready', input });
       expected.push({ exact_nonnegative: branch !== 'exact', whole_nonnegative: branch !== 'whole' });
     }
   }
@@ -82,7 +82,7 @@ test('canonical annual assessment withholds negative gross credits without rewri
         afregningsfakta: v('AfregnRestskat', { fakta: { indkomstår: 2025,
           oplysningspligt_ikke_rettidigt_opfyldt: false, påbegyndte_måneder_fra_1_september: 0,
           øvrige_skyldige_renter_øre: 0 } }) });
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const results = call(model, envelope);
   results.forEach(({ case_id, result: r }, i) => {

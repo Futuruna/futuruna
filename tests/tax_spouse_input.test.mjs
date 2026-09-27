@@ -51,7 +51,7 @@ test('unknown spouse basis withholds comparison while explicit known cases remai
   incomplete.ægtefælle.fakta.lønmodtager.pension.atp = { $variant: 'AtpUoplyst' };
   envelope.cases = [['known-no-spouse', base], ['unknown-basis', missing],
     ['known-spouse', married], ['incomplete-spouse', incomplete]]
-    .map(([case_id, input]) => ({ case_id, input }));
+    .map(([case_id, input]) => ({ case_id, input_status: 'ready', input }));
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-spouse-intake-'));
   console.log(`Fictional spouse intake: ${evidence}`);
   const out = run(['call', model, '--input', save(evidence, 'input.json', envelope)]);
@@ -68,7 +68,7 @@ test('unknown spouse basis withholds comparison while explicit known cases remai
   assert.ok(partial.vurdering.fejl.some(f => f.sti === 'ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.atp'));
   // Removing the required relationship entirely must not choose a default.
   const omitted = structuredClone(base); delete omitted.ægtefælle;
-  envelope.cases = [{ case_id: 'omitted-spouse-field', input: omitted }];
+  envelope.cases = [{ case_id: 'omitted-spouse-field', input_status: 'ready', input: omitted }];
   const rejected = run(['call', model, '--input', save(evidence, 'omitted.json', envelope)], 1);
   save(evidence, 'omitted-results.json', rejected);
   assert.deepEqual(rejected.results, []);
@@ -117,7 +117,7 @@ test('unresolved spouse basis cannot bypass the period or documented annual asse
     const input = structuredClone(base);
     if (case_id === 'period-unknown') input.personskat.ægtefælle = unknown;
     if (case_id === 'annual-unknown') input.helårsgrundlag.personskat.ægtefælle = unknown;
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-spouse-partyear-'));
   console.log(`Fictional spouse part-year: ${evidence}`);

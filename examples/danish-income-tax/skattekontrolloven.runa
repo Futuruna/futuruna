@@ -41,7 +41,10 @@ førstkommende hverdag kl. 9.00.
 # SkattekontrollovOplysningsfristInput(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde, fristdag_dagen_før_eller_på_lørdag_søndag_helligdag: Boolsk, førstkommende_hverdag_yyyymmdd: Heltal, handling_yyyymmdd: Heltal)
 # SkattekontrollovOplysningsfristResultat(kilde: SkattekontrollovOplysningsfristKilde, indkomstår: Heltal, ordinær_frist_yyyymmdd: Heltal, par13_udskyder_frist: Boolsk, frist_efter_par13_yyyymmdd: Heltal, handling_yyyymmdd: Heltal, rettidigt: Boolsk)
 
-| skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde) -> (indkomstår + 1) * 10000 + 701 under kilde == SkattekontrollovenLbk12Af2024Par10Stk2 || kilde == SkattekontrollovenLbk12Af2024Par11
+| skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde) -> match kilde {
+    | SkattekontrollovenLbk12Af2024Par10Stk2 -> (indkomstår + 1) * 10000 + 701
+    | SkattekontrollovenLbk12Af2024Par11 -> (indkomstår + 1) * 10000 + 701
+}
 
 # SkattekontrollovOplysningsfristSag(input: SkattekontrollovOplysningsfristInput) {
     | ordinær_frist_yyyymmdd() -> skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(input.indkomstår, input.kilde)

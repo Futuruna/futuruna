@@ -110,7 +110,7 @@ envelope.cases = specifications.map(([case_id, amount, employer]) => {
   if (case_id === 'uoplyste-fradrag') {
     input.lønmodtager.ligningsfradrag.boligjob = variant('BoligjobUoplyst');
   }
-  return { case_id, input };
+  return { case_id, input_status: 'ready', input };
 });
 const inputPath = save('cases.json', envelope);
 console.error('Calculating eight cases with one worker…');

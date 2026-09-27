@@ -100,6 +100,7 @@ generere en JSON-skabelon; vælg et nyt filnavn i en privat mappe, du allerede h
 
 ```sh
 "$RUNA_BIN" template examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --format json --output /absolut/privat/mappe/arbejdsfradrag.json
+# Udfyld og gennemgå fakta; sæt sagens input_status ved siden af case_id til "ready".
 "$RUNA_BIN" call examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --input /absolut/privat/mappe/arbejdsfradrag.json --output /absolut/privat/mappe/arbejdsfradrag-resultat.json
 ```
 

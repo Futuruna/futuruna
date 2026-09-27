@@ -91,12 +91,12 @@ test('part-year share tax retains spouse thresholds and netting without rewritin
       ], helårsgrundlag: v('DokumenteretHelårsPersonskat', { personskat: couple(400000, 600000) }) };
   }
   const cases = [
-    { case_id: 'unused-threshold', input: input(100000, 0), net: 100000, low: 2700000, high: 0, total: 9334016 },
-    { case_id: 'partial-threshold', input: input(100000, 40000), net: 100000, low: 2565000, high: 210000, total: 9409016 },
-    { case_id: 'opposite-sign', input: input(100000, -40000), net: 60000, low: 1620000, high: 0, total: 8254016 },
-    { case_id: 'fully-netted', input: input(20000, -20000), net: 0, low: 0, high: 0, total: 6634016 },
-    { case_id: 'no-cohabitation', input: input(100000, 0, false), net: 100000, low: 1822500, high: 1365000, total: 9821516 },
-    { case_id: 'single', input: input(100000, 0, false, false), net: 100000, low: 1822500, high: 1365000, total: 9821516 },
+    { case_id: 'unused-threshold', input_status: 'ready', input: input(100000, 0), net: 100000, low: 2700000, high: 0, total: 9334016 },
+    { case_id: 'partial-threshold', input_status: 'ready', input: input(100000, 40000), net: 100000, low: 2565000, high: 210000, total: 9409016 },
+    { case_id: 'opposite-sign', input_status: 'ready', input: input(100000, -40000), net: 60000, low: 1620000, high: 0, total: 8254016 },
+    { case_id: 'fully-netted', input_status: 'ready', input: input(20000, -20000), net: 0, low: 0, high: 0, total: 6634016 },
+    { case_id: 'no-cohabitation', input_status: 'ready', input: input(100000, 0, false), net: 100000, low: 1822500, high: 1365000, total: 9821516 },
+    { case_id: 'single', input_status: 'ready', input: input(100000, 0, false, false), net: 100000, low: 1822500, high: 1365000, total: 9821516 },
   ];
   for (const cohabits of [true, false]) {
     const x = input(0, 0, cohabits);
@@ -105,12 +105,12 @@ test('part-year share tax retains spouse thresholds and netting without rewritin
   }
   const missing = input(0, 0);
   missing.helårsgrundlag.personskat.ægtefælle = v('UdenÆgtefælle');
-  cases.push({ case_id: 'missing-annual-spouse', input: missing, invalid: true });
+  cases.push({ case_id: 'missing-annual-spouse', input_status: 'ready', input: missing, invalid: true });
   const wrongYear = input(0, 0);
   wrongYear.personskat.ægtefælle.fakta.lønmodtager.skatteår = 2024;
   wrongYear.helårsgrundlag.personskat.ægtefælle.fakta.lønmodtager.skatteår = 2024;
-  cases.push({ case_id: 'spouse-wrong-year', input: wrongYear, invalid: true });
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  cases.push({ case_id: 'spouse-wrong-year', input_status: 'ready', input: wrongYear, invalid: true });
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(directory, 'input.json', envelope)]);
   save(directory, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);

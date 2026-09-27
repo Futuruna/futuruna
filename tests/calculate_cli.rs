@@ -65,6 +65,241 @@ fn parse_stdout(output: &Output) -> Value {
 }
 
 #[test]
+fn calculation_readiness_rejects_untouched_templates_in_every_adapter() {
+    let source = fixture();
+    let model = source.to_str().unwrap();
+    for format in ["json", "toml", "xlsx"] {
+        let input = temp_path(format);
+        let normalized = temp_path("json");
+        let generated = run(&["template", model, "--output", input.to_str().unwrap()]);
+        assert!(generated.status.success(), "{generated:?}");
+        let draft = run(&["call", model, "--input", input.to_str().unwrap()]);
+        assert!(
+            !draft.status.success(),
+            "untouched {format} must remain a draft"
+        );
+        let result = parse_stdout(&draft);
+        assert_eq!(result["results"], serde_json::json!([]));
+        assert_eq!(result["diagnostics"][0]["path"], "$.cases[0].input_status");
+
+        let hydrated = run(&[
+            "template",
+            model,
+            "--input",
+            input.to_str().unwrap(),
+            "--output",
+            normalized.to_str().unwrap(),
+        ]);
+        assert!(hydrated.status.success(), "{hydrated:?}");
+        let envelope: Value = serde_json::from_slice(&std::fs::read(&normalized).unwrap()).unwrap();
+        assert_eq!(
+            envelope["$futuruna"]["schema"],
+            "futuruna.calculate.input.v2"
+        );
+        assert_eq!(envelope["cases"][0]["input_status"], "draft");
+        assert_eq!(envelope["cases"][0]["input"]["monthly_income"], 0);
+        assert_eq!(
+            envelope["cases"][0]["input"]["children"],
+            serde_json::json!([])
+        );
+
+        match format {
+            "json" => {
+                let mut envelope = envelope;
+                envelope["cases"][0]["input_status"] = "ready".into();
+                std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
+            }
+            "toml" => {
+                let mut envelope: toml::Value =
+                    toml::from_str(&std::fs::read_to_string(&input).unwrap()).unwrap();
+                envelope["cases"][0]["input_status"] = toml::Value::String("ready".into());
+                std::fs::write(&input, toml::to_string(&envelope).unwrap()).unwrap();
+            }
+            "xlsx" => edit_workbook(&input, |sheets| {
+                let cases = workbook_sheet_mut(sheets, "cases");
+                assert_eq!(cases[1][1], Data::String("input_status".into()));
+                assert_eq!(cases[2][1], Data::String("draft".into()));
+                cases[2][1] = Data::String("ready".into());
+            }),
+            _ => unreachable!(),
+        }
+        let ready = run(&["call", model, "--input", input.to_str().unwrap()]);
+        assert!(ready.status.success(), "{ready:?}");
+        let result = parse_stdout(&ready);
+        assert_eq!(result["diagnostics"], serde_json::json!([]));
+        assert_eq!(result["results"][0]["result"]["annual_tax"], 0);
+        for path in [input, normalized] {
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+#[test]
+fn calculation_readiness_survives_legacy_hydration_without_promoting_cases() {
+    let source = fixture();
+    let model = source.to_str().unwrap();
+    let generated = run(&["template", model]);
+    assert!(generated.status.success());
+    let mut envelope = parse_stdout(&generated);
+    let facts = envelope["cases"][0]["input"].clone();
+    envelope["cases"] = serde_json::json!([
+        {"case_id":"draft", "input_status":"draft", "input":facts},
+        {"case_id":"unmarked", "input":facts},
+        {"case_id":"ready", "input_status":"ready", "input":facts}
+    ]);
+    let original = temp_path("json");
+    envelope["$futuruna"]["schema"] = "futuruna.calculate.input.v1".into();
+    std::fs::write(&original, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    for format in ["json", "toml", "xlsx"] {
+        let converted = temp_path(format);
+        let restored = temp_path("json");
+        for (input, output) in [(&original, &converted), (&converted, &restored)] {
+            let conversion = run(&[
+                "template",
+                model,
+                "--input",
+                input.to_str().unwrap(),
+                "--output",
+                output.to_str().unwrap(),
+            ]);
+            assert!(conversion.status.success(), "{conversion:?}");
+        }
+        let actual: Value = serde_json::from_slice(&std::fs::read(&restored).unwrap()).unwrap();
+        assert_eq!(actual["$futuruna"]["schema"], "futuruna.calculate.input.v2");
+        for index in 0..3 {
+            let mut actual_facts = actual["cases"][index]["input"].clone();
+            // TOML omits absent optional fields; omitted and null both decode
+            // to None in this contract. No numeric/collection default is added.
+            actual_facts
+                .as_object_mut()
+                .unwrap()
+                .entry("deduction")
+                .or_insert(Value::Null);
+            assert_eq!(actual_facts, facts);
+            assert_eq!(
+                actual["cases"][index]["input_status"],
+                if index == 2 { "ready" } else { "draft" }
+            );
+        }
+        let called = run(&["call", model, "--input", converted.to_str().unwrap()]);
+        assert!(!called.status.success());
+        let output = parse_stdout(&called);
+        assert_eq!(output["results"].as_array().unwrap().len(), 1);
+        assert_eq!(output["results"][0]["case_id"], "ready");
+        assert_eq!(output["diagnostics"].as_array().unwrap().len(), 2);
+        assert_eq!(output["diagnostics"][0]["case_id"], "draft");
+        assert_eq!(output["diagnostics"][1]["case_id"], "unmarked");
+        for path in [converted, restored] {
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+    std::fs::remove_file(original).unwrap();
+}
+
+#[test]
+fn calculation_hydration_reports_every_field_error_without_overwriting_output() {
+    let source = fixture();
+    let model = source.to_str().unwrap();
+    let generated = run(&["template", model]);
+    assert!(generated.status.success());
+    let mut envelope = parse_stdout(&generated);
+    let mut facts = envelope["cases"][0]["input"].clone();
+    facts["monthly_income"] = "invalid income".into();
+    facts["children"] = serde_json::json!([{"name": "Fictional child", "age": "invalid age"}]);
+    envelope["cases"] = serde_json::json!([
+        {"case_id": "draft", "input_status": "draft", "input": facts},
+        {"case_id": "ready", "input_status": "ready", "input": facts}
+    ]);
+    let original = temp_path("json");
+    let original_bytes = serde_json::to_vec(&envelope).unwrap();
+    std::fs::write(&original, &original_bytes).unwrap();
+    for format in ["json", "xlsx"] {
+        let destination = temp_path(format);
+        let previous = b"existing output must survive rejected hydration";
+        std::fs::write(&destination, previous).unwrap();
+        let refreshed = run(&[
+            "template",
+            model,
+            "--input",
+            original.to_str().unwrap(),
+            "--output",
+            destination.to_str().unwrap(),
+        ]);
+        assert_eq!(refreshed.status.code(), Some(1), "{refreshed:?}");
+        let stderr = String::from_utf8_lossy(&refreshed.stderr);
+        for case_id in ["draft", "ready"] {
+            for path in ["$.monthly_income", "$.children[0].age"] {
+                assert!(
+                    stderr.contains(&format!("case `{case_id}` {path}:")),
+                    "missing {case_id} {path}: {stderr}"
+                );
+            }
+        }
+        assert_eq!(std::fs::read(&destination).unwrap(), previous);
+        std::fs::remove_file(destination).unwrap();
+    }
+    assert_eq!(std::fs::read(&original).unwrap(), original_bytes);
+    std::fs::remove_file(original).unwrap();
+}
+
+#[test]
+fn calculation_readiness_refresh_reopens_only_cases_needing_new_sheets() {
+    let source = temp_path("runa");
+    let original = temp_path("xlsx");
+    let refreshed = temp_path("xlsx");
+    let normalized = temp_path("json");
+    std::fs::write(&source, "# Choice = Empty | Family(value: Int, items: List(Int))\n# Input(choice: Choice)\n@ calculate\n> echo(input: Input) -> Input { input }\n").unwrap();
+    let model = source.to_str().unwrap();
+    let generated = run(&["template", model, "--output", original.to_str().unwrap()]);
+    assert!(generated.status.success(), "{generated:?}");
+    edit_workbook(&original, |sheets| {
+        let cases = workbook_sheet_mut(sheets, "cases");
+        cases[2][1] = Data::String("ready".into());
+        assert_eq!(cases[2][2], Data::String("Empty".into()));
+        cases.push(vec![
+            Data::String("new-family".into()),
+            Data::String("ready".into()),
+            Data::String("Family".into()),
+            Data::String("7".into()),
+        ]);
+    });
+    let refresh = run(&[
+        "template",
+        model,
+        "--input",
+        original.to_str().unwrap(),
+        "--output",
+        refreshed.to_str().unwrap(),
+    ]);
+    assert!(refresh.status.success(), "{refresh:?}");
+    let normalization = run(&[
+        "template",
+        model,
+        "--input",
+        refreshed.to_str().unwrap(),
+        "--output",
+        normalized.to_str().unwrap(),
+    ]);
+    assert!(normalization.status.success(), "{normalization:?}");
+    let envelope: Value = serde_json::from_slice(&std::fs::read(&normalized).unwrap()).unwrap();
+    assert_eq!(envelope["cases"][0]["input_status"], "ready");
+    assert_eq!(envelope["cases"][1]["input_status"], "draft");
+    assert_eq!(
+        envelope["cases"][1]["input"]["choice"]["items"],
+        serde_json::json!([])
+    );
+    let called = run(&["call", model, "--input", refreshed.to_str().unwrap()]);
+    assert!(!called.status.success());
+    let output = parse_stdout(&called);
+    assert_eq!(output["results"].as_array().unwrap().len(), 1);
+    assert_eq!(output["results"][0]["case_id"], "case-1");
+    assert_eq!(output["diagnostics"][0]["case_id"], "new-family");
+    for path in [source, original, refreshed, normalized] {
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
 fn call_assert_with_message_preserves_json_and_case_isolation() {
     let source = "tests/fixtures/calculation/assert-message.calculate.runa";
     let template = run(&["template", source, "--format", "json"]);
@@ -76,6 +311,7 @@ fn call_assert_with_message_preserves_json_and_case_isolation() {
         {"case_id":"after","input":{"year":2026}}
     ]);
     let input_path = temp_path("json");
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
     let output = run(&["call", source, "--input", input_path.to_str().unwrap()]);
     std::fs::remove_file(input_path).unwrap();
@@ -968,6 +1204,7 @@ fn json_batch_invokes_conditions_and_exceptions() {
         "deduction": 12_000,
         "children": [{ "name": "Ada", "age": 7 }]
     });
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(
         &input_path,
         serde_json::to_vec_pretty(&input).expect("encode input"),
@@ -1010,6 +1247,7 @@ fn calculation_cli_rejects_list_addition_before_evaluation() {
     );
     let mut input = parse_stdout(&template);
     input["cases"][0]["input"] = serde_json::json!({"left":[1,2], "right":[3]});
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
     let good = run(&[
         "call",
@@ -1071,6 +1309,7 @@ fn calculation_cli_reports_indirect_list_operator_failure() {
     );
     let mut input = parse_stdout(&template);
     input["cases"][0]["input"] = serde_json::json!({"left":[1,2],"right":[3]});
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
     let output = run(&[
         "call",
@@ -1141,11 +1380,14 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
     input["cases"] = serde_json::json!([
         {"case_id":"good-before", "input":{"year":2026,"amount":8,"divisor":2}},
         {"case_id":"zero-divisor", "input":{"year":2026,"amount":7,"divisor":0}},
+        {"case_id":"unreviewed", "input":{"year":2026,"amount":7,"divisor":0}},
         {"case_id":"unsupported-year", "input":{"year":2027,"amount":8,"divisor":2}},
         {"case_id":"overflow", "input":{"year":2026,"amount":i64::MIN,"divisor":-1}},
         {"case_id":"valid-zero", "input":{"year":2026,"amount":0,"divisor":2}},
         {"case_id":"good-after", "input":{"year":2026,"amount":8,"divisor":2}}
     ]);
+    mark_fixture_cases_ready(&mut input);
+    input["cases"][2]["input_status"] = "draft".into();
     std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
     let mut previous = None;
     for jobs in ["1", "3"] {
@@ -1175,14 +1417,20 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
             ])
         );
         let diagnostics = output["diagnostics"].as_array().unwrap();
-        assert_eq!(diagnostics.len(), 3);
-        for (diagnostic, case_id, message) in [
-            (&diagnostics[0], "zero-divisor", "integer division"),
-            (&diagnostics[1], "unsupported-year", "parameter/1"),
-            (&diagnostics[2], "overflow", "integer division"),
+        assert_eq!(diagnostics.len(), 4);
+        for (diagnostic, case_id, path, message) in [
+            (&diagnostics[0], "zero-divisor", "$", "integer division"),
+            (
+                &diagnostics[1],
+                "unreviewed",
+                "$.cases[2].input_status",
+                "not marked ready",
+            ),
+            (&diagnostics[2], "unsupported-year", "$", "parameter/1"),
+            (&diagnostics[3], "overflow", "$", "integer division"),
         ] {
             assert_eq!(diagnostic["case_id"], case_id);
-            assert_eq!(diagnostic["path"], "$");
+            assert_eq!(diagnostic["path"], path);
             assert!(
                 diagnostic["message"].as_str().unwrap().contains(message),
                 "{diagnostic}"
@@ -1212,14 +1460,14 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
     );
     let mut workbook = open_workbook_auto(&output_path).expect("mixed-success result workbook");
     for (sheet, ids) in [
-        ("results", ["good-before", "valid-zero", "good-after"]),
+        ("results", vec!["good-before", "valid-zero", "good-after"]),
         (
             "diagnostics",
-            ["zero-divisor", "unsupported-year", "overflow"],
+            vec!["zero-divisor", "unreviewed", "unsupported-year", "overflow"],
         ),
     ] {
         let rows = workbook.worksheet_range(sheet).unwrap();
-        assert_eq!(rows.height(), 4);
+        assert_eq!(rows.height(), ids.len() + 1);
         for (row, id) in rows.rows().skip(1).zip(ids) {
             assert_eq!(row[0].to_string(), id);
         }
@@ -1284,6 +1532,7 @@ fn calculation_json_rejects_duplicate_members_without_normalizing_or_overwriting
         {"case_id":"zero", "input":{"annual_income":0}},
         {"case_id":"maximum", "input":{"annual_income":i64::MAX}}
     ]);
+    mark_fixture_cases_ready(&mut envelope);
     std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
     let output = run(&[
         "call",
@@ -1342,7 +1591,7 @@ fn calculation_xlsx_duplicate_json_members_are_case_scoped_and_block_refresh() {
         "{}",
         String::from_utf8_lossy(&template.stderr)
     );
-    edit_workbook(&input, |sheets| {
+    edit_ready_workbook(&input, |sheets| {
         for (index, (id, value)) in [
             ("good-before", r#"{"annual_income":7}"#),
             (
@@ -1398,9 +1647,9 @@ fn calculation_xlsx_duplicate_json_members_are_case_scoped_and_block_refresh() {
     let diagnostics = result["diagnostics"].as_array().unwrap();
     assert_eq!(diagnostics.len(), 3);
     for (diagnostic, (id, cell)) in diagnostics.iter().zip([
-        ("conflicting", "cases!B4"),
-        ("escaped", "cases!B5"),
-        ("identical", "cases!B6"),
+        ("conflicting", "cases!C4"),
+        ("escaped", "cases!C5"),
+        ("identical", "cases!C6"),
     ]) {
         assert_eq!(diagnostic["case_id"], id);
         assert_eq!(diagnostic["path"], cell);
@@ -1460,6 +1709,7 @@ fn calculation_inline_module_list_rule_cannot_become_a_successful_zero() {
         {"case_id":"valid-zero-input", "input":{"value":0}},
         {"case_id":"good-after", "input":{"value":3}}
     ]);
+    mark_fixture_cases_ready(&mut envelope);
     std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
     let mut previous = None;
     for jobs in ["1", "3"] {
@@ -1534,6 +1784,9 @@ fn calculation_output_encodes_empty_list_literals() {
         String::from_utf8_lossy(&template.stderr)
     );
 
+    let mut input: Value = serde_json::from_slice(&std::fs::read(&input_path).unwrap()).unwrap();
+    mark_fixture_cases_ready(&mut input);
+    std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
     let output = run(&[
         "call",
         source_path.to_str().expect("source path"),
@@ -1569,6 +1822,7 @@ fn stale_json_template_fails_closed_with_both_hashes() {
     let mut input: Value = serde_json::from_slice(&std::fs::read(&input_path).expect("template"))
         .expect("template JSON");
     input["$futuruna"]["schema_hash"] = Value::String("stale".to_string());
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(&input_path, serde_json::to_vec_pretty(&input).unwrap()).unwrap();
 
     let output = run(&[
@@ -1613,6 +1867,10 @@ fn toml_template_round_trips_optional_and_nested_values() {
     let source = std::fs::read_to_string(&input_path).expect("TOML template");
     assert!(source.contains("[cases.input.filing_status]"));
     assert!(!source.contains("deduction"));
+
+    let mut input: toml::Value = toml::from_str(&source).unwrap();
+    input["cases"][0]["input_status"] = toml::Value::String("ready".into());
+    std::fs::write(&input_path, toml::to_string(&input).unwrap()).unwrap();
 
     let output = run(&[
         "call",
@@ -1679,7 +1937,13 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
         );
         assert_eq!(
             workbook_headers(&mut workbook, "cases"),
-            ["case_id", "Monthly income", "Filing status", "Deduction"]
+            [
+                "case_id",
+                "input_status",
+                "Monthly income",
+                "Filing status",
+                "Deduction"
+            ]
         );
         assert_eq!(
             workbook_headers(&mut workbook, "children"),
@@ -1722,10 +1986,10 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
             .contains("tax_source"));
     }
 
-    edit_workbook(&input_path, |sheets| {
-        set_workbook_cell(sheets, "cases", 1, 1, Data::String("50000".to_string()));
-        set_workbook_cell(sheets, "cases", 1, 2, Data::String("Married".to_string()));
-        set_workbook_cell(sheets, "cases", 1, 3, Data::String("12000".to_string()));
+    edit_ready_workbook(&input_path, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 2, Data::String("50000".to_string()));
+        set_workbook_cell(sheets, "cases", 1, 3, Data::String("Married".to_string()));
+        set_workbook_cell(sheets, "cases", 1, 4, Data::String("12000".to_string()));
         workbook_sheet_mut(sheets, "children").push(vec![
             Data::String("case-1".to_string()),
             Data::String("child-1".to_string()),
@@ -1812,6 +2076,7 @@ impl StringWorkbookFixture {
                 serde_json::json!({"case_id": format!("case-{index}"), "input": input})
             }).collect();
         }
+        mark_fixture_cases_ready(&mut envelope);
         std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
         let reference = run(&[
             "call",
@@ -1892,16 +2157,21 @@ fn string_workbook_input(name: &str, note: Value) -> Value {
 }
 
 #[test]
-fn xlsx_strings_unedited_template_preserves_required_empty_text() {
+fn xlsx_strings_template_preserves_required_empty_text_after_review() {
     let fixture = StringWorkbookFixture::new(None);
     let mut workbook = open_workbook_auto(&fixture.workbook).unwrap();
     let metadata = workbook.worksheet_range("_futuruna").unwrap();
     assert_eq!(
         metadata.get((1, 1)),
-        Some(&Data::String("futuruna.calculate.xlsx.input.v8".into()))
+        Some(&Data::String("futuruna.calculate.xlsx.input.v9".into()))
     );
     drop(workbook);
     assert_eq!(fixture.expected[0]["result"]["name"], "");
+    assert!(
+        !fixture.call().status.success(),
+        "untouched text template is still a draft"
+    );
+    edit_ready_workbook(&fixture.workbook, |_| {});
     fixture.assert_round_trip();
 }
 
@@ -1930,8 +2200,8 @@ fn xlsx_strings_collections_and_quote_like_values_preserve_json_values() {
 }
 
 #[test]
-fn xlsx_strings_legacy_workbooks_keep_literal_quotes() {
-    for version in ["v6", "v7"] {
+fn xlsx_strings_legacy_refresh_preserves_versioned_quotes_and_requires_review() {
+    for version in ["v6", "v7", "v8"] {
         let mut fixture = StringWorkbookFixture::new(Some(vec![string_workbook_input(
             "present",
             Value::String("present".into()),
@@ -1939,6 +2209,9 @@ fn xlsx_strings_legacy_workbooks_keep_literal_quotes() {
         edit_workbook(&fixture.workbook, |sheets| {
             workbook_sheet_mut(sheets, "_futuruna")[1][1] =
                 Data::String(format!("futuruna.calculate.xlsx.input.{version}"));
+            for row in workbook_sheet_mut(sheets, "cases").iter_mut().skip(1) {
+                row.remove(1);
+            }
             if version == "v6" {
                 sheets.retain(|(name, _)| name != "_sheets");
             }
@@ -1951,8 +2224,41 @@ fn xlsx_strings_legacy_workbooks_keep_literal_quotes() {
                 Data::String("\"quoted\"".into()),
             );
         });
-        fixture.expected[0]["result"]["name"] = Value::String("\"\"".into());
-        fixture.expected[0]["result"]["note"] = Value::String("\"quoted\"".into());
+        fixture.expected[0]["result"]["name"] =
+            Value::String(if version == "v8" { "" } else { "\"\"" }.into());
+        fixture.expected[0]["result"]["note"] = Value::String(
+            if version == "v8" {
+                "quoted"
+            } else {
+                "\"quoted\""
+            }
+            .into(),
+        );
+        let unmarked = fixture.call();
+        assert!(
+            !unmarked.status.success(),
+            "{version} must require explicit review"
+        );
+        assert!(parse_stdout(&unmarked)["diagnostics"]
+            .to_string()
+            .contains("not marked ready"));
+        let refreshed = temp_path("xlsx");
+        let converted = run(&[
+            "template",
+            fixture.source.to_str().unwrap(),
+            "--input",
+            fixture.workbook.to_str().unwrap(),
+            "--output",
+            refreshed.to_str().unwrap(),
+        ]);
+        assert!(converted.status.success(), "{converted:?}");
+        std::fs::remove_file(&fixture.workbook).unwrap();
+        fixture.workbook = refreshed;
+        assert!(
+            !fixture.call().status.success(),
+            "refresh must not acknowledge old inputs"
+        );
+        edit_ready_workbook(&fixture.workbook, |_| {});
         fixture.assert_round_trip();
         fixture.assert_refresh_round_trip();
     }
@@ -2039,6 +2345,7 @@ fn xlsx_template_hydrates_populated_json_cases() {
         "deduction": 12_000,
         "children": [{ "name": "Ada", "age": 7 }]
     });
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(
         &json_path,
         serde_json::to_vec_pretty(&input).expect("encode populated input"),
@@ -2069,15 +2376,15 @@ fn xlsx_template_hydrates_populated_json_cases() {
             Some("hydrated-case")
         );
         assert_eq!(
-            cases.get((2, 1)).map(ToString::to_string).as_deref(),
+            cases.get((2, 2)).map(ToString::to_string).as_deref(),
             Some("50000")
         );
         assert_eq!(
-            cases.get((2, 2)).map(ToString::to_string).as_deref(),
+            cases.get((2, 3)).map(ToString::to_string).as_deref(),
             Some("Married")
         );
         assert_eq!(
-            cases.get((2, 3)).map(ToString::to_string).as_deref(),
+            cases.get((2, 4)).map(ToString::to_string).as_deref(),
             Some("12000")
         );
         let children = workbook
@@ -2505,7 +2812,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .is_some_and(|cell| cell.to_string() == "cases")
             })
             .count();
-        assert_eq!(case_headers.len(), case_column_count + 1);
+        assert_eq!(case_headers.len(), case_column_count + 2);
         let nonstandard_taxpayer_paths = workbook_column_paths(&mut workbook, "cases");
         for expected in [
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.$variant",
@@ -6608,7 +6915,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
     }
 
-    edit_workbook(&input_path, |sheets| {
+    edit_ready_workbook(&input_path, |sheets| {
         let fill_wage_case = |sheets: &mut EditableWorkbook, row: usize, case_id: &str| {
             // These fictional fixtures have no ATP or pension payouts. State
             // that explicitly; blank required cells are not a known zero.
@@ -17412,6 +17719,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(freight_tax_case);
+    mark_fixture_cases_ready(&mut json_input);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -17677,6 +17985,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         seafarer_commute_case,
         freight_tax_case,
     ]);
+    mark_fixture_cases_ready(&mut hydrated_json_input);
     std::fs::write(
         &hydrated_json_input_path,
         serde_json::to_vec_pretty(&hydrated_json_input)
@@ -20693,6 +21002,7 @@ fn round_trip_source_inputs_through_generated_personskat_workbook_with_inspectio
             })
             .collect(),
     );
+    mark_fixture_cases_ready(&mut source_input);
     std::fs::write(
         &source_input_path,
         serde_json::to_vec_pretty(&source_input).expect("encode source calculation input"),
@@ -20746,6 +21056,7 @@ fn round_trip_source_inputs_through_generated_personskat_workbook_with_inspectio
             })
             .collect(),
     );
+    mark_fixture_cases_ready(&mut public_input);
     std::fs::write(
         &public_input_path,
         serde_json::to_vec_pretty(&public_input).expect("encode canonical Personskat input"),
@@ -21194,7 +21505,7 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
         );
     }
 
-    edit_workbook(&input_path, |sheets| {
+    edit_ready_workbook(&input_path, |sheets| {
         let travel_sheet = workbook_collection_sheet_name_from_rows(sheets, "årsinput.rejser");
         let lodging_sheet =
             workbook_collection_sheet_name_from_rows(sheets, "årsinput.rejser.logidøgn");
@@ -21522,6 +21833,7 @@ fn ligningslov9a_xlsx_round_trips_grouped_foreign_income_ceiling() {
         },
         "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
     });
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(
         &json_path,
         serde_json::to_vec_pretty(&input).expect("encode populated travel input"),
@@ -21695,6 +22007,7 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
         },
         "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
     });
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(
         &json_path,
         serde_json::to_vec_pretty(&input).expect("encode island lodging input"),
@@ -21920,6 +22233,7 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
         },
         "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
     });
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(
         &json_path,
         serde_json::to_vec_pretty(&input).expect("encode double household input"),
@@ -22126,6 +22440,7 @@ fn investment_classification_xlsx_expands_payloads_and_round_trips_template() {
             .contains("AblPar19BOrdinærMeddelelse"));
     }
 
+    edit_ready_workbook(&input_path, |_| {});
     let output = run(&[
         "call",
         fixture.to_str().expect("fixture path"),
@@ -22197,6 +22512,7 @@ fn par19_xlsx_derives_nested_fact_tables_and_round_trips_template() {
         }
     }
 
+    edit_ready_workbook(&input_path, |_| {});
     let output = run(&[
         "call",
         fixture.to_str().expect("fixture path"),
@@ -22251,7 +22567,7 @@ fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() 
         String::from_utf8_lossy(&template.stderr)
     );
 
-    edit_workbook(&input_path, |sheets| {
+    edit_ready_workbook(&input_path, |sheets| {
         set_workbook_cell(sheets, "cases", 1, 0, Data::String("valid".to_string()));
         workbook_sheet_mut(sheets, "cases").push(vec![Data::String("invalid".to_string())]);
 
@@ -22414,7 +22730,7 @@ fn xlsx_required_nested_product_with_only_empty_collections_round_trips_every_ca
         String::from_utf8_lossy(&template.stderr)
     );
 
-    edit_workbook(&input_path, |sheets| {
+    edit_ready_workbook(&input_path, |sheets| {
         set_workbook_cell_by_header(
             sheets,
             "cases",
@@ -22496,6 +22812,7 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
             workbook_headers(&mut workbook, "cases"),
             [
                 "case_id",
+                "input_status",
                 "Selection / Variant",
                 "Selection / Fixed / Amount",
                 "Selection / Pair / 0",
@@ -22526,16 +22843,18 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
         );
     }
 
-    edit_workbook(&input_path, |sheets| {
-        set_workbook_cell(sheets, "cases", 1, 1, Data::String("Family".to_string()));
-        set_workbook_cell(sheets, "cases", 1, 5, Data::String("primary".to_string()));
+    edit_ready_workbook(&input_path, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 2, Data::String("Family".to_string()));
+        set_workbook_cell(sheets, "cases", 1, 6, Data::String("primary".to_string()));
         workbook_sheet_mut(sheets, "cases").push(vec![
             Data::String("invalid".to_string()),
+            Data::String("ready".to_string()),
             Data::String("Empty".to_string()),
             Data::Int(9),
         ]);
         workbook_sheet_mut(sheets, "cases").push(vec![
             Data::String("inactive-table".to_string()),
+            Data::String("ready".to_string()),
             Data::String("Empty".to_string()),
         ]);
         workbook_sheet_mut(sheets, "selection_Family_children").extend([
@@ -22660,6 +22979,7 @@ fn xlsx_sparse_sheets_union_maps_sets_and_reserved_names() {
         {"case_id": "map", "input": {"choice": {"$variant": "Mapped", "items": {"first": [1, 2], "empty": []}}, "_sheets": [3], "_choices": []}},
         {"case_id": "list", "input": {"choice": {"$variant": "Listed", "items": [4]}, "_sheets": [], "_choices": [5]}}
     ]);
+    mark_fixture_cases_ready(&mut envelope);
     std::fs::write(&json, serde_json::to_vec(&envelope).unwrap()).unwrap();
     let hydrated = run(&[
         "template",
@@ -22724,18 +23044,20 @@ fn xlsx_sparse_sheets_refresh_after_variant_and_nested_row_changes() {
             .contains(&"history_Family_children".to_string()));
         assert_eq!(workbook.worksheet_range("_tables").unwrap().height(), 4);
     }
+    edit_ready_workbook(&input, |_| {});
     let default = parse_stdout(&check(run(&["call", model, "--input", original])));
     assert_eq!(
         default["results"][0]["result"]["selection"]["$variant"],
         "Empty"
     );
 
-    edit_workbook(&input, |sheets| {
-        set_workbook_cell(sheets, "cases", 1, 1, Data::String("Family".into()));
-        set_workbook_cell(sheets, "cases", 1, 2, Data::String("primary".into()));
+    edit_ready_workbook(&input, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 2, Data::String("Family".into()));
+        set_workbook_cell(sheets, "cases", 1, 3, Data::String("primary".into()));
         // This second case must still run while the first needs a refresh.
         workbook_sheet_mut(sheets, "cases").push(vec![
             Data::String("unaffected".into()),
+            Data::String("ready".into()),
             Data::String("Empty".into()),
         ]);
     });
@@ -22757,7 +23079,7 @@ fn xlsx_sparse_sheets_refresh_after_variant_and_nested_row_changes() {
             .sheet_names()
             .contains(&"history_Family_children".into()));
     }
-    edit_workbook(&refreshed, |sheets| {
+    edit_ready_workbook(&refreshed, |sheets| {
         workbook_sheet_mut(sheets, "selection_Family_children").push(vec![
             Data::String("case-1".into()),
             Data::String("c1".into()),
@@ -22789,7 +23111,7 @@ fn xlsx_sparse_sheets_refresh_after_variant_and_nested_row_changes() {
         .unwrap()[1]
         .clone();
     drop(workbook);
-    edit_workbook(&input, |sheets| {
+    edit_ready_workbook(&input, |sheets| {
         workbook_sheet_mut(sheets, "history_Family_children").push(vec![
             Data::String("case-1".into()),
             parent_id,
@@ -22861,7 +23183,7 @@ fn xlsx_sparse_topology_is_bounded_and_rejects_missing_or_unlisted_sheets() {
     drop(workbook);
     for mutation in 0..7 {
         regenerate();
-        edit_workbook(&input, |sheets| match mutation {
+        edit_ready_workbook(&input, |sheets| match mutation {
             0 => sheets.retain(|(name, _)| name != "children"),
             1 => sheets.push((
                 "choice_Branch0_items".into(),
@@ -22914,8 +23236,30 @@ fn xlsx_sparse_topology_is_bounded_and_rejects_missing_or_unlisted_sheets() {
         sheets.retain(|(name, _)| name != "_sheets");
         workbook_sheet_mut(sheets, "_futuruna")[1][1] =
             Data::String("futuruna.calculate.xlsx.input.v6".into());
+        for row in workbook_sheet_mut(sheets, "cases").iter_mut().skip(1) {
+            row.remove(1);
+        }
     });
     let output = run(&["call", model, "--input", path]);
+    assert!(!output.status.success());
+    assert!(parse_stdout(&output)["diagnostics"]
+        .to_string()
+        .contains("not marked ready"));
+    let output = run(&[
+        "template",
+        model,
+        "--input",
+        path,
+        "--output",
+        refreshed.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    edit_ready_workbook(&refreshed, |_| {});
+    let output = run(&["call", model, "--input", refreshed.to_str().unwrap()]);
     assert!(
         output.status.success(),
         "{}",
@@ -22939,7 +23283,7 @@ fn xlsx_rejects_tampered_collection_topology() {
         input_path.to_str().expect("input path"),
     ]);
     assert!(template.status.success());
-    edit_workbook(&input_path, |sheets| {
+    edit_ready_workbook(&input_path, |sheets| {
         set_workbook_cell(
             sheets,
             "_tables",
@@ -22974,7 +23318,7 @@ fn xlsx_rejects_tampered_visible_calculation_title() {
         input_path.to_str().expect("input path"),
     ]);
     assert!(template.status.success());
-    edit_workbook(&input_path, |sheets| {
+    edit_ready_workbook(&input_path, |sheets| {
         workbook_sheet_mut(sheets, "cases")[0][0] =
             Data::String("Tampered calculation".to_string());
     });
@@ -23263,6 +23607,7 @@ fn typed_function_is_a_calculation_boundary_too() {
     let mut input: Value =
         serde_json::from_slice(&std::fs::read(&input_path).expect("template")).unwrap();
     input["cases"][0]["input"]["value"] = 41.into();
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(&input_path, serde_json::to_vec_pretty(&input).unwrap()).unwrap();
     let output = run(&[
         "call",
@@ -23413,6 +23758,7 @@ fn canonical_values_cover_generics_sums_maps_sets_and_case_isolation() {
             }
         }
     ]);
+    mark_fixture_cases_ready(&mut input);
     std::fs::write(&input_path, serde_json::to_vec_pretty(&input).unwrap()).unwrap();
 
     let output = run(&[
@@ -23762,6 +24108,31 @@ impl EditableWorkbook {
             index
         })
     }
+}
+
+// These helpers acknowledge authored synthetic fixtures, including intentional
+// invalid cases. Production intake and readiness tests never auto-promote cases.
+fn mark_fixture_cases_ready(envelope: &mut Value) {
+    for case in envelope["cases"].as_array_mut().expect("fixture cases") {
+        case["input_status"] = Value::String("ready".into());
+    }
+}
+
+fn edit_ready_workbook(path: &Path, edit: impl FnOnce(&mut EditableWorkbook)) {
+    edit_workbook(path, |sheets| {
+        edit(sheets);
+        let rows = workbook_sheet_mut(sheets, "cases");
+        let status_column = rows[1]
+            .iter()
+            .position(|cell| cell.to_string() == "input_status")
+            .expect("fixture readiness column");
+        for row in rows.iter_mut().skip(2) {
+            if row.first().is_some_and(|cell| !cell.to_string().is_empty()) {
+                row.resize(row.len().max(status_column + 1), Data::Empty);
+                row[status_column] = Data::String("ready".into());
+            }
+        }
+    });
 }
 
 fn edit_workbook(path: &Path, edit: impl FnOnce(&mut EditableWorkbook)) {

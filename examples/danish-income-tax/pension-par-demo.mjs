@@ -31,7 +31,7 @@ export function buildCoupleCases(template) {
   aAfter.lønmodtager.bruttoløn_kroner = 50000;
   aAfter.lønmodtager.pension.pbl18_indbetalinger[0].betaling.beløb_kroner = 10000;
   b.lønmodtager.pension.pbl18_indbetalinger = [];
-  const make = (case_id, own, spouse) => ({ case_id, input: {
+  const make = (case_id, own, spouse) => ({ case_id, input_status: 'ready', input: {
     ...structuredClone(base), ...structuredClone(own),
     ægtefælle: { $variant: 'MedÆgtefælle', fakta: structuredClone(spouse),
       samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] },

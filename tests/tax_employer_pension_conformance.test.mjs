@@ -1,4 +1,4 @@
-// Recorded anonymous 2025 form observations; offline regression, not a live
+// Recorded anonymous 2025 annual-form and 2026 forecast observations; offline regression, not a live
 // oracle or approval of arbitrary reports. Known disagreements stay open.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -41,7 +41,7 @@ test('employer pension observations retain matches, low-wage and shared-cap disa
     if (kind === null) input.lønmodtager.pension.pbl18_indbetalinger = [];
     else input.lønmodtager.pension.pbl18_indbetalinger[0].ordning = { $variant: kind };
     if (!atp) input.lønmodtager.pension.atp = { $variant: 'IngenAtpIndbetalinger' };
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   };
   template.cases = [
     make('atp-only-low', 100000, null, true),
@@ -136,4 +136,83 @@ test('employer pension observations retain matches, low-wage and shared-cap disa
   assert.ok(rendered.text.includes(caveat), 'the Danish viewer must retain the qualification');
   save('resultat.txt', rendered.text);
   console.log('2 official-form matches; 4 unresolved disagreements; 1 invalid-source control. Not full tax conformance.');
+});
+
+test('2026 forecast employer-rate total and subset represent one contribution', {
+  skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no compiler build or network.',
+}, () => {
+  const evidence = mkdtempSync(join(tmpdir(), 'futuruna-employer-forecast-'));
+  console.log(`Fictional 2026 forecast evidence: ${evidence}`);
+  const save = (name, value) => {
+    const path = join(evidence, name);
+    writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n',
+      { flag: 'wx', mode: 0o600 });
+    return path;
+  };
+  const run = (args) => {
+    const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 600000,
+      maxBuffer: 32 * 1024 * 1024, env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' } });
+    assert.ifError(p.error); assert.equal(p.status, 0, p.stderr); return p.stdout;
+  };
+  const template = JSON.parse(run(['template', model, '--format', 'json']));
+  // Reuse the fictional construction, not its 2025 source ledger. This separate
+  // 2026 profile explicitly has no other income, deductions, ATP or payouts
+  // in either 2025 or 2026; none of those absences are inferred from a report.
+  const input = buildFictionalCases(template).envelope.cases
+    .find(c => c.case_id === 'arbejdsgiver-atp').input;
+  input.lønmodtager.skatteår = 2026;
+  input.lønmodtager.bruttoløn_kroner = 100000;
+  input.lønmodtager.ligningsfradrag.arbejdsfradrag_udland.kildereference =
+    'Fiktiv forskudsprofil 2026: fuld dansk skattepligt og DBO-hjemsted hele året';
+  const pension = input.lønmodtager.pension;
+  pension.atp = { $variant: 'IngenAtpIndbetalinger' };
+  assert.equal(pension.pbl18_indbetalinger.length, 1);
+  const contribution = pension.pbl18_indbetalinger[0];
+  contribution.identifikation = 'fictional-2026-employer-rate-50000';
+  contribution.betaling.forfaldsår = 2026;
+  contribution.betaling.betalingsår = 2026;
+  assert.equal(contribution.ordning.$variant, 'Pbl18Rateopsparing');
+  assert.equal(contribution.indbetalingskilde.$variant, 'Pbl18Arbejdsgiverindbetaling');
+  assert.equal(contribution.betaling.beløb_kroner, 50000);
+  assert.equal(contribution.betaling.arbejdsmarkedsbidrag_kroner, 4000);
+  assert.equal(contribution.betaling.bank_årsplacering.$variant, 'Pbl19BankBetalingsår');
+  template.cases = [{ case_id: 'forecast-2026-rate-low', input_status: 'ready', input }];
+  // Anonymous forecast 26.3.5.1, observed 2026-09-27. Public fields:
+  // 201 = 100000; 628 = 46000 inclusive total; 629 = 46000 rate subset.
+  // The subset is NOT a second pension payment. This is not the 2025 form.
+  const observed = { employment: 19125, extra: 5520, taxable: 67355,
+    municipal_ore: 1575433, total_ore: 1565213 };
+  const raw = run(['call', model, '--input', save('cases.json', template)]);
+  const resultPath = save('results.json', raw);
+  const output = JSON.parse(raw);
+  assert.deepEqual(output.diagnostics, []);
+  assert.deepEqual(output.results.map(c => c.case_id), ['forecast-2026-rate-low']);
+  const r = output.results[0].result;
+  const a = r.vurdering;
+  assert.equal(a.alle_kontroller_gyldige, true);
+  assert.equal(a.status.$variant, 'BeregnetMedForbehold');
+  assert.equal(a.samlet_modeldækning_bekræftet, false);
+  assert.deepEqual(a.fejl, []);
+  assert.ok(a.forbehold.some(text => text.includes(caveat)));
+  assert.ok(a.forbehold.some(text => text.includes('nettokreditten')
+    && text.includes('ikke retligt afklaret') && text.includes('personskat-skattekreditter.md')));
+  assert.equal(r.skat.arbejdsmarkedsbidrag_kroner, 8000);
+  assert.equal(r.skat.personlig_indkomst_efter_am_kroner, 92000);
+  assert.equal(r.arbejdsfradrag_udland.grundlag.grundlag_før_udlandsafgrænsning_kroner, 150000);
+  assert.equal(r.pension.arbejdsgiver_rate_resultat.indbetaling_før_am_kroner, 50000);
+  assert.equal(r.pension.arbejdsgiver_rate_resultat.indeholdt_am_kroner, 4000);
+  assert.equal(r.pension.arbejdsgiver_rate_resultat.bortseelsesberettiget_efter_am_kroner, 46000);
+  assert.equal(r.pension.pbl18_årsresultat.rate_og_ophørende_fradrag_kroner, 0);
+  assert.deepEqual({ employment: r.skat.beskæftigelsesfradrag_kroner,
+    extra: r.skat.ekstra_pensionsfradrag_kroner,
+    taxable: r.skat.almindelig_skattepligtig_indkomst_kroner,
+    municipal_ore: r.hovedskat_eksakt.før_nedsættelser.kommuneskat_øre,
+    total_ore: a.slutskat_til_sammenligning_øre }, observed);
+  save('comparison.json', { case_id: 'forecast-2026-rate-low', status: 'match', observed });
+  const rendered = renderPersonskatOutput(readSavedOutput(resultPath));
+  assert.equal(rendered.exitCode, 0);
+  assert.ok(rendered.text.includes(caveat));
+  assert.ok(rendered.text.includes('personskat-skattekreditter.md'));
+  save('resultat.txt', rendered.text);
+  console.log('One 2026 indicative forecast match. The four 2025 annual-form disagreements remain unresolved.');
 });

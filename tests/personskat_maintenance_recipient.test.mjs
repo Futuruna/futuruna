@@ -99,7 +99,7 @@ test('child-maintenance recipient must match the assessed person, not merely the
     const row = maintenance(); row.beløb_kroner = 1603;
     input.lønmodtager.personlig_indkomst.underholdsbidrag.bidrag = [row];
   }, false);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

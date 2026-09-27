@@ -41,6 +41,44 @@ fn source_parameters_and_report_results_match_native_execution() {
 }
 
 #[test]
+fn municipality_year_scope_and_budget_choices_match_native_execution() {
+    let path = "tests/kommunal_native_test.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+        assert!(
+            output.status.success(),
+            "{lane}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("10 kommunale grænsekontroller"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
+fn filing_deadline_sources_and_shifted_boundaries_match_native_execution() {
+    let path = "tests/skattekontrollov_native_test.runa";
+    let interpreted = execute(false, path);
+    let native = execute(true, path);
+    for (lane, output) in [("interpreter", &interpreted), ("native", &native)] {
+        assert!(
+            output.status.success(),
+            "{lane}: {}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n"),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("22 fristkontroller"));
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+}
+
+#[test]
 fn ordinary_deductions_match_external_skat_calculator_boundaries() {
     let path = "examples/danish-income-tax/skatdk-arbejdsfradrag-ekstern.scenario.runa";
     let interpreted = execute(false, path);
@@ -194,6 +232,195 @@ fn personal_allowance_domains_preserve_native_values_and_missing_year_errors() {
     std::fs::remove_dir(directory).unwrap();
     println!(
         "Personal allowance: nine invariants, native parity and four missing-year edges passed"
+    );
+}
+
+#[test]
+fn wage_year_routing_preserves_native_values_and_rejects_missing_domains() {
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let binary = std::fs::canonicalize(binary).unwrap();
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/tax_parameter_domain/wage_year_routing.runa");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-wage-native-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    // Build once: each rejected domain must exercise the same native artifact.
+    let build = Command::new(&binary)
+        .current_dir(&directory)
+        .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+        .args(["build", source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    if !build.status.success() {
+        let diagnostic = directory.join("build.stderr");
+        std::fs::write(&diagnostic, &build.stderr).unwrap();
+        panic!(
+            "wage build failed (full diagnostics: {}):\n{}",
+            diagnostic.display(),
+            String::from_utf8_lossy(&build.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let executable = directory.join(format!("wage_year_routing{}", std::env::consts::EXE_SUFFIX));
+    let run = |native: bool, case: &str| {
+        let mut command = Command::new(if native { &executable } else { &binary });
+        command
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+            .env("FUTURUNA_WAGE_YEAR_CASE", case);
+        if !native {
+            command.arg(&source);
+        }
+        command.output().unwrap()
+    };
+    let interpreted = run(false, "supported");
+    let native = run(true, "supported");
+    for output in [&interpreted, &native] {
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let rows: Vec<Vec<i64>> = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(rows.len(), 8);
+        assert!(rows.iter().all(|row| row.len() == 24));
+        // Existing synthetic model expectations, not new external SKAT goldens.
+        assert_eq!(&rows[2][..5], &[2025, 0, 0, 0, 174075]);
+        assert_eq!(&rows[4][..5], &[2026, 14010, 3757, 0, 348197]);
+        assert_eq!(&rows[5][..5], &[2026, 158910, 148657, 8365, 1498291]);
+        assert_eq!(&rows[7][1..5], &[0, 0, 0, 0]);
+    }
+    assert_eq!(interpreted.stdout, native.stdout);
+    for case in [
+        "historic-in-2026",
+        "middle-in-2025",
+        "top-in-2025",
+        "top-top-in-2025",
+        "missing-2022",
+        "missing-2027",
+    ] {
+        for native in [false, true] {
+            let output = run(native, case);
+            assert!(!output.status.success(), "{case}: accepted missing domain");
+            assert!(output.stdout.is_empty(), "{case}: fabricated wage result");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("head: empty list"),
+                "{case}: expected checked domain error: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    std::fs::remove_file(executable).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+    println!("Wage routing: eight native parity cases and six rejected domains passed");
+}
+
+#[test]
+fn exact_share_and_dis_year_routes_preserve_native_values() {
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let binary = std::fs::canonicalize(binary).unwrap();
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/tax_parameter_domain/exact_share_dis_year_routing.runa");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-exact-year-native-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    let build = Command::new(&binary)
+        .current_dir(&directory)
+        .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+        .args(["build", source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    if !build.status.success() {
+        let diagnostic = directory.join("build.stderr");
+        std::fs::write(&diagnostic, &build.stderr).unwrap();
+        panic!(
+            "year-route build failed (full diagnostics: {}):\n{}",
+            diagnostic.display(),
+            String::from_utf8_lossy(&build.stderr)
+                .lines()
+                .take(90)
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let executable = directory.join(format!(
+        "exact_share_dis_year_routing{}",
+        std::env::consts::EXE_SUFFIX
+    ));
+    let run = |native: bool, year: &str| {
+        let mut command = Command::new(if native { &executable } else { &binary });
+        command
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .env("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS", "1")
+            .env("FUTURUNA_EXACT_YEAR", year);
+        if !native {
+            command.arg(&source);
+        }
+        command.output().unwrap()
+    };
+    // Captured from the unchanged interpreted model before making its closed
+    // year routes explicit. These are model regressions, not external goldens.
+    let expected = vec![
+        vec![
+            2023, 33784500, 0, 0, 337845, 0, 0, 2870000, 2870000, 23543, 2870000, 2354320,
+        ],
+        vec![
+            2024, 33459000, 0, 0, 334590, 0, 0, 2870000, 2870000, 23316, 2870000, 2331637,
+        ],
+        vec![
+            2025, 33087000, 0, 0, 330870, 0, 0, 2870000, 2870000, 23057, 2870000, 2305714,
+        ],
+        vec![
+            2026, 16303500, 14865750, 836500, 163035, 148657, 8365, 2760000, 2760000, 10772,
+            2760000, 1077228,
+        ],
+        vec![2025, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        vec![2026, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+    for native in [false, true] {
+        let output = run(native, "0");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let rows: Vec<Vec<i64>> = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(rows, expected, "native={native}");
+        for year in ["2022", "2027"] {
+            let output = run(native, year);
+            assert!(
+                !output.status.success(),
+                "{year}: accepted unsupported year"
+            );
+            assert!(output.stdout.is_empty(), "{year}: fabricated tax output");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("head: empty list"),
+                "{year}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    std::fs::remove_file(executable).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+    println!(
+        "Exact/share/DIS: six cases, 72 preserved values and two rejected years in both lanes"
     );
 }
 

@@ -71,7 +71,7 @@ test('unrouted nonzero financial income cannot disappear from a valid annual com
   envelope.cases = [['baseline', []], ['investment-certificate', [certificate(15000)]],
     ['unlisted-intermediary', [intermediary(9000, false)]]].map(([case_id, posts]) => {
     const input = structuredClone(base); input.kapitalindkomst.finansielle_poster = posts;
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
@@ -115,7 +115,7 @@ test('covered gains, losses, reclassification and nondeductible expenses retain 
   ];
   envelope.cases = specs.map(([case_id, post, , , , spouse]) => {
     const input = structuredClone(base), person = spouse ? addSpouse(input) : input;
-    person.kapitalindkomst.finansielle_poster = [post]; return { case_id, input };
+    person.kapitalindkomst.finansielle_poster = [post]; return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
@@ -179,7 +179,7 @@ test('part-year comparison keeps main and documented annual spouse financial rou
     if (case_id === 'annual-spouse-excluded') {
       input.helårsgrundlag.personskat.ægtefælle.fakta.kapitalindkomst.finansielle_poster = [intermediary(9000, false)];
     }
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', file, '--entry', entry, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
