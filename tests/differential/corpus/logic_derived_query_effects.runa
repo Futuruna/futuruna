@@ -1,0 +1,7 @@
+| row("ann", "car")
+| row("bob", "bike")
+> checked(person: String) -> Bool { @ print("checked " + person); True }
+| traced(person, item) -> row(person, item), checked(person)
+@ print(show(findall(item, traced(_, item))))
+@ print(show(findall(person, traced(person, "car"))))
+@ print(show(findall(item, traced(item, item))))

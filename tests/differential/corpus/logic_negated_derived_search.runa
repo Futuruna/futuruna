@@ -1,0 +1,12 @@
+| item(1)
+| item(2)
+| hidden(1)
+| visible(x) -> item(x), not(hidden(x))
+| shown(x) -> not(hidden(x))
+| visible_via_helper(x) -> item(x), shown(x)
+
+assert(visible(2))
+assert(not(visible(1)))
+assert(findall(x, visible(x)) == [2])
+assert(findall(x, visible_via_helper(x)) == [2])
+@ print("negated derived searches passed")

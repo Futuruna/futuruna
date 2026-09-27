@@ -1,0 +1,20 @@
+| number(1)
+| number(2)
+| hidden(1)
+| labelled("one", 1)
+| z_number(x) -> number(x), True
+| b_number(x) -> z_number(x), True
+| a_number(x) -> b_number(x), True
+| visible(x) -> number(x), not(hidden(x))
+| labelled_one(label) -> labelled(label, 1), True
+| positive_label(label, value) -> labelled(label, value), value > 0
+
+assert(a_number(2))
+assert(not(a_number(3)))
+assert(visible(2))
+assert(not(visible(1)))
+assert(labelled_one("one"))
+assert(not(labelled_one("two")))
+assert(positive_label("one", 1))
+assert(not(positive_label("one", 2)))
+@ print("derived rule parameter types passed")

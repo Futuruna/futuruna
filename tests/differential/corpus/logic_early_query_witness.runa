@@ -1,0 +1,9 @@
+| edge(1, 2)
+| edge(2, 1)
+| reach(x, y) -> edge(x, y)
+| reach(x, y) -> edge(x, z), reach(z, y)
+> accepted(value: Int) -> Bool { @ print("accepted " + show(value)); True }
+| witness() -> reach(1, value), accepted(value)
+
+assert(witness())
+@ print("early witness passed")
