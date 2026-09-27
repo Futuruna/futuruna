@@ -4,6 +4,7 @@
   "scopeName": "source.runa",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#characters" },
     { "include": "#strings" },
     { "include": "#rust-escape" },
     { "include": "#annotations" },
@@ -11,24 +12,31 @@
     { "include": "#function-definitions" },
     { "include": "#stream-bindings" },
     { "include": "#let-bindings" },
+    { "include": "#rule-definitions" },
     { "include": "#match-arms" },
     { "include": "#keywords" },
     { "include": "#pipe-operator" },
     { "include": "#arrow-operators" },
+    { "include": "#verification" },
     { "include": "#query-operator" },
     { "include": "#comparison-operators" },
     { "include": "#logical-operators" },
     { "include": "#arithmetic-operators" },
     { "include": "#type-names" },
+    { "include": "#booleans" },
     { "include": "#constructor-names" },
     { "include": "#numbers" },
-    { "include": "#booleans" },
     { "include": "#function-calls" },
     { "include": "#variables" }
   ],
   "repository": {
     "comments": {
       "patterns": [
+        {
+          "name": "comment.block.runa",
+          "begin": "----",
+          "end": "----"
+        },
         {
           "name": "comment.line.double-dash.runa",
           "match": "--.*$"
@@ -37,6 +45,14 @@
     },
     "strings": {
       "patterns": [
+        {
+          "name": "string.quoted.triple.runa",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            { "include": "#interpolation" }
+          ]
+        },
         {
           "name": "string.quoted.double.runa",
           "begin": "\"",
@@ -121,7 +137,7 @@
       "patterns": [
         {
           "comment": "> actor name(...)",
-          "match": "(>)\\s+(actor)\\s+(\\w+)",
+          "match": "(?:^|(?<=[;{]))[ \\t]*(>)\\s+(actor)\\s+(\\w+)",
           "captures": {
             "1": { "name": "keyword.operator.definition.runa" },
             "2": { "name": "storage.modifier.actor.runa" },
@@ -130,7 +146,7 @@
         },
         {
           "comment": "> functionName(...) -> RetType { ... }",
-          "match": "(>)\\s+(\\w+)\\s*\\(",
+          "match": "(?:^|(?<=[;{]))[ \\t]*(>)\\s+(\\w+)\\s*\\(",
           "captures": {
             "1": { "name": "keyword.operator.definition.runa" },
             "2": { "name": "entity.name.function.runa" }
@@ -205,7 +221,7 @@
       "patterns": [
         {
           "name": "keyword.control.runa",
-          "match": "\\b(if|else|match|for|in|with|resume|return|spawn|ask)\\b"
+          "match": "\\b(if|else|match|for|in|with|resume|return|spawn|ask|under|exception|scope|not|and|or)\\b"
         },
         {
           "name": "storage.modifier.runa",
@@ -246,7 +262,7 @@
       "patterns": [
         {
           "name": "keyword.operator.comparison.runa",
-          "match": "==|!=|<=|>="
+          "match": "==|!=|<=|>=|<|>"
         }
       ]
     },
@@ -314,7 +330,7 @@
       "patterns": [
         {
           "name": "constant.language.boolean.runa",
-          "match": "\\b(true|false)\\b"
+          "match": "\\b(True|False|true|false)\\b"
         }
       ]
     },
@@ -334,6 +350,58 @@
         {
           "name": "variable.other.runa",
           "match": "\\b[a-z_]\\w*\\b"
+        }
+      ]
+    },
+    "characters": {
+      "patterns": [
+        {
+          "name": "constant.character.runa",
+          "match": "'(?:\\\\(?:u\\{[0-9a-fA-F]+\\}|.)|[^'\\\\\\r\\n])'"
+        }
+      ]
+    },
+    "interpolation": {
+      "name": "meta.embedded.inline.runa",
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.interpolation.begin.runa" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.interpolation.end.runa" }
+      },
+      "patterns": [
+        { "include": "#interpolation-braces" },
+        { "include": "$self" }
+      ]
+    },
+    "interpolation-braces": {
+      "begin": "\\{",
+      "end": "\\}",
+      "patterns": [
+        { "include": "#interpolation-braces" },
+        { "include": "$self" }
+      ]
+    },
+    "rule-definitions": {
+      "patterns": [
+        {
+          "match": "(\\|)\\s+((?!_\\b)[[:lower:]_]\\w*)(?=\\s*(?:\\(|->|:|under\\b))",
+          "captures": {
+            "1": { "name": "keyword.operator.rule.runa" },
+            "2": { "name": "entity.name.function.rule.runa" }
+          }
+        }
+      ]
+    },
+    "verification": {
+      "patterns": [
+        {
+          "match": "(?:^|(?<=[;{]))[ \\t]*(\\?)(?=\\s|$)",
+          "captures": {
+            "1": { "name": "keyword.operator.verification.runa" }
+          }
         }
       ]
     }

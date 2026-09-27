@@ -1,0 +1,20 @@
+# Option(a) = None | Some(a)
+# Pairing = Together(Bool, Bool) | Apart
+> choose(value: Option(Bool)) -> Int {
+    match value { | Some(True) -> 1 | Some(False) -> 2 | None -> 3 }
+}
+> count_pairing(value: Pairing) -> Int {
+    match value {
+        | Together(True, True) -> 2
+        | Together(True, False) -> 1
+        | Together(False, True) -> 1
+        | Together(False, False) -> 0
+        | Apart -> 0
+    }
+}
+> guarded(value: Option(Int)) -> Int {
+    match value { | Some(n) if n > 0 -> n | Some(_) -> 0 | None -> -1 }
+}
+@ print(show(choose(Some(False))))
+@ print(show(count_pairing(Together(False, True))))
+@ print(show(guarded(Some(-5))))

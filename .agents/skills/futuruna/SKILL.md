@@ -64,6 +64,10 @@ a full project test run for the setup workflow.
 
 ### Author or debug `.runa`
 
+When adapting habits or examples from another language, first read
+`../../../docs/reference/common-mistakes.md`. It keeps the concrete syntax,
+rule-coverage cautions, and validation commands in one maintained reference.
+
 1. Confirm the syntax and feature stage in the current reference.
 2. Reuse the closest established example and repository naming/style.
 3. Make the smallest source change that expresses the requested behavior.

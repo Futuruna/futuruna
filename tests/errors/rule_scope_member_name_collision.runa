@@ -1,3 +1,4 @@
+-- expect-error: RuleScope `TaxCase` has both a `|` rule and a `>` method named `allowance`; member names must be unambiguous
 # Person(age: Int)
 
 # TaxCase(person: Person) {

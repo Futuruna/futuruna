@@ -89,6 +89,12 @@ Follow the [repository map](docs/repository-layout.md) when adding or moving
 files. Keep generated executables and runtime databases out of Git; preserve
 reference paths through a recorded migration and update their consumers.
 
+For VS Code syntax grammar or language-configuration changes, run
+`npm test --prefix editors/vscode` after the dependency setup in the
+[editor guide](editors/vscode/README.md). These tests exercise the actual
+TextMate tokenizer, including multiline state and scope precedence; CI runs
+them in its independent editor job.
+
 ## Releases
 
 Public tags, crates.io publication, release binaries, checksums, and macOS

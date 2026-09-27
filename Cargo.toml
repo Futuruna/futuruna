@@ -1,6 +1,6 @@
 [package]
 name = "futuruna"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 autobins = false
 rust-version = "1.94"
@@ -16,7 +16,7 @@ categories = ["compilers", "command-line-utilities"]
 default-run = "runa"
 publish = ["crates-io"]
 include = [
-    "/src/**",
+    "/src/**/*.rs",
     "/docs/feature-stages.json",
     "/README.md",
     "/LICENSE",

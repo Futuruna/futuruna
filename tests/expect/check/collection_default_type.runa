@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: match arms must have the same type; first arm is `Int` but arm 2 is `String`
+
+= entries = map_insert(map_new(), "known", 1)
+= wrong = map_get(entries, "missing") ?: "wrong"

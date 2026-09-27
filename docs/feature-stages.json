@@ -502,6 +502,17 @@
       ]
     },
     {
+      "path": "docs/reference/common-mistakes.md",
+      "stage": "mixed",
+      "surfaces": [
+        "core-language-syntax",
+        "documented-stdlib",
+        "pure-core-rust-artifacts",
+        "core-cli-workflow",
+        "style-and-modeling-guidance"
+      ]
+    },
+    {
       "path": "docs/reference/calculations.md",
       "stage": "preview",
       "surfaces": [

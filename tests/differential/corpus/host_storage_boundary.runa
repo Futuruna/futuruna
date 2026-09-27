@@ -1,0 +1,26 @@
+-- Storage belongs to the host; ordinary data, logic, scopes and names still work.
+# Input(income: Int)
+# Db(id: Int)
+@ calculate
+> eligible(input: Input) -> Bool { input.income <= 100 }
+
+| member("Ada")
+| member("Bo")
+= members = findall(person, member(person))
+assert(length(members) == 2)
+assert(Db(id = 7).id == 7)
+@ print(show(members))
+
+| scope calculation {
+    = input = Input(income = 75)
+    @ print(show(eligible(input)))
+}
+
+> db_open(value: Int) -> Int { value + 1 }
+> db_exec(value: Int) -> Int { value + 1 }
+> db_query(value: Int) -> Int { value + 1 }
+> db_query_row(value: Int) -> Int { value + 1 }
+> db_insert(value: Int) -> Int { value + 1 }
+> db_close(value: Int) -> Int { value + 1 }
+> watch(value: Int) -> Int { value + 1 }
+@ print(show(watch(db_close(db_insert(db_query_row(db_query(db_exec(db_open(0)))))))))

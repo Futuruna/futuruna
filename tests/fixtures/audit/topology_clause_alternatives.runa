@@ -1,0 +1,20 @@
+-- Equal outcomes do not conflict.
+| same() -> 25
+| same() -> 20 + 5
+
+-- Boolean clauses are alternative ways to satisfy a predicate.
+| accepted() -> False
+| accepted() -> True
+
+-- Different arities are different calls, including typed and literal heads.
+| rate(amount: Int) -> 40 under True
+| rate() -> 25 under True
+| literal_rate(1) -> 25
+| literal_rate(2) -> 40
+
+-- Inactive branches and explicit priority changes are not same-tier conflicts.
+| selected() -> 25
+| selected() -> 40 under False
+| cap(amount: Int) -> 99
+| cap() -> 25
+| exception adjusted cap() -> 40 under True

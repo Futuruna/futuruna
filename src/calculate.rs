@@ -199,6 +199,20 @@ impl CalculationContract {
     }
 
     pub fn decode_input(&self, value: &JsonValue) -> Result<Value, CalculationValueError> {
+        self.decode_input_diagnostics(value).map_err(|errors| {
+            errors
+                .into_iter()
+                .next()
+                .expect("invalid input has a diagnostic")
+        })
+    }
+
+    /// Decode a case while collecting independent input errors. An invalid
+    /// parent shape stops that subtree; invalid cases never yield a value.
+    pub fn decode_input_diagnostics(
+        &self,
+        value: &JsonValue,
+    ) -> Result<Value, Vec<CalculationValueError>> {
         decode_value(value, &self.input, self, &BTreeMap::new(), "$")
     }
 
@@ -2948,21 +2962,41 @@ fn product_variant(definition: &CalculationTypeDefinition) -> Option<&Calculatio
     }
 }
 
+fn collect_decoded<T>(
+    results: impl IntoIterator<Item = Result<T, Vec<CalculationValueError>>>,
+) -> Result<Vec<T>, Vec<CalculationValueError>> {
+    let mut values = Vec::new();
+    let mut errors = Vec::new();
+    for result in results {
+        match result {
+            Ok(value) => values.push(value),
+            Err(mut diagnostics) => errors.append(&mut diagnostics),
+        }
+    }
+    if errors.is_empty() {
+        Ok(values)
+    } else {
+        Err(errors)
+    }
+}
+
 fn decode_value(
     value: &JsonValue,
     ty: &CalculationTypeRef,
     contract: &CalculationContract,
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
-) -> Result<Value, CalculationValueError> {
+) -> Result<Value, Vec<CalculationValueError>> {
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
-        CalculationTypeRef::Primitive { name } => decode_primitive(value, &name, path),
+        CalculationTypeRef::Primitive { name } => {
+            decode_primitive(value, &name, path).map_err(|error| vec![error])
+        }
         CalculationTypeRef::Unit => {
             if value.is_null() {
                 Ok(Value::Unit)
             } else {
-                Err(value_error(path, "expected null for unit"))
+                Err(vec![value_error(path, "expected null for unit")])
             }
         }
         CalculationTypeRef::Optional { item } => {
@@ -2978,78 +3012,88 @@ fn decode_value(
         CalculationTypeRef::List { item } => {
             let values = value
                 .as_array()
-                .ok_or_else(|| value_error(path, "expected an array"))?;
-            values
-                .iter()
-                .enumerate()
-                .map(|(index, value)| {
-                    decode_value(
-                        value,
-                        &item,
-                        contract,
-                        substitutions,
-                        &format!("{}[{}]", path, index),
-                    )
-                })
-                .collect::<Result<Vec<_>, _>>()
-                .map(Value::List)
+                .ok_or_else(|| vec![value_error(path, "expected an array")])?;
+            collect_decoded(values.iter().enumerate().map(|(index, value)| {
+                decode_value(
+                    value,
+                    &item,
+                    contract,
+                    substitutions,
+                    &format!("{}[{}]", path, index),
+                )
+            }))
+            .map(Value::List)
         }
         CalculationTypeRef::Map { key, value: item } => {
             if !matches!(*key, CalculationTypeRef::Primitive { ref name } if name == "String") {
-                return Err(value_error(path, "only Map(String, T) is supported"));
+                return Err(vec![value_error(path, "only Map(String, T) is supported")]);
             }
             let object = value
                 .as_object()
-                .ok_or_else(|| value_error(path, "expected an object"))?;
+                .ok_or_else(|| vec![value_error(path, "expected an object")])?;
+            let decoded = collect_decoded(object.iter().map(|(name, value)| {
+                decode_value(
+                    value,
+                    &item,
+                    contract,
+                    substitutions,
+                    &field_path(path, name),
+                )
+                .map(|value| (name, value))
+            }))?;
             let mut values = BTreeMap::new();
-            for (name, value) in object {
-                runtime_map_insert_value(
-                    &mut values,
-                    Value::Str(name.clone()),
-                    decode_value(
-                        value,
-                        &item,
-                        contract,
-                        substitutions,
-                        &field_path(path, name),
-                    )?,
-                );
+            for (name, value) in decoded {
+                runtime_map_insert_value(&mut values, Value::Str(name.clone()), value);
             }
             Ok(Value::Map(values))
         }
         CalculationTypeRef::Set { item } => {
             let array = value
                 .as_array()
-                .ok_or_else(|| value_error(path, "expected an array"))?;
+                .ok_or_else(|| vec![value_error(path, "expected an array")])?;
             let mut values = BTreeMap::new();
+            let mut errors = Vec::new();
             for (index, item_value) in array.iter().enumerate() {
-                let decoded = decode_value(
+                let decoded = match decode_value(
                     item_value,
                     &item,
                     contract,
                     substitutions,
                     &format!("{}[{}]", path, index),
-                )?;
+                ) {
+                    Ok(value) => value,
+                    Err(mut diagnostics) => {
+                        errors.append(&mut diagnostics);
+                        continue;
+                    }
+                };
                 let rendered = decoded.to_string();
                 if !runtime_set_insert_value(&mut values, decoded) {
-                    return Err(value_error(
+                    errors.push(value_error(
                         format!("{}[{}]", path, index),
                         format!("duplicate set value `{}`", rendered),
                     ));
                 }
             }
-            Ok(Value::Set(values))
+            if errors.is_empty() {
+                Ok(Value::Set(values))
+            } else {
+                Err(errors)
+            }
         }
-        CalculationTypeRef::TypeParameter { name } => Err(value_error(
+        CalculationTypeRef::TypeParameter { name } => Err(vec![value_error(
             path,
             format!("unresolved type parameter `{}`", name),
-        )),
+        )]),
         CalculationTypeRef::Named { name, arguments } => {
             let definition = contract.definition(&name).ok_or_else(|| {
-                value_error(path, format!("contract has no definition for `{}`", name))
+                vec![value_error(
+                    path,
+                    format!("contract has no definition for `{}`", name),
+                )]
             })?;
             if definition.parameters.len() != arguments.len() {
-                return Err(value_error(
+                return Err(vec![value_error(
                     path,
                     format!(
                         "type `{}` expects {} arguments but got {}",
@@ -3057,7 +3101,7 @@ fn decode_value(
                         definition.parameters.len(),
                         arguments.len()
                     ),
-                ));
+                )]);
             }
             let local = definition_substitutions(definition, &arguments);
             if let Some(variant) = product_variant(definition) {
@@ -3127,18 +3171,19 @@ fn decode_named_fields(
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
     allow_variant_key: bool,
-) -> Result<Vec<(String, Value)>, CalculationValueError> {
+) -> Result<Vec<(String, Value)>, Vec<CalculationValueError>> {
     let object = value
         .as_object()
-        .ok_or_else(|| value_error(path, "expected an object"))?;
+        .ok_or_else(|| vec![value_error(path, "expected an object")])?;
     let allowed: BTreeSet<&str> = variant
         .fields
         .iter()
         .map(|field| field.name.as_str())
         .collect();
+    let mut errors = Vec::new();
     for key in object.keys() {
         if !(allowed.contains(key.as_str()) || allow_variant_key && key == "$variant") {
-            return Err(value_error(
+            errors.push(value_error(
                 field_path(path, key),
                 format!("unknown field for variant `{}`", variant.name),
             ));
@@ -3151,24 +3196,29 @@ fn decode_named_fields(
             Some(value) => value,
             None if matches!(field_ty, CalculationTypeRef::Optional { .. }) => &JsonValue::Null,
             None => {
-                return Err(value_error(
+                errors.push(value_error(
                     field_path(path, &field.name),
                     "missing required field",
                 ));
+                continue;
             }
         };
-        result.push((
-            field.name.clone(),
-            decode_value(
-                field_value,
-                &field_ty,
-                contract,
-                substitutions,
-                &field_path(path, &field.name),
-            )?,
-        ));
+        match decode_value(
+            field_value,
+            &field_ty,
+            contract,
+            substitutions,
+            &field_path(path, &field.name),
+        ) {
+            Ok(value) => result.push((field.name.clone(), value)),
+            Err(mut diagnostics) => errors.append(&mut diagnostics),
+        }
     }
-    Ok(result)
+    if errors.is_empty() {
+        Ok(result)
+    } else {
+        Err(errors)
+    }
 }
 
 fn decode_variant(
@@ -3177,26 +3227,31 @@ fn decode_variant(
     contract: &CalculationContract,
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
-) -> Result<Value, CalculationValueError> {
+) -> Result<Value, Vec<CalculationValueError>> {
     let object = value.as_object().ok_or_else(|| {
-        value_error(
+        vec![value_error(
             path,
             format!(
                 "expected an object with `$variant` for `{}`",
                 definition.name
             ),
-        )
+        )]
     })?;
     let variant_name = object
         .get("$variant")
         .and_then(JsonValue::as_str)
-        .ok_or_else(|| value_error(field_path(path, "$variant"), "missing variant name"))?;
+        .ok_or_else(|| {
+            vec![value_error(
+                field_path(path, "$variant"),
+                "missing variant name",
+            )]
+        })?;
     let variant = definition
         .variants
         .iter()
         .find(|variant| variant.name == variant_name)
         .ok_or_else(|| {
-            value_error(
+            vec![value_error(
                 field_path(path, "$variant"),
                 format!(
                     "unknown `{}` variant `{}`; expected one of {}",
@@ -3209,23 +3264,27 @@ fn decode_variant(
                         .collect::<Vec<_>>()
                         .join(", ")
                 ),
-            )
+            )]
         })?;
     if variant.positional {
+        let mut errors = Vec::new();
         for key in object.keys() {
             if key != "$variant" && key != "$values" {
-                return Err(value_error(
+                errors.push(value_error(
                     field_path(path, key),
                     "positional variants only accept `$variant` and `$values`",
                 ));
             }
         }
-        let values = object
-            .get("$values")
-            .and_then(JsonValue::as_array)
-            .ok_or_else(|| value_error(field_path(path, "$values"), "expected an array"))?;
+        let Some(values) = object.get("$values").and_then(JsonValue::as_array) else {
+            errors.push(value_error(
+                field_path(path, "$values"),
+                "expected an array",
+            ));
+            return Err(errors);
+        };
         if values.len() != variant.fields.len() {
-            return Err(value_error(
+            errors.push(value_error(
                 field_path(path, "$values"),
                 format!(
                     "variant `{}` expects {} values but got {}",
@@ -3235,11 +3294,8 @@ fn decode_variant(
                 ),
             ));
         }
-        let decoded = values
-            .iter()
-            .zip(&variant.fields)
-            .enumerate()
-            .map(|(index, (value, field))| {
+        let decoded = collect_decoded(values.iter().zip(&variant.fields).enumerate().map(
+            |(index, (value, field))| {
                 decode_value(
                     value,
                     &field.ty,
@@ -3247,9 +3303,18 @@ fn decode_variant(
                     substitutions,
                     &format!("{}.$values[{}]", path, index),
                 )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Value::Constructor(variant.name.clone(), decoded.into()))
+            },
+        ));
+        match decoded {
+            Ok(values) if errors.is_empty() => {
+                Ok(Value::Constructor(variant.name.clone(), values.into()))
+            }
+            Ok(_) => Err(errors),
+            Err(mut diagnostics) => {
+                errors.append(&mut diagnostics);
+                Err(errors)
+            }
+        }
     } else {
         let fields = decode_named_fields(value, variant, contract, substitutions, path, true)?;
         if fields.is_empty() {
@@ -4195,6 +4260,7 @@ pub fn validate_input_envelope(
 enum CalculationCaseOutcome {
     Result(CalculationResultCase),
     Diagnostic(CalculationCaseDiagnostic),
+    Diagnostics(Vec<CalculationCaseDiagnostic>),
 }
 
 #[derive(Clone)]
@@ -4204,7 +4270,7 @@ struct CalculationProgram<'a> {
     source_dir: Option<String>,
     rule_dispatch_return_types: &'a BTreeMap<RuleDispatchKey, String>,
     rule_dispatch_return_issues: &'a BTreeMap<RuleDispatchKey, String>,
-    rule_dispatch_boolean_miss_safe_keys: &'a BTreeSet<RuleDispatchKey>,
+    rule_dispatch_runtime_boolean_miss_keys: &'a BTreeSet<RuleDispatchKey>,
 }
 
 struct CalculationWorker<'a> {
@@ -4224,7 +4290,7 @@ impl<'a> CalculationWorker<'a> {
         source_dir: Option<String>,
         rule_dispatch_return_types: &'a BTreeMap<RuleDispatchKey, String>,
         rule_dispatch_return_issues: &'a BTreeMap<RuleDispatchKey, String>,
-        rule_dispatch_boolean_miss_safe_keys: &'a BTreeSet<RuleDispatchKey>,
+        rule_dispatch_runtime_boolean_miss_keys: &'a BTreeSet<RuleDispatchKey>,
     ) -> Self {
         Self::from_program(CalculationProgram {
             entry,
@@ -4232,7 +4298,7 @@ impl<'a> CalculationWorker<'a> {
             source_dir,
             rule_dispatch_return_types,
             rule_dispatch_return_issues,
-            rule_dispatch_boolean_miss_safe_keys,
+            rule_dispatch_runtime_boolean_miss_keys,
         })
     }
 
@@ -4243,7 +4309,7 @@ impl<'a> CalculationWorker<'a> {
         interpreter.install_rule_dispatch_return_metadata(
             program.rule_dispatch_return_types,
             program.rule_dispatch_return_issues,
-            program.rule_dispatch_boolean_miss_safe_keys,
+            program.rule_dispatch_runtime_boolean_miss_keys,
         );
         let mut base_env = interpreter.default_env();
         let initialization_error = interpreter
@@ -4276,14 +4342,19 @@ impl<'a> CalculationWorker<'a> {
         case: &CalculationInputCase,
     ) -> CalculationCaseOutcome {
         let started = Instant::now();
-        let input = match contract.decode_input(&case.input) {
+        let input = match contract.decode_input_diagnostics(&case.input) {
             Ok(input) => input,
-            Err(error) => {
-                let outcome = CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
-                    case_id: case.case_id.clone(),
-                    path: error.path,
-                    message: error.message,
-                });
+            Err(errors) => {
+                let outcome = CalculationCaseOutcome::Diagnostics(
+                    errors
+                        .into_iter()
+                        .map(|error| CalculationCaseDiagnostic {
+                            case_id: case.case_id.clone(),
+                            path: error.path,
+                            message: error.message,
+                        })
+                        .collect(),
+                );
                 trace_calculation_case(&case.case_id, started);
                 return outcome;
             }
@@ -4479,7 +4550,7 @@ fn invoke_calculation_cases_with_jobs(
     let (
         rule_dispatch_return_types,
         rule_dispatch_return_issues,
-        rule_dispatch_boolean_miss_safe_keys,
+        rule_dispatch_runtime_boolean_miss_keys,
     ) = TypeChecker::rule_dispatch_metadata_for_runtime(stmts, source_dir.clone());
 
     // Prime the shared parsed-module cache before peers initialize their own
@@ -4490,7 +4561,7 @@ fn invoke_calculation_cases_with_jobs(
         source_dir.clone(),
         &rule_dispatch_return_types,
         &rule_dispatch_return_issues,
-        &rule_dispatch_boolean_miss_safe_keys,
+        &rule_dispatch_runtime_boolean_miss_keys,
     );
     let initialized_after = started.elapsed();
     let mut outcomes = if worker_count == 1 {
@@ -4501,7 +4572,7 @@ fn invoke_calculation_cases_with_jobs(
             let next_case = AtomicUsize::new(0);
             let rule_dispatch_return_types = &rule_dispatch_return_types;
             let rule_dispatch_return_issues = &rule_dispatch_return_issues;
-            let rule_dispatch_boolean_miss_safe_keys = &rule_dispatch_boolean_miss_safe_keys;
+            let rule_dispatch_runtime_boolean_miss_keys = &rule_dispatch_runtime_boolean_miss_keys;
             let cases = &cases;
             std::thread::scope(|scope| {
                 let mut handles = Vec::with_capacity(worker_count - 1);
@@ -4519,7 +4590,7 @@ fn invoke_calculation_cases_with_jobs(
                                     worker_source_dir,
                                     rule_dispatch_return_types,
                                     rule_dispatch_return_issues,
-                                    rule_dispatch_boolean_miss_safe_keys,
+                                    rule_dispatch_runtime_boolean_miss_keys,
                                 );
                                 invoke_calculation_case_queue(
                                     &mut worker,
@@ -4551,6 +4622,9 @@ fn invoke_calculation_cases_with_jobs(
         match outcome {
             CalculationCaseOutcome::Result(result) => output.results.push(result),
             CalculationCaseOutcome::Diagnostic(diagnostic) => output.diagnostics.push(diagnostic),
+            CalculationCaseOutcome::Diagnostics(diagnostics) => {
+                output.diagnostics.extend(diagnostics)
+            }
         }
     }
     if calculation_trace_enabled() {
@@ -4962,11 +5036,18 @@ mod calculation_execution_tests {
             ],
         );
         let (_, _, miss_safe) = TypeChecker::rule_dispatch_metadata_for_runtime(&statements, None);
-        assert!(!miss_safe.contains(&RuleDispatchKey {
-            scope: Some("Policy".into()),
-            name: "predicate".into(),
-            arity: 0
-        }));
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        for name in ["predicate", "delegated"] {
+            let key = RuleDispatchKey {
+                scope: Some("Policy".into()),
+                name: name.into(),
+                arity: 0,
+            };
+            assert!(miss_safe.contains(&key));
+            assert!(!artifacts
+                .rule_dispatch_boolean_miss_safe_keys
+                .contains(&key));
+        }
         for jobs in [1, 3] {
             let output = invoke_calculation_cases_with_jobs(
                 &contract,
@@ -5365,7 +5446,7 @@ mod calculation_execution_tests {
             None,
             &artifacts.rule_dispatch_return_types,
             &artifacts.rule_dispatch_return_issues,
-            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+            &artifacts.rule_dispatch_runtime_boolean_miss_keys,
         );
 
         assert!(worker.interpreter.output.is_empty());

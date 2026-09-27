@@ -1,8 +1,9 @@
 -- expect-command: emit-rust
 -- expect-status: pass
 -- expect-stdout: fn signature_value(x: f64) -> i64
--- expect-stdout: if __d == 0 { 0 } else {
--- expect-stdout: shifted % __d
+-- expect-stdout: let __fut_l: i64 = shifted; let __fut_r: i64 = 64i64;
+-- expect-stdout: __fut_l.checked_rem(__fut_r).expect("integer remainder by zero or overflow")
+-- expect-stdout-not: if __d == 0 { 0 } else {
 > signature_value(x: Float) -> Int {
     = shifted = round(pow(x, 2.0))
     shifted % 64

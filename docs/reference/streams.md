@@ -109,7 +109,7 @@ These consume the stream and return a single value.
 
 ```runa
 = total = nums |> sum
-= count = nums |> count
+= element_count = nums |> count
 = has_big = nums |> any(|x| x > 100)
 ```
 

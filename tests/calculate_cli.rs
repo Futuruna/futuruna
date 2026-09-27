@@ -197,6 +197,52 @@ fn calculation_readiness_survives_legacy_hydration_without_promoting_cases() {
 }
 
 #[test]
+fn calculation_hydration_reports_every_field_error_without_overwriting_output() {
+    let source = fixture();
+    let model = source.to_str().unwrap();
+    let generated = run(&["template", model]);
+    assert!(generated.status.success());
+    let mut envelope = parse_stdout(&generated);
+    let mut facts = envelope["cases"][0]["input"].clone();
+    facts["monthly_income"] = "invalid income".into();
+    facts["children"] = serde_json::json!([{"name": "Fictional child", "age": "invalid age"}]);
+    envelope["cases"] = serde_json::json!([
+        {"case_id": "draft", "input_status": "draft", "input": facts},
+        {"case_id": "ready", "input_status": "ready", "input": facts}
+    ]);
+    let original = temp_path("json");
+    let original_bytes = serde_json::to_vec(&envelope).unwrap();
+    std::fs::write(&original, &original_bytes).unwrap();
+    for format in ["json", "xlsx"] {
+        let destination = temp_path(format);
+        let previous = b"existing output must survive rejected hydration";
+        std::fs::write(&destination, previous).unwrap();
+        let refreshed = run(&[
+            "template",
+            model,
+            "--input",
+            original.to_str().unwrap(),
+            "--output",
+            destination.to_str().unwrap(),
+        ]);
+        assert_eq!(refreshed.status.code(), Some(1), "{refreshed:?}");
+        let stderr = String::from_utf8_lossy(&refreshed.stderr);
+        for case_id in ["draft", "ready"] {
+            for path in ["$.monthly_income", "$.children[0].age"] {
+                assert!(
+                    stderr.contains(&format!("case `{case_id}` {path}:")),
+                    "missing {case_id} {path}: {stderr}"
+                );
+            }
+        }
+        assert_eq!(std::fs::read(&destination).unwrap(), previous);
+        std::fs::remove_file(destination).unwrap();
+    }
+    assert_eq!(std::fs::read(&original).unwrap(), original_bytes);
+    std::fs::remove_file(original).unwrap();
+}
+
+#[test]
 fn calculation_readiness_refresh_reopens_only_cases_needing_new_sheets() {
     let source = temp_path("runa");
     let original = temp_path("xlsx");
@@ -1334,12 +1380,14 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
     input["cases"] = serde_json::json!([
         {"case_id":"good-before", "input":{"year":2026,"amount":8,"divisor":2}},
         {"case_id":"zero-divisor", "input":{"year":2026,"amount":7,"divisor":0}},
+        {"case_id":"unreviewed", "input":{"year":2026,"amount":7,"divisor":0}},
         {"case_id":"unsupported-year", "input":{"year":2027,"amount":8,"divisor":2}},
         {"case_id":"overflow", "input":{"year":2026,"amount":i64::MIN,"divisor":-1}},
         {"case_id":"valid-zero", "input":{"year":2026,"amount":0,"divisor":2}},
         {"case_id":"good-after", "input":{"year":2026,"amount":8,"divisor":2}}
     ]);
     mark_fixture_cases_ready(&mut input);
+    input["cases"][2]["input_status"] = "draft".into();
     std::fs::write(&input_path, serde_json::to_vec(&input).unwrap()).unwrap();
     let mut previous = None;
     for jobs in ["1", "3"] {
@@ -1369,14 +1417,20 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
             ])
         );
         let diagnostics = output["diagnostics"].as_array().unwrap();
-        assert_eq!(diagnostics.len(), 3);
-        for (diagnostic, case_id, message) in [
-            (&diagnostics[0], "zero-divisor", "integer division"),
-            (&diagnostics[1], "unsupported-year", "parameter/1"),
-            (&diagnostics[2], "overflow", "integer division"),
+        assert_eq!(diagnostics.len(), 4);
+        for (diagnostic, case_id, path, message) in [
+            (&diagnostics[0], "zero-divisor", "$", "integer division"),
+            (
+                &diagnostics[1],
+                "unreviewed",
+                "$.cases[2].input_status",
+                "not marked ready",
+            ),
+            (&diagnostics[2], "unsupported-year", "$", "parameter/1"),
+            (&diagnostics[3], "overflow", "$", "integer division"),
         ] {
             assert_eq!(diagnostic["case_id"], case_id);
-            assert_eq!(diagnostic["path"], "$");
+            assert_eq!(diagnostic["path"], path);
             assert!(
                 diagnostic["message"].as_str().unwrap().contains(message),
                 "{diagnostic}"
@@ -1406,14 +1460,14 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
     );
     let mut workbook = open_workbook_auto(&output_path).expect("mixed-success result workbook");
     for (sheet, ids) in [
-        ("results", ["good-before", "valid-zero", "good-after"]),
+        ("results", vec!["good-before", "valid-zero", "good-after"]),
         (
             "diagnostics",
-            ["zero-divisor", "unsupported-year", "overflow"],
+            vec!["zero-divisor", "unreviewed", "unsupported-year", "overflow"],
         ),
     ] {
         let rows = workbook.worksheet_range(sheet).unwrap();
-        assert_eq!(rows.height(), 4);
+        assert_eq!(rows.height(), ids.len() + 1);
         for (row, id) in rows.rows().skip(1).zip(ids) {
             assert_eq!(row[0].to_string(), id);
         }

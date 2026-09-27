@@ -1,0 +1,11 @@
+# Payload(value: Int)
+= enabled = True
+| optional_accepted(required: Bool, value: Payload?) -> match value {
+    | None -> required == False && enabled
+    | Some(payload) -> required && payload.value > 0 && enabled
+}
+@ print(show(optional_accepted(False, None)))
+@ print(show(optional_accepted(True, None)))
+@ print(show(optional_accepted(False, Some(Payload(1)))))
+@ print(show(optional_accepted(True, Some(Payload(1)))))
+@ print(show(optional_accepted(True, Some(Payload(-1)))))

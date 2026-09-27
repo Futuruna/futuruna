@@ -47,7 +47,6 @@ fi
             "from-rust-downstream-canary.sh",
             "from-rust-differential.sh",
             "compiler-cross-product-canary.sh",
-            "storage-canary.sh",
             "wasm-canary.sh",
         ] {
             fixture.executable(&format!("scripts/{script}"), "#!/bin/bash\nexit 0\n");

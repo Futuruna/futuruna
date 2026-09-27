@@ -1,0 +1,8 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stderr: no field or method `stauts`
+-- expect-stderr-not: panicked
+# Person(status: String)
+| fee(p) -> 0 under p.stauts == "student"
+| fee(p) -> 10
+@ print(show(fee(Person("student"))))

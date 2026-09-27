@@ -10,6 +10,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  editor-grammar:
+    name: Editor grammar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: editors/vscode
+      - run: npm test
+        working-directory: editors/vscode
+
   repository-hygiene:
     name: Repository hygiene
     runs-on: ubuntu-latest
@@ -125,8 +140,8 @@ jobs:
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/
 
-      - name: Format check
-        run: ./target/release/runa fmt --check tests/
+      # tests/formatter_preservation.rs checks formatting across tests/ in
+      # mint's cargo test lane, including expected syntax-error rejections.
 
       - name: Version
         run: ./target/release/runa --version

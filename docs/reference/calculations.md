@@ -362,6 +362,16 @@ String cells use `""` for intentional empty text; a cleared cell is absent.
 Text starting with a double quote uses JSON string quoting. This also applies
 to string values in collections and to map keys, including an empty key.
 
+In new workbooks, enter `""` (two double quotes) for an empty string. Clearing
+a cell still means an absent optional value or a missing required value.
+Ordinary text stays unquoted. Text starting with a double quote uses JSON
+string quoting: for example, `"\"quoted\""` represents the text `"quoted"`,
+including its quotation marks. Generated templates apply this encoding
+automatically, including list/set elements, map values, and map keys.
+Input workbook version 8 records this distinction; versions 6 and 7 remain
+readable with their original literal-text behavior. Refreshing an older
+workbook writes version 8 without changing its decoded values.
+
 `cases` is the first visible worksheet and contains scalar fields for the named
 input record. `input_status` beside `case_id` offers `draft` and `ready`; it
 applies to that case's inputs on all related sheets. Its first row visibly
@@ -436,10 +446,17 @@ calculation. An entirely unready batch does not initialize calculation workers;
 ready cases in a mixed batch still run, with results and diagnostics retaining
 their input order.
 
+JSON and TOML cases report independent missing, unknown, and invalid fields
+together, including fields inside collection elements and selected variants.
+An invalid parent shape or unknown variant produces a diagnostic at that
+boundary; the decoder does not guess child fields. Invalid cases are never
+invoked. Diagnostics remain in case order with one or multiple workers, and
+template hydration reports input errors before writing a workbook.
+
 `call` rejects undefined calculation values: integer division/remainder by zero,
 integer overflow, non-finite floating-point intermediates, failed assertions,
 out-of-bounds list access, and unmatched value rules produce case diagnostics,
-not substitute zero or empty values. Typed Boolean predicate misses still return
+not substitute zero or empty values. Known Boolean predicate misses still return
 `False`, including scoped predicates with captured fields; an error while
 evaluating a predicate is a diagnostic, not `False`. Required top-level
 initialization is checked too; if it fails, no case receives a result from it.

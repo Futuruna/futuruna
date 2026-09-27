@@ -637,6 +637,9 @@ full server + client: 14 query types, typed JSON API, 11 end-to-end queries. ✅
 
 Database access. Wraps `rusqlite` via auto-dep. Connection wrapped in `Rc<RefCell<>>` for escape analysis compatibility.
 
+> Historical entry: built-in SQLite access was retired in the 0.2.3 cleanup.
+> See [migration guidance](../compatibility-guides/0.2.x.md#database-feature-removal).
+
 - [x] **`db_open(path)`** → `Db` — open SQLite database (`:memory:` for in-memory)
 - [x] **`db_exec(db, sql)`** → `()` — execute DDL/DML (CREATE, INSERT, UPDATE, DELETE)
 - [x] **`db_query(db, sql)`** → `List(List(String))` — query all rows, all column types

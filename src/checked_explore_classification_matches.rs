@@ -251,7 +251,6 @@ mod tests {
 
     #[test]
     fn checked_exhaustive_matches_do_not_promote_partial_or_refutable_coverage() {
-        let mut residuals_checked = 0;
         for definition in [
             "# Choice = Empty | Present(Int)\n> q(x: Int) -> Int { match Present(x) { | Empty -> 0 } }",
             "# Choice = Empty | Present(Int)\n> q(x: Int) -> Int { match Present(x) { | Present(y) if y > 0 -> y | Empty -> 0 } }",
@@ -260,19 +259,18 @@ mod tests {
             "> q(x: Int) -> Int { match x > 7 { | True if x > 10 -> 1 | False -> 0 } }",
         ] {
             let artifacts = artifacts(definition);
-            // The frontend may already reject a missing arm. If it accepts
-            // one, the proof producer must independently retain a residual.
-            if !artifacts.diagnostics.is_empty() {
-                continue;
-            }
-            let graph = artifacts.checked_exploration_query(0).unwrap().classification_program();
-            residuals_checked += 1;
+            assert!(artifacts.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("non-exhaustive match")), "{definition}: {:?}", artifacts.diagnostics);
+        }
+        // These matches are complete under ordinary nested-pattern coverage.
+        // The proof producer still needs its own evidence before promoting
+        // alternatives with refutable fields; frontend acceptance is not it.
+        for definition in [
+            "# Inner = First | Second\n# Outer = Absent | Wrapped(Inner)\n> q(x: Int) -> Int { match Wrapped(First) { | Absent -> 0 | Wrapped(First) -> 1 | Wrapped(Second) -> 2 } }",
+            "# Choice = Empty | Present(Bool)\n> q(x: Int) -> Int { match Present(x > 7) { | Empty -> 0 | Present(True) -> 1 | Present(False) -> 2 } }",
+        ] {
+            let graph = graph(definition);
             assert!(graph.lane_manifest().iter().any(|lane| matches!(lane.lane, ClassificationSemanticLane::Find(_)) && lane.status == ClassificationLaneStatus::Residual), "{definition}");
         }
-        assert!(
-            residuals_checked >= 2,
-            "exercise the proof check independently of frontend rejection"
-        );
     }
 
     #[test]

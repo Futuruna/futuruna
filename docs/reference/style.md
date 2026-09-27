@@ -362,6 +362,21 @@ Define types before using them. Name constructors after domain concepts, not imp
 
 When using `@ sprog da`, write identifiers in Danish — including æ, ø, å. The Futuruna lexer uses Unicode-aware `is_alphabetic()`, so Danish characters work natively in identifiers, type names, and constructors. Rust codegen preserves them (Rust supports non-ASCII identifiers since 1.53).
 
+Put `@ sprog da` (or `@ language da`) before every other declaration in the
+file. Comments and blank lines may come first; a later or repeated language
+declaration is an error. In Danish mode, `og` and `eller` are the equivalents
+of `and` and `or`, both in Boolean expressions and between rule goals. `og`
+binds more tightly than `eller`. English spellings remain available in Danish
+mode, and `&&` / `||` remain available for Boolean expressions.
+
+This declaration selects source syntax, not a regional data format. The numeric
+parsers still expect a decimal point and no thousands separators:
+`fortolk_kommatal("1,5")` and `fortolk_heltal("1.000")` return their documented
+zero fallback. They cannot distinguish invalid text from a valid zero; validate
+and convert human-formatted amounts before passing them into a rule model.
+`sorter` does not apply Danish collation, and `vis` uses the same value display
+as English mode, including `true`, `None`, and `Some(...)`.
+
 ```runa
 -- YES: real Danish
 # Tronfølger(alder: Heltal, trossamfund: Trossamfund)

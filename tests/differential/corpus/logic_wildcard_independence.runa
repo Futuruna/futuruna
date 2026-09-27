@@ -1,0 +1,15 @@
+-- Reviewer #2 and #12: each anonymous argument is an independent wildcard.
+| a(1)
+| b(2)
+| both() -> a(_), b(_)
+| a_but_no_b() -> a(_), not(b(_))
+| parent("alice", "bob")
+| is_parent(person) -> parent(person, _)
+| childless(person) -> not(parent(person, _))
+
+assert(both())
+assert(not(a_but_no_b()))
+assert(is_parent("alice"))
+assert(not(childless("alice")))
+assert(childless("bob"))
+@ print("anonymous logic queries passed")

@@ -100,6 +100,21 @@ fn run_explore(fixture: &Path, run_state: &Path, output: &Path) -> ExploreRun {
     )
 }
 
+fn refused_before_start(output: &Output) -> bool {
+    // UnsafeInitialHost is emitted before the contained child exists. Never
+    // retry arbitrary failures or discard a possibly meaningful stdout report.
+    const PREFIX: &str = "error: durable Explore process-group watchdog failed: host is not safe for a contained Explore child (";
+    let Ok(stderr) = std::str::from_utf8(&output.stderr) else {
+        return false;
+    };
+    let stderr = stderr.trim();
+    output.status.code() == Some(1)
+        && output.stdout.is_empty()
+        && stderr.lines().count() == 1
+        && stderr.starts_with(PREFIX)
+        && stderr.ends_with(')')
+}
+
 fn run_explore_query(fixture: &Path, query: &str, run_state: &Path, output: &Path) -> ExploreRun {
     // Resource pauses are valid public outcomes even on an otherwise idle
     // shared host. Resume them through the real CLI within one bounded test
@@ -108,7 +123,9 @@ fn run_explore_query(fixture: &Path, query: &str, run_state: &Path, output: &Pat
     let started = std::time::Instant::now();
     let budget = std::time::Duration::from_secs(300);
     let mut invocations = Vec::new();
+    let mut attempts = 0;
     loop {
+        attempts += 1;
         let remaining = budget.saturating_sub(started.elapsed());
         let time_limit = format!("{}s", remaining.as_secs().max(1));
         let result = Command::new(runa())
@@ -127,24 +144,74 @@ fn run_explore_query(fixture: &Path, query: &str, run_state: &Path, output: &Pat
             ])
             .output()
             .expect("run public relational Explore command");
-        let retry = result.status.success() && {
-            let report = parse_invocation(&result);
-            report["run"]["lifecycle"] == "paused"
-                && matches!(
-                    report["run"]["pause_reason"]["code"].as_str(),
-                    Some("resource_reserve_backoff" | "telemetry_provider_unavailable")
-                )
-        };
-        invocations.push(result);
+        let refused = refused_before_start(&result);
+        let retry = refused
+            || (result.status.success() && {
+                let report = parse_invocation(&result);
+                report["run"]["lifecycle"] == "paused"
+                    && matches!(
+                        report["run"]["pause_reason"]["code"].as_str(),
+                        Some("resource_reserve_backoff" | "telemetry_provider_unavailable")
+                    )
+            });
         let delay = std::time::Duration::from_secs(5);
-        if !retry || invocations.len() >= 6 || budget.saturating_sub(started.elapsed()) <= delay {
+        let can_retry = retry && attempts < 6 && budget.saturating_sub(started.elapsed()) > delay;
+        if refused && can_retry {
+            eprintln!(
+                "Explore launch refused on attempt {attempts}: {}",
+                String::from_utf8_lossy(&result.stderr).trim()
+            );
+        } else {
+            // Keep every actual run report and every terminal failure. A refused
+            // launch has no report or appended rows to include in the counters.
+            invocations.push(result);
+        }
+        if !can_retry {
             return ExploreRun { invocations };
         }
-        eprintln!(
-            "resuming {query} after host-resource pause (invocation {})",
-            invocations.len()
-        );
+        eprintln!("retrying {query} after host-resource backoff (attempt {attempts})");
         std::thread::sleep(delay);
+    }
+}
+
+#[test]
+fn only_unambiguous_pre_start_resource_refusals_are_retryable() {
+    use std::os::unix::process::ExitStatusExt;
+
+    let message = b"error: durable Explore process-group watchdog failed: host is not safe for a contained Explore child (available memory 4193189888 bytes, required floor 1342177280 bytes, pressure level 1, sampled CPU 80.76%, swap-out growth false)\n";
+    let refused = Output {
+        status: std::process::ExitStatus::from_raw(1 << 8),
+        stdout: Vec::new(),
+        stderr: message.to_vec(),
+    };
+    assert!(refused_before_start(&refused));
+    for output in [
+        Output {
+            status: std::process::ExitStatus::from_raw(0),
+            ..refused.clone()
+        },
+        Output {
+            status: std::process::ExitStatus::from_raw(9),
+            ..refused.clone()
+        },
+        Output {
+            stdout: b"{\"partial_report\":true}".to_vec(),
+            ..refused.clone()
+        },
+        Output {
+            stderr: b"error: invalid Explore source\n".to_vec(),
+            ..refused.clone()
+        },
+        Output {
+            stderr: [message.as_slice(), b"panic after launch\n"].concat(),
+            ..refused.clone()
+        },
+        Output {
+            stderr: vec![0xff],
+            ..refused.clone()
+        },
+    ] {
+        assert!(!refused_before_start(&output), "{output:?}");
     }
 }
 

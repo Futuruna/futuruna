@@ -192,7 +192,7 @@
 
     {
       "name": "| What should be true — Blue",
-      "scope": "keyword.operator.match.runa",
+      "scope": ["keyword.operator.match.runa", "keyword.operator.rule.runa"],
       "settings": { "foreground": "#5898E8", "fontStyle": "bold" }
     },
     {
@@ -261,7 +261,7 @@
 
     {
       "name": "? Prove it — Orange",
-      "scope": "keyword.operator.query.runa",
+      "scope": ["keyword.operator.query.runa", "keyword.operator.verification.runa"],
       "settings": { "foreground": "#E88C5C", "fontStyle": "bold" }
     },
 

@@ -49,18 +49,21 @@
     shifted % 64
 }
 
-> safe_int_div(n: Int, d: Int) -> Int { n / d }
-> safe_int_mod(n: Int, d: Int) -> Int { n % d }
+-- Undefined arithmetic must fail; integer_arithmetic.rs checks those failures
+-- in both backends, including optimized native output. This corpus keeps the
+-- successful signed-division and remainder lowering paths executable.
+> int_div(n: Int, d: Int) -> Int { n / d }
+> int_mod(n: Int, d: Int) -> Int { n % d }
 
 = bucket = signature_bucket(11)
-= div_ok = safe_int_div(9, 2)
-= div_zero = safe_int_div(9, 0)
-= mod_ok = safe_int_mod(23, 5)
-= mod_zero = safe_int_mod(23, 0)
+= div_ok = int_div(9, 2)
+= div_negative = int_div(-9, 2)
+= mod_ok = int_mod(23, 5)
+= mod_negative = int_mod(-23, 5)
 
 | numeric_bucket_ok: bucket -> bucket == 40
-| numeric_division_ok: div_ok -> div_ok == 4 && div_zero == 0
-| numeric_modulo_ok: mod_ok -> mod_ok == 3 && mod_zero == 0
+| numeric_division_ok: div_ok -> div_ok == 4 && div_negative == -4
+| numeric_modulo_ok: mod_ok -> mod_ok == 3 && mod_negative == -3
 
 ? numeric_bucket_ok
 ? numeric_division_ok

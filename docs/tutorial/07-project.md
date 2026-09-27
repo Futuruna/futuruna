@@ -80,6 +80,20 @@ runa emit src/main.runa    # Show generated Rust
 runa test                  # Run all tests/*.runa
 ```
 
+Full `check` validates the generated Rust. When a program declares Rust crates
+with `@ depend`, or uses a feature that adds them, it invokes Cargo and may
+download missing dependencies. To use only cached dependencies, run:
+
+```bash
+CARGO_NET_OFFLINE=true runa check src/main.runa
+```
+
+Cargo reports an error if the required dependencies are unavailable offline.
+`check --frontend` provides frontend feedback without invoking Rust validation;
+it does not establish that the generated program compiles. Source filenames
+such as `2026-policy.runa` are supported: generated Cargo package names are
+normalized independently of the user's filename.
+
 ## Tooling
 
 ```bash

@@ -1,0 +1,15 @@
+| loop("a", "b")
+| type("b", "c")
+| ref("c", "d")
+| has_loop() -> loop(left, right), True
+
+assert(loop("a", "b"))
+assert(type("b", "c"))
+assert(ref("c", "d"))
+assert(loop("a", _))
+assert(not(loop("missing", _)))
+assert(findall(next, loop("a", next)) == ["b"])
+assert(findall(next, type("b", next)) == ["c"])
+assert(findall(next, ref("c", next)) == ["d"])
+assert(has_loop())
+@ print("keyword-named logic rules passed")

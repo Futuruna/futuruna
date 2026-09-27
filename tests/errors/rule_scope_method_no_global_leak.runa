@@ -1,3 +1,4 @@
+-- expect-error: undefined function `explain`
 # Person(age: Int)
 
 # TaxCase(person: Person) {

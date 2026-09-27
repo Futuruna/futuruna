@@ -8,9 +8,8 @@ Purpose:
 Layout:
 - `core/` is the blocking authored lane: interpreter, compiled, codegen, and roundtrip should all stay green
 - `stateful/` covers subjects, actors, lifecycle, and other richer runtime flows
-- `extended/` is reserved for heavier canaries such as JSON, DB, HTTP, WASM, and import-heavy programs
+- `extended/` is reserved for heavier canaries such as JSON, HTTP, WASM, and import-heavy programs
 - `regressions/` is where user bug classes get distilled into broader workflow canaries
-- `storage/` covers persisted SQLite-backed runtime behavior through `./scripts/storage-canary.sh`
 
 Rules:
 - prefer small but realistic programs over toy probes

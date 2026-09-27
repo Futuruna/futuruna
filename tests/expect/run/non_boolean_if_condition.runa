@@ -1,0 +1,5 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stderr: if condition must return Bool
+
+@ print(show(if () { 1 } else { 2 }))

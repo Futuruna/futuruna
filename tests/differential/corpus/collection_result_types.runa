@@ -1,0 +1,48 @@
+-- Generic collection results retain their element types before elvis matching.
+= empty = map_new()
+= entries = map_insert(empty, "known", 42)
+@ print(show(map_get(entries, "known") ?: -1))
+@ print(show(map_get(entries, "missing") ?: 7))
+
+= numbers = [1, 2]
+@ print(show(find(numbers, |number| number > 1) ?: 0))
+@ print(show(find(numbers, |number| number > 5) ?: 0))
+
+> optional_default(value: Option(Int)) -> Int { value ?: 9 }
+@ print(show(optional_default(None)))
+@ print(show(optional_default(Some(2))))
+
+= labels = map_insert(map_insert(map_new(), 1, "one"), 2, "two")
+@ print(map_get(labels, 2) ?: "missing")
+
+> optional_element(values: List(Int?)) -> Int? {
+    find(values, |value| True) ?: None
+}
+@ print(show(optional_element([Some(7)]) ?: 0))
+
+-- All lookup operations accept the map's key type and leave keys reusable.
+@ print(map_get_or(labels, 2, "missing"))
+@ print(map_get_or(labels, 3, "missing"))
+@ print(show(map_contains(labels, 2)))
+@ print(show(map_contains(labels, 3)))
+= flags = map_insert(map_new(), True, "yes")
+@ print(map_get(flags, True) ?: "no")
+@ print(map_get_or(flags, False, "no"))
+@ print(show(map_contains(flags, True)))
+= key = "known"
+@ print(show(map_get_or(entries, key, 0)))
+@ print(show(map_contains(entries, key)))
+@ print(key)
+> lookup_key() -> Int {
+    @ print("key once")
+    2
+}
+@ print(map_get(labels, lookup_key()) ?: "missing")
+> lookup_text(values: Map(String, Int), key: String) -> Int {
+    map_get_or(values, key, 0)
+}
+> lookup_borrowed(values: Map(String, Int), key: &String) -> Int {
+    map_get_or(values, key, 0)
+}
+@ print(show(lookup_text(entries, key)))
+@ print(show(lookup_borrowed(entries, &key)))

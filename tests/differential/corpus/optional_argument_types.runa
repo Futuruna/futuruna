@@ -1,0 +1,11 @@
+> absent(value: Int?) -> Bool { is_none(value) }
+> optional_count(values: List(Int?)) -> Int { length(values) }
+> agree(left: a?, right: a) -> a { right }
+> forward(value: Option(Int)) -> Bool { absent(value) }
+
+assert(absent(None))
+@ print(show(forward(None)))
+@ print(show(absent(Some(3))))
+@ print(show(optional_count([None, Some(2)])))
+@ print(show(agree(Some(1), 7)))
+@ print(show(agree(None, "yes")))

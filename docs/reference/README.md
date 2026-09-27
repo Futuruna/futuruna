@@ -19,13 +19,17 @@ For a runnable introduction, start with the
 [guided tutorial](https://futuruna.com/docs/tutorial). The documents below are
 the reference to keep beside you while writing programs.
 
+When adapting code from another language, read
+[Common mistakes](common-mistakes.md) for comparisons, rule coverage, comments,
+effects, interpolation, numeric units, and validation commands.
+
 ## Reading Order
 
 | Document | What it covers | Current stage |
 |----------|---------------|---------------|
 | [basics.md](basics.md) | Literals, types, operators, control flow, closures | Stable |
 | [runes.md](runes.md) | The seven runes (`#` `>` `|` `=` `~` `@` `?`) — all top-level statement forms | Mixed (core syntax Stable; `@ calculate` Preview) |
-| [stdlib.md](stdlib.md) | Complete standard library (~70 builtins): math, strings, lists, collections, I/O, JSON, HTTP, database | Stable |
+| [stdlib.md](stdlib.md) | Complete standard library (~70 builtins): math, strings, lists, collections, I/O, JSON, HTTP | Stable |
 | [streams.md](streams.md) | Reactive streams, subjects, subscriptions, named-scope lifetime ownership, actors, and effects | Stable |
 | [rust-compatibility.md](rust-compatibility.md) | Stable pure/core Rust codegen behavior, type mapping, build modes, and stable `runa lib` Rust interop contract | Mixed |
 | [style.md](style.md) | Style, legal modeling, and audit workflow guidance | Preview |

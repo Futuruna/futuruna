@@ -49,27 +49,6 @@ tags:
 	- [[reactive-design]]
 
 
-- [ ] ### M26b — Persist Phase B
-	**td path:** `td-c0a7a1` (epic)
-	**Subtasks:** `td-8b2887` typed columns · `td-7b097f` assert/retract · `td-f4f433` findall · `td-c4282c` scope-as-transaction · `td-13a997` watch · `td-25667e` migrate
-	**Phase A shipped:** object store with `assert` / `retract` / scoped DBs
-
-	**Milestone meaning**
-	Phase A made `@ store Type` real: a struct becomes a JSON-backed SQLite blob with `assert` / `retract` mutation, and `| scope` is the natural transaction boundary. Phase B turns that into a database-from-language: `findall` over persisted facts, true scoped transactions (commit on scope-end, rollback on diagnostic), `watch(Type)` change streams that flow into the existing reactive runtime, and `@ persist Type` for typed-column storage instead of JSON blobs. The runes already cover all the database concepts — Phase B finishes the work without inventing new syntax.
-
-	**Exit criteria**
-	- `findall(x, persisted_pred(x))` returns matching rows from the store
-	- `| scope` boundaries map to SQLite transactions; rollback on uncaught error or `?` failure
-	- `watch(Type)` produces a `~ Stream(Type)` that fires on `assert` / `retract`
-	- `@ persist Type` lowers struct fields to typed columns (Int → INTEGER, etc.)
-	- `@ migrate { ... }` handles schema evolution between persist versions
-	- An end-to-end example (e.g. inventory or task-tracker) runs against persisted state across process restarts
-
-	**References**
-	- [[research-persist]]
-	- `docs/persist/research-persist.md`
-
-
 ## Next
 
 - [ ] ### Proof-Backed Checking Expansion
@@ -357,7 +336,7 @@ tags:
 	**Status:** Auto-Rc for structural sharing on recursive ADTs.
 
 - [x] ### M26a — Persist Phase A
-	**Status:** `@ store Type` with `assert` / `retract`, scoped DBs (file-stem default, explicit `in "scope"` shared).
+	**Historical status:** shipped as an experiment, then retired in the 0.2.3 database cleanup. See `docs/compatibility-guides/0.2.x.md`; M26b is no longer an active language milestone.
 
 - [x] ### M29 — Intermediate Representation (FIR)
 	**Status:** AST → FIR lowering, FIR → Rust emission, end-to-end pipeline. `runa emit --fir` flag.
