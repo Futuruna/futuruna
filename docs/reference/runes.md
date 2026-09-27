@@ -451,6 +451,8 @@ Checking an importing file also checks imported function bodies. Errors identify
 the imported file and source position; editors link the import-site diagnostic
 to that original location. Qualified modules resolve private helpers and their
 own dependencies within the module, without inheriting the caller's local names.
+Qualified bindings and their helper calls use the module's declaration scope;
+a same-named value in the importer does not replace a module binding.
 
 ### Use (Rust items)
 ```runa
