@@ -62563,13 +62563,13 @@ fn main() {{
                 ),
                 "{rust}"
             );
-            assert!(!codegen.canonical_rule_boolean_miss_safe_keys.contains(
-                &RuleDispatchKey {
+            assert!(!codegen
+                .runtime_rule_boolean_miss_keys
+                .contains(&RuleDispatchKey {
                     scope: Some("Case".into()),
                     name: "valid".into(),
                     arity: 1,
-                }
-            ));
+                }));
         }
     }
 
