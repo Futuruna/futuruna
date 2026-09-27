@@ -1,0 +1,32 @@
+= escaped = "a\\qb"
+= quoted = """a\qb"""
+> letter(c: Char) -> Int { match c { | 'a' -> 1 | 'b' -> 2 | _ -> 3 } }
+> escaped_character(c: Char) -> Int {
+    match c {
+        | '\n' -> 1
+        | '\t' -> 2
+        | '\\' -> 3
+        | '\'' -> 4
+        | '\r' -> 5
+        | _ -> 6
+    }
+}
+| newline('\n')
+= Uppercase = 4
+= _ = 5
+@ print(show(escaped == quoted))
+@ print(show("line\nnext\ttab\"quote" == """line
+next	tab"quote"""))
+@ print(show('\n' == '\n' && '\t' == '\t' && '\\' == '\\' && '\'' == '\''))
+@ print(show(letter('b')))
+@ print(show(letter('c')))
+@ print(show(Uppercase))
+@ print(show(escaped_character('\n') * 10000 + escaped_character('\t') * 1000 + escaped_character('\\') * 100 + escaped_character('\'') * 10 + escaped_character('\r')))
+@ print(show(newline('\n')))
+@ print(show(string_length("\r") == 1 && "\r" != "\\r"))
+= scope = 6
+= undtagelse = 7
+> contextual_pattern(value: Option(Int)) -> Int {
+    match value { | Some(undtagelse) -> undtagelse | None -> 0 }
+}
+@ print(show(scope + contextual_pattern(Some(undtagelse))))

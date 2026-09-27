@@ -42,6 +42,7 @@ pub use editor_fields::EditorField;
 pub mod explore;
 mod function_returns;
 mod ordinary_calls;
+mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
@@ -1300,22 +1301,22 @@ impl Lexer {
                     }
                     continue;
                 }
-                let (s, closed) = self.read_string_checked();
-                tokens.push(if closed {
-                    Token::new(TokenKind::String_, s, line, col)
-                } else {
+                let (s, closed, error) = self.read_string_checked();
+                tokens.push(if !closed {
                     Token::new(TokenKind::Invalid, "unterminated string literal", line, col)
                         .with_source_text("\"")
+                } else if let Some(error) = error {
+                    error
+                } else {
+                    Token::new(TokenKind::String_, s, line, col)
                 });
                 continue;
             }
 
             // Char literals
             if c == '\'' {
-                let (s, closed) = self.read_char_lit_checked();
-                tokens.push(if closed {
-                    Token::new(TokenKind::Char_, s, line, col)
-                } else {
+                let (s, closed, error) = self.read_char_lit_checked();
+                tokens.push(if !closed {
                     Token::new(
                         TokenKind::Invalid,
                         "invalid or unterminated character literal; use double quotes for strings, such as \"hello\"",
@@ -1323,6 +1324,10 @@ impl Lexer {
                         col,
                     )
                     .with_source_text("'")
+                } else if let Some(error) = error {
+                    error
+                } else {
+                    Token::new(TokenKind::Char_, s, line, col)
                 });
                 continue;
             }
@@ -1646,18 +1651,34 @@ impl Lexer {
         self.read_string_checked().0
     }
 
-    fn read_string_checked(&mut self) -> (String, bool) {
+    fn unknown_escape_token(kind: &str, escaped: char, line: usize, col: usize) -> Token {
+        Token::new(
+            TokenKind::Invalid,
+            format!("unknown {kind} escape `\\{escaped}`; write `\\\\` for a literal backslash"),
+            line,
+            col,
+        )
+        .with_source_text(format!("\\{escaped}"))
+    }
+
+    fn read_string_checked(&mut self) -> (String, bool, Option<Token>) {
         self.advance(); // consume opening "
         let mut s = String::new();
+        let mut error = None;
         loop {
+            let (line, col) = (self.line, self.col);
             match self.advance() {
-                Some('"') => return (s, true),
+                Some('"') => return (s, true, error),
                 Some('\\') => match self.advance() {
                     Some('n') => s.push('\n'),
                     Some('t') => s.push('\t'),
+                    Some('r') => s.push('\r'),
                     Some('\\') => s.push('\\'),
                     Some('"') => s.push('"'),
                     Some(c) => {
+                        error.get_or_insert_with(|| {
+                            Self::unknown_escape_token("string", c, line, col)
+                        });
                         s.push('\\');
                         s.push(c);
                     }
@@ -1667,23 +1688,29 @@ impl Lexer {
                 None => break,
             }
         }
-        (s, false)
+        (s, false, error)
     }
 
     pub fn read_char_lit(&mut self) -> String {
         self.read_char_lit_checked().0
     }
 
-    fn read_char_lit_checked(&mut self) -> (String, bool) {
+    fn read_char_lit_checked(&mut self) -> (String, bool, Option<Token>) {
         let opening_line = self.line;
         self.advance(); // consume opening '
+        let (line, col) = (self.line, self.col);
+        let mut error = None;
         let c = match self.advance() {
             Some('\\') => match self.advance() {
                 Some('n') => '\n',
                 Some('t') => '\t',
+                Some('r') => '\r',
                 Some('\\') => '\\',
                 Some('\'') => '\'',
-                Some(c) => c,
+                Some(c) => {
+                    error = Some(Self::unknown_escape_token("character", c, line, col));
+                    c
+                }
                 None => ' ',
             },
             Some(c) => c,
@@ -1705,7 +1732,7 @@ impl Lexer {
                 }
             }
         }
-        (c.to_string(), closed)
+        (c.to_string(), closed, error)
     }
 }
 
@@ -12509,7 +12536,7 @@ impl Parser {
 
     pub fn parse_pattern(&mut self) -> Result<Pat, String> {
         match self.peek_kind() {
-            TokenKind::Ident => {
+            TokenKind::Ident | TokenKind::KW => {
                 let tok = self.advance();
                 if tok.text == "_" {
                     Ok(Pat::Wild)
@@ -12578,6 +12605,10 @@ impl Parser {
                 let tok = self.advance();
                 Ok(Pat::Lit(Literal::Str(tok.text)))
             }
+            TokenKind::Char_ => {
+                let tok = self.advance();
+                Ok(Pat::Lit(Literal::Char(tok.text.chars().next().unwrap())))
+            }
             TokenKind::Bool_ => {
                 let tok = self.advance();
                 // In pattern context, True/False are constructors
@@ -12607,12 +12638,11 @@ impl Parser {
                 }
             }
             _ => {
-                let tok = self.advance();
-                if tok.text == "_" {
-                    Ok(Pat::Wild)
-                } else {
-                    Ok(Pat::Var(tok.text))
-                }
+                let tok = self.peek();
+                Err(format!(
+                    "{}:{}: expected a pattern, got `{}`",
+                    tok.line, tok.col, tok.source_text
+                ))
             }
         }
     }
@@ -13246,6 +13276,7 @@ impl Parser {
     }
 
     pub fn parse_block_expr(&mut self) -> Result<Expr, String> {
+        let start = self.peek().clone();
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut stmts = Vec::new();
@@ -13256,7 +13287,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
-        Ok(ExprKind::Block(stmts).into())
+        Ok(Expr::new(ExprKind::Block(stmts), self.span_since(&start)))
     }
 
     pub fn parse_block_statement(&mut self) -> Result<Stmt, String> {
@@ -54685,6 +54716,7 @@ impl TypeChecker {
                 let previous_anchor = self.import_diagnostic_anchor;
                 self.import_diagnostic_anchor = unit.import_span;
                 let start = self.diagnostics.len();
+                self.check_function_declarations(&unit.statements);
                 if unit.scope.is_some() {
                     self.check_rule_result_contracts(&unit.statements);
                 }
@@ -55602,6 +55634,7 @@ impl TypeChecker {
         stmts: &[Stmt],
         selectable_explorations: bool,
     ) {
+        self.check_function_declarations(stmts);
         let mut pending_comptime = false;
         for stmt in stmts {
             match stmt {
@@ -58384,6 +58417,7 @@ impl TypeChecker {
                 self.check_expr(iter_expr, None);
                 self.push_scope();
                 self.define_var(var);
+                self.check_function_declarations(body);
                 for s in body {
                     self.check_stmt(s);
                 }
@@ -58392,6 +58426,7 @@ impl TypeChecker {
             Stmt::While(cond, body) => {
                 self.check_expr(cond, None);
                 self.push_scope();
+                self.check_function_declarations(body);
                 for s in body {
                     self.check_stmt(s);
                 }
