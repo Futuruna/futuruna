@@ -1,0 +1,9 @@
+| item(1)
+| item(2)
+| positive(value: Int) -> item(value), value > 1
+| label("law")
+| word(value: String) -> label(value)
+
+assert(findall(value, positive(value)) == [2])
+assert(findall(value, word(value)) == ["law"])
+@ print("typed derived queries passed")

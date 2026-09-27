@@ -1,0 +1,12 @@
+> chosen() -> String { "ann" }
+= __program = chosen()
+= __search = "car"
+= __value = "keep"
+# __fut_logic = Placeholder
+| row("ann", "car")
+| owned(__arguments, __expression) -> row(__arguments, __expression), __arguments != __expression
+> choices(who: String) -> List(String) { findall(item, owned(who, item)) }
+assert(findall(item, owned(__program, item)) == [__search])
+assert(choices(__program) == ["car"])
+assert(__value == "keep")
+@ print("query hygiene passed")

@@ -1,0 +1,8 @@
+| row("ann", "car")
+| row("ann", "car")
+| row("bob", "bike")
+> checked(person: String) -> Bool { @ print("checked " + person); True }
+| selected(person, item) -> row(person, item), checked(person)
+| forwarded(person, item) -> selected(person, item), checked(item)
+@ print(show(findall(person, selected(person, "car"))))
+@ print(show(findall(item, forwarded(_, item))))
