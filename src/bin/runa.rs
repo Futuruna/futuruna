@@ -51105,10 +51105,27 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 let empty_list_fallback_both_sides = is_comparison
                     && self.expr_needs_empty_list_fallback(lhs)
                     && self.expr_needs_empty_list_fallback(rhs);
+                // Rust permits cross-element-type Vec equality, so it cannot
+                // infer an empty operand's element type from Vec<String>.
+                // Supply the concrete list type from the other operand while
+                // retaining normal evaluation and ownership for both sides.
+                let list_operand_hint =
+                    |operand: Option<&FirTy>, other: Option<&FirTy>| match (operand, other) {
+                        (Some(own @ FirTy::List(_)), Some(other @ FirTy::List(_)))
+                            if Self::fir_type_to_rust(own).is_none() =>
+                        {
+                            Self::fir_type_to_rust(other)
+                        }
+                        _ => None,
+                    };
+                let lhs_list_hint = list_operand_hint(lhs_ty.as_ref(), rhs_ty.as_ref());
+                let rhs_list_hint = list_operand_hint(rhs_ty.as_ref(), lhs_ty.as_ref());
                 // For comparisons with string literals, emit &str (no .to_string())
                 // so that &String == &str works via Deref coercion
                 let mut l = if empty_list_fallback_both_sides {
                     self.emit_expr_with_rust_type_hint(lhs, "Vec<i64>")
+                } else if let Some(rust_ty) = lhs_list_hint {
+                    self.emit_expr_with_rust_type_hint(lhs, &rust_ty)
                 } else if is_comparison
                     && matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_)))
                 {
@@ -51129,6 +51146,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 };
                 let mut r = if empty_list_fallback_both_sides {
                     self.emit_expr_with_rust_type_hint(rhs, "Vec<i64>")
+                } else if let Some(rust_ty) = rhs_list_hint {
+                    self.emit_expr_with_rust_type_hint(rhs, &rust_ty)
                 } else if is_comparison
                     && matches!(rhs.as_ref().kind, ExprKind::Lit(Literal::Str(_)))
                 {
