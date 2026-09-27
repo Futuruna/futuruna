@@ -45,7 +45,7 @@ test('period and documented annual bases preserve each persons birth date', enab
     kilder: [{ identifikation: 'fictional-salary', beregningsfelt: v('Par14Bruttoløn'), delårsbeløb_kroner: 200000,
       omregningsmetode: v('Par14DokumenteretRetvisendeHelårsbeløb', { helårsbeløb_kroner: 400000 }), faktisk_helårsbeløb_kroner: null }],
     helårsgrundlag: v('DokumenteretHelårsPersonskat', { personskat: annual }) };
-  const cases = [{ case_id: 'same-birth', input: baseline, valid: true }];
+  const cases = [{ case_id: 'same-birth', input_status: 'ready', input: baseline, valid: true }];
   function add(case_id, from, edit, valid = false) {
     const input = structuredClone(from); edit(input);
     cases.push({ case_id, input, valid });
@@ -62,7 +62,7 @@ test('period and documented annual bases preserve each persons birth date', enab
     p.ægtefælle = v('MedÆgtefælle', { fakta: facts,
       samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] });
   }
-  cases.push({ case_id: 'different-spouses-consistent-bases', input: couple, valid: true });
+  cases.push({ case_id: 'different-spouses-consistent-bases', input_status: 'ready', input: couple, valid: true });
   add('wrong-spouse-birth-year', couple, x => {
     x.helårsgrundlag.personskat.ægtefælle.fakta.lønmodtager.pension.fødselsdato.år = 1970;
   });
@@ -70,7 +70,7 @@ test('period and documented annual bases preserve each persons birth date', enab
     x.helårsgrundlag.personskat.ægtefælle.fakta.lønmodtager.pension.fødselsdato.måned = 4;
   });
   add('derived-basis', baseline, x => { x.helårsgrundlag = v('AfledtFraIdentificeredeKilder'); }, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(directory, 'input.json', envelope)]);
   save(directory, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);

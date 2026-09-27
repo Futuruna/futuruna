@@ -144,17 +144,26 @@ JSON and TOML use the same logical envelope:
 ```json
 {
   "$futuruna": {
-    "schema": "futuruna.calculate.input.v1",
+    "schema": "futuruna.calculate.input.v2",
     "schema_hash": "...",
     "entry": "calculate_tax"
   },
   "cases": [
-    { "case_id": "case-1", "input": {} }
+    { "case_id": "case-1", "input_status": "draft", "input": {} }
   ]
 }
 ```
 
-Case identifiers are non-empty and unique. An output envelope uses
+Case identifiers are non-empty and unique. `input_status` is `draft` or `ready`.
+Generated placeholders start as drafts; invocation requires an explicit ready
+status, including for legacy v1 inputs. Missing status remains readable for
+migration but never implies readiness. Hydration preserves ready/draft and
+represents an unmarked legacy case as draft in the new format. Readiness is an
+input-review acknowledgement, not document authentication or proof that the
+case is valid or complete. Model values, including deliberate zeros, empty
+collections and optional unknowns, are not changed by this state.
+
+An output envelope uses
 `futuruna.calculate.output.v1`, retains the contract hash and entry, and contains
 `results` plus case-scoped `diagnostics`. One invalid case does not prevent valid
 cases from being evaluated unless the envelope or schema itself is invalid.
@@ -165,7 +174,8 @@ Generated workbooks contain:
 
 - `_futuruna`: hidden adapter schema, entry, optional calculation label, contract
   hash, and encoding metadata;
-- `cases`: one row per case with a required `case_id` column;
+- `cases`: one row per case with required `case_id` and `input_status` columns
+  before the model's scalar columns; readiness applies to all related rows;
 - `_tables`: hidden collection topology, including worksheet names, parent
   paths, attachment paths, collection kinds, item types, and variant guards;
 - `_columns`: hidden worksheet, table path, visible path, canonical value path,
@@ -197,8 +207,9 @@ Every collection row has `case_id` and an adapter-local `item_id`. Nested
 collections also have `parent_id`, which references an item in their generated
 parent worksheet for the same case. Lists have a positive, one-based `position`
 that is unique per parent and determines canonical array order. Maps have a
-non-empty `key` that is unique per parent. Sets have neither position nor key;
-their canonical values must still be unique. Empty collections are represented
+`key` that is unique per parent; `""` supplies an intentional empty key.
+Sets have neither position nor key; their canonical values must still be unique.
+Empty collections are represented
 by zero matching rows. Item records are flattened into columns on their
 collection worksheet, and collections inside those records become further child
 worksheets.
@@ -220,19 +231,25 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v7`. Version 7 retains complete `_tables` and
-`_columns` metadata but adds `_sheets` and materializes only collections reached
+`futuruna.calculate.xlsx.input.v9`. It retains complete `_tables` and
+`_columns` metadata, uses `_sheets` and materializes only collections reached
 through selected alternatives and existing parent items. Reachable empty
 collections retain an entry sheet. The manifest must contain unique, sorted,
 canonical sheet names with their parents present. Declared missing sheets and
 unlisted input sheets are errors. A case that activates an omitted sheet must
 refresh its template before invocation; other valid cases may still run.
-Complete v6 workbooks remain readable. Older binaries cannot read v7 workbooks.
-Version 6 adds and validates the visible
-calculation title row on every input worksheet. Version 5 humanized visible
-fallback headers and placed the canonical path in every input header note.
-Earlier workbooks are rejected rather than silently interpreting their older
-topology or payload encoding.
+The `input_status` column follows `case_id`; only explicitly ready cases run.
+String cells distinguish intentional empty text (`""`) from absent cells.
+Text starting with a double quote uses JSON string quoting, including collection
+values and map keys. Complete v6/v7/v8 workbooks remain readable for refresh,
+with unmarked cases becoming draft. Older binaries cannot read v9 workbooks. Every input worksheet
+has a validated visible calculation title, human-readable fallback headers and
+canonical paths in header notes. Pre-v6 workbooks are rejected rather than
+silently interpreting their older topology or payload encoding.
+
+Version 6 and 7 string cells retain their literal text interpretation when read;
+version 8 and 9 decode JSON-quoted string cells. Refresh preserves the decoded
+values under the current encoding, not the appearance of old cells.
 
 The output workbook schema is `futuruna.calculate.xlsx.output.v2`. `results`
 keeps compact JSON when it fits in one Excel cell. `result_values` represents

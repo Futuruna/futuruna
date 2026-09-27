@@ -6484,6 +6484,10 @@ fn collect_true_free_symbol_uses(
             collect_true_free_symbol_uses(inner, uses, bound, typed_receivers)
         }
         ExprKind::App(func, args) => {
+            // Checked references are literal data, not runtime calls or captures.
+            if pathof_canonical_path(expr).is_some() || refof_literal(expr).is_some() {
+                return;
+            }
             if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
                 if let Some(value) = args.get(1) {
                     collect_true_free_symbol_uses(value, uses, bound, typed_receivers);
@@ -24559,6 +24563,7 @@ impl Interpreter {
             ("==", a, b) if values_are_list_like(a) && values_are_list_like(b) => {
                 Value::Bool(values_equal(a, b))
             }
+            ("==", a @ Value::Tuple(_), b @ Value::Tuple(_)) => Value::Bool(values_equal(a, b)),
             ("!=", a, b) => match self.eval_binop("==", a.clone(), b.clone()) {
                 Value::Bool(v) => Value::Bool(!v),
                 _ => Value::Bool(true),
@@ -27140,7 +27145,7 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
         (Value::Str(x), Value::Str(y)) => x == y,
         (Value::Bool(x), Value::Bool(y)) => x == y,
         (Value::Char(x), Value::Char(y)) => x == y,
-        (Value::List(a), Value::List(b)) => {
+        (Value::List(a), Value::List(b)) | (Value::Tuple(a), Value::Tuple(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| values_equal(x, y))
         }
         _ => false,
@@ -50345,7 +50350,14 @@ impl TypeChecker {
         generic_parameters: &BTreeSet<String>,
     ) -> bool {
         match schema {
-            Ty::Name(name) => !self.types.contains(name) && !generic_parameters.contains(name),
+            // Grammar-owned collection types are known even when the legacy
+            // exact-dispatch capability does not support their schemas. Do not
+            // turn that capability boundary into a definite backend type error.
+            Ty::Name(name) => {
+                !self.types.contains(name)
+                    && !generic_parameters.contains(name)
+                    && !matches!(name.as_str(), "Map" | "Set" | "Tuple")
+            }
             Ty::App(constructor, arguments) => {
                 self.canonical_schema_has_unknown_name(constructor, generic_parameters)
                     || arguments.iter().any(|argument| {
@@ -51668,19 +51680,25 @@ impl TypeChecker {
                     .or_else(|| self.canonical_dispatch_type_error())
             }
             ExprKind::BinOp(operator, left, right) => {
+                let equality = matches!(operator.as_str(), "==" | "!=");
+                let left_expected = equality
+                    .then(|| {
+                        self.infer_expr_type_name_with_locals_in_scope(right, locals, active_scope)
+                    })
+                    .flatten();
                 let left = self.canonical_dispatch_expr_type(
                     left,
                     locals,
                     active_scope,
                     visiting_functions,
-                    None,
+                    left_expected.as_deref(),
                 )?;
                 let right = self.canonical_dispatch_expr_type(
                     right,
                     locals,
                     active_scope,
                     visiting_functions,
-                    None,
+                    equality.then_some(left.type_name.as_str()),
                 )?;
                 let left_type = Self::canonical_explore_type_name(&left.type_name);
                 let right_type = Self::canonical_explore_type_name(&right.type_name);
@@ -64408,6 +64426,139 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
+    fn static_rule_dispatch_contextual_equality_preserves_exact_nominal_types() {
+        let source = r#"
+# Entry(value: Int)
+# Other(value: Int)
+# Report(entry: Option(Entry), valid: Bool)
+| missing(report: Report) -> report.valid && report.entry == None
+| reversed(entry: Option(Entry)) -> None == entry
+| present(entry: Option(Entry)) -> entry != None
+| reversed_present(entry: Option(Entry)) -> None != entry
+| wrong_owner(entry: Option(Entry)) -> entry == Some(Other(1))
+| wrong_shape(entry: Entry) -> entry == None
+"#;
+        let statements = prepend_prelude(parse_prelude(), &parse_test_program(source).unwrap());
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        for name in ["missing", "reversed", "present", "reversed_present"] {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: name.into(),
+                arity: 1,
+            };
+            assert_eq!(
+                artifacts
+                    .rule_dispatch_backend_return_types
+                    .get(&key)
+                    .map(String::as_str),
+                Some("Bool"),
+                "{name}: {:?}",
+                artifacts.rule_dispatch_backend_return_issues
+            );
+            assert_eq!(
+                artifacts
+                    .rule_dispatch_return_types
+                    .get(&key)
+                    .map(String::as_str),
+                Some("Bool"),
+                "{name}: {:?}",
+                artifacts.rule_dispatch_return_issues
+            );
+            assert!(!artifacts
+                .rule_dispatch_backend_return_issues
+                .contains_key(&key));
+        }
+        for name in ["wrong_owner", "wrong_shape"] {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: name.into(),
+                arity: 1,
+            };
+            assert!(
+                !artifacts
+                    .rule_dispatch_backend_return_types
+                    .contains_key(&key),
+                "{name}"
+            );
+            assert!(
+                artifacts
+                    .rule_dispatch_backend_return_issues
+                    .contains_key(&key),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn static_rule_dispatch_collection_abi_does_not_claim_exact_capability() {
+        let source = r#"
+# Ledger(values: Map(String, Int), key: String) {
+    | updated() -> values
+    | exception record_key updated() -> map_insert(values, key, 5) under key != ""
+}
+# Invalid(values: Map(String, Missing)) {
+    | result() -> values
+}
+"#;
+        let statements = prepend_prelude(parse_prelude(), &parse_test_program(source).unwrap());
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        let key = RuleDispatchKey {
+            scope: Some("Ledger".into()),
+            name: "updated".into(),
+            arity: 0,
+        };
+        assert_eq!(
+            artifacts
+                .rule_dispatch_backend_return_types
+                .get(&key)
+                .map(String::as_str),
+            Some("Map(String, Int)"),
+            "{:?}",
+            artifacts.rule_dispatch_backend_return_issues
+        );
+        assert!(!artifacts
+            .rule_dispatch_backend_return_issues
+            .contains_key(&key));
+        assert!(!artifacts.rule_dispatch_return_types.contains_key(&key));
+        assert!(artifacts.rule_dispatch_return_issues.contains_key(&key));
+        assert!(!artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&key));
+        let invalid = RuleDispatchKey {
+            scope: Some("Invalid".into()),
+            name: "result".into(),
+            arity: 0,
+        };
+        assert!(!artifacts
+            .rule_dispatch_backend_return_types
+            .contains_key(&invalid));
+        assert!(artifacts
+            .rule_dispatch_backend_return_issues
+            .contains_key(&invalid));
+
+        let checker = TypeChecker::new();
+        for known in ["Map(String, Int)", "Set(Int)", "Tuple(Int, Bool)"] {
+            let schema = parse_type_annotation(known).unwrap();
+            assert!(
+                !checker.canonical_schema_has_unknown_name(&schema, &BTreeSet::new()),
+                "{known}"
+            );
+        }
+        for unknown in [
+            "Map(String, Missing)",
+            "Set(Missing)",
+            "Tuple(Int, Missing)",
+            "Unknown(Int)",
+        ] {
+            let schema = parse_type_annotation(unknown).unwrap();
+            assert!(
+                checker.canonical_schema_has_unknown_name(&schema, &BTreeSet::new()),
+                "{unknown}"
+            );
+        }
+    }
+
+    #[test]
     fn static_rule_dispatch_soundness_strict_schema_closure_preserves_backend_abi() {
         let source = r#"
 # Box(a) = Box(value: a)
@@ -68965,6 +69116,52 @@ handle <- Left
             output.trim(),
             "ProgramSymbolReference(name: answer)\nProgramTypeReference(name: Input)\nProgramMemberReference(root_type: Input, path: value)"
         );
+    }
+
+    #[test]
+    fn reference_intrinsics_do_not_create_runtime_dependencies() {
+        for source in [
+            "= reference = refof(calculate)",
+            "= reference = refof(Input)",
+            "= reference = refof(Input::children::value)",
+            "= reference = pathof(Input::children::value)",
+        ] {
+            let expression = parse_expr_from(source);
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(&expression, &mut free, &BTreeSet::new());
+            assert!(free.is_empty(), "{source}: {free:?}");
+            assert!(collect_scoped_runtime_calls(&expression, &BTreeSet::new()).is_empty());
+            let mut roots = BTreeSet::new();
+            collect_typed_explore_runtime_roots(
+                &expression,
+                &mut roots,
+                &BTreeSet::new(),
+                &BTreeMap::new(),
+            );
+            assert!(roots.is_empty(), "{source}: {roots:?}");
+        }
+    }
+
+    #[test]
+    fn reference_intrinsics_preserve_real_captures_and_calls() {
+        let expression = parse_expr_from(
+            "= callback = |value| combine(prefix, value, refof(Input::value), pathof(Input::value))",
+        );
+        let mut free = BTreeSet::new();
+        collect_true_free_vars(&expression, &mut free, &BTreeSet::new());
+        assert_eq!(free, BTreeSet::from(["combine".into(), "prefix".into()]));
+        let calls = collect_scoped_runtime_calls(&expression, &BTreeSet::new());
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "combine");
+        assert_eq!(calls[0].effective_arity, 4);
+
+        // Internal-looking names alone are not enough to discard a real use.
+        for source in ["= value = __refof", "= value = __pathof"] {
+            let expression = parse_expr_from(source);
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(&expression, &mut free, &BTreeSet::new());
+            assert_eq!(free.len(), 1, "{source}");
+        }
     }
 
     #[test]

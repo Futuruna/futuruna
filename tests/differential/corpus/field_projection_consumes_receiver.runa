@@ -1,0 +1,28 @@
+# Detail(amount: Int)
+# Report(detail: Detail, label: String)
+# Envelope(report: Report)
+
+| owned_rule(report: Report) -> report
+> owned_function(report: Report) -> Report { report }
+> borrowed_function(report: Report) -> Detail { report.detail }
+
+> direct_field(report: Report) -> Int { report.detail.amount }
+> rule_field(report: Report) -> Int { owned_rule(report).detail.amount }
+> function_field(report: Report) -> Int { owned_function(report).detail.amount }
+> borrowed_field(report: Report) -> Int { borrowed_function(report).amount }
+> constructor_field(report: Report) -> Int { Envelope(report).report.detail.amount }
+> conditional_field(report: Report, flag: Bool) -> Int {
+    (if flag { owned_rule(report) } else { owned_function(report) }).detail.amount
+}
+> indexed_field(report: Report) -> Int { [owned_function(report)][0].detail.amount }
+
+= report = Report(Detail(42), "source")
+@ print(show(direct_field(report)))
+@ print(show(rule_field(report)))
+@ print(show(function_field(report)))
+@ print(show(borrowed_field(report)))
+@ print(show(constructor_field(report)))
+@ print(show(conditional_field(report, True)))
+@ print(show(conditional_field(report, False)))
+@ print(show(indexed_field(report)))
+@ print(report.label)

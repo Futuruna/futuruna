@@ -1,0 +1,17 @@
+# Fact(value: Int)
+| valid(known: Bool, fact: Fact?) -> match fact {
+    | None -> known == False
+    | Some(value) -> known && value.value >= 0
+}
+# Case(known: Bool) {
+    | valid(fact: Fact?) -> match fact {
+        | None -> known == False
+        | Some(value) -> known && value.value >= 0
+    }
+}
+@ print(show(valid(False, None)))
+@ print(show(valid(True, None)))
+@ print(show(valid(True, Some(Fact(1)))))
+@ print(show(valid(True, Some(Fact(-1)))))
+@ print(show(Case(False).valid(None)))
+@ print(show(Case(True).valid(None)))

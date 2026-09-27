@@ -145,7 +145,7 @@ test('readiness index retains intake, validity and unresolved conformance bounda
   }
   for (const phrase of ['Preview', 'BeregnetMedForbehold', 'UgyldigtBeregningsgrundlag',
     'BetingetAfstemt', 'Three personal examples', 'negative-net-credit floor',
-    'native Personskat path is incomplete', 'no LLM evaluator',
+    'Native calculation coverage is bounded', 'no LLM evaluator',
     '## Limits to keep visible']) {
     assert.ok(readiness.includes(phrase), `readiness: ${phrase}`);
   }

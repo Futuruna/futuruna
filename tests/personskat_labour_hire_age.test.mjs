@@ -88,7 +88,7 @@ test('labour-hire age must describe the canonical taxpayer, including a spouse',
       input.ægtefælle = v('MedÆgtefælle', { fakta: person, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] });
     }
     person.lønmodtager.personlig_indkomst.arbejdsudleje = [hire(year, age, ordinary)];
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);

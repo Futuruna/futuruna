@@ -106,7 +106,7 @@ test('ordinary interest totals keep sign validation and existing netting results
   add('negative-income', 0, -1, null);
   add('spouse-negative-expense', -1, 0, null, true);
   add('spouse-negative-income', 0, -1, null, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []); assert.equal(output.results.length, cases.length);

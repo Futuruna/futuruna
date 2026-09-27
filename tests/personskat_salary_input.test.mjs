@@ -63,7 +63,7 @@ test('negative ordinary wage totals cannot masquerade as supported annual correc
   add('negative-wage-offsetting-su', -10000, su);
   add('negative-spouse-wage', -10000, su, true);
   add('lawful-negative-capital', 0, p => { p.kapitalindkomst.renter.renteudgifter_kroner = 10000; });
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);
@@ -130,7 +130,7 @@ test('part-year comparison retains the wage boundary in period and documented an
     }
     if (case_id === 'future-birth-date') for (const p of [c.personskat, c.helårsgrundlag.personskat])
       p.lønmodtager.pension.fødselsdato.år = 2026;
-    return { case_id, input: c };
+    return { case_id, input_status: 'ready', input: c };
   });
   const output = run(['call', partModel, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', output);

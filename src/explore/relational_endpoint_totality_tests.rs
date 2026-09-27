@@ -1248,6 +1248,65 @@ fn trim_endpoint_preserves_exact_strings_and_unknown_branch_safety() {
 }
 
 #[test]
+fn integer_display_endpoint_preserves_exact_and_unknown_branch_safety() {
+    let source = |body: &str, result: &str| {
+        r#"
+> display_observer(state: Int, context: Unit) -> RESULT { BODY }
+? explore integer_display_endpoint {
+    from {
+        vary before in range(0, 2)
+        given context = ()
+    }
+    transition after = before
+    find cases = all
+    mechanisms paths from find cases using display_observer
+}
+"#
+        .replace("RESULT", result)
+        .replace("BODY", body)
+    };
+    for (expression, expected) in [
+        ("0", "0"),
+        ("-42", "-42"),
+        ("9223372036854775807", "9223372036854775807"),
+        ("-9223372036854775807 - 1", "-9223372036854775808"),
+    ] {
+        checked_plan_identity(&source(
+            &format!("if show({expression}) == \"{expected}\" {{ 7 }} else {{ 1 / 0 }}"),
+            "Int",
+        ));
+    }
+    let varying = source("\"Days: \" + show(state)", "String");
+    assert_eq!(
+        checked_plan_identity(&varying),
+        checked_plan_identity(&varying)
+    );
+    for body in [
+        "if show(1) == \"0\" { 7 } else { 1 / 0 }",
+        "if show(state) == \"0\" { 7 } else { 1 / 0 }",
+        "if show(state) == \"1\" { 7 } else { 1 / 0 }",
+        "if show(1 / state) == \"0\" { 7 } else { 8 }",
+    ] {
+        assert_eq!(
+            endpoint_issue_before_plan(&source(body, "Int")).reason(),
+            RelationalEndpointTotalityIssueReason::DivisionByZeroNotExcluded
+        );
+    }
+    let shadowed = format!(
+        "> show(value: Int) -> String {{ = unsafe = 1 / value; \"authored\" }}\n{}",
+        source("show(state)", "String")
+    );
+    assert_eq!(
+        endpoint_issue_before_plan(&shadowed).reason(),
+        RelationalEndpointTotalityIssueReason::DivisionByZeroNotExcluded
+    );
+    assert_eq!(
+        endpoint_issue_before_plan(&source("show([state])", "String")).reason(),
+        RelationalEndpointTotalityIssueReason::CheckedResolutionUnavailable
+    );
+}
+
+#[test]
 fn personskat_200k_landscape_endpoint_totality_certifies_without_execution() {
     personskat_endpoint_totality_certifies(
         "personskat-mechanism-landscape-200k.explore.runa",

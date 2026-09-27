@@ -54,7 +54,7 @@ test('part-year comparison uses the final assessment, never a nested ordinary am
     ['church-unknown', x => { x.personskat.lønmodtager.kirkeskat = v('KirkeskatUoplyst'); }],
     ['church-part-year', x => { x.personskat.lønmodtager.kirkeskat = v('KirkeskatEnDelAfÅret'); }],
   ];
-  envelope.cases = edits.map(([case_id, edit]) => { const input = structuredClone(baseline); edit(input); return { case_id, input }; });
+  envelope.cases = edits.map(([case_id, edit]) => { const input = structuredClone(baseline); edit(input); return { case_id, input_status: 'ready', input }; });
   const output = run(['call', model, '--entry', 'beregn_personskat_delår', '--input', save(evidence, 'cases.json', envelope)]);
   save(evidence, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);
@@ -75,6 +75,9 @@ test('part-year comparison uses the final assessment, never a nested ordinary am
     for (const warning of r.delårsresultat.vurdering.forbehold) assert.ok(a.forbehold.includes(warning), warning);
     assert.ok(a.forbehold.some(w => w.includes('delårsresultat.vurdering') && w.includes('mellemtrin')));
     assert.ok(a.forbehold.some(w => w.includes('ikke restskat')));
+    assert.ok(a.forbehold.some(w => w.includes('nettokreditten')
+      && w.includes('ikke retligt afklaret') && w.includes('personskat-skattekreditter.md')),
+    `${case_id}: the final part-year result must retain the settlement limitation`);
     if (valid) {
       assert.equal(r.slutskat_efter_par14_øre, 10383101);
       assert.equal(r.delårsresultat.vurdering.slutskat_til_sammenligning_øre, 9433144);

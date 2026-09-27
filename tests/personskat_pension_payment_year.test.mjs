@@ -93,7 +93,7 @@ test('payment years, deadline assertions and special-plan choices agree in canon
     v('Pbl18Par15AAfståelsesår', { fradragsår: 2024, indbetalt_senest_1_juli_efterfølgende: true })), null);
   add('spouse-impossible-timely', payment(2023, 2025, true), null, true);
   add('spouse-ordinary-plan-special-choice', special, null, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

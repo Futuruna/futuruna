@@ -70,7 +70,7 @@ test('payroll group life retains gross work deductions, net income and unknown-f
         indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: 920 }) : v(group, {
         [gross]: c.gross, personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: 920 }),
     }];
-    return { case_id: c.id, input };
+    return { case_id: c.id, input_status: 'ready', input };
   });
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);

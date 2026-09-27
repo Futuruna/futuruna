@@ -138,7 +138,7 @@ export function buildFictionalCases(template, documents = sources) {
         }), ['T:1', 'T:2', 'T:3', 'F:1'], 'Dokumenteret samlet bidrag og netto; ikke beregnet fra E:3.');
       }
     }
-    cases.push({ case_id, input });
+    cases.push({ case_id, input_status: 'ready', input });
   }
   assert.equal(value('U:2'), null);
   const held = [{

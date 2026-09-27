@@ -84,7 +84,7 @@ test('canonical recurring gifts cap each agreement once and withhold inconsisten
   add('special-or-unknown-history', special, null);
   add('spouse-split', split(), 10000, true);
   add('spouse-conflict', conflicting, null, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

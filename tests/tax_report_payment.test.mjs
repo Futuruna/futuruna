@@ -59,7 +59,7 @@ function named(rows, name) {
 
 test('legacy refund route does not turn a negative corrected payout into a refund', enabled, () => {
   const input = base(); input.betaling.oplyst_udbetaling_kroner = -3000;
-  const out = call([{ case_id: 'legacy-negative-payout', input }]);
+  const out = call([{ case_id: 'legacy-negative-payout', input_status: 'ready', input }]);
   const r = out.results[0].result;
   assert.equal(r.status.$variant, 'Ufuldstændig');
   assert.equal(named(r.kontroller, 'Udbetaling efter oplyste korrektioner og hele kroner').forventet, null);
@@ -98,7 +98,7 @@ test('revised report separates annual balance from final cash direction and pres
     const input = base();
     input.betaling.slutbetaling = { retning: v('TilBetaling'), oplyst_beløb_kroner: 3000 };
     edit(input.betaling);
-    cases.push({ case_id, input }); expected.set(case_id, { status, amount, ore });
+    cases.push({ case_id, input_status: 'ready', input }); expected.set(case_id, { status, amount, ore });
   }
   add('smaller-refund-requires-repayment', 'BetingetAfstemt');
   add('larger-refund-extra-payout', 'BetingetAfstemt', b => {
