@@ -67988,10 +67988,28 @@ starters first from mechanisms paths for node activation "{digest}" using values
 @ print(show(pets))
 "#;
 
-        let output = eval_source_with_prelude(source, false)
-            .expect("evaluate non-finite typed findall domain");
+        let error = eval_source_with_prelude(source, false)
+            .expect_err("an annotation cannot enumerate an unbounded payload domain");
+        assert!(
+            error.contains("cannot enumerate an unbound result"),
+            "{error}"
+        );
+        assert!(error.contains("evaluation is incomplete"), "{error}");
+    }
 
-        assert_eq!(output.trim(), "[]");
+    #[test]
+    fn interpreted_findall_searches_concrete_values_of_a_non_finite_typed_domain() {
+        let source = r#"
+# Animal = Cat | Tagged(String)
+| candidate(Cat)
+| candidate(Tagged("fox"))
+| is_pet(animal: Animal) -> candidate(animal)
+@ print(show(findall(animal, is_pet(animal))))
+"#;
+
+        let output = eval_source_with_prelude(source, false)
+            .expect("search the concrete candidates without enumerating every String");
+        assert_eq!(output.trim(), "[Cat, Tagged(fox)]");
     }
 
     #[test]
