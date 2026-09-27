@@ -1,0 +1,55 @@
+| sanctioned("ann")
+| eligible("ann")
+| eligible("bob")
+| eligible(person) -> False under sanctioned(person)
+| eligible(person) -> False
+| eligible("carol") -> True under True
+assert(not(eligible("ann")))
+assert(not(eligible("zed")))
+assert(findall(person, eligible(person)) == ["bob", "carol"])
+
+| selected("ann")
+| selected("bob")
+| selected("carol") -> True under True
+| selected("bob") -> False under True
+| exception deny selected("ann") -> False under True
+| exception later_allow selected("ann") -> True under True
+| exception allow selected("bob") -> True under True
+| exception additional selected("dave") -> True under True
+assert(findall(person, selected(person)) == ["bob", "dave", "carol"])
+
+> blocked(person: String) -> Bool { @ print("guard " + person); person == "ann" }
+> checked(person: String) -> Bool { @ print("body " + person); True }
+| person("ann")
+| person("bob")
+| effectful(p) -> person(p), checked(p)
+| exception exclude effectful(p) -> False under blocked(p)
+@ print(show(findall(person, effectful(person))))
+
+> flagged(person: String) -> Bool { @ print("guard " + person); True }
+> granted(person: String) -> Bool { @ print("value " + person); True }
+| duplicated("ann")
+| duplicated("ann")
+| exception grant duplicated("ann") -> granted("ann") under flagged("ann")
+@ print(show(findall(person, duplicated(person))))
+
+| exception available override_only(p) -> True under person(p)
+| has_selected() -> override_only(_)
+assert(findall(person, override_only(person)) == ["ann", "bob"])
+assert(has_selected())
+
+| access("ann", "read")
+| access("ann", "write")
+| access("bob", "write")
+| exception no_read access(person, "read") -> False under True
+assert(findall(person, access(person, _)) == ["ann", "bob"])
+assert(findall(person, access(person, "read")) == [])
+assert(findall(person, access(person, "write")) == ["ann", "bob"])
+| unequal_pair(1, 1)
+| unequal_pair(1, 2)
+| unequal_pair(2, 2)
+| exception repeated unequal_pair(value, value) -> False under True
+assert(findall(value, unequal_pair(1, value)) == [2])
+| excluded(p) -> person(p), not(eligible(p))
+assert(findall(p, excluded(p)) == ["ann"])
+@ print("query priority candidates passed")

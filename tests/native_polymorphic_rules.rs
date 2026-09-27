@@ -1,5 +1,8 @@
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_CONSUMER: AtomicU64 = AtomicU64::new(0);
 
 #[test]
 fn unconstrained_facts_preserve_types_and_repeated_variable_constraints() {
@@ -65,14 +68,42 @@ fn main() {
     );
 }
 
+#[test]
+fn query_override_guards_and_values_keep_their_declaring_library_scope() {
+    assert_rust_consumer(
+        r#"
+> blocked(value: Int) -> Bool { value == 1 }
+> decision(value: Int) -> Bool { False }
+| accepted(1)
+| accepted(2)
+| accepted(3)
+| exception denial accepted(1) -> decision(1) under blocked(1)
+@ export
+> selected(blocked: Int) -> List(Int) { findall(value, accepted(value)) }
+"#,
+        r#"
+mod rules;
+#[allow(dead_code)]
+fn blocked(_: i64) -> bool { false }
+#[allow(dead_code)]
+fn decision(_: i64) -> bool { true }
+fn main() {
+    assert_eq!(rules::selected(99), vec![2_i64, 3_i64]);
+    println!("embedded rules passed");
+}
+"#,
+    );
+}
+
 fn assert_rust_consumer(source: &str, consumer: &str) {
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let directory = std::env::temp_dir().join(format!(
-        "futuruna-polymorphic-library-{}-{nonce}",
-        std::process::id()
+        "futuruna-polymorphic-library-{}-{nonce}-{}",
+        std::process::id(),
+        NEXT_CONSUMER.fetch_add(1, Ordering::Relaxed)
     ));
     std::fs::create_dir(&directory).unwrap();
     let source_path = directory.join("rules.runa");

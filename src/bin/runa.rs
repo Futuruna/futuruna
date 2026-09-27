@@ -46653,6 +46653,16 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     fn infer_expr_fir_ty(&self, expr: &Expr) -> FirTy {
         match &expr.kind {
             ExprKind::App(func, args) => {
+                if matches!(&func.kind, ExprKind::Var(name) if name == "findall"
+                    && !self.types.user_functions.contains(name)
+                    && !self.local_bindings.contains(name))
+                    && args.len() == 2
+                {
+                    if let Some(ty) = self.native_logic_result_type(&args[0], &args[1]) {
+                        return ty;
+                    }
+                }
+
                 if let ExprKind::Field(module, name) = &func.as_ref().kind {
                     if let Some(module_path) = self.module_path_key(module) {
                         let metadata_path = self.canonical_module_metadata_path(&module_path);
