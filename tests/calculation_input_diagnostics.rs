@@ -109,10 +109,10 @@ fn expected(paths: &[&str]) -> BTreeSet<String> {
 fn missing_and_unknown_record_fields_are_reported_together() {
     let fixture = Fixture::new("# Input(first: Int, second: String, optional: Bool?)\n@ calculate\n> report(input: Input) -> Int { input.first }\n");
     fixture.input(json!([
-        {"case_id":"before", "input":{"first":1,"second":"good"}},
-        {"case_id":"empty", "input":{}},
-        {"case_id":"unknown", "input":{"typo":1,"another":true}},
-        {"case_id":"after", "input":{"first":2,"second":"good"}}
+        {"case_id":"before", "input_status":"ready", "input":{"first":1,"second":"good"}},
+        {"case_id":"empty", "input_status":"ready", "input":{}},
+        {"case_id":"unknown", "input_status":"ready", "input":{"typo":1,"another":true}},
+        {"case_id":"after", "input_status":"ready", "input":{"first":2,"second":"good"}}
     ]));
     let serial = fixture.call("1");
     assert_eq!(serial, fixture.call("3"));
@@ -131,17 +131,19 @@ fn missing_and_unknown_record_fields_are_reported_together() {
 #[test]
 fn nested_records_collections_and_variants_collect_independent_errors() {
     let fixture = Fixture::new(MODEL);
-    fixture.input(json!([{"case_id":"nested", "input":{
-        "profile":{"unexpected":1},
-        "rows":[{}, {"id":"bad","label":false}],
-        "entries":{"north":{}},
-        "tags":[1, 1, "bad", true],
-        "choice":{"$variant":"Named", "details":{}, "flag":0, "typo":1},
-        "extra":{}
-    }}, {"case_id":"positional", "input":{
-        "profile":{"id":1,"label":"valid"}, "rows":[], "entries":{}, "tags":[],
-        "choice":{"$variant":"Positional", "$values":[{}, "bad"], "unknown":1}
-    }}]));
+    fixture.input(
+        json!([{"case_id":"nested", "input_status":"ready", "input":{
+            "profile":{"unexpected":1},
+            "rows":[{}, {"id":"bad","label":false}],
+            "entries":{"north":{}},
+            "tags":[1, 1, "bad", true],
+            "choice":{"$variant":"Named", "details":{}, "flag":0, "typo":1},
+            "extra":{}
+        }}, {"case_id":"positional", "input_status":"ready", "input":{
+            "profile":{"id":1,"label":"valid"}, "rows":[], "entries":{}, "tags":[],
+            "choice":{"$variant":"Positional", "$values":[{}, "bad"], "unknown":1}
+        }}]),
+    );
     let result = fixture.call("2");
     assert!(result["results"].as_array().unwrap().is_empty());
     assert_eq!(
@@ -183,8 +185,8 @@ fn nested_records_collections_and_variants_collect_independent_errors() {
 fn invalid_parent_shapes_do_not_invent_child_errors_and_template_reports_all_cases() {
     let fixture = Fixture::new(MODEL);
     fixture.input(json!([
-        {"case_id":"bad-shapes", "input":{"profile":null,"rows":42,"entries":[],"tags":{},"choice":{"$variant":"Missing"}}},
-        {"case_id":"other", "input":{}}
+        {"case_id":"bad-shapes", "input_status":"ready", "input":{"profile":null,"rows":42,"entries":[],"tags":{},"choice":{"$variant":"Missing"}}},
+        {"case_id":"other", "input_status":"ready", "input":{}}
     ]));
     let result = fixture.call("1");
     assert_eq!(
