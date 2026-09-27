@@ -6,7 +6,7 @@ tags:
   - source
   - docs
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-09-27
 related:
   - "[[current-state]]"
   - "[[verification-lanes]]"
@@ -61,6 +61,5 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
 ## Best Next Ingests
 
 - `docs/artifact-codegen-contracts.md`
-- `docs/downstream-test-surface-audit.md`
 - `docs/library-hygiene.md`
 - high-value research notes under `research/`

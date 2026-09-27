@@ -19,7 +19,7 @@ For the detailed contracts behind each lane, see:
 - [docs/canary-suite.md](canary-suite.md)
 - [docs/canary-matrix.md](canary-matrix.md)
 - [docs/expectation-suites.md](expectation-suites.md)
-- [docs/downstream-test-surface-audit.md](downstream-test-surface-audit.md)
+- [docs/library-hygiene.md](library-hygiene.md)
 - [docs/differential-testing.md](differential-testing.md)
 - [docs/verified-bootstrap.md](verified-bootstrap.md)
 - [docs/proof-kernel.md](proof-kernel.md)
