@@ -1,3 +1,4 @@
+-- expect-error: `| scope` is a reactive lifecycle scope; use `# TaxCase(...) { | rule(...) -> ... }` for pure scoped rules
 # Person(age: Int)
 
 # TaxCase(person: Person) {

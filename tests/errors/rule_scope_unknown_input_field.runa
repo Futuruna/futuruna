@@ -1,3 +1,4 @@
+-- expect-error: type `Person` has no field `gross_income` or method with that name
 # Person(age: Int)
 
 # TaxCase(person: Person) {

@@ -24359,7 +24359,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __seen = std::collections::HashSet::new(); {0}.clone().into_iter().filter(|x| __seen.insert(format!(\"{}\", x))).collect::<Vec<_>>() }",
+                rust_tpl: "{ let mut __unique = Vec::new(); for __value in {0}.clone() { if !__unique.contains(&__value) { __unique.push(__value); } } __unique }",
             },
         ),
         (

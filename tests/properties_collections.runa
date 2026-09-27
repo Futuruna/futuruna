@@ -25,9 +25,10 @@
 | reverse_involution: xs -> reverse(reverse(xs)) == xs
 ? reverse_involution -> { @ print("reverse(reverse) = id: PROVED") } else { @ print("reverse(reverse) = id: FAILED") }
 
--- take(n) length is min(n, length)
-| take_length: xs -> length(take(xs, 3)) <= 3
-? take_length -> { @ print("take(3) <= 3: PROVED") } else { @ print("take(3) <= 3: FAILED") }
+-- take produces a stream; collect it before measuring list length.
+| take_length: xs -> length(collect(take(from_list(xs), 3))) == (if length(xs) < 3 { length(xs) } else { 3 })
+? take_length
+@ print("take(3) length = min(3, length): PROVED")
 
 -- sum_list of empty list is 0
 | sum_empty: empty -> sum_list(empty) == 0

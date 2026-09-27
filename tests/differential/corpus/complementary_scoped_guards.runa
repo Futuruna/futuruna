@@ -1,0 +1,26 @@
+# Input(year: Int, part_year: Bool)
+# Assessment(input: Input) {
+    | amount() -> 10 under input.year < 2026
+    | exception reform amount() -> 20 under input.year >= 2026
+    | selected() -> False under input.part_year == False
+    | exception part selected() -> True under input.part_year
+    | result() -> amount()
+}
+
+| sign(value: Int) -> -1 under value < 0
+| exception nonnegative sign(other: Int) -> 1 under other >= 0
+
+# Choice = First | Second | Third
+| chosen(choice: Choice) -> 1 under choice == First
+| chosen(choice: Choice) -> 2 under Second == choice
+| chosen(choice: Choice) -> 3 under choice == Third
+
+@ print(show(Assessment(Input(2025, False)).result()))
+@ print(show(Assessment(Input(2026, True)).result()))
+@ print(show(Assessment(Input(2025, False)).selected()))
+@ print(show(Assessment(Input(2026, True)).selected()))
+@ print(show(sign(-9223372036854775808)))
+@ print(show(sign(9223372036854775807)))
+@ print(show(chosen(First)))
+@ print(show(chosen(Second)))
+@ print(show(chosen(Third)))

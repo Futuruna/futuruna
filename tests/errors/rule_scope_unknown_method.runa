@@ -1,3 +1,4 @@
+-- expect-error: RuleScope `TaxCase` has no scoped rule or method `missing_rule`
 # Person(age: Int)
 
 # TaxCase(person: Person) {

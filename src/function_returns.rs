@@ -26,6 +26,14 @@ impl TypeChecker {
         body: &Expr,
         receiver: Option<&Ty>,
     ) {
+        // Body diagnostics and return checking must agree on an implicit
+        // receiver. Otherwise an outer binding with the same name can supply
+        // an unrelated match subject or field owner before return checking.
+        if let (Some(receiver), Some(param)) = (receiver, params.first()) {
+            if param.ty.is_none() {
+                self.define_var_type(&param.name, receiver);
+            }
+        }
         self.check_expr(body, Some(name));
         let Some(result) = result else { return };
         let mut locals = ReturnLocals::default();

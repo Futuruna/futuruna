@@ -1,5 +1,6 @@
 -- show_safety_test.runa: Adversarial review fixes
--- Tests: show() semantics, index safety, division by zero
+-- Tests: show() semantics and explicit handling of zero divisors.
+-- Raw zero-divisor and overflow rejection is covered by integer_arithmetic.rs.
 
 -- ============================================================================
 -- DEMO 1: show() consistency — Display format, not Debug
@@ -21,18 +22,36 @@
 @ print("  show(true) = " + show(true))
 
 -- ============================================================================
--- DEMO 2: Division by zero — returns 0, no panic
+-- DEMO 2: Model a zero divisor explicitly instead of inventing a numeric value.
 -- ============================================================================
 
 @ print("")
 @ print("=== Demo 2: Division Safety ===")
 
-= zero = 0
-= result = 10 / zero
-@ print("  10 / 0 = " + show(result))
+> divide(n: Int, d: Int) -> Result(Int, String) {
+    if d == 0 { Err("zero divisor") } else { Ok(n / d) }
+}
 
-= mod_result = 10 % zero
-@ print("  10 % 0 = " + show(mod_result))
+> remainder(n: Int, d: Int) -> Result(Int, String) {
+    if d == 0 { Err("zero divisor") } else { Ok(n % d) }
+}
+
+= zero = 0
+= result = divide(10, zero)
+= mod_result = remainder(10, zero)
+= quotient = divide(10, 3)
+= residue = remainder(10, 3)
+@ print("  divide(10, 0) = " + show(result))
+@ print("  remainder(10, 0) = " + show(mod_result))
+
+| division_rejected: result -> result == Err("zero divisor")
+| remainder_rejected: mod_result -> mod_result == Err("zero divisor")
+| valid_division: quotient -> quotient == Ok(3)
+| valid_remainder: residue -> residue == Ok(1)
+? division_rejected
+? remainder_rejected
+? valid_division
+? valid_remainder
 
 @ print("")
 @ print("=== Safety fixes verified ===")

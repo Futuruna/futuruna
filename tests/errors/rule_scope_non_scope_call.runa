@@ -1,3 +1,4 @@
+-- expect-error: scoped member `allowance` must be called on a RuleScope value
 # Person(age: Int)
 
 # TaxCase(person: Person) {

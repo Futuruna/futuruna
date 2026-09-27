@@ -1,3 +1,4 @@
+-- expect-error: scoped rule `allowance` in `TaxCase` is declared with incompatible arities: 0 and 1
 # Person(age: Int)
 
 # TaxCase(person: Person) {
