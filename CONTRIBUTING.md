@@ -1,8 +1,9 @@
 # Contributing
 
-Futuruna is only useful if contributors can change it without silently changing
-the language under users' feet. The rule here is simple: semantic changes must
-raise the safety floor, not just pass today.
+Futuruna favors a correct, clear, coherent language over preserving older
+choices. During development toward 0.2.3, better designs may break compatibility.
+Update the implementation, tests, references, and repository programs together;
+semantic changes must raise the safety floor, not just pass today.
 
 The classification model for those changes lives in
 `docs/compatibility-policy.md`. Use it when deciding whether a change is a
@@ -37,9 +38,11 @@ Before a semantic change is submitted for review:
    The review request must say what semantic contract changed, what permanent
    coverage was added, which compatibility category it touched, and which
    commands were run.
-5. Update the compatibility guide when needed.
-   If the change touches a stable surface, update the current guide in
-   `docs/compatibility-guides/` or explain why no guide entry is needed.
+5. Update the current references and programs.
+   Describe the resulting language directly, without adding historical or
+   migration notes. For tracked stable-surface changes, use the PR template's
+   compatibility field to identify those updates and explain why a versioned
+   guide entry is unnecessary under the current development policy.
 6. Park follow-up debt explicitly.
    If you leave a shortcut, workaround, or known gap behind, file a `td-*` task
    before merge. Do not leave semantic debt implicit.
@@ -65,7 +68,7 @@ The PR description should include:
 
 - the user-visible or compiler-internal semantic contract that changed
 - the exact regression, canary, differential corpus case, or snapshot added
-- the compatibility guide entry added, or a clear statement that none was needed
+- the current references and repository callers updated with the contract
 - the exact verification commands that were run
 - any skipped lane, with a concrete reason
 - any parked follow-up work as linked `td-*` tasks
