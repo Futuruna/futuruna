@@ -25943,6 +25943,8 @@ struct RustCodegen {
     canonical_rule_parameter_issues: BTreeSet<RuleDispatchKey>,
     runtime_rule_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     runtime_rule_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    runtime_guarded_rule_calls: RuntimeGuardedRuleCalls,
+    active_guarded_calls: RuntimeGuardedCallSet,
     canonical_rule_metadata_installed: bool,
     rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
@@ -30837,6 +30839,8 @@ impl RustCodegen {
             canonical_rule_parameter_issues: BTreeSet::new(),
             runtime_rule_boolean_miss_keys: BTreeSet::new(),
             runtime_rule_irrefutable_keys: BTreeSet::new(),
+            runtime_guarded_rule_calls: RuntimeGuardedRuleCalls::default(),
+            active_guarded_calls: RuntimeGuardedCallSet::default(),
             canonical_rule_metadata_installed: false,
             rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode::RequireStaticTotality,
             borrow_only_params: BTreeMap::new(),
@@ -30895,6 +30899,8 @@ impl RustCodegen {
             artifacts.rule_dispatch_runtime_boolean_miss_keys.clone();
         self.runtime_rule_irrefutable_keys =
             artifacts.rule_dispatch_runtime_irrefutable_keys.clone();
+        self.runtime_guarded_rule_calls = artifacts.runtime_guarded_rule_calls().clone();
+        self.active_guarded_calls = RuntimeGuardedCallSet::default();
         self.canonical_rule_metadata_installed = true;
     }
 
@@ -30909,6 +30915,8 @@ impl RustCodegen {
         self.canonical_rule_parameter_issues = metadata.parameter_issues.clone();
         self.runtime_rule_boolean_miss_keys = metadata.runtime_boolean_miss_keys.clone();
         self.runtime_rule_irrefutable_keys = metadata.runtime_irrefutable_keys.clone();
+        self.runtime_guarded_rule_calls = RuntimeGuardedRuleCalls::default();
+        self.active_guarded_calls = RuntimeGuardedCallSet::default();
         self.canonical_rule_metadata_installed = true;
     }
 
@@ -43337,7 +43345,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         &expressions,
                         "    ",
                         |cg, indent| {
-                            let value = cg.emit_rule_value_expr(value, &ret_fir_ty);
+                            let value = cg.emit_guarded_candidate_value(rule, value, &ret_fir_ty);
                             condition.as_ref().map_or_else(
                                 || format!("{indent}return {value};\n"),
                                 |condition| {
@@ -43378,7 +43386,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             format!(
                                 "{indent}if {} {{ return {}; }}\n",
                                 cg.emit_expr(cond),
-                                cg.emit_rule_value_expr(value, &ret_fir_ty)
+                                cg.emit_guarded_candidate_value(rule, value, &ret_fir_ty)
                             )
                         },
                     ) {
@@ -49007,6 +49015,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         self.expected_constructor_arg_ty(name, constructor_parent, idx)
     }
 
+    fn emit_guarded_candidate_value(
+        &mut self,
+        rule: &Rule,
+        value: &Expr,
+        expected_ty: &FirTy,
+    ) -> String {
+        let calls = self.runtime_guarded_rule_calls.for_candidate(rule);
+        let previous = std::mem::replace(&mut self.active_guarded_calls, calls);
+        let emitted = self.emit_rule_value_expr(value, expected_ty);
+        self.active_guarded_calls = previous;
+        emitted
+    }
+
     fn emit_rule_value_expr(&mut self, expr: &Expr, expected_ty: &FirTy) -> String {
         self.emit_expr_with_expected_ty(expr, expected_ty)
     }
@@ -49379,6 +49400,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     if self.canonical_rule_return_types.contains_key(&key)
                         && !self.runtime_rule_irrefutable_keys.contains(&key)
                         && !self.runtime_rule_boolean_miss_keys.contains(&key)
+                        && !self.active_guarded_calls.permits(&key, func, args)
                         && !(return_type == FirTy::Bool
                             && self.static_bool_rule_head_matches_call(&rules, args))
                     {
@@ -49821,10 +49843,18 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                                 {
                                     format!("&*{}", base)
                                 } else {
-                                    // Rules take by value — clone if multi-use non-Copy
+                                    // Rules take by value. A borrowed caller
+                                    // parameter needs an owned clone even at
+                                    // its final use; a reference cannot move.
                                     if let ExprKind::Var(ref vn) = &a.kind {
-                                        if !self.copy_vars.contains(vn.as_str())
-                                            && self.var_use_counts.get(vn).copied().unwrap_or(0) > 1
+                                        if self.current_borrow_params.contains(vn)
+                                            || (!self.copy_vars.contains(vn.as_str())
+                                                && self
+                                                    .var_use_counts
+                                                    .get(vn)
+                                                    .copied()
+                                                    .unwrap_or(0)
+                                                    > 1)
                                         {
                                             return format!("{}.clone()", base);
                                         }
@@ -49839,6 +49869,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         } else {
                             self.emit_expr(a)
                         };
+                        // A reference is Copy, but a value-taking rule needs
+                        // the owned value behind that reference.
+                        if is_emitted_rule_call && !is_prolog_call {
+                            if let ExprKind::Var(name) = &a.kind {
+                                if self.current_borrow_params.contains(name) {
+                                    return format!("{}.clone()", s);
+                                }
+                            }
+                        }
                         // Escape analysis with borrow awareness:
                         // 1. Constructors: never clone (enum variants)
                         // 2. Copy types: never clone (i64, f64, char — free to duplicate)
@@ -62067,6 +62106,49 @@ assert_with_message(true, message())
         let interpreted = interpret_test_source(source, None);
         assert_eq!(compiled.trim(), "42000");
         assert_eq!(interpreted.trim(), compiled.trim());
+    }
+
+    #[test]
+    fn guarded_partial_rule_calls_do_not_leak_permissions_to_other_sites() {
+        let prefix = "# Input(year: Int)\n# Amount(value: Int)\n| partial(input: Input) -> Amount(7) under input.year >= 2026\n| result(input: Input, other: Input) -> 0\n";
+        for (value, condition, extra, allowed) in [
+            ("partial(input).value", "input.year >= 2026", "", true),
+            ("partial(input).value", "input.year >= 2025", "", false),
+            ("partial(other).value", "input.year >= 2026", "", false),
+            (
+                "partial(Input(2025)).value",
+                "input.year >= 2026",
+                "",
+                false,
+            ),
+            (
+                "{ = input = Input(2025); partial(input).value }",
+                "input.year >= 2026",
+                "",
+                false,
+            ),
+            (
+                "partial(input).value",
+                "input.year >= 2026",
+                "= unsafe = partial(Input(2025)).value",
+                false,
+            ),
+            (
+                "partial(input).value",
+                "input.year >= 2026",
+                "| leak(input: Input) -> partial(input).value",
+                false,
+            ),
+        ] {
+            let source = format!("{prefix}| exception reform result(input: Input, other: Input) -> {value} under {condition}\n{extra}\n");
+            let program = parse_test_program(&source);
+            let output = RustCodegen::new().emit_program(&program);
+            assert_eq!(
+                !output.contains("compile_error!"),
+                allowed,
+                "{source}\n{output}"
+            );
+        }
     }
 
     #[test]
