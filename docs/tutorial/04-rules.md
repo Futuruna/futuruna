@@ -45,6 +45,23 @@ reports incomplete evaluation rather than an empty answer list. Nullary enum
 types supply a finite domain: unbound arguments are searched in declaration
 order, with repeated names constrained to the same value.
 
+An unannotated, variable-only fact does not choose a concrete argument type.
+Repeated names require the same value, including its type:
+
+```runa
+| same(value, value)
+assert(same(1, 1))
+assert(same("law", "law"))
+assert(not(same(1, "1")))
+assert(findall(value, same(7, value)) == [7])
+```
+
+Native builds support these polymorphic facts over scalar values. A bound
+argument can supply a query result's type through a repeated head variable;
+an entirely unbound fact does not provide a finite collection of answers.
+Generic matching of structured values and aliases reused at different concrete
+types still have native lowering limits.
+
 Native builds support recursive Boolean clause queries over scalar values,
 including negation, correlated bindings, conjunctions, and alternatives. Some
 derived queries involving structured values, captured values, exception priority, or scoped

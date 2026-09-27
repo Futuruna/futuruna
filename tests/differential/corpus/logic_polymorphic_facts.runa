@@ -1,0 +1,68 @@
+| edge("a", "b")
+| edge("b", "c")
+| same(x, x)
+| has_self_loop() -> edge(n, n), True
+| anything(value)
+| either_pair(a, a, b)
+| either_pair(a, b, b)
+| end_points(left, middle, left)
+| fallback(a, a)
+| fallback(a, b)
+= captured = "outside"
+| same_shadowed(captured, captured)
+
+@ print("same(1, 2) (expect false): " + show(same(1, 2)))
+@ print("has_self_loop (expect false): " + show(has_self_loop()))
+@ print("findall edge(n, n) (expect []): " + show(findall(n, edge(n, n))))
+
+assert(same(1, 1))
+assert(not(same(1, 2)))
+assert(same("law", "law"))
+assert(not(same("law", "code")))
+assert(not(same(1, "1")))
+assert(not(same("1", 1)))
+assert(same(True, True))
+assert(not(same(True, False)))
+assert(same('a', 'a'))
+assert(not(same('a', 'b')))
+assert(same((), ()))
+assert(same(0.0, 0.0000000000000001))
+assert(not(same(0.0, 0.5)))
+assert(anything(1))
+assert(anything("law"))
+assert(anything(["law"]))
+assert(either_pair("law", "law", "code"))
+assert(either_pair(1, 2, 2))
+assert(not(either_pair(1, 2, 3)))
+assert(end_points("law", [1, 2], "law"))
+assert(not(end_points("law", [1, 2], "code")))
+assert(fallback([1], [2]))
+assert(same_shadowed(4, 4))
+assert(not(same_shadowed(4, 5)))
+
+> equal_in_function(value: String) -> Bool { same(value, "law") }
+= compare_ints = same
+assert(compare_ints(2, 2))
+assert(not(compare_ints(2, 3)))
+assert(equal_in_function("law"))
+assert(not(equal_in_function("code")))
+assert(all([1, 1], |value| same(value, 1)))
+assert(same(1, _))
+assert(same(_, _))
+assert(findall(value, same(1, value)) == [1])
+assert(findall(value, same("law", value)) == ["law"])
+| num(1)
+| num(2)
+| matching(value) -> num(value), same(value, 1)
+assert(findall(value, matching(value)) == [1])
+> singleton(value: Int) -> List(Int) { findall(result, same(value, result)) }
+> singleton_text(value: String) -> List(String) { findall(result, same(value, result)) }
+assert(singleton(7) == [7])
+assert(singleton_text("law") == ["law"])
+> value_once(label: String) -> Int {
+    @ print(label)
+    1
+}
+assert(same(value_once("first argument"), value_once("second argument")))
+assert(anything(value_once("unused argument")))
+@ print("polymorphic rule facts passed")

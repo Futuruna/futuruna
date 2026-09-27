@@ -17,6 +17,47 @@ pub enum Term {
     Compound(String, Vec<Term>),
 }
 
+/// Values with an unambiguous native representation for rule-head matching.
+/// Keep this distinct from Rust's PartialEq: logic matching preserves value
+/// kinds and uses the language's Float comparison, including in generic facts.
+pub trait LogicValue {
+    fn logic_value(&self) -> Term;
+}
+
+macro_rules! scalar_logic_value {
+    ($ty:ty, $variant:ident) => {
+        impl LogicValue for $ty {
+            fn logic_value(&self) -> Term {
+                Term::$variant(self.clone())
+            }
+        }
+    };
+}
+
+scalar_logic_value!(i64, Int);
+scalar_logic_value!(f64, Float);
+scalar_logic_value!(bool, Bool);
+scalar_logic_value!(char, Char);
+scalar_logic_value!(String, String);
+
+impl LogicValue for str {
+    fn logic_value(&self) -> Term {
+        Term::String(self.to_owned())
+    }
+}
+
+impl LogicValue for () {
+    fn logic_value(&self) -> Term {
+        Term::Unit
+    }
+}
+
+impl<T: LogicValue + ?Sized> LogicValue for &T {
+    fn logic_value(&self) -> Term {
+        T::logic_value(self)
+    }
+}
+
 impl Term {
     pub fn same_value(&self, other: &Self) -> bool {
         match (self, other) {

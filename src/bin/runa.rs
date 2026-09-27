@@ -36305,7 +36305,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
     fn infer_rule_signature_uncached(&self, rules: &[&Rule]) -> RuleSignatureInference {
         let params = Self::rule_params(rules);
-        let param_tys = self.infer_rule_param_fir_tys(&params, rules);
+        let param_tys = if Self::unconstrained_rule_fact_heads(rules).is_some() {
+            vec![FirTy::Unknown; params.len()]
+        } else {
+            self.infer_rule_param_fir_tys(&params, rules)
+        };
         let return_type = self
             .infer_rule_return_type(rules, &params, &param_tys)
             .map(|ty| Self::normalize_rule_rust_type(&ty));
@@ -43279,6 +43283,13 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
         let bool_miss_is_safe = !canonical_contract_applies
             || self.runtime_rule_boolean_miss_keys.contains(&canonical_key);
+        if (!canonical_contract_applies || canonical_return.as_deref() == Some("Bool"))
+            && bool_miss_is_safe
+        {
+            if let Some(function) = self.emit_polymorphic_rule_facts(fn_name, emitted_name, rules) {
+                return function;
+            }
+        }
         if Self::rules_have_prolog_features(rules) && arity > 0 {
             let canonical_parameters = canonical_contract_applies
                 .then(|| {
