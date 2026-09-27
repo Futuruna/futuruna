@@ -1,0 +1,25 @@
+> add(a: Int, b: Float) -> Float { a + b }
+> subtract(a: Float, b: Int) -> Float { a - b }
+> multiply(a: Int, b: Float) -> Float { a * b }
+> divide(a: Float, b: Int) -> Float { a / b }
+> less(a: Int, b: Float) -> Bool { a < b }
+> greater(a: Float, b: Int) -> Bool { a > b }
+> at_most(a: Float, b: Int) -> Bool { a <= b }
+> at_least(a: Int, b: Float) -> Bool { a >= b }
+> identity(value: a) -> a { value }
+
+@ print(show(add(2, 1.5)))
+@ print(show(subtract(1.5, 2)))
+@ print(show(multiply(2, 1.5)))
+@ print(show(divide(0.5, 2)))
+@ print(show(less(1, 1.5)))
+@ print(show(greater(1.5, 1)))
+@ print(show(at_most(1.0, 1)))
+@ print(show(at_least(1, 1.0)))
+@ print(show(to_float(5) == 5.0))
+@ print(show(to_float(5) != 5.0))
+@ print(show(['a'] == ['a']))
+@ print(show((1, True) == (1, True)))
+@ print("value=" + 3)
+@ print(3 + " apples")
+@ print(show(if identity(True) { True && !False } else { False }))
