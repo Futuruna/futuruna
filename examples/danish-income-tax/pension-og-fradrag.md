@@ -67,9 +67,9 @@ Et aritmetisk match beviser ikke, at rapportens kommunevalg er korrekt. Hvis
 rapporten og dine bopælsfakta strider mod hinanden, skal forskellen undersøges;
 skift ikke kommunen blot for at få tallene til at passe.
 
-Feltstier og skatteformler er uændrede. Nye feltforklaringer ændrer kontraktens
-fingeraftryk: genopret en skabelon med den valgte compiler, og overfør de
-kontrollerede fakta. Ret ikke kun `schema_hash` i gamle input eller resultater.
+Kontraktens fingeraftryk omfatter også feltforklaringer. Ved mismatch skal du
+generere en skabelon med den valgte compiler og overføre gennemgåede fakta.
+Ret ikke kun `schema_hash` i gamle input eller resultater.
 
 ### Fødselsdato er ikke kun et pensionsfelt
 
@@ -124,12 +124,11 @@ en tilsvarende udbetaling eller procentvis skatterabat. Dets sats afhænger af
 afstanden til folkepensionsalderen, og grundlaget har sit eget loft.
 [Skattestyrelsens vejledning om ekstra pensionsfradrag](https://skat.dk/borger/fradrag/ekstra-pensionsfradrag).
 
-Små forskelle kan skyldes afrunding. Modellen oprunder nu det ekstra
+Små forskelle kan skyldes afrunding. Modellen oprunder det ekstra
 pensionsfradrag til hele kroner efter modregning og loft, i overensstemmelse
 med [otte fiktive observationer hos SKAT for 2025/2026](skatdk-pensionsfradrag-ekstern.md).
 Ved et grundlag på 40.001 kr. og 12 % bliver fradraget 4.801 kr., ikke
-4.800 kr. Genberegn tidligere resultater fra de samme fakta; en resterende
-forskel er ikke i sig selv bevis for en fejl i din årsopgørelse.
+4.800 kr. En forskel er ikke i sig selv bevis for en fejl i din årsopgørelse.
 
 ### Løn og arbejdsgiverpension: brug ikke samme beløb to gange
 
@@ -188,9 +187,9 @@ Den kanoniske model medtager almindelig arbejdsgiverlivrente fra både
 `pbl18_indbetalinger` og den særskilte § 19-kildevej nedenfor. Det afledte beløb kan
 følges under `pension.lønmodtager_pensionsfradrag` i feltet
 `øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner`; det kan
-også indeholde andre særskilt modellerede bidragsgrundlag. Tidligere resultater
-kan undervurdere fradragene. Beregn berørte sager igen fra kildefakta med en
-ny skabelon; ret ikke blot slutskatten eller en gammel kontrakthash.
+også indeholde andre særskilt modellerede bidragsgrundlag. Brug kildefakta til
+indbetalingsgrundlaget; ret ikke slutskatten eller kontrakthashen for at få
+resultatet til at passe.
 
 Eksemplet har udtrykkeligt ingen ATP. Har du ATP, skal den oplyses særskilt
 som beskrevet nedenfor, ikke presses ind som almindelig livrente for at få
@@ -428,12 +427,11 @@ I den enkelte § 19-post er feltet
 omdøbt til `bortseelsesgrundlag_før_årsgrænser_efter_am_kroner`. Det er en
 foreløbig postklassifikation, **ikke** det endeligt tilladte årsbeløb. Brug
 `pension.arbejdsgiver_rate_resultat.bortseelsesberettiget_efter_am_kroner`
-for den samlede almindelige ratepensions bortseelsesret. Tidligere resultater
-fra den alternative § 19-gren kan mangle fradrag eller fælles begrænsninger;
-kør dem igen med den rettede model. De eksisterende selvstændige funktioner
-`pbl18_årsresultat` og `pbl19_rate_årsresultat` bevarer deres argumenter; deres
-interne `ÅrsSag`-konstruktører har fået to supplerende beløbsargumenter
-(brutto og indeholdt AM). Foretræk funktionerne ved direkte lavniveaukald.
+for den samlede almindelige ratepensions bortseelsesret. Genberegn gemte sager
+fra gennemgåede kildefakta frem for at genbruge afledte beløb. Ved direkte
+lavniveaukald skal du foretrække funktionerne `pbl18_årsresultat` og
+`pbl19_rate_årsresultat` frem for deres interne `ÅrsSag`-konstruktører, som
+også kræver de supplerende beløb for brutto og indeholdt AM.
 
 ### Hvis du også får pension udbetalt
 
@@ -498,12 +496,11 @@ inputsti, og sammenligningsbeløbet er `null`. Samme regler gælder for en
 beregnet ægtefælle. Den betingede rapportafstemning kræver fortsat ikke
 ægtefællens dokumenter.
 
-Modellen blev rettet 22. september 2026: tidligere blev sidste års beløb
-fejlagtigt modregnet. Beregn berørte sager igen fra dokumenterede fakta med
-den rettede model. Kontrakten har fået sporingsfelter og de eksplicitte
-fuldstændighedsmarkeringer; gamle input kræver derfor gennemgang og migrering:
-generer en ny skabelon med `template`, overfør kun gennemgåede inputfakta og
-kør `call` igen. Overskriv ikke gamle resultater eller kontrakthashes.
+Ved genbrug af gemte pensionssager skal årets og det foregående års
+udbetalinger gennemgås hver for sig. Generer en skabelon med `template`,
+overfør dokumenterede inputfakta, og bekræft kun de fuldstændighedsmarkeringer,
+der er afklaret. Kør derefter `call` igen. Overskriv ikke gamle resultater
+eller kontrakthashes.
 
 ## Beregn før og efter fra samme grundlag
 

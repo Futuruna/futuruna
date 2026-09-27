@@ -85,12 +85,13 @@ the tax saving. This is a regression case, not a personal assessment.
 
 ## Migration and limits
 
-This adds a required input field to the research model's Preview contract.
-Regenerate JSON/XLSX templates and copy confirmed facts; do not edit the old
-fingerprint or automatically replace missing information with the `Intet`
-choice. Source-level `PersonskatLigningsfradragInput` constructors need the new
-field too. The fictional no-deductions helper and examples explicitly assert
-`IntetEkstraBørnetilskud`; that assertion is not evidence for a private case.
+The research model's Preview contract requires `enlig_forsørger`, including
+in source-level `PersonskatLigningsfradragInput` constructors. When migrating
+saved cases, generate fresh JSON/XLSX templates and copy confirmed facts; do
+not edit the old fingerprint or automatically replace missing information
+with `IntetEkstraBørnetilskud`. The fictional no-deductions helper and examples
+explicitly assert `IntetEkstraBørnetilskud`; that assertion is not evidence for
+a private case.
 
 The current model truncates the capped annual percentage amount to whole øre,
 multiplies by eligible quarters divided by four, truncates to whole øre again,
@@ -110,16 +111,15 @@ invoice facts. Complete model conformance remains separate work.
 
 ## Trace sources in the rule and generated interview
 
-The typed metadata now separates current/historical law, annual rate sources,
+The typed metadata separates current/historical law, annual rate sources,
 quarter-allocation preparatory work, rounding assumptions and warnings. The
 same attachments follow benefit and quarter fields into the generated contract
-for both taxpayer and spouse. The 2025/2026 rate guidance and 2023/2024 cap table
-were rechecked on September 25, 2026; original legal/allocation source dates
-remain unchanged.
+for both taxpayer and spouse. Source references retain their effective-year
+and verification dates in the executable model.
 
-This metadata update changes the calculation fingerprint even though input
-types and arithmetic are unchanged. Generate a fresh template and copy only
-reviewed facts; do not edit an old fingerprint to suppress the mismatch.
+Field metadata contributes to the calculation fingerprint. If a saved
+contract no longer matches, generate a fresh template and copy only reviewed
+facts; do not edit an old fingerprint to suppress the mismatch.
 Use the compiler that passed the
 [runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check):
 
