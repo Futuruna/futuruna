@@ -84,6 +84,10 @@ numeric input explicitly before doing arithmetic.
 Use `concat(left, right)` to concatenate lists. The `+` operator does not
 concatenate lists.
 
+Compare a list with `[]` using `==` or `!=`, in either operand order. The
+empty list takes its element type from the other operand, including for
+string lists and nested lists.
+
 List operations are ordinary function calls: `length(items)` and
 `map(items, |item| item * 2)`. A list does not expose `.length`, `.len()` or
 `.map(...)` members.
