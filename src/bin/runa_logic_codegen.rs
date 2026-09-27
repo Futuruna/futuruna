@@ -48,20 +48,83 @@ impl Builder {
         Ok(Term::Variable(index))
     }
 
-    fn parameter_types(cg: &RustCodegen, name: &str, arity: usize) -> Result<Vec<FirTy>, String> {
+    fn parameter_types(
+        cg: &RustCodegen,
+        name: &str,
+        arity: usize,
+    ) -> Result<Vec<Option<FirTy>>, String> {
         let types = cg
             .native_logic_parameter_types
             .get(&(name.into(), arity))
             .ok_or_else(|| format!("native query `{name}` has no argument schema"))?;
-        types
+        Ok(types
             .iter()
-            .map(|ty| {
-                let ty = ty.as_deref().ok_or_else(|| {
-                    format!("native query `{name}` has an unresolved argument type")
-                })?;
-                Ok(RustCodegen::rust_type_to_fir(ty))
-            })
-            .collect()
+            .map(|ty| ty.as_deref().map(RustCodegen::rust_type_to_fir))
+            .collect())
+    }
+
+    fn argument_types(
+        &self,
+        cg: &RustCodegen,
+        name: &str,
+        arguments: &[Expr],
+        entry: bool,
+    ) -> Result<Vec<Option<FirTy>>, String> {
+        let mut types = Self::parameter_types(cg, name, arguments.len())?;
+        for (argument, ty) in arguments.iter().zip(&mut types) {
+            if ty.is_some() {
+                continue;
+            }
+            *ty = match &argument.kind {
+                ExprKind::Lit(literal) => Some(RustCodegen::rust_type_to_fir(
+                    RustCodegen::literal_rust_type(literal),
+                )),
+                ExprKind::Tuple(items) if items.is_empty() => Some(FirTy::Unit),
+                ExprKind::Var(name) if name != "_" => self
+                    .variables
+                    .get(name)
+                    .and_then(|variable| variable.ty.clone())
+                    .or_else(|| {
+                        (entry
+                            && self.projection.as_deref() != Some(name)
+                            && (cg.local_bindings.contains(name)
+                                || cg.var_fir_types.contains_key(name)
+                                || cg.binary_global_binding_types.contains_key(name)
+                                || cg.types.literal_bindings.contains_key(name)))
+                        .then(|| cg.infer_expr_fir_ty(argument))
+                        .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
+                    }),
+                _ => None,
+            };
+        }
+        let rules = cg.types.prolog_rule_groups[name]
+            .iter()
+            .filter(|rule| RustCodegen::rule_exact_arity(rule) == Some(arguments.len()))
+            .collect::<Vec<_>>();
+        if let Some(heads) = RustCodegen::unconstrained_rule_fact_heads(&rules) {
+            let known = types.clone();
+            for (index, ty) in types.iter_mut().enumerate() {
+                if ty.is_some() {
+                    continue;
+                }
+                // Only equalities guaranteed by every clause can supply the
+                // projection's type. Do not specialize the declaration from
+                // one caller or from one alternative's bindings.
+                let mut evidence = known.iter().enumerate().filter_map(|(other, ty)| {
+                    heads
+                        .iter()
+                        .all(|head| head[index] != "_" && head[index] == head[other])
+                        .then_some(ty.as_ref())
+                        .flatten()
+                });
+                if let Some(first) = evidence.next() {
+                    if evidence.all(|next| next == first) {
+                        *ty = Some(first.clone());
+                    }
+                }
+            }
+        }
+        Ok(types)
     }
 
     fn evaluation(
@@ -230,12 +293,12 @@ impl Builder {
                         || !cg.local_bindings.contains(name)
                         || cg.static_call_bypasses_non_callable_local(name, arguments.len()))
                 {
-                    let types = Self::parameter_types(cg, name, arguments.len())?;
+                    let types = self.argument_types(cg, name, arguments, entry)?;
                     let mut setup = Vec::new();
                     let terms = arguments
                         .iter()
                         .zip(types)
-                        .map(|(argument, ty)| self.term(cg, argument, Some(ty), entry, &mut setup))
+                        .map(|(argument, ty)| self.term(cg, argument, ty, entry, &mut setup))
                         .collect::<Result<Vec<_>, _>>()?;
                     let binders = arguments.iter().zip(&terms).filter_map(|(argument, term)| {
                         matches!(&argument.kind, ExprKind::Var(name) if name != "_" && !RustCodegen::is_uppercase_ident(name)).then(|| term.clone())
@@ -306,16 +369,14 @@ impl Builder {
                 // Heads introduce local binders even when a global has the same name.
                 for (argument, ty) in arguments.iter().zip(&types) {
                     if let Some(name) = RustCodegen::rule_head_var_name(argument) {
-                        self.variable(&name, Some(ty.clone()))?;
+                        self.variable(&name, ty.clone())?;
                     }
                 }
                 let mut setup = Vec::new();
                 let head = arguments
                     .iter()
                     .zip(&types)
-                    .map(|(argument, ty)| {
-                        self.term(cg, argument, Some(ty.clone()), false, &mut setup)
-                    })
+                    .map(|(argument, ty)| self.term(cg, argument, ty.clone(), false, &mut setup))
                     .collect::<Result<Vec<_>, _>>()?;
                 if !setup.is_empty() {
                     return Err("native query head needs structural term lowering".into());
@@ -429,6 +490,113 @@ fn decode(value: &str, ty: &FirTy, runtime: &str) -> Result<String, String> {
 }
 
 impl RustCodegen {
+    pub(super) fn unconstrained_rule_fact_heads(rules: &[&Rule]) -> Option<Vec<Vec<String>>> {
+        let arity = Self::rule_arity(rules);
+        if rules.is_empty() || arity == 0 {
+            return None;
+        }
+        rules
+            .iter()
+            .map(|rule| {
+                let Rule::Clause { head, body: None } = rule else {
+                    return None;
+                };
+                let ExprKind::App(_, arguments) = &head.kind else {
+                    return None;
+                };
+                if arguments.len() != arity {
+                    return None;
+                }
+                arguments
+                    .iter()
+                    .map(|argument| match &argument.kind {
+                        ExprKind::Var(name) if !Self::is_uppercase_ident(name) => {
+                            Some(name.clone())
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    pub(super) fn emit_polymorphic_rule_facts(
+        &mut self,
+        fn_name: &str,
+        emitted_name: &str,
+        rules: &[&Rule],
+    ) -> Option<String> {
+        let heads = Self::unconstrained_rule_fact_heads(rules)?;
+        let key = RuleDispatchKey {
+            scope: self.current_rule_scope_name.clone(),
+            name: fn_name.into(),
+            arity: heads[0].len(),
+        };
+        // A proven parameter schema still owns the ABI. Generalization is for
+        // unconstrained declarations, never a way around canonical evidence.
+        if self.canonical_rule_metadata_installed
+            && self.current_module_path.is_empty()
+            && self
+                .canonical_rule_parameter_types
+                .get(&key)
+                .is_some_and(|types| types.iter().any(Option::is_some))
+        {
+            return None;
+        }
+        let mut alternatives = Vec::new();
+        let mut compared = BTreeSet::new();
+        let runtime = &self.native_logic_runtime_name;
+        for head in &heads {
+            let mut bindings = BTreeMap::new();
+            let mut comparisons = Vec::new();
+            for (index, name) in head.iter().enumerate() {
+                if name == "_" {
+                    continue;
+                }
+                if let Some(previous) = bindings.get(name) {
+                    compared.insert(*previous);
+                    compared.insert(index);
+                    comparisons.push(format!(
+                        "{runtime}::LogicValue::logic_value(&__arg_{previous}).same_value(&{runtime}::LogicValue::logic_value(&__arg_{index}))"
+                    ));
+                } else {
+                    bindings.insert(name, index);
+                }
+            }
+            if comparisons.is_empty() {
+                compared.clear();
+                alternatives = vec!["true".to_string()];
+                break;
+            }
+            alternatives.push(format!("({})", comparisons.join(" && ")));
+        }
+        let generics = (0..key.arity)
+            .map(|index| {
+                if compared.contains(&index) {
+                    format!("__FutArg{index}: {runtime}::LogicValue")
+                } else {
+                    format!("__FutArg{index}")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let parameters = (0..key.arity)
+            .map(|index| format!("__arg_{index}: __FutArg{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let visibility = if self.rule_is_exported_in_current_namespace(fn_name) {
+            "pub "
+        } else {
+            ""
+        };
+        self.native_logic_runtime_needed |= !compared.is_empty();
+        Some(format!(
+            "{visibility}fn {}<{generics}>({parameters}) -> bool {{ {} }}\n",
+            sanitize_name(emitted_name),
+            alternatives.join(" || ")
+        ))
+    }
+
     pub(super) fn emit_native_logic_search(
         &mut self,
         template: Option<&Expr>,
@@ -566,7 +734,7 @@ impl RustCodegen {
             let encoded = encode(&expression, &evaluation.result_type, runtime)?;
             output.push_str(&format!("{index} => {{"));
             for function in &evaluation.functions {
-                output.push_str(&format!("use crate::{function};"));
+                output.push_str(&format!("use self::{function};"));
             }
             for (position, (name, ty)) in evaluation.parameters.iter().enumerate() {
                 let value = decode(&format!("&{arguments_name}[{position}]"), ty, runtime)?;
