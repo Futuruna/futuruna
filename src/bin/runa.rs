@@ -72693,6 +72693,50 @@ impl RustToRunaCtx {
                 self.method_call_to_runa(&recv, &method, &args)
             }
             syn::Expr::If(i) => {
+                // Pattern conditions are matches, including in value position and
+                // nested else-if chains. Keep branch bindings inside their arm.
+                if let syn::Expr::Let(l) = &*i.cond {
+                    let pat = self.pat_to_string(&l.pat);
+                    let val = self.expr_to_string(&l.expr);
+                    let then_body = self.block_to_closure_lines(&i.then_branch).join("\n");
+                    let else_body = i
+                        .else_branch
+                        .as_ref()
+                        .map(|(_, branch)| self.closure_body_to_string(branch))
+                        .unwrap_or_else(|| "()".to_string());
+                    if let syn::Pat::Tuple(tuple) = l.pat.as_ref() {
+                        if tuple.elems.len() == 2 {
+                            // Futuruna matches each tuple component separately.
+                            // Evaluate the whole scrutinee once before matching;
+                            // capture fallback scope before binding either pattern.
+                            let mut used: BTreeSet<String> = i
+                                .to_token_stream()
+                                .to_string()
+                                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                                .map(str::to_string)
+                                .collect();
+                            let value_name =
+                                fresh_generated_rust_name("__from_rust_if_let_value", &mut used);
+                            let fallback_name =
+                                fresh_generated_rust_name("__from_rust_if_let_else", &mut used);
+                            let matched = self.tuple_match_alternative_to_string(
+                                &format!("fst({value_name})"),
+                                &format!("snd({value_name})"),
+                                &self.pat_to_string(&tuple.elems[0]),
+                                &self.pat_to_string(&tuple.elems[1]),
+                                &format!("{{\n{then_body}\n}}"),
+                                &format!("{fallback_name}(())"),
+                            );
+                            return format!(
+                                "{{\n= {value_name} = {val}\n= {fallback_name} = |_| {else_body}\n{matched}\n}}"
+                            );
+                        }
+                    }
+                    return format!(
+                        "match {} {{\n| {} -> {{\n{}\n}}\n| _ -> {}\n}}",
+                        val, pat, then_body, else_body
+                    );
+                }
                 let cond = self.expr_to_string(&i.cond);
                 // Simple if/else → inline
                 let then_str = self.block_to_inline(&i.then_branch);

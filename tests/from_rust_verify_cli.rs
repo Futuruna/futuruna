@@ -95,6 +95,74 @@ fn main() {
 }
 
 #[test]
+fn from_rust_verify_preserves_if_let_expressions_and_else_chains() {
+    let output = run_from_rust_verify(
+        r#"
+fn combine(a: Option<i64>, b: Option<i64>, bypass: bool) -> i64 {
+    let value = if bypass {
+        99
+    } else if let (Some(x), Some(y)) = (a, b) {
+        let sum = x + y;
+        sum * 2
+    } else if let Some(x) = a {
+        x
+    } else {
+        -1
+    };
+    value + 1
+}
+
+fn main() {
+    println!("{}", combine(Some(2), Some(3), false));
+    println!("{}", combine(Some(7), None, false));
+    println!("{}", combine(None, Some(8), false));
+    println!("{}", combine(None, None, false));
+    println!("{}", combine(Some(2), Some(3), true));
+}
+"#,
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(stderr.contains("from-rust verify: match "), "{stderr}");
+    assert!(stderr.contains(" lines=5"), "{stderr}");
+}
+
+#[test]
+fn from_rust_verify_tuple_if_let_keeps_evaluation_order_and_fallback_scope() {
+    let output = run_from_rust_verify(
+        r#"
+fn observe(tag: i64, value: Option<i64>) -> Option<i64> {
+    println!("{}", tag);
+    value
+}
+
+fn choose(a: Option<i64>, b: Option<i64>) -> i64 {
+    let x = 40;
+    let __from_rust_if_let_value = 2;
+    let __from_rust_if_let_else = 3;
+    let result = if let (Some(x), Some(y)) = (observe(1, a), observe(2, b)) {
+        x + y
+    } else {
+        let fallback = x + __from_rust_if_let_value + __from_rust_if_let_else;
+        fallback
+    };
+    result
+}
+
+fn main() {
+    println!("{}", choose(Some(7), Some(8)));
+    println!("{}", choose(Some(7), None));
+    println!("{}", choose(None, Some(8)));
+}
+"#,
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(stderr.contains("from-rust verify: match "), "{stderr}");
+    assert!(stderr.contains(" lines=9"), "{stderr}");
+}
+
+#[test]
 fn from_rust_verify_reports_stable_unsupported_line() {
     let output = run_from_rust_verify(
         r#"
