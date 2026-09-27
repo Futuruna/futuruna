@@ -35308,146 +35308,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
         // Emit rules with the canonical dispatch order shared with the interpreter.
         {
-            // Pre-register Prolog-style rule functions so type propagation works across groups
-            for (fn_name, rules) in &rule_groups {
-                self.types.prolog_rule_groups.insert(
-                    fn_name.clone(),
-                    rules.iter().map(|rule| (*rule).clone()).collect(),
-                );
-                let arity = Self::rule_arity(rules);
-                if arity > 0 && Self::rules_have_prolog_features(rules) {
-                    let mut param_types: Vec<String> = vec!["String".to_string(); arity];
-                    // Infer from ground terms in fact heads
-                    for r in rules.iter() {
-                        if let Rule::Clause { head, body: None } = r {
-                            if let ExprKind::App(_, args) = &head.kind {
-                                for (i, arg) in args.iter().enumerate() {
-                                    if let Some(rust_ty) = self.rule_head_arg_rust_type_hint(arg) {
-                                        param_types[i] = rust_ty;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Infer from literals in body calls
-                    for r in rules.iter() {
-                        if let Rule::Clause {
-                            head,
-                            body: Some(body),
-                        } = r
-                        {
-                            if let ExprKind::App(_, head_args) = &head.kind {
-                                let head_vars = Self::rule_head_param_vars(head_args);
-                                // Check body for literal args that tell us param types
-                                let body_calls: Vec<&Expr> = match &body.kind {
-                                    ExprKind::Conjunction(goals) => goals.iter().collect(),
-                                    _ => vec![body],
-                                };
-                                for call in body_calls {
-                                    if let ExprKind::App(_, call_args) = &call.kind {
-                                        for (_ci, ca) in call_args.iter().enumerate() {
-                                            if let ExprKind::Lit(lit) = &ca.kind {
-                                                // A literal in the body tells us the type for that call position
-                                                // If another arg in same call is a head var, propagate type
-                                                let _ = lit; // type info used below
-                                            }
-                                            if let ExprKind::Var(vname) = &ca.kind {
-                                                if let Some((_, hi)) =
-                                                    head_vars.iter().find(|(n, _)| n == vname)
-                                                {
-                                                    // Check if any other arg in this call is a literal
-                                                    for (_oi, oa) in call_args.iter().enumerate() {
-                                                        if let ExprKind::Lit(lit) = &oa.kind {
-                                                            if param_types[*hi] == "String" {
-                                                                // Same call, same function → likely same type domain
-                                                                param_types[*hi] =
-                                                                    Self::literal_rust_type(lit)
-                                                                        .to_string();
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    let param_type_strs: Vec<String> = param_types
-                        .iter()
-                        .map(|t| {
-                            if t == "String" {
-                                "&str".to_string()
-                            } else {
-                                t.clone()
-                            }
-                        })
-                        .collect();
-                    self.types
-                        .prolog_rule_fns
-                        .insert(fn_name.clone(), param_type_strs);
-                }
-            }
-            // Second pass: propagate types from known Prolog functions to dependent ones
-            let known: BTreeMap<String, Vec<String>> = self.types.prolog_rule_fns.clone();
-            for (fn_name, rules) in &rule_groups {
-                let arity = Self::rule_arity(rules);
-                if arity > 0 && Self::rules_have_prolog_features(rules) {
-                    if let Some(cur_types) = self.types.prolog_rule_fns.get(fn_name).cloned() {
-                        let mut updated = cur_types.clone();
-                        for r in rules.iter() {
-                            if let Rule::Clause {
-                                head,
-                                body: Some(body),
-                            } = r
-                            {
-                                if let ExprKind::App(_, head_args) = &head.kind {
-                                    let head_vars = Self::rule_head_param_vars(head_args);
-                                    let body_calls: Vec<&Expr> = match &body.kind {
-                                        ExprKind::Conjunction(goals) => goals.iter().collect(),
-                                        _ => vec![body],
-                                    };
-                                    for call in body_calls {
-                                        if let ExprKind::App(func, call_args) = &call.kind {
-                                            let called_fn = Self::expr_fn_name(func);
-                                            if let Some(called_types) = known.get(&called_fn) {
-                                                for (ci, ca) in call_args.iter().enumerate() {
-                                                    if let ExprKind::Var(vname) = &ca.kind {
-                                                        if let Some((_, hi)) = head_vars
-                                                            .iter()
-                                                            .find(|(n, _)| n == vname)
-                                                        {
-                                                            if head_args
-                                                                .get(*hi)
-                                                                .and_then(|arg| {
-                                                                    self.typed_rule_arg_rust_type(
-                                                                        arg,
-                                                                    )
-                                                                })
-                                                                .is_some()
-                                                            {
-                                                                continue;
-                                                            }
-                                                            if updated[*hi] == "&str"
-                                                                || ci >= called_types.len()
-                                                            {
-                                                                continue;
-                                                            }
-                                                            updated[*hi] = called_types[ci].clone();
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        self.types.prolog_rule_fns.insert(fn_name.clone(), updated);
-                    }
-                }
-            }
+            self.register_prolog_parameter_types(&rule_groups);
 
             // Register value-returning rule signatures before emitting bodies.
             // This lets `| a(x) -> b(x)` and `| rate() -> params().rate`
@@ -42245,6 +42106,149 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         self.name_is_exported_in_current_namespace(name)
     }
 
+    fn rule_parameter_usage_type(
+        &self,
+        parameter: &str,
+        expression: &Expr,
+        known: &BTreeMap<(String, usize), Vec<Option<String>>>,
+    ) -> Option<String> {
+        match &expression.kind {
+            ExprKind::App(function, arguments) => {
+                let key = (Self::expr_fn_name(function), arguments.len());
+                if let Some(types) = known.get(&key) {
+                    for (argument, ty) in arguments.iter().zip(types) {
+                        if matches!(&argument.kind, ExprKind::Var(name) if name == parameter) {
+                            if let Some(ty) = ty {
+                                return Some(ty.clone());
+                            }
+                        }
+                    }
+                }
+                arguments
+                    .iter()
+                    .find_map(|argument| self.rule_parameter_usage_type(parameter, argument, known))
+            }
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => goals
+                .iter()
+                .find_map(|goal| self.rule_parameter_usage_type(parameter, goal, known)),
+            ExprKind::BinOp(_, left, right) => {
+                for (candidate, other) in [(left, right), (right, left)] {
+                    if matches!(&candidate.kind, ExprKind::Var(name) if name == parameter) {
+                        if let Some(ty) = self.rule_head_arg_rust_type_hint(other) {
+                            return Some(ty);
+                        }
+                    }
+                }
+                self.rule_parameter_usage_type(parameter, left, known)
+                    .or_else(|| self.rule_parameter_usage_type(parameter, right, known))
+            }
+            ExprKind::UnOp(_, inner) => self.rule_parameter_usage_type(parameter, inner, known),
+            ExprKind::If(condition, yes, no) => [condition, yes, no]
+                .into_iter()
+                .find_map(|part| self.rule_parameter_usage_type(parameter, part, known)),
+            // A nested binder has its own scope. Do not infer an outer argument
+            // from an identically named lambda parameter or local binding.
+            _ => None,
+        }
+    }
+
+    fn register_prolog_parameter_types(&mut self, groups: &BTreeMap<String, Vec<&Rule>>) {
+        // Unknown slots remain unknown during propagation. In particular, an
+        // unrelated integer argument is not evidence that its neighbour is an
+        // integer, and an uninferred slot is not evidence of a String type.
+        let mut known = BTreeMap::<(String, usize), Vec<Option<String>>>::new();
+        for (name, rules) in groups {
+            self.types.prolog_rule_groups.insert(
+                name.clone(),
+                rules.iter().map(|rule| (*rule).clone()).collect(),
+            );
+            for rule in rules {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => continue,
+                };
+                let ExprKind::App(_, arguments) = &head.kind else {
+                    continue;
+                };
+                let slots = known
+                    .entry((name.clone(), arguments.len()))
+                    .or_insert_with(|| vec![None; arguments.len()]);
+                for (slot, argument) in slots.iter_mut().zip(arguments) {
+                    if slot.is_none() {
+                        *slot = self.rule_head_arg_rust_type_hint(argument);
+                    }
+                }
+            }
+        }
+        loop {
+            let mut updates = Vec::new();
+            for (name, rules) in groups {
+                for rule in rules {
+                    let (head, expressions) = match rule {
+                        Rule::Clause { head, body } => (head, body.iter().collect::<Vec<_>>()),
+                        Rule::Default {
+                            head,
+                            value,
+                            condition,
+                        }
+                        | Rule::Exception {
+                            head,
+                            value,
+                            condition,
+                            ..
+                        } => (
+                            head,
+                            std::iter::once(value).chain(condition.iter()).collect(),
+                        ),
+                        Rule::ReactiveScope { .. } => continue,
+                    };
+                    let ExprKind::App(_, arguments) = &head.kind else {
+                        continue;
+                    };
+                    let key = (name.clone(), arguments.len());
+                    for (index, argument) in arguments.iter().enumerate() {
+                        if known[&key][index].is_some() {
+                            continue;
+                        }
+                        let Some(parameter) = Self::rule_head_var_name(argument) else {
+                            continue;
+                        };
+                        if let Some(ty) = expressions.iter().find_map(|expression| {
+                            self.rule_parameter_usage_type(&parameter, expression, &known)
+                        }) {
+                            updates.push((key.clone(), index, ty));
+                        }
+                    }
+                }
+            }
+            if updates.is_empty() {
+                break;
+            }
+            for (key, index, ty) in updates {
+                known.get_mut(&key).unwrap()[index].get_or_insert(ty);
+            }
+        }
+        for (name, rules) in groups {
+            let arity = Self::rule_arity(rules);
+            if arity == 0 || !Self::rules_have_prolog_features(rules) {
+                continue;
+            }
+            let Some(slots) = known.get(&(name.clone(), arity)) else {
+                continue;
+            };
+            let types = slots
+                .iter()
+                .map(|ty| ty.clone().unwrap_or_else(|| "String".to_string()))
+                .collect::<Vec<_>>();
+            self.types.prolog_rule_fns.insert(
+                name.clone(),
+                Self::prolog_param_type_strs_from_rust_types(&types),
+            );
+        }
+    }
+
     fn prolog_rule_param_rust_types(&self, rules: &[&Rule], arity: usize) -> Vec<String> {
         let mut param_types = vec!["String".to_string(); arity];
         for rule in rules {
@@ -42290,7 +42294,18 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
         // Root emission consumes the TypeChecker-owned ABI. Qualified module
         // bodies remain on their isolated legacy metadata path.
-        let mut param_types = self.prolog_rule_param_rust_types(rules, arity);
+        let mut param_types = self
+            .types
+            .prolog_rule_fns
+            .get(fn_name)
+            .filter(|types| types.len() == arity)
+            .map(|types| {
+                types
+                    .iter()
+                    .map(|ty| Self::normalize_rule_rust_type(ty))
+                    .collect()
+            })
+            .unwrap_or_else(|| self.prolog_rule_param_rust_types(rules, arity));
         if let Some(parameters) = canonical_parameters {
             if parameters.len() != arity || param_types.len() != arity {
                 return format!(

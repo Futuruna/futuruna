@@ -10,6 +10,14 @@ fn anonymous_logic_queries_compile_and_execute_with_independent_wildcards() {
 }
 
 #[test]
+fn derived_rule_parameters_follow_argument_positions_through_calls() {
+    assert_both_backends(
+        "logic_derived_parameter_types",
+        "derived rule parameter types passed",
+    );
+}
+
+#[test]
 fn signed_and_list_rule_heads_compile_and_match_exact_values() {
     assert_both_backends(
         "logic_signed_list_heads",
