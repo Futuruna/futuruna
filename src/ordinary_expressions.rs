@@ -46,7 +46,13 @@ impl TypeChecker {
                     expression,
                     "operator `+` does not concatenate lists; use concat(left, right)".into(),
                 );
-                return None;
+                // Retain the inferred list type so enclosing operators can
+                // still diagnose their operands after this local error.
+                return Self::binary_expression_result_type(
+                    operator,
+                    left_type.as_deref(),
+                    right_type.as_deref(),
+                );
             }
         }
         self.check_operator_operands(
