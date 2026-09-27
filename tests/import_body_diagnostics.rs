@@ -277,6 +277,41 @@ fn imported_annotation_names_use_prepared_types_and_original_source() {
     }
 }
 
+#[test]
+fn imported_operator_errors_are_checked_before_root_effects() {
+    let mut fixture = Fixture::new();
+    fixture.write(
+        "helper.runa",
+        "-- unused function still has a checked body\n> invalid(a: String, b: Int) -> Bool { a >= b }\n",
+    );
+    for import in ["@ import ./helper", "@ import Helper from ./helper"] {
+        fixture.write(
+            "main.runa",
+            &format!("@ print(\"must not run\")\n{import}\n"),
+        );
+        for args in [
+            &[][..],
+            &["run"][..],
+            &["check", "--frontend"][..],
+            &["check"][..],
+        ] {
+            let output = fixture.run(args);
+            assert_eq!(output.status.code(), Some(1), "{args:?}: {output:?}");
+            assert!(output.stdout.is_empty(), "{args:?}: {output:?}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("helper.runa:2:"), "{stderr}");
+            assert!(
+                stderr.contains("unsupported operands for operator `>=`"),
+                "{stderr}"
+            );
+            assert!(
+                stderr.contains("String") && stderr.contains("Int"),
+                "{stderr}"
+            );
+        }
+    }
+}
+
 fn assert_bad_import(fixture: &Fixture) {
     for args in [
         &["check", "--frontend"][..],

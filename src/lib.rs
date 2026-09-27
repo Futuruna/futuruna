@@ -13113,7 +13113,8 @@ impl Parser {
                     return Ok(Expr::new(ExprKind::Lit(Literal::Int(i64::MIN)), span));
                 }
                 let operand = self.parse_expr_prec(u8::MAX)?;
-                Ok(ExprKind::UnOp(tok.text, Box::new(operand)).into())
+                let span = self.token_span(&tok).merge(operand.span);
+                Ok(Expr::new(ExprKind::UnOp(tok.text, Box::new(operand)), span))
             }
             // & reference
             TokenKind::Amp => {
@@ -58984,11 +58985,11 @@ impl TypeChecker {
             ExprKind::BinOp(_, _, _) => {
                 self.check_binary_expression(expr, _in_fn);
             }
-            ExprKind::UnOp(_, operand) => {
-                self.check_expr(operand, _in_fn);
+            ExprKind::UnOp(_, _) => {
+                self.check_unary_expression(expr, _in_fn);
             }
             ExprKind::If(cond, then_br, else_br) => {
-                self.check_expr(cond, _in_fn);
+                self.check_if_condition(cond, _in_fn);
                 self.check_expr(then_br, _in_fn);
                 self.check_expr(else_br, _in_fn);
             }
