@@ -205,7 +205,8 @@ class InputGuideTests(unittest.TestCase):
             self.assertEqual("list", pension["containers"][-1]["kind"])
             self.assertIsNotNone(pension["page"]["next_offset"])
             honorar = guide.inspect("lønmodtager.personlig_indkomst.ordinære_forhold.personlige_arbejdsvederlag.udgifter")
-            self.assertEqual(["PsHonorarudgifterUoplyst", "PsHonorarudgifterOplyst"],
+            self.assertEqual(["PsHonorarudgifterUoplyst", "PsHonorarudgifterOplyst",
+                              "PsHonorarudgifterMedDriftsmidler"],
                              [row["name"] for row in honorar["children"]])
             self.assertTrue(any(source["role"] == "warning" for source in honorar["source_objects"].values()))
             print(json.dumps({"fresh_schema_bytes": path.stat().st_size, "view_bytes": sizes}, ensure_ascii=False))
