@@ -195,6 +195,20 @@ Those checks keep marked importable helper files honest, reject imported
 script/demo leakage, and verify helper-call-chain impurity before downstream
 consumers run.
 
+Coverage is bounded to authored local-library consumers. Generic roundtrip
+skips for imported entrypoints are not parity evidence; use compiled consumer
+execution and codegen checks, with the explicit live-async boundary above.
+Import-normalization snapshots protect structure but do not replace execution.
+
+Keep new consumer regressions in `tests/downstream/`,
+`tests/expect/imports/`, or the import-aware differential corpus. The core
+random expression generator is single-file; generated import graphs exercise
+fixed seed-derived shapes, not arbitrary import topologies. See the
+[differential contract](differential-testing.md),
+[library hygiene rules](library-hygiene.md), and
+[artifact contract](artifact-codegen-contracts.md) for those complementary
+checks and their limits.
+
 ## From-Rust Downstream Lane
 
 `./scripts/from-rust-downstream-canary.sh` is the mint-blocking lane for
