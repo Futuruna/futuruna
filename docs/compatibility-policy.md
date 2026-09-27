@@ -1,254 +1,89 @@
 # Futuruna Compatibility Policy
 
-This document defines what Futuruna treats as compatibility, how language
-surfaces move from experimental to stable, and when a bug fix may break old
-behavior without a staged deprecation.
-
-For the current stage assignments of major language and tooling surfaces, see
-[docs/feature-stages.md](feature-stages.md).
-
-For release-by-release compatibility history, see
-[docs/compatibility-guides/](compatibility-guides/README.md).
-
-For emitted Rust and generated artifact boundaries, see
-[docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md).
-
-The goal is simple: users should not have to guess which changes are ordinary
-progress, which are intentional compatibility breaks, and which surfaces are
-still explicitly unstable.
-
-## 1. Compatibility Categories
-
-Futuruna tracks compatibility by **surface**, not by vague intuition.
-
-### Source compatibility
-
-Source compatibility means an existing `.runa` program still parses,
-type-checks, and is accepted by the language under the same intended source
-constructs.
-
-Examples of source breaks:
-
-- syntax changes
-- changed name resolution or import rules
-- changes that reject programs previously accepted by parser or typechecker
-- changed meaning of stable surface syntax in a way that requires source edits
-
-### Behavioral compatibility
-
-Behavioral compatibility means a stable Futuruna program that still compiles
-continues to have the same documented observable meaning:
-
-- interpreter behavior
-- compiled/native behavior
-- runtime error behavior
-- deterministic ordering and equality/display contracts where those are part of
-  the documented language semantics
-- standard-library builtin semantics
-
-Examples of behavioral breaks:
-
-- `substring(s, start, length)` changing meaning
-- `head([])` or `xs[i]` changing from one documented contract to another
-- stable collection ordering changing without being explicitly declared unstable
-
-### Verification compatibility
-
-Verification compatibility means documented stable proof or verify surfaces keep
-their contract:
-
-- proof term forms
-- theorem/invariant surface syntax
-- documented kernel-backed capabilities
-- stable `runa verify` meanings where a contract is explicitly documented
-
-This category exists because Futuruna is not only a runtime/compiler project.
-Proof and verification behavior can also break users.
-
-### Artifact and codegen compatibility
-
-Artifact compatibility means emitted or produced artifacts remain compatible
-with documented promises.
-
-Default rule:
-
-- Futuruna **does not** guarantee the exact emitted Rust text, helper names,
-  internal module layout, or formatting.
-- Futuruna **does** care about codegen as a compatibility surface when the
-  emitted artifact behavior is part of the documented language contract.
-
-In practice:
-
-- exact emitted Rust shape is unstable unless a doc explicitly promises it
-- exact emitted Rust shape is a reviewed contract for files covered by
-  `tests/expect/artifact/` golden fixtures
-- emitted program behavior is part of behavioral compatibility
-- build outputs, ABI, and integration surfaces only become stable if they are
-  documented as such
-
-### Diagnostic and internal compatibility
-
-These surfaces are explicitly lower-stability unless documented otherwise:
-
-- exact wording of diagnostics
-- internal FIR/AST layouts
-- internal Rust helper names
-- compiler implementation structure
-- performance characteristics
-
-Changes here are still expected to be reviewed carefully, but they are not
-treated as stable public contract by default.
-
-## 2. Feature Stages
-
-Every user-visible Futuruna surface should be thought of as being in one of
-three states.
-
-### Experimental
-
-Experimental means:
-
-- the feature is available for exploration
-- the team is still learning the right design
-- source and behavior may change or be removed without a deprecation cycle
-- changes must still be called out in docs or release notes if users are likely
-  to notice them
-
-Experimental is appropriate for:
-
-- new syntax
-- new proof surface
-- unstable runtime/library APIs
-- codegen or tooling affordances that are not yet part of the public contract
-
-### Preview
-
-Preview means:
-
-- the feature is intended for real-world feedback
-- the design is expected to settle, but is not frozen yet
-- incompatible changes should be announced and migration guidance should be
-  provided where possible
-- removal or large redesign is still allowed if the current shape is clearly
-  wrong
-
-Preview is where Futuruna should battle-test important new surfaces before
-calling them stable.
-
-### Stable
-
-Stable means:
-
-- the surface is part of Futuruna's public contract
-- source and behavioral breaks require explicit compatibility handling
-- contributors should assume users may rely on it in production or long-lived
-  code
-
-Stable does **not** mean "never change." It means changes must be classified,
-justified, documented, and covered.
-
-## 3. Default Stability Rules
-
-Unless a doc says otherwise:
-
-- core language syntax in public docs is treated as stable
-- documented builtin semantics are treated as stable
-- the proof kernel rule set and documented proof surface are treated as stable
-  once published as current behavior
-- exact emitted Rust text is not stable
-- diagnostics wording is not stable
-- internal compiler structures are not stable
-
-If a surface is not clearly documented, contributors should bias toward either:
-
-1. documenting it before treating it as stable, or
-2. explicitly marking it experimental/preview instead of assuming stability by
-   accident
-
-## 4. Deprecation And Migration Expectations
-
-For stable source or behavior changes, the preferred path is:
-
-1. document the incompatibility
-2. add or update permanent coverage for the old and new contract boundaries
-3. provide a migration path when one exists
-4. warn before hard-breaking when the compiler can do so at reasonable cost
-5. record the change in the compatibility guide or release notes
-
-When practical, stable source breaks should get at least one release cycle of:
-
-- warning, alias, or compatibility mode
-- migration note
-- explicit test coverage around the transition
-
-Not every change can be warned for. When it cannot, the review and
-compatibility note must say why.
-
-## 5. Bug-Fix Exceptions
-
-Some old behavior is simply wrong enough that staged deprecation is not the
-right answer.
-
-Futuruna may bypass staged deprecation for a stable surface when the old
-behavior is any of:
-
-- unsound
-- nondeterministic against a documented determinism promise
-- wrong-code generation
-- security-sensitive
-- data-corrupting
-- contradicting an already documented language contract
-
-When this happens, the change still must:
-
-1. state that it is a compatibility exception
-2. explain why the previous behavior is treated as a bug, not a supported
-   alternative
-3. land with permanent regression/canary/differential coverage
-4. include migration guidance if user code is likely to be affected
-
-The rule is not "stable users can always be broken immediately." The rule is
-"some bugs are too wrong to preserve, but the break still has to be explicit."
-
-## 6. Contributor Requirements For Compatibility Changes
-
-Any pull request that changes a stable surface should say:
-
-- which compatibility category it touches
-- whether the change is source, behavioral, verification, or artifact-facing
-- whether the surface is stable, preview, or experimental
-- whether this is a normal staged change or a bug-fix exception
-- what migration or warning path exists, if any
-- what permanent coverage was added
-
-`CONTRIBUTING.md` defines the mechanical ratchet. This document defines the
-classification model reviewers should apply when reading those changes.
-
-## 7. What This Policy Does Not Yet Automate
-
-This policy is a contract first. Tooling now provides a lightweight prompt for
-stable-surface changes, but some enforcement still needs follow-up work:
-
-- feature stability metadata is not yet surfaced consistently in tooling/docs
-- pull request CI runs `scripts/compatibility-guide-check.sh`, which requires
-  tracked stable-surface file changes to update a versioned compatibility guide
-  or fill the PR template reason for why no guide entry is needed
-- artifact compatibility is documented in
-  [docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md); exact
-  emitted Rust is stable only for reviewed artifact fixtures, and additional
-  emitted shapes must receive fixtures before they become public contracts
-
-Those gaps should be tracked explicitly in `td`, not left as implicit policy
-debt.
-
-## 8. Practical Reading
-
-When a change is proposed, ask:
-
-1. Which compatibility category does it touch?
-2. Is the affected surface experimental, preview, or stable?
-3. Is this a normal staged change or a bug-fix exception?
-4. Where is the migration story documented?
-5. What permanent coverage now defends the new contract?
-
-If those answers are unclear, the change is not ready to merge.
+During development toward 0.2.3, prefer a correct, clear, coherent language over
+backward compatibility. There are no known live projects outside this repository
+depending on the language. A better design may replace an existing contract,
+including one marked Stable, without a deprecation cycle, legacy alias, or
+compatibility mode.
+
+Changing a contract still requires deliberate review and permanent coverage.
+Update the implementation, tests, reference material, examples, and repository
+programs together. Preserve the intended meaning of authored legal models when
+adapting their syntax or APIs; a language redesign does not authorize changing
+their legal assumptions or results.
+
+## Identify the affected contract
+
+Classify changes so reviewers can assess their consequences:
+
+- **Source:** syntax, name resolution, imports, types, and accepted programs.
+- **Behavior:** interpretation, native execution, builtins, runtime errors,
+  ordering, and equality.
+- **Verification:** proof terms, invariants, kernel rules, and what verification
+  results establish.
+- **Artifacts and integration:** generated workbooks, reports, journals, native
+  interfaces, and emitted program behavior.
+- **Internals:** compiler representations, helper names, diagnostic wording,
+  performance, and generated Rust layout.
+
+Exact emitted Rust is generally an implementation detail. Reviewed artifact
+goldens define explicit expectations where exact output matters; update them
+only after reviewing the resulting contract. See the
+[artifact and codegen contracts](artifact-codegen-contracts.md).
+
+## Feature stages
+
+[Feature stages](feature-stages.md) and their
+[machine-readable assignments](feature-stages.json) describe current maturity:
+
+- **Experimental:** available for exploration; its design may change or be
+  removed.
+- **Preview:** intended for practical feedback, with a design still being
+  refined.
+- **Stable:** a documented, defended contract for the current language.
+
+Stable is a quality expectation, not a freeze on language design during this
+development phase. Existing coverage remains authoritative until a deliberate
+contract change replaces it. Do not infer stability merely because an
+undocumented behavior happens to work.
+
+## Make a coherent change
+
+1. Read the closest contract, implementation, example, and test.
+2. Choose the behavior that best serves the language. Do not retain an inferior
+   design solely because an earlier version accepted it.
+3. Implement the change across the affected frontend, interpreter, native
+   backend, verification, and tooling paths. Make unsupported cases explicit.
+4. Update repository callers and maintained documentation to use the current
+   contract. Remove obsolete branches and aliases when they no longer serve a
+   purpose.
+5. Add regression coverage for the new behavior and relevant failure boundaries.
+   A changed golden or a deleted failing assertion alone does not establish
+   correctness.
+6. Run the semantic-change ratchet in [CONTRIBUTING](../CONTRIBUTING.md), including
+   Mint and the deeper lanes appropriate to the change.
+
+## Describe the current language
+
+Reference material and examples should explain how Futuruna works now. Fix
+them directly rather than adding historical sidebars, migration diaries, or
+obsolete alternatives. Review descriptions explain the rationale and affected
+contracts; Git preserves the history.
+
+The existing compatibility-guide CI check accepts a concrete reason for not
+adding a versioned guide entry. For a deliberate redesign, use its PR field to
+identify the current references and repository programs updated with the change.
+No new historical guide entry is required by this policy.
+
+## Preserve correctness and evidence
+
+Freedom to break compatibility does not permit silent reinterpretation of saved
+facts or evidence. When a schema or contract changes, update its identity and
+validation so incompatible inputs are rejected or explicitly regenerated.
+Preserve provenance, source/compiler identity, and the distinction between
+facts, assumptions, interpretations, and unknowns.
+
+A review should state the resulting contract, the affected execution paths,
+the updated references and callers, the permanent coverage, and the exact
+checks run. Record any remaining gap as tracked work rather than implying it
+has been fixed.
