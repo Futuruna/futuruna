@@ -61,7 +61,7 @@ test('a young property owner cannot assert retirement-age relief in a valid annu
   wrong.ejendomsskatter.person.ejer_folkepensionsalder = v('EjskFolkepensionsalderOpnået', {
     opnået_dato: date(2020),
   });
-  envelope.cases = [{ case_id: 'young-owner', input: base }, { case_id: 'false-retirement', input: wrong }];
+  envelope.cases = [{ case_id: 'young-owner', input_status: 'ready', input: base }, { case_id: 'false-retirement', input_status: 'ready', input: wrong }];
   const output = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);
@@ -164,7 +164,7 @@ test('year-end, both spouse directions and survivor succession retain distinct f
     }],
   ];
   envelope.cases = specs.map(([case_id, , change]) => {
-    const input = structuredClone(base); change(input); return { case_id, input };
+    const input = structuredClone(base); change(input); return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out);
@@ -239,7 +239,7 @@ test('historical survivor retains section9 cap in the remarriage year', enabled,
     ægtefælles_folkepensionsalder: reached(date(2020)), nyt_ægteskab: date(2024, 6, 1),
   });
   history.tidligere_ejendomsværdiskat.succession = historicalSurvivor();
-  envelope.cases = [{ case_id: 'remarried-in-2024', input }];
+  envelope.cases = [{ case_id: 'remarried-in-2024', input_status: 'ready', input }];
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out);
   assert.deepEqual(out.diagnostics, []);
@@ -323,7 +323,7 @@ test('historical survivor facts keep unknowns, modern rules and spouse identitie
     history.tidligere_ejendomsværdiskat.succession = historicalSurvivor();
     history.tidligere_ejendomsværdiskat.succession.fakta.nyt_ægteskab = v('EjskEvslIntetNytÆgteskab');
     change(input, history, history.tidligere_ejendomsværdiskat.succession.fakta);
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out);
@@ -357,7 +357,7 @@ test('historical benefit recipient gets section9 cap without retirement-age reli
   history.tidligere_ejendomsværdiskat.historisk_begrænsning.par9_ydelsesgrundlag = {
     ejer: v('EjskEvslEfterlønVedÅretsUdgang'), ægtefælle: v('EjskEvslIngenPar9Ydelse'),
   };
-  envelope.cases = [{ case_id: 'historical-efterlon', input }];
+  envelope.cases = [{ case_id: 'historical-efterlon', input_status: 'ready', input }];
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out);
   assert.deepEqual(out.diagnostics, []);
@@ -435,7 +435,7 @@ test('historical benefits keep age boundaries, unknowns and historical spouse id
   envelope.cases = specs.map(([case_id, , change]) => {
     const input = structuredClone(base), h = historicalProperty(input);
     change(input, h, h.tidligere_ejendomsværdiskat.historisk_begrænsning);
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out);
@@ -462,7 +462,7 @@ test('historical own-age contradiction cannot change a valid annual tax comparis
   const wrong = structuredClone(base);
   wrong.ejendomsskatter.ejendomme[0].overgangsvurderinger.rabat.fakta.eget_rabatgrundlag_2024
     .kontekst_2024.kildefakta.ejer_folkepensionsalder = reached(date(2020));
-  envelope.cases = [{ case_id: 'known-history', input: base }, { case_id: 'false-historical-age', input: wrong }];
+  envelope.cases = [{ case_id: 'known-history', input_status: 'ready', input: base }, { case_id: 'false-historical-age', input_status: 'ready', input: wrong }];
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
   assert.deepEqual(out.results.map(r => r.case_id), ['known-history', 'false-historical-age']);
@@ -549,7 +549,7 @@ test('historical owner identity uses 2024 and does not replace previous spouse o
     }],
   ];
   envelope.cases = specs.map(([case_id, , change]) => {
-    const input = structuredClone(base); change(input); return { case_id, input };
+    const input = structuredClone(base); change(input); return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);

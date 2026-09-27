@@ -60,7 +60,12 @@ arithmetic and logic. There is no LLM evaluator or automatic PDF importer.
 5. Keep report observations separate from independent inputs. Do not derive
    missing facts from the tax amount being checked or feed conditionally inferred
    spouse transfers back as verified facts.
-6. Distinguish tax liability from payment balance. Follow the
+6. Generated cases start as `draft`. After reviewing the supplied facts and
+   source-to-field mapping, mark each intended case's `input_status` as `ready`
+   before calling it. This is a review acknowledgement, not proof that the
+   facts are complete or the report is correct. Review again after input edits;
+   marking a case ready does not resolve missing facts.
+7. Distinguish tax liability from payment balance. Follow the
    [tax-credit guide](../examples/danish-income-tax/personskat-skattekreditter.md)
    for withholding, assessed amounts and refunds; use the
    [corrected-payment route](../examples/danish-income-tax/aarsopgoerelse-afstemning.md#ændret-rapport-beløb-til-betaling-eller-udbetaling)
@@ -113,9 +118,13 @@ have distinct supported result contracts.
   special Boligjob invoice cases need the [invoice guide](../examples/danish-income-tax/boligjob.md).
   The possible negative-net-credit floor and correction histories remain
   separate from sign checks (`td-145088`).
-- **The full native Personskat path is incomplete** (`td-124b83`).
-  `schema`/`template`/`call` is the supported tested tax-input workflow;
-  native checks of smaller components do not validate the full graph.
+- **Native calculation coverage is bounded.** The full canonical
+  `personskat.calculate.runa` passes native compilation. The fictional
+  [2026 employer-rate profile](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md#særskilt-forskudsprofil-2026)
+  and an unknown-ATP control produce identical interpreted/native assessments;
+  both runtimes reject unsupported 2027. These checks do not validate every
+  tax route or arbitrary reports. `schema`/`template`/`call` remains the
+  supported tested tax-input workflow; release binaries need their own gates.
 - **Large contracts still have a cost.** Compact JSON reduces exported
   repetition, not all internal memory or cold-start work. Prefer focused input
   navigation and small question-specific entries; a full workbook can remain

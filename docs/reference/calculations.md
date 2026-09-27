@@ -290,7 +290,7 @@ The default cache is under the operating system's user cache directory. Set
 standard error. The cache contains contracts only; calculation inputs and
 results are not stored.
 
-Calculation batches with at least four cases run independent cases concurrently
+Calculation batches with at least four ready cases run independent cases concurrently
 and retain their original result and diagnostic order. Each worker initializes
 its own interpreter and each case still receives isolated environment, actor,
 handler, rule-scope, step-budget, and random state. Set
@@ -339,18 +339,34 @@ runa template model.calculate.runa --format xlsx --output cases.xlsx
 ```
 
 JSON is the canonical value model. TOML omits absent optional record fields.
+Generated cases start with `input_status = "draft"`. After reviewing the supplied
+facts, explicitly set the case's status to `ready` before calling it. This
+acknowledges intentional inputs, including zeros, empty collections and known
+unknowns; it does not authenticate documents, establish completeness or certify
+the model. A ready case can still fail ordinary input or model checks.
+
+Unedited template defaults are examples of value shapes, not statements about
+a person. Changing some values does not automatically mark a case ready. Review
+the status again after editing facts; offline files cannot detect whether a
+previous review still applies. JSON/TOML carry the status alongside `case_id`,
+outside the model's `input` record.
+
 XLSX flattens nested named records into columns, gives booleans and nullary enums
 constrained choices, expands finite payload alternatives into a `$variant`
 choice plus typed variant-qualified columns, and puts each `List`, string-keyed
 `Map`, or `Set` field in a separate related worksheet when it is reachable in a
 supplied case. Inactive alternatives and descendants of empty collections do
 not create sheets. A reachable empty collection still gets its entry sheet.
-Integer template cells
-are text-formatted so all `i64` values remain exact.
+Integer template cells are text-formatted so all `i64` values remain exact.
+String cells use `""` for intentional empty text; a cleared cell is absent.
+Text starting with a double quote uses JSON string quoting. This also applies
+to string values in collections and to map keys, including an empty key.
 
 `cases` is the first visible worksheet and contains scalar fields for the named
-input record. Its first row visibly shows the `@ calculate` title, and every
-related collection sheet combines that title with the collection's field label.
+input record. `input_status` beside `case_id` offers `draft` and `ready`; it
+applies to that case's inputs on all related sheets. Its first row visibly
+shows the `@ calculate` title, and every related collection sheet combines that
+title with the collection's field label.
 Explicit field labels replace machine paths only in visible headers; hidden
 topology retains the paths. Every collection row
 uses `case_id` and `item_id`; nested collection sheets add `parent_id`. List rows
@@ -376,12 +392,14 @@ newly reachable collection sheets:
 runa template model.calculate.runa --input cases.xlsx --output refreshed.xlsx
 ```
 
-Refresh validates and preserves existing values, then creates newly reachable
-collections as empty entry sheets. Complete and review those sheets before
+Refresh validates and preserves existing values and readiness, except that cases
+needing newly reachable collection sheets return to draft. Those sheets start
+empty, not as confirmed empty collections. Complete and review them before
 calling the calculation. It does not invent required scalar facts: missing or
 invalid payload fields must first be corrected. A normal `call` rejects a case
 needing an ungenerated sheet instead of silently assuming an empty collection.
 Deleted declared sheets, stale contracts, and malformed data fail refresh too.
+Missing readiness in an older input becomes `draft`, never automatic approval.
 Item IDs are adapter-local and may change during refresh; parent links are
 rebuilt consistently.
 
@@ -392,8 +410,11 @@ every collection sheet, including inactive alternatives. Scalar columns and
 hidden contract metadata remain complete in both modes. This reduces worksheet
 count, not the width of the root input sheet or the size of the contract itself.
 
-New workbooks use input adapter v7; complete v6 workbooks remain readable.
-Older binaries cannot read v7: regenerate with that binary if needed.
+New JSON/TOML templates use input envelope v2 and workbooks use input adapter v9.
+Input v1 and complete v6/v7/v8 workbooks remain readable for migration, but
+unmarked cases do not run. Refresh older inputs, review their facts and mark intentional
+cases ready. Older binaries reject the new format identities instead of silently
+ignoring draft status; do not rewrite the version or fingerprint to bypass this.
 
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes
@@ -410,6 +431,10 @@ runa call model.calculate.runa --input cases.xlsx --output results.xlsx
 Each case is decoded through the same Futuruna contract and evaluated in an
 isolated interpreter. Valid cases can produce results even when another case has
 a diagnostic. The command exits unsuccessfully when any diagnostics remain.
+Draft and unmarked cases produce readiness diagnostics without invoking the
+calculation. An entirely unready batch does not initialize calculation workers;
+ready cases in a mixed batch still run, with results and diagnostics retaining
+their input order.
 
 `call` rejects undefined calculation values: integer division/remainder by zero,
 integer overflow, non-finite floating-point intermediates, failed assertions,

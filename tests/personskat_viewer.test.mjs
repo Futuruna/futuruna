@@ -436,7 +436,7 @@ test('fresh canonical output retains valid, unknown, spouse and failed-year case
   fakta.lønmodtager.bruttoløn_kroner = 0;
   married.ægtefælle = variant('MedÆgtefælle', { fakta, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] });
   envelope.cases = [['beregnet', input], ['uoplyst-atp', missing], ['ægtefælle', married], ['ukendt-år', future]]
-    .map(([case_id, input]) => ({ case_id, input }));
+    .map(([case_id, input]) => ({ case_id, input_status: 'ready', input }));
   const call = run(['call', model, '--input', save('cases.json', envelope)]);
   assert.ifError(call.error); assert.notEqual(call.status, 0, 'Unsupported year must produce a diagnostic.');
   const output = JSON.parse(call.stdout);

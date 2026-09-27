@@ -80,9 +80,9 @@ fn canonical_interview_and_workbook_preserve_foreign_facts_and_unknowns() {
         json!({"$variant":"ArbejdsfradragUdlandUoplyst"}),
     );
     envelope["cases"] = json!([
-        {"case_id":"common","input":ordinary},
-        {"case_id":"mixed","input":mixed},
-        {"case_id":"unknown","input":unknown}
+        {"case_id":"common","input_status":"ready", "input":ordinary},
+        {"case_id":"mixed","input_status":"ready", "input":mixed},
+        {"case_id":"unknown","input_status":"ready", "input":unknown}
     ]);
     let base =
         std::env::temp_dir().join(format!("futuruna-foreign-workbook-{}", std::process::id()));
@@ -163,20 +163,20 @@ fn ordinary_facts(mut ordinary: Value) -> Value {
 fn canonical_tax_uses_filtered_work_basis_without_changing_am_or_ll9l() {
     let mut envelope = run(&["template", MODEL, "--format", "json"]);
     let ordinary = ordinary_facts(envelope["cases"][0]["input"].clone());
-    let mut cases = vec![json!({"case_id":"ordinary","input":ordinary})];
+    let mut cases = vec![json!({"case_id":"ordinary","input_status":"ready", "input":ordinary})];
     let mut mixed = ordinary.clone();
     set_allocation(&mut mixed, allocation(300000, 300000));
-    cases.push(json!({"case_id":"mixed","input":mixed}));
+    cases.push(json!({"case_id":"mixed","input_status":"ready", "input":mixed}));
     let mut all_excluded = ordinary.clone();
     set_allocation(&mut all_excluded, allocation(0, 600000));
-    cases.push(json!({"case_id":"all-excluded","input":all_excluded}));
+    cases.push(json!({"case_id":"all-excluded","input_status":"ready", "input":all_excluded}));
     let mut senior = mixed.clone();
     senior["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1961);
-    cases.push(json!({"case_id":"senior","input":senior}));
+    cases.push(json!({"case_id":"senior","input_status":"ready", "input":senior}));
     let mut parent = mixed.clone();
     parent["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] = json!({"$variant":"OplystEkstraBørnetilskud","oplysninger_for_året_komplette":true,
         "kvartaler":(1..=4).map(|quarter|json!({"indkomstår":2026,"kvartal":quarter,"berettiget":true,"modtaget":true,"kildereference":"fictional-benefit"})).collect::<Vec<_>>()});
-    cases.push(json!({"case_id":"single-parent","input":parent}));
+    cases.push(json!({"case_id":"single-parent","input_status":"ready", "input":parent}));
     for (name, mut facts, allocation) in [
         (
             "atp-ordinary",
@@ -188,29 +188,31 @@ fn canonical_tax_uses_filtered_work_basis_without_changing_am_or_ll9l() {
         facts["lønmodtager"]["pension"]["atp"] = json!({"$variant":"OplysteAtpIndbetalinger","oplysninger_for_året_komplette":true,"poster":[{
             "identifikation":"foreign-job-atp","indkomstår":2026,"kildereference":"fictional-atp","grundlag":{"$variant":"AtpArbejdsgiverPar19Stk1"},"indberettet_før_am_kroner":1000,"indberettet_efter_am_kroner":920}]});
         set_allocation(&mut facts, allocation);
-        cases.push(json!({"case_id":name,"input":facts}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":facts}));
     }
     let mut household = ordinary.clone();
     household["ægtefælle"] = spouse(&mixed);
-    cases.push(json!({"case_id":"spouse-mixed","input":household}));
+    cases.push(json!({"case_id":"spouse-mixed","input_status":"ready", "input":household}));
     let mut unknown = ordinary.clone();
     set_allocation(
         &mut unknown,
         json!({"$variant":"ArbejdsfradragUdlandUoplyst"}),
     );
-    cases.push(json!({"case_id":"unknown","input":unknown}));
+    cases.push(json!({"case_id":"unknown","input_status":"ready", "input":unknown}));
     let mut unknown_spouse = ordinary.clone();
     unknown_spouse["ægtefælle"] = spouse(&unknown);
-    cases.push(json!({"case_id":"spouse-unknown","input":unknown_spouse}));
+    cases.push(json!({"case_id":"spouse-unknown","input_status":"ready", "input":unknown_spouse}));
     let mut wrong_total = mixed.clone();
     set_allocation(&mut wrong_total, allocation(300000, 299999));
-    cases.push(json!({"case_id":"mismatch","input":wrong_total}));
+    cases.push(json!({"case_id":"mismatch","input_status":"ready", "input":wrong_total}));
     let mut blanket = ordinary.clone();
     set_allocation(
         &mut blanket,
         json!({"$variant":"IngenUdlandsudelukkelseIFællesForhold", "dbo_hjemmehørende_udland_i_nogen_periode":true,"noget_arbejde_udført_udland":true,"nogen_udenlandsk_arbejdsgiver":true,"kildereference":"fictional"}),
     );
-    cases.push(json!({"case_id":"blanket-exclusion-rejected","input":blanket}));
+    cases.push(
+        json!({"case_id":"blanket-exclusion-rejected","input_status":"ready", "input":blanket}),
+    );
     envelope["cases"] = json!(cases);
     let path = std::env::temp_dir().join(format!(
         "futuruna-foreign-canonical-{}.json",
@@ -277,9 +279,11 @@ fn canonical_tax_uses_filtered_work_basis_without_changing_am_or_ll9l() {
         34500
     );
     for id in ["atp-ordinary", "atp-mixed"] {
+        // Existing model convention: 920 * 12% = 110.40 kr., rounded up to 111.
+        // See the practice/assumption metadata on ligningsloven_par9l.
         assert_eq!(
             result(id)["skat"]["ekstra_pensionsfradrag_kroner"],
-            110,
+            111,
             "{id}"
         );
     }
@@ -341,41 +345,43 @@ fn part_year_preserves_source_exclusion_and_recomputes_annual_work_deductions() 
         "valg_afgivet_ved_oplysninger":false,"omvalg_dato":null,
         "kilder":[source("gross-wage","Par14Bruttoløn",300000),source("work-abroad","Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst",150000)],
         "helårsgrundlag":{"$variant":"AfledtFraIdentificeredeKilder"}});
-    let mut cases = vec![json!({"case_id":"recurring","input":input})];
+    let mut cases = vec![json!({"case_id":"recurring","input_status":"ready", "input":input})];
     let mut one_off = input.clone();
     for source in one_off["kilder"].as_array_mut().unwrap() {
         source["omregningsmetode"] = json!({"$variant":"Par14UændretEngangsbeløb"});
     }
-    cases.push(json!({"case_id":"one-off","input":one_off}));
+    cases.push(json!({"case_id":"one-off","input_status":"ready", "input":one_off}));
     let mut documented = input.clone();
     let mut annual = facts.clone();
     annual["lønmodtager"]["bruttoløn_kroner"] = json!(604972);
     set_allocation(&mut annual, allocation(302486, 302486));
     documented["helårsgrundlag"] =
         json!({"$variant":"DokumenteretHelårsPersonskat","personskat":annual});
-    cases.push(json!({"case_id":"documented","input":documented}));
+    cases.push(json!({"case_id":"documented","input_status":"ready", "input":documented}));
     let mut missing = input.clone();
     missing["kilder"].as_array_mut().unwrap().pop();
-    cases.push(json!({"case_id":"missing-exclusion","input":missing}));
+    cases.push(json!({"case_id":"missing-exclusion","input_status":"ready", "input":missing}));
     let mut wrong_source = input.clone();
     wrong_source["kilder"][1]["identifikation"] = json!("different-source");
-    cases.push(json!({"case_id":"wrong-source","input":wrong_source}));
+    cases.push(json!({"case_id":"wrong-source","input_status":"ready", "input":wrong_source}));
     let mut unknown = input.clone();
     set_allocation(
         &mut unknown["personskat"],
         json!({"$variant":"ArbejdsfradragUdlandUoplyst"}),
     );
-    cases.push(json!({"case_id":"unknown","input":unknown}));
+    cases.push(json!({"case_id":"unknown","input_status":"ready", "input":unknown}));
     let mut negative = input.clone();
     negative["kilder"][1]["omregningsmetode"] =
         json!({"$variant":"Par14DokumenteretRetvisendeHelårsbeløb","helårsbeløb_kroner":-1});
-    cases.push(json!({"case_id":"negative-exclusion","input":negative}));
+    cases.push(json!({"case_id":"negative-exclusion","input_status":"ready", "input":negative}));
     let mut mismatched_annual = documented.clone();
     set_allocation(
         &mut mismatched_annual["helårsgrundlag"]["personskat"],
         allocation(302485, 302487),
     );
-    cases.push(json!({"case_id":"annual-mismatch","input":mismatched_annual}));
+    cases.push(
+        json!({"case_id":"annual-mismatch","input_status":"ready", "input":mismatched_annual}),
+    );
     let mut outside = input.clone();
     set_allocation(
         &mut outside["personskat"],
@@ -397,10 +403,10 @@ fn part_year_preserves_source_exclusion_and_recomputes_annual_work_deductions() 
     set_allocation(&mut actual_annual, actual_split);
     outside["helårsgrundlag"] =
         json!({"$variant":"DokumenteretHelårsPersonskat","personskat":actual_annual});
-    cases.push(json!({"case_id":"outside-period","input":outside}));
+    cases.push(json!({"case_id":"outside-period","input_status":"ready", "input":outside}));
     let mut outside_unknown_source = outside.clone();
     outside_unknown_source["kilder"][1]["identifikation"] = json!("unidentified-annual-source");
-    cases.push(json!({"case_id":"outside-unidentified","input":outside_unknown_source}));
+    cases.push(json!({"case_id":"outside-unidentified","input_status":"ready", "input":outside_unknown_source}));
     envelope["cases"] = json!(cases);
     let path = std::env::temp_dir().join(format!(
         "futuruna-foreign-part-year-{}.json",

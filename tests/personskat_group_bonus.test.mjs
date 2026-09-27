@@ -76,7 +76,7 @@ test('pension-bonus group life adds income without work deductions and explains 
     } });
     person.lønmodtager.personlig_indkomst.ordinære_forhold.forenings_og_arbejdsløshedsydelser = c.duplicate
       ? [row, structuredClone(row)] : [row];
-    return { case_id: c.id, input };
+    return { case_id: c.id, input_status: 'ready', input };
   });
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);

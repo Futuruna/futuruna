@@ -115,7 +115,7 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
   const original = run(['template', canonical, '--format', 'json']);
   const manual = structuredClone(base.personskat);
   manual.årsopgørelse.kreditter.energiafgiftskompensation_øre = 128500;
-  original.cases = [{ case_id: 'legacy-zero', input: base.personskat }, { case_id: 'legacy-external', input: manual }];
+  original.cases = [{ case_id: 'legacy-zero', input_status: 'ready', input: base.personskat }, { case_id: 'legacy-external', input_status: 'ready', input: manual }];
   const prior = run(['call', canonical, '--input', save('canonical-input.json', original)]);
   save('canonical-results.json', prior);
   assert.deepEqual(prior.diagnostics, []);
@@ -176,7 +176,7 @@ test('canonical derived-income green-check settlement and fail-closed boundaries
     ['spouse-positive-capital-unresolved', i => { spouse(i); i.personskat.ægtefælle.fakta.kapitalindkomst.renter.renteindtægter_kroner = 110000; }],
     ['no-settlement', i => { i.personskat.årsopgørelse = variant('UdenÅrsopgørelse'); }],
   ]) add(id, edit, null, false);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--entry', entry, '--input', save('input.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);
@@ -229,7 +229,7 @@ test('spouse basis reaches the integrated green-check comparison and settlement'
   assert.deepEqual(envelope.cases[0].input.personskat.ægtefælle, variant('ÆgtefællegrundlagUoplyst'));
   const base = baseline(envelope.cases[0].input);
   const missing = structuredClone(base); missing.personskat.ægtefælle = variant('ÆgtefællegrundlagUoplyst');
-  envelope.cases = [{ case_id: 'known-no-spouse', input: base }, { case_id: 'unknown-spouse-basis', input: missing }];
+  envelope.cases = [{ case_id: 'known-no-spouse', input_status: 'ready', input: base }, { case_id: 'unknown-spouse-basis', input_status: 'ready', input: missing }];
   const file = join(directory, 'cases.json');
   writeFileSync(file, JSON.stringify(envelope), { flag: 'wx', mode: 0o600 });
   const output = run(['call', model, '--entry', entry, '--input', file]);
@@ -265,7 +265,7 @@ test('church status reaches the integrated green-check comparison and settlement
         path: `personskat.${withSpouse ? 'ægtefælle.MedÆgtefælle.fakta.' : ''}lønmodtager.kirkeskat` });
     }
   }
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const file = join(directory, 'cases.json');
   writeFileSync(file, JSON.stringify(envelope), { flag: 'wx', mode: 0o600 });
   const output = run(['call', model, '--entry', entry, '--input', file]);

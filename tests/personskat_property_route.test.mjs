@@ -50,7 +50,7 @@ test('nonzero commercial property result cannot disappear from a valid annual co
   const envelope = run(['template', model, '--format', 'json']);
   const base = baseline(envelope), misplaced = structuredClone(base);
   misplaced.kapitalindkomst.ejendomsdrift = property(20000);
-  envelope.cases = [{ case_id: 'baseline', input: base }, { case_id: 'commercial', input: misplaced }];
+  envelope.cases = [{ case_id: 'baseline', input_status: 'ready', input: base }, { case_id: 'commercial', input_status: 'ready', input: misplaced }];
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out);
   assert.deepEqual(out.diagnostics, []);
@@ -87,7 +87,7 @@ test('covered gains and losses survive while excluded nonzero main and spouse am
   envelope.cases = specs.map(([case_id, amount, commercial, category, spouse]) => {
     const input = structuredClone(base), person = spouse ? addSpouse(input) : input;
     person.kapitalindkomst.ejendomsdrift = property(amount, commercial, category);
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
@@ -155,7 +155,7 @@ test('part-year period and documented annual bases retain main and spouse proper
       if (couple) target = target.ægtefælle.fakta;
       target.kapitalindkomst.ejendomsdrift = property(20000);
     }
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const out = run(['call', file, '--entry', entry, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
@@ -185,7 +185,7 @@ test('documented ordinary business facts give a usable alternative without autom
     ligningslovsfradrag_efter_par3_stk2_nr2: [], erhvervsposter_efter_par3_stk2_nr4_til_10: [],
   }];
   const duplicate = structuredClone(input); duplicate.kapitalindkomst.ejendomsdrift = property(20000);
-  envelope.cases = [{ case_id: 'correct-route', input }, { case_id: 'unresolved-second-route', input: duplicate }];
+  envelope.cases = [{ case_id: 'correct-route', input_status: 'ready', input }, { case_id: 'unresolved-second-route', input_status: 'ready', input: duplicate }];
   const out = run(['call', model, '--input', save(dir, 'input.json', envelope)]);
   save(dir, 'results.json', out); assert.deepEqual(out.diagnostics, []);
   assert.deepEqual(out.results.map(r => r.case_id), ['correct-route', 'unresolved-second-route']);

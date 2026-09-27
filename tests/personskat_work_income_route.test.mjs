@@ -68,7 +68,7 @@ test('annual assessment withholds misplaced work income without changing correct
     const fakta = spouseOf(input); setRows(fakta, [fee()]);
     input.ægtefælle = { $variant: 'MedÆgtefælle', fakta, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] };
   }, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(evidence, 'cases.json', envelope)]);
   save(evidence, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);
@@ -128,7 +128,7 @@ test('misplaced work income also invalidates the final part-year assessment', en
     helårsgrundlag: v('AfledtFraIdentificeredeKilder') };
   envelope.cases = [['baseline', null], ['employment', 'PsArbejdeIAnsættelse'], ['business', 'PsSelvstændigtArbejde']]
     .map(([case_id, relation]) => { const input = structuredClone(base);
-      if (relation) setRows(input.personskat, [fee(relation)]); return { case_id, input }; });
+      if (relation) setRows(input.personskat, [fee(relation)]); return { case_id, input_status: 'ready', input }; });
   const output = run(['call', partyearModel, '--entry', 'beregn_personskat_delår', '--input', save(evidence, 'cases.json', envelope)]);
   save(evidence, 'results.json', output);
   assert.deepEqual(output.diagnostics, []); assert.equal(output.results.length, 3);

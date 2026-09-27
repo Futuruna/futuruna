@@ -96,7 +96,7 @@ test('part-year share sources cannot acquire salary-style annualization', enable
       identifikation: `shares-${amount}`, delårsbeløb_kroner: 50000, faktisk_helårsbeløb_kroner: 50000,
       omregningsmetode: v('Par14DokumenteretRetvisendeHelårsbeløb', { helårsbeløb_kroner: amount }) });
   });
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(directory, 'input.json', envelope)]);
   save(directory, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);

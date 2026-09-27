@@ -75,10 +75,10 @@ partialConflict.ægtefællenedslag.kommunalt_personfradrag_øre = null;
 partialConflict.skat.poster_uden_ægtefællenedslag[0].beløb_øre = 9999999;
 const envelope = run(['template', model, '--format', 'json']);
 envelope.cases = [
-  { case_id: 'betinget-match', input: baseline },
-  { case_id: 'manglende-overførselslinjer', input: missing },
-  { case_id: 'en-øre-forskel', input: conflict },
-  { case_id: 'modstrid-med-manglende-linje', input: partialConflict },
+  { case_id: 'betinget-match', input_status: 'ready', input: baseline },
+  { case_id: 'manglende-overførselslinjer', input_status: 'ready', input: missing },
+  { case_id: 'en-øre-forskel', input_status: 'ready', input: conflict },
+  { case_id: 'modstrid-med-manglende-linje', input_status: 'ready', input: partialConflict },
 ];
 const inputPath = save('cases.json', envelope);
 const output = run(['call', model, '--input', inputPath]);

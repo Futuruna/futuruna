@@ -160,7 +160,7 @@ test('pension re-payments retain documented timing and withhold missing correcti
     posts[0].betaling.beløb_kroner = 50000;
     posts[0].betaling.arbejdsmarkedsbidrag_kroner = 4000;
   }, [2025, 0, 46000]);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

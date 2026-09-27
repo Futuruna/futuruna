@@ -26,6 +26,17 @@ fail_probe() {
 # deliberately NOT a general JSON parser or a tool for processing tax records.
 compact() { tr -d '[:space:]' < "$1"; }
 
+mark_fixture_ready() {
+    local template="$1" destination="$2"
+    # Only these fixed synthetic probe inputs are acknowledged here. Never use
+    # this substitution as an intake helper for personal tax documents.
+    if [[ "$(grep -Ec '"input_status": "draft"' "$template")" != 1 ]]; then
+        echo "[tax-audit] Compiler did not generate one explicit draft case; use a compatible binary." >&2
+        exit 1
+    fi
+    sed 's/"input_status": "draft"/"input_status": "ready"/' "$template" > "$destination"
+}
+
 make_variant() {
     local template="$1" field="$2" replacement="$3" destination="$4"
     if [[ "$(grep -Ec "\"$field\": 0([,]|$)" "$template")" != 1 ]]; then
@@ -70,8 +81,11 @@ expect_failure() {
 
 RUNTIME_MODEL="$ROOT_DIR/tests/fixtures/calculation/audit-runtime.calculate.runa"
 MODULE_MODEL="$ROOT_DIR/tests/fixtures/calculation/audit-modules.calculate.runa"
-"$RUNA_BIN" template "$RUNTIME_MODEL" --format json --output "$PROBE_DIR/runtime.json"
-"$RUNA_BIN" template "$MODULE_MODEL" --format json --output "$PROBE_DIR/modules.json"
+"$RUNA_BIN" template "$RUNTIME_MODEL" --format json --output "$PROBE_DIR/runtime-draft.json"
+"$RUNA_BIN" template "$MODULE_MODEL" --format json --output "$PROBE_DIR/modules-draft.json"
+expect_failure untouched-template "$RUNTIME_MODEL" "$PROBE_DIR/runtime-draft.json" 'input_status'
+mark_fixture_ready "$PROBE_DIR/runtime-draft.json" "$PROBE_DIR/runtime.json"
+mark_fixture_ready "$PROBE_DIR/modules-draft.json" "$PROBE_DIR/modules.json"
 
 expect_success arithmetic "$RUNTIME_MODEL" "$PROBE_DIR/runtime.json" '{"label":"known","quotient":100}'
 expect_success inline-modules "$MODULE_MODEL" "$PROBE_DIR/modules.json" '{"count":2,"scoped":10}'
@@ -90,7 +104,8 @@ make_variant "$PROBE_DIR/runtime.json" year '"year": 0, "year": 2027' "$PROBE_DI
 expect_failure duplicate-last "$RUNTIME_MODEL" "$PROBE_DIR/duplicate-last.json" 'duplicate JSON object member'
 
 MESSAGE_MODEL="$ROOT_DIR/tests/fixtures/calculation/assert-message.calculate.runa"
-if "$RUNA_BIN" template "$MESSAGE_MODEL" --format json --output "$PROBE_DIR/message.json"; then
+if "$RUNA_BIN" template "$MESSAGE_MODEL" --format json --output "$PROBE_DIR/message-draft.json"; then
+    mark_fixture_ready "$PROBE_DIR/message-draft.json" "$PROBE_DIR/message.json"
     make_variant "$PROBE_DIR/message.json" year '"year": 2026' "$PROBE_DIR/message-valid.json"
     expect_success assertion-message-valid "$MESSAGE_MODEL" "$PROBE_DIR/message-valid.json" '100'
     make_variant "$PROBE_DIR/message.json" year '"year": 2027' "$PROBE_DIR/message-invalid.json"
@@ -104,4 +119,4 @@ if [[ "$FAILURES" != 0 ]]; then
     echo "[tax-audit] Use a verified binary built from this checkout, then rerun this check. See website/public/ai-setup.md." >&2
     exit 1
 fi
-echo "[tax-audit] All 9 runtime compatibility checks passed. This is not tax-law, document, or complete model validation."
+echo "[tax-audit] All 10 runtime compatibility checks passed. This is not tax-law, document, or complete model validation."

@@ -17,3 +17,20 @@
 ? manglende_kontroller_er_ikke_godkendelse
 ? gyldighed_er_ikke_dækningsbevis
 ? kendt_afrundingsusikkerhed_følger_resultatet
+
+-- De samme forbehold følger begge indgange, også når en afregning afvises.
+= gyldig_afregning = personskat_beregningsvurdering_med_afregning([PersonskatInputkontrol(sti = "syntetisk", gyldig = Sandt, forklaring = "Modelkontrol bestået")], [PersonskatInputkontrol(sti = "betaling", gyldig = Sandt, forklaring = "Afregningskontrol bestået")], 12345)
+= ugyldig_afregning = personskat_beregningsvurdering_med_afregning([PersonskatInputkontrol(sti = "syntetisk", gyldig = Sandt, forklaring = "Modelkontrol bestået")], [PersonskatInputkontrol(sti = "betaling", gyldig = Falskt, forklaring = "Afregning uafklaret")], 12345)
+= tom_beregning_med_afregning = personskat_beregningsvurdering_med_afregning([], [PersonskatInputkontrol(sti = "betaling", gyldig = Sandt, forklaring = "Afregningskontrol bestået")], 12345)
+= kreditvurderinger = concat(alle_vurderinger, [gyldig_afregning, ugyldig_afregning, tom_beregning_med_afregning])
+| nettokreditforbehold_følger_alle_vurderinger: kreditvurderinger -> all(kreditvurderinger, |v: PersonskatBeregningsvurdering| any(v.forbehold, |tekst: Tekst| contains(tekst, "nettokreditten") && contains(tekst, "mindst nul") && contains(tekst, "ikke retligt afklaret") && contains(tekst, "slutskat bekræfter ikke denne afregning") && contains(tekst, "Ændr ikke kildebeløb")))
+| forbehold_ændrer_ikke_sammenligningsbeløbet: gyldig_afregning -> gyldig_afregning.status == BeregnetMedForbehold && gyldig_afregning.slutskat_til_sammenligning_øre == Some(12345) && length(gyldig_afregning.fejl) == 0
+| forbehold_godkender_ikke_ugyldig_afregning: ugyldig_afregning -> personskat_beregningsgrundlag_gyldigt(ugyldig_afregning.kontrolgrundlag) && ugyldig_afregning.status == UgyldigtBeregningsgrundlag && ugyldig_afregning.slutskat_til_sammenligning_øre == None && head(ugyldig_afregning.fejl).sti == "betaling"
+| afregningskontrol_erstatter_ikke_beregningsgrundlag: tom_beregning_med_afregning -> tom_beregning_med_afregning.alle_kontroller_gyldige == Falskt && tom_beregning_med_afregning.slutskat_til_sammenligning_øre == None
+| forbehold_er_ikke_et_dækningsbevis: kreditvurderinger -> all(kreditvurderinger, |v: PersonskatBeregningsvurdering| v.samlet_modeldækning_bekræftet == Falskt)
+
+? nettokreditforbehold_følger_alle_vurderinger
+? forbehold_ændrer_ikke_sammenligningsbeløbet
+? forbehold_godkender_ikke_ugyldig_afregning
+? afregningskontrol_erstatter_ikke_beregningsgrundlag
+? forbehold_er_ikke_et_dækningsbevis

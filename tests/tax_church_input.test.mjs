@@ -84,7 +84,7 @@ test('canonical main and spouse comparisons withhold unknown or part-year church
         valid: status === 'IngenKirkeskatHeleÅret' || status === 'KirkeskatHeleÅret' });
     }
   }
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-church-status-'));
   console.log(`Fictional church-status evidence: ${evidence}`);
   const file = join(evidence, 'cases.json');
@@ -112,7 +112,7 @@ test('canonical main and spouse comparisons withhold unknown or part-year church
     if (case_id === 'legacy-boolean') {
       delete input.lønmodtager.kirkeskat; input.lønmodtager.betaler_kirkeskat = false;
     } else input.lønmodtager.kirkeskat = case_id === 'boolean-in-new-field' ? false : { $variant: 'OpdigtetKirkestatus' };
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const badFile = join(evidence, 'rejected-shapes.json');
   writeFileSync(badFile, JSON.stringify(envelope), { flag: 'wx', mode: 0o600 });
@@ -162,7 +162,7 @@ test('an unsupported documented annual basis cannot escape the final part-year g
     addSpouse(input.helårsgrundlag.personskat);
     cases.push({ case_id: `period-spouse-${status}`, input, periodValid: false, annualValid: true });
   }
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-church-annual-basis-'));
   console.log(`Fictional documented annual-basis evidence: ${evidence}`);
   const file = join(evidence, 'cases.json');

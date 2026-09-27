@@ -152,7 +152,7 @@ fn commuting_rejects_negative_bridge_counts_and_impossible_calendar_days() {
             } else {
                 input["lønmodtager"]["ligningsfradrag"]["befordring"]["forhold"] = json!([route]);
             }
-            json!({"case_id":id, "input":input})
+            json!({"case_id":id, "input_status":"ready", "input":input})
         })
         .collect::<Vec<_>>());
     let path = std::env::temp_dir().join(format!(
@@ -336,7 +336,7 @@ fn public_early_pensions_preserve_old_exemptions_and_separate_atp_bases() {
             input["ægtefælle"] = spouse(&input);
             input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["forenings_og_arbejdsløshedsydelser"] = json!([]);
         }
-        json!({"case_id":id,"input":input})
+        json!({"case_id":id,"input_status":"ready", "input":input})
     }).collect::<Vec<_>>());
     let path = std::env::temp_dir().join(format!(
         "futuruna-socialpension-{}.json",
@@ -590,7 +590,7 @@ fn folkepension_and_exempt_supplements_preserve_tax_and_pension_deduction_bases(
             input["ægtefælle"] = spouse(&input);
             input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["forenings_og_arbejdsløshedsydelser"] = json!([]);
         }
-        json!({"case_id":id, "input":input})
+        json!({"case_id":id, "input_status":"ready", "input":input})
     }).collect::<Vec<_>>());
     let path =
         std::env::temp_dir().join(format!("futuruna-folkepension-{}.json", std::process::id()));
@@ -785,7 +785,7 @@ fn su_grants_and_loans_reach_canonical_tax_without_wage_deductions() {
                 input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
                     ["forenings_og_arbejdsløshedsydelser"] = json!([]);
             }
-            json!({"case_id":id, "input":input})
+            json!({"case_id":id, "input_status":"ready", "input":input})
         })
         .collect::<Vec<_>>());
     let path = std::env::temp_dir().join(format!("futuruna-su-{}.json", std::process::id()));
@@ -1132,7 +1132,7 @@ fn commuting_income_uses_benefit_sources_and_annual_business_basis() {
                 input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]
                     ["forenings_og_arbejdsløshedsydelser"] = json!([]);
             }
-            json!({"case_id":id, "input":input})
+            json!({"case_id":id, "input_status":"ready", "input":input})
         })
         .collect::<Vec<_>>());
     let path = std::env::temp_dir().join(format!(
@@ -1230,7 +1230,7 @@ fn spouse_loss_uses_recipient_rates_from_source_facts() {
         let mut input = baseline.clone();
         input["lønmodtager"]["kirkeskat"] = json!({"$variant": if *church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
         input["ægtefælle"]["fakta"]["lønmodtager"]["kirkeskat"] = json!({"$variant": if *donor_church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
-        json!({"case_id":format!("loss-recipient-{church}-donor-{donor_church}"),"input":input})
+        json!({"case_id":format!("loss-recipient-{church}-donor-{donor_church}"),"input_status":"ready", "input":input})
     }).collect::<Vec<_>>());
     let path =
         std::env::temp_dir().join(format!("futuruna-spouse-loss-{}.json", std::process::id()));
@@ -1290,7 +1290,7 @@ fn spouse_allowance_uses_recipient_rates_from_source_facts() {
             input["lønmodtager"]["kirkeskat"] = json!({"$variant": if *church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
             input["ægtefælle"]["fakta"]["lønmodtager"]["kirkeskat"] = json!({"$variant": if *donor_church { "KirkeskatHeleÅret" } else { "IngenKirkeskatHeleÅret" }});
             input["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(wage);
-            json!({"case_id":format!("recipient-{church}-donor-{donor_church}-{wage}"),"input":input})
+            json!({"case_id":format!("recipient-{church}-donor-{donor_church}-{wage}"),"input_status":"ready", "input":input})
         })
         .collect::<Vec<_>>());
     let path =
@@ -1318,6 +1318,8 @@ fn union_fee_taxpayer_status_matches_the_individual_assessment() {
     let mut baseline = envelope["cases"][0]["input"].clone();
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    // Explicit fictional full-year status; the template intentionally leaves it unknown.
+    baseline["lønmodtager"]["kirkeskat"] = json!({"$variant":"IngenKirkeskatHeleÅret"});
     baseline["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     baseline["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
     baseline["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
@@ -1352,7 +1354,9 @@ fn union_fee_taxpayer_status_matches_the_individual_assessment() {
         input["lønmodtager"]["skatteår"] = json!(year);
         input["lønmodtager"]["ligningsfradrag"]["faglige_kontingenter"] =
             fees(year, "Ll13Lønmodtager", true);
-        cases.push(json!({"case_id":format!("employee-{year}"),"input":input}));
+        cases.push(
+            json!({"case_id":format!("employee-{year}"),"input_status":"ready", "input":input}),
+        );
     }
     for (id, status, active) in [
         ("company", "Ll13JuridiskPerson", true),
@@ -1370,7 +1374,7 @@ fn union_fee_taxpayer_status_matches_the_individual_assessment() {
             input["lønmodtager"]["ligningsfradrag"]["faglige_kontingenter"] =
                 fees(2026, status, active);
         }
-        cases.push(json!({"case_id":id,"input":input}));
+        cases.push(json!({"case_id":id,"input_status":"ready", "input":input}));
     }
     envelope["cases"] = json!(cases);
     let path = std::env::temp_dir().join(format!(
@@ -1440,6 +1444,7 @@ fn union_fee_taxpayer_status_matches_the_individual_assessment() {
 fn unsupported_year_stops_before_tax_evaluation_with_actionable_diagnostic() {
     let mut template = run(&["template", MODEL, "--format", "json"]);
     template["cases"][0]["input"]["lønmodtager"]["skatteår"] = json!(2027);
+    template["cases"][0]["input_status"] = json!("ready");
     let path = std::env::temp_dir().join(format!(
         "futuruna-unsupported-year-{}.json",
         std::process::id()
@@ -1478,6 +1483,8 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
     let mut input = envelope["cases"][0]["input"].clone();
     input["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+    // Explicit fictional full-year status; the template intentionally leaves it unknown.
+    input["lønmodtager"]["kirkeskat"] = json!({"$variant":"IngenKirkeskatHeleÅret"});
     input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
     input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"IngenAtpIndbetalinger"});
     input["lønmodtager"]["pension"]["udbetalingsoplysninger"] =
@@ -1492,14 +1499,16 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
     for year in [2023, 2022, 2024, 2027, 2025, 0, 2026, i64::MIN] {
         let mut facts = input.clone();
         facts["lønmodtager"]["skatteår"] = json!(year);
-        cases.push(json!({"case_id":format!("year-{year}"),"input":facts}));
+        cases.push(json!({"case_id":format!("year-{year}"),"input_status":"ready", "input":facts}));
     }
     for year in [2022, 2027] {
         let mut facts = input.clone();
         facts["lønmodtager"]["skatteår"] = json!(2026);
         facts["ægtefælle"] = spouse(&facts);
         facts["ægtefælle"]["fakta"]["lønmodtager"]["skatteår"] = json!(year);
-        cases.push(json!({"case_id":format!("spouse-{year}"),"input":facts}));
+        cases.push(
+            json!({"case_id":format!("spouse-{year}"),"input_status":"ready", "input":facts}),
+        );
     }
     envelope["cases"] = json!(cases);
     let path =
@@ -1526,8 +1535,9 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
     ]) {
         assert_eq!(row["case_id"], format!("year-{year}"));
         assert_eq!(
-            row["result"]["vurdering"]["slutskat_til_sammenligning_øre"],
-            tax
+            row["result"]["vurdering"]["slutskat_til_sammenligning_øre"], tax,
+            "year {year}: {}",
+            row["result"]["vurdering"]["fejl"]
         );
         println!("supported year {year}: tax {tax} øre unchanged");
     }
@@ -1563,6 +1573,12 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     let mut ordinary = template["cases"][0]["input"].clone();
     ordinary["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     assert_eq!(
+        ordinary["lønmodtager"]["kirkeskat"]["$variant"],
+        "KirkeskatUoplyst"
+    );
+    // Explicit fictional full-year status, not an inferred fact or a template default.
+    ordinary["lønmodtager"]["kirkeskat"] = json!({"$variant":"IngenKirkeskatHeleÅret"});
+    assert_eq!(
         ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"]["$variant"],
         "EkstraBørnetilskudUoplyst"
     );
@@ -1593,9 +1609,14 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
         |name: &str, failure_path: Option<&str>, tax: Option<i64>, mutate: &dyn Fn(&mut Value)| {
             let mut input = ordinary.clone();
             mutate(&mut input);
-            cases.push(json!({"case_id":name,"input":input}));
+            cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
             expectations.push((name.to_string(), failure_path.map(str::to_string), tax));
         };
+    for status in ["KirkeskatUoplyst", "KirkeskatEnDelAfÅret"] {
+        add(status, Some("lønmodtager.kirkeskat"), None, &|v| {
+            v["lønmodtager"]["kirkeskat"] = json!({"$variant":status});
+        });
+    }
     for (year, tax) in [
         (2023, 21678330),
         (2024, 21556463),

@@ -49,7 +49,7 @@ fn invoice_facts_dates_allocations_and_caps() {
     let mut rows = Vec::new();
     let mut expected = Vec::new();
     let mut add = |name: &str, year: i64, valid: bool, service: i64, craft: i64, input: Value| {
-        rows.push(json!({"case_id":name,"input":{"indkomstår":year,"fødselsdato":{"år":1990,"måned":1,"dag":1},"udgifter":input}}));
+        rows.push(json!({"case_id":name,"input_status":"ready", "input":{"indkomstår":year,"fødselsdato":{"år":1990,"måned":1,"dag":1},"udgifter":input}}));
         expected.push((name.to_string(), valid, service, craft));
     };
     for (year, cap) in [

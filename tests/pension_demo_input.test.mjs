@@ -52,7 +52,8 @@ if (args[0] === 'template') {
   const { cases } = JSON.parse(readFileSync(capture, 'utf8'));
   assert.equal(cases.length, 8);
   assert.equal(new Set(cases.map(({ case_id }) => case_id)).size, 8);
-  for (const { case_id, input } of cases) {
+  for (const { case_id, input_status, input } of cases) {
+    assert.equal(input_status, 'ready', 'authored fictional scenarios are intentional inputs');
     const facts = input.lønmodtager.ligningsfradrag.arbejdsfradrag_udland;
     assert.equal(facts.$variant, 'IngenUdlandsudelukkelseIFællesForhold', case_id);
     assert.equal(facts.dbo_hjemmehørende_udland_i_nogen_periode, false, case_id);

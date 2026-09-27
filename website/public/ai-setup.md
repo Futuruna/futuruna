@@ -215,7 +215,8 @@ path:
 RUNA_BIN="$RUNA_BIN" bash scripts/tax-audit-preflight.sh
 ```
 
-It runs nine tiny synthetic checks: valid arithmetic and inline-module results,
+It runs ten tiny synthetic checks: rejection of untouched draft inputs,
+valid arithmetic and inline-module results,
 rejection of division by zero and undefined scalar/list rules, rejection of
 duplicate JSON members in both orders, and successful/failing assertions with
 explanatory messages. It needs Bash and standard shell tools,
@@ -405,6 +406,15 @@ line is not proof of zero. Preserve an available unknown alternative or `null`;
 when a required field cannot express the unresolved fact, stop the independent
 comparison and explain what is missing. Do not change the fact to make validation
 pass. The conditional report route can still answer its narrower questions.
+
+Generated cases start with `input_status: "draft"` beside `case_id` (or the
+`input_status` column in a workbook). Set it to `ready` only after reviewing
+the supplied inputs, including related tables and explicitly represented
+unknowns. Do not auto-confirm every template just to make `call` run. Readiness
+does not verify documents, establish completeness or guarantee a valid tax
+result; the model's own checks still apply. Unmarked older inputs require
+refresh and review too. Never bypass the guard by rewriting the format version
+or fingerprint. Review again after editing facts.
 
 For a worked source-to-field record, read
 `examples/danish-income-tax/fra-bilag-til-input.md`. Its runnable fictional

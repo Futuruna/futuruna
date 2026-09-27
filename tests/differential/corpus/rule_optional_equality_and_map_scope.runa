@@ -1,0 +1,21 @@
+# Entry(value: Int)
+# Report(entry: Option(Entry), valid: Bool)
+| assessment_complete(report: Report) -> report.valid && report.entry == None
+| missing(entry: Option(Entry)) -> None == entry
+| present(entry: Option(Entry)) -> entry != None
+| present_reversed(entry: Option(Entry)) -> None != entry
+# Ledger(values: Map(String, Int), key: String) {
+    | updated() -> values
+    | exception record_key updated() -> map_insert(values, key, 5) under key != ""
+}
+@ print(show(assessment_complete(Report(None, True))))
+@ print(show(assessment_complete(Report(None, False))))
+@ print(show(assessment_complete(Report(Some(Entry(1)), True))))
+@ print(show(missing(None)))
+@ print(show(missing(Some(Entry(1)))))
+@ print(show(present(None)))
+@ print(show(present(Some(Entry(1)))))
+@ print(show(present_reversed(None)))
+@ print(show(present_reversed(Some(Entry(1)))))
+@ print(show(map_get_or(Ledger(map_new(), "employer").updated(), "employer", -1)))
+@ print(show(map_len(Ledger(map_new(), "").updated())))
