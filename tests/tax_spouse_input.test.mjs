@@ -129,8 +129,13 @@ test('unresolved spouse basis cannot bypass the period or documented annual asse
     const valid = case_id === 'known';
     assert.equal(r.vurdering.alle_kontroller_gyldige, valid, case_id);
     assert.equal(r.vurdering.slutskat_til_sammenligning_øre, valid ? 10383101 : null, case_id);
-    assert.equal(r.helårsgrundlag_gyldigt, case_id !== 'annual-unknown', case_id);
-    if (case_id === 'period-unknown') missingAssessment(r.delårsresultat);
-    if (case_id === 'annual-unknown') assert.ok(r.vurdering.fejl.some(f => f.sti === 'helårsgrundlag'));
+    // The bases must describe the same known spouse status for the income
+    // year. An unknown status in either basis prevents that confirmation.
+    assert.equal(r.helårsgrundlag_gyldigt, valid, case_id);
+    if (!valid) assert.ok(r.vurdering.fejl.some(f => f.sti === 'helårsgrundlag'), case_id);
+    if (case_id === 'period-unknown') {
+      missingAssessment(r.delårsresultat);
+      assert.ok(r.vurdering.fejl.some(f => f.sti === 'personskat'), case_id);
+    }
   }
 });
