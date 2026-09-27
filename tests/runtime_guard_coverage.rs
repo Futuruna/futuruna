@@ -222,3 +222,49 @@ fn guarded_call_permissions_are_bound_to_the_checked_candidate_and_arguments() {
         assert!(!permission.permits(&callee, function, &changed_arguments));
     }
 }
+
+#[test]
+fn disjunction_coverage_requires_stable_operands_and_every_case() {
+    for (guard, covered) in [
+        (
+            "choice == First || choice == Second || choice == Third",
+            true,
+        ),
+        ("choice == First || choice == Second", false),
+        (
+            "choice == First && choice == Second && choice == Third",
+            false,
+        ),
+        (
+            "(choice == First || choice == Second) && choice == Third",
+            false,
+        ),
+        (
+            "choice == First || choice == Second || other == Third",
+            false,
+        ),
+        (
+            "choice == First || choice == Second || choice == Third || check(choice)",
+            false,
+        ),
+        (
+            "choice == First || choice == Second || choice == Third || value / 0 == 0",
+            false,
+        ),
+    ] {
+        let source = format!("# Choice = First | Second | Third\n> check(choice: Choice) -> Bool {{ True }}\n| amount(value: Int, choice: Choice, other: Choice) -> value + 1 under {guard}\n");
+        let checked = artifacts(&source);
+        let key = key(None, "amount", 3);
+        assert_eq!(
+            checked
+                .rule_dispatch_runtime_irrefutable_keys
+                .contains(&key),
+            covered,
+            "{source}"
+        );
+        assert!(
+            !checked.rule_dispatch_total_value_keys.contains(&key),
+            "coverage cannot prove arithmetic total: {source}"
+        );
+    }
+}

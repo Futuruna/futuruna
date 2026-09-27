@@ -1,0 +1,11 @@
+# Choice = First | Second | Third
+| amount(value: Int, choice: Choice) -> value + 1 under choice == First || choice == Second || choice == Third
+| split(choice: Choice) -> 2 under choice == First || choice == Second
+| split(choice: Choice) -> 3 under choice == Third
+| covered_identity(value: Int) -> value under value < 0 || value >= 0
+@ print(show(amount(4, First)))
+@ print(show(amount(5, Second)))
+@ print(show(amount(6, Third)))
+@ print(show(split(Second)))
+@ print(show(split(Third)))
+@ print(show(covered_identity(-7)))

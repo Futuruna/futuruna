@@ -110,3 +110,8 @@ fn equality_context_still_rejects_incompatible_payloads_and_owners() {
 fn guarded_partial_calls_keep_interpreter_native_parity() {
     compare("guarded_partial_rule_calls.runa", "0\n7\n3\n0\n9");
 }
+
+#[test]
+fn disjunctions_of_complete_stable_guards_keep_native_values() {
+    compare("disjunctive_guard_coverage.runa", "5\n6\n7\n2\n3\n-7");
+}
