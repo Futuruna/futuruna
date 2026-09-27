@@ -437,6 +437,16 @@ shown in the handler example above.
 @ import #a1b2c3 from ./utils       -- content-addressed import
 ```
 
+Top-level plain imports form one merged declaration scope. They are resolved
+in import order before the importing file's declarations, regardless of where
+the directives appear. Imported functions override injected prelude defaults;
+local functions override imported functions. Imported initializers and later
+calls use that same final function and rule context. Unique bindings across the
+merged scope follow the dependency order described above. A canonical source
+is imported once per namespace, including when several dependencies import it.
+Standalone executable statements in an imported file are not run; its binding
+initializers are part of the merged program.
+
 Checking an importing file also checks imported function bodies. Errors identify
 the imported file and source position; editors link the import-site diagnostic
 to that original location. Qualified modules resolve private helpers and their
@@ -609,10 +619,8 @@ separate `>` function.
 | high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
 ```
 
-Place plain imports before local declarations and executable statements.
-Verification rejects a late plain import because its static symbol graph
-cannot represent the source-ordered rebinding that interpretation permits.
-This restriction also applies to imported helper files.
+Verification uses the same merged declaration scope and binding dependencies
+as execution, including when a plain import appears after a local declaration.
 
 Plain imports are resolved recursively for verification. An exception declared
 by an importing file therefore extends the imported rule group and keeps its
