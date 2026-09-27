@@ -375,6 +375,24 @@ impl TypeChecker {
         })
     }
 
+    fn stable_guard_alternatives(
+        &self,
+        expression: &Expr,
+        locals: &BTreeMap<String, String>,
+        roots: &BTreeMap<String, Root>,
+    ) -> Option<BTreeSet<(Atom, bool)>> {
+        if let ExprKind::BinOp(operator, left, right) = &expression.kind {
+            if operator == "||" {
+                let mut alternatives = self.stable_guard_alternatives(left, locals, roots)?;
+                alternatives.extend(self.stable_guard_alternatives(right, locals, roots)?);
+                return Some(alternatives);
+            }
+        }
+        Some(BTreeSet::from([
+            self.stable_guard_atom(expression, locals, roots)?
+        ]))
+    }
+
     fn stable_rule_guard_context<'a>(
         &self,
         scope: Option<&str>,
@@ -463,10 +481,14 @@ impl TypeChecker {
             else {
                 return false;
             };
-            let Some(guard) = self.stable_guard_atom(condition, &locals, &roots) else {
+            // Every OR operand must be stable: no unsupported expression may
+            // be evaluated before a covered alternative is reached. AND is not
+            // a union and deliberately stays outside this coverage judgment.
+            let Some(alternatives) = self.stable_guard_alternatives(condition, &locals, &roots)
+            else {
                 return false;
             };
-            guards.insert(guard);
+            guards.extend(alternatives);
         }
         guards.contains(&(Atom::True, true))
             || guards
