@@ -35392,6 +35392,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             let mut comptime_env = comptime_interp.default_env();
             let pure_fns =
                 Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
+            let constant_binding_names: BTreeSet<_> = main_stmts
+                .iter()
+                .filter_map(|stmt| {
+                    if let Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) = stmt {
+                        Some(name.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            for name in &constant_binding_names {
+                comptime_env.defer_constant_binding(name.clone());
+            }
             // Register all types, functions, and rules so comptime expressions can call them
             for stmt in stmts {
                 match stmt {
@@ -35401,8 +35414,32 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Defn(defn) => {
-                        comptime_interp.eval_defn(defn, &mut comptime_env);
-                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
+                        let name = match defn {
+                            Defn::Fn { name, .. }
+                            | Defn::Actor { name, .. }
+                            | Defn::Module { name, .. } => name,
+                        };
+                        let shadowed = constant_binding_names.contains(name);
+                        let previous_binding = shadowed.then(|| comptime_env.get(name).cloned());
+                        if comptime_interp
+                            .try_prepare_constant_definition(
+                                defn,
+                                &mut comptime_env,
+                                50_000,
+                                50_000,
+                            )
+                            .is_some()
+                        {
+                            comptime_interp.refresh_declaration_environment(&mut comptime_env);
+                        }
+                        if let Some(previous_binding) = previous_binding {
+                            if let Some(value) = previous_binding {
+                                comptime_env.set(name.clone(), value);
+                            } else {
+                                comptime_env.defer_constant_binding(name.clone());
+                            }
+                            comptime_interp.refresh_declaration_environment(&mut comptime_env);
+                        }
                     }
                     Stmt::Rule(rule) => {
                         let name = comptime_interp.rule_name(rule);
@@ -35422,22 +35459,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         if !self.can_seed_comptime_binding(expr, &pure_fns, &comptime_env) {
                             continue;
                         }
-                        // Use step budget to avoid hanging on expensive bindings
-                        comptime_interp.step_count = 0;
-                        comptime_interp.step_limit = 50_000;
-                        comptime_interp.budget_exceeded = false;
-                        let val =
-                            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                comptime_interp.eval(expr, &comptime_env)
-                            })) {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    comptime_interp.step_limit = 0;
-                                    continue;
-                                }
-                            };
-                        comptime_interp.step_limit = 0;
-                        if !comptime_interp.budget_exceeded {
+                        if let Some(val) =
+                            Self::eval_with_budget(&mut comptime_interp, expr, &comptime_env)
+                        {
                             comptime_interp.bind_pattern(pat, &val, &mut comptime_env);
                             comptime_interp.refresh_declaration_environment(&mut comptime_env);
                         }
@@ -35466,7 +35490,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         _ => None,
                     };
                     if let Some((name, expr)) = bind_name_expr {
-                        let val = comptime_interp.eval(expr, &mut comptime_env);
+                        let val =
+                            Self::eval_explicit_comptime(&mut comptime_interp, expr, &comptime_env);
                         // Comptime type: if the value is a TypeDef, generate a type declaration
                         if let Value::TypeDef { kind, fields } = &val {
                             let type_decl = Self::typedef_to_type_decl(&name, kind, fields);
@@ -35548,6 +35573,31 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             &mut comptime_env,
                         );
                         comptime_interp.refresh_declaration_environment(&mut comptime_env);
+                        // Pure dependency chains can become available after an
+                        // explicit effectful constant has been initialized.
+                        // The dependency plan already orders these bindings.
+                        for statement in &main_stmts {
+                            if let Stmt::Bind(Pat::Var(dependency), _, initializer) = statement {
+                                if !duplicate_top_level_binds.contains(dependency.as_str())
+                                    && comptime_env.get(dependency).is_none()
+                                    && self.can_seed_comptime_binding(
+                                        initializer,
+                                        &pure_fns,
+                                        &comptime_env,
+                                    )
+                                {
+                                    if let Some(value) = Self::eval_with_budget(
+                                        &mut comptime_interp,
+                                        initializer,
+                                        &comptime_env,
+                                    ) {
+                                        comptime_env.set(dependency.clone(), value);
+                                        comptime_interp
+                                            .refresh_declaration_environment(&mut comptime_env);
+                                    }
+                                }
+                            }
+                        }
                     }
                     // @ comptime assert(expr) — compile-time assertion
                     if let Stmt::Expr(expr) = stmt {
@@ -35562,7 +35612,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             _ => None,
                         };
                         if let Some(assert_expr) = inner_expr {
-                            let val = comptime_interp.eval(assert_expr, &mut comptime_env);
+                            let val = Self::eval_explicit_comptime(
+                                &mut comptime_interp,
+                                assert_expr,
+                                &comptime_env,
+                            );
                             let is_truthy = match &val {
                                 Value::Bool(b) => Some(*b),
                                 Value::Constructor(name, args) if args.is_empty() => {
@@ -35591,7 +35645,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             }
                         } else {
                             // Bare comptime expression — just evaluate it
-                            comptime_interp.eval(expr, &mut comptime_env);
+                            Self::eval_explicit_comptime(&mut comptime_interp, expr, &comptime_env);
                         }
                     }
                     is_comptime = false;
@@ -52850,20 +52904,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
     }
 
-    /// Evaluate an expression with a step budget for auto-comptime.
-    /// Returns None if the budget is exceeded (too many recursive steps).
+    /// Automatically evaluating a candidate must be bounded and effect-free,
+    /// even when static purity analysis missed an indirect runtime operation.
     fn eval_with_budget(interp: &mut Interpreter, expr: &Expr, env: &Env) -> Option<Value> {
-        interp.step_count = 0;
-        interp.step_limit = 50_000;
-        interp.budget_exceeded = false;
-        let val = interp.eval(expr, env);
-        interp.step_limit = 0;
-        if interp.budget_exceeded {
-            interp.budget_exceeded = false;
-            None
-        } else {
-            Some(val)
-        }
+        interp.try_eval_constant(expr, env, 50_000, 50_000)
+    }
+
+    fn eval_explicit_comptime(interp: &mut Interpreter, expr: &Expr, env: &Env) -> Value {
+        interp
+            .eval_explicit_constant(expr, env)
+            .unwrap_or_else(|message| {
+                eprintln!("comptime evaluation failed: {message}");
+                std::process::exit(1);
+            })
     }
 
     /// Check if an expression is a compile-time known value (literal or comptime binding).

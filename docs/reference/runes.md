@@ -499,6 +499,19 @@ calculation; nested input labels and questions remain field metadata. See
 Put `@ comptime` on its own line before the binding. The expression is evaluated
 at compile time and inlined as a constant.
 
+The compiler can also fold ordinary pure expressions automatically. This
+speculative evaluation is bounded and cannot perform host effects, including
+file access, output, randomness, or effects reached through callbacks and
+module initializers. A value that requires runtime initialization stays at
+runtime; unavailable values are never substituted with placeholders.
+
+Explicit `@ comptime` requests evaluation at compile time, so any effects in
+that expression occur while compiling. Its dependencies must have compile-time
+values too. If an effectful binding
+is needed by a compile-time expression, mark that binding `@ comptime`
+explicitly; the compiler reports an error when a required value is available
+only at runtime.
+
 ### Rust escape hatch
 ```runa
 @ rust {

@@ -2958,22 +2958,10 @@ impl MetaGroundEvaluator {
             self.evaluate_binding(&dependency, bindings)?;
         }
 
-        self.interpreter.step_count = 0;
-        self.interpreter.step_limit = 1_000_000;
-        self.interpreter.budget_exceeded = false;
         self.interpreter
             .refresh_declaration_environment(&mut self.env);
-        let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.interpreter.eval(expr, &self.env)
-        }));
-        let budget_exceeded = self.interpreter.budget_exceeded;
-        self.interpreter.step_limit = 0;
-        self.interpreter.budget_exceeded = false;
-        if budget_exceeded {
-            None
-        } else {
-            evaluation.ok()
-        }
+        self.interpreter
+            .try_eval_constant(expr, &self.env, 1_000_000, 1_000_000)
     }
 
     fn evaluate_binding(&mut self, name: &str, bindings: &BTreeMap<String, &Expr>) -> Option<()> {
@@ -15098,6 +15086,10 @@ pub struct Env {
     /// Bindings are immutable snapshots shared by cloned environments. Mutation
     /// uses copy-on-write, so child calls do not recursively clone global values.
     pub bindings: Rc<HashMap<String, Value>>,
+    /// Compiler-only reservations hide inherited/builtin values until a
+    /// source binding has a real constant value. Ordinary environments keep
+    /// this empty; lexical children can still shadow a reservation normally.
+    unavailable_constants: Rc<BTreeSet<String>>,
     /// Rc parent: child creation is O(1) refcount bump, not O(n) deep clone.
     /// This is the critical optimization for closure-heavy code (map/filter/foldl).
     pub parent: Option<Rc<Env>>,
@@ -15115,6 +15107,7 @@ impl Env {
     pub fn new() -> Self {
         Env {
             bindings: Rc::new(HashMap::new()),
+            unavailable_constants: Rc::default(),
             parent: None,
             runtime_namespace: None,
             runtime_declaration_env: None,
@@ -15124,6 +15117,7 @@ impl Env {
     pub fn child(&self) -> Self {
         Env {
             bindings: Rc::new(HashMap::new()),
+            unavailable_constants: Rc::default(),
             parent: Some(Rc::new(self.clone())),
             runtime_namespace: self.runtime_namespace.clone(),
             runtime_declaration_env: self.runtime_declaration_env.clone(),
@@ -15135,6 +15129,7 @@ impl Env {
     pub fn child_rc(self_rc: &Rc<Env>) -> Self {
         Env {
             bindings: Rc::new(HashMap::new()),
+            unavailable_constants: Rc::default(),
             parent: Some(Rc::clone(self_rc)),
             runtime_namespace: self_rc.runtime_namespace.clone(),
             runtime_declaration_env: self_rc.runtime_declaration_env.clone(),
@@ -15142,13 +15137,35 @@ impl Env {
     }
 
     pub fn get(&self, name: &str) -> Option<&Value> {
+        if self.unavailable_constants.contains(name) {
+            return None;
+        }
         self.bindings
             .get(name)
             .or_else(|| self.parent.as_ref().and_then(|p| p.get(name)))
     }
 
     pub fn set(&mut self, name: String, val: Value) {
+        if self.unavailable_constants.contains(&name) {
+            Rc::make_mut(&mut self.unavailable_constants).remove(&name);
+        }
         Rc::make_mut(&mut self.bindings).insert(name, val);
+    }
+
+    /// Reserve an authored binding while the compiler prepares its value.
+    /// An unavailable binding must hide a same-named builtin or declaration.
+    pub fn defer_constant_binding(&mut self, name: String) {
+        self.remove(&name);
+        Rc::make_mut(&mut self.unavailable_constants).insert(name);
+    }
+
+    fn constant_binding_unavailable(&self, name: &str) -> bool {
+        self.unavailable_constants.contains(name)
+            || (!self.bindings.contains_key(name)
+                && self
+                    .parent
+                    .as_ref()
+                    .is_some_and(|parent| parent.constant_binding_unavailable(name)))
     }
 
     /// Iterate over all bindings (current scope + parents)
@@ -15157,6 +15174,7 @@ impl Env {
         let mut seen = std::collections::HashSet::new();
         let mut current = Some(self);
         while let Some(env) = current {
+            seen.extend(env.unavailable_constants.iter().cloned());
             for (k, v) in env.bindings.iter() {
                 if seen.insert(k.clone()) {
                     result.push((k.clone(), v.clone()));
@@ -15843,8 +15861,11 @@ pub struct Interpreter {
     /// must never perform observable effects while exhausting assignments.
     exhaustive_preview_forbid_effects: bool,
     exhaustive_preview_error: RefCell<Option<String>>,
-    /// Resource/error guard used only by compile-time exploration-domain
-    /// evaluation. Ordinary program execution leaves this disabled.
+    /// Constant evaluation must not turn an unavailable runtime
+    /// binding into a symbolic logic value and then fold that placeholder.
+    evaluating_constant: bool,
+    /// Resource/error guard for constant and exploration-domain evaluation.
+    /// Ordinary program execution leaves this disabled.
     ground_collection_limit: Option<usize>,
     ground_error: RefCell<Option<ExploreRuntimeFailure>>,
     /// Checked numerical/value failures for external calculation calls only.
@@ -15906,6 +15927,7 @@ impl Interpreter {
             suppress_output: false,
             exhaustive_preview_forbid_effects: false,
             exhaustive_preview_error: RefCell::new(None),
+            evaluating_constant: false,
             ground_collection_limit: None,
             ground_error: RefCell::new(None),
             checking_calculation: false,
@@ -16835,6 +16857,74 @@ impl Interpreter {
         step_limit: usize,
         collection_limit: usize,
     ) -> Result<Value, ExploreRuntimeFailure> {
+        self.with_effect_free_runtime(step_limit, collection_limit, |interpreter| {
+            interpreter.eval(expression, env)
+        })
+    }
+
+    /// Speculatively evaluate a constant without observable host effects.
+    /// Static purity checks are only a filter: this boundary checks the actual
+    /// operations reached through callbacks, aliases, rules and module calls.
+    /// Failure leaves the expression for ordinary runtime evaluation.
+    pub fn try_eval_constant(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Option<Value> {
+        self.with_constant_evaluation(step_limit, collection_limit, |interpreter| {
+            interpreter.eval(expression, env)
+        })
+    }
+
+    /// Evaluate an explicit compile-time request. Effects in the expression
+    /// are intentional, but its dependencies must already have compile-time
+    /// values; unavailable runtime bindings cannot become symbolic constants.
+    pub fn eval_explicit_constant(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+    ) -> Result<Value, String> {
+        let previous = std::mem::replace(&mut self.evaluating_constant, true);
+        let result = self.with_calculation_runtime(|interpreter| interpreter.eval(expression, env));
+        self.evaluating_constant = previous;
+        result.map_err(|error| error.to_string())
+    }
+
+    /// Prepare a definition for speculative constant evaluation. Modules may
+    /// execute initializers here; they publish their scope only on success.
+    /// An effectful or incomplete module remains unavailable to the optimizer.
+    pub fn try_prepare_constant_definition(
+        &mut self,
+        definition: &Defn,
+        env: &mut Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Option<Value> {
+        self.with_constant_evaluation(step_limit, collection_limit, |interpreter| {
+            interpreter.eval_defn(definition, env)
+        })
+    }
+
+    fn with_constant_evaluation<T>(
+        &mut self,
+        step_limit: usize,
+        collection_limit: usize,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> Option<T> {
+        let previous = std::mem::replace(&mut self.evaluating_constant, true);
+        let result = self.with_effect_free_runtime(step_limit, collection_limit, operation);
+        self.evaluating_constant = previous;
+        result.ok()
+    }
+
+    fn with_effect_free_runtime<T>(
+        &mut self,
+        step_limit: usize,
+        collection_limit: usize,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> Result<T, ExploreRuntimeFailure> {
         let previous_forbid_effects = self.exhaustive_preview_forbid_effects;
         let previous_effect_error = self.exhaustive_preview_error.borrow_mut().take();
         let previous_step_count = self.step_count;
@@ -16842,6 +16932,7 @@ impl Interpreter {
         let previous_budget_exceeded = self.budget_exceeded;
         let previous_collection_limit = self.ground_collection_limit;
         let previous_ground_error = self.ground_error.borrow_mut().take();
+        let previous_suppress_output = self.suppress_output;
 
         self.exhaustive_preview_forbid_effects = true;
         self.step_count = 0;
@@ -16849,9 +16940,9 @@ impl Interpreter {
         self.budget_exceeded = false;
         self.ground_collection_limit = Some(collection_limit);
         *self.ground_error.borrow_mut() = None;
+        self.suppress_output = true;
         let output_len = self.output.len();
-        let evaluation =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(expression, env)));
+        let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         self.checked_exact_observer_memo_reset_cold_dispatch();
         let budget_exceeded = self.budget_exceeded;
         let error = self.ground_error.borrow_mut().take();
@@ -16867,6 +16958,7 @@ impl Interpreter {
         self.budget_exceeded = previous_budget_exceeded;
         self.ground_collection_limit = previous_collection_limit;
         *self.ground_error.borrow_mut() = previous_ground_error;
+        self.suppress_output = previous_suppress_output;
 
         if let Some(message) = effect_error {
             return Err(ExploreRuntimeFailure::UnsupportedCapability { message });
@@ -21253,6 +21345,11 @@ impl Interpreter {
         }
         // Check if this is an effect operation call dispatched to a handler.
         if let ExprKind::Var(function_name) = &function.kind {
+            if self.evaluating_constant && env.constant_binding_unavailable(function_name) {
+                return self.panic_or_ground_fail(format!(
+                    "constant evaluation requires an initialized value for `{function_name}`"
+                ));
+            }
             if function_name == PATHOF_MARKER {
                 return pathof_canonical_path(expression)
                     .map(Value::Str)
@@ -21637,6 +21734,11 @@ impl Interpreter {
         match &expr.kind {
             ExprKind::Var(name) => {
                 let namespace = self.namespace_for_env(env);
+                if self.evaluating_constant && env.constant_binding_unavailable(name) {
+                    return self.panic_or_ground_fail(format!(
+                        "constant evaluation requires an initialized value for `{name}`"
+                    ));
+                }
                 // Check local env first (params, local bindings, builtins)
                 if let Some(val) = env.get(name) {
                     let value_namespace = self.runtime_value_namespace(val);
@@ -21697,6 +21799,11 @@ impl Interpreter {
                     // lexical bindings have already been resolved above.
                     if let Some(message) = removed_database_builtin_message(name) {
                         return self.panic_or_ground_fail(message);
+                    }
+                    if self.evaluating_constant {
+                        return self.panic_or_ground_fail(format!(
+                            "constant evaluation requires an initialized value for `{name}`"
+                        ));
                     }
                     // Might be an unbound variable (used in logic rules)
                     Value::Constructor(name.clone(), vec![].into())
