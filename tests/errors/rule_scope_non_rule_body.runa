@@ -1,3 +1,4 @@
+-- expect-error: RuleScope `TaxCase` currently only allows `|` rules and `>` methods in its body
 # Person(age: Int)
 
 # TaxCase(person: Person) {

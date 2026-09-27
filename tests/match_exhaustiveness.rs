@@ -94,3 +94,55 @@ fn native_complete_nested_matches_compile_and_keep_the_same_values() {
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "2\n1\n0");
 }
+
+#[test]
+fn implicit_method_receivers_use_their_owner_instead_of_outer_bindings() {
+    for source in [
+        "# Shape = Circle(Float) | Rectangle(Float, Float)\n= c = Circle(1.0)\n# Color = Red | Blue { > name(c) -> String { match c { | Red -> \"red\" | Blue -> \"blue\" } } }\n",
+        "# Shape = Circle(Float) | Rectangle(Float, Float)\n= c = Circle(1.0)\n# Color = Red | Blue\n# trait Label { > name(c) -> String }\n# impl Label for Color { > name(c) -> String { match c { | Red -> \"red\" | Blue -> \"blue\" } } }\n",
+        "= value = True\n# Boxed(a) = Empty | Full(a) { > is_empty(value) -> Bool { match value { | Empty -> True | Full(_) -> False } } }\n",
+    ] {
+        let errors = diagnostics(source);
+        assert!(errors.is_empty(), "{source}: {errors:?}");
+    }
+}
+
+#[test]
+fn implicit_method_receivers_still_require_complete_owner_coverage() {
+    for source in [
+        "= c = True\n# Color = Red | Blue { > name(c) -> String { match c { | Red -> \"red\" } } }\n",
+        "= c = True\n# Color = Red | Blue\n# trait Label { > name(c) -> String }\n# impl Label for Color { > name(c) -> String { match c { | Red -> \"red\" } } }\n",
+    ] {
+        let errors = diagnostics(source);
+        assert!(
+            errors.iter().any(|error| error.contains("non-exhaustive match on `Color`")),
+            "{source}: {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn typed_lambda_parameters_preserve_nested_match_subject_types() {
+    let prefix = "# Option(a) = None | Some(a)\n# Choice = Left(Int) | Right(Int)\n# Record(value: Option(Choice))\n= item = True\n";
+    let complete = format!("{prefix}= complete = |item: Record| match item.value {{ | Some(Left(_)) -> True | Some(Right(_)) -> True | None -> False }}\n");
+    assert!(
+        diagnostics(&complete).is_empty(),
+        "{:?}",
+        diagnostics(&complete)
+    );
+    let incomplete = format!("{prefix}= incomplete = |item: Record| match item.value {{ | Some(Left(_)) -> True | None -> False }}\n");
+    assert!(diagnostics(&incomplete)
+        .iter()
+        .any(|error| error.contains("non-exhaustive match")));
+    let missing_field = format!("{prefix}= missing = |item: Record| item.absent\n");
+    assert!(diagnostics(&missing_field)
+        .iter()
+        .any(|error| error.contains("no field `absent`")));
+}
+
+#[test]
+fn method_receiver_types_do_not_escape_or_override_explicit_parameters() {
+    let source = "# Shape = Circle(Float) | Rectangle(Float, Float)\n= c = Circle(1.0)\n# Color = Red | Blue { > name(c) -> String { match c { | Red -> \"red\" | Blue -> \"blue\" } } > numeric(c: Int) -> Bool { match c { | 0 -> False | _ -> True } } }\n= shape = match c { | Circle(_) -> True | Rectangle(_, _) -> False }\n";
+    let errors = diagnostics(source);
+    assert!(errors.is_empty(), "{errors:?}");
+}

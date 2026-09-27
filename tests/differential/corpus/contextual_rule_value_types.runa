@@ -1,0 +1,11 @@
+# Input(value: Option(Int))
+| empty(input: Input) -> input.value == None
+| reversed(input: Input) -> None != input.value
+# Scope(values: Map(String, Int)) {
+    | result() -> values
+    | exception add result() -> map_insert(values, "k", 2) under True
+}
+@ print(show(empty(Input(None))))
+@ print(show(empty(Input(Some(1)))))
+@ print(show(reversed(Input(Some(1)))))
+@ print(show(map_get_or(Scope(map_new()).result(), "k", 0)))

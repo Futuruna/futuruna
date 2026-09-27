@@ -1,3 +1,4 @@
+-- expect-error: scoped rule `TaxCase.allowance` expects 1 argument but got 0
 # Person(age: Int)
 
 # TaxCase(person: Person) {

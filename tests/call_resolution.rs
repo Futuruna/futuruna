@@ -78,6 +78,7 @@ fn untyped_rule_parameters_and_local_closures_can_shadow_rules() {
     = related = |value| value + 5
     related(2)
 }
+
 @ print(show(delegated(|value| value + 1)))
 @ print(show(probe()))
 @ print(show(related(1, 2)))
@@ -85,5 +86,40 @@ fn untyped_rule_parameters_and_local_closures_can_shadow_rules() {
     assert_eq!(
         eval_source_with_prelude(source, false).unwrap().trim(),
         "3\n7\ntrue"
+    );
+}
+
+#[test]
+fn rule_scope_constructor_calls_require_the_declared_arguments() {
+    for arguments in ["", "Person(40), Person(50)"] {
+        let source = format!(
+            "# Person(age: Int)\n# TaxCase(person: Person) {{ | allowance() -> person.age }}\n= bad = TaxCase({arguments})\n"
+        );
+        let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
+            .parse_program()
+            .unwrap();
+        let errors = TypeChecker::check_with_diagnostics(&statements, None, &source);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.message.contains("`TaxCase` expects 1 argument")),
+            "{source}: {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn valid_rule_scope_construction_and_local_callback_shadowing_still_work() {
+    let source = r#"
+# Person(age: Int)
+# TaxCase(person: Person) { | allowance() -> person.age }
+> invoke(TaxCase) { TaxCase() }
+= tax = TaxCase(person = Person(40))
+@ print(show(tax.allowance()))
+@ print(show(invoke(|| 7)))
+"#;
+    assert_eq!(
+        eval_source_with_prelude(source, false).unwrap().trim(),
+        "40\n7"
     );
 }

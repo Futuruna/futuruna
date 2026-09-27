@@ -49,6 +49,7 @@ mod parser_hints;
 /// See `docs/proof-kernel.md` for the design spec.
 pub mod proof_kernel;
 mod runtime_diagnostics;
+mod runtime_guard_coverage;
 pub mod semantic_interface;
 
 // ============================================================================
@@ -6850,6 +6851,11 @@ fn collect_true_free_symbol_uses(
     bound: &BTreeSet<String>,
     typed_receivers: &BTreeMap<String, String>,
 ) {
+    // These parser intrinsics contain declaration identities, not evaluated
+    // callees or captured values. Their portable literal needs no environment.
+    if pathof_canonical_path(expr).is_some() || refof_literal(expr).is_some() {
+        return;
+    }
     match &expr.kind {
         ExprKind::Var(name) => {
             if !bound.contains(name) {
@@ -29452,7 +29458,7 @@ pub(crate) struct CheckedResolutionArtifacts {
     /// this producer-owned fact rather than rediscovering exhaustiveness from
     /// names or source order.
     rule_dispatch_total_value_keys: BTreeSet<RuleDispatchKey>,
-    /// Exact families with an unconditional runtime-irrefutable candidate.
+    /// Exact families with unconditional or stable complementary guard coverage.
     /// This is kept separate from Boolean miss safety because the two close
     /// different dispatch obligations.
     rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
@@ -51413,7 +51419,11 @@ impl TypeChecker {
         generic_parameters: &BTreeSet<String>,
     ) -> bool {
         match schema {
-            Ty::Name(name) => !self.types.contains(name) && !generic_parameters.contains(name),
+            Ty::Name(name) => {
+                !self.types.contains(name)
+                    && !generic_parameters.contains(name)
+                    && !matches!(name.as_str(), "Map" | "Set" | "Tuple")
+            }
             Ty::App(constructor, arguments) => {
                 self.canonical_schema_has_unknown_name(constructor, generic_parameters)
                     || arguments.iter().any(|argument| {
@@ -52736,19 +52746,33 @@ impl TypeChecker {
                     .or_else(|| self.canonical_dispatch_type_error())
             }
             ExprKind::BinOp(operator, left, right) => {
+                // Empty constructors such as None obtain their payload type
+                // from the other operand. This is context, not permission to
+                // coerce conflicting payloads or unrelated nominal owners.
+                let equality = matches!(operator.as_str(), "==" | "!=");
+                let left_expected = equality
+                    .then(|| {
+                        self.infer_expr_type_name_with_locals_in_scope(right, locals, active_scope)
+                    })
+                    .flatten();
+                let right_expected = equality
+                    .then(|| {
+                        self.infer_expr_type_name_with_locals_in_scope(left, locals, active_scope)
+                    })
+                    .flatten();
                 let left = self.canonical_dispatch_expr_type(
                     left,
                     locals,
                     active_scope,
                     visiting_functions,
-                    None,
+                    left_expected.as_deref(),
                 )?;
                 let right = self.canonical_dispatch_expr_type(
                     right,
                     locals,
                     active_scope,
                     visiting_functions,
-                    None,
+                    right_expected.as_deref(),
                 )?;
                 let left_type = Self::canonical_explore_type_name(&left.type_name);
                 let right_type = Self::canonical_explore_type_name(&right.type_name);
@@ -53262,6 +53286,22 @@ impl TypeChecker {
             }
         }
         self.rule_dispatch_runtime_irrefutable_keys = self.rule_dispatch_irrefutable_keys.clone();
+        // This closes only the runtime dispatch miss obligation. Guard coverage
+        // does not establish total return expressions or add a proof certificate.
+        if !self.rule_dispatch_has_opaque_runtime_graph {
+            for (key, (captures, rules)) in &groups {
+                if self.rule_dispatch_backend_return_types.contains_key(key)
+                    && self.runtime_complementary_guards_cover(
+                        key.scope.as_deref(),
+                        captures,
+                        rules,
+                    )
+                {
+                    self.rule_dispatch_runtime_irrefutable_keys
+                        .insert(key.clone());
+                }
+            }
+        }
         // Runtime miss behavior only needs Boolean hit values: eval_rule_guard
         // propagates invalid guards instead of treating them as a miss. Proof
         // consumers also require context-closed Boolean guards. Compute each
@@ -55109,6 +55149,12 @@ impl TypeChecker {
                     self.record_function_signature(name, params.len(), Some(param_names));
                     self.user_functions.insert(name.clone());
                     self.define_var(name);
+                    self.ordinary_callable_scopes.last_mut().unwrap().insert(
+                        name.clone(),
+                        ordinary_calls::CallableBinding::declaration(
+                            ordinary_calls::DeclaredCallable::Function(params.clone()),
+                        ),
+                    );
                     self.type_fields.insert(
                         name.clone(),
                         params.iter().map(|param| param.name.clone()).collect(),
@@ -58965,6 +59011,9 @@ impl TypeChecker {
                 self.push_scope();
                 for p in params {
                     self.define_var(&p.name);
+                    if let Some(ty) = &p.ty {
+                        self.define_var_type(&p.name, ty);
+                    }
                 }
                 self.check_expr(body, _in_fn);
                 self.pop_scope();
