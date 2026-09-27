@@ -168,3 +168,57 @@ fn native_complementary_scoped_guards_keep_interpreted_values() {
         );
     }
 }
+
+#[test]
+fn guarded_call_permissions_are_bound_to_the_checked_candidate_and_arguments() {
+    use futuruna::{ExprKind, Rule, Stmt};
+    let prefix = "# Input(year: Int)\n# Amount(value: Int)\n| partial(input: Input) -> Amount(7) under input.year >= 2026\n| result(input: Input, other: Input) -> 0\n";
+    for (body, guard, permitted) in [
+        ("partial(input).value", "input.year >= 2026", true),
+        ("partial(input).value", "input.year >= 2025", false),
+        ("partial(other).value", "input.year >= 2026", false),
+        ("partial(Input(2025)).value", "input.year >= 2026", false),
+        ("partial(input).value", "input.year < 2026", false),
+        ("partial(input).value", "input.year + 1 >= 2026", false),
+    ] {
+        let source = format!("{prefix}| exception reform result(input: Input, other: Input) -> {body} under {guard}\n");
+        let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
+            .parse_program()
+            .unwrap();
+        let checked = artifacts(&source);
+        let Stmt::Rule(rule) = statements.last().unwrap() else {
+            panic!("candidate")
+        };
+        let Rule::Exception { value, .. } = rule else {
+            panic!("exception")
+        };
+        let ExprKind::Field(call, _) = &value.kind else {
+            panic!("field")
+        };
+        let ExprKind::App(function, arguments) = &call.kind else {
+            panic!("call")
+        };
+        let callee = key(None, "partial", 1);
+        let permission = checked.runtime_guarded_rule_calls().for_candidate(rule);
+        assert_eq!(
+            permission.permits(&callee, function, arguments),
+            permitted,
+            "{source}"
+        );
+        assert!(!checked
+            .rule_dispatch_runtime_irrefutable_keys
+            .contains(&callee));
+        assert!(!checked.rule_dispatch_total_value_keys.contains(&callee));
+        let mut changed = rule.clone();
+        if let Rule::Exception { condition, .. } = &mut changed {
+            *condition = None;
+        }
+        assert!(!checked
+            .runtime_guarded_rule_calls()
+            .for_candidate(&changed)
+            .permits(&callee, function, arguments));
+        let mut changed_arguments = arguments.clone();
+        changed_arguments[0].kind = ExprKind::Var("other".into());
+        assert!(!permission.permits(&callee, function, &changed_arguments));
+    }
+}

@@ -50,6 +50,7 @@ mod parser_hints;
 pub mod proof_kernel;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
+pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub mod semantic_interface;
 
 // ============================================================================
@@ -29716,6 +29717,7 @@ pub struct TypeChecker {
     /// checked-False miss value.
     rule_dispatch_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    runtime_guarded_rule_calls: RuntimeGuardedRuleCalls,
     /// Every canonical rule identity declared in the flattened program.
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
     /// Qualified imports, inline modules, and reactive scopes share interpreter
@@ -30891,6 +30893,7 @@ pub struct TypeCheckArtifacts {
     pub rule_dispatch_runtime_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
     pub rule_dispatch_total_value_keys: BTreeSet<RuleDispatchKey>,
     pub rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    runtime_guarded_rule_calls: RuntimeGuardedRuleCalls,
     pub exploration_queries: Vec<TypedExploreQuery>,
     /// Public inspection mirrors of the closed relational query descriptors.
     /// Exact solver/executor code must select the immutable checked-query view,
@@ -31386,6 +31389,11 @@ fn checked_explore_classifier_backend_namespace_v1(statements: &[Stmt]) -> Resul
 }
 
 impl TypeCheckArtifacts {
+    /// Exact guarded runtime calls. This carries no total-value proof authority.
+    pub fn runtime_guarded_rule_calls(&self) -> &RuntimeGuardedRuleCalls {
+        &self.runtime_guarded_rule_calls
+    }
+
     /// Revalidate and return the immutable root module captured by this
     /// artifact. The dedicated root digest includes execution statements that
     /// are intentionally absent from semantic-site identity.
@@ -46415,6 +46423,7 @@ impl TypeChecker {
             rule_dispatch_parameter_types: BTreeMap::new(),
             rule_dispatch_parameter_names: BTreeMap::new(),
             rule_dispatch_parameter_issues: BTreeSet::new(),
+            runtime_guarded_rule_calls: RuntimeGuardedRuleCalls::default(),
             rule_dispatch_irrefutable_keys: BTreeSet::new(),
             rule_dispatch_runtime_irrefutable_keys: BTreeSet::new(),
             rule_dispatch_keys: BTreeSet::new(),
@@ -53065,6 +53074,7 @@ impl TypeChecker {
         self.rule_dispatch_parameter_issues.clear();
         self.rule_dispatch_irrefutable_keys.clear();
         self.rule_dispatch_runtime_irrefutable_keys.clear();
+        self.runtime_guarded_rule_calls = RuntimeGuardedRuleCalls::default();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
 
         for (key, (_, rules)) in &groups {
@@ -53523,6 +53533,7 @@ impl TypeChecker {
         }
         self.rule_dispatch_irrefutable_keys
             .retain(|key| self.rule_dispatch_return_types.contains_key(key));
+        self.runtime_guarded_rule_calls = self.runtime_guarded_calls_for_groups(&groups);
     }
 
     fn establish_explore_function_return_types(&mut self) {
@@ -59798,6 +59809,7 @@ impl TypeChecker {
             rule_dispatch_runtime_boolean_miss_keys: tc.rule_dispatch_runtime_boolean_miss_keys,
             rule_dispatch_total_value_keys: tc.rule_dispatch_irrefutable_keys,
             rule_dispatch_runtime_irrefutable_keys: tc.rule_dispatch_runtime_irrefutable_keys,
+            runtime_guarded_rule_calls: tc.runtime_guarded_rule_calls,
             exploration_queries,
             exploration_universes,
             checked_exploration_queries,
@@ -65230,11 +65242,17 @@ starters first from mechanisms paths for node activation "{digest}" using values
 "#;
         let statements = parse_test_program(source).expect("parse Bool-miss safety fixture");
         let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
-        assert!(
-            artifacts.diagnostics.len() == 1
-                && artifacts.diagnostics[0].message == "rule guard must return Bool, found Int",
-            "unexpected diagnostics: {:?}",
-            artifacts.diagnostics
+        assert_eq!(
+            artifacts
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "rule guard must return Bool, found Int",
+                "argument `flag` to `Case` expects `Bool`, got `Int`",
+            ],
+            "the malformed constructor is rejected before the unchecked runtime safety probe"
         );
 
         let global = |name: &str| RuleDispatchKey {

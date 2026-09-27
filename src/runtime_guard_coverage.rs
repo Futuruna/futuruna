@@ -1,7 +1,9 @@
 //! A narrow runtime dispatch judgment, separate from total-value proofs.
 //! Complementary guards over stable inputs and complete nullary-enum cases
 //! cannot all miss.
-//! Calls, arithmetic, indexing, floats, and refutable heads stay unsupported.
+//! Guard expressions containing calls, arithmetic, indexing or floats, and
+//! refutable heads, stay unsupported. Matching caller guards can also discharge
+//! a direct helper call's runtime miss obligation at that exact call site.
 
 use super::*;
 
@@ -28,7 +30,168 @@ enum Atom {
     Variant(Value, String, String),
 }
 
+/// Runtime-only permissions bound to the exact checked candidate and call AST.
+/// The private sets cannot be populated by a backend or proof consumer.
+#[derive(Clone, Default)]
+pub struct RuntimeGuardedRuleCalls {
+    candidates: BTreeMap<String, RuntimeGuardedCallSet>,
+}
+
+#[derive(Clone, Default)]
+pub struct RuntimeGuardedCallSet {
+    calls: BTreeSet<(RuleDispatchKey, String)>,
+}
+
+impl RuntimeGuardedRuleCalls {
+    pub fn for_candidate(&self, rule: &Rule) -> RuntimeGuardedCallSet {
+        self.candidates
+            .get(&format!("{rule:?}"))
+            .cloned()
+            .unwrap_or_default()
+    }
+}
+
+impl RuntimeGuardedCallSet {
+    pub fn permits(&self, key: &RuleDispatchKey, function: &Expr, arguments: &[Expr]) -> bool {
+        self.calls
+            .contains(&(key.clone(), format!("{function:?}:{arguments:?}")))
+    }
+}
+
+struct GuardContext<'a> {
+    locals: BTreeMap<String, String>,
+    roots: BTreeMap<String, Root>,
+    condition: &'a Expr,
+}
+
 impl TypeChecker {
+    pub(super) fn runtime_guarded_calls_for_groups(
+        &self,
+        groups: &BTreeMap<RuleDispatchKey, (BTreeMap<String, String>, Vec<&Rule>)>,
+    ) -> RuntimeGuardedRuleCalls {
+        let mut checked = RuntimeGuardedRuleCalls::default();
+        if self.rule_dispatch_has_opaque_runtime_graph {
+            return checked;
+        }
+        for (caller, (captures, rules)) in groups {
+            // This first bounded judgment covers global rules only. It never
+            // transports conditions through dynamic receivers or scope captures.
+            if caller.scope.is_some()
+                || !self.rule_dispatch_backend_return_types.contains_key(caller)
+            {
+                continue;
+            }
+            for rule in rules {
+                let Some(context) = self.stable_rule_guard_context(None, captures, rule) else {
+                    continue;
+                };
+                let Some(guard) =
+                    self.stable_guard_atom(context.condition, &context.locals, &context.roots)
+                else {
+                    continue;
+                };
+                let mut value = match rule {
+                    Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
+                    _ => continue,
+                };
+                // A direct call and its field projections have no preceding
+                // statements, rebinding, callbacks or effects that can invalidate
+                // the caller's stable input. Other expression forms stay closed.
+                while let ExprKind::Field(base, _) = &value.kind {
+                    value = base;
+                }
+                let ExprKind::App(function, arguments) = &value.kind else {
+                    continue;
+                };
+                let ExprKind::Var(name) = &function.kind else {
+                    continue;
+                };
+                let key = RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity: arguments.len(),
+                };
+                if context.locals.contains_key(name)
+                    || self
+                        .explore_top_level_binding_initializers
+                        .contains_key(name)
+                    || self.explore_unsupported_top_level_bindings.contains(name)
+                    || self
+                        .explore_function_definitions_by_arity
+                        .contains_key(&(name.clone(), arguments.len()))
+                    || self.constructor_signatures.contains_key(name)
+                    || !self.rule_dispatch_backend_return_types.contains_key(&key)
+                    || self.rule_dispatch_runtime_irrefutable_keys.contains(&key)
+                {
+                    continue;
+                }
+                let Some((callee_captures, candidates)) = groups.get(&key) else {
+                    continue;
+                };
+                if !arguments.iter().all(|argument| matches!(&argument.kind,
+                    ExprKind::Var(name) if matches!(context.roots.get(name), Some(Root::Argument(..))))) {
+                    continue;
+                }
+                let mut matches_guard = false;
+                let mut stable = true;
+                for candidate in candidates {
+                    let Some(mut callee) =
+                        self.stable_rule_guard_context(None, callee_captures, candidate)
+                    else {
+                        stable = false;
+                        break;
+                    };
+                    for root in callee.roots.values_mut() {
+                        let Root::Argument(index, expected) = root else {
+                            stable = false;
+                            break;
+                        };
+                        let Some(Expr {
+                            kind: ExprKind::Var(argument),
+                            ..
+                        }) = arguments.get(*index)
+                        else {
+                            stable = false;
+                            break;
+                        };
+                        let Some(actual @ Root::Argument(_, actual_type)) =
+                            context.roots.get(argument)
+                        else {
+                            stable = false;
+                            break;
+                        };
+                        if Self::canonical_explore_type_name(expected)
+                            != Self::canonical_explore_type_name(actual_type)
+                        {
+                            stable = false;
+                            break;
+                        }
+                        *root = actual.clone();
+                    }
+                    if !stable {
+                        break;
+                    }
+                    let Some(callee_guard) =
+                        self.stable_guard_atom(callee.condition, &callee.locals, &callee.roots)
+                    else {
+                        stable = false;
+                        break;
+                    };
+                    matches_guard |= guard == callee_guard;
+                }
+                if stable && matches_guard {
+                    checked
+                        .candidates
+                        .entry(format!("{rule:?}"))
+                        .or_default()
+                        .calls
+                        .insert((key, format!("{function:?}:{arguments:?}")));
+                }
+            }
+        }
+        checked
+    }
+
     fn stable_guard_enum_variants(&self, owner: &str) -> Option<&Vec<String>> {
         let variants = self.type_variants.get(owner)?;
         if variants.is_empty() || !variants.iter().all(|variant| {
@@ -212,6 +375,78 @@ impl TypeChecker {
         })
     }
 
+    fn stable_rule_guard_context<'a>(
+        &self,
+        scope: Option<&str>,
+        captures: &BTreeMap<String, String>,
+        rule: &'a Rule,
+    ) -> Option<GuardContext<'a>> {
+        let (head, condition) = match rule {
+            Rule::Default {
+                head,
+                condition: Some(condition),
+                ..
+            }
+            | Rule::Exception {
+                head,
+                condition: Some(condition),
+                ..
+            } => (head, condition),
+            _ => return None,
+        };
+        if !rule_head_is_irrefutable(rule) {
+            return None;
+        }
+        let mut locals = captures.clone();
+        locals.extend(self.rule_head_local_types(head));
+        let mut roots = captures
+            .keys()
+            .filter_map(|name| {
+                let ty = self.type_field_tys.get(scope?)?.get(name)?;
+                match ty {
+                    Ty::Name(_) | Ty::App(_, _) => {
+                        Some((name.clone(), Root::Capture(name.clone(), ty.to_string())))
+                    }
+                    _ => None,
+                }
+            })
+            .collect::<BTreeMap<_, _>>();
+        let arguments = match &head.kind {
+            ExprKind::App(_, arguments) => arguments.as_slice(),
+            ExprKind::Var(_) => &[],
+            _ => return None,
+        };
+        let mut bound = BTreeSet::new();
+        for (index, argument) in arguments.iter().enumerate() {
+            let annotation = typed_rule_head_argument(argument);
+            let argument = annotation.map(|(inner, _)| inner).unwrap_or(argument);
+            let ExprKind::Var(name) = &argument.kind else {
+                return None;
+            };
+            roots.remove(name);
+            if name == "_" {
+                continue;
+            }
+            if !bound.insert(name) {
+                return None;
+            }
+            // An untyped head binder must not inherit a capture's type
+            // merely because it shadows that capture's spelling.
+            let Some((_, ty)) = annotation else {
+                return None;
+            };
+            if !matches!(parse_type_annotation(ty), Ok(Ty::Name(_) | Ty::App(_, _))) {
+                return None;
+            }
+            roots.insert(name.clone(), Root::Argument(index, ty.to_owned()));
+        }
+        Some(GuardContext {
+            locals,
+            roots,
+            condition,
+        })
+    }
+
     pub(super) fn runtime_complementary_guards_cover(
         &self,
         scope: Option<&str>,
@@ -220,65 +455,14 @@ impl TypeChecker {
     ) -> bool {
         let mut guards = BTreeSet::new();
         for rule in rules {
-            let (head, condition) = match rule {
-                Rule::Default {
-                    head,
-                    condition: Some(condition),
-                    ..
-                }
-                | Rule::Exception {
-                    head,
-                    condition: Some(condition),
-                    ..
-                } => (head, condition),
-                _ => return false,
-            };
-            if !rule_head_is_irrefutable(rule) {
+            let Some(GuardContext {
+                locals,
+                roots,
+                condition,
+            }) = self.stable_rule_guard_context(scope, captures, rule)
+            else {
                 return false;
-            }
-            let mut locals = captures.clone();
-            locals.extend(self.rule_head_local_types(head));
-            let mut roots = captures
-                .keys()
-                .filter_map(|name| {
-                    let ty = self.type_field_tys.get(scope?)?.get(name)?;
-                    match ty {
-                        Ty::Name(_) | Ty::App(_, _) => {
-                            Some((name.clone(), Root::Capture(name.clone(), ty.to_string())))
-                        }
-                        _ => None,
-                    }
-                })
-                .collect::<BTreeMap<_, _>>();
-            let arguments = match &head.kind {
-                ExprKind::App(_, arguments) => arguments.as_slice(),
-                ExprKind::Var(_) => &[],
-                _ => return false,
             };
-            let mut bound = BTreeSet::new();
-            for (index, argument) in arguments.iter().enumerate() {
-                let annotation = typed_rule_head_argument(argument);
-                let argument = annotation.map(|(inner, _)| inner).unwrap_or(argument);
-                let ExprKind::Var(name) = &argument.kind else {
-                    return false;
-                };
-                roots.remove(name);
-                if name == "_" {
-                    continue;
-                }
-                if !bound.insert(name) {
-                    return false;
-                }
-                // An untyped head binder must not inherit a capture's type
-                // merely because it shadows that capture's spelling.
-                let Some((_, ty)) = annotation else {
-                    return false;
-                };
-                if !matches!(parse_type_annotation(ty), Ok(Ty::Name(_) | Ty::App(_, _))) {
-                    return false;
-                }
-                roots.insert(name.clone(), Root::Argument(index, ty.to_owned()));
-            }
             let Some(guard) = self.stable_guard_atom(condition, &locals, &roots) else {
                 return false;
             };

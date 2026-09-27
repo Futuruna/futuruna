@@ -1,0 +1,13 @@
+# Input(name: String)
+# ResultRow(name: String)
+| row(input: Input) -> ResultRow(input.name)
+> result(input: Input) -> String { row(input).name }
+> twice(input: Input) -> String { row(input).name + row(input).name }
+| count(values: List(Int)) -> length(values)
+> count_input(values: List(Int)) -> Int { count(values) }
+| message(value: String) -> value
+> message_input(value: String) -> String { message(value) }
+@ print(result(Input("okay")))
+@ print(twice(Input("a")))
+@ print(show(count_input([1, 2, 3])))
+@ print(message_input("kept"))
