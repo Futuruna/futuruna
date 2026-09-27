@@ -47,7 +47,7 @@ function settlement(withheld, facts) {
 function call(model, envelope, cases) {
   const dir = mkdtempSync(join(tmpdir(), 'futuruna-settlement-stage-'));
   console.log(`Settlement-stage evidence (${model}): ${dir}`);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   writeFileSync(join(dir, 'input.json'), JSON.stringify(envelope), { flag: 'wx', mode: 0o600 });
   const out = run(['call', model, '--input', join(dir, 'input.json')]);
   writeFileSync(join(dir, 'results.json'), JSON.stringify(out), { flag: 'wx', mode: 0o600 });
@@ -75,7 +75,7 @@ test('annual assessment distinguishes source-credit checks from final payment ch
     const input = structuredClone(base);
     input.årsopgørelse = settlement(0, debt(case_id === 'wrong-year' ? 2024 : 2025));
     if (case_id === 'duplicate-source-credit') input.årsopgørelse.kreditter.personskattelov_par8a_stk5_beløb_øre = 1;
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const results = call(canonical, envelope, cases);
   for (const { case_id } of cases) {

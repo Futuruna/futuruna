@@ -101,7 +101,7 @@ fn public_audit_preserves_mixed_income_and_withholds_unknown_results() {
     let mut cases = Vec::new();
     let mut expectations = Vec::new();
     let mut add = |id: &str, facts: Value, expected: Option<(i64, i64, i64)>| {
-        cases.push(json!({"case_id":id, "input":facts}));
+        cases.push(json!({"case_id":id, "input_status":"ready", "input":facts}));
         expectations.push((id.to_owned(), expected));
     };
     add("unfilled-template", placeholder, None);

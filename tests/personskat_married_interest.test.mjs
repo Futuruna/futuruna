@@ -64,7 +64,7 @@ test('both spouses match observed ordinary interest pooling, offsets and unused-
       // gate for BOTH people. The nested spouse breakdown is legacy whole DKK.
       // Pair-level prior losses, special relief and settlement are neutral in
       // this fixed fixture; this is not an adapter for swapping personal cases.
-      return { case_id, input: { ...structuredClone(base), ...structuredClone(own),
+      return { case_id, input_status: 'ready', input: { ...structuredClone(base), ...structuredClone(own),
         ægtefælle: { $variant: 'MedÆgtefælle', fakta: structuredClone(people[1 - person]),
           samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] } } };
     });

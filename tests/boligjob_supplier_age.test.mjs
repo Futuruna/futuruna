@@ -94,7 +94,7 @@ test('compact supplier age follows the work year, not the payment or selected ye
   add('unknown-provider', 2025, unknown, 0, false);
   add('impossible-provider-birthday', 2025, expenses(2024, date(2006, 2, 30)), 0, false);
   add('provider-born-after-work-year', 2025, expenses(2024, date(2025, 1, 1)), 0, false);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', compact, '--input', save('compact-cases.json', envelope)]);
   save('compact-results.json', output);
   assert.deepEqual(output.diagnostics, []); assert.equal(output.results.length, cases.length);
@@ -147,7 +147,7 @@ test('canonical supplier-age correction reaches taxpayer and spouse without inva
   add('adult-provider', 2006, 300000);
   add('spouse-young-provider', 2007, 0, true);
   add('spouse-adult-provider', 2006, 300000, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', canonical, '--input', save('canonical-cases.json', envelope)]);
   save('canonical-results.json', output);
   assert.deepEqual(output.diagnostics, []); assert.equal(output.results.length, cases.length);

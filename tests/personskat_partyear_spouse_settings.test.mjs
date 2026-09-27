@@ -53,7 +53,7 @@ test('part-year bases retain the corresponding spouses annual tax settings', ena
     kilder: [{ identifikation: 'fictional-salary', beregningsfelt: v('Par14Bruttoløn'), delårsbeløb_kroner: 200000,
       omregningsmetode: v('Par14DokumenteretRetvisendeHelårsbeløb', { helårsbeløb_kroner: 400000 }), faktisk_helårsbeløb_kroner: null }],
     helårsgrundlag: v('DokumenteretHelårsPersonskat', { personskat: annual }) };
-  const cases = [{ case_id: 'consistent', input: baseline, valid: true }];
+  const cases = [{ case_id: 'consistent', input_status: 'ready', input: baseline, valid: true }];
   const spouse = p => p.ægtefælle.fakta.lønmodtager;
   function add(case_id, edit, valid = false) {
     const input = structuredClone(baseline); edit(input);
@@ -68,7 +68,7 @@ test('part-year bases retain the corresponding spouses annual tax settings', ena
       spouse(p).kirkeskat = v('IngenKirkeskatHeleÅret');
     }
   }, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save(directory, 'input.json', envelope)]);
   save(directory, 'results.json', output);
   assert.deepEqual(output.diagnostics, []);

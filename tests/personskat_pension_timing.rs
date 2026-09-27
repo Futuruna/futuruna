@@ -167,7 +167,7 @@ fn ordinary_interest_offsets_match_official_2025_calculator() {
             input["lønmodtager"]["bruttoløn_kroner"] = json!(salary);
             input["kapitalindkomst"]["renter"]["renteudgifter_kroner"] = json!(expense);
             input["kapitalindkomst"]["renter"]["renteindtægter_kroner"] = json!(income);
-            json!({"case_id":format!("interest-{salary}-{expense}-{income}"),"input":input})
+            json!({"case_id":format!("interest-{salary}-{expense}-{income}"),"input_status":"ready", "input":input})
         })
         .collect();
     let results = calculate(envelope, cases);
@@ -243,7 +243,7 @@ fn extra_pension_rounding_matches_official_calculators() {
             payment["beløb_kroner"] = json!(paid);
             payment["forfaldsår"] = json!(year);
             payment["betalingsår"] = json!(year);
-            json!({"case_id":format!("skat-pension-{year}-{birth}-{paid}"),"input":input})
+            json!({"case_id":format!("skat-pension-{year}-{birth}-{paid}"),"input_status":"ready", "input":input})
         })
         .collect();
     let results = calculate(envelope, cases);
@@ -303,7 +303,7 @@ fn ordinary_salary_matches_external_skat_rounding_and_tax_amounts() {
             let mut input = baseline.clone();
             input["lønmodtager"]["skatteår"] = json!(year);
             input["lønmodtager"]["bruttoløn_kroner"] = json!(salary);
-            json!({"case_id":format!("skat-{year}-{salary}"),"input":input})
+            json!({"case_id":format!("skat-{year}-{salary}"),"input_status":"ready", "input":input})
         })
         .collect();
     let results = calculate(envelope, cases);
@@ -351,8 +351,8 @@ fn calculation_output_preserves_known_rounding_uncertainty_without_tolerance() {
     let results = calculate(
         envelope,
         vec![
-            json!({"case_id":"ordinary","input":ordinary}),
-            json!({"case_id":"known-rounding-difference","input":boundary}),
+            json!({"case_id":"ordinary","input_status":"ready", "input":ordinary}),
+            json!({"case_id":"known-rounding-difference","input_status":"ready", "input":boundary}),
         ],
     );
     assert_eq!(results.len(), 2);
@@ -445,7 +445,7 @@ fn supplementary_deductions_and_sub_ore_cases_match_official_tax_components() {
                     "berettiget":true,"modtaget":true,"kildereference":"fictional complete benefit record"})).collect::<Vec<_>>()
             });
         }
-        json!({"case_id":format!("skat-ore-{index}"),"input":input})
+        json!({"case_id":format!("skat-ore-{index}"),"input_status":"ready", "input":input})
     }).collect();
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), observed.len());
@@ -572,7 +572,7 @@ fn atp_source_bases_preserve_income_and_distinguish_public_contributions() {
         if name != "none" {
             input["lønmodtager"]["pension"]["atp"] = json!({"$variant":"OplysteAtpIndbetalinger","oplysninger_for_året_komplette":true,"poster":rows});
         }
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), names.len());
@@ -739,7 +739,7 @@ fn atp_unknown_incomplete_and_conflicting_sources_withhold_comparison() {
             input = baseline.clone();
             input["ægtefælle"] = json!({"$variant":"MedÆgtefælle","fakta":facts,"samlevende_ved_indkomstårets_udløb":true,"kildeskat25a_fordelinger":[]});
         }
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), specs.len());
@@ -840,7 +840,7 @@ fn employer_pension_routes_share_deductions_caps_and_private_priority() {
             input["lønmodtager"]["personlig_indkomst"]["ordinære_forhold"]["arbejdsgiverydelser"] =
                 json!([employer_benefit_pension(name, plan, Some(gross), net)]);
         }
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), names.len());
@@ -866,8 +866,8 @@ fn employer_pension_routes_share_deductions_caps_and_private_priority() {
                 (31875, 666, 8244, 22700, 161300, None)
             }
             "young-alternate-lifetime" => (31875, 666, 6000, 0, 200000, Some(4263386)),
-            // (200000 + 990) * 12.75% = 25626.225; the existing model
-            // truncates to øre, then rounds the deduction up to whole kroner.
+            // Existing model convention: (200000 + 990) * 12.75% = 25626.225;
+            // truncate to øre, then round up to whole kroner.
             "taxable-aldersopsparing" => (25627, 0, 0, 0, 184911, None),
             _ => (31875, 666, 5520, 0, 184000, Some(5308213)),
         };
@@ -1002,7 +1002,7 @@ fn employer_pension_routes_reject_missing_facts_and_duplicate_payments() {
             input = baseline.clone();
             input["ægtefælle"] = json!({"$variant":"MedÆgtefælle","fakta":facts,"samlevende_ved_indkomstårets_udløb":true,"kildeskat25a_fordelinger":[]});
         }
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), specs.len());
@@ -1051,7 +1051,7 @@ fn employer_rate_above_cap_is_taxable_without_second_am_charge() {
     input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!([payment]);
     let results = calculate(
         envelope,
-        vec![json!({"case_id":"employer-over-cap","input":input})],
+        vec![json!({"case_id":"employer-over-cap","input_status":"ready", "input":input})],
     );
     let result = &results[0]["result"];
     assert_eq!(result["vurdering"]["alle_kontroller_gyldige"], true);
@@ -1127,7 +1127,7 @@ fn employer_rate_year_cap_boundary_and_private_priority() {
             payments.push(private);
         }
         input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!(payments);
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), specs.len());
@@ -1247,7 +1247,7 @@ fn employer_lifetime_and_rate_pensions_keep_gross_employment_basis() {
             payments.push(payment);
         }
         input["lønmodtager"]["pension"]["pbl18_indbetalinger"] = json!(payments);
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), 6);
@@ -1322,7 +1322,7 @@ fn young_worker_keeps_birth_date_before_pension_deductions() {
         json!({"for_året_komplette":true,"for_foregående_år_komplette":true});
     let results = calculate(
         envelope,
-        vec![json!({"case_id":"young-worker", "input":input})],
+        vec![json!({"case_id":"young-worker", "input_status":"ready", "input":input})],
     );
     let result = &results[0]["result"];
     assert_eq!(result["vurdering"]["alle_kontroller_gyldige"], true);
@@ -1412,7 +1412,7 @@ fn young_worker_year_and_birthday_boundaries_keep_the_income_basis() {
                 "samlevende_ved_indkomstårets_udløb":true, "kildeskat25a_fordelinger":[]});
             input["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
         }
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
     }
     let results = calculate(envelope, cases);
     assert_eq!(results.len(), specifications.len());
@@ -1557,7 +1557,7 @@ fn pension_deduction_uses_this_years_payouts_only_after_prior_eligible_payouts()
             _ => {}
         }
         case["lønmodtager"]["pension"]["øvrige_pbl20_årsgrundlag"]["udbetalinger"] = json!(payouts);
-        cases.push(json!({"case_id":name, "input":case}));
+        cases.push(json!({"case_id":name, "input_status":"ready", "input":case}));
         expected.push((name, extra, offset, taxable));
     }
     let results = calculate(envelope, cases);
@@ -1844,7 +1844,7 @@ fn missing_pension_history_is_not_confirmed_zero() {
             case["ægtefælle"] = json!({"$variant":"MedÆgtefælle", "fakta":facts,
                 "samlevende_ved_indkomstårets_udløb":true,"kildeskat25a_fordelinger":[]});
         }
-        cases.push(json!({"case_id":name,"input":case}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":case}));
         expected.push((name, need_history, failure_suffix, spouse, prior_complete));
     }
     let results = calculate(envelope, cases);

@@ -4,7 +4,14 @@
 
 Når du har udfyldt kildefakta og kørt den kanoniske beregning med den compiler,
 der bestod [runtime-tjekket](../../website/public/ai-setup.md#tax-audit-runtime-check),
-kan du læse resultatet lokalt. Kræver allerede installeret Node.js 18 eller nyere:
+kan du læse resultatet lokalt. Kræver allerede installeret Node.js 18 eller nyere.
+
+Skabelonsager starter med `input_status: "draft"`. Gennemgå alle kildefakta,
+også nulbeløb, tomme lister og kendte ubekendte, før du sætter sagen til
+`"ready"` ved siden af `case_id`. Det gør sagen klar til beregning; det
+godkender ikke dokumenterne eller skatten. Modellens kontroller gælder stadig.
+Gennemgå status igen efter ændringer. Se
+[inputforløbet](../../docs/reference/calculations.md#generate-input).
 
 ```sh
 # Gem personlige filer uden for projektmappen.

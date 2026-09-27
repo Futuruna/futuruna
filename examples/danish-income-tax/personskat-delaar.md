@@ -56,7 +56,7 @@ installeret Node.js 18 eller nyere. Fra projektets rod:
 ```sh
 "$RUNA_BIN" schema examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --format compact-json --output PRIVATE_WORK_DIR/delaar-schema.json
 "$RUNA_BIN" template examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --format json --output PRIVATE_WORK_DIR/delaar-cases.json
-# Udfyld og gennemgå kildefakta, før der beregnes.
+# Udfyld og gennemgå kildefakta; sæt hver sags input_status ved siden af case_id til "ready".
 FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --input PRIVATE_WORK_DIR/delaar-cases.json --output PRIVATE_WORK_DIR/delaar-results.json
 node examples/danish-income-tax/personskat-resultat.mjs PRIVATE_WORK_DIR/delaar-results.json
 ```

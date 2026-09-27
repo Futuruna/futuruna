@@ -80,7 +80,7 @@ test('employee expense shares distinguish invalid facts from no entitlement for 
   add('spouse-half-work-use', 5000, 2700, true);
   add('spouse-above-full-work-use', 10001, null, true);
   add('ordinary-clothes-ineligible-not-invalid', null, 0, false, true);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--entry', 'beregn_personskat', '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

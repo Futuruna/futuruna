@@ -103,7 +103,7 @@ test('fictional signed rows reach reconciliation and keep mistakes or unknowns v
   envelope.cases = [];
   function add(case_id, status, edit = () => {}) {
     const input = structuredClone(baseline); edit(input);
-    envelope.cases.push({ case_id, input });
+    envelope.cases.push({ case_id, input_status: 'ready', input });
     if (status) expected.set(case_id, status);
   }
   add('signed-refund', 'BetingetAfstemt');

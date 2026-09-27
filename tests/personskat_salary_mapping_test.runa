@@ -106,6 +106,12 @@
 | forskellige_rettelser_summeres_eksakt: to_rettelser -> to_rettelser.anvendelse == DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = 570000, resterende_faktakrav = krævede_lønrettelsesfakta)
 ? forskellige_rettelser_summeres_eksakt
 
+= par_før = rettelseslinje("a, b", "c", 2025, 60000000)
+= par_rettelse = rettelsespost("krav-par", rettelseslinje("a", "b, c", 2025, -2000000), dokumenteret_krav)
+= par_mapping = personskat_aarsopgoerelse_kortlaeg_rettet_årsløn(lønrettet(par_før, [par_rettelse], None), 2025)
+| forskellige_dokumentlinjepar_bevares: par_mapping -> par_mapping.kildelinjer == [par_før, par_rettelse.forskelsbeløb] && par_mapping.anvendelse == DirekteKildebeløb(mål = refof(PersonskatLønmodtagerInput::bruttoløn_kroner), beløb_kroner = 580000, resterende_faktakrav = krævede_lønrettelsesfakta)
+? forskellige_dokumentlinjepar_bevares
+
 = fejl_i_krav = [LønModtagetMedUrette("", Dato(2026, 4, 1)), LønModtagetMedUrette("kilde", Dato(2026, 2, 29)), LønModtagetMedUrette("kilde", Dato(0, 12, 31))]
 | dokumenteret_krav_kræver_reference_og_mulig_dato: fejl_i_krav -> all(fejl_i_krav, |grundlag: PersonskatLønrettelsesgrundlag| rettelseskategori(lønrettet(før_rettelse, [rettelsespost("krav", lønminus.forskelsbeløb, grundlag)], None)) == UgyldigMapping)
 ? dokumenteret_krav_kræver_reference_og_mulig_dato

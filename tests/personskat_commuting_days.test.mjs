@@ -88,7 +88,7 @@ test('commuting day groups share one annual calendar, independently for each spo
       input.ægtefælle = v('MedÆgtefælle', { fakta, samlevende_ved_indkomstårets_udløb: true,
         kildeskat25a_fordelinger: [] });
     }
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);

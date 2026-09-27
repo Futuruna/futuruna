@@ -24,11 +24,13 @@ integrationstesten, ikke en eksternt verificeret skatteansættelse eller anbefal
 ## Brug eksisterende Personskat-fakta
 
 Brug en compiler, som består [runtime-kontrollen](../../website/public/ai-setup.md#tax-audit-runtime-check).
+Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra checkoutens rod:
 
 ```sh
-runa template examples/danish-income-tax/personskat-groen-check.calculate.runa --entry beregn_personskat_med_grøn_check --format json --output /absolut/privat/sti/input.json
-runa call examples/danish-income-tax/personskat-groen-check.calculate.runa --entry beregn_personskat_med_grøn_check --input /absolut/privat/sti/input.json --output /absolut/privat/sti/resultat.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat-groen-check.calculate.runa --entry beregn_personskat_med_grøn_check --format json --output /absolut/privat/sti/input.json
+# Udfyld og gennemgå fakta; sæt sagens input_status ved siden af case_id til "ready".
+"$RUNA_BIN" call examples/danish-income-tax/personskat-groen-check.calculate.runa --entry beregn_personskat_med_grøn_check --input /absolut/privat/sti/input.json --output /absolut/privat/sti/resultat.json
 ```
 
 Erstat stierne med en eksisterende privat mappe uden for checkouten. Udfyld input

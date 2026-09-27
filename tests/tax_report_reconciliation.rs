@@ -87,7 +87,7 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
     let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
         let mut input = baseline();
         edit(&mut input);
-        cases.push(json!({"case_id": name, "input": input}));
+        cases.push(json!({"case_id": name, "input_status":"ready", "input": input}));
         expected.push((name.to_string(), status.to_string()));
     };
     for year in 2023..=2026 {
@@ -364,7 +364,7 @@ fn recipient_rates_and_combined_local_lines_match_official_synthetic_reports() {
             "restskat":{"oplyst_restskat_øre":assessed}
         });
         edit(&mut input);
-        cases.push(json!({"case_id":name, "input":input}));
+        cases.push(json!({"case_id":name, "input_status":"ready", "input":input}));
         expected.push((name.to_owned(), status.to_owned(), local, assessed));
     };
     for (church, name) in [(false, "official-no-church"), (true, "official-church")] {
@@ -543,7 +543,7 @@ fn partial_transfers_expose_residual_bounds_without_filling_missing_observations
         } else {
             "Ufuldstændig"
         };
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
         expected.push((name, residual, ceiling, possible, complete, status));
     };
     // One missing municipality line must not hide that the known credits
@@ -670,7 +670,7 @@ fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
     let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
         let mut input = empty.clone();
         edit(&mut input);
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
         expected.push((name.to_string(), status.to_string()));
     };
     add("confirmed-empty", "BetingetAfstemt", &|_| {});
@@ -798,7 +798,7 @@ fn refund_additions_precede_corrections_and_never_default_unknowns_to_zero() {
     let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
         let mut input = ordinary.clone();
         edit(&mut input);
-        cases.push(json!({"case_id":name,"input":input}));
+        cases.push(json!({"case_id":name,"input_status":"ready", "input":input}));
         expected.push((name.to_owned(), status.to_owned()));
     };
     for year in 2023..=2026 {
@@ -982,7 +982,7 @@ fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
     let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
         let mut input = ordinary.clone();
         edit(&mut input);
-        cases.push(json!({"case_id": name, "input": input}));
+        cases.push(json!({"case_id": name, "input_status":"ready", "input": input}));
         expected.push((name.to_string(), status.to_string()));
     };
     for year in 2023..=2026 {

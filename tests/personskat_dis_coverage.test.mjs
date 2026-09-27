@@ -86,7 +86,7 @@ test('unsupported special DIS positions explain withheld canonical comparisons',
       input.ægtefælle = v('MedÆgtefælle', { fakta: person, samlevende_ved_indkomstårets_udløb: true, kildeskat25a_fordelinger: [] });
     }
     if (age !== null) person.lønmodtager.personlig_indkomst.sømandsbeskatning = seafarer(year, age);
-    return { case_id, input };
+    return { case_id, input_status: 'ready', input };
   });
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);

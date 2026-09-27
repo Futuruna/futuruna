@@ -102,7 +102,7 @@ test('bank pension years require known treatment and preserve actual payment fac
     const own = structuredClone(post); own.identifikation = 'private-extra';
     own.betaling.beløb_kroner = 30000; posts.push(own);
   }, [2025, 19500, 46000]);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

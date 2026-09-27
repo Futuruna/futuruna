@@ -2295,39 +2295,6 @@ Repeat the following questions for each scenario:
 - Can the same kernel express all three scenarios without authored probes,
   scenario-specific declarations or display rows becoming semantic inputs?
 
-### PBR round 2 record (2026-09-03)
-
-The review covered the target RFC and all three steering scenarios. It was a
-contract review, not an execution claim. The first pass was allowed to fail:
-that pass found ambiguous choice-local `having`/Pareto semantics, incomplete
-successor and Analyze-node coverage, a display-dependent choice path,
-overloaded stream statuses and tokens, an underspecified revision fold, a
-non-row-preserving explanation schema, and competing static/extensional
-totality identities.
-
-The contract was reduced and corrected in place rather than gaining another
-language layer. Choice now consumes full named-find rows; explanation preserves
-its resolved target row and adds incidence; source, successor and reachable
-Analyze coverage compose explicitly; updates use one keyed add/retract/seal
-fold; EvidenceToken and ResumeCursor have disjoint jobs; and one endpoint-
-totality obligation may be discharged by static or complete extensional
-evidence without renaming the graph. Direct admission targeting was removed in
-favor of an ordinary named `find NAME = all`.
-
-The narrow recheck then produced no P0 or P1 blocker:
-
-| Perspective | Income cliff | Municipality iff variation | Household Pareto | Reduction verdict |
-|---|---|---|---|---|
-| Policy author | Pass | Pass | Pass | No hidden fixed profile, implicit group or scenario-only clause |
-| Language implementer | Pass | Pass | Pass | One typed row-preserving Explore/Analyze graph; no redundant identity layer |
-| Auditor/result consumer | Pass | Pass | Pass | Scope, coverage, bounds, exact-empty results and mechanism evidence are distinguishable |
-| Stream operator | Pass | Pass | Pass | Pause/resume, revisions, closure and publication preserve semantic identity |
-
-Passing means the target contract is reconstructable and internally sufficient.
-It does not mean every target block executes in the current Experimental
-frontend. The remaining gap is implementation progress under this contract,
-not another round of public concepts.
-
 ## Acceptance signal
 
 Before allowing a long Personskat semantic slice, the cumulative small durable

@@ -87,7 +87,7 @@ test('ferry/flight expense loses only the unused daily threshold, including spou
   add('2025-no-travel-days', input => {
     input.lønmodtager.ligningsfradrag.befordring.forhold[0].arbejdsdage = 0;
   }, 0);
-  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
+  envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input_status: 'ready', input }));
   const output = run(['call', model, '--input', save('cases.json', envelope)]);
   save('results.json', output);
   assert.deepEqual(output.diagnostics, []);

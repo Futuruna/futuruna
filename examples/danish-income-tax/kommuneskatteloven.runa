@@ -273,7 +273,7 @@ indkomstskatten til staten.
         delårsgrundlag_kroner = valgt_delårsgrundlag_kroner(),
         helårsgrundlag_kroner = valgt_helårsgrundlag_kroner()
     ))
-    | input_gyldigt() -> input.kommunal_skat_som_helårsskattepligtig_kroner >= 0 under input.omfatter_kortere_periode_end_år == Falskt
+    | input_gyldigt() -> input.kommunal_skat_som_helårsskattepligtig_kroner >= 0
     | exception kommunal_par5_gyldigt_delår input_gyldigt() -> input.valg.input_gyldigt && par14_omregningsinput_gyldigt(input.omregning) && tilsvarende_par14_skattekomponent().input_gyldigt under input.omfatter_kortere_periode_end_år
     | kommunal_indkomstskat_efter_delår_kroner() -> 0
     | exception kommunal_par5_helår kommunal_indkomstskat_efter_delår_kroner() -> input.kommunal_skat_som_helårsskattepligtig_kroner under input_gyldigt() && input.omfatter_kortere_periode_end_år == Falskt
@@ -338,8 +338,10 @@ fastsættes af finansministeren med tilslutning fra Folketingets Finansudvalg.
 # KommunalPar7StatsgarantiInput(beregningsår: Heltal, opgjort_udskrivningsgrundlag_to_år_forud_kroner: Heltal, fremskrivningsprocent_basispoint: Heltal, social_indenrigsminister_fremskrivningsgrundlag_fastlagt: Boolsk, meddelt_senest_foerste_juli_året_før: Boolsk, finansminister_med_finansudvalg_tilslutning: Boolsk)
 # KommunalPar7StatsgarantiResultat(beregningsår: Heltal, grundlagsår: Heltal, opgjort_udskrivningsgrundlag_to_år_forud_kroner: Heltal, fremskrivningsprocent_basispoint: Heltal, fremskrevet_tillæg_kroner: Heltal, statsgaranteret_udskrivningsgrundlag_kroner: Heltal, fremskrivningsgrundlag_fastlagt: Boolsk, meddelt_senest_foerste_juli_året_før: Boolsk, procent_fastsat_med_finansudvalg_tilslutning: Boolsk)
 
-| kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> AfregningEfterPar15OgPar16Stk1Til4 under budgetvalg == KommunalEgetSkøn
-| kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> AfregningEfterPar15OgPar16Stk4 under budgetvalg == KommunalStatsgaranteretUdskrivningsgrundlag
+| kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> match budgetvalg {
+    | KommunalEgetSkøn -> AfregningEfterPar15OgPar16Stk1Til4
+    | KommunalStatsgaranteretUdskrivningsgrundlag -> AfregningEfterPar15OgPar16Stk4
+}
 | kommunal_par7_par16_stk1_til_4_gælder(budgetvalg: KommunalBudgetvalg) -> budgetvalg == KommunalEgetSkøn
 | kommunal_par7_afregningsvalg_resultat(budgetvalg: KommunalBudgetvalg) -> KommunalAfregningsvalgResultat(
     budgetvalg = budgetvalg,

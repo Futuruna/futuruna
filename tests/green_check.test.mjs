@@ -175,7 +175,7 @@ test('typed green-check review executes legal boundaries and independent 2025 ob
     assert.ifError(p.error); assert.equal(p.status,0,p.stderr); return JSON.parse(p.stdout);
   };
   const envelope=run(['template',model,'--format','json']);
-  envelope.cases=scenarios.map(({case_id,input})=>({case_id,input}));
+  envelope.cases=scenarios.map(({case_id,input})=>({case_id,input_status:'ready',input}));
   const directory=mkdtempSync(join(tmpdir(),'futuruna-green-check-test-'));
   const path=join(directory,'synthetic.json');
   writeFileSync(path,JSON.stringify(envelope),{mode:0o600,flag:'wx'});
