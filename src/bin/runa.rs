@@ -28686,7 +28686,7 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
                 format!("{}.0", s)
             }
         }
-        FirExprKind::Lit(Literal::Char(c)) => format!("'{}'", c),
+        FirExprKind::Lit(Literal::Char(c)) => format!("{c:?}"),
         FirExprKind::Lit(Literal::Bool(b)) => format!("{}", b),
         FirExprKind::BinOp(op, lhs, rhs) => {
             let l = emit_fir_expr(lhs, types);
@@ -28861,7 +28861,7 @@ fn format_pat(pat: &Pat) -> String {
             Literal::Int(n) => format!("{}", n),
             Literal::Float(f) => format!("{}", f),
             Literal::Str(s) => format!("{:?}", s),
-            Literal::Char(c) => format!("'{}'", c),
+            Literal::Char(c) => format!("{c:?}"),
             Literal::Bool(b) => format!("{}", b),
         },
         Pat::Con(name, args) if args.is_empty() => name.clone(),
@@ -28890,7 +28890,7 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
             Literal::Int(n) => format!("{}", n),
             Literal::Float(f) => format!("{}", f),
             Literal::Str(s) => format!("{:?}", s),
-            Literal::Char(c) => format!("'{}'", c),
+            Literal::Char(c) => format!("{c:?}"),
             Literal::Bool(b) => format!("{}", b),
         },
         Pat::Con(name, args) => {
@@ -40992,7 +40992,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             Literal::Int(n) => format!("{}", n),
             Literal::Float(f) => format!("{:.1}", f),
             Literal::Bool(b) => format!("{}", b),
-            Literal::Char(c) => format!("'{}'", c),
+            Literal::Char(c) => format!("{c:?}"),
         }
     }
 
@@ -53542,7 +53542,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
             }
             Literal::Str(s) => format!("{:?}.to_string()", s),
-            Literal::Char(c) => format!("'{}'", c),
+            Literal::Char(c) => format!("{c:?}"),
             Literal::Bool(b) => format!("{}", b),
         }
     }

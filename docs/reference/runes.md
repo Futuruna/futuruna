@@ -150,6 +150,12 @@ Defines transformation: functions, actors, and modules.
 
 Parameters can omit type annotations (inferred). Return type after `->`.
 
+An ordinary function name has one declaration in each authored lexical scope,
+regardless of parameter count. Duplicate declarations are errors before
+execution. Separate modules and nested scopes may use the same name, and a
+local declaration may override a name supplied by the prelude or a prefix
+import. Use `|` rules for a family of clauses and cases.
+
 ### Function with effects
 ```runa
 > process(item: String) -> String with Console, Logger {

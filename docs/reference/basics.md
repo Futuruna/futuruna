@@ -66,6 +66,12 @@ An ordinary string such as `"Hello {name}"` keeps its braces literally. Use
 `"""Hello {{name}}"""` for interpolation. Single quotes enclose one character,
 not a string.
 
+Ordinary strings recognize `\n`, `\t`, `\r`, `\\`, and `\"`. Character literals
+recognize `\n`, `\t`, `\r`, `\\`, and `\'`. Unknown escapes are errors at the
+backslash. Write `"a\\qb"` to include a literal backslash before `q`.
+The literal portions of triple-quoted strings preserve backslashes as written;
+expressions inside `{{ ... }}` use normal Futuruna string and character syntax.
+
 When either operand of `+` is a string, the other value is converted to text:
 `"10" + 5` produces `"105"`. This is concatenation, not numeric addition. Parse
 numeric input explicitly before doing arithmetic.
