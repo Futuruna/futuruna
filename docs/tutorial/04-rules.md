@@ -31,6 +31,26 @@ with different types remain distinct even if `show` prints them alike. Reaching
 the recursive search depth limit reports incomplete evaluation as an error;
 a partial answer list must not be treated as complete.
 
+Query goals run from left to right. A goal passes each distinct complete set of
+named bindings to the remaining goals before searching for another set. It does
+not re-run a derived rule separately for each output variable. An existence
+test stops at its first successful witness; only enumeration needs every
+answer. If no witness has been found and a search exceeds its depth limit,
+negation also reports incomplete evaluation rather than claiming absence.
+
+A parameter annotation supplies a type, not a collection of possible answers.
+For `Int`, `String`, and other non-enum types, bind the result through facts or
+earlier goals. If a successful clause leaves the result unbound, enumeration
+reports incomplete evaluation rather than an empty answer list. Nullary enum
+types supply a finite domain: unbound arguments are searched in declaration
+order, with repeated names constrained to the same value.
+
+Native builds support recursive Boolean clause queries over scalar values,
+including negation, correlated bindings, conjunctions, and alternatives. Some
+derived queries involving structured values, captured values, exception priority, or scoped
+rules still require interpreted execution; unsupported native searches must
+produce a diagnostic rather than an empty answer list.
+
 Use lowercase names such as `x`, `y`, and `z` for logic variables. Uppercase
 names denote declared constructors; undeclared names such as Prolog-style
 `X` and `Y` are rejected before evaluation. Declared constructors can still

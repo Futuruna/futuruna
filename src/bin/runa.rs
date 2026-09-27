@@ -7,8 +7,13 @@ mod runa_check_output;
 mod runa_explore_heap;
 mod runa_explore_retry;
 mod runa_explore_supervisor;
+mod runa_logic_codegen;
 mod runa_parse_diagnostics;
 mod runa_verification_arithmetic;
+// The search implementation also runs inside emitted standalone programs.
+#[allow(dead_code)]
+#[path = "../logic_search.rs"]
+mod runa_logic_search;
 
 macro_rules! status_eprintln {
     ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), true, true) }};
@@ -26034,6 +26039,9 @@ struct RustCodegen {
     runtime_guarded_rule_calls: RuntimeGuardedRuleCalls,
     active_guarded_calls: RuntimeGuardedCallSet,
     canonical_rule_metadata_installed: bool,
+    native_logic_runtime_needed: bool,
+    native_logic_runtime_name: String,
+    native_logic_parameter_types: BTreeMap<(String, usize), Vec<Option<String>>>,
     rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
@@ -30939,6 +30947,9 @@ impl RustCodegen {
             runtime_guarded_rule_calls: RuntimeGuardedRuleCalls::default(),
             active_guarded_calls: RuntimeGuardedCallSet::default(),
             canonical_rule_metadata_installed: false,
+            native_logic_runtime_needed: false,
+            native_logic_runtime_name: "__fut_logic".into(),
+            native_logic_parameter_types: BTreeMap::new(),
             rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode::RequireStaticTotality,
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
@@ -35196,6 +35207,33 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
         self.prepare_effect_metadata(stmts);
         self.precollect_module_codegen_metadata(stmts);
+        let mut logic_names = BTreeSet::new();
+        for statement in stmts {
+            collect_generated_rust_direct_stmt_names(statement, &mut logic_names);
+            walk_ast_stmt(statement, &mut |child| match child {
+                AstChild::Expr(expression) => match &expression.kind {
+                    ExprKind::Var(name) => {
+                        logic_names.insert(name.clone());
+                    }
+                    ExprKind::Lambda(parameters, _) => logic_names
+                        .extend(parameters.iter().map(|parameter| parameter.name.clone())),
+                    ExprKind::Match(_, arms) => {
+                        for arm in arms {
+                            collect_generated_rust_pattern_names(&arm.pat, &mut logic_names);
+                        }
+                    }
+                    _ => {}
+                },
+                AstChild::Stmt(statement) => {
+                    collect_generated_rust_direct_stmt_names(statement, &mut logic_names)
+                }
+            });
+        }
+        let mut logic_names = logic_names
+            .into_iter()
+            .map(|name| sanitize_name(&name))
+            .collect();
+        self.native_logic_runtime_name = fresh_generated_rust_name("__fut_logic", &mut logic_names);
         let rule_groups = Self::collect_rule_groups_from_stmts(stmts);
         self.register_active_rule_emitted_names(&rule_groups);
         self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
@@ -35842,6 +35880,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             }
         }
 
+        if self.native_logic_runtime_needed {
+            out.push_str(&format!(
+                "\n#[allow(dead_code)] mod {} {{\n",
+                self.native_logic_runtime_name
+            ));
+            out.push_str(include_str!("../logic_search.rs"));
+            out.push_str("\n}\n");
+        }
         out
     }
 
@@ -41011,14 +41057,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
     }
 
-    fn rule_head_param_vars(head_args: &[Expr]) -> Vec<(String, usize)> {
-        head_args
-            .iter()
-            .enumerate()
-            .filter_map(|(i, arg)| Self::rule_head_var_name(arg).map(|name| (name, i)))
-            .collect()
-    }
-
     fn collect_rule_head_binding_names(argument: &Expr, names: &mut BTreeSet<String>) {
         if let Some((inner, _)) = Self::typed_rule_arg_parts(argument) {
             Self::collect_rule_head_binding_names(inner, names);
@@ -41606,6 +41644,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
     fn prolog_clause_has_existential(goals: &[Expr], head_bindings: &BTreeSet<String>) -> bool {
         goals.iter().any(|goal| {
+            if let ExprKind::Conjunction(nested) | ExprKind::Disjunction(nested) = &goal.kind {
+                return Self::prolog_clause_has_existential(nested, head_bindings);
+            }
             let ExprKind::App(_, arguments) = &goal.kind else {
                 return false;
             };
@@ -41850,6 +41891,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         head_bindings: &BTreeSet<String>,
         indent: &str,
     ) -> Result<String, String> {
+        if let Some(first) = goals.first() {
+            let query = Expr::new(ExprKind::Conjunction(goals.to_vec()), first.span);
+            if let Ok(search) = self.emit_native_logic_search(None, &query) {
+                return Ok(format!("{indent}if {search} {{ return true; }}\n"));
+            }
+        }
         let Some(first_goal) = goals.first() else {
             return Ok(format!("{indent}return true;\n"));
         };
@@ -42230,6 +42277,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 known.get_mut(&key).unwrap()[index].get_or_insert(ty);
             }
         }
+        self.native_logic_parameter_types = known.clone();
         for (name, rules) in groups {
             let arity = Self::rule_arity(rules);
             if arity == 0 || !Self::rules_have_prolog_features(rules) {
@@ -42754,6 +42802,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     /// Emit findall(template_var, goal) as a Rust expression.
     /// findall(c, parent("bob", c)) → iterate PARENT_FACTS, collect matching values.
     fn emit_findall(&mut self, template: &Expr, goal: &Expr) -> String {
+        let search_error = match self.emit_native_logic_search(Some(template), goal) {
+            Ok(emitted) => return emitted,
+            Err(error) => error,
+        };
         let template_name = match &template.kind {
             ExprKind::Var(name) => name.clone(),
             _ => return "vec![]".to_string(),
@@ -42818,14 +42870,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
                 // For rules that have no fact table (only variable-head rules)
                 if !self.types.prolog_rule_fns.contains_key(&fn_name) {
-                    return "vec![]".to_string(); // can't iterate non-fact rules
+                    return format!("{{ compile_error!({search_error:?}); vec![] }}");
                 }
 
                 let (table, fact_strings_are_owned) =
                     match self.complete_prolog_ground_fact_source(&fn_name, arity) {
                         Ok(source) => source,
-                        Err(error) => {
-                            return format!("{{ compile_error!({error:?}); vec![] }}");
+                        Err(_) => {
+                            return format!("{{ compile_error!({search_error:?}); vec![] }}");
                         }
                     };
                 let parameter_types =
@@ -43528,7 +43580,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             "    ",
                             |cg, indent| {
                                 if ret_type == "bool" {
-                                    if let ExprKind::Conjunction(goals) = &body.kind {
+                                    let goals = match &body.kind {
+                                        ExprKind::Conjunction(goals) => Some(goals.as_slice()),
+                                        ExprKind::Disjunction(_) => Some(std::slice::from_ref(body)),
+                                        _ => None,
+                                    };
+                                    if let Some(goals) = goals {
                                         let mut bound_names = cg.local_bindings.clone();
                                         Self::collect_rule_head_binding_names(head, &mut bound_names);
                                         if Self::prolog_clause_has_existential(goals, &bound_names) {
@@ -47689,6 +47746,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 _ => continue,
             };
             for expression in std::iter::once(body).chain(guard) {
+                if self.current_module_path.is_empty() && self.current_rule_scope_name.is_none() {
+                    if let Some(ty) = self.rule_parameter_usage_type(
+                        param,
+                        expression,
+                        &self.native_logic_parameter_types,
+                    ) {
+                        return Some(ty);
+                    }
+                }
                 if let Some(ty) = self.infer_param_type_from_expr_usage(param, expression) {
                     return Some(ty);
                 }
@@ -50126,6 +50192,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         return self.emit_findall(&args[0], &args[1]);
                     }
                     // Prolog wildcard calls: fn(x, _) → inline fact table scan
+                    if self.types.prolog_rule_groups.contains_key(name.as_str())
+                        && args.iter().any(
+                            |argument| matches!(&argument.kind, ExprKind::Var(name) if name == "_"),
+                        )
+                    {
+                        if let Ok(search) = self.emit_native_logic_search(None, expr) {
+                            return search;
+                        }
+                    }
                     if self.types.prolog_rule_fns.contains_key(name.as_str()) {
                         let has_wildcard = args
                             .iter()
@@ -68304,74 +68379,58 @@ routes <- "b"
 
     #[test]
     fn static_rule_dispatch_soundness_prolog_existentials_require_complete_typed_sources() {
-        let emit = |source: &str| {
-            let (mut codegen, statements) = scan_with_codegen(source);
-            codegen.emit_program(&statements)
-        };
-
-        let body_bearing = emit(
+        compile_test_source_expect_runtime_failure(
             r#"
 | body_source(0, value: Int) -> value > 0
 | body_query(probe: Int) -> body_source(probe, found), found > probe
+@ print(show(body_query(0)))
 "#,
-        );
-        assert!(
-            body_bearing.contains("not a complete ground-fact relation"),
-            "body-bearing existential sources must fail closed: {body_bearing}"
-        );
-        assert!(
-            !body_bearing.contains("for fact in BODY_SOURCE_FACTS.iter()"),
-            "a rejected source must not leave an undefined fact-table reference: {body_bearing}"
+            None,
+            &["evaluation is incomplete"],
         );
 
-        let missing = emit(
+        let (mut codegen, statements) = scan_with_codegen(
             r#"
 | missing_query(probe: Int) -> absent_source(probe, found), found > probe
 "#,
         );
+        let missing = codegen.emit_program(&statements);
         assert!(
             missing.contains("compile_error!"),
-            "missing existential sources must fail closed: {missing}"
+            "missing sources must fail closed"
         );
         assert!(
             !missing.contains("ABSENT_SOURCE_FACTS"),
-            "a missing source must not manufacture an undefined table: {missing}"
+            "a missing source must not manufacture a table"
         );
 
-        let complete = emit(
-            r#"
+        assert_eq!(
+            compile_and_run_test_program(
+                r#"
 | ground_source(1, 2)
 | ground_source(2, 3)
 | ground_query(probe: Int) -> ground_source(probe, found), found > probe
+@ print(show(ground_query(1)))
+@ print(show(ground_query(9)))
 "#,
-        );
-        assert!(
-            complete.contains("GROUND_SOURCE_FACTS"),
-            "complete ground facts should materialize a table: {complete}"
-        );
-        assert!(
-            complete.contains("for fact in GROUND_SOURCE_FACTS.iter()"),
-            "the exact-arity existential should enumerate its proven table: {complete}"
-        );
-        assert!(
-            !complete.contains("not a complete ground-fact relation"),
-            "a complete exact-arity source must remain lowerable: {complete}"
+            )
+            .trim(),
+            "true\nfalse"
         );
 
-        let floats = emit(
-            r#"
+        assert_eq!(
+            compile_and_run_test_program(
+                r#"
 | float_source(1.0, 2.0)
 | float_source(2.0, 3.0)
 | float_query(probe: Float) -> float_source(probe, found), found > probe
+@ print(show(float_query(1.0)))
+@ print(show(float_query(0.9999999999999999)))
+@ print(show(float_query(1.5)))
 "#,
-        );
-        assert!(
-            floats.contains("if !(((fact.0) - (probe)).abs() < f64::EPSILON) { continue; }"),
-            "Float mismatch must negate the interpreter's positive epsilon predicate: {floats}"
-        );
-        assert!(
-            !floats.contains("fact.0 != probe"),
-            "native Float inequality is NaN-incompatible with interpreter matching: {floats}"
+            )
+            .trim(),
+            "true\ntrue\nfalse"
         );
     }
 

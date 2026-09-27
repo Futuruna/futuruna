@@ -27114,10 +27114,20 @@ impl Interpreter {
             self.findall_enumerate(
                 &fn_name,
                 &bound_vals,
-                template_pos,
+                &template_pos.into_iter().collect::<Vec<_>>(),
                 &equal_positions,
                 env,
-                &mut results,
+                &mut |_, row| {
+                    if let Some(value) = row.first() {
+                        if !results
+                            .iter()
+                            .any(|previous| runtime_values_semantically_equal(previous, value))
+                        {
+                            results.push(value.clone());
+                        }
+                    }
+                    false
+                },
                 0,
             );
             Value::List(results)
@@ -27396,31 +27406,35 @@ impl Interpreter {
         }
     }
 
-    fn collect_logic_head_projection(
-        &self,
+    fn visit_logic_head_projection(
+        &mut self,
         head_params: &[Expr],
-        template_pos: Option<usize>,
+        projection: &[usize],
         equal_positions: &[(usize, usize)],
         env: &Env,
-        results: &mut Vec<Value>,
-    ) {
+        visitor: &mut dyn FnMut(&mut Self, &[Value]) -> bool,
+    ) -> bool {
         let mut projection_env = env.child();
         if !self.constrain_logic_head_equalities(head_params, equal_positions, &mut projection_env)
         {
-            return;
+            return false;
         }
         let namespace = self.namespace_for_env(&projection_env);
-        if let Some(value) = template_pos
-            .and_then(|position| head_params.get(position))
-            .and_then(|term| self.rule_head_value(&namespace, term, Some(&projection_env)))
-        {
-            if !results
-                .iter()
-                .any(|result| runtime_values_semantically_equal(result, &value))
-            {
-                results.push(value);
-            }
-        }
+        let row = projection
+            .iter()
+            .map(|position| {
+                head_params
+                    .get(*position)
+                    .and_then(|term| self.rule_head_value(&namespace, term, Some(&projection_env)))
+            })
+            .collect::<Option<Vec<_>>>();
+        let Some(row) = row else {
+            self.panic_or_ground_fail(
+                "logic query cannot enumerate an unbound result; evaluation is incomplete",
+            );
+            return false;
+        };
+        visitor(self, &row)
     }
 
     fn logic_query_priority_decision(
@@ -27505,25 +27519,25 @@ impl Interpreter {
         &mut self,
         fn_name: &str,
         bound_vals: &[Option<Value>],
-        template_pos: Option<usize>,
+        projection: &[usize],
         equal_positions: &[(usize, usize)],
         env: &Env,
-        results: &mut Vec<Value>,
+        visitor: &mut dyn FnMut(&mut Self, &[Value]) -> bool,
         depth: usize,
-    ) {
+    ) -> bool {
         if depth > 50 {
             self.panic_or_ground_fail(format!(
                 "logic query `{fn_name}` exceeded its recursion limit of 50; evaluation is incomplete"
             ));
-            return;
+            return false;
         }
 
         let namespace = self.namespace_for_env(env);
         let Some((owner, rules)) = self.rules_named(&namespace, fn_name) else {
-            return;
+            return false;
         };
         let Some(dispatch) = Self::prepare_runtime_rule_dispatch(rules, bound_vals.len()) else {
-            return;
+            return false;
         };
         let family = RuleDispatchKey {
             scope: None,
@@ -27531,53 +27545,60 @@ impl Interpreter {
             arity: bound_vals.len(),
         };
 
-        if let Some(template_pos) = template_pos {
-            let matching_rules = dispatch
-                .matching
-                .iter()
-                .map(|(rule, _)| rule.clone())
-                .collect::<Vec<_>>();
-            if let Some(type_name) = Self::typed_rule_param_type(&matching_rules, template_pos) {
-                let Some(variants) = self.finite_nullary_variants(&owner, &type_name) else {
-                    return;
-                };
-                for candidate in variants {
-                    let mut constrained_values = bound_vals.to_vec();
-                    constrained_values[template_pos] = Some(candidate.clone());
-                    if !Self::constrain_logic_argument_values(
-                        &mut constrained_values,
-                        equal_positions,
-                    ) {
-                        continue;
-                    }
-                    let mut call_args = Vec::with_capacity(bound_vals.len());
-                    let mut callable = true;
-                    for (position, bound) in constrained_values.iter().enumerate() {
-                        if position == template_pos {
-                            call_args.push(candidate.clone());
-                        } else if let Some(value) = bound {
-                            call_args.push(value.clone());
-                        } else {
-                            callable = false;
-                            break;
-                        }
-                    }
-                    if !callable {
-                        continue;
-                    }
-                    let rule_value =
-                        self.apply_rule_value_in_namespace(&owner, fn_name, call_args, env);
-                    if !matches!(rule_value, Value::Bool(false)) {
-                        if !results
-                            .iter()
-                            .any(|value| runtime_values_semantically_equal(value, &candidate))
-                        {
-                            results.push(candidate);
-                        }
-                    }
-                }
-                return;
+        // A type annotation is enumerable only when it denotes a finite
+        // nullary enum. Bind one such column at a time, preserving correlations.
+        let matching_rules = dispatch
+            .matching
+            .iter()
+            .map(|(rule, _)| rule.clone())
+            .collect::<Vec<_>>();
+        let finite_column = (0..bound_vals.len()).find_map(|position| {
+            if bound_vals[position].is_some() {
+                return None;
             }
+            let name = Self::typed_rule_param_type(&matching_rules, position)?;
+            Some((position, self.finite_nullary_variants(&owner, &name)?))
+        });
+        if let Some((position, variants)) = finite_column {
+            for candidate in variants {
+                let mut constrained_values = bound_vals.to_vec();
+                constrained_values[position] = Some(candidate);
+                if !Self::constrain_logic_argument_values(&mut constrained_values, equal_positions)
+                {
+                    continue;
+                }
+                if let Some(call_args) = constrained_values
+                    .iter()
+                    .cloned()
+                    .collect::<Option<Vec<_>>>()
+                {
+                    let value =
+                        self.apply_rule_value_in_namespace(&owner, fn_name, call_args.clone(), env);
+                    if self.calculation_failed() || self.ground_error.borrow().is_some() {
+                        return false;
+                    }
+                    if !matches!(value, Value::Bool(false)) {
+                        let row = projection
+                            .iter()
+                            .map(|position| call_args[*position].clone())
+                            .collect::<Vec<_>>();
+                        if visitor(self, &row) {
+                            return true;
+                        }
+                    }
+                } else if self.findall_enumerate(
+                    fn_name,
+                    &constrained_values,
+                    projection,
+                    equal_positions,
+                    env,
+                    visitor,
+                    depth,
+                ) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         let mut priority = LogicQueryPriority {
@@ -27611,7 +27632,7 @@ impl Interpreter {
                 env,
                 &dispatch,
             ) else {
-                return;
+                return false;
             };
             let (head, body, value) = match rule.as_ref() {
                 Rule::Clause { head, body } => (head, body.as_ref(), None),
@@ -27643,27 +27664,28 @@ impl Interpreter {
                 .overrides
                 .iter()
                 .position(|index| *index == rule_index);
-            self.findall_conjunction(
+            if self.findall_conjunction(
                 body.map(std::slice::from_ref).unwrap_or(&[]),
                 head_params,
                 bound_vals,
-                template_pos,
+                projection,
                 equal_positions,
                 &rule_env,
-                results,
+                visitor,
                 depth,
                 &mut priority,
                 override_position,
                 value,
                 false,
-            );
+            ) {
+                return true;
+            }
         }
+        false
     }
 
-    /// Bind each free argument against the same goal, carrying earlier column
-    /// constraints into later searches. A continuation can stop at its first
-    /// witness or collect every binding. Bound expressions are captured by the
-    /// caller, so discovering more columns never evaluates them again.
+    /// Visit each distinct complete binding once. The continuation runs before
+    /// searching for another row and can stop at its first accepted witness.
     fn visit_logic_argument_bindings(
         &mut self,
         namespace: &RuntimeNamespace,
@@ -27674,48 +27696,58 @@ impl Interpreter {
         depth: usize,
         continuation: &mut dyn FnMut(&mut Self, &Env) -> bool,
     ) -> bool {
-        let Some(((position, name), remaining)) = free_positions.split_first() else {
+        if free_positions.is_empty() {
             return continuation(self, env);
-        };
-        let mut candidates = Vec::new();
+        }
+        let mut first_positions = BTreeMap::new();
+        let mut equal_positions = Vec::new();
+        let mut projection = Vec::new();
+        let mut names = Vec::new();
+        for (position, name) in free_positions {
+            if name == "_" {
+                continue;
+            }
+            if let Some(first) = first_positions.get(name) {
+                equal_positions.push((*first, *position));
+            } else {
+                first_positions.insert(name.clone(), *position);
+                projection.push(*position);
+                names.push(name.clone());
+            }
+        }
+        let mut seen: Vec<Vec<Value>> = Vec::new();
         let mut enumeration_env = env.child();
         enumeration_env.set_runtime_namespace(namespace.clone());
         self.findall_enumerate(
             fn_name,
             bound_values,
-            Some(*position),
-            &[],
+            &projection,
+            &equal_positions,
             &enumeration_env,
-            &mut candidates,
+            &mut |interpreter, row| {
+                if seen.iter().any(|previous| {
+                    previous
+                        .iter()
+                        .zip(row)
+                        .all(|(left, right)| runtime_values_semantically_equal(left, right))
+                }) {
+                    return false;
+                }
+                let mut bindings = env.child();
+                for (name, value) in names.iter().zip(row) {
+                    if env
+                        .get(name)
+                        .is_some_and(|bound| !runtime_values_semantically_equal(bound, value))
+                    {
+                        return false;
+                    }
+                    bindings.set(name.clone(), value.clone());
+                }
+                seen.push(row.to_vec());
+                continuation(interpreter, &bindings)
+            },
             depth + 1,
-        );
-        for candidate in candidates {
-            if name != "_"
-                && env
-                    .get(name)
-                    .is_some_and(|bound| !runtime_values_semantically_equal(bound, &candidate))
-            {
-                continue;
-            }
-            let mut values = bound_values.to_vec();
-            values[*position] = Some(candidate.clone());
-            let mut next_env = env.child();
-            if name != "_" {
-                next_env.set(name.clone(), candidate);
-            }
-            if self.visit_logic_argument_bindings(
-                namespace,
-                fn_name,
-                &values,
-                remaining,
-                &next_env,
-                depth,
-                continuation,
-            ) {
-                return true;
-            }
-        }
-        false
+        )
     }
 
     /// Enumerate complete bindings through a conjunction of goals.
@@ -27724,23 +27756,23 @@ impl Interpreter {
         goals: &[Expr],
         head_params: &[Expr],
         bound_vals: &[Option<Value>],
-        template_pos: Option<usize>,
+        projection: &[usize],
         equal_positions: &[(usize, usize)],
         env: &Env,
-        results: &mut Vec<Value>,
+        visitor: &mut dyn FnMut(&mut Self, &[Value]) -> bool,
         depth: usize,
         priority: &mut LogicQueryPriority<'_>,
         override_position: Option<usize>,
         value: Option<&Expr>,
         condition_started: bool,
-    ) {
+    ) -> bool {
         if self.calculation_failed() || self.ground_error.borrow().is_some() {
-            return;
+            return false;
         }
         let mut constrained_env = env.child();
         if !self.constrain_logic_head_equalities(head_params, equal_positions, &mut constrained_env)
         {
-            return;
+            return false;
         }
         let env = &constrained_env;
         let head_values = (!priority.overrides.is_empty())
@@ -27762,24 +27794,24 @@ impl Interpreter {
             });
             let Some(index) = self.resolve_logic_query_priority(priority, arguments, through)
             else {
-                return;
+                return false;
             };
             let decision = &priority.decisions[index];
             if let Some(selected) = &decision.selected {
                 if !matches!(selected, Value::Bool(false)) {
-                    self.collect_logic_head_projection(
+                    return self.visit_logic_head_projection(
                         head_params,
-                        template_pos,
+                        projection,
                         equal_positions,
                         env,
-                        results,
+                        visitor,
                     );
                 }
-                return;
+                return false;
             }
             if override_position.is_some_and(|position| decision.checked > position) {
                 // The ordinary priority check already rejected this guard.
-                return;
+                return false;
             }
         }
         if goals.is_empty() {
@@ -27793,13 +27825,13 @@ impl Interpreter {
                         Some(Value::Bool(false))
                     )
                 }) {
-                    return;
+                    return false;
                 }
                 self.panic_or_ground_fail(format!(
                     "logic query `{}` cannot resolve exception/default priority for an unbound head; evaluation is incomplete",
                     priority.family.name
                 ));
-                return;
+                return false;
             }
             if let Some(expression) = value {
                 let selected = self.eval(expression, env);
@@ -27810,17 +27842,16 @@ impl Interpreter {
                     priority.decisions[index].selected = Some(selected.clone());
                 }
                 if matches!(selected, Value::Bool(false)) {
-                    return;
+                    return false;
                 }
             }
-            self.collect_logic_head_projection(
+            return self.visit_logic_head_projection(
                 head_params,
-                template_pos,
+                projection,
                 equal_positions,
                 env,
-                results,
+                visitor,
             );
-            return;
         }
 
         let first_goal = &goals[0];
@@ -27829,42 +27860,43 @@ impl Interpreter {
             ExprKind::Conjunction(nested) => {
                 let mut flattened = nested.clone();
                 flattened.extend_from_slice(&goals[1..]);
-                self.findall_conjunction(
+                return self.findall_conjunction(
                     &flattened,
                     head_params,
                     bound_vals,
-                    template_pos,
+                    projection,
                     equal_positions,
                     env,
-                    results,
+                    visitor,
                     depth,
                     priority,
                     override_position,
                     value,
                     condition_started,
                 );
-                return;
             }
             ExprKind::Disjunction(alternatives) => {
                 for alternative in alternatives {
                     let mut branch = vec![alternative.clone()];
                     branch.extend_from_slice(&goals[1..]);
-                    self.findall_conjunction(
+                    if self.findall_conjunction(
                         &branch,
                         head_params,
                         bound_vals,
-                        template_pos,
+                        projection,
                         equal_positions,
                         env,
-                        results,
+                        visitor,
                         depth,
                         priority,
                         override_position,
                         value,
                         condition_started,
-                    );
+                    ) {
+                        return true;
+                    }
                 }
-                return;
+                return false;
             }
             _ => {}
         }
@@ -27883,7 +27915,7 @@ impl Interpreter {
                 && (override_position.is_none() || self.rules_named(&namespace, &goal_fn).is_some())
             {
                 let goal_args_vals = self.logic_argument_values(args, env);
-                self.visit_logic_argument_bindings(
+                return self.visit_logic_argument_bindings(
                     &namespace,
                     &goal_fn,
                     &goal_args_vals,
@@ -27895,20 +27927,18 @@ impl Interpreter {
                             &goals[1..],
                             head_params,
                             bound_vals,
-                            template_pos,
+                            projection,
                             equal_positions,
                             bindings,
-                            results,
+                            visitor,
                             depth,
                             priority,
                             override_position,
                             value,
                             true,
-                        );
-                        false
+                        )
                     },
                 );
-                return;
             }
         }
 
@@ -27932,13 +27962,13 @@ impl Interpreter {
                         Some(Value::Bool(false))
                     )
                 }) {
-                    return;
+                    return false;
                 }
                 self.panic_or_ground_fail(format!(
                     "logic query `{}` cannot enumerate an unbound override predicate; evaluation is incomplete",
                     priority.family.name
                 ));
-                return;
+                return false;
             }
         }
 
@@ -27950,14 +27980,14 @@ impl Interpreter {
             matches!(self.eval(first_goal, env), Value::Bool(true))
         };
         if satisfied {
-            self.findall_conjunction(
+            return self.findall_conjunction(
                 &goals[1..],
                 head_params,
                 bound_vals,
-                template_pos,
+                projection,
                 equal_positions,
                 env,
-                results,
+                visitor,
                 depth,
                 priority,
                 override_position,
@@ -27965,6 +27995,7 @@ impl Interpreter {
                 true,
             );
         }
+        false
     }
 
     /// Extract parameter names from a rule head (which is an Expr) and bind

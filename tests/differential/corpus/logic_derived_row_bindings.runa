@@ -1,0 +1,13 @@
+| owns("ann", "car")
+| owns("bob", "bike")
+| wants("ann", "bike")
+| wants("bob", "car")
+| owned(person, thing) -> owns(person, thing)
+| owned_twice(person, thing) -> owns(person, thing), owns(person, thing)
+| wanted_owned(person, thing) -> owned(person, thing), wants(person, thing)
+
+assert(findall(thing, owned(_, thing)) == ["car", "bike"])
+assert(findall(thing, owned_twice(_, thing)) == ["car", "bike"])
+assert(length(findall(thing, wanted_owned(_, thing))) == 0)
+assert(findall(person, owned(person, "car")) == ["ann"])
+@ print("derived row bindings passed")
