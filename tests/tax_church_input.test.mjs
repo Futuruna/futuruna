@@ -160,7 +160,9 @@ test('an unsupported documented annual basis cannot escape the final part-year g
     const input = structuredClone(base);
     addSpouse(input.personskat).lønmodtager.kirkeskat = v(status);
     addSpouse(input.helårsgrundlag.personskat);
-    cases.push({ case_id: `period-spouse-${status}`, input, periodValid: false, annualValid: true });
+    // Church status describes the same income year in both bases. Changing
+    // only the period spouse also invalidates the documented annual basis.
+    cases.push({ case_id: `period-spouse-${status}`, input, periodValid: false, annualValid: false });
   }
   envelope.cases = cases.map(({ case_id, input }) => ({ case_id, input }));
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-church-annual-basis-'));
@@ -177,7 +179,12 @@ test('an unsupported documented annual basis cannot escape the final part-year g
     assert.equal(r.helårsgrundlag_gyldigt, annualValid, case_id);
     assert.equal(r.vurdering.alle_kontroller_gyldige, valid, case_id);
     assert.equal(r.vurdering.slutskat_til_sammenligning_øre, valid ? 10383101 : null, case_id);
-    if (!valid) assert.ok(r.vurdering.fejl.some(f => f.sti === (annualValid ? 'personskat' : 'helårsgrundlag')), case_id);
-    if (!periodValid) assert.ok(r.delårsresultat.vurdering.fejl.some(f => f.sti === 'ægtefælle.MedÆgtefælle.fakta.lønmodtager.kirkeskat'), case_id);
+    if (!annualValid) assert.ok(r.vurdering.fejl.some(f => f.sti === 'helårsgrundlag'), case_id);
+    if (!periodValid) {
+      assert.ok(r.vurdering.fejl.some(f => f.sti === 'personskat'), case_id);
+      assert.ok(r.vurdering.fejl.some(f => f.sti === 'helårsgrundlag'
+        && f.forklaring.includes('lønmodtager.kirkeskat')), case_id);
+      assert.ok(r.delårsresultat.vurdering.fejl.some(f => f.sti === 'ægtefælle.MedÆgtefælle.fakta.lønmodtager.kirkeskat'), case_id);
+    }
   }
 });
