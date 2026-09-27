@@ -47173,9 +47173,14 @@ impl TypeChecker {
     }
 
     fn var_type_name(&self, name: &str) -> Option<&str> {
-        for scope in self.var_types.iter().rev() {
-            if let Some(type_name) = scope.get(name) {
+        for (types, names) in self.var_types.iter().zip(&self.scopes).rev() {
+            if let Some(type_name) = types.get(name) {
                 return Some(type_name);
+            }
+            // An untyped inner binding still shadows an outer binding. Its
+            // type is unknown here, not inherited from the outer value.
+            if names.contains(name) {
+                return None;
             }
         }
         None
