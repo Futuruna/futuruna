@@ -271,6 +271,7 @@ mod supported_unix {
     const O_RDWR: c_int = 2;
     const LOCK_EX: c_int = 2;
     const LOCK_NB: c_int = 4;
+    const LOCK_UN: c_int = 8;
     const AT_SYMLINK_NOFOLLOW: c_int = if cfg!(target_os = "linux") {
         0x100
     } else {
@@ -509,12 +510,34 @@ mod supported_unix {
         }
     }
 
+    struct RunStoreLock {
+        file: File,
+        owner_process: u32,
+    }
+
+    impl Drop for RunStoreLock {
+        fn drop(&mut self) {
+            // A concurrent fork can retain this open file description until
+            // exec, despite O_CLOEXEC. Closing only our descriptor would leave
+            // the lock held after the owning guard's lifetime has ended.
+            // An inherited guard must not unlock its parent's live lock.
+            if std::process::id() != self.owner_process {
+                return;
+            }
+            while unsafe { c_flock(self.file.as_raw_fd(), LOCK_UN) } != 0 {
+                if io::Error::last_os_error().kind() != io::ErrorKind::Interrupted {
+                    break;
+                }
+            }
+        }
+    }
+
     /// The lock and directory descriptors are the authority.  The guard has no
     /// `Clone` implementation and exposes neither descriptor nor a clone method.
     pub struct RunStoreGuard {
         directory_file: File,
         directory_identity: FileIdentity,
-        lock_file: File,
+        lock_file: RunStoreLock,
         lock_identity: FileIdentity,
         owner_uid: u32,
         limits: RunStoreLimits,
@@ -750,6 +773,7 @@ mod supported_unix {
 
             let held_lock = self
                 .lock_file
+                .file
                 .metadata()
                 .map_err(|error| io_error("inspect held run-store lock", error))?;
             verify_lock_metadata(&held_lock, self.owner_uid)?;
@@ -1116,7 +1140,7 @@ mod supported_unix {
     fn acquire_lock(
         directory: &File,
         owner_uid: u32,
-    ) -> Result<(File, FileIdentity), RunStoreError> {
+    ) -> Result<(RunStoreLock, FileIdentity), RunStoreError> {
         let descriptor = directory.as_raw_fd();
         let mut created = false;
         let lock = match openat_file(
@@ -1184,6 +1208,12 @@ mod supported_unix {
                 error,
             ));
         }
+        // Own the lock immediately so every subsequent validation error also
+        // releases it, independently of duplicated or inherited descriptors.
+        let lock = RunStoreLock {
+            file: lock,
+            owner_process: std::process::id(),
+        };
 
         let snapshot = snapshot_name(descriptor, LOCK_NAME)?.ok_or(
             RunStoreError::InvalidDirectory("the locked name disappeared after flock"),
@@ -1361,6 +1391,56 @@ mod supported_unix {
             unsafe {
                 c_closedir(self.stream);
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        struct TestDirectory(std::path::PathBuf);
+
+        impl Drop for TestDirectory {
+            fn drop(&mut self) {
+                fs::remove_dir_all(&self.0).ok();
+            }
+        }
+
+        #[test]
+        fn dropping_guard_releases_lock_despite_a_duplicated_descriptor() {
+            let directory = TestDirectory(std::env::temp_dir().join(format!(
+                "futuruna-run-store-release-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            )));
+            let guard = RunStoreGuard::open_or_create(&directory.0, RunStoreLimits::default())
+                .expect("acquire original guard");
+            // dup and fork retain the same open file description. Keep one
+            // reference alive without relying on subprocess scheduling.
+            let duplicate = guard
+                .lock_file
+                .file
+                .try_clone()
+                .expect("duplicate descriptor");
+            assert!(matches!(
+                RunStoreGuard::open(&directory.0, RunStoreLimits::default()),
+                Err(RunStoreError::LockBusy)
+            ));
+
+            drop(guard);
+            let next = RunStoreGuard::open(&directory.0, RunStoreLimits::default())
+                .expect("guard ownership ends before inherited descriptors close");
+            drop(duplicate);
+            assert!(matches!(
+                RunStoreGuard::open(&directory.0, RunStoreLimits::default()),
+                Err(RunStoreError::LockBusy)
+            ));
+            drop(next);
+            RunStoreGuard::open(&directory.0, RunStoreLimits::default())
+                .expect("next owner also releases its lock");
         }
     }
 }
