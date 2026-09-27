@@ -49346,8 +49346,21 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     .map(|(_, value)| value)
                     .unwrap_or(argument);
                 let actual = self.infer_expr_fir_ty(argument);
+                // Intrinsic None has no payload from which to infer T. The
+                // typed Option head supplies that context without authorizing
+                // a miss or manufacturing a whole-family proof certificate.
+                let contextual_none = matches!(&argument.kind, ExprKind::Var(name) if name == "None")
+                    && matches!(&expected, FirTy::Option(_))
+                    && matches!(&actual, FirTy::Option(inner) if matches!(inner.as_ref(), FirTy::Unknown | FirTy::Var(_)))
+                    && !self.local_bindings.contains("None")
+                    && !self.var_fir_types.contains_key("None")
+                    && !self.types.fn_types.contains_key("None")
+                    && !self.types.prolog_rule_fns.contains_key("None")
+                    && self.types.variant_parents.get("None").is_some_and(|parents| {
+                        parents.len() == 1 && parents.contains("Option")
+                    });
                 !matches!(expected, FirTy::Unknown | FirTy::Var(_))
-                    && expected == actual
+                    && (expected == actual || contextual_none)
                     && !Self::static_rule_ty_contains_qualified_nominal(&expected)
             })
         })
@@ -62271,6 +62284,7 @@ assert_with_message(true, message())
 # Right = Right
 = flag = False
 | captured(value: Left) -> flag
+| captured_optional(value: Left?) -> flag
 | nullary() -> flag
 # Switch(flag: Bool) {
     | value() -> flag
@@ -62289,6 +62303,10 @@ assert_with_message(true, message())
             "= miss = captured(Right)",
             "| repeated(value: Int, value: Int) -> flag\n= miss = repeated(1, 2)",
             "| ground(1) -> flag\n= miss = ground(2)",
+            "= miss = captured(None)",
+            "= miss = captured_optional(Some(Right))",
+            "= miss = captured_optional(Some(1))",
+            "= None = Some(Right)\n= miss = captured_optional(None)",
         ] {
             let (mut codegen, statements) =
                 scan_with_codegen(&format!("{declarations}\n{probe}\n"));

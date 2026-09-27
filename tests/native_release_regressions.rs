@@ -115,3 +115,11 @@ fn guarded_partial_calls_keep_interpreter_native_parity() {
 fn disjunctions_of_complete_stable_guards_keep_native_values() {
     compare("disjunctive_guard_coverage.runa", "5\n6\n7\n2\n3\n-7");
 }
+
+#[test]
+fn none_arguments_use_the_optional_boolean_head_context() {
+    compare(
+        "optional_boolean_rule_arguments.runa",
+        "true\nfalse\nfalse\ntrue\nfalse",
+    );
+}
