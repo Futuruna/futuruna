@@ -197,7 +197,7 @@ Lowercase type variables (`a`, `b`) become Rust generics.
 }
 ```
 
-Actors have a state parameter and message handlers. Each handler returns the new state. Compiles to a tokio task with an mpsc channel.
+Actors have a state parameter and message handlers. Each handler returns the new state. An actor handles one message at a time; see [Actors](streams.md#actors) for sending, `ask`, and sharing handles.
 
 ### Module
 ```runa
@@ -309,10 +309,10 @@ Intercepts effect operations from the `in` body. `resume(value)` continues execu
 }
 ```
 
-Scopes group statements with lifecycle management. Subjects, streams, and
-live subscriptions within a scope are cleaned up when the scope ends.
-Named scopes are also the explicit owner required for live subscriptions
-started inside ordinary functions. See
+Scopes own the live subscriptions and derived streams created inside them.
+They keep receiving values after the block's statements run, until
+`@ teardown("WeatherStation")`. Named scopes are also the explicit owner
+required for live subscriptions started inside ordinary functions. See
 [docs/stream-lifetimes.md](../stream-lifetimes.md).
 
 ### Match arms
@@ -409,7 +409,7 @@ The `~` rune has two forms:
     | Err(e) -> { log(e) }
 ```
 
-The `|` arms handle three stream events: values, errors, and completion. This replaces `for` loops on streams. Use `for` for lists/ranges; use `~ + |` for streams.
+The `|` arms handle three stream events: values, errors, and completion. Arms on the lines after `~` are indented past it. Use `for` for lists and ranges; use `~ + |` for streams.
 
 See [streams.md](streams.md) for the full stream API and subscription reference.
 For lifetime ownership rules around function-local subscriptions, see
@@ -417,9 +417,9 @@ For lifetime ownership rules around function-local subscriptions, see
 
 ### Subject creation (push-based streams)
 ```runa
-~ clicks = subject()              -- empty subject
-~ temp = subject(20.0)            -- with initial value
-~ history = subject(0, 10)        -- replay subject (buffer last 10)
+~ clicks = subject()              -- keeps every value
+~ temp = subject(20.0)            -- starts with 20.0, keeps every value
+~ history = subject(0, 10)        -- starts with 0, keeps the last 10 values
 ```
 
 ### Push values into subjects
@@ -429,9 +429,11 @@ clicks <- "click2"
 temp <- 25.0
 ```
 
+`<-` returns after every subscription and derived stream has handled the value.
+
 ### Subject properties
 ```runa
-clicks.count       -- number of values pushed
+clicks.count       -- number of values the subject has emitted
 temp.latest        -- most recent value
 ```
 

@@ -14,6 +14,11 @@ mod runa_verification_arithmetic;
 #[allow(dead_code)]
 #[path = "../logic_search.rs"]
 mod runa_logic_search;
+// The live-stream and actor runtime is emitted into compiled programs that
+// use subjects or actors; compiling it here keeps it type-checked.
+#[allow(dead_code, non_camel_case_types)]
+#[path = "../live_runtime.rs"]
+mod runa_live_runtime;
 
 macro_rules! status_eprintln {
     ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), true, true) }};
@@ -24813,15 +24818,15 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }",
             },
         ),
-        // ---- Stream lifecycle (sync mode) ----
+        // ---- Subject lifecycle ----
         (
             "complete",
             BuiltinDef {
                 arity: 1,
                 shadowable: false,
-                impure: false,
+                impure: true,
                 deps: D,
-                rust_tpl: "{0}",
+                rust_tpl: "{0}.complete()",
             },
         ),
         (
@@ -24831,7 +24836,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }",
+                rust_tpl: "{0}.error(({1}).to_string())",
             },
         ),
         (
@@ -26069,20 +26074,15 @@ struct RustCodegen {
     var_types: BTreeMap<String, String>,
     /// Inferred FIR types for bindings in the current emission scope.
     var_fir_types: BTreeMap<String, FirTy>,
-    /// M13c: program needs async tokio runtime (subjects or actors detected)
+    /// Program uses subjects, actors or http_serve: emits the live runtime and
+    /// a Tokio main.
     has_async: bool,
-    /// Current Rust emission is inside an async fn/block where `.await` is legal.
-    async_context_depth: usize,
-    /// M13c: variables that are subjects (broadcast::Sender) — for codegen routing
+    /// Variables bound to subjects.
     subject_vars: BTreeSet<String>,
     /// M13c: variables that evaluate to async streams (subjects or derived stream ops)
     async_stream_vars: BTreeSet<String>,
-    /// M13c: scope name -> list of subscription JoinHandle variable names
-    scope_handles: BTreeMap<String, Vec<String>>,
-    /// M13c: current scope being emitted (for registering subscription handles)
+    /// Named scope being emitted.
     current_scope: Option<String>,
-    /// M13c: counter for generating unique subscription handle names
-    sub_counter: usize,
     /// M13c: scope name -> list of binding names (for qualified access ScopeName.field → field)
     scope_bindings: BTreeMap<String, Vec<String>>,
     /// M13c: scope name -> list of stream binding names for qualified stream accessors.
@@ -26110,14 +26110,10 @@ struct RustCodegen {
     /// Actor message payload hints from call sites:
     /// actor_name -> variant_name -> payload field types.
     actor_message_site_tys: BTreeMap<String, BTreeMap<String, Vec<FirTy>>>,
-    /// Sync subject variables: subject vars in non-async mode (Vec-based)
-    sync_subject_vars: BTreeSet<String>,
     /// Inferred element types for broadcast subjects: name -> Rust type string
     subject_elem_type: BTreeMap<String, String>,
     /// Builtin registry: name -> definition (template, arity, deps, purity)
     builtin_registry: &'static BTreeMap<String, BuiltinDef>,
-    /// Counter for generating unique async stream operator variable names
-    async_stream_counter: usize,
     /// Inferred map variable value types: var_name -> "String" or "i64" etc.
     /// Populated by pre-scanning for map_insert calls.
     map_var_value_types: BTreeMap<String, String>,
@@ -30967,12 +30963,9 @@ impl RustCodegen {
             var_types: BTreeMap::new(),
             var_fir_types: BTreeMap::new(),
             has_async: false,
-            async_context_depth: 0,
             subject_vars: BTreeSet::new(),
             async_stream_vars: BTreeSet::new(),
-            scope_handles: BTreeMap::new(),
             current_scope: None,
-            sub_counter: 0,
             scope_bindings: BTreeMap::new(),
             scope_stream_bindings: BTreeMap::new(),
             current_rule_scope_methods: BTreeMap::new(),
@@ -30986,10 +30979,8 @@ impl RustCodegen {
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
             actor_message_site_tys: BTreeMap::new(),
-            sync_subject_vars: BTreeSet::new(),
             subject_elem_type: BTreeMap::new(),
             builtin_registry: rust_builtin_registry(),
-            async_stream_counter: 0,
             map_var_value_types: BTreeMap::new(),
             empty_list_bindings: BTreeSet::new(),
             empty_list_var_types: BTreeMap::new(),
@@ -32202,79 +32193,26 @@ impl RustCodegen {
                 }
             }
         }
-        // M13c: Pre-scan for async mode — only async when subjects have for-loop subscribers
+        // Subjects and actors use the live runtime: every handle shares one
+        // stream or actor cell.
         {
-            // Pass 1: collect subject variable names
-            fn collect_subject_names(stmts: &[Stmt], names: &mut BTreeSet<String>) {
-                for s in stmts {
-                    match s {
-                        Stmt::StreamBind(name, expr) => {
-                            if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"))
-                            {
-                                names.insert(name.clone());
-                            }
+            let mut creates_subject = false;
+            for stmt in stmts {
+                walk_ast_stmt(stmt, &mut |child| {
+                    if let AstChild::Expr(Expr {
+                        kind: ExprKind::App(func, _),
+                        ..
+                    }) = child
+                    {
+                        if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "subject")
+                        {
+                            creates_subject = true;
                         }
-                        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                            collect_subject_names(body, names)
-                        }
-                        _ => {}
                     }
-                }
+                });
             }
-            // Pass 2: check if any for-loop iterates a subject (= async subscription)
-            fn has_for_on_subject(stmts: &[Stmt], subjects: &BTreeSet<String>) -> bool {
-                for s in stmts {
-                    match s {
-                        Stmt::For(
-                            _,
-                            Expr {
-                                kind: ExprKind::Var(name),
-                                ..
-                            },
-                            _,
-                        ) if subjects.contains(name) => return true,
-                        Stmt::StreamSub(
-                            Expr {
-                                kind: ExprKind::Var(name),
-                                ..
-                            },
-                            _,
-                        ) if subjects.contains(name) => return true,
-                        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                            if has_for_on_subject(body, subjects) {
-                                return true;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                false
-            }
-            let mut subject_names = BTreeSet::new();
-            collect_subject_names(stmts, &mut subject_names);
-            if !subject_names.is_empty() && has_for_on_subject(stmts, &subject_names) {
+            if creates_subject {
                 self.has_async = true;
-            }
-            // Also enable async if subjects exist and ANY StreamSub is present
-            // (the subscription might be on a derived stream like map(subject, f))
-            if !subject_names.is_empty() && !self.has_async {
-                fn has_any_stream_sub(stmts: &[Stmt]) -> bool {
-                    for s in stmts {
-                        match s {
-                            Stmt::StreamSub(_, _) => return true,
-                            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                                if has_any_stream_sub(body) {
-                                    return true;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    false
-                }
-                if has_any_stream_sub(stmts) {
-                    self.has_async = true;
-                }
             }
             for stmt in stmts {
                 if matches!(stmt, Stmt::Defn(Defn::Actor { .. })) {
@@ -34865,6 +34803,9 @@ impl RustCodegen {
         self.prescan_actor_message_site_types(&all_stmts);
         self.prescan_map_types(&all_stmts);
         self.prescan_hof_named_callback_param_types(&all_stmts);
+        if self.has_async {
+            self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
+        }
         let stmts = &all_stmts;
         self.codegen_invariants.clear();
         for stmt in stmts {
@@ -35015,183 +34956,13 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             }
         }
 
-        // M13c: emit ScopeGuard struct when async mode is active
+        // Subjects, live streams and actors share one synchronous runtime.
         if self.has_async {
-            out.push_str("use tokio::sync::broadcast;\n");
-            out.push_str("static __FUT_BARRIER_IDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);\n");
             out.push_str(
-                "\n/// Scope lifecycle guard: Drop aborts all subscription tasks (M13c)\n",
+                "\n#[allow(dead_code, non_camel_case_types, unused_imports)]\nmod __fut_live {\n",
             );
-            out.push_str("struct _ScopeGuard {\n");
-            out.push_str("    name: &'static str,\n");
-            out.push_str("    handles: Vec<tokio::task::JoinHandle<()>>,\n");
-            out.push_str("}\n");
-            out.push_str("impl Drop for _ScopeGuard {\n");
-            out.push_str("    fn drop(&mut self) {\n");
-            out.push_str("        for h in &self.handles {\n");
-            out.push_str("            h.abort();\n");
-            out.push_str("        }\n");
-            out.push_str("        __fut_abort_scope(self.name);\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
-            out.push_str("static __FUT_SCOPE_HANDLES: std::sync::OnceLock<std::sync::Mutex<BTreeMap<&'static str, Vec<tokio::task::JoinHandle<()>>>>> = std::sync::OnceLock::new();\n");
-            out.push_str("static __FUT_SCOPE_CLEANUPS: std::sync::OnceLock<std::sync::Mutex<BTreeMap<&'static str, Vec<Box<dyn Fn() + Send>>>>> = std::sync::OnceLock::new();\n");
-            out.push_str("fn __fut_scope_handles() -> &'static std::sync::Mutex<BTreeMap<&'static str, Vec<tokio::task::JoinHandle<()>>>> {\n");
-            out.push_str(
-                "    __FUT_SCOPE_HANDLES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))\n",
-            );
-            out.push_str("}\n");
-            out.push_str("fn __fut_scope_cleanups() -> &'static std::sync::Mutex<BTreeMap<&'static str, Vec<Box<dyn Fn() + Send>>>> {\n");
-            out.push_str(
-                "    __FUT_SCOPE_CLEANUPS.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))\n",
-            );
-            out.push_str("}\n");
-            out.push_str("fn __fut_register_scope_handle(scope: &'static str, handle: tokio::task::JoinHandle<()>) {\n");
-            out.push_str("    __fut_scope_handles().lock().unwrap().entry(scope).or_default().push(handle);\n");
-            out.push_str("}\n");
-            out.push_str("fn __fut_register_scope_stream<T: Clone + Send + 'static>(scope: &'static str, stream: &__FutStream<T>) {\n");
-            out.push_str("    let stream = stream.clone();\n");
-            out.push_str("    __fut_scope_cleanups().lock().unwrap().entry(scope).or_default().push(Box::new(move || stream.disable_barriers()));\n");
-            out.push_str("}\n");
-            out.push_str("fn __fut_register_scope_barrier_chain<T: Clone + Send + 'static, U: Clone + Send + 'static>(scope: &'static str, target: &__FutStream<T>, upstream: &__FutStream<U>) {\n");
-            out.push_str("    let target = target.clone();\n");
-            out.push_str("    let expected = upstream.barrier_expected();\n");
-            out.push_str("    __fut_scope_cleanups().lock().unwrap().entry(scope).or_default().push(Box::new(move || target.remove_barrier_expectations(expected)));\n");
-            out.push_str("}\n");
-            out.push_str("fn __fut_abort_scope(scope: &'static str) {\n");
-            out.push_str("    let cleanups = __fut_scope_cleanups().lock().unwrap().remove(scope).unwrap_or_default();\n");
-            out.push_str("    for cleanup in cleanups { cleanup(); }\n");
-            out.push_str("    let handles = __fut_scope_handles().lock().unwrap().remove(scope).unwrap_or_default();\n");
-            out.push_str("    for h in handles { h.abort(); }\n");
-            out.push_str("}\n");
-            out.push_str("\n#[derive(Clone)]\nenum __FutEvent<T: Clone + Send + 'static> {\n");
-            out.push_str("    Data(u64, T),\n");
-            out.push_str("    Barrier(u64),\n");
-            out.push_str("}\n");
-            out.push_str("\n#[derive(Clone)]\nstruct __FutStream<T: Clone + Send + 'static> {\n");
-            out.push_str("    tx: tokio::sync::broadcast::Sender<__FutEvent<T>>,\n");
-            out.push_str("    history: std::sync::Arc<std::sync::Mutex<Vec<(u64, T)>>>,\n");
-            out.push_str("    next_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,\n");
-            out.push_str("    barrier_expected: std::sync::Arc<std::sync::atomic::AtomicUsize>,\n");
-            out.push_str(
-                "    inject_barrier: std::sync::Arc<std::sync::Mutex<std::sync::Arc<dyn Fn(u64) + Send + Sync>>>,\n",
-            );
-            out.push_str("}\n");
-            out.push_str("impl<T: Clone + Send + 'static> __FutStream<T> {\n");
-            out.push_str("    fn new() -> Self {\n");
-            out.push_str("        let (tx, _) = broadcast::channel::<__FutEvent<T>>(256);\n");
-            out.push_str("        let barrier_tx = tx.clone();\n");
-            out.push_str("        Self {\n");
-            out.push_str("            tx,\n");
-            out.push_str(
-                "            history: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),\n",
-            );
-            out.push_str(
-                "            next_seq: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),\n",
-            );
-            out.push_str(
-                "            barrier_expected: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(1)),\n",
-            );
-            out.push_str(
-                "            inject_barrier: std::sync::Arc::new(std::sync::Mutex::new(std::sync::Arc::new(move |id| {\n",
-            );
-            out.push_str("                let _ = barrier_tx.send(__FutEvent::Barrier(id));\n");
-            out.push_str("            }))),\n");
-            out.push_str("        }\n");
-            out.push_str("    }\n");
-            out.push_str("    fn send(&self, value: T) {\n");
-            out.push_str("        let seq = self.next_seq.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
-            out.push_str("        self.history.lock().unwrap().push((seq, value.clone()));\n");
-            out.push_str("        let _ = self.tx.send(__FutEvent::Data(seq, value));\n");
-            out.push_str("    }\n");
-            out.push_str("    fn emit_barrier(&self, id: u64) {\n");
-            out.push_str("        let _ = self.tx.send(__FutEvent::Barrier(id));\n");
-            out.push_str("    }\n");
-            out.push_str(
-                "    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<__FutEvent<T>> {\n",
-            );
-            out.push_str("        self.tx.subscribe()\n");
-            out.push_str("    }\n");
-            out.push_str("    fn inject_barrier(&self, id: u64) {\n");
-            out.push_str("        let inject = self.inject_barrier.lock().unwrap().clone();\n");
-            out.push_str("        inject(id);\n");
-            out.push_str("    }\n");
-            out.push_str("    fn disable_barriers(&self) {\n");
-            out.push_str(
-                "        self.barrier_expected.store(0, std::sync::atomic::Ordering::SeqCst);\n",
-            );
-            out.push_str(
-                "        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(|_| {});\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn remove_barrier_expectations(&self, count: usize) {\n");
-            out.push_str("        let _ = self.barrier_expected.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |cur| Some(cur.saturating_sub(count)));\n");
-            out.push_str("    }\n");
-            out.push_str("    fn barrier_expected(&self) -> usize {\n");
-            out.push_str(
-                "        self.barrier_expected.load(std::sync::atomic::Ordering::SeqCst)\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn set_barrier_passthrough<U: Clone + Send + 'static>(&self, upstream: &__FutStream<U>) {\n");
-            out.push_str("        let upstream = upstream.clone();\n");
-            out.push_str("        self.barrier_expected.store(upstream.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
-            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| upstream.inject_barrier(id));\n");
-            out.push_str("    }\n");
-            out.push_str("    fn set_barrier_merge<U: Clone + Send + 'static, V: Clone + Send + 'static>(&self, left: &__FutStream<U>, right: &__FutStream<V>) {\n");
-            out.push_str("        let left = left.clone();\n");
-            out.push_str("        let right = right.clone();\n");
-            out.push_str("        self.barrier_expected.store(left.barrier_expected() + right.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
-            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| { left.inject_barrier(id); right.inject_barrier(id); });\n");
-            out.push_str("    }\n");
-            out.push_str("    fn chain_barrier_from<U: Clone + Send + 'static>(&self, upstream: &__FutStream<U>) {\n");
-            out.push_str("        let prev = self.inject_barrier.lock().unwrap().clone();\n");
-            out.push_str("        let upstream = upstream.clone();\n");
-            out.push_str("        self.barrier_expected.fetch_add(upstream.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
-            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| { prev(id); upstream.inject_barrier(id); });\n");
-            out.push_str("    }\n");
-            out.push_str("    fn watermark(&self) -> u64 {\n");
-            out.push_str("        self.next_seq.load(std::sync::atomic::Ordering::SeqCst)\n");
-            out.push_str("    }\n");
-            out.push_str("    fn snapshot(&self) -> Vec<T> {\n");
-            out.push_str(
-                "        self.history.lock().unwrap().iter().map(|(_, v)| v.clone()).collect()\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn snapshot_until(&self, watermark: u64) -> Vec<T> {\n");
-            out.push_str("        self.history.lock().unwrap().iter().filter(|(seq, _)| *seq <= watermark).map(|(_, v)| v.clone()).collect()\n");
-            out.push_str("    }\n");
-            out.push_str("    fn count(&self) -> i64 {\n");
-            out.push_str("        self.history.lock().unwrap().len() as i64\n");
-            out.push_str("    }\n");
-            out.push_str("    fn latest(&self) -> T {\n");
-            out.push_str(
-                "        self.history.lock().unwrap().last().map(|(_, v)| v.clone()).unwrap()\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("}\n");
-            out.push_str(
-                "async fn __fut_settle<T: Clone + Send + 'static>(stream: &__FutStream<T>) {\n",
-            );
-            out.push_str("    let barrier_id = __FUT_BARRIER_IDS.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
-            out.push_str("    let mut rx = stream.subscribe();\n");
-            out.push_str("    let mut seen = 0usize;\n");
-            out.push_str("    let expected = stream.barrier_expected();\n");
-            out.push_str("    stream.inject_barrier(barrier_id);\n");
-            out.push_str("    while seen < expected {\n");
-            out.push_str("        match rx.recv().await {\n");
-            out.push_str(
-                "            Ok(__FutEvent::Barrier(id)) if id == barrier_id => seen += 1,\n",
-            );
-            out.push_str("            Ok(_) => {}\n");
-            out.push_str(
-                "            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}\n",
-            );
-            out.push_str(
-                "            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,\n",
-            );
-            out.push_str("        }\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
+            out.push_str(include_str!("../live_runtime.rs"));
+            out.push_str("\n}\n#[allow(unused_imports)]\nuse __fut_live::*;\n");
         }
         out.push('\n');
 
@@ -35942,11 +35713,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
             };
-            if self.has_async {
-                self.with_async_context(&mut emit_main_stmts);
-            } else {
-                emit_main_stmts(self);
-            }
+            emit_main_stmts(self);
             if uses_try {
                 out.push_str("    Ok(())\n");
             }
@@ -36081,10 +35848,18 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     }
 
     fn infer_stream_binding_getter_type(&self, name: &str) -> String {
-        self.subject_elem_type
+        let elem_ty = self
+            .subject_elem_type
             .get(name)
-            .map(|elem_ty| format!("Vec<{}>", elem_ty))
-            .unwrap_or_else(|| "Vec<i64>".to_string())
+            .cloned()
+            .unwrap_or_else(|| "i64".to_string());
+        if self.has_async
+            && (self.subject_vars.contains(name) || self.async_stream_vars.contains(name))
+        {
+            format!("__FutStream<{}>", elem_ty)
+        } else {
+            format!("Vec<{}>", elem_ty)
+        }
     }
 
     fn uses_binary_global_env(&self) -> bool {
@@ -41150,9 +40925,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         match &expr.kind {
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let async_ops = ["map", "filter", "scan", "take", "skip", "tap", "merge"];
-                    if async_ops.contains(&name.as_str()) && !args.is_empty() {
-                        return self.is_live_stream_expr_for_validation(&args[0]);
+                    if LIVE_STREAM_OPERATORS.contains(&name.as_str()) && !args.is_empty() {
+                        return self.is_live_stream_expr_for_validation(&args[0])
+                            || (matches!(name.as_str(), "merge" | "concat")
+                                && args
+                                    .get(1)
+                                    .is_some_and(|arg| self.is_live_stream_expr_for_validation(arg)));
                     }
                 }
                 false
@@ -41176,6 +40954,29 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
     }
 
+    /// A finite-only stream operator (`window`, `zip`, ...) applied to a live
+    /// stream, in call or pipe form.
+    fn finite_only_operator_on_live_stream(&self, expr: &Expr) -> Option<String> {
+        let (name, source) = match &expr.kind {
+            ExprKind::App(func, args) => match (&func.as_ref().kind, args.first()) {
+                (ExprKind::Var(name), Some(source)) => (name, source),
+                _ => return None,
+            },
+            ExprKind::Pipe(input, transform) => match &transform.as_ref().kind {
+                ExprKind::Var(name) => (name, input.as_ref()),
+                ExprKind::App(func, _) => match &func.as_ref().kind {
+                    ExprKind::Var(name) => (name, input.as_ref()),
+                    _ => return None,
+                },
+                _ => return None,
+            },
+            _ => return None,
+        };
+        (FINITE_ONLY_STREAM_OPERATORS.contains(&name.as_str())
+            && self.is_live_stream_expr_for_validation(source))
+        .then(|| name.clone())
+    }
+
     fn collect_scope_lifetime_expr(
         &mut self,
         expr: &Expr,
@@ -41183,6 +40984,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         in_scope: bool,
         diags: &mut Vec<Diagnostic>,
     ) {
+        if let Some(operator) = self.finite_only_operator_on_live_stream(expr) {
+            diags.push(
+                Diagnostic::error_at(expr.span, finite_only_stream_operator_message(&operator))
+                    .with_note("see docs/reference/streams.md"),
+            );
+        }
         match &expr.kind {
             ExprKind::App(func, args) => {
                 self.collect_scope_lifetime_expr(func, fn_name, in_scope, diags);
@@ -44725,70 +44532,40 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     let variant = self.emit_pattern_as_enum_variant(&h.msg_pat, &actor_msg_tys);
                     out.push_str(&format!("    {},\n", variant));
                 }
-                out.push_str(&format!(
-                    "    __Ask(Box<{}Msg>, tokio::sync::oneshot::Sender<{}>),\n",
-                    sname, state_type
-                ));
                 out.push_str("}\n\n");
 
-                // Actor loop
-                out.push_str(&format!(
-                    "async fn {}_run(mut rx: tokio::sync::mpsc::UnboundedReceiver<{}Msg>, mut {}: {}) {{\n",
-                    sname, sname, sanitize_name(&state_param.name), state_type
-                ));
+                // One message at a time: the handler maps (state, message) to
+                // the next state.
                 let state_name = sanitize_name(&state_param.name);
-                let actor_loop = self.with_async_context(|cg| {
-                    let mut loop_out = String::new();
-                    loop_out.push_str("    while let Some(msg) = rx.recv().await {\n");
-                    loop_out.push_str("        match msg {\n");
-                    for h in handlers {
-                        let pat = cg.emit_pattern_as_match_arm(&h.msg_pat, &sname);
-                        let body = cg.emit_expr(&h.body);
-                        loop_out.push_str(&format!(
-                            "            {} => {{ {} = {}; }}\n",
-                            pat,
-                            sanitize_name(&state_param.name),
-                            body
-                        ));
-                    }
-                    // __Ask: process the inner message first, then reply with updated state
-                    loop_out.push_str(&format!(
-                        "            {}Msg::__Ask(inner, reply) => {{\n",
-                        sname
-                    ));
-                    loop_out.push_str("                match *inner {\n");
-                    for h in handlers {
-                        let pat = cg.emit_pattern_as_match_arm(&h.msg_pat, &sname);
-                        let body = cg.emit_expr(&h.body);
-                        loop_out.push_str(&format!(
-                            "                    {} => {{ {} = {}; }}\n",
-                            pat, state_name, body
-                        ));
-                    }
-                    loop_out.push_str(&format!(
-                        "                    {}Msg::__Ask(_, _) => {{}}\n",
-                        sname
-                    ));
-                    loop_out.push_str("                }\n");
-                    loop_out.push_str(&format!(
-                        "                let _ = reply.send({}.clone());\n",
-                        state_name
-                    ));
-                    loop_out.push_str("            }\n");
-                    loop_out.push_str("        }\n    }\n");
-                    loop_out
-                });
-                out.push_str(&actor_loop);
-                out.push_str("}\n\n");
-
-                // Spawn helper
+                out.push_str("#[allow(unused_mut, unused_variables)]\n");
                 out.push_str(&format!(
-                    "fn {}_spawn(initial: {}) -> tokio::sync::mpsc::UnboundedSender<{}Msg> {{\n",
+                    "fn {}_handle(mut {}: {}, __message: {}Msg) -> {} {{\n",
+                    sname, state_name, state_type, sname, state_type
+                ));
+                out.push_str("    match __message {\n");
+                for h in handlers {
+                    let pat = self.emit_pattern_as_match_arm(&h.msg_pat, &sname);
+                    let body = self.emit_expr(&h.body);
+                    out.push_str(&format!("        {} => {{ {} }}\n", pat, body));
+                }
+                out.push_str("        #[allow(unreachable_patterns)]\n");
+                out.push_str(&format!(
+                    "        __other => panic!(\"actor `{}` has no handler for the message {{:?}}\", __other),\n",
+                    name
+                ));
+                out.push_str("    }\n}\n\n");
+                out.push_str(&format!(
+                    "type {}ActorHandle = __FutActor<{}, {}Msg>;\n",
                     sname, state_type, sname
                 ));
-                out.push_str("    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();\n");
-                out.push_str(&format!("    tokio::spawn({}_run(rx, initial));\n", sname));
-                out.push_str("    tx\n}\n");
+                out.push_str(&format!(
+                    "fn {}_spawn(initial: {}) -> {}ActorHandle {{\n",
+                    sname, state_type, sname
+                ));
+                out.push_str(&format!(
+                    "    __FutActor::spawn({:?}, {}_handle, initial)\n}}\n",
+                    name, sname
+                ));
                 // Bring message variants into scope so bare names work: c <- Increment
                 out.push_str(&format!("#[allow(unused_imports)]\nuse {}Msg::*;\n", sname));
                 out
@@ -44900,7 +44677,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     self.rule_inference_environment_revision;
                 let saved_lib_static_names = self.lib_static_names.clone();
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
-                let saved_sync_subject_vars = self.sync_subject_vars.clone();
                 self.types.exported_names.clear();
                 let rule_groups = Self::collect_rule_groups_from_stmts(body);
                 let namespace_functions = Self::namespace_function_defns(body);
@@ -45439,11 +45215,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 self.indent = 1;
-                for stmt in body {
-                    if let Stmt::StreamBind(name, _) = stmt {
-                        self.sync_subject_vars.insert(name.clone());
-                    }
-                }
                 self.allow_global_getter_refs = true;
                 for stmt in body {
                     if matches!(stmt, Stmt::Defn(Defn::Module { .. })) {
@@ -45511,7 +45282,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 out.push_str("}\n");
                 self.lib_static_names = saved_lib_static_names;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
-                self.sync_subject_vars = saved_sync_subject_vars;
                 let module_rule_scopes = self.types.module_rule_scopes.clone();
                 self.types = saved_types;
                 self.types.module_rule_scopes = module_rule_scopes;
@@ -45755,63 +45525,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 kind: ExprKind::Effect(name, args),
                 ..
             }) if builtin_canonical(name) == "print" => self.emit_print(args, &self.ind()),
-            // M13c: @ teardown("ScopeName") → drop scope guard + yield for cleanup
-            Stmt::Expr(Expr {
-                kind: ExprKind::Effect(name, args),
-                ..
-            }) if name == "teardown" && self.has_async => {
-                if let Some(Expr {
-                    kind: ExprKind::Lit(Literal::Str(scope_name)),
-                    ..
-                }) = args.first()
-                {
-                    let mut out = String::new();
-                    out.push_str(&format!("{}// teardown scope {}\n", self.ind(), scope_name));
-                    out.push_str(&format!("{}drop(_scope_{});\n", self.ind(), scope_name));
-                    out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-                    out
+            // @ teardown("ScopeName"): the scope's subscriptions stop.
+            Stmt::Expr(teardown) if Self::teardown_scope_name(teardown).is_some() => {
+                let scope_name = Self::teardown_scope_name(teardown).unwrap_or_default();
+                if self.has_async {
+                    format!("{}__fut_teardown({:?});\n", self.ind(), scope_name)
                 } else {
-                    format!("{}// teardown (unknown scope)\n", self.ind())
+                    format!("{}// teardown {} (no live subscriptions)\n", self.ind(), scope_name)
                 }
-            }
-            // Sync teardown: no guard to drop, just emit a comment
-            Stmt::Expr(Expr {
-                kind: ExprKind::Effect(name, args),
-                ..
-            }) if name == "teardown" && !self.has_async => {
-                if let Some(Expr {
-                    kind: ExprKind::Lit(Literal::Str(scope_name)),
-                    ..
-                }) = args.first()
-                {
-                    format!(
-                        "{}// teardown scope {} (sync — no guard)\n",
-                        self.ind(),
-                        scope_name
-                    )
-                } else {
-                    format!("{}// teardown (unknown scope)\n", self.ind())
-                }
-            }
-            // M13c: @ complete(subject) → drop sender to close channel
-            Stmt::Expr(Expr {
-                kind: ExprKind::Effect(name, args),
-                ..
-            }) if name == "complete" && self.has_async => {
-                if let Some(Expr {
-                    kind: ExprKind::Var(subj),
-                    ..
-                }) = args.first()
-                {
-                    if self.subject_vars.contains(subj.as_str()) {
-                        return format!("{}drop({});\n", self.ind(), subj);
-                    }
-                }
-                format!(
-                    "{}{};\n",
-                    self.ind(),
-                    self.emit_expr(&ExprKind::Effect(name.clone(), args.clone()).into())
-                )
             }
             Stmt::Expr(expr) => {
                 if self.expr_needs_empty_list_fallback(expr) {
@@ -45853,26 +45574,17 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
 
                     if self.has_async {
-                        // Set current scope for handle registration
+                        // Subscriptions and derived streams created in the body
+                        // belong to the scope until `@ teardown("Name")`.
                         let prev_scope = self.current_scope.clone();
                         self.current_scope = Some(name.clone());
-                        self.scope_handles.insert(name.clone(), Vec::new());
-                        // Emit all body statements (including subject/subscription handling)
+                        out.push_str(&format!("{}__fut_scope_enter({:?});\n", self.ind(), name));
                         for s in body {
                             out.push_str(&self.emit_stmt(s));
                         }
-                        // Always emit scope guard so @ teardown("Name") can drop it
-                        let handles = self.scope_handles.get(name).cloned().unwrap_or_default();
-                        out.push_str(&format!(
-                            "{}let _scope_{} = _ScopeGuard {{ name: {:?}, handles: vec![{}] }};\n",
-                            self.ind(),
-                            name,
-                            name,
-                            handles.join(", ")
-                        ));
+                        out.push_str(&format!("{}__fut_scope_exit();\n", self.ind()));
                         self.current_scope = prev_scope;
                     } else {
-                        // Sync mode: emit scope body inline
                         for s in body {
                             out.push_str(&self.emit_stmt(s));
                         }
@@ -45948,21 +45660,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             }
 
             Stmt::StreamSub(expr, arms) => {
-                let mut iter_name = self.emit_expr(expr);
-                if let ExprKind::Var(name) = &expr.kind {
-                    let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-                    if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                        iter_name = format!("{}.clone()", iter_name);
-                    }
-                }
-
                 // Classify arms
                 let mut value_arms = Vec::new();
                 let mut error_arm = None;
                 let mut complete_arm = None;
                 for arm in arms {
-                    let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete")
-                        || matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
+                    let is_complete = matches!(&arm.pat, Pat::Var(n) | Pat::Con(n, _) if n == "Complete");
                     let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
                     if is_complete {
                         complete_arm = Some(arm);
@@ -45973,89 +45676,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
 
-                if self.has_async && self.is_async_stream_expr(expr) {
-                    self.sub_counter += 1;
-                    let handle_name = format!("_sub_{}", self.sub_counter);
-                    let async_captures = self.stream_sub_runtime_captures(arms);
-                    let barrier_targets = self.stream_sub_barrier_targets(arms);
-                    let mut out = String::new();
-                    out.push_str(&format!(
-                        "{}let __stream_{} = {};\n",
-                        self.ind(),
-                        self.sub_counter,
-                        iter_name
-                    ));
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.chain_barrier_from(&__stream_{});\n",
-                            self.ind(),
-                            sanitize_name(target),
-                            self.sub_counter
-                        ));
-                        if let Some(scope) = &self.current_scope {
-                            out.push_str(&format!(
-                                "{}__fut_register_scope_barrier_chain({:?}, &{}, &__stream_{});\n",
-                                self.ind(),
-                                scope,
-                                sanitize_name(target),
-                                self.sub_counter
-                            ));
-                        }
-                    }
-                    out.push_str(&format!(
-                        "{}let mut _rx_{} = __stream_{}.subscribe();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}let __cutoff_{} = __stream_{}.watermark();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}for __seed_{} in __stream_{}.snapshot_until(__cutoff_{}).into_iter() {{\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
+                if self.has_async {
+                    // Live and finite streams share the runtime: retained
+                    // values first, then the end, then later values.
+                    let stream = self.emit_live_stream_operand(expr);
+                    let captures = self.stream_sub_runtime_captures(arms);
+                    let mut out = format!("{}{}.subscribe({{\n", self.ind(), stream);
                     self.indent += 1;
-                    out.push_str(&format!(
-                        "{}match __seed_{} {{\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-                    for arm in &value_arms {
-                        let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str));
-                        self.indent += 1;
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{\n",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
-                            self.indent += 1;
-                        }
-                        out.push_str(&format!("{};\n", self.emit_expr(&arm.body)));
-                        if arm.guard.is_some() {
-                            self.indent -= 1;
-                            out.push_str(&format!("{}}}\n", self.ind()));
-                        }
-                        self.indent -= 1;
-                        out.push_str(&format!("{}}}\n", self.ind()));
-                    }
-                    out.push_str(&format!("{}_ => {{}}\n", self.ind()));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!("{}let {} = {{\n", self.ind(), handle_name));
-                    self.indent += 1;
-                    for name in async_captures
+                    for name in captures
                         .iter()
                         .filter(|name| !self.copy_vars.contains(name.as_str()))
                     {
@@ -46067,407 +45695,137 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             rust_name
                         ));
                     }
-                    out.push_str(&format!("{}tokio::spawn(async move {{\n", self.ind(),));
+                    out.push_str(&format!("{}move |__event| match __event {{\n", self.ind()));
                     self.indent += 1;
-                    out.push_str(&format!("{}loop {{\n", self.ind()));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}match _rx_{}.recv().await {{\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-
-                    out.push_str(&format!(
-                        "{}Ok(__FutEvent::Data(__seq, _)) if __seq <= __cutoff_{} => {{}}\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-
-                    // Values
-                    for arm in &value_arms {
-                        let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!(
-                            "{}Ok(__FutEvent::Data(_, {})) => {{\n",
-                            self.ind(),
-                            pat_str
-                        ));
+                    if value_arms.is_empty() {
+                        out.push_str(&format!("{}__FutEvent::Value(_) => {{}}\n", self.ind()));
+                    } else {
+                        out.push_str(&format!("{}__FutEvent::Value(__item) => {{\n", self.ind()));
                         self.indent += 1;
-                        if let Some(guard) = &arm.guard {
+                        out.push_str(&self.emit_subscription_value_match("__item.clone()", &value_arms));
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}}\n", self.ind()));
+                    }
+                    match error_arm {
+                        Some(arm) => {
                             out.push_str(&format!(
-                                "{}if {} {{
-",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
-                            self.indent += 1;
-                        }
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        if arm.guard.is_some() {
-                            self.indent -= 1;
-                            out.push_str(&format!(
-                                "{}}}
-",
+                                "{}__FutEvent::Error(__message) => {{\n",
                                 self.ind()
                             ));
-                        }
-                        self.indent -= 1;
-                        out.push_str(&format!(
-                            "{}}}
-",
-                            self.ind()
-                        ));
-                    }
-                    if !value_arms.is_empty() {
-                        // Fallback for Ok(_) if patterns don't cover everything
-                        out.push_str(&format!(
-                            "{}Ok(__FutEvent::Data(_, _)) => {{}}
-",
-                            self.ind()
-                        ));
-                    }
-                    out.push_str(&format!(
-                        "{}Ok(__FutEvent::Barrier(__barrier)) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.emit_barrier(__barrier);\n",
-                            self.ind(),
-                            sanitize_name(target)
-                        ));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-
-                    // Error
-                    out.push_str(&format!(
-                        "{}Err(tokio::sync::broadcast::error::RecvError::Lagged(_n)) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    if let Some(arm) = error_arm {
-                        if let Pat::Con(_, args) = &arm.pat {
-                            if let Some(inner) = args.first() {
-                                out.push_str(&format!(
-                                    "{}let {} = _n.to_string();
-",
-                                    self.ind(),
-                                    self.emit_pattern_match(inner)
-                                ));
+                            self.indent += 1;
+                            if let Pat::Con(_, args) = &arm.pat {
+                                if let Some(inner) = args.first() {
+                                    out.push_str(&format!(
+                                        "{}let {} = __message.clone();\n",
+                                        self.ind(),
+                                        self.emit_pattern_match(inner)
+                                    ));
+                                }
                             }
-                        }
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{
-",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
-                            self.indent += 1;
-                        }
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        if arm.guard.is_some() {
+                            out.push_str(&self.emit_subscription_arm_body(arm));
                             self.indent -= 1;
-                            out.push_str(&format!(
-                                "{}}}
-",
-                                self.ind()
-                            ));
+                            out.push_str(&format!("{}}}\n", self.ind()));
                         }
+                        None => out.push_str(&format!(
+                            "{}__FutEvent::Error(__message) => panic!(\"unhandled stream error: {{}}; add an `| Err(e) -> ...` arm to handle it\", __message),\n",
+                            self.ind()
+                        )),
                     }
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-
-                    // Complete
-                    out.push_str(&format!(
-                        "{}Err(tokio::sync::broadcast::error::RecvError::Closed) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    if let Some(arm) = complete_arm {
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{
-",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
+                    match complete_arm {
+                        Some(arm) => {
+                            out.push_str(&format!("{}__FutEvent::Complete => {{\n", self.ind()));
                             self.indent += 1;
-                        }
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        if arm.guard.is_some() {
+                            out.push_str(&self.emit_subscription_arm_body(arm));
                             self.indent -= 1;
-                            out.push_str(&format!(
-                                "{}}}
-",
-                                self.ind()
-                            ));
+                            out.push_str(&format!("{}}}\n", self.ind()));
                         }
+                        None => out.push_str(&format!("{}__FutEvent::Complete => {{}}\n", self.ind())),
                     }
-                    out.push_str(&format!(
-                        "{}break;
-",
-                        self.ind()
-                    ));
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    )); // end match
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    )); // end loop
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}})
-",
-                        self.ind()
-                    )); // end spawn
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}};\n", self.ind())); // end capture block
-
-                    if let Some(scope) = &self.current_scope.clone() {
-                        self.scope_handles
-                            .entry(scope.clone())
-                            .or_default()
-                            .push(handle_name);
-                    }
-                    return out;
-                } else {
-                    // Sync mode execution for StreamSub
-                    let mut out = String::new();
-                    out.push_str(&format!(
-                        "{}for _item in {}.into_iter() {{
-",
-                        self.ind(),
-                        iter_name
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}match _item {{
-",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    for arm in &value_arms {
-                        let pat_str = self.emit_pattern_match(&arm.pat);
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}{} if {} => {{
-",
-                                self.ind(),
-                                pat_str,
-                                self.emit_expr(guard)
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "{}{} => {{
-",
-                                self.ind(),
-                                pat_str
-                            ));
-                        }
-                        self.indent += 1;
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        self.indent -= 1;
-                        out.push_str(&format!(
-                            "{}}}
-",
-                            self.ind()
-                        ));
-                    }
-                    out.push_str(&format!(
-                        "{}_ => {{}}
-",
-                        self.ind()
-                    ));
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-
-                    if let Some(arm) = complete_arm {
-                        out.push_str(&format!(
-                            "{{
-"
-                        ));
-                        self.indent += 1;
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        self.indent -= 1;
-                        out.push_str(&format!(
-                            "{}}}
-",
-                            self.ind()
-                        ));
-                    }
-                    return out;
-                }
-            }
-
-            Stmt::For(var, iter_expr, body) => {
-                // M13c: async subscription — for x in subject spawns a subscriber task
-                if self.has_async && self.is_async_stream_expr(iter_expr) {
-                    let mut iter_name = self.emit_expr(iter_expr);
-                    if let ExprKind::Var(name) = &iter_expr.kind {
-                        let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-                        if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                            iter_name = format!("{}.clone()", iter_name);
-                        }
-                    }
-                    self.sub_counter += 1;
-                    let handle_name = format!("_sub_{}", self.sub_counter);
-                    let barrier_targets = self.stmt_barrier_targets(body);
-                    let mut out = String::new();
-                    out.push_str(&format!(
-                        "{}let __stream_{} = {};\n",
-                        self.ind(),
-                        self.sub_counter,
-                        iter_name
-                    ));
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.chain_barrier_from(&__stream_{});\n",
-                            self.ind(),
-                            sanitize_name(target),
-                            self.sub_counter
-                        ));
-                        if let Some(scope) = &self.current_scope {
-                            out.push_str(&format!(
-                                "{}__fut_register_scope_barrier_chain({:?}, &{}, &__stream_{});\n",
-                                self.ind(),
-                                scope,
-                                sanitize_name(target),
-                                self.sub_counter
-                            ));
-                        }
-                    }
-                    out.push_str(&format!(
-                        "{}let mut _rx_{} = __stream_{}.subscribe();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}let __cutoff_{} = __stream_{}.watermark();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}for {} in __stream_{}.snapshot_until(__cutoff_{}).into_iter() {{\n",
-                        self.ind(),
-                        var,
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-                    for s in body {
-                        out.push_str(&self.emit_stmt(s));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!(
-                        "{}let {} = tokio::spawn(async move {{\n",
-                        self.ind(),
-                        handle_name
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}while let Ok(__evt) = _rx_{}.recv().await {{\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!("{}match __evt {{\n", self.ind()));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}__FutEvent::Data(__seq, {}) => {{\n",
-                        self.ind(),
-                        var
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}if __seq <= __cutoff_{} {{ continue; }}\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    for s in body {
-                        out.push_str(&self.emit_stmt(s));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!(
-                        "{}__FutEvent::Barrier(__barrier) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.emit_barrier(__barrier);\n",
-                            self.ind(),
-                            sanitize_name(target)
-                        ));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
                     out.push_str(&format!("{}}});\n", self.ind()));
-                    // Register handle with current scope if inside one
-                    if let Some(scope) = &self.current_scope.clone() {
-                        self.scope_handles
-                            .entry(scope.clone())
-                            .or_default()
-                            .push(handle_name);
+                    return out;
+                }
+
+                // Finite stream without the live runtime: values in order,
+                // then completion.
+                let mut iter_name = self.emit_expr(expr);
+                if let ExprKind::Var(name) = &expr.kind {
+                    if !self.copy_vars.contains(name.as_str()) {
+                        iter_name = format!("{}.clone()", iter_name);
                     }
+                }
+                let mut out = String::new();
+                if !value_arms.is_empty() {
+                    out.push_str(&format!("{}for __item in {}.into_iter() {{\n", self.ind(), iter_name));
+                    self.indent += 1;
+                    out.push_str(&self.emit_subscription_value_match("__item", &value_arms));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                }
+                if let Some(arm) = complete_arm {
+                    out.push_str(&format!("{}{{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&self.emit_subscription_arm_body(arm));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                }
+                out
+            }
+
+            Stmt::For(var, iter_expr, body) => {
+                // `for x in live_stream { ... }` subscribes; the body runs for
+                // each retained and each later value.
+                if self.has_async && self.is_async_stream_expr(iter_expr) {
+                    let stream = self.emit_live_stream_operand(iter_expr);
+                    let item_ty = self.iter_item_ty(iter_expr);
+                    let capture_arm = MatchArm {
+                        pat: Pat::Var(var.clone()),
+                        pat_span: Span::dummy(),
+                        guard: None,
+                        body: ExprKind::Block(body.clone()).into(),
+                    };
+                    let captures = self.stream_sub_runtime_captures(std::slice::from_ref(&capture_arm));
+                    let mut out = format!("{}{}.subscribe({{\n", self.ind(), stream);
+                    self.indent += 1;
+                    for name in captures
+                        .iter()
+                        .filter(|name| !self.copy_vars.contains(name.as_str()))
+                    {
+                        let rust_name = sanitize_name(name);
+                        out.push_str(&format!(
+                            "{}let {} = {}.clone();\n",
+                            self.ind(),
+                            rust_name,
+                            rust_name
+                        ));
+                    }
+                    out.push_str(&format!("{}move |__event| match __event {{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&format!("{}__FutEvent::Value(__item) => {{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&format!(
+                        "{}let {} = __item.clone();\n",
+                        self.ind(),
+                        sanitize_name(var)
+                    ));
+                    self.with_temporary_named_types(std::slice::from_ref(var), &[item_ty], |this| {
+                        for s in body {
+                            out.push_str(&this.emit_stmt(s));
+                        }
+                    });
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    out.push_str(&format!(
+                        "{}__FutEvent::Error(__message) => panic!(\"unhandled stream error in `for` loop: {{}}\", __message),\n",
+                        self.ind()
+                    ));
+                    out.push_str(&format!("{}__FutEvent::Complete => {{}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}});\n", self.ind()));
                     return out;
                 }
 
@@ -46563,96 +45921,36 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 out
             }
             Stmt::Send(target, msg) => {
+                // Subjects and actors are shared handles: sending through any
+                // copy reaches the same stream or actor.
                 let t = self.emit_expr(target);
                 let m = self.emit_expr(msg);
-                let target_place = if let ExprKind::Var(name) = &target.kind {
-                    sanitize_name(name)
-                } else {
-                    t.clone()
-                };
-                // M13c: subject send emits broadcast send + yield for deterministic ordering
-                if self.has_async {
-                    let var_name = if let ExprKind::Var(n) = &target.kind {
-                        n.clone()
-                    } else {
-                        t.clone()
-                    };
-                    if self.subject_vars.contains(&var_name) {
-                        let mut out = format!("{}{}.send({});\n", self.ind(), target_place, m);
-                        out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-                        return out;
-                    }
-                    // Actor send: yield after send for deterministic message processing
-                    if self.actor_handle_vars.contains_key(&var_name) {
-                        let mut out =
-                            format!("{}{}.send({}).unwrap();\n", self.ind(), target_place, m);
-                        out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-                        return out;
-                    }
-                }
-                // Sync subject: push to Vec
-                let var_name = if let ExprKind::Var(n) = &target.kind {
-                    n.clone()
-                } else {
-                    t.clone()
-                };
-                if self.sync_subject_vars.contains(&var_name) {
-                    return format!("{}{}.push({});\n", self.ind(), target_place, m);
-                }
-                format!("{}{}.send({}).unwrap();\n", self.ind(), target_place, m)
+                format!("{}{}.send({});\n", self.ind(), t, m)
             }
             Stmt::StreamBind(name, expr) => {
-                // M13c: detect subject() calls → emit broadcast channel
+                let is_subject = matches!(&expr.kind, ExprKind::App(f, _) if matches!(&f.as_ref().kind, ExprKind::Var(n) if n == "subject"));
                 if self.has_async {
-                    let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
                     if is_subject {
                         self.subject_vars.insert(name.clone());
                         self.async_stream_vars.insert(name.clone());
-                        let mut out = String::new();
-                        // Extract initial value if provided: subject(val) or subject()
-                        // subject() → no initial, subject(val) → initial, subject(val, n) → initial + replay
-                        let initial_val = if let ExprKind::App(_, args) = &expr.kind {
-                            if !args.is_empty() {
-                                Some(self.emit_expr(&args[0]))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-                        if let Some(elem_type) = self.subject_elem_type.get(name) {
-                            out.push_str(&format!(
-                                "{}let {}: __FutStream<{}> = __FutStream::new();\n",
+                        let value = self.emit_expr(expr);
+                        return match self.subject_elem_type.get(name) {
+                            Some(elem_type) => format!(
+                                "{}let {}: __FutStream<{}> = {};\n",
                                 self.ind(),
                                 name,
-                                elem_type
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "{}let {} = __FutStream::new();\n",
-                                self.ind(),
-                                name
-                            ));
-                        }
-                        if let Some(init) = initial_val {
-                            out.push_str(&format!("{}{}.send({});\n", self.ind(), name, init));
-                        }
-                        return out;
+                                elem_type,
+                                value
+                            ),
+                            None => format!("{}let {} = {};\n", self.ind(), name, value),
+                        };
                     }
-
                     if self.is_async_stream_expr(expr) {
                         self.async_stream_vars.insert(name.clone());
                     }
                 }
-                // Sync mode: Vec-based stream binding
-                // Track sync subjects for Send (push) and field access (.count, .latest)
-                let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
-                if is_subject {
-                    self.sync_subject_vars.insert(name.clone());
-                }
                 let val = self.emit_expr(expr);
-                let mutability = if is_subject { "mut " } else { "" };
-                format!("{}let {}{} = {};\n", self.ind(), mutability, name, val)
+                format!("{}let {} = {};\n", self.ind(), name, val)
             }
             Stmt::Invariant {
                 name,
@@ -47400,37 +46698,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     }
 
     fn actor_handle_rust_type(&self, name: &str) -> Option<String> {
-        self.actor_handle_vars.get(name).map(|actor_name| {
-            format!(
-                "tokio::sync::mpsc::UnboundedSender<{}Msg>",
-                sanitize_name(actor_name)
-            )
-        })
+        self.actor_handle_vars
+            .get(name)
+            .map(|actor_name| format!("{}ActorHandle", sanitize_name(actor_name)))
     }
 
     fn lookup_var_rust_type(&self, name: &str) -> Option<String> {
         self.lookup_var_fir_ty(name)
             .and_then(|ty| Self::fir_type_to_rust(&ty))
             .or_else(|| self.actor_handle_rust_type(name))
-    }
-
-    fn in_async_context(&self) -> bool {
-        self.async_context_depth > 0
-    }
-
-    fn with_async_context<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
-        self.async_context_depth += 1;
-        let result = f(self);
-        self.async_context_depth -= 1;
-        result
-    }
-
-    fn with_sync_context<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
-        let saved = self.async_context_depth;
-        self.async_context_depth = 0;
-        let result = f(self);
-        self.async_context_depth = saved;
-        result
     }
 
     fn infer_expr_fir_ty_with_env(&self, expr: &Expr, type_env: BTreeMap<String, FirTy>) -> FirTy {
@@ -47845,134 +47121,61 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             && self.visible_bare_module_path(name).is_none()
     }
 
-    fn collect_subject_send_targets_from_expr(&self, expr: &Expr, targets: &mut BTreeSet<String>) {
-        match &expr.kind {
-            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
-            ExprKind::App(func, args) => {
-                self.collect_subject_send_targets_from_expr(func, targets);
-                for arg in args {
-                    self.collect_subject_send_targets_from_expr(arg, targets);
-                }
+    /// The scope named by `@ teardown("Scope")` or `teardown("Scope")`.
+    fn teardown_scope_name(expr: &Expr) -> Option<String> {
+        let args = match &expr.kind {
+            ExprKind::Effect(name, args) if name == "teardown" => args,
+            ExprKind::App(func, args)
+                if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "teardown") =>
+            {
+                args
             }
-            ExprKind::UnOp(_, body) | ExprKind::Field(body, _) | ExprKind::Try(body) => {
-                self.collect_subject_send_targets_from_expr(body, targets);
-            }
-            ExprKind::Lambda(_, _) => {}
-            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
-                self.collect_subject_send_targets_from_expr(lhs, targets);
-                self.collect_subject_send_targets_from_expr(rhs, targets);
-            }
-            ExprKind::If(cond, then_, else_) => {
-                self.collect_subject_send_targets_from_expr(cond, targets);
-                self.collect_subject_send_targets_from_expr(then_, targets);
-                self.collect_subject_send_targets_from_expr(else_, targets);
-            }
-            ExprKind::Match(scrutinee, arms) => {
-                self.collect_subject_send_targets_from_expr(scrutinee, targets);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        self.collect_subject_send_targets_from_expr(guard, targets);
-                    }
-                    self.collect_subject_send_targets_from_expr(&arm.body, targets);
-                }
-            }
-            ExprKind::Block(body) => self.collect_subject_send_targets_from_stmts(body, targets),
-            ExprKind::List(items)
-            | ExprKind::Tuple(items)
-            | ExprKind::Effect(_, items)
-            | ExprKind::Conjunction(items)
-            | ExprKind::Disjunction(items) => {
-                for item in items {
-                    self.collect_subject_send_targets_from_expr(item, targets);
-                }
-            }
-            ExprKind::Handle { body, handlers, .. } => {
-                self.collect_subject_send_targets_from_expr(body, targets);
-                for handler in handlers {
-                    self.collect_subject_send_targets_from_expr(&handler.body, targets);
-                }
-            }
+            _ => return None,
+        };
+        match args.first().map(|arg| &arg.kind) {
+            Some(ExprKind::Lit(Literal::Str(scope))) => Some(scope.clone()),
+            _ => None,
         }
     }
 
-    fn collect_subject_send_targets_from_stmts(
-        &self,
-        stmts: &[Stmt],
-        targets: &mut BTreeSet<String>,
-    ) {
-        for stmt in stmts {
-            match stmt {
-                Stmt::Send(target, msg) => {
-                    if let ExprKind::Var(name) = &target.kind {
-                        if self.subject_vars.contains(name) {
-                            targets.insert(name.clone());
-                        }
-                    }
-                    self.collect_subject_send_targets_from_expr(msg, targets);
+    /// `match value { arms }` for subscription value arms; a value no arm
+    /// accepts is a runtime error.
+    fn emit_subscription_value_match(&mut self, value: &str, value_arms: &[&MatchArm]) -> String {
+        let mut out = format!("{}match {} {{\n", self.ind(), value);
+        self.indent += 1;
+        for arm in value_arms {
+            let pat_str = self.emit_pattern_match(&arm.pat);
+            match &arm.guard {
+                Some(guard) => {
+                    let guard_str = self.emit_expr(guard);
+                    out.push_str(&format!("{}{} if {} => {{\n", self.ind(), pat_str, guard_str));
                 }
-                Stmt::Bind(_, _, expr)
-                | Stmt::MonadicBind(_, _, expr)
-                | Stmt::Expr(expr)
-                | Stmt::StreamBind(_, expr) => {
-                    self.collect_subject_send_targets_from_expr(expr, targets);
-                }
-                Stmt::Annot(_, args) => {
-                    for arg in args {
-                        self.collect_subject_send_targets_from_expr(arg, targets);
-                    }
-                }
-                Stmt::For(_, iter, body) => {
-                    self.collect_subject_send_targets_from_expr(iter, targets);
-                    self.collect_subject_send_targets_from_stmts(body, targets);
-                }
-                Stmt::While(cond, body) => {
-                    self.collect_subject_send_targets_from_expr(cond, targets);
-                    self.collect_subject_send_targets_from_stmts(body, targets);
-                }
-                Stmt::StreamSub(expr, _) => {
-                    self.collect_subject_send_targets_from_expr(expr, targets);
-                }
-                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                    self.collect_subject_send_targets_from_stmts(body, targets);
-                }
-                Stmt::Invariant {
-                    subject, predicate, ..
-                } => {
-                    self.collect_subject_send_targets_from_expr(subject, targets);
-                    self.collect_subject_send_targets_from_expr(predicate, targets);
-                }
-                Stmt::Prove {
-                    pass_block,
-                    else_block,
-                    ..
-                } => {
-                    if let Some(pass_block) = pass_block {
-                        self.collect_subject_send_targets_from_stmts(pass_block, targets);
-                    }
-                    if let Some(else_block) = else_block {
-                        self.collect_subject_send_targets_from_stmts(else_block, targets);
-                    }
-                }
-                _ => {}
+                None => out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str)),
             }
+            self.indent += 1;
+            out.push_str(&format!("{}{};\n", self.ind(), self.emit_expr(&arm.body)));
+            self.indent -= 1;
+            out.push_str(&format!("{}}}\n", self.ind()));
         }
+        out.push_str(&format!(
+            "{}#[allow(unreachable_patterns)]\n{}__other => panic!(\"no subscription arm matches the value {{:?}}\", __other),\n",
+            self.ind(),
+            self.ind()
+        ));
+        self.indent -= 1;
+        out.push_str(&format!("{}}}\n", self.ind()));
+        out
     }
 
-    fn stream_sub_barrier_targets(&self, arms: &[MatchArm]) -> Vec<String> {
-        let mut targets = BTreeSet::new();
-        for arm in arms {
-            if let Some(guard) = &arm.guard {
-                self.collect_subject_send_targets_from_expr(guard, &mut targets);
+    fn emit_subscription_arm_body(&mut self, arm: &MatchArm) -> String {
+        let body = self.emit_expr(&arm.body);
+        match &arm.guard {
+            Some(guard) => {
+                let guard_str = self.emit_expr(guard);
+                format!("{}if {} {{ {}; }}\n", self.ind(), guard_str, body)
             }
-            self.collect_subject_send_targets_from_expr(&arm.body, &mut targets);
+            None => format!("{}{};\n", self.ind(), body),
         }
-        targets.into_iter().collect()
-    }
-
-    fn stmt_barrier_targets(&self, stmts: &[Stmt]) -> Vec<String> {
-        let mut targets = BTreeSet::new();
-        self.collect_subject_send_targets_from_stmts(stmts, &mut targets);
-        targets.into_iter().collect()
     }
 
     fn stream_sub_runtime_captures(&self, arms: &[MatchArm]) -> Vec<String> {
@@ -48971,23 +48174,16 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             }
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let stream_ops = [
-                        "map",
-                        "filter",
-                        "scan",
-                        "take",
-                        "skip",
-                        "tap",
-                        "merge",
-                        "start_with",
-                        "concat",
-                    ];
-
                     if name == "as_stream" && !args.is_empty() {
                         return self.is_live_stream_expr_for_validation(&args[0]);
                     }
-                    if stream_ops.contains(&name.as_str()) && !args.is_empty() {
-                        return self.is_live_stream_expr_for_validation(&args[0]);
+                    if LIVE_STREAM_OPERATORS.contains(&name.as_str()) && !args.is_empty() {
+                        let two_sources = matches!(name.as_str(), "merge" | "concat");
+                        return self.is_live_stream_expr_for_validation(&args[0])
+                            || (two_sources
+                                && args
+                                    .get(1)
+                                    .is_some_and(|arg| self.is_live_stream_expr_for_validation(arg)));
                     }
                 }
                 false
@@ -49018,23 +48214,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
     }
 
-    fn emit_async_stream_settled_read(&self, emitted: &str, settled_read: &str) -> String {
-        if self.in_async_context() {
-            format!(
-                "{{ let __stream = ({}).clone(); __fut_settle(&__stream).await; {} }}",
-                emitted, settled_read
-            )
-        } else {
-            format!(
-                "tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async move {{ let __stream = ({}).clone(); __fut_settle(&__stream).await; {} }}))",
-                emitted, settled_read
-            )
-        }
-    }
-
     fn emit_async_stream_snapshot(&mut self, expr: &Expr) -> String {
         let emitted = self.emit_expr(expr);
-        self.emit_async_stream_settled_read(&emitted, "__stream.snapshot()")
+        format!("({}).snapshot()", emitted)
     }
 
     fn emit_async_stream_snapshot_builtin(&mut self, name: &str, args: &[Expr]) -> Option<String> {
@@ -49061,6 +48243,22 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     "{{ let mut __acc = {}; for __x in {}.into_iter() {{ __acc = ({}) (__acc.clone(), __x); }} __acc }}",
                     init, snapshot, f
                 ))
+            }
+            "any" | "all" if args.len() == 2 => {
+                let mut seeded_param_tys = BTreeMap::new();
+                if let ExprKind::Lambda(params, _) = &args[1].kind {
+                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
+                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(param.name.clone(), ty);
+                        }
+                    }
+                }
+                let call = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    &[String::from("__x")],
+                    &seeded_param_tys,
+                );
+                Some(format!("{}.into_iter().{}(|__x| {})", snapshot, name, call))
             }
             _ => None,
         }
@@ -49236,137 +48434,57 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         format!("({})({})", callable_str, rendered_args.join(", "))
     }
 
-    fn async_stream_spawn_parts(&self, handle_name: &str, stream_name: &str) -> (String, String) {
-        if let Some(scope) = &self.current_scope {
-            (
-                format!("let {handle_name} = tokio::spawn(async move {{ "),
-                format!(
-                    "}}); __fut_register_scope_handle({scope:?}, {handle_name}); __fut_register_scope_stream({scope:?}, &{stream_name});"
-                ),
-            )
-        } else {
-            (
-                String::from("tokio::spawn(async move { "),
-                String::from("});"),
-            )
-        }
+    fn emit_live_stream_operand(&mut self, expr: &Expr) -> String {
+        let emitted = self.emit_expr(expr);
+        let emitted = match &expr.kind {
+            ExprKind::Var(name) if !self.copy_vars.contains(name.as_str()) => {
+                format!("{}.clone()", emitted)
+            }
+            _ => emitted,
+        };
+        format!("__FutSource::into_live({})", emitted)
     }
 
-    /// Emit an async stream operator as a Rust block expression.
-    /// Creates a history-preserving async stream wrapper and forwards live updates.
+    fn live_callable_seed(&self, callable: &Expr, item_source: &Expr) -> BTreeMap<String, FirTy> {
+        let mut seeded_param_tys = BTreeMap::new();
+        if let ExprKind::Lambda(params, _) = &callable.kind {
+            if let (Some(param), ty) = (params.first(), self.iter_item_ty(item_source)) {
+                if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                    seeded_param_tys.insert(param.name.clone(), ty);
+                }
+            }
+        }
+        seeded_param_tys
+    }
+
+    /// Emit a live stream operator. The runtime links the derived stream to
+    /// its source; values are delivered synchronously (see
+    /// src/live_runtime.rs).
     fn emit_async_stream_op(&mut self, name: &str, args: &[Expr]) -> Option<String> {
-        if !self.has_async || args.is_empty() || !self.is_async_stream_expr(&args[0]) {
+        if !self.has_async || args.is_empty() || !LIVE_STREAM_OPERATORS.contains(&name) {
             return None;
         }
-        self.async_stream_counter += 1;
-        let n = self.async_stream_counter;
-        let mut source = self.emit_expr(&args[0]);
-        if let ExprKind::Var(name) = &args[0].kind {
-            let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-            if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                source = format!("{}.clone()", source);
-            }
+        let two_sources = matches!(name, "merge" | "concat");
+        let live_source = self.is_async_stream_expr(&args[0])
+            || (two_sources && args.get(1).is_some_and(|arg| self.is_async_stream_expr(arg)));
+        if !live_source {
+            return None;
         }
-
+        let source = self.emit_live_stream_operand(&args[0]);
         match name {
-            "map" if args.len() == 2 => {
-                let mut seeded_param_tys = BTreeMap::new();
-                if let ExprKind::Lambda(params, _) = &args[1].kind {
-                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
-                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
-                            seeded_param_tys.insert(param.name.clone(), ty);
-                        }
-                    }
-                }
-                let seed_call = self.emit_async_callable_invocation_seeded(
+            "map" | "filter" | "tap" if args.len() == 2 => {
+                let seeded_param_tys = self.live_callable_seed(&args[1], &args[0]);
+                let call = self.emit_async_callable_invocation_seeded(
                     &args[1],
                     &[String::from("__v")],
                     &seeded_param_tys,
                 );
-                let live_call = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    &[String::from("__v")],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        __out_{n}.send({seed_call}); \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    __sfwd_{n}.send({live_call}); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
-            }
-            "filter" if args.len() == 2 => {
-                let mut seeded_param_tys = BTreeMap::new();
-                if let ExprKind::Lambda(params, _) = &args[1].kind {
-                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
-                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
-                            seeded_param_tys.insert(param.name.clone(), ty);
-                        }
-                    }
-                }
-                let filter_arg = if self.async_callable_borrows_arg(&args[1], 0) {
-                    String::from("__v")
+                let body = if name == "tap" {
+                    format!("{{ {}; }}", call)
                 } else {
-                    String::from("__v.clone()")
+                    call
                 };
-                let seed_pred = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    std::slice::from_ref(&filter_arg),
-                    &seeded_param_tys,
-                );
-                let live_pred = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    &[filter_arg],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if {seed_pred} {{ __out_{n}.send(__v); }} \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    if {live_pred} {{ __sfwd_{n}.send(__v); }} \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
+                Some(format!("{}.{}(move |__v| {})", source, name, body))
             }
             "scan" if args.len() == 3 => {
                 let init = self.emit_expr(&args[1]);
@@ -49385,250 +48503,41 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                     }
                 }
-                let scan_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
-                    format!("__acc_seed_{n}")
-                } else {
-                    format!("__acc_seed_{n}.clone()")
-                };
-                let scan_live_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
-                    String::from("__acc")
-                } else {
-                    String::from("__acc.clone()")
-                };
-                let scan_seed_call = self.emit_async_callable_invocation_seeded(
+                let call = self.emit_async_callable_invocation_seeded(
                     &args[2],
-                    &[scan_acc_arg, String::from("__v")],
+                    &[String::from("__acc"), String::from("__v")],
                     &seeded_param_tys,
                 );
-                let scan_live_call = self.emit_async_callable_invocation_seeded(
-                    &args[2],
-                    &[scan_live_acc_arg, String::from("__v")],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
                 Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let mut __acc_seed_{n} = {init}; \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        __acc_seed_{n} = {scan_seed_call}; \
-                        __out_{n}.send(__acc_seed_{n}.clone()); \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __seed_acc_{n} = __acc_seed_{n}.clone(); \
-                    {spawn_start} \
-                        let mut __acc = __seed_acc_{n}; \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    __acc = {scan_live_call}; \
-                                    __sfwd_{n}.send(__acc.clone()); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
+                    "{}.scan({}, move |__acc, __v| {})",
+                    source, init, call
                 ))
             }
-            "take" if args.len() == 2 => {
+            "take" | "skip" if args.len() == 2 => {
                 let count = self.emit_expr(&args[1]);
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let mut __seen_seed_{n} = 0i64; \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if __seen_seed_{n} >= {count} {{ break; }} \
-                        __out_{n}.send(__v); \
-                        __seen_seed_{n} += 1; \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __seed_seen_{n} = __seen_seed_{n}; \
-                    {spawn_start} \
-                        let mut __c = __seed_seen_{n}; \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    if __c >= {count} {{ continue; }} \
-                                    __sfwd_{n}.send(__v); \
-                                    __c += 1; \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
+                Some(format!("{}.{}(({}) as i64)", source, name, count))
             }
-            "skip" if args.len() == 2 => {
-                let count = self.emit_expr(&args[1]);
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let mut __seen_seed_{n} = 0i64; \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if __seen_seed_{n} >= {count} {{ __out_{n}.send(__v); }} \
-                        else {{ __seen_seed_{n} += 1; }} \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __seed_seen_{n} = __seen_seed_{n}; \
-                    {spawn_start} \
-                        let mut __c = __seed_seen_{n}; \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    if __c >= {count} {{ __sfwd_{n}.send(__v); }} \
-                                    else {{ __c += 1; }} \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
+            "start_with" if args.len() == 2 => {
+                let first = self.emit_expr(&args[1]);
+                Some(format!("{}.start_with({})", source, first))
             }
-            "tap" if args.len() == 2 => {
+            "merge" | "concat" if args.len() == 2 => {
+                let other = self.emit_live_stream_operand(&args[1]);
+                Some(format!("{}.{}({})", source, name, other))
+            }
+            "catch" if args.len() == 2 => {
                 let mut seeded_param_tys = BTreeMap::new();
                 if let ExprKind::Lambda(params, _) = &args[1].kind {
-                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
-                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
-                            seeded_param_tys.insert(param.name.clone(), ty);
-                        }
+                    if let Some(param) = params.first() {
+                        seeded_param_tys.insert(param.name.clone(), FirTy::String);
                     }
                 }
-                let tap_arg = if self.async_callable_borrows_arg(&args[1], 0) {
-                    String::from("__v")
-                } else {
-                    String::from("__v.clone()")
-                };
-                let seed_tap = self.emit_async_callable_invocation_seeded(
+                let call = self.emit_async_callable_invocation_seeded(
                     &args[1],
-                    std::slice::from_ref(&tap_arg),
+                    &[String::from("__e")],
                     &seeded_param_tys,
                 );
-                let live_tap = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    &[tap_arg],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        {seed_tap}; \
-                        __out_{n}.send(__v); \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    {live_tap}; \
-                                    __sfwd_{n}.send(__v); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
-            }
-            "merge" if args.len() == 2 => {
-                self.async_stream_counter += 1; // need two rx counters
-                let n2 = self.async_stream_counter;
-                let mut source2 = self.emit_expr(&args[1]);
-                if let ExprKind::Var(name) = &args[1].kind {
-                    let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-                    if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                        source2 = format!("{}.clone()", source2);
-                    }
-                }
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                let (spawn_start2, spawn_end2) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n2),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let __src_{n2} = {source2}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_merge(&__src_{n}, &__src_{n2}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let mut __srx_{n2} = __src_{n2}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let __cutoff_{n2} = __src_{n2}.watermark(); \
-                    let __seed_a_{n} = __src_{n}.snapshot_until(__cutoff_{n}); \
-                    let __seed_b_{n} = __src_{n2}.snapshot_until(__cutoff_{n2}); \
-                    let mut __ait_{n} = __seed_a_{n}.into_iter(); \
-                    let mut __bit_{n} = __seed_b_{n}.into_iter(); \
-                    loop {{ \
-                        match (__ait_{n}.next(), __bit_{n}.next()) {{ \
-                            (Some(x), Some(y)) => {{ __out_{n}.send(x); __out_{n}.send(y); }} \
-                            (Some(x), None) => {{ __out_{n}.send(x); for rest in __ait_{n}.by_ref() {{ __out_{n}.send(rest); }} break; }} \
-                            (None, Some(y)) => {{ __out_{n}.send(y); for rest in __bit_{n}.by_ref() {{ __out_{n}.send(rest); }} break; }} \
-                            _ => break, \
-                        }} \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __sfwd_{n2} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    __sfwd_{n}.send(__v); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    {spawn_start2} \
-                        while let Ok(__evt) = __srx_{n2}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n2} {{ continue; }} \
-                                    __sfwd_{n2}.send(__v); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n2}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end2} \
-                    __out_{n} }}"
-                ))
+                Some(format!("{}.catch(move |__e: String| {})", source, call))
             }
             _ => None,
         }
@@ -51639,11 +50548,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         );
                     }
                     if name == "subject" {
-                        if args_str.is_empty() {
-                            return "vec![]".to_string();
-                        } else {
-                            return format!("vec![{}]", args_str[0]);
-                        }
+                        let initial = args_str
+                            .first()
+                            .map(|value| format!("Some({})", value))
+                            .unwrap_or_else(|| "None".to_string());
+                        let keep = args_str
+                            .get(1)
+                            .map(|keep| format!("Some(({}) as i64)", keep))
+                            .unwrap_or_else(|| "None".to_string());
+                        return format!("__FutStream::subject({}, {})", initial, keep);
                     }
                     if name == "spawn" && args.len() == 2 {
                         let actor_name = if let ExprKind::Var(n) = &args[0].kind {
@@ -51655,31 +50568,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         return format!("{}_spawn({})", actor_name, init_val);
                     }
                     if name == "ask" && args.len() == 2 {
-                        let handle_name = if let ExprKind::Var(n) = &args[0].kind {
-                            n.clone()
-                        } else {
-                            args_str[0].clone()
-                        };
-                        let actor_name = self
-                            .actor_handle_vars
-                            .get(&handle_name)
-                            .map(|n| sanitize_name(n))
-                            .unwrap_or_else(|| handle_name.clone());
-                        let await_expr = if self.in_async_context() {
-                            "__rx.await.unwrap()".to_string()
-                        } else {
-                            "tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async move { __rx.await.unwrap() }))".to_string()
-                        };
-                        return format!(
-                            "{{ let (__tx, __rx) = tokio::sync::oneshot::channel(); {}.send({}Msg::__Ask(Box::new({}), __tx)).unwrap(); {} }}",
-                            args_str[0], actor_name, args_str[1], await_expr
-                        );
+                        return format!("{}.ask({})", args_str[0], args_str[1]);
                     }
                     if name == "as_stream" && args_str.len() == 1 {
-                        if self.has_async {
-                            if self.is_async_stream_expr(&args[0]) {
-                                return format!("{}.clone()", args_str[0]);
-                            }
+                        if self.has_async && self.is_async_stream_expr(&args[0]) {
+                            return format!("{}.read_only()", args_str[0]);
                         }
                         return format!("{}.clone()", args_str[0]);
                     }
@@ -52301,20 +51194,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 out
             }
             ExprKind::Field(obj, field) => {
-                if self.has_async && self.is_async_stream_expr(obj) {
-                    let obj_str = self.emit_expr(obj);
-                    match field.as_str() {
-                        "count" => {
-                            return self
-                                .emit_async_stream_settled_read(&obj_str, "__stream.count()");
-                        }
-                        "latest" => {
-                            return self
-                                .emit_async_stream_settled_read(&obj_str, "__stream.latest()");
-                        }
-                        _ => {}
+                let live_runtime = self.has_async;
+                let stream_field = |obj_str: &str| -> Option<String> {
+                    match (field.as_str(), live_runtime) {
+                        ("count", true) => Some(format!("({}).count()", obj_str)),
+                        ("latest", true) => Some(format!("({}).latest()", obj_str)),
+                        ("count", false) => Some(format!("({}.len() as i64)", obj_str)),
+                        ("latest", false) => Some(format!(
+                            "{}.last().cloned().unwrap_or_else(|| panic!(\"`latest` of a stream that has no values\"))",
+                            obj_str
+                        )),
+                        _ => None,
                     }
-                }
+                };
                 if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.binary_global_value_refs_in_scope
                         && self.binary_global_binding_types.contains_key(var_name)
@@ -52328,10 +51220,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             sanitize_name(var_name),
                             var_name
                         );
-                        match field.as_str() {
-                            "count" => return format!("({}.len() as i64)", obj_str),
-                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                            _ => {}
+                        if let Some(read) = stream_field(&obj_str) {
+                            return read;
                         }
                     }
                     if self.getter_stream_bindings.contains(var_name.as_str())
@@ -52342,18 +51232,20 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         && !self.local_bindings.contains(var_name.as_str())
                     {
                         let obj_str = format!("{}()", sanitize_name(var_name));
-                        match field.as_str() {
-                            "count" => return format!("({}.len() as i64)", obj_str),
-                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                            _ => {}
+                        if let Some(read) = stream_field(&obj_str) {
+                            return read;
                         }
                     }
                 }
                 if let Some(obj_str) = self.module_stream_binding_getter_call(obj) {
-                    match field.as_str() {
-                        "count" => return format!("({}.len() as i64)", obj_str),
-                        "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                        _ => {}
+                    if let Some(read) = stream_field(&obj_str) {
+                        return read;
+                    }
+                }
+                if self.has_async && self.is_async_stream_expr(obj) {
+                    let obj_str = self.emit_expr(obj);
+                    if let Some(read) = stream_field(&obj_str) {
+                        return read;
                     }
                 }
                 if let Some(obj_str) = self.module_binding_getter_call(obj) {
@@ -52365,23 +51257,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     };
                     return format!("{}.{}", obj_str, rust_field);
                 }
-                // Sync subject field access: subject.count → subject.len(), subject.latest → subject.last().cloned().unwrap()
-                if let ExprKind::Var(var_name) = &obj.as_ref().kind {
-                    if self.sync_subject_vars.contains(var_name.as_str()) {
-                        let obj_str = self.emit_expr(obj);
-                        match field.as_str() {
-                            "count" => return format!("({}.len() as i64)", obj_str),
-                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                            _ => {}
-                        }
-                    }
-                }
                 if let Some(binding_name) = self.scope_qualified_stream_binding_name(obj) {
                     let obj_str = sanitize_name(&binding_name);
-                    match field.as_str() {
-                        "count" => return format!("({}.len() as i64)", obj_str),
-                        "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                        _ => {}
+                    if let Some(read) = stream_field(&obj_str) {
+                        return read;
                     }
                 }
                 // Scope-qualified access: ScopeName.field → field (local variable)
@@ -52851,9 +51730,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         .unwrap_or_default();
                     let capture_names: BTreeSet<String> =
                         typed_captures.iter().map(|(n, _)| n.clone()).collect();
-                    let handler_body = self.with_sync_context(|cg| {
-                        cg.emit_handle_body_with_captures(&h.body, &capture_names)
-                    });
+                    let handler_body = self.emit_handle_body_with_captures(&h.body, &capture_names);
                     out.push_str(&format!(
                         "{}    fn {}(&self, {}){} {{\n",
                         self.ind(),
@@ -53147,8 +52024,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     fn emit_display_value_expr(&self, expr: &Expr, emitted: &str) -> String {
         if self.has_async && self.is_async_stream_expr(expr) {
             return format!(
-                "__futuruna_show_any(&{})",
-                self.emit_async_stream_settled_read(emitted, "__stream.snapshot()")
+                "format!(\"~{{}}\", __futuruna_show_any(&({}).snapshot()))",
+                emitted
             );
         }
         if self.expr_is_known_empty_list_value(expr) {
@@ -68581,29 +67458,38 @@ Q.append_shared(value = 3, values = shared_values)
     }
 
     #[test]
-    fn legacy_emit_async_stream_helpers_honor_borrow_only_signatures() {
-        let source = r#"
-~ readings = subject()
-> render(route: String) -> String { "watch:" + route }
-> count_step(acc: Int, route: String) -> Int { acc + 1 }
-~ mapped = readings |> map(render)
-~ counted = mapped |> scan(0, count_step)
-~ counted | total -> {
-    @ print(show(total))
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("__out_1.send((render)(&__v));"),
-            "async map over helper functions should borrow when the helper param is borrow-only: {}",
-            rust
+    fn compiled_live_stream_operators_accept_borrow_only_helpers() {
+        let output = compile_and_run_test_program(
+            "~ readings = subject()\n\
+             > render(route: String) -> String { \"watch:\" + route }\n\
+             > count_step(acc: Int, route: String) -> Int { acc + 1 }\n\
+             ~ mapped = readings |> map(render)\n\
+             ~ counted = mapped |> scan(0, count_step)\n\
+             ~ counted | total -> { @ print(show(total)) }\n\
+             readings <- \"a\"\n\
+             readings <- \"b\"\n",
         );
-        assert!(
-            rust.contains("__acc_seed_2 = (count_step)(__acc_seed_2.clone(), &__v);"),
-            "async scan over helper functions should borrow borrow-only item params: {}",
-            rust
+        assert_eq!(output, "1\n2\n");
+    }
+
+    #[test]
+    fn compiled_scope_teardown_freezes_scope_owned_streams() {
+        let output = compile_and_run_test_program(
+            "~ readings = subject()\n\
+             ~ sink = subject()\n\
+             | scope Dashboard {\n\
+                 ~ projected = readings |> map(|x| x + 1)\n\
+                 ~ projected | x -> { sink <- x }\n\
+                 readings <- 1\n\
+             }\n\
+             readings <- 2\n\
+             @ teardown(\"Dashboard\")\n\
+             readings <- 3\n\
+             @ print(show(collect(Dashboard.projected)))\n\
+             @ print(show(Dashboard.projected.count))\n\
+             @ print(show(collect(sink)))\n",
         );
+        assert_eq!(output, "[2, 3]\n2\n[2, 3]\n");
     }
 
     #[test]
@@ -68805,138 +67691,6 @@ routes <- "b"
     }
 
     #[test]
-    fn legacy_emit_async_stream_reads_wait_for_quiescence() {
-        let source = r#"
-~ readings = subject()
-~ routed = subject()
-~ readings | x -> {
-    routed <- x
-}
-= routed_snapshot = collect(routed)
-= routed_count = routed.count
-= routed_latest = routed.latest
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
-            "async collect/show paths should settle derived stream state before snapshot reads: {}",
-            rust
-        );
-        assert!(
-            rust.contains("stream.inject_barrier(barrier_id);"),
-            "settle helper should inject a propagation barrier instead of polling watermarks: {}",
-            rust
-        );
-        assert!(
-            rust.contains("Ok(__FutEvent::Barrier(id)) if id == barrier_id => seen += 1"),
-            "settle helper should wait for barrier arrival at the target stream: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("tokio::time::sleep(std::time::Duration::from_millis(0)).await;"),
-            "settle helper should no longer spin on zero-duration sleeps: {}",
-            rust
-        );
-        assert!(
-            rust.contains("let __stream = (routed.clone()).clone();")
-                || rust.contains("let __stream = (routed).clone();"),
-            "settled stream reads should clone named stream handles instead of moving them: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.count()"),
-            "async .count reads should settle derived stream state before reading: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
-            "async .latest reads should settle derived stream state before reading: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_scope_qualified_async_stream_reads_wait_for_quiescence() {
-        let source = r#"
-~ readings = subject()
-~ observed = subject()
-| scope Dashboard {
-    ~ projected = readings |> map(|x| x + 1)
-    ~ projected | x -> {
-        observed <- x
-    }
-    readings <- 1
-    readings <- 2
-}
-= projected_snapshot = collect(Dashboard.projected)
-= projected_count = Dashboard.projected.count
-= projected_latest = Dashboard.projected.latest
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let __stream = (projected.clone()).clone();")
-                || rust.contains("let __stream = (projected).clone();"),
-            "scope-qualified stream reads should clone the resolved stream handle instead of lowering to bare fields: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
-            "scope-qualified collect should settle resolved stream state before snapshot reads: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.count()"),
-            "scope-qualified .count reads should settle resolved stream state before reading: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
-            "scope-qualified .latest reads should settle resolved stream state before reading: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("let projected_count = count;")
-                && !rust.contains("let projected_latest = latest;"),
-            "scope-qualified stream accessors must not collapse to bare count/latest identifiers: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_scope_qualified_sync_stream_accessors_use_vec_reads() {
-        let source = r#"
-~ readings = subject()
-| scope Dashboard {
-    ~ projected = readings |> map(|x| x + 1)
-    readings <- 1
-    readings <- 2
-}
-= projected_count = Dashboard.projected.count
-= projected_latest = Dashboard.projected.latest
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let projected_count = (projected.len() as i64);"),
-            "sync scope-qualified .count should lower to a Vec length read, not a bare identifier: {}",
-            rust
-        );
-        assert!(
-            rust.contains("let projected_latest = projected.last().cloned().unwrap();"),
-            "sync scope-qualified .latest should lower to a Vec last read, not a bare identifier: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("let projected_count = count;")
-                && !rust.contains("let projected_latest = latest;"),
-            "sync scope-qualified stream accessors must not collapse to bare count/latest identifiers: {}",
-            rust
-        );
-    }
-
-    #[test]
     fn compiled_direct_show_of_empty_head_reports_runtime_error() {
         compile_test_source_expect_runtime_failure(
             "@ print(show(head([])))\n",
@@ -68951,29 +67705,6 @@ routes <- "b"
             "@ print(show(nth([], 0)))\n",
             None,
             &["index out of bounds: 0 (len 0)"],
-        );
-    }
-
-    #[test]
-    fn legacy_emit_program_subscribes_to_derived_async_stream_bindings() {
-        let source = r#"
-~ s = subject()
-~ mapped = map(s, |x| x * 10)
-~ mapped | val -> {
-    @ print(show(val))
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let mut _rx_1 = __stream_1.subscribe();"),
-            "derived async stream bindings should subscribe through the async stream wrapper instead of iterating: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("for _item in mapped.into_iter()"),
-            "derived async stream bindings must not lower to sync iteration: {}",
-            rust
         );
     }
 
@@ -69111,36 +67842,6 @@ routes <- "b"
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
                 .collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
-    fn legacy_emit_scope_registers_derived_async_stream_operator_handles() {
-        let source = "~ readings = subject()\n\
-             ~ sink = subject()\n\
-             | scope Dashboard {\n\
-                 ~ projected = readings |> map(|x| x + 1)\n\
-                 ~ running = projected |> scan(0, |acc, x| acc + x)\n\
-                 ~ running | total -> { sink <- total }\n\
-                 readings <- 1\n\
-             }\n\
-             @ teardown(\"Dashboard\")\n";
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("_ScopeGuard { name: \"Dashboard\""),
-            "scope guard should carry the owning scope name: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_register_scope_handle(\"Dashboard\", __stream_op_"),
-            "derived stream operator forwarders inside scopes should be teardown-owned: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_register_scope_barrier_chain(\"Dashboard\""),
-            "scope-owned subscriptions should unregister their barrier expectations on teardown: {}",
-            rust
         );
     }
 

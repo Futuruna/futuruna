@@ -50,7 +50,10 @@ c <- Increment
 @ print(show(val))  -- 4
 ```
 
-Actors encapsulate mutable state behind message passing. No `Arc<Mutex<T>>`.
+Actors encapsulate mutable state behind message passing. An actor handles one
+message at a time; `<-` returns after the message is handled, and `ask`
+returns the new state. Every copy of the handle `c` shares the same actor. See
+[Actors](../reference/streams.md#actors).
 
 ## The escape hatch
 
