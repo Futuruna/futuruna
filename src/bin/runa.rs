@@ -16398,6 +16398,11 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
     };
 
+    let artifacts = type_check_artifacts(&stmts, source, filename);
+    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
+        std::process::exit(1);
+    }
+
     let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
     interp.source_dir = source_dir.clone();
