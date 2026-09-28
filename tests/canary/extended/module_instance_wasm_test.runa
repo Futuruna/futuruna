@@ -1,0 +1,18 @@
+-- wasm-build-canary
+-- The exported function reads one explicitly initialized module instance.
+
+> module Policy {
+    = allowance = 500
+
+    > total() -> Int {
+        allowance + allowance
+    }
+}
+
+@ export
+> policy_total() -> Int {
+    Policy.total()
+}
+
+| module_total: policy_total() -> policy_total() == 1000
+? module_total

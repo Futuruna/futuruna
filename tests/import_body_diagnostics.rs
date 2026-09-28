@@ -312,6 +312,45 @@ fn imported_operator_errors_are_checked_before_root_effects() {
     }
 }
 
+#[test]
+fn duplicate_functions_in_root_or_imported_source_fail_before_effects() {
+    let mut fixture = Fixture::new();
+    let duplicates = "> f(a: Int) -> Int { a }\n> f(a: Int) -> Int { a + 1 }\n";
+    fixture.write("helper.runa", duplicates);
+    for (source, location) in [
+        (
+            format!("@ print(\"must not run\")\n{duplicates}"),
+            "main.runa:3:",
+        ),
+        (
+            "@ print(\"must not run\")\n@ import ./helper\n".into(),
+            "helper.runa:2:",
+        ),
+        (
+            "@ print(\"must not run\")\n@ import Helper from ./helper\n".into(),
+            "helper.runa:2:",
+        ),
+    ] {
+        fixture.write("main.runa", &source);
+        for args in [
+            &[][..],
+            &["run"][..],
+            &["check", "--frontend"][..],
+            &["check"][..],
+        ] {
+            let output = fixture.run(args);
+            assert_eq!(output.status.code(), Some(1), "{args:?}: {output:?}");
+            assert!(output.stdout.is_empty(), "{args:?}: {output:?}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                stderr.contains("duplicate function declaration `f`"),
+                "{stderr}"
+            );
+            assert!(stderr.contains(location), "{stderr}");
+        }
+    }
+}
+
 fn assert_bad_import(fixture: &Fixture) {
     for args in [
         &["check", "--frontend"][..],

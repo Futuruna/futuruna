@@ -42,6 +42,7 @@ pub use editor_fields::EditorField;
 pub mod explore;
 mod function_returns;
 mod ordinary_calls;
+mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
@@ -50,6 +51,7 @@ mod parser_hints;
 pub mod proof_kernel;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
+mod runtime_imports;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub mod semantic_interface;
 
@@ -1300,22 +1302,22 @@ impl Lexer {
                     }
                     continue;
                 }
-                let (s, closed) = self.read_string_checked();
-                tokens.push(if closed {
-                    Token::new(TokenKind::String_, s, line, col)
-                } else {
+                let (s, closed, error) = self.read_string_checked();
+                tokens.push(if !closed {
                     Token::new(TokenKind::Invalid, "unterminated string literal", line, col)
                         .with_source_text("\"")
+                } else if let Some(error) = error {
+                    error
+                } else {
+                    Token::new(TokenKind::String_, s, line, col)
                 });
                 continue;
             }
 
             // Char literals
             if c == '\'' {
-                let (s, closed) = self.read_char_lit_checked();
-                tokens.push(if closed {
-                    Token::new(TokenKind::Char_, s, line, col)
-                } else {
+                let (s, closed, error) = self.read_char_lit_checked();
+                tokens.push(if !closed {
                     Token::new(
                         TokenKind::Invalid,
                         "invalid or unterminated character literal; use double quotes for strings, such as \"hello\"",
@@ -1323,6 +1325,10 @@ impl Lexer {
                         col,
                     )
                     .with_source_text("'")
+                } else if let Some(error) = error {
+                    error
+                } else {
+                    Token::new(TokenKind::Char_, s, line, col)
                 });
                 continue;
             }
@@ -1646,18 +1652,34 @@ impl Lexer {
         self.read_string_checked().0
     }
 
-    fn read_string_checked(&mut self) -> (String, bool) {
+    fn unknown_escape_token(kind: &str, escaped: char, line: usize, col: usize) -> Token {
+        Token::new(
+            TokenKind::Invalid,
+            format!("unknown {kind} escape `\\{escaped}`; write `\\\\` for a literal backslash"),
+            line,
+            col,
+        )
+        .with_source_text(format!("\\{escaped}"))
+    }
+
+    fn read_string_checked(&mut self) -> (String, bool, Option<Token>) {
         self.advance(); // consume opening "
         let mut s = String::new();
+        let mut error = None;
         loop {
+            let (line, col) = (self.line, self.col);
             match self.advance() {
-                Some('"') => return (s, true),
+                Some('"') => return (s, true, error),
                 Some('\\') => match self.advance() {
                     Some('n') => s.push('\n'),
                     Some('t') => s.push('\t'),
+                    Some('r') => s.push('\r'),
                     Some('\\') => s.push('\\'),
                     Some('"') => s.push('"'),
                     Some(c) => {
+                        error.get_or_insert_with(|| {
+                            Self::unknown_escape_token("string", c, line, col)
+                        });
                         s.push('\\');
                         s.push(c);
                     }
@@ -1667,23 +1689,29 @@ impl Lexer {
                 None => break,
             }
         }
-        (s, false)
+        (s, false, error)
     }
 
     pub fn read_char_lit(&mut self) -> String {
         self.read_char_lit_checked().0
     }
 
-    fn read_char_lit_checked(&mut self) -> (String, bool) {
+    fn read_char_lit_checked(&mut self) -> (String, bool, Option<Token>) {
         let opening_line = self.line;
         self.advance(); // consume opening '
+        let (line, col) = (self.line, self.col);
+        let mut error = None;
         let c = match self.advance() {
             Some('\\') => match self.advance() {
                 Some('n') => '\n',
                 Some('t') => '\t',
+                Some('r') => '\r',
                 Some('\\') => '\\',
                 Some('\'') => '\'',
-                Some(c) => c,
+                Some(c) => {
+                    error = Some(Self::unknown_escape_token("character", c, line, col));
+                    c
+                }
                 None => ' ',
             },
             Some(c) => c,
@@ -1705,7 +1733,7 @@ impl Lexer {
                 }
             }
         }
-        (c.to_string(), closed)
+        (c.to_string(), closed, error)
     }
 }
 
@@ -2930,22 +2958,10 @@ impl MetaGroundEvaluator {
             self.evaluate_binding(&dependency, bindings)?;
         }
 
-        self.interpreter.step_count = 0;
-        self.interpreter.step_limit = 1_000_000;
-        self.interpreter.budget_exceeded = false;
         self.interpreter
             .refresh_declaration_environment(&mut self.env);
-        let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.interpreter.eval(expr, &self.env)
-        }));
-        let budget_exceeded = self.interpreter.budget_exceeded;
-        self.interpreter.step_limit = 0;
-        self.interpreter.budget_exceeded = false;
-        if budget_exceeded {
-            None
-        } else {
-            evaluation.ok()
-        }
+        self.interpreter
+            .try_eval_constant(expr, &self.env, 1_000_000, 1_000_000)
     }
 
     fn evaluate_binding(&mut self, name: &str, bindings: &BTreeMap<String, &Expr>) -> Option<()> {
@@ -12509,7 +12525,7 @@ impl Parser {
 
     pub fn parse_pattern(&mut self) -> Result<Pat, String> {
         match self.peek_kind() {
-            TokenKind::Ident => {
+            TokenKind::Ident | TokenKind::KW => {
                 let tok = self.advance();
                 if tok.text == "_" {
                     Ok(Pat::Wild)
@@ -12578,6 +12594,10 @@ impl Parser {
                 let tok = self.advance();
                 Ok(Pat::Lit(Literal::Str(tok.text)))
             }
+            TokenKind::Char_ => {
+                let tok = self.advance();
+                Ok(Pat::Lit(Literal::Char(tok.text.chars().next().unwrap())))
+            }
             TokenKind::Bool_ => {
                 let tok = self.advance();
                 // In pattern context, True/False are constructors
@@ -12607,12 +12627,11 @@ impl Parser {
                 }
             }
             _ => {
-                let tok = self.advance();
-                if tok.text == "_" {
-                    Ok(Pat::Wild)
-                } else {
-                    Ok(Pat::Var(tok.text))
-                }
+                let tok = self.peek();
+                Err(format!(
+                    "{}:{}: expected a pattern, got `{}`",
+                    tok.line, tok.col, tok.source_text
+                ))
             }
         }
     }
@@ -13246,6 +13265,7 @@ impl Parser {
     }
 
     pub fn parse_block_expr(&mut self) -> Result<Expr, String> {
+        let start = self.peek().clone();
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut stmts = Vec::new();
@@ -13256,7 +13276,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
-        Ok(ExprKind::Block(stmts).into())
+        Ok(Expr::new(ExprKind::Block(stmts), self.span_since(&start)))
     }
 
     pub fn parse_block_statement(&mut self) -> Result<Stmt, String> {
@@ -15066,6 +15086,10 @@ pub struct Env {
     /// Bindings are immutable snapshots shared by cloned environments. Mutation
     /// uses copy-on-write, so child calls do not recursively clone global values.
     pub bindings: Rc<HashMap<String, Value>>,
+    /// Compiler-only reservations hide inherited/builtin values until a
+    /// source binding has a real constant value. Ordinary environments keep
+    /// this empty; lexical children can still shadow a reservation normally.
+    unavailable_constants: Rc<BTreeSet<String>>,
     /// Rc parent: child creation is O(1) refcount bump, not O(n) deep clone.
     /// This is the critical optimization for closure-heavy code (map/filter/foldl).
     pub parent: Option<Rc<Env>>,
@@ -15083,6 +15107,7 @@ impl Env {
     pub fn new() -> Self {
         Env {
             bindings: Rc::new(HashMap::new()),
+            unavailable_constants: Rc::default(),
             parent: None,
             runtime_namespace: None,
             runtime_declaration_env: None,
@@ -15092,6 +15117,7 @@ impl Env {
     pub fn child(&self) -> Self {
         Env {
             bindings: Rc::new(HashMap::new()),
+            unavailable_constants: Rc::default(),
             parent: Some(Rc::new(self.clone())),
             runtime_namespace: self.runtime_namespace.clone(),
             runtime_declaration_env: self.runtime_declaration_env.clone(),
@@ -15103,6 +15129,7 @@ impl Env {
     pub fn child_rc(self_rc: &Rc<Env>) -> Self {
         Env {
             bindings: Rc::new(HashMap::new()),
+            unavailable_constants: Rc::default(),
             parent: Some(Rc::clone(self_rc)),
             runtime_namespace: self_rc.runtime_namespace.clone(),
             runtime_declaration_env: self_rc.runtime_declaration_env.clone(),
@@ -15110,13 +15137,35 @@ impl Env {
     }
 
     pub fn get(&self, name: &str) -> Option<&Value> {
+        if self.unavailable_constants.contains(name) {
+            return None;
+        }
         self.bindings
             .get(name)
             .or_else(|| self.parent.as_ref().and_then(|p| p.get(name)))
     }
 
     pub fn set(&mut self, name: String, val: Value) {
+        if self.unavailable_constants.contains(&name) {
+            Rc::make_mut(&mut self.unavailable_constants).remove(&name);
+        }
         Rc::make_mut(&mut self.bindings).insert(name, val);
+    }
+
+    /// Reserve an authored binding while the compiler prepares its value.
+    /// An unavailable binding must hide a same-named builtin or declaration.
+    pub fn defer_constant_binding(&mut self, name: String) {
+        self.remove(&name);
+        Rc::make_mut(&mut self.unavailable_constants).insert(name);
+    }
+
+    fn constant_binding_unavailable(&self, name: &str) -> bool {
+        self.unavailable_constants.contains(name)
+            || (!self.bindings.contains_key(name)
+                && self
+                    .parent
+                    .as_ref()
+                    .is_some_and(|parent| parent.constant_binding_unavailable(name)))
     }
 
     /// Iterate over all bindings (current scope + parents)
@@ -15125,6 +15174,7 @@ impl Env {
         let mut seen = std::collections::HashSet::new();
         let mut current = Some(self);
         while let Some(env) = current {
+            seen.extend(env.unavailable_constants.iter().cloned());
             for (k, v) in env.bindings.iter() {
                 if seen.insert(k.clone()) {
                     result.push((k.clone(), v.clone()));
@@ -15811,8 +15861,11 @@ pub struct Interpreter {
     /// must never perform observable effects while exhausting assignments.
     exhaustive_preview_forbid_effects: bool,
     exhaustive_preview_error: RefCell<Option<String>>,
-    /// Resource/error guard used only by compile-time exploration-domain
-    /// evaluation. Ordinary program execution leaves this disabled.
+    /// Constant evaluation must not turn an unavailable runtime
+    /// binding into a symbolic logic value and then fold that placeholder.
+    evaluating_constant: bool,
+    /// Resource/error guard for constant and exploration-domain evaluation.
+    /// Ordinary program execution leaves this disabled.
     ground_collection_limit: Option<usize>,
     ground_error: RefCell<Option<ExploreRuntimeFailure>>,
     /// Checked numerical/value failures for external calculation calls only.
@@ -15874,6 +15927,7 @@ impl Interpreter {
             suppress_output: false,
             exhaustive_preview_forbid_effects: false,
             exhaustive_preview_error: RefCell::new(None),
+            evaluating_constant: false,
             ground_collection_limit: None,
             ground_error: RefCell::new(None),
             checking_calculation: false,
@@ -16803,6 +16857,74 @@ impl Interpreter {
         step_limit: usize,
         collection_limit: usize,
     ) -> Result<Value, ExploreRuntimeFailure> {
+        self.with_effect_free_runtime(step_limit, collection_limit, |interpreter| {
+            interpreter.eval(expression, env)
+        })
+    }
+
+    /// Speculatively evaluate a constant without observable host effects.
+    /// Static purity checks are only a filter: this boundary checks the actual
+    /// operations reached through callbacks, aliases, rules and module calls.
+    /// Failure leaves the expression for ordinary runtime evaluation.
+    pub fn try_eval_constant(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Option<Value> {
+        self.with_constant_evaluation(step_limit, collection_limit, |interpreter| {
+            interpreter.eval(expression, env)
+        })
+    }
+
+    /// Evaluate an explicit compile-time request. Effects in the expression
+    /// are intentional, but its dependencies must already have compile-time
+    /// values; unavailable runtime bindings cannot become symbolic constants.
+    pub fn eval_explicit_constant(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+    ) -> Result<Value, String> {
+        let previous = std::mem::replace(&mut self.evaluating_constant, true);
+        let result = self.with_calculation_runtime(|interpreter| interpreter.eval(expression, env));
+        self.evaluating_constant = previous;
+        result.map_err(|error| error.to_string())
+    }
+
+    /// Prepare a definition for speculative constant evaluation. Modules may
+    /// execute initializers here; they publish their scope only on success.
+    /// An effectful or incomplete module remains unavailable to the optimizer.
+    pub fn try_prepare_constant_definition(
+        &mut self,
+        definition: &Defn,
+        env: &mut Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Option<Value> {
+        self.with_constant_evaluation(step_limit, collection_limit, |interpreter| {
+            interpreter.eval_defn(definition, env)
+        })
+    }
+
+    fn with_constant_evaluation<T>(
+        &mut self,
+        step_limit: usize,
+        collection_limit: usize,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> Option<T> {
+        let previous = std::mem::replace(&mut self.evaluating_constant, true);
+        let result = self.with_effect_free_runtime(step_limit, collection_limit, operation);
+        self.evaluating_constant = previous;
+        result.ok()
+    }
+
+    fn with_effect_free_runtime<T>(
+        &mut self,
+        step_limit: usize,
+        collection_limit: usize,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> Result<T, ExploreRuntimeFailure> {
         let previous_forbid_effects = self.exhaustive_preview_forbid_effects;
         let previous_effect_error = self.exhaustive_preview_error.borrow_mut().take();
         let previous_step_count = self.step_count;
@@ -16810,6 +16932,7 @@ impl Interpreter {
         let previous_budget_exceeded = self.budget_exceeded;
         let previous_collection_limit = self.ground_collection_limit;
         let previous_ground_error = self.ground_error.borrow_mut().take();
+        let previous_suppress_output = self.suppress_output;
 
         self.exhaustive_preview_forbid_effects = true;
         self.step_count = 0;
@@ -16817,9 +16940,9 @@ impl Interpreter {
         self.budget_exceeded = false;
         self.ground_collection_limit = Some(collection_limit);
         *self.ground_error.borrow_mut() = None;
+        self.suppress_output = true;
         let output_len = self.output.len();
-        let evaluation =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(expression, env)));
+        let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         self.checked_exact_observer_memo_reset_cold_dispatch();
         let budget_exceeded = self.budget_exceeded;
         let error = self.ground_error.borrow_mut().take();
@@ -16835,6 +16958,7 @@ impl Interpreter {
         self.budget_exceeded = previous_budget_exceeded;
         self.ground_collection_limit = previous_collection_limit;
         *self.ground_error.borrow_mut() = previous_ground_error;
+        self.suppress_output = previous_suppress_output;
 
         if let Some(message) = effect_error {
             return Err(ExploreRuntimeFailure::UnsupportedCapability { message });
@@ -17748,84 +17872,6 @@ impl Interpreter {
         } else {
             self.run_program_internal(statements, env, initialization_mode, true)
         }
-    }
-
-    fn load_plain_runtime_import(
-        &mut self,
-        path: &str,
-        env: &mut Env,
-        initialization_mode: RuntimeInitializationMode,
-    ) -> Option<Value> {
-        let source_dir = self.source_dir.clone()?;
-        let file_path = Self::resolve_import_path_for_source(path, &source_dir)?;
-        let canonical = std::fs::canonicalize(&file_path)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| file_path.clone());
-        let namespace = self.namespace_for_env(env);
-        let completion_key = format!("plain:{canonical}");
-        if namespace
-            .state
-            .borrow()
-            .completed_imports
-            .contains(&completion_key)
-        {
-            return Some(Value::Unit);
-        }
-        let result = self.with_active_runtime_import(&canonical, |interpreter| {
-            match parse_source_module_file_cached(Path::new(&file_path)) {
-                Ok(module) => {
-                    let definitions = module
-                        .statements()
-                        .iter()
-                        .filter(|statement| Self::is_runtime_import_statement(statement))
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    let roots = (initialization_mode == RuntimeInitializationMode::Exploration)
-                        .then(|| {
-                            interpreter
-                                .exploration_runtime_demand
-                                .plain_import_roots
-                                .clone()
-                        });
-                    let value = interpreter.with_runtime_source_dir(
-                        Self::imported_source_dir(&file_path),
-                        &canonical,
-                        module.source(),
-                        |interpreter| {
-                            interpreter.with_runtime_plain_type_source(
-                                Some((
-                                    Rc::from(format!("{canonical:?}#{}", module.content_hash())),
-                                    namespace.identity_key(),
-                                )),
-                                |interpreter| {
-                                    interpreter.run_imported_runtime_statements(
-                                        &definitions,
-                                        env,
-                                        initialization_mode,
-                                        roots,
-                                    )
-                                },
-                            )
-                        },
-                    );
-                    namespace
-                        .state
-                        .borrow_mut()
-                        .completed_imports
-                        .insert(completion_key);
-                    interpreter.runtime_loaded_sources.insert(canonical.clone());
-                    Some(value)
-                }
-                Err(error) => {
-                    interpreter.report_runtime_import_failure(format!(
-                        "Cannot import {}: {}",
-                        file_path, error
-                    ));
-                    None
-                }
-            }
-        });
-        result.unwrap_or(Some(Value::Unit))
     }
 
     fn load_qualified_runtime_import(
@@ -18907,6 +18953,15 @@ impl Interpreter {
     }
 
     fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
+        self.register_sourced_static_declarations(stmts, env, None);
+    }
+
+    fn register_sourced_static_declarations(
+        &mut self,
+        stmts: &[Stmt],
+        env: &mut Env,
+        sources: Option<&runtime_imports::RuntimeStatementSources>,
+    ) {
         if !Self::statements_define_runtime_declarations(stmts) {
             return;
         }
@@ -18915,6 +18970,7 @@ impl Interpreter {
         self.invalidate_checked_exact_observer_memo();
         let namespace = self.namespace_for_env(env);
         for stmt in stmts {
+            self.activate_program_statement_source(stmt, sources);
             match stmt {
                 Stmt::Defn(defn @ Defn::Fn { name, .. }) => {
                     self.register_runtime_callable_declaration(
@@ -20084,12 +20140,13 @@ impl Interpreter {
         }
     }
 
-    fn run_program_internal(
+    fn run_program_body(
         &mut self,
         stmts: &[Stmt],
         env: &mut Env,
         initialization_mode: RuntimeInitializationMode,
         order_value_bindings: bool,
+        sources: Option<&runtime_imports::RuntimeStatementSources>,
     ) -> Value {
         let publishes_declaration_env =
             order_value_bindings || Self::statements_define_runtime_declarations(stmts);
@@ -20140,7 +20197,7 @@ impl Interpreter {
         };
         let (prelude, local_stmts) = stmts.split_at(prelude_len);
         if !prelude.is_empty() {
-            self.register_static_declarations(prelude, env);
+            self.register_sourced_static_declarations(prelude, env, sources);
         }
         let mut last = Value::Unit;
         let mut pending_annot: Option<String> = None;
@@ -20156,9 +20213,9 @@ impl Interpreter {
             if self.calculation_failed() {
                 break;
             }
-            // Imports establish the dependency environment first. Once the local
-            // module starts, hoist its static declarations before evaluating any
-            // binding, matching codegen without reversing local import overrides.
+            // Plain imports are already merged into this declaration scope.
+            // Load any prefix qualified/hash namespaces, then install the final
+            // static declarations before evaluating the merged initializers.
             if !static_declarations_registered
                 && !matches!(
                     stmt,
@@ -20172,9 +20229,11 @@ impl Interpreter {
                         | Stmt::Depend(_, _)
                 )
             {
-                self.register_static_declarations(local_stmts, env);
+                self.register_sourced_static_declarations(local_stmts, env, sources);
                 static_declarations_registered = true;
             }
+
+            self.activate_program_statement_source(stmt, sources);
 
             // Publish only the lexical state completed before this statement.
             // The current RHS and any call-local bindings cannot enter its own
@@ -20358,12 +20417,8 @@ impl Interpreter {
                 Stmt::Annot(_, _) => {}
                 Stmt::PreludeBoundary | Stmt::Use(_) => {}
                 Stmt::RustBlock(_) => {} // @ rust { } blocks are transpile-time only
-                Stmt::Import(path) => {
-                    if let Some(value) =
-                        self.load_plain_runtime_import(path, env, initialization_mode)
-                    {
-                        last = value;
-                    }
+                Stmt::Import(_) => {
+                    unreachable!("plain imports must be normalized before runtime evaluation")
                 }
                 Stmt::QualifiedImport(mod_name, path) => {
                     if let Some(value) =
@@ -21290,6 +21345,11 @@ impl Interpreter {
         }
         // Check if this is an effect operation call dispatched to a handler.
         if let ExprKind::Var(function_name) = &function.kind {
+            if self.evaluating_constant && env.constant_binding_unavailable(function_name) {
+                return self.panic_or_ground_fail(format!(
+                    "constant evaluation requires an initialized value for `{function_name}`"
+                ));
+            }
             if function_name == PATHOF_MARKER {
                 return pathof_canonical_path(expression)
                     .map(Value::Str)
@@ -21674,6 +21734,11 @@ impl Interpreter {
         match &expr.kind {
             ExprKind::Var(name) => {
                 let namespace = self.namespace_for_env(env);
+                if self.evaluating_constant && env.constant_binding_unavailable(name) {
+                    return self.panic_or_ground_fail(format!(
+                        "constant evaluation requires an initialized value for `{name}`"
+                    ));
+                }
                 // Check local env first (params, local bindings, builtins)
                 if let Some(val) = env.get(name) {
                     let value_namespace = self.runtime_value_namespace(val);
@@ -21734,6 +21799,11 @@ impl Interpreter {
                     // lexical bindings have already been resolved above.
                     if let Some(message) = removed_database_builtin_message(name) {
                         return self.panic_or_ground_fail(message);
+                    }
+                    if self.evaluating_constant {
+                        return self.panic_or_ground_fail(format!(
+                            "constant evaluation requires an initialized value for `{name}`"
+                        ));
                     }
                     // Might be an unbound variable (used in logic rules)
                     Value::Constructor(name.clone(), vec![].into())
@@ -48278,7 +48348,21 @@ impl TypeChecker {
         let model_module = Self::model_interface_module_id(statements, dir, &model_module_key);
         let mut declaration_ordinal = 0usize;
         let mut model_declaration_ordinal = 0usize;
-        for statement in statements {
+        let prelude_len = Self::leading_rule_dispatch_prelude_indices(statements).len();
+        let (prelude, authored) = statements.split_at(prelude_len);
+        let ordered = prelude
+            .iter()
+            .chain(
+                authored
+                    .iter()
+                    .filter(|statement| matches!(statement, Stmt::Import(_))),
+            )
+            .chain(
+                authored
+                    .iter()
+                    .filter(|statement| !matches!(statement, Stmt::Import(_))),
+            );
+        for statement in ordered {
             let statement_ordinal = Self::analysis_declaration_signature(statement).map(|_| {
                 let ordinal = declaration_ordinal;
                 declaration_ordinal += 1;
@@ -54685,6 +54769,7 @@ impl TypeChecker {
                 let previous_anchor = self.import_diagnostic_anchor;
                 self.import_diagnostic_anchor = unit.import_span;
                 let start = self.diagnostics.len();
+                self.check_function_declarations(&unit.statements);
                 if unit.scope.is_some() {
                     self.check_rule_result_contracts(&unit.statements);
                 }
@@ -54867,21 +54952,15 @@ impl TypeChecker {
     }
     fn rule_dispatch_program_has_opaque_runtime_graph(statements: &[Stmt]) -> bool {
         let injected_prelude = Self::leading_rule_dispatch_prelude_indices(statements);
-        let mut program_started = false;
         for (index, statement) in statements.iter().enumerate() {
             if injected_prelude.contains(&index) {
                 continue;
             }
-            match statement {
-                Stmt::HashImport(_, _) => return true,
-                Stmt::Import(_) => {
-                    if program_started {
-                        return true;
-                    }
-                }
-                Stmt::QualifiedImport(_, _) => return true,
-                Stmt::Annot(_, _) | Stmt::Use(_) | Stmt::Depend(_, _) | Stmt::RustBlock(_) => {}
-                _ => program_started = true,
+            if matches!(
+                statement,
+                Stmt::HashImport(_, _) | Stmt::QualifiedImport(_, _)
+            ) {
+                return true;
             }
             if Self::top_level_rule_dispatch_stmt_mutates_shared_registry(statement) {
                 return true;
@@ -55602,6 +55681,7 @@ impl TypeChecker {
         stmts: &[Stmt],
         selectable_explorations: bool,
     ) {
+        self.check_function_declarations(stmts);
         let mut pending_comptime = false;
         for stmt in stmts {
             match stmt {
@@ -58384,6 +58464,7 @@ impl TypeChecker {
                 self.check_expr(iter_expr, None);
                 self.push_scope();
                 self.define_var(var);
+                self.check_function_declarations(body);
                 for s in body {
                     self.check_stmt(s);
                 }
@@ -58392,6 +58473,7 @@ impl TypeChecker {
             Stmt::While(cond, body) => {
                 self.check_expr(cond, None);
                 self.push_scope();
+                self.check_function_declarations(body);
                 for s in body {
                     self.check_stmt(s);
                 }
@@ -62986,11 +63068,18 @@ __FINDS__
                 .iter()
                 .map(|declaration| declaration.id.name.as_ref())
                 .collect::<Vec<_>>(),
-            vec!["Qualified", "helper", "eligible", "scan"]
+            vec!["helper", "eligible", "Qualified", "scan"]
         );
-        assert!(declarations[1..3]
+        assert!(declarations[..2]
             .iter()
             .all(|declaration| matches!(&declaration.import_kind, SourcedImportKind::PlainImport)));
+        assert!(matches!(
+            &declarations[2].import_kind,
+            SourcedImportKind::QualifiedImport { module_name } if module_name.as_ref() == "Qualified"
+        ));
+        assert!(declarations[2].qualified_target_module.is_some());
+        assert!(declarations[2].qualified_target_model_module.is_some());
+        assert!(declarations[2].qualified_target_source_path.is_some());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -65448,7 +65537,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn boolean_rule_miss_safety_rejects_opaque_registry_graphs_and_late_imports() {
+    fn boolean_rule_miss_safety_distinguishes_static_imports_from_opaque_registry_graphs() {
         let opaque_sources = [
             r#"
 > module Hidden { | collision(value: Int) -> value + 1 under value > 0 }
@@ -65463,8 +65552,11 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | condition(value: Int) -> True under value > 0
 "#,
             r#"
-= seed = 0
-@ import ./missing
+@ import Hidden from ./missing
+| condition(value: Int) -> True under value > 0
+"#,
+            r#"
+@ import #a1b2c3 from ./missing
 | condition(value: Int) -> True under value > 0
 "#,
         ];
@@ -65484,17 +65576,16 @@ starters first from mechanisms paths for node activation "{digest}" using values
             );
         }
 
-        let prefix_import = parse_test_program(
-            "@ import ./missing\n| condition(value: Int) -> True under value > 0\n",
-        )
-        .expect("parse prefix import fixture");
-        let effective_program = prepend_prelude(parse_prelude(), &prefix_import);
-        let (_, _, safe_keys) =
-            TypeChecker::rule_dispatch_metadata_for_runtime(&effective_program, None);
-        assert!(
-            safe_keys.contains(&key),
-            "the injected prelude must not make a user prefix import look late"
-        );
+        for prefix in ["", "= seed = 0\n"] {
+            let source = format!(
+                "{prefix}@ import ./missing\n| condition(value: Int) -> True under value > 0\n"
+            );
+            let statements = parse_test_program(&source).expect("parse static import fixture");
+            let effective_program = prepend_prelude(parse_prelude(), &statements);
+            let (_, _, safe_keys) =
+                TypeChecker::rule_dispatch_metadata_for_runtime(&effective_program, None);
+            assert!(safe_keys.contains(&key), "static plain import: {source}");
+        }
 
         let mut prelude_shaped_user_declaration = parse_prelude()
             .into_iter()
@@ -65518,8 +65609,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let (_, _, safe_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(&near_shape_program, None);
         assert!(
-            safe_keys.is_empty(),
-            "a differently named declaration with a prelude-shaped body must make the import late"
+            safe_keys.contains(&key),
+            "an authored declaration before a plain import remains in the static graph"
         );
     }
 

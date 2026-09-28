@@ -1,0 +1,4 @@
+@ export fee
+@ export seed
+> fee(x: Int) -> Int { x * 100 }
+= seed = fee(5)

@@ -118,7 +118,7 @@ fn verification_uses_the_same_import_precedence() {
 }
 
 #[test]
-fn authored_prelude_equivalent_declarations_keep_their_source_position() {
+fn authored_declarations_before_imports_keep_static_precedence() {
     let fixture = Fixture::new(
         "> fee(x: Int) -> Int { x * 100 }\n",
         "> identity(x: a) -> a { x }\n@ import ./dependency\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(fee(5)))\n",
@@ -132,7 +132,7 @@ fn authored_prelude_equivalent_declarations_keep_their_source_position() {
         );
         assert_eq!(
             String::from_utf8_lossy(&output.stdout).trim(),
-            "500",
+            "6",
             "{arguments:?}"
         );
     }
@@ -140,8 +140,11 @@ fn authored_prelude_equivalent_declarations_keep_their_source_position() {
 
 #[test]
 fn cloned_and_repeated_prelude_injection_keeps_origin_distinct_from_authored_copies() {
-    let source = "@ import ./dependency\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(fee(5)))\n";
-    let fixture = Fixture::new("> fee(x: Int) -> Int { x * 100 }\n", source);
+    let source = "@ import ./dependency\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(fee(5)))\n@ print(show(identity(5)))\n";
+    let fixture = Fixture::new(
+        "> fee(x: Int) -> Int { x * 100 }\n> identity(x: Int) -> Int { x + 1 }\n",
+        source,
+    );
     let statements = Parser::new(Lexer::new(source).tokenize(), source)
         .parse_program()
         .unwrap();
@@ -149,7 +152,11 @@ fn cloned_and_repeated_prelude_injection_keeps_origin_distinct_from_authored_cop
     let repeated = prepend_prelude(parse_prelude(), &injected);
     let mut authored = parse_prelude();
     authored.extend(statements);
-    for (program, expected) in [(injected.clone(), "6"), (repeated, "6"), (authored, "500")] {
+    for (program, expected) in [
+        (injected.clone(), "6\n6"),
+        (repeated, "6\n6"),
+        (authored, "6\n5"),
+    ] {
         let mut interpreter = Interpreter::new();
         interpreter.source_dir = Some(fixture.directory.to_string_lossy().into_owned());
         let mut environment = interpreter.default_env();
@@ -159,26 +166,33 @@ fn cloned_and_repeated_prelude_injection_keeps_origin_distinct_from_authored_cop
 }
 
 #[test]
-fn verification_does_not_hoist_a_late_import_into_a_false_proof() {
+fn verification_and_execution_share_static_import_precedence() {
     for prefix in ["> anchor() -> Int { 0 }\n", "> identity(x: a) -> a { x }\n"] {
         let fixture = Fixture::new(
             "> fee(x: Int) -> Int { x * 100 }\n",
-            &format!("{prefix}@ import ./dependency\n> fee(x: Int) -> Int {{ x + 1 }}\n| wrong: 0 -> fee(5) == 6\n? wrong else {{ @ print(\"false at runtime\") }}\n"),
+            &format!("{prefix}@ import ./dependency\n> fee(x: Int) -> Int {{ x + 1 }}\n| correct: 0 -> fee(5) == 6\n| wrong: 0 -> fee(5) == 500\n? correct else {{ @ print(\"wrong precedence\") }}\n? wrong else {{ @ print(\"counterexample\") }}\n"),
         );
-        let interpreted = fixture.run(&[]);
-        assert!(
-            interpreted.status.success(),
-            "{}",
-            String::from_utf8_lossy(&interpreted.stderr)
-        );
-        assert_eq!(
-            String::from_utf8_lossy(&interpreted.stdout).trim(),
-            "false at runtime"
-        );
+        for args in [&[][..], &["run"][..]] {
+            let output = fixture.run(args);
+            assert!(output.status.success(), "{output:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout).trim(),
+                "counterexample"
+            );
+        }
         let verified = fixture.run(&["verify"]);
         assert!(!verified.status.success());
-        assert!(!String::from_utf8_lossy(&verified.stdout).contains("PROVED"));
-        assert!(String::from_utf8_lossy(&verified.stderr)
-            .contains("verification cannot reorder late plain import"));
+        let stdout = String::from_utf8_lossy(&verified.stdout);
+        assert!(!stdout.contains("PROVED: |wrong|"), "{stdout}");
+        if Command::new("z3")
+            .arg("--version")
+            .output()
+            .is_ok_and(|output| output.status.success())
+        {
+            assert!(stdout.contains("PROVED: |correct|"), "{stdout}");
+            assert!(stdout.contains("COUNTEREXAMPLE"), "{stdout}");
+        } else {
+            assert!(stdout.contains("Z3 not found"), "{stdout}");
+        }
     }
 }

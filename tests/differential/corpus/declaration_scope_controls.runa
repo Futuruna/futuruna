@@ -1,0 +1,8 @@
+> identity(x: Int) -> Int { x }
+> f() -> Int { 1 }
+> module A { > f() -> Int { 2 } }
+> module B { > f() -> Int { 3 } }
+> outer() -> Int { > f() -> Int { 4 }; f() }
+| accepted(1)
+| accepted(2)
+@ print(show(identity(f()) + A.f() + B.f() + outer()))

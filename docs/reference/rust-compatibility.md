@@ -163,6 +163,30 @@ artifact expectation fixture or doc explicitly promises them.
 `runa lib file.runa` emits a Rust source file intended to be compiled into a
 Rust library or included as a Rust module.
 
+Libraries with runtime bindings expose an explicit initializer, `__fut_init()`.
+It returns an owned `__FutGlobals` context. Exported functions that use those
+bindings receive a reference to the context before their ordinary arguments.
+Keep that context to reuse initialized values; each initialization creates an
+independent instance. Emitting the library does not run ordinary initializers.
+
+For example, an exported `answer()` that reads values from an imported module
+is called from Rust as follows:
+
+```rust
+let model = futuruna_lib::__fut_init();
+let answer = futuruna_lib::answer(&model);
+```
+
+The generated signature identifies whether a function needs this context.
+Module callbacks retain the initialized values they capture when they escape
+their declaration scope.
+
+WASM packages expose the same instance boundary to JavaScript. After loading
+the package with its default initializer, call its named `__fut_init()` export
+to obtain a context. Pass it before ordinary arguments where the generated
+TypeScript signature requires `__FutGlobals`, and call `context.free()` when
+finished with the instance.
+
 Stable today:
 
 - exported Futuruna ADTs become public Rust structs/enums
