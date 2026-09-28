@@ -3,10 +3,10 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kalenderdato
-@ importer ./aktieavancebeskatningsloven - kilder
-@ importer ./aktieavancebeskatningsloven - par5a
-@ importer ./aktieavancebeskatningsloven - par19b - 22
-@ importer ./ejendomsavancebeskatningsloven - par8 - par9
+@ importer ./aktieavancebeskatningsloven-kilder
+@ importer ./aktieavancebeskatningsloven-par5a
+@ importer ./aktieavancebeskatningsloven-par19b-22
+@ importer ./ejendomsavancebeskatningsloven-par8-par9
 @ importer ./selskabsskatteloven
 
 -- Aktieavancebeskatningsloven -- Personskatteloven § 4, stk. 1, nr. 5, og § 4 a.

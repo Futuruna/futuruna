@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / ligningsloven - par9j - enlig
+@ importer ../examples/danish-income-tax/ligningsloven-par9j-enlig
 
 > enlig_kvartal(år: Heltal, nr: Heltal, ret: Boolsk, modtaget: Boolsk, kilde: Tekst) -> Ligningslov9JEnligKvartal {
     Ligningslov9JEnligKvartal(indkomstår = år, kvartal = nr, berettiget = ret, modtaget = modtaget, kildereference = kilde)

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par30 - 31 - ydelsesundtagelser
+@ importer ./ligningsloven-par30-31-ydelsesundtagelser
 
 | ll30_scenarie_misbrugsbehandling(lægeerklæring: Boolsk, medicindækning: Ligningslov30Medicindækning) -> Ll30Og31BehandlingsydelseEfterPar30(fakta = Ligningslov30Behandlingsfakta(
     formål = Ll30Alkoholmisbrug,

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./arbejdsmarkedsbidragsloven - par2 - stk1 - nr5
+@ importer ./arbejdsmarkedsbidragsloven-par2-stk1-nr5
 
 = ambl_par2_nr5_felt_indbetalinger = TypetBeregningsfelt(
     path = refof(AmblPar2Nr5Årsgrundlag::indbetalinger),

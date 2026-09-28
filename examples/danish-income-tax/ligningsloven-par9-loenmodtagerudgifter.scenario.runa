@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par9 - loenmodtagerudgifter
+@ importer ./ligningsloven-par9-loenmodtagerudgifter
 
 # Ligningslov9Stk1Årsforventning(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstalskilde: Par20ReguleringstalKilde, reguleringstal_tiendedele: Heltal, grundbeløb_kroner: Heltal, fradrag_kroner: Heltal)
 

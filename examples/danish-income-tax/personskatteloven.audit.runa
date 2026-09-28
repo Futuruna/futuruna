@@ -1,48 +1,48 @@
 @ sprog da
 
-@ importer ./source - status
+@ importer ./source-status
 @ importer ./pengebeloeb
 @ importer ./arbejdsmarkedsbidragsloven
-@ importer ./arbejdsmarkedsbidrag - loenmodtager.scenario
+@ importer ./arbejdsmarkedsbidrag-loenmodtager.scenario
 @ importer ./kommuneskatteloven
-@ importer ./kommuneskattelov - personskat.scenario
-@ importer ./kommuneskattelov - skattekommune.scenario
-@ importer ./kommuneskattelov - afregning.scenario
-@ importer ./folkekirkens - oekonomi
+@ importer ./kommuneskattelov-personskat.scenario
+@ importer ./kommuneskattelov-skattekommune.scenario
+@ importer ./kommuneskattelov-afregning.scenario
+@ importer ./folkekirkens-oekonomi
 @ importer ./kildeskatteloven
 @ importer ./kildeskattebekendtgoerelsen
 @ importer ./forskudsregistrering_2026
 @ importer ./slutopgoerelse
 @ importer ./opkraevningsloven
 @ importer ./ligningsloven_fradrag
-@ importer ./ligningsloven - par9c - befordring.audit
-@ importer ./kapitel - 01 - indkomst
-@ importer ./personskatteloven - par3 - pension.scenario
-@ importer ./personskatteloven - par3 - husdyr - varelager.scenario
-@ importer ./personskatteloven - par3 - sociale - bidrag.scenario
-@ importer ./personskatteloven - par3 - henlaeggelser.scenario
-@ importer ./personskatteloven - par3 - indtaegtsfoering.scenario
-@ importer ./personskatteloven - par3 - ll9b - ll8o.scenario
-@ importer ./personskatteloven - par3 - afskrivning - ivaerksaetter.scenario
-@ importer ./kapitel - 02 - statsskat
+@ importer ./ligningsloven-par9c-befordring.audit
+@ importer ./kapitel-01-indkomst
+@ importer ./personskatteloven-par3-pension.scenario
+@ importer ./personskatteloven-par3-husdyr-varelager.scenario
+@ importer ./personskatteloven-par3-sociale-bidrag.scenario
+@ importer ./personskatteloven-par3-henlaeggelser.scenario
+@ importer ./personskatteloven-par3-indtaegtsfoering.scenario
+@ importer ./personskatteloven-par3-ll9b-ll8o.scenario
+@ importer ./personskatteloven-par3-afskrivning-ivaerksaetter.scenario
+@ importer ./kapitel-02-statsskat
 @ importer ./loenmodtager_beregning
-@ importer ./loenmodtager - befordring.scenario
-@ importer ./delaar - scenarier.scenario
-@ importer ./personskat - par14.scenario
-@ importer ./omregning - skatteloft - ekstern.scenario
-@ importer ./husholdning - scenarier.scenario
-@ importer ./husholdning - benefit - cliffs.audit
-@ importer ./skatdk - 2026 - ekstern.scenario
-@ importer ./aktieindkomst - pension.audit
-@ importer ./personskatteloven - par4 - ejendomsskattelov.audit
-@ importer ./aktieindkomst - slutopgoerelse.scenario
-@ importer ./personskatteloven - bomber.audit
-@ importer ./personskatteloven - konfiskatorisk.audit
+@ importer ./loenmodtager-befordring.scenario
+@ importer ./delaar-scenarier.scenario
+@ importer ./personskat-par14.scenario
+@ importer ./omregning-skatteloft-ekstern.scenario
+@ importer ./husholdning-scenarier.scenario
+@ importer ./husholdning-benefit-cliffs.audit
+@ importer ./skatdk-2026-ekstern.scenario
+@ importer ./aktieindkomst-pension.audit
+@ importer ./personskatteloven-par4-ejendomsskattelov.audit
+@ importer ./aktieindkomst-slutopgoerelse.scenario
+@ importer ./personskatteloven-bomber.audit
+@ importer ./personskatteloven-konfiskatorisk.audit
 @ importer ./slutopgoerelse.scenario
-@ importer ./indeholdelse - afregning.scenario
-@ importer ./kildeskat - pension - indeholdelse.scenario
-@ importer ./kapitel - 04 - omregning - skatteloft
-@ importer ./kapitel - 05 - afsluttende - bestemmelser
+@ importer ./indeholdelse-afregning.scenario
+@ importer ./kildeskat-pension-indeholdelse.scenario
+@ importer ./kapitel-04-omregning-skatteloft
+@ importer ./kapitel-05-afsluttende-bestemmelser
 
 -- Personskatteloven — audit-signaler for den aktuelle research-slice.
 

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./aktieavancebeskatningsloven-par23-27
 
 = aktieavancebeskatningsloven_lbk1098_par37 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",

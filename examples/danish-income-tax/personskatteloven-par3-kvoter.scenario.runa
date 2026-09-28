@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 
 = kvote_engang_lot_første = AfskrivningslovKvoteLot(
     lot_id = "co2-2026-1",

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par33
+@ importer ./ligningsloven-par33
 
 = ll33_scenarie_proportionalt_loft = ligningslov33_årsresultat(
     Ligningslov33Årsinput(

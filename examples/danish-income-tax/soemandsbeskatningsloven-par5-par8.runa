@@ -1,12 +1,12 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./source - status
-@ importer ./kapitel - 03 - personfradrag
-@ importer ./soemandsbeskatningsloven - par3 - par4
+@ importer ./source-status
+@ importer ./kapitel-03-personfradrag
+@ importer ./soemandsbeskatningsloven-par3-par4
 @ importer ./kalenderdato
-@ importer ./doedsboskatteloven - par1 - par30
-@ importer ./kulbrinteskatteloven - par21
+@ importer ./doedsboskatteloven-par1-par30
+@ importer ./kulbrinteskatteloven-par21
 
 # Søbl5Til8KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

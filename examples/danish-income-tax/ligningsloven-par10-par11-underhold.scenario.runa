@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par10 - par11 - underhold
+@ importer ./ligningsloven-par10-par11-underhold
 
 | underhold_scenarie_barn(fødselsdato: Dato, bopæl: Ligningslov10Og11BarnetsBopæl, offentlig_forsørgerpligt: Boolsk) -> Ligningslov10Og11BarnFakta(
     fødselsdato = fødselsdato,

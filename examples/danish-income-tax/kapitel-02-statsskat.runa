@@ -1,9 +1,9 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./pengebeloeb
-@ importer ./skatteaar - parametre
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./skatteaar-parametre
+@ importer ./kapitel-04-omregning-skatteloft
 
 -- Personskatteloven — statsskat og skatteværdi (§§ 5-9).
 --

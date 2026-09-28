@@ -1,10 +1,10 @@
 @ sprog da
 
-@ importer ./kapitel - 03 - personfradrag
+@ importer ./kapitel-03-personfradrag
 @ importer ./ejendomsskatteloven
 @ importer ./ligningsloven_kapitalindkomst
 @ importer ./afskrivningsloven
-@ importer ./aktieavancebeskatningsloven - par19 - 20a
+@ importer ./aktieavancebeskatningsloven-par19-20a
 
 = tidskilde_par10_2022_adresse = personfradrag_par10_retsadresse(Under18Ugift, 2022)
 = tidskilde_par10_2023_adresse = personfradrag_par10_retsadresse(Under18Ugift, 2023)

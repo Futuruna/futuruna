@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - cfc - kildefakta
+@ importer ./personskat-cfc-kildefakta
 
 = personskat_cfc_felt_poster = TypetBeregningsfelt(
     path = refof(PersonskatCfcInput::poster),

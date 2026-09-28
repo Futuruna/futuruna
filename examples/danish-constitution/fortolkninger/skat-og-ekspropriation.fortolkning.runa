@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ../kapitel - 05
-@ importer ../kapitel - 08
-@ importer ./grundlov - fortolkning - faelles
+@ importer ../kapitel-05
+@ importer ../kapitel-08
+@ importer ./grundlov-fortolkning-faelles
 
 -- §§ 43 og 73 opstiller forskellige retsfølger, men ordlyden leverer ikke en
 -- klassifikationsregel for en økonomisk byrde, der har kendetegn fra begge.

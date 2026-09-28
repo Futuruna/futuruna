@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ./kildeskatteloven - arbejdsudleje
+@ importer ./kildeskatteloven-arbejdsudleje
 @ importer ./metadata
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 = personskat_arbejdsudleje_felt_samling = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje),

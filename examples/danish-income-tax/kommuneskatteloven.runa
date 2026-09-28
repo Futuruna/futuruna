@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./skatteaar - parametre
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./skatteaar-parametre
+@ importer ./kapitel-04-omregning-skatteloft
 
 -- Kommuneskatteloven — afhængig lovkilde for kommunal indkomstskat.
 --

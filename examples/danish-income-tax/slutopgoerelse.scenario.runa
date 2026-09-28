@@ -2,7 +2,7 @@
 
 @ importer ./opkraevningsloven
 @ importer ./slutopgoerelse
-@ importer ./husholdning - scenarier.scenario
+@ importer ./husholdning-scenarier.scenario
 
 -- Slutopgoerelse-scenarier for den fiktive husholdning.
 

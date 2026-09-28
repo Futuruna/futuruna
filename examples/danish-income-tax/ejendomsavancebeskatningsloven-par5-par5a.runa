@@ -2,7 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kapitel-04-omregning-skatteloft
 
 # EblPar5KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 = personskat_par3_erhvervsposter_felt_liste = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10),

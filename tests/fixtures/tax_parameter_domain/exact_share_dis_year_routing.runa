@@ -1,6 +1,6 @@
 @ sprog da
-@ importer ../../../examples / danish - income - tax / aktieindkomst - slutopgoerelse
-@ importer ../../../examples / danish - income - tax / soemandsbeskatningsloven - dis - lempelse
+@ importer ../../../examples/danish-income-tax/aktieindkomst-slutopgoerelse
+@ importer ../../../examples/danish-income-tax/soemandsbeskatningsloven-dis-lempelse
 
 -- Fiktive input: native/interpreter-konformitet, ikke ekstern skattevalidering.
 | årsskifte_input(år: Heltal, løn: Heltal, kapital: Heltal) -> LønmodtagerInput(

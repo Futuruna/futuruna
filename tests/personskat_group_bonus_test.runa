@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ../examples / danish - income - tax / personskat - gruppeliv - bonus
+@ importer ../examples/danish-income-tax/personskat-gruppeliv-bonus
 
 | bonuspræmie_scenarie(finansiering: PersonskatGruppelivFinansiering, år: Heltal, beløb: Heltal, afklaret: Boolsk, id: Tekst, kilde: Tekst) -> personskat_gruppeliv_bonus_resultat(PersonskatGruppelivBonusFakta(identifikation = id, indkomstår = år, kildereference = kilde, finansiering = finansiering, præmie_kroner = beløb, ordinær_dansk_præmie_uden_korrektioner = afklaret))
 = bonuspræmie = bonuspræmie_scenarie(GruppelivBetaltAfBonusPåFradragsberettigetPension, 2025, 920, Sandt, "fiktiv-præmie", "bilag:3")

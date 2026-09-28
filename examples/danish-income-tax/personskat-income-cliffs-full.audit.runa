@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - income - cliffs.audit
+@ importer ./personskat-income-cliffs.audit
 
 ----
 Full boundary-reduced 2026 Personskat income-cliff oracle.

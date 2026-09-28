@@ -143,6 +143,11 @@ impl CheckOutput<'_> {
             summary.type_count,
             elapsed.as_secs_f64()
         );
+        if self.frontend_only {
+            ToolGuarantee::FrontendCheck.print(true);
+        } else {
+            ToolGuarantee::Check.print(true);
+        }
     }
 
     pub(super) fn frontend_errors(&self, diagnostics: &[Diagnostic]) -> bool {
@@ -180,6 +185,35 @@ impl CheckOutput<'_> {
                 ("", "")
             };
             eprintln!("{red}check failed{reset}: {}\n{message}", self.filename);
+        }
+    }
+
+    /// Generated-Rust failures, already mapped to Futuruna source locations.
+    pub(super) fn backend_errors(&self, diagnostics: &[Diagnostic], rustc_output: &str) {
+        if self.json {
+            self.report(
+                false,
+                "backend",
+                diagnostics
+                    .iter()
+                    .map(|diag| self.diagnostic(diag))
+                    .collect(),
+                None,
+            );
+            return;
+        }
+        let use_color = should_use_color();
+        let (red, reset) = if use_color {
+            ("\x1b[1;31m", "\x1b[0m")
+        } else {
+            ("", "")
+        };
+        eprintln!("{red}check failed{reset}: {}", self.filename);
+        for diagnostic in diagnostics {
+            eprint!("{}", diagnostic.display(self.source, self.filename, use_color));
+        }
+        if runa_backend_diagnostics::show_rustc_output() {
+            eprintln!("\n{rustc_output}");
         }
     }
 

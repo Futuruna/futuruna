@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
-@ importer ./skatteaar - parametre
+@ importer ./skatteaar-parametre
 @ importer ./kalenderdato
 
 -- Personskatteloven — omregning, skatteloft og regulering (§§ 14-20).

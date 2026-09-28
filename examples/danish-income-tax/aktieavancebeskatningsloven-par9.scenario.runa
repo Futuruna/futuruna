@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./aktieavancebeskatningsloven - par9
+@ importer ./aktieavancebeskatningsloven-par9
 
 # Par9ScenariePrincipInput(indkomstår: Heltal, opgørelsesdato: AktieavancePar23Dato, skattepligtsresultat: AktieavancePar6Par7Resultat, aktiv: AktieavancePar23Aktiv, stk6_valg: AktieavancePar23Stk6Valg, stk7_valg: AktieavancePar23Stk7Valg)
 # Par9ScenarieLagerpostInput(aktivstatus: AktieavancePar9Aktivstatus, princip_resultat: AktieavancePar23PrincipResultat, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal)

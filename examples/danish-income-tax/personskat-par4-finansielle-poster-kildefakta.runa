@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./metadata
 
 = personskat_par4_finansiel_indkomstrute_advarsel = PersonskattelovKildeAdvarsel(

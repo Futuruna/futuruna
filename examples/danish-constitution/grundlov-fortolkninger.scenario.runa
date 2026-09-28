@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./fortolkninger / troskrav - og - ligebehandling.fortolkning
-@ importer ./fortolkninger / skat - og - ekspropriation.fortolkning
+@ importer ./fortolkninger/troskrav-og-ligebehandling.fortolkning
+@ importer ./fortolkninger/skat-og-ekspropriation.fortolkning
 
 -- Hvert scenarie vælger sin fortolkning udtrykkeligt. Ingen model vinder på
 -- grund af importorden eller et skjult standardvalg.

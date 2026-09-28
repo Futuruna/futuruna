@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ./ligningsloven - par9j - udland
+@ importer ./ligningsloven-par9j-udland
 @ importer ./ligningsloven_fradrag
 
 -- Afgrænset kontrol af almindeligt beskæftigelsesfradrag og jobfradrag.
