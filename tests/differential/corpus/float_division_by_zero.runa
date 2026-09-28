@@ -1,0 +1,5 @@
+-- Float division by a zero known only at run time is a runtime error, as for Int.
+> ratio(a: Float, b: Float) -> Float { a / b }
+= b = to_float(string_length(trim("   ")))
+@ print(show(ratio(5.0, 2.0)))
+@ print(show(ratio(5.0, b)))
