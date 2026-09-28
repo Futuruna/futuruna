@@ -1,0 +1,28 @@
+> empty_words(words: List(String)) -> Bool { words == [] }
+> observed_words(label: String) -> List(String) {
+    @ print(label)
+    ["law"]
+}
+
+= words = ["law", "code"]
+assert(not(words == []))
+assert(not([] == words))
+assert(words != [])
+assert([] != words)
+assert(not(words == tail([])))
+assert(not(tail([]) == words))
+assert(empty_words([]))
+assert(not(empty_words(words)))
+assert(filter(words, |word| word == "missing") == [])
+assert([] == filter(words, |word| word == "missing"))
+assert(not([["law"]] == [[]]))
+assert(not([[]] == [["law"]]))
+assert([["law"]] != [])
+assert([] != [["law"]])
+assert(not(words == if True { [] } else { [] }))
+assert(not(if True { [] } else { [] } == words))
+assert(not(observed_words("left once") == []))
+assert(not([] == observed_words("right once")))
+assert([] == [])
+assert(tail([]) == [])
+@ print("contextual empty list comparisons passed")

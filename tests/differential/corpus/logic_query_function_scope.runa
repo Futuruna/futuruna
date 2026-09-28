@@ -1,0 +1,11 @@
+| item(1)
+| item(2)
+> permitted(value: Int) -> Bool { value > 0 }
+| visible(value) -> item(value), permitted(value)
+> query(permitted: Int -> Bool) -> List(Int) { findall(value, visible(value)) }
+| approved(value: Int) -> value > 0
+| visible_via_rule(value) -> item(value), approved(value) == True
+> query_rule(approved: Int -> Bool) -> List(Int) { findall(value, visible_via_rule(value)) }
+assert(query(|value| False) == [1, 2])
+assert(query_rule(|value| False) == [1, 2])
+@ print("query function scope passed")

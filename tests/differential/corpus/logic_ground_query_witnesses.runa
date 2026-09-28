@@ -1,0 +1,9 @@
+| row("ann", "car")
+| row("bob", "bike")
+| stamp("ann")
+| stamp("ann")
+> checked(person: String) -> Bool { @ print("checked " + person); True }
+| stamped(person) -> row(person, _), stamp(person), checked(person)
+| anywhere(person) -> row(person, _), row(_, _), checked(person)
+@ print(show(findall(person, stamped(person))))
+@ print(show(findall(person, anywhere(person))))

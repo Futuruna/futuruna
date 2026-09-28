@@ -348,7 +348,7 @@ fn eval_recursive_query(source: String) -> Result<String, String> {
 fn recursive_queries_do_not_return_partial_answers_at_the_depth_limit() {
     for query in [
         "@ print(show(length(findall(b, reach(0, b)))))",
-        "@ print(show(not(reach(0, _))))",
+        "| distant() -> reach(0, node), node > 100\n@ print(show(not(distant())))",
     ] {
         let error = eval_recursive_query(recursive_chain_source(71, query))
             .expect_err("depth exhaustion must fail instead of publishing a partial answer");
@@ -356,6 +356,49 @@ fn recursive_queries_do_not_return_partial_answers_at_the_depth_limit() {
         assert!(error.contains("recursion limit"), "{error}");
         assert!(error.contains("incomplete"), "{error}");
     }
+}
+
+#[test]
+fn a_known_existential_witness_does_not_require_exhausting_the_relation() {
+    let output = eval_recursive_query(recursive_chain_source(
+        71,
+        "@ print(show(not(reach(0, _))))",
+    ))
+    .expect("the first edge is already a witness");
+    assert_eq!(output.trim(), "false");
+}
+
+#[test]
+fn nested_derived_queries_visit_distinct_rows_once_in_depth_first_order() {
+    assert_output(
+        include_str!("differential/corpus/logic_streamed_query_rows.runa"),
+        "checked ann\n[ann]\nchecked ann\nchecked car\nchecked bob\nchecked bike\n[car, bike]",
+    );
+}
+
+#[test]
+fn existential_continuations_stop_before_unneeded_recursive_candidates() {
+    assert_output(
+        include_str!("differential/corpus/logic_early_query_witness.runa"),
+        "accepted 2\nearly witness passed",
+    );
+}
+
+#[test]
+fn finite_enum_domains_bind_all_free_columns_and_preserve_correlations() {
+    assert_output(
+        r#"
+# Color = Red | Blue
+| unequal(left: Color, right: Color) -> left != right
+| chosen(left: Color) -> unequal(left, right), right == Blue
+| has_pair() -> unequal(left, right), left == Red, right == Blue
+@ print(show(findall(color, unequal(color, other))))
+@ print(show(findall(color, unequal(color, color))))
+@ print(show(findall(color, chosen(color))))
+@ print(show(has_pair()))
+"#,
+        "[Red, Blue]\n[]\n[Red]\ntrue",
+    );
 }
 
 #[test]
