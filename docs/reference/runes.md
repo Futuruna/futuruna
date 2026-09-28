@@ -150,6 +150,12 @@ Defines transformation: functions, actors, and modules.
 
 Parameters can omit type annotations (inferred). Return type after `->`.
 
+An ordinary function name has one declaration in each authored lexical scope,
+regardless of parameter count. Duplicate declarations are errors before
+execution. Separate modules and nested scopes may use the same name, and a
+local declaration may override a name supplied by the prelude or a prefix
+import. Use `|` rules for a family of clauses and cases.
+
 ### Function with effects
 ```runa
 > process(item: String) -> String with Console, Logger {
@@ -202,6 +208,29 @@ Actors have a state parameter and message handlers. Each handler returns the new
 ```
 
 Modules can be nested. Contents are accessed via `Math.square(5)`.
+
+A module instance owns its initialized bindings. Initializers run once, including
+private bindings and bindings that are never read. Reading a binding or calling
+a module function reuses that instance. A module declared inside a function is
+instantiated each time that declaration executes and captures the surrounding
+values it uses.
+
+Captures retain their types, including type parameters of the enclosing
+function and compound values such as `List(a)` or `Result(a, b)`. Each call
+owns a separate instance. A module function returned as a value keeps that
+instance alive:
+
+```runa
+> remember(value: a) -> Int -> a {
+    > module Saved {
+        = item = value
+        > read(ignored: Int) -> a { item }
+    }
+    Saved.read
+}
+= reader = remember("retained")
+@ print(reader(0))
+```
 
 ---
 
@@ -431,10 +460,25 @@ shown in the handler example above.
 @ import #a1b2c3 from ./utils       -- content-addressed import
 ```
 
+Top-level plain imports form one merged declaration scope. They are resolved
+in import order before the importing file's declarations, regardless of where
+the directives appear. Imported functions override injected prelude defaults;
+local functions override imported functions. Imported initializers and later
+calls use that same final function and rule context. Unique bindings across the
+merged scope follow the dependency order described above. A canonical source
+is imported once per namespace, including when several dependencies import it.
+Standalone executable statements in an imported file are not run; its binding
+initializers are part of the merged program.
+
 Checking an importing file also checks imported function bodies. Errors identify
 the imported file and source position; editors link the import-site diagnostic
 to that original location. Qualified modules resolve private helpers and their
 own dependencies within the module, without inheriting the caller's local names.
+Qualified bindings and their helper calls use the module's declaration scope;
+a same-named value in the importer does not replace a module binding.
+Separate qualified aliases own separate instances. Repeating the same alias
+and source within one parent namespace reuses its existing instance. Bindings
+inside an instance follow the dependency order described above.
 
 ### Use (Rust items)
 ```runa
@@ -480,6 +524,19 @@ calculation; nested input labels and questions remain field metadata. See
 
 Put `@ comptime` on its own line before the binding. The expression is evaluated
 at compile time and inlined as a constant.
+
+The compiler can also fold ordinary pure expressions automatically. This
+speculative evaluation is bounded and cannot perform host effects, including
+file access, output, randomness, or effects reached through callbacks and
+module initializers. A value that requires runtime initialization stays at
+runtime; unavailable values are never substituted with placeholders.
+
+Explicit `@ comptime` requests evaluation at compile time, so any effects in
+that expression occur while compiling. Its dependencies must have compile-time
+values too. If an effectful binding
+is needed by a compile-time expression, mark that binding `@ comptime`
+explicitly; the compiler reports an error when a required value is available
+only at runtime.
 
 ### Rust escape hatch
 ```runa
@@ -603,10 +660,8 @@ separate `>` function.
 | high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
 ```
 
-Place plain imports before local declarations and executable statements.
-Verification rejects a late plain import because its static symbol graph
-cannot represent the source-ordered rebinding that interpretation permits.
-This restriction also applies to imported helper files.
+Verification uses the same merged declaration scope and binding dependencies
+as execution, including when a plain import appears after a local declaration.
 
 Plain imports are resolved recursively for verification. An exception declared
 by an importing file therefore extends the imported rule group and keeps its

@@ -3,6 +3,7 @@
 
 use super::*;
 
+#[derive(Clone)]
 pub(super) struct RuntimeDiagnosticContext {
     path: PathBuf,
     source: Arc<str>,

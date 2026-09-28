@@ -1,0 +1,9 @@
+@ import ./qualified_initializer_context_dep
+@ import First from ./qualified_initializer_context_dep
+@ import Second from ./qualified_initializer_context_dep
+> fee(x: Int) -> Int { x + 1 }
+@ print(show(seed))
+@ print(show(First.seed))
+@ print(show(First.fee(5)))
+@ print(show(Second.seed))
+@ print(show(Second.fee(5)))

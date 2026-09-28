@@ -1,0 +1,11 @@
+> fee(x: Int) -> Int { x + adjustment }
+| rate(x: Int) -> 3 under x > 5
+@ import ./static_initializer_bridge
+@ import ./static_initializer_base
+= adjustment = 1
+@ print(show(seed))
+@ print(show(imported_total(5)))
+@ print(show(identity(5)))
+@ print(show(known(2)))
+@ print(show(findall(x, known(x))))
+@ print(show(rate(20)))

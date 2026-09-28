@@ -123,7 +123,7 @@
     if ch == "" { Lexed(pos, ln, col, Token(TkString, acc, sl, sc)) }
     else if ch == "\\" {
         = nx = pk2(src, pos)
-        = esc = if nx == "n" { "\n" } else if nx == "t" { "\t" } else if nx == "\\" { "\\" } else if nx == "\"" { "\"" } else { "\\" + nx }
+        = esc = if nx == "n" { "\n" } else if nx == "t" { "\t" } else if nx == "r" { "\r" } else if nx == "\\" { "\\" } else if nx == "\"" { "\"" } else { "\\" + nx }
         read_str_inner(src, pos + 2, ln, col + 2, acc + esc, sl, sc)
     }
     else if ch == "\"" { Lexed(pos + 1, ln, col + 1, Token(TkString, acc, sl, sc)) }
@@ -139,7 +139,7 @@
     = ch = pk(src, pos + 1)
     if ch == "\\" {
         = nx = pk(src, pos + 2)
-        = esc = if nx == "n" { "\n" } else if nx == "t" { "\t" } else if nx == "\\" { "\\" } else if nx == "'" { "'" } else { nx }
+        = esc = if nx == "n" { "\n" } else if nx == "t" { "\t" } else if nx == "r" { "\r" } else if nx == "\\" { "\\" } else if nx == "'" { "'" } else { nx }
         Lexed(pos + 4, ln, col + 4, Token(TkChar, esc, ln, col))
     } else {
         Lexed(pos + 3, ln, col + 3, Token(TkChar, ch, ln, col))
