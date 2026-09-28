@@ -1,0 +1,36 @@
+-- Valid programs that must compile and match the interpreter.
+# Rec(a: Int, b: String)
+> greet(times: Int) -> String {
+    = result = []
+    for i in range(0, times) {
+        = result = push(result, "hi")
+    }
+    join(result, " ")
+}
+> f(c: Bool) -> Int { (if c { 1 } else { 2 }) - 5 }
+> g(c: Bool) -> Float { (if c { 1.0 } else { 2.0 }) / 4.0 }
+> h(c: Bool) -> Int { (if c { 10 } else { 20 }) * 3 }
+> mk(n: Int, t: String) -> String { Rec(n, t).b }
+> rm(m: Map(String, Int), t: String) -> Int { map_len(map_remove(m, t)) }
+@ print(greet(3))
+= p = Pair(1, "hello")
+@ print(show(p.fst))
+@ print(show(p.snd))
+@ print(show(count_by([1, 2, 3], |x| x > 1)))
+= a = trim(" x ")
+= b = trim(" y ")
+= m = map_insert(map_new(), a + b, 1)
+@ print(show(map_get_or(m, "xy", 0)))
+@ print(show(map_len(map_remove(m, a + b))))
+@ print(show(f(True)) + " " + show(g(False)) + " " + show(h(True)))
+= flag = (False || False)
+@ print(show(is_none(find(["a", "b"], |s| flag))))
+@ print(mk(1, "q"))
+@ print(show(rm(map_insert(map_new(), "q", 1), "q")))
+= base = [1, 2]
+@ print(show(find([5, 6], |x| length(push(base, x)) > 2)))
+@ print(show(None))
+@ print(show(Ok(1)))
+@ print("|" + join([], ",") + "|")
+= fs = [|x| x + 1, |x| x * 2]
+@ print(show(map(fs, |fn_| fn_(3))))

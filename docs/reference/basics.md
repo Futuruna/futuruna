@@ -39,6 +39,9 @@ Integer division or remainder by zero also fails. These operations do not
 wrap or substitute zero in either interpreted or compiled execution. Division
 truncates toward zero; a nonzero remainder has the dividend's sign.
 
+`Float` division or remainder by zero (`5.0 / 0.0`, `x % 0.0`, also with an
+`Int` operand) is an error too, never `inf`, `NaN` or `0.0`.
+
 Ordinary execution stops with an error. Typed calculations report the invalid
 value as a case diagnostic; see [calculation errors](calculations.md).
 

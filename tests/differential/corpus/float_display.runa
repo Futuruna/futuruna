@@ -1,0 +1,7 @@
+-- Float display never uses exponent notation; whole values have no `.0`.
+> cube(x: Float) -> Float { x * x * x }
+= b = cube(1000000.0)
+@ print(show(b))
+@ print("""amount={{b}}""")
+@ print(show(cube(0.01)))
+@ print(show([cube(10.0), 0.5]))

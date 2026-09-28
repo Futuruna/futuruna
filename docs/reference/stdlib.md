@@ -25,6 +25,31 @@ Built into the compiler — no imports needed. Every function here is available 
 Printed strings have no surrounding quotation marks. `show` is a display
 format; use the JSON calculation interface when a tool needs structured values.
 
+`show` gives the same text in interpreted and compiled execution:
+
+| Value | Display |
+|-------|---------|
+| `String`, `Char` | the text itself, also inside lists, records and streams (`["v1.0", "a { b }"]` → `[v1.0, a { b }]`, `'c'` → `c`) |
+| `Float` | shortest decimal that reads back as the same value, never exponent notation; whole values have no `.0` (`22.0` → `22`, `1e21` → `1000000000000000000000`, `0.000001` → `0.000001`) |
+| `List`, stream | `[a, b]` |
+| `Pair(a, b)`, tuple | `(a, b)` — a `Pair` is a two-element tuple |
+| record, constructor | `Name(field: value)` for named fields, `Name(a, b)` for positional fields, `Name` without fields |
+| `Option`, `Result` | `Some(x)`, `None`, `Ok(x)`, `Err(e)` |
+| `Map`, `Set` | `{k: v, ...}`, `{a, b}` in value order |
+
+### Value order
+
+`sort`, `sort_by`, `list_min`, `list_max` and the iteration of every Map
+(`map_keys`, `map_values`, `map_entries`, `show`) and Set use one order:
+numbers numerically, `String` and `Char` by Unicode code point, `false` before
+`true`, lists and tuples element by element (a prefix first), and constructor
+values by constructor name, then by their fields in declaration order.
+
+```runa
+@ print(show(sort([10, 9, 100])))                          -- [9, 10, 100]
+@ print(show(map_keys(map_from([(10, "a"), (9, "b")]))))   -- [9, 10]
+```
+
 ---
 
 ## Math
@@ -155,7 +180,7 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sort` | `List(a) -> List(a)` | Sort by string representation (lexicographic) |
+| `sort` | `List(a) -> List(a)` | Sort in value order (see Display) |
 | `sort_by` | `(List(a), a -> b) -> List(a)` | Sort by key function |
 | `any` | `(List(a), a -> Bool) -> Bool` | True if any element matches |
 | `all` | `(List(a), a -> Bool) -> Bool` | True if all elements match |
@@ -169,7 +194,7 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 | `distinct` | `List(a) -> List(a)` | Remove duplicates (preserves order) |
 | `count_by` | `(List(a), a -> Bool) -> Int` | Count elements matching predicate |
 | `partition` | `(List(a), a -> Bool) -> (List(a), List(a))` | Split by predicate |
-| `chunked` | `(List(a), Int) -> List(List(a))` | Split into chunks of size N |
+| `chunked` | `(List(a), Int) -> List(List(a))` | Split into chunks of size N; a size of 0 or less is an error |
 | `subscribe` | `(List(a), a -> ()) -> ()` | Iterate and apply callback |
 
 Integer `sum_list` and stream `sum` reject an overflowing intermediate total.
@@ -241,8 +266,12 @@ handling.
 @ print(map_get_or(m, "name", "?"))       -- Alice
 @ print(map_contains(m, "age"))           -- true
 @ print(map_len(m))                       -- 2
-= keys = map_keys(m)                      -- ["name", "age"]
+= keys = map_keys(m)                      -- ["age", "name"]
 ```
+
+Map keys iterate in value order. Map keys and Set elements compare by value
+and must not be or contain `Float` (check error: use `Int`, e.g. cents, or
+`String`).
 
 ---
 

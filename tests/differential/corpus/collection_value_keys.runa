@@ -1,0 +1,9 @@
+-- Sets compare elements by value, never by their display text.
+# Rec(n: Int, t: String)
+= s = set_from_list(["1.0", "1"])
+@ print(show(set_len(s)))
+@ print(show(set_contains(set_from_list(["2.0"]), "2")))
+@ print(show(set_contains(set_from_list(["x { y }"]), "x(y)")))
+@ print(show(set_len(set_from_list([Rec(1, "a.0"), Rec(1, "a")]))))
+= t = set_from_list(push(["b"], "a"))
+@ print(show(t))
