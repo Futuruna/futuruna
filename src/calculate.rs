@@ -4277,7 +4277,6 @@ struct CalculationWorker<'a> {
     program: CalculationProgram<'a>,
     interpreter: Interpreter,
     base_env: Env,
-    base_actor_instances: BTreeMap<String, (Value, String)>,
     base_rng_state: u64,
     initialization_error: Option<String>,
     needs_reinitialization: bool,
@@ -4323,13 +4322,11 @@ impl<'a> CalculationWorker<'a> {
                     program.entry
                 )
             });
-        let base_actor_instances = interpreter.actor_instances.clone();
         let base_rng_state = interpreter.rng_state;
         Self {
             program,
             interpreter,
             base_env,
-            base_actor_instances,
             base_rng_state,
             initialization_error,
             needs_reinitialization: false,
@@ -4375,7 +4372,6 @@ impl<'a> CalculationWorker<'a> {
         self.interpreter.active_rule_scopes.clear();
         self.interpreter.output.clear();
         self.interpreter.handler_stack.clear();
-        self.interpreter.actor_instances = self.base_actor_instances.clone();
         self.interpreter.step_count = 0;
         self.interpreter.budget_exceeded = false;
         self.interpreter.rng_state = self.base_rng_state;

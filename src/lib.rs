@@ -39,6 +39,11 @@ mod checked_explore_classification;
 mod checked_explore_source_events;
 mod editor_fields;
 pub use editor_fields::EditorField;
+mod live_streams;
+pub use live_streams::{
+    finite_only_stream_operator_message, ActorRef, LiveStream, FINITE_ONLY_STREAM_OPERATORS,
+    LIVE_STREAM_OPERATORS, LIVE_STREAM_SNAPSHOT_OPERATORS,
+};
 pub mod explore;
 mod function_returns;
 mod ordinary_calls;
@@ -3399,9 +3404,9 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
         Value::Closure { .. }
         | Value::Builtin(_)
         | Value::NamespacedBuiltin { .. }
-        | Value::Actor { .. }
+        | Value::Actor(_)
         | Value::Stream(_)
-        | Value::Subject(_)
+        | Value::LiveStream(_)
         | Value::Map(_)
         | Value::Set(_)
         | Value::Scope { .. }
@@ -9299,6 +9304,57 @@ impl Parser {
         }
     }
 
+    /// `| pattern [if guard] -> body` arms of `~ stream | ...`. An arm may
+    /// start on a following line when it is indented past the `~`.
+    fn parse_subscription_arms(&mut self, tilde_col: usize) -> Result<Vec<MatchArm>, String> {
+        let mut arms = Vec::new();
+        loop {
+            let arm_start = self.pos;
+            let mut starts_line = false;
+            while self.peek_kind() == TokenKind::Semi {
+                self.advance();
+                starts_line = true;
+            }
+            if self.peek_kind() != TokenKind::Pipe || (starts_line && self.peek().col <= tilde_col)
+            {
+                self.pos = arm_start;
+                break;
+            }
+            self.advance(); // consume |
+            let pattern_start = self.peek().clone();
+            let pat = self.parse_pattern()?;
+            let pat_span = self.span_since(&pattern_start);
+            let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if" {
+                self.advance();
+                Some(self.parse_expr()?)
+            } else {
+                None
+            };
+            if self.peek_kind() == TokenKind::Arrow
+                || (self.peek_kind() == TokenKind::Op && self.peek().text == "->")
+            {
+                self.advance();
+            } else {
+                return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
+            }
+            let body = self.parse_expr()?;
+            arms.push(MatchArm {
+                pat,
+                pat_span,
+                guard,
+                body,
+            });
+        }
+        if arms.is_empty() {
+            return Err(format!(
+                "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n        | x -> {{ @ print(x) }}\n        | Err(e) -> {{ @ print(\"error\") }}\n        | Complete -> {{ @ print(\"done\") }}\n  Arms on following lines are indented past the `~`.",
+                self.peek().line,
+                self.peek().col
+            ));
+        }
+        Ok(arms)
+    }
+
     fn parse_comma_separated<T>(
         &mut self,
         closing: TokenKind,
@@ -11048,47 +11104,9 @@ impl Parser {
                 } else {
                     // Backtrack and parse as stream expression + match arms
                     self.pos = saved;
-                    self.advance(); // consume ~
+                    let tilde_col = self.advance().col; // consume ~
                     let stream_expr = self.parse_expr()?;
-                    let mut arms = Vec::new();
-
-                    while self.peek_kind() == TokenKind::Pipe {
-                        self.advance(); // consume |
-                        let pattern_start = self.peek().clone();
-                        let pat = self.parse_pattern()?;
-                        let pat_span = self.span_since(&pattern_start);
-                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
-                        {
-                            self.advance();
-                            Some(self.parse_expr()?)
-                        } else {
-                            None
-                        };
-
-                        if self.peek_kind() == TokenKind::Arrow {
-                            self.advance();
-                        } else if self.peek_kind() == TokenKind::Op && self.peek().text == "->" {
-                            self.advance();
-                        } else {
-                            return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
-                        }
-
-                        let body = self.parse_expr()?;
-                        arms.push(MatchArm {
-                            pat,
-                            pat_span,
-                            guard,
-                            body,
-                        });
-                        self.skip_semis();
-                    }
-
-                    if arms.is_empty() {
-                        return Err(format!(
-                            "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n    | x -> {{ @ print(x) }}\n    | Err(e) -> {{ @ print(\"error\") }}\n    | Complete -> {{ @ print(\"done\") }}",
-                            self.peek().line, self.peek().col
-                        ));
-                    }
+                    let arms = self.parse_subscription_arms(tilde_col)?;
                     Ok(Stmt::StreamSub(stream_expr, arms))
                 }
             }
@@ -13335,47 +13353,9 @@ impl Parser {
                 } else {
                     // Backtrack and parse as stream expression + match arms
                     self.pos = saved;
-                    self.advance(); // consume ~
+                    let tilde_col = self.advance().col; // consume ~
                     let stream_expr = self.parse_expr()?;
-                    let mut arms = Vec::new();
-
-                    while self.peek_kind() == TokenKind::Pipe {
-                        self.advance(); // consume |
-                        let pattern_start = self.peek().clone();
-                        let pat = self.parse_pattern()?;
-                        let pat_span = self.span_since(&pattern_start);
-                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
-                        {
-                            self.advance();
-                            Some(self.parse_expr()?)
-                        } else {
-                            None
-                        };
-
-                        if self.peek_kind() == TokenKind::Arrow {
-                            self.advance();
-                        } else if self.peek_kind() == TokenKind::Op && self.peek().text == "->" {
-                            self.advance();
-                        } else {
-                            return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
-                        }
-
-                        let body = self.parse_expr()?;
-                        arms.push(MatchArm {
-                            pat,
-                            pat_span,
-                            guard,
-                            body,
-                        });
-                        self.skip_semis();
-                    }
-
-                    if arms.is_empty() {
-                        return Err(format!(
-                            "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n    | x -> {{ @ print(x) }}\n    | Err(e) -> {{ @ print(\"error\") }}\n    | Complete -> {{ @ print(\"done\") }}",
-                            self.peek().line, self.peek().col
-                        ));
-                    }
+                    let arms = self.parse_subscription_arms(tilde_col)?;
                     Ok(Stmt::StreamSub(stream_expr, arms))
                 }
             }
@@ -13692,19 +13672,13 @@ pub enum Value {
         name: String,
         declaration_env: Option<Rc<Env>>,
     },
-    /// Actor: name, current state, handler definitions, base env
-    Actor {
-        actor_name: String,
-        state: Box<Value>,
-        state_param: String,
-        handlers: Vec<Handler>,
-        env: Env,
-    },
-    /// Reactive stream: ordered sequence of values (lazy in codegen, eager in interpreter)
+    /// Actor handle; every copy shares the actor's state and mailbox.
+    Actor(ActorRef),
+    /// Finite stream: every value is known.
     Stream(Vec<Value>),
-    /// Subject: a mutable stream you can push into with <-
-    /// (values, initial_value). Subjects ARE streams you can write to.
-    Subject(Vec<Value>),
+    /// Live stream handle: a subject (writable) or a stream derived from a
+    /// live source. Every copy shares the same stream.
+    LiveStream(LiveStream),
     /// Map: key-value dictionary with deterministic key iteration.
     Map(BTreeMap<String, Value>),
     /// Set: unique value collection keyed by canonical runtime value identity.
@@ -14152,9 +14126,9 @@ fn checked_exact_observer_memo_encode_value(value: &Value, output: &mut Vec<u8>)
         Value::Closure { .. }
         | Value::Builtin(_)
         | Value::NamespacedBuiltin { .. }
-        | Value::Actor { .. }
+        | Value::Actor(_)
         | Value::Stream(_)
-        | Value::Subject(_)
+        | Value::LiveStream(_)
         | Value::Scope { .. }
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
@@ -14398,27 +14372,24 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
             }
             runtime_hash_str(hasher, &format!("{body:?}"));
         }
-        Value::Actor {
-            actor_name,
-            state,
-            state_param,
-            env,
-            ..
-        } => {
+        Value::Actor(actor) => {
             hasher.update([17]);
             runtime_hash_str(
                 hasher,
-                env.runtime_namespace
+                actor
+                    .env()
+                    .runtime_namespace
                     .as_ref()
                     .map(RuntimeNamespace::semantic_identity)
                     .unwrap_or("legacy"),
             );
-            runtime_hash_str(hasher, actor_name);
-            runtime_hash_str(hasher, state_param);
-            runtime_hash_value(hasher, state);
+            runtime_hash_str(hasher, actor.actor_name());
+            runtime_hash_str(hasher, actor.state_param());
         }
         Value::Stream(values) => runtime_hash_sequence(hasher, 18, values),
-        Value::Subject(values) => runtime_hash_sequence(hasher, 19, values),
+        // Live streams compare by identity; their changing contents are not
+        // part of the hash.
+        Value::LiveStream(_) => hasher.update([19]),
         Value::Scope {
             namespace, name, ..
         } => {
@@ -14566,14 +14537,15 @@ fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
         (Value::Unit, Value::Unit) => true,
         (Value::List(left), Value::List(right))
         | (Value::Tuple(left), Value::Tuple(right))
-        | (Value::Stream(left), Value::Stream(right))
-        | (Value::Subject(left), Value::Subject(right)) => {
+        | (Value::Stream(left), Value::Stream(right)) => {
             left.len() == right.len()
                 && left
                     .iter()
                     .zip(right)
                     .all(|(left, right)| runtime_values_semantically_equal(left, right))
         }
+        (Value::LiveStream(left), Value::LiveStream(right)) => left.same_stream(right),
+        (Value::Actor(left), Value::Actor(right)) => left.same_actor(right),
         (Value::Map(left), Value::Map(right)) => {
             left.len() == right.len()
                 && left.iter().all(|(stored_key, stored_value)| {
@@ -14984,9 +14956,7 @@ impl fmt::Display for Value {
             }
             Value::Builtin(name) => write!(f, "<builtin:{}>", name),
             Value::NamespacedBuiltin { name, .. } => write!(f, "<builtin:{}>", name),
-            Value::Actor {
-                actor_name, state, ..
-            } => write!(f, "<actor:{}({})>", actor_name, state),
+            Value::Actor(actor) => write!(f, "<actor:{}({})>", actor.actor_name(), actor.state()),
             Value::Stream(items) => {
                 write!(f, "~[")?;
                 for (i, v) in items.iter().enumerate() {
@@ -14997,16 +14967,7 @@ impl fmt::Display for Value {
                 }
                 write!(f, "]")
             }
-            Value::Subject(items) => {
-                write!(f, "~subject[")?;
-                for (i, v) in items.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", v)?;
-                }
-                write!(f, "]")
-            }
+            Value::LiveStream(stream) => write!(f, "{}", stream),
             Value::Map(entries) => {
                 write!(f, "{{")?;
                 for (i, (stored_key, stored_value)) in
@@ -15841,8 +15802,11 @@ pub struct Interpreter {
     /// Publicly inserted legacy frames receive `None` and retain operation-site
     /// lookup semantics.
     handler_lexical_env_stack: Vec<Option<Env>>,
-    /// Live actor instances: var_name -> (state, actor_name)
-    pub actor_instances: BTreeMap<String, (Value, String)>,
+    /// Named scopes whose bodies are running; subscriptions created meanwhile
+    /// belong to the innermost one.
+    live_scope_stack: Vec<String>,
+    /// Subscriptions owned by each named scope, cancelled by `@ teardown`.
+    live_scope_subscriptions: BTreeMap<String, Vec<(LiveStream, u64)>>,
     /// Step budget for auto-comptime: 0 = unlimited
     pub step_limit: usize,
     /// Current step count (incremented each eval call)
@@ -15917,7 +15881,8 @@ impl Interpreter {
             source_dir: None,
             handler_stack: Vec::new(),
             handler_lexical_env_stack: Vec::new(),
-            actor_instances: BTreeMap::new(),
+            live_scope_stack: Vec::new(),
+            live_scope_subscriptions: BTreeMap::new(),
             step_limit: 0,
             step_count: 0,
             budget_exceeded: false,
@@ -16191,7 +16156,8 @@ impl Interpreter {
             | Value::NamespacedBuiltin { namespace, .. }
             | Value::Scope { namespace, .. }
             | Value::NamespacedRuleScopeInstance { namespace, .. } => namespace.clone(),
-            Value::Closure { env, .. } | Value::Actor { env, .. } => self.namespace_for_env(env),
+            Value::Closure { env, .. } => self.namespace_for_env(env),
+            Value::Actor(actor) => self.namespace_for_env(actor.env()),
             _ => self.runtime_root.clone(),
         }
     }
@@ -16215,7 +16181,8 @@ impl Interpreter {
             Value::Scope {
                 declaration_env, ..
             } => Some(declaration_env.clone()),
-            Value::Closure { env, .. } | Value::Actor { env, .. } => Some(Rc::new(env.clone())),
+            Value::Closure { env, .. } => Some(Rc::new(env.clone())),
+            Value::Actor(actor) => Some(Rc::new(actor.env().clone())),
             _ => None,
         }
     }
@@ -16805,7 +16772,8 @@ impl Interpreter {
 
     fn runtime_collection_member_count(value: &Value) -> Option<usize> {
         match value {
-            Value::List(items) | Value::Stream(items) | Value::Subject(items) => Some(items.len()),
+            Value::List(items) | Value::Stream(items) => Some(items.len()),
+            Value::LiveStream(stream) => Some(stream.retained_values().len()),
             Value::Map(items) | Value::Set(items) => Some(items.len()),
             Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => Some(0),
             Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
@@ -20346,8 +20314,11 @@ impl Interpreter {
                             continue;
                         }
                         let mut scope_env = env.child();
-                        // Execute all body statements in the child environment
+                        // Subscriptions and derived streams created while the
+                        // body runs belong to the scope until `@ teardown`.
+                        self.live_scope_enter(name);
                         let _scope_last = self.run_statement_block(body, &mut scope_env);
+                        self.live_scope_exit();
                         // Store scope as a value so bindings are accessible via ScopeName.field
                         let scope_bindings = scope_env.bindings.clone();
                         let declaration_env = Rc::new(scope_env.child());
@@ -20404,15 +20375,6 @@ impl Interpreter {
                         continue;
                     }
                     last = self.eval(expr, env);
-                    // Handle teardown markers from teardown() builtin
-                    if let Value::Constructor(ref name, ref args) = last {
-                        if name == "__Teardown" {
-                            if let Some(Value::Str(scope_name)) = args.first() {
-                                env.remove(scope_name);
-                            }
-                            last = Value::Unit;
-                        }
-                    }
                 }
                 Stmt::Annot(_, _) => {}
                 Stmt::PreludeBoundary | Stmt::Use(_) => {}
@@ -20564,139 +20526,34 @@ impl Interpreter {
                         last = Value::Unit;
                         continue;
                     }
-                    // ~ name = expr — evaluate expr and wrap in Stream if needed
-                    // Subjects stay as Subject (not re-wrapped into Stream)
+                    // ~ name = expr: live streams stay shared handles; other
+                    // values become finite streams.
                     let val = self.eval(expr, env);
                     let stream_val = match val {
-                        Value::Stream(_) | Value::Subject(_) => val,
+                        Value::Stream(_) | Value::LiveStream(_) => val,
                         other => Value::Stream(list_to_vec(&other)),
                     };
                     env.set(name.clone(), stream_val);
                 }
                 Stmt::StreamSub(expr, arms) => {
-                    let val = self.eval(expr, env);
-                    let items = match val {
-                        Value::Stream(items) | Value::Subject(items) => items,
-                        other => list_to_vec(&other),
-                    };
-
-                    // Categorize arms
-                    let mut value_arms = Vec::new();
-                    let mut _error_arm = None;
-                    let mut complete_arm = None;
-
-                    for arm in arms {
-                        let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete")
-                            || matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
-                        let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
-
-                        if is_complete {
-                            complete_arm = Some(arm);
-                        } else if is_error {
-                            _error_arm = Some(arm);
-                        } else {
-                            value_arms.push(arm);
-                        }
-                    }
-
-                    // Process values
-                    for item in items {
-                        // Check if it's an error value inserted by `error(subject, msg)`
-                        // In sync interpreter, we might not have a reliable way to distinguish,
-                        // but if we did, we'd route it to error_arm. For now, all are values.
-                        let mut matched = false;
-                        for arm in &value_arms {
-                            let mut local_env = env.child();
-                            if self.match_pattern(&arm.pat, &item, &mut local_env) {
-                                let guard_ok = match &arm.guard {
-                                    Some(g) => {
-                                        matches!(self.eval(g, &mut local_env), Value::Bool(true))
-                                    }
-                                    None => true,
-                                };
-                                if guard_ok {
-                                    self.eval(&arm.body, &mut local_env);
-                                    matched = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if !matched && !value_arms.is_empty() {
-                            eprintln!(
-                                "stream subscription value {:?} did not match any value arms",
-                                item
-                            );
-                        }
-                    }
-
-                    // Process Complete
-                    if let Some(arm) = complete_arm {
-                        let mut local_env = env.child();
-                        if self.match_pattern(
-                            &arm.pat,
-                            &Value::Constructor("Complete".into(), vec![].into()),
-                            &mut local_env,
-                        ) {
-                            let guard_ok = match &arm.guard {
-                                Some(g) => {
-                                    matches!(self.eval(g, &mut local_env), Value::Bool(true))
-                                }
-                                None => true,
-                            };
-                            if guard_ok {
-                                self.eval(&arm.body, &mut local_env);
-                            }
-                        }
-                    }
+                    let source = self.eval(expr, env);
+                    self.live_subscribe_statement(source, arms, env);
                 }
 
                 Stmt::Send(target_expr, msg_expr) => {
-                    // actor <- Message: dispatch message to actor, update its state
                     let target = self.eval(target_expr, env);
                     let msg = self.eval(msg_expr, env);
-                    match target {
-                        Value::Actor {
-                            ref actor_name,
-                            ref state,
-                            ref state_param,
-                            ref handlers,
-                            env: ref actor_env,
-                        } => {
-                            let (new_state, _response) = self.dispatch_actor_message(
-                                actor_name,
-                                state,
-                                state_param,
-                                handlers,
-                                actor_env,
-                                &msg,
-                            );
-                            // Update the actor in the env with new state
-                            if let ExprKind::Var(var_name) = &target_expr.kind {
-                                let updated = Value::Actor {
-                                    actor_name: actor_name.clone(),
-                                    state: Box::new(new_state),
-                                    state_param: state_param.clone(),
-                                    handlers: handlers.clone(),
-                                    env: actor_env.clone(),
-                                };
-                                env.set(var_name.clone(), updated);
-                            }
-                        }
-                        Value::Subject(ref items) => {
-                            // subject <- value: push value into the subject's buffer
-                            if let ExprKind::Var(var_name) = &target_expr.kind {
-                                let mut new_items = items.clone();
-                                new_items.push(msg);
-                                env.set(var_name.clone(), Value::Subject(new_items));
-                            }
-                        }
-                        _ => eprintln!("Send (<-): target is not an actor or subject"),
-                    }
+                    self.live_send(target, msg);
                 }
                 Stmt::For(var, iter_expr, body_stmts) => {
                     let iter_val = self.eval(iter_expr, env);
+                    if let Value::LiveStream(stream) = &iter_val {
+                        self.live_for_statement(stream, var, body_stmts, env);
+                        last = Value::Unit;
+                        continue;
+                    }
                     let items = match iter_val {
-                        Value::Stream(items) | Value::Subject(items) => items,
+                        Value::Stream(items) => items,
                         Value::List(items) => items,
                         other => {
                             // Cons/Nil linked list
@@ -21105,12 +20962,6 @@ impl Interpreter {
                 declaration_env: Some(module_env.clone()),
             },
             Value::Stream(values) => Value::Stream(
-                values
-                    .iter()
-                    .map(|value| Self::capture_module_value(value, module_env))
-                    .collect(),
-            ),
-            Value::Subject(values) => Value::Subject(
                 values
                     .iter()
                     .map(|value| Self::capture_module_value(value, module_env))
@@ -21921,17 +21772,10 @@ impl Interpreter {
                                 .unwrap_or_else(missing)
                         }
                     }
-                    // Subject: .latest returns the most recent value, .count returns length
-                    Value::Subject(items) => match field.as_str() {
-                        "latest" => items.last().cloned().unwrap_or(Value::Unit),
-                        "count" => Value::Int(items.len() as i64),
-                        _ => missing(),
-                    },
-                    // Actor-subject unification: actors expose .state for current state
-                    Value::Actor { state, .. } => match field.as_str() {
-                        "state" => *state.clone(),
-                        _ => missing(),
-                    },
+                    // Live streams: `.count` values emitted, `.latest` most recent value
+                    Value::LiveStream(stream) => {
+                        self.live_field(stream, field).unwrap_or_else(missing)
+                    }
                     Value::RuleScopeInstance { bindings, .. }
                     | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings
                         .get(field)
@@ -22340,6 +22184,15 @@ impl Interpreter {
             }
         }
 
+        if args
+            .iter()
+            .any(|argument| matches!(argument, Value::LiveStream(_)))
+        {
+            if let Some(value) = self.eval_live_stream_builtin(namespace, name, &args, env) {
+                return value;
+            }
+        }
+
         match name {
             "print" => {
                 let text = match args.first() {
@@ -22640,7 +22493,7 @@ impl Interpreter {
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let mapped: Vec<Value> = items
@@ -22665,7 +22518,7 @@ impl Interpreter {
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let filtered: Vec<Value> = items
@@ -22770,7 +22623,7 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match &input {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 Value::Bool(items.into_iter().any(|item| {
@@ -22785,7 +22638,7 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match &input {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 Value::Bool(items.into_iter().all(|item| {
@@ -22823,7 +22676,7 @@ impl Interpreter {
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let mut result = Vec::new();
@@ -22831,7 +22684,7 @@ impl Interpreter {
                     let mapped =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
                     match mapped {
-                        Value::Stream(v) | Value::Subject(v) => {
+                        Value::Stream(v) => {
                             if self.ground_collection_limit.is_some()
                                 && self
                                     .ground_collection_growth_allowed(
@@ -22880,11 +22733,11 @@ impl Interpreter {
                     return Value::Unit;
                 }
                 let (va, is_stream) = match &a {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let vb = match &b {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 let pairs: Vec<Value> = va
@@ -22905,7 +22758,7 @@ impl Interpreter {
                     return Value::Unit;
                 }
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let pairs: Vec<Value> = items
@@ -22981,7 +22834,7 @@ impl Interpreter {
                     return Value::Unit;
                 }
                 match &input {
-                    Value::Stream(v) | Value::Subject(v) => {
+                    Value::Stream(v) => {
                         // Stream: remove consecutive duplicates (Rx distinctUntilChanged)
                         let mut result = Vec::new();
                         for item in v {
@@ -23994,7 +23847,11 @@ impl Interpreter {
                             .trim_start_matches("ActorDef<")
                             .trim_end_matches('>')
                             .to_string();
-                        let initial_state = args.get(1).cloned().unwrap_or(Value::Int(0));
+                        let Some(initial_state) = args.get(1).cloned() else {
+                            self.ordinary_runtime_fail(format!(
+                                "spawn({actor_name}, ...) needs an initial state"
+                            ))
+                        };
                         let definition_namespace = self.runtime_value_namespace(value);
                         if let Some(Defn::Actor {
                             state_param,
@@ -24009,54 +23866,28 @@ impl Interpreter {
                                 .map(|basis| basis.as_ref().clone())
                                 .unwrap_or_else(|| env.clone());
                             actor_env.set_runtime_namespace(definition_namespace);
-                            Value::Actor {
+                            self.spawn_actor(
                                 actor_name,
-                                state: Box::new(initial_state),
-                                state_param: state_param.name.clone(),
+                                state_param.name.clone(),
                                 handlers,
-                                env: actor_env,
-                            }
+                                actor_env,
+                                initial_state,
+                            )
                         } else {
-                            eprintln!("spawn: no actor definition for '{}'", actor_name);
-                            Value::Unit
+                            self.ordinary_runtime_fail(format!(
+                                "spawn: no actor definition named `{}`",
+                                actor_name
+                            ))
                         }
                     }
-                    _ => {
-                        eprintln!("spawn: expected actor definition as first argument");
-                        Value::Unit
-                    }
+                    Some(other) => self.ordinary_runtime_fail(format!(
+                        "spawn needs an actor definition, found {}",
+                        other
+                    )),
+                    None => self.ordinary_runtime_fail("spawn needs an actor definition".into()),
                 }
             }
-            "ask" => {
-                // ask(actor, message) -> sends message, returns new state
-                match args.get(0) {
-                    Some(Value::Actor {
-                        actor_name,
-                        state,
-                        state_param,
-                        handlers,
-                        env: actor_env,
-                    }) => {
-                        let msg = args.get(1).cloned().unwrap_or(Value::Unit);
-                        let (new_state, _response) = self.dispatch_actor_message(
-                            actor_name,
-                            state,
-                            state_param,
-                            handlers,
-                            actor_env,
-                            &msg,
-                        );
-                        // Update the actor in-place via actor_instances
-                        self.actor_instances
-                            .insert(actor_name.clone(), (new_state.clone(), actor_name.clone()));
-                        new_state
-                    }
-                    _ => {
-                        eprintln!("ask: expected actor as first argument");
-                        Value::Unit
-                    }
-                }
-            }
+            "ask" => self.actor_ask(&args),
             // ── Stream builtins (M12) ──
             "from_list" => {
                 // from_list(list) → Stream — convert a Cons/Nil list to a Stream
@@ -24073,7 +23904,7 @@ impl Interpreter {
                 let init = args.get(1).cloned().unwrap_or(Value::Int(0));
                 let func = args.get(2).cloned().unwrap_or(Value::Unit);
                 let items = match stream {
-                    Value::Stream(items) | Value::Subject(items) => items,
+                    Value::Stream(items) => items,
                     other => list_to_vec(&other),
                 };
                 let mut acc = init;
@@ -24094,11 +23925,11 @@ impl Interpreter {
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
                 let items1 = match s1 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let items2 = match s2 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let mut merged = Vec::new();
@@ -24133,7 +23964,7 @@ impl Interpreter {
                     _ => 0,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 Value::Stream(items.into_iter().take(n).collect())
@@ -24142,7 +23973,7 @@ impl Interpreter {
                 // collect(stream) → List — convert stream to list
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 vec_to_list(items)
@@ -24151,7 +23982,7 @@ impl Interpreter {
                 // count(stream) → Int — number of elements
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 Value::Int(items.len() as i64)
@@ -24164,7 +23995,7 @@ impl Interpreter {
                     _ => 0,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 Value::Stream(items.into_iter().skip(n).collect())
@@ -24177,7 +24008,7 @@ impl Interpreter {
                     _ => 1,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let windows: Vec<Value> = items
@@ -24190,7 +24021,7 @@ impl Interpreter {
                 // sum(stream) → Int or Float — sum all elements
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 if items.iter().any(|item| matches!(item, Value::Float(_))) {
@@ -24216,7 +24047,7 @@ impl Interpreter {
                 // last(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 items
@@ -24230,11 +24061,11 @@ impl Interpreter {
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
                 let items1 = match s1 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let items2 = match s2 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 if items1.is_empty() || items2.is_empty() {
@@ -24255,7 +24086,7 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match &input {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 for item in &items {
@@ -24274,7 +24105,7 @@ impl Interpreter {
                 // first(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 items
@@ -24288,7 +24119,7 @@ impl Interpreter {
                 let init = args.get(1).cloned().unwrap_or(Value::Int(0));
                 let func = args.get(2).cloned().unwrap_or(Value::Unit);
                 let items = match stream {
-                    Value::Stream(items) | Value::Subject(items) => items,
+                    Value::Stream(items) => items,
                     other => list_to_vec(&other),
                 };
                 let mut acc = init;
@@ -24307,7 +24138,7 @@ impl Interpreter {
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let value = args.get(1).cloned().unwrap_or(Value::Unit);
                 let mut items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 items.insert(0, value);
@@ -24317,7 +24148,7 @@ impl Interpreter {
                 // pairwise(stream) → Stream of Tuple — consecutive pairs
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let pairs: Vec<Value> = items
@@ -24376,7 +24207,7 @@ impl Interpreter {
                     _ => 0,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 match items.last() {
@@ -24393,7 +24224,7 @@ impl Interpreter {
                     _ => 100,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 if items.is_empty() {
@@ -24413,7 +24244,7 @@ impl Interpreter {
                     _ => 0,
                 };
                 match stream {
-                    Value::Stream(_) | Value::Subject(_) => stream,
+                    Value::Stream(_) => stream,
                     other => Value::Stream(list_to_vec(&other)),
                 }
             }
@@ -24426,7 +24257,7 @@ impl Interpreter {
                     _ => 100,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 // Sync mode: one batch of all elements
@@ -24441,7 +24272,7 @@ impl Interpreter {
                     _ => 1000,
                 };
                 match stream {
-                    Value::Stream(_) | Value::Subject(_) => stream,
+                    Value::Stream(_) => stream,
                     other => Value::Stream(list_to_vec(&other)),
                 }
             }
@@ -24451,7 +24282,7 @@ impl Interpreter {
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 // Sync: map each to inner stream, keep only the last inner result set
@@ -24459,7 +24290,7 @@ impl Interpreter {
                 if let Some(last) = items.last() {
                     let inner = self.apply_fn(&func, vec![last.clone()], env);
                     match inner {
-                        Value::Stream(v) | Value::Subject(v) => Value::Stream(v),
+                        Value::Stream(v) => Value::Stream(v),
                         other => Value::Stream(list_to_vec(&other)),
                     }
                 } else {
@@ -24472,11 +24303,11 @@ impl Interpreter {
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let trigger = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let trigger_items = match trigger {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let mut result = Vec::new();
@@ -24493,68 +24324,24 @@ impl Interpreter {
                 Value::Stream(result)
             }
             // ── Subject + lifecycle builtins (M13) ──
-            "subject" => {
-                // subject() → Subject with no initial value
-                // subject(val) → Subject with initial value (BehaviorSubject)
-                // subject(val, n) → ReplaySubject: buffers last n values for late subscribers
-                //   (In sync interpreter, all values are buffered anyway; replay count
-                //    is relevant for async/codegen where late subscribers need history.)
-                let mut it = args.into_iter();
-                match (it.next(), it.next()) {
-                    (Some(val), Some(Value::Int(_replay_n))) => Value::Subject(vec![val]),
-                    (Some(val), _) => Value::Subject(vec![val]),
-                    (None, _) => Value::Subject(vec![]),
-                }
-            }
-
-            "as_stream" => {
-                // as_stream(subject) → Stream — strips write access (Subject→Stream narrowing)
-                // In interpreter: converts Subject(items) to Stream(items)
-                // <-  on a Stream will fail at the Send handler (not a Subject)
-                match args.into_iter().next() {
-                    Some(Value::Subject(items)) => Value::Stream(items),
-                    Some(Value::Stream(items)) => Value::Stream(items), // already a stream, no-op
-                    Some(other) => Value::Stream(list_to_vec(&other)),
-                    None => Value::Stream(vec![]),
-                }
-            }
-            "complete" => {
-                // complete(subject_name) → mark subject as completed (no more pushes)
-                // In sync interpreter: converts Subject→Stream (strips write access)
-                // In async mode: closes the broadcast channel
-                if let Some(Value::Subject(items)) = args.into_iter().next() {
-                    Value::Stream(items)
-                } else {
-                    Value::Unit
-                }
-            }
-            "error" => {
-                // error(subject, msg) → terminate subject with error
-                // In sync interpreter: converts Subject→Stream, prints error
-                let mut it = args.into_iter();
-                if let (Some(Value::Subject(items)), Some(err_val)) = (it.next(), it.next()) {
-                    eprintln!("stream error: {}", err_val);
-                    Value::Stream(items)
-                } else {
-                    Value::Unit
-                }
-            }
+            "subject" => self.live_subject(args),
+            "as_stream" => self.live_as_stream(args),
+            "complete" => self.live_complete(&args),
+            "error" => self.live_error(&args),
             "teardown" => {
-                // teardown("ScopeName") → returns Teardown marker for the caller to handle
-                // The actual env removal happens in run_program where we have &mut Env
-                if let Some(Value::Str(scope_name)) = args.first() {
-                    Value::Constructor(
-                        "__Teardown".into(),
-                        vec![Value::Str(scope_name.clone())].into(),
-                    )
-                } else if let Some(Value::Constructor(scope_name, _)) = args.first() {
-                    Value::Constructor(
-                        "__Teardown".into(),
-                        vec![Value::Str(scope_name.clone())].into(),
-                    )
-                } else {
-                    Value::Unit
+                // teardown("ScopeName") stops the scope's subscriptions; the
+                // scope's bindings stay readable with the values they hold.
+                match args.first() {
+                    Some(Value::Str(scope_name)) | Some(Value::Scope { name: scope_name, .. }) => {
+                        self.live_teardown(scope_name)
+                    }
+                    Some(other) => self.ordinary_runtime_fail(format!(
+                        "teardown needs a scope name string, found {}",
+                        other
+                    )),
+                    None => self.ordinary_runtime_fail("teardown needs a scope name".into()),
                 }
+                Value::Unit
             }
             // M13c: poll(fn, ms) → in sync interpreter, just call fn once
             "poll" => {
@@ -24764,17 +24551,7 @@ impl Interpreter {
                 // Handled by eval_builtin now
                 Value::Int(0)
             }
-            "teardown" => {
-                // Return teardown marker — caller handles env removal
-                if let Some(Value::Str(scope_name)) = args.first() {
-                    Value::Constructor(
-                        "__Teardown".into(),
-                        vec![Value::Str(scope_name.clone())].into(),
-                    )
-                } else {
-                    Value::Unit
-                }
-            }
+            "teardown" => self.eval_builtin("teardown", args, &Env::new()),
             // I/O builtins: handle directly (eval_effect has no env)
             "write_file" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(path)), Some(Value::Str(content))) => {
@@ -24874,7 +24651,8 @@ impl Interpreter {
         }
     }
 
-    /// Dispatch a message to an actor: pattern-match handlers, evaluate body, return (new_state, response).
+    /// Handle one actor message: the first handler whose pattern matches
+    /// computes the actor's next state.
     pub fn dispatch_actor_message(
         &mut self,
         actor_name: &str,
@@ -24883,32 +24661,18 @@ impl Interpreter {
         handlers: &[Handler],
         actor_env: &Env,
         msg: &Value,
-    ) -> (Value, Value) {
+    ) -> Value {
         for handler in handlers {
             let mut handler_env = actor_env.child();
-            // Bind state
             handler_env.set(state_param.to_string(), current_state.clone());
-            // Try to match message against handler pattern
             if self.match_pattern(&handler.msg_pat, msg, &mut handler_env) {
-                let result = self.eval(&handler.body, &handler_env);
-                // Convention: if the handler body calls the actor recursively (e.g. counter(state + 1)),
-                // that becomes the new state. If it returns a tuple, (response, new_state).
-                // For simplicity: if result is a Constructor("Reply", [response, new_state]),
-                // extract both. Otherwise result is the new state, response is Unit.
-                match &result {
-                    Value::Constructor(name, args) if name == "Reply" && args.len() == 2 => {
-                        return (args[1].clone(), args[0].clone());
-                    }
-                    _ => {
-                        // Result is the new state, no response
-                        return (result, Value::Unit);
-                    }
-                }
+                return self.eval(&handler.body, &handler_env);
             }
         }
-        // No handler matched
-        eprintln!("Actor '{}': no handler for message {:?}", actor_name, msg);
-        (current_state.clone(), Value::Unit)
+        self.ordinary_runtime_fail(format!(
+            "actor `{}` has no handler for the message {}",
+            actor_name, msg
+        ))
     }
 
     fn checked_integer_sum(&self, items: &[Value]) -> Value {
@@ -28135,10 +27899,9 @@ fn ground_equality_value_within_limit(value: &Value, limit: usize) -> bool {
         }
         remaining -= 1;
         match value {
-            Value::List(values)
-            | Value::Tuple(values)
-            | Value::Stream(values)
-            | Value::Subject(values) => stack.extend(values),
+            Value::List(values) | Value::Tuple(values) | Value::Stream(values) => {
+                stack.extend(values)
+            }
             Value::Constructor(_, values) => stack.extend(values.iter()),
             Value::NamespacedConstructor { arguments, .. } => stack.extend(arguments.iter()),
             Value::NamedConstructor(_, values) => {
@@ -28224,8 +27987,12 @@ pub fn list_to_vec(val: &Value) -> Vec<Value> {
     let mut current = val.clone();
     loop {
         match current {
-            Value::Stream(items) | Value::Subject(items) => {
+            Value::Stream(items) => {
                 result.extend(items);
+                break;
+            }
+            Value::LiveStream(stream) => {
+                result.extend(stream.retained_values());
                 break;
             }
             Value::Constructor(ref name, ref fields) if name == "Cons" => {
@@ -28251,8 +28018,16 @@ fn rust_debug_value(value: &Value) -> String {
     match value {
         Value::Str(s) => format!("{:?}", s),
         Value::Char(c) => format!("{:?}", c),
-        Value::List(items) | Value::Stream(items) | Value::Subject(items) => {
+        Value::List(items) | Value::Stream(items) => {
             let parts: Vec<String> = items.iter().map(rust_debug_value).collect();
+            format!("[{}]", parts.join(", "))
+        }
+        Value::LiveStream(stream) => {
+            let parts: Vec<String> = stream
+                .retained_values()
+                .iter()
+                .map(rust_debug_value)
+                .collect();
             format!("[{}]", parts.join(", "))
         }
         Value::Constructor(name, fields) if name == "Cons" => {
@@ -60051,10 +59826,10 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
                 Value::Unit => {}
                 Value::List(_)
                 | Value::Stream(_)
-                | Value::Subject(_)
+                | Value::LiveStream(_)
                 | Value::Closure { .. }
                 | Value::Builtin(_)
-                | Value::Actor { .. } => {}
+                | Value::Actor(_) => {}
                 _ => {
                     if !output.is_empty() {
                         output.push('\n');
