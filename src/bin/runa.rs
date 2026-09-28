@@ -25171,6 +25171,8 @@ struct ModuleRuleScopeMetadata {
 #[derive(Debug, Clone)]
 struct ModuleCallableMetadata {
     emitted_name: String,
+    uses_module_state: bool,
+    ancestor_contexts: Vec<String>,
     param_names: Vec<String>,
     borrow_only_params: Vec<bool>,
     inout_params: Vec<bool>,
@@ -25974,6 +25976,12 @@ struct RustCodegen {
     binary_global_env_rule_scope_methods: BTreeSet<(String, String)>,
     /// Rust types for binary-mode top-level globals captured once in main
     binary_global_binding_types: BTreeMap<String, String>,
+    /// Values owned by a module instance, captured from its declaration scope.
+    module_capture_types: BTreeMap<String, BTreeMap<String, String>>,
+    module_ancestor_contexts: BTreeMap<String, Vec<String>>,
+    inherited_context_functions: BTreeMap<String, (String, usize)>,
+    /// Module instances declared in the current executable lexical scope.
+    local_module_instances: BTreeSet<String>,
     /// A hidden globals argument is currently available for function calls/wrappers
     binary_global_env_arg_in_scope: bool,
     /// Top-level binding reads should resolve through the hidden globals env
@@ -30906,6 +30914,10 @@ impl RustCodegen {
             binary_global_env_fn_arities: BTreeMap::new(),
             binary_global_env_rule_scope_methods: BTreeSet::new(),
             binary_global_binding_types: BTreeMap::new(),
+            module_capture_types: BTreeMap::new(),
+            module_ancestor_contexts: BTreeMap::new(),
+            inherited_context_functions: BTreeMap::new(),
+            local_module_instances: BTreeSet::new(),
             binary_global_env_arg_in_scope: false,
             binary_global_value_refs_in_scope: false,
             fn_return_types: BTreeMap::new(),
@@ -35258,6 +35270,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                     }
                     fn_stmts.push(stmt);
+                    if matches!(defn, Defn::Module { .. }) {
+                        main_stmts.push(stmt);
+                    }
                 }
                 Stmt::TypeDecl(_) => {}                    // already emitted
                 Stmt::PreludeBoundary | Stmt::Use(_) => {} // already emitted in header
@@ -35289,6 +35304,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .extend(self.collect_rule_top_level_binding_getter_names(&main_stmts, &rule_groups));
         self.lib_static_names
             .extend(self.collect_rule_scope_top_level_binding_getter_names(&main_stmts, stmts));
+        self.lib_static_names
+            .extend(main_stmts.iter().filter_map(|stmt| {
+                if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            }));
         let duplicate_top_level_binds = Self::duplicate_top_level_binding_names(&main_stmts);
         let omitted_compile_time_metadata = self.compile_time_metadata_bindings_to_omit(
             stmts,
@@ -35717,6 +35740,13 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 out.push_str(&globals_struct);
                 out.push('\n');
             }
+            if self.lib_mode {
+                out.push_str(&self.emit_top_level_binding_getters(
+                    &main_stmts,
+                    true,
+                    Some(&self.types.root_exported_names.clone()),
+                ));
+            }
         } else if !self.lib_static_names.is_empty() || !self.types.comptime_values.is_empty() {
             out.push_str(&self.emit_top_level_binding_getters(&main_stmts, self.lib_mode, None));
             out.push('\n');
@@ -35736,6 +35766,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
                 _ => {}
             }
+        }
+        if self.lib_mode && self.uses_binary_global_env() {
+            out.push_str(&self.emit_module_initializer(stmts, &main_stmts));
         }
 
         // Emit main function — with escape analysis
@@ -35853,11 +35886,17 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                     let prev_allow_comptime_binding_emit = cg.allow_comptime_binding_emit;
                     cg.allow_comptime_binding_emit = matches!(stmt, Stmt::Bind(_, _, _));
-                    out.push_str(&cg.emit_stmt(stmt));
+                    if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
+                        out.push_str(&cg.emit_module_initialization(name));
+                    } else {
+                        out.push_str(&cg.emit_stmt(stmt));
+                    }
                     cg.allow_comptime_binding_emit = prev_allow_comptime_binding_emit;
                     if cg.uses_binary_global_env() {
                         match stmt {
-                            Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
+                            Stmt::Bind(Pat::Var(name), _, _)
+                            | Stmt::StreamBind(name, _)
+                            | Stmt::Defn(Defn::Module { name, .. }) => {
                                 if cg.binary_global_binding_types.contains_key(name)
                                     && cg.lib_static_names.contains(name.as_str())
                                     && !cg
@@ -36043,9 +36082,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     }
 
     fn uses_binary_global_env(&self) -> bool {
-        !self.lib_mode
-            && (!self.binary_global_env_fns.is_empty()
-                || !self.binary_global_env_rule_scope_methods.is_empty())
+        !self.current_module_path.is_empty()
+            || (!self.binary_global_env_fns.is_empty()
+                || !self.binary_global_env_rule_scope_methods.is_empty()
+                || (self.lib_mode && !self.binary_global_binding_types.is_empty())
+                || self
+                    .binary_global_binding_types
+                    .values()
+                    .any(|ty| ty.ends_with("::__FutGlobals")))
     }
 
     fn rule_group_name(rule: &Rule) -> Option<String> {
@@ -36741,7 +36785,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         BTreeMap<String, usize>,
         BTreeSet<(String, String)>,
     ) {
-        if self.lib_mode || self.lib_static_names.is_empty() {
+        if self.lib_static_names.is_empty() {
             return (BTreeSet::new(), BTreeMap::new(), BTreeSet::new());
         }
 
@@ -36766,6 +36810,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             let bound: BTreeSet<String> = params.iter().map(|p| p.name.clone()).collect();
             let mut free = BTreeSet::new();
             collect_true_free_vars(body, &mut free, &bound);
+            Self::collect_nested_module_free_values(AstChild::Expr(body), &mut free, &bound);
             if free
                 .iter()
                 .any(|free_name| self.lib_static_names.contains(free_name.as_str()))
@@ -36971,9 +37016,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 if env_fns.contains(name) {
                     continue;
                 }
-                let calls_env_fn = called
-                    .iter()
-                    .any(|callee| env_fns.contains(callee.as_str()));
+                let calls_env_fn = called.iter().any(|callee| {
+                    env_fns.contains(callee.as_str())
+                        || self.inherited_context_functions.contains_key(callee)
+                });
                 let calls_env_method = fn_member_calls
                     .get(name)
                     .is_some_and(|members| !members.is_disjoint(&env_method_names));
@@ -36986,9 +37032,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 if env_methods.contains(key) {
                     continue;
                 }
-                let calls_env_fn = called
-                    .iter()
-                    .any(|callee| env_fns.contains(callee.as_str()));
+                let calls_env_fn = called.iter().any(|callee| {
+                    env_fns.contains(callee.as_str())
+                        || self.inherited_context_functions.contains_key(callee)
+                });
                 let calls_env_method = method_member_calls
                     .get(key)
                     .is_some_and(|members| !members.is_disjoint(&env_method_names));
@@ -37045,6 +37092,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
         for stmt in main_stmts {
             let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt else {
+                if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
+                    binding_types.insert(
+                        name.clone(),
+                        format!("{}::__FutGlobals", sanitize_name(name)),
+                    );
+                }
                 if let Stmt::StreamBind(name, _) = stmt {
                     if name.starts_with("__") || !names.contains(name) {
                         continue;
@@ -37102,10 +37155,23 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             return String::new();
         }
 
-        let mut out = String::from("#[derive(Clone, Default)]\nstruct __FutGlobals {\n");
+        let visibility = if self.current_module_path.is_empty() && !self.lib_mode {
+            ""
+        } else {
+            "pub "
+        };
+        let wasm = if self.wasm_mode && self.current_module_path.is_empty() {
+            "#[wasm_bindgen]\n"
+        } else {
+            ""
+        };
+        let mut out = format!(
+            "{}#[derive(Clone, Default)]\n{}struct __FutGlobals {{\n",
+            wasm, visibility
+        );
         for (name, rust_ty) in &self.binary_global_binding_types {
             out.push_str(&format!(
-                "    {}: Option<{}>,\n",
+                "    pub(crate) {}: Option<{}>,\n",
                 sanitize_name(name),
                 rust_ty
             ));
@@ -37120,6 +37186,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .binary_global_env_fn_arities
             .get(name)
             .copied()
+            .or_else(|| {
+                self.inherited_context_functions
+                    .get(name)
+                    .map(|(_, arity)| *arity)
+            })
             .unwrap_or(0);
         let params: Vec<String> = (0..arity).map(|i| format!("__fut_arg{}", i)).collect();
         let param_decls: Vec<String> = params
@@ -37145,16 +37216,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
             })
             .collect();
-        let env_arg = if self.binary_global_value_refs_in_scope {
-            "__fut_globals"
-        } else {
-            "&__fut_globals"
-        };
-        let call_args = if params.is_empty() {
-            env_arg.to_string()
-        } else {
-            format!("{}, {}", env_arg, params.join(", "))
-        };
+        let mut call_args = self.global_context_arguments(name);
+        call_args.extend(params.iter().cloned());
+        let call_args = call_args.join(", ");
         let move_prefix = if self.binary_global_value_refs_in_scope {
             "move "
         } else {
@@ -37173,12 +37237,317 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
     }
 
+    fn module_free_values(body: &[Stmt], outer_bound: &BTreeSet<String>) -> BTreeSet<String> {
+        let mut bound = outer_bound.clone();
+        for stmt in body {
+            match stmt {
+                Stmt::Bind(pat, _, _) => collect_pattern_names(pat, &mut bound),
+                Stmt::StreamBind(name, _)
+                | Stmt::Defn(Defn::Fn { name, .. })
+                | Stmt::Defn(Defn::Module { name, .. }) => {
+                    bound.insert(name.clone());
+                }
+                _ => {}
+            }
+        }
+        let mut free = BTreeSet::new();
+        for stmt in body {
+            match stmt {
+                Stmt::Defn(Defn::Fn { params, body, .. }) => {
+                    let mut function_bound = bound.clone();
+                    function_bound.extend(params.iter().map(|param| param.name.clone()));
+                    collect_true_free_vars(body, &mut free, &function_bound);
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    free.extend(Self::module_free_values(body, &bound))
+                }
+                Stmt::Rule(rule) => {
+                    let mut expressions = Vec::new();
+                    Self::rule_value_and_condition_exprs(rule, &mut expressions);
+                    let mut rule_bound = bound.clone();
+                    rule_bound.extend(Self::rule_params(&[rule]));
+                    for expression in expressions {
+                        collect_true_free_vars(expression, &mut free, &rule_bound);
+                    }
+                }
+                _ => collect_true_free_vars_stmt(stmt, &mut free, &bound),
+            }
+        }
+        free
+    }
+
+    fn collect_nested_module_free_values(
+        child: AstChild<'_>,
+        free: &mut BTreeSet<String>,
+        bound: &BTreeSet<String>,
+    ) {
+        match child {
+            AstChild::Stmt(Stmt::Defn(Defn::Module { body, .. })) => {
+                free.extend(Self::module_free_values(body, bound))
+            }
+            AstChild::Expr(expr) => visit_ast_expr_children(expr, &mut |child| {
+                Self::collect_nested_module_free_values(child, free, bound)
+            }),
+            AstChild::Stmt(stmt) => visit_ast_stmt_children(stmt, &mut |child| {
+                Self::collect_nested_module_free_values(child, free, bound)
+            }),
+        }
+    }
+
+    fn emit_module_initialization(&self, name: &str) -> String {
+        let name = sanitize_name(name);
+        let path = self
+            .current_module_path
+            .iter()
+            .cloned()
+            .chain([name.clone()])
+            .collect::<Vec<_>>()
+            .join("::");
+        let mut args = self
+            .module_capture_types
+            .get(&path)
+            .into_iter()
+            .flat_map(|captures| captures.keys())
+            .map(|name| format!("{}.clone()", sanitize_name(name)))
+            .collect::<Vec<_>>();
+        args.extend(
+            self.module_ancestor_contexts
+                .get(&path)
+                .into_iter()
+                .flatten()
+                .map(|path| self.module_context_arg(path)),
+        );
+        format!(
+            "{}let {} = {}::__fut_init({});\n",
+            self.ind(),
+            name,
+            name,
+            args.join(", ")
+        )
+    }
+
+    fn is_module_runtime_statement(stmt: &Stmt) -> bool {
+        match stmt {
+            Stmt::Defn(Defn::Module { .. }) | Stmt::Rule(Rule::ReactiveScope { .. }) => true,
+            Stmt::Defn(_)
+            | Stmt::TypeDecl(_)
+            | Stmt::Rule(_)
+            | Stmt::PreludeBoundary
+            | Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(..)
+            | Stmt::HashImport(..)
+            | Stmt::Depend(..)
+            | Stmt::RustBlock(_)
+            | Stmt::Annot(..) => false,
+            _ => true,
+        }
+    }
+
+    fn emit_module_initializer(&mut self, body: &[Stmt], _bindings: &[&Stmt]) -> String {
+        let statements = body
+            .iter()
+            .filter(|stmt| Self::is_module_runtime_statement(stmt))
+            .collect::<Vec<_>>();
+        let statements = analyze_top_level_binding_dependencies(body)
+            .order_statement_refs(&statements)
+            .unwrap_or_else(|cycle| panic!("{cycle}"));
+        let mut initializer = self.clone();
+        initializer.indent = 1;
+        initializer.local_bindings.clear();
+        initializer.var_types.clear();
+        initializer.allow_global_getter_refs = false;
+        initializer.binary_global_env_arg_in_scope = true;
+        initializer.binary_global_value_refs_in_scope = false;
+        let ownership =
+            OwnershipAnalysis::analyze_stmt_refs(&statements, &initializer.borrow_only_params);
+        initializer.var_use_counts = ownership.var_uses;
+        initializer.var_consuming_counts = ownership.consuming_uses;
+        let captures = self
+            .module_capture_types
+            .get(&self.current_module_path.join("::"))
+            .cloned()
+            .unwrap_or_default();
+        let mut params = captures
+            .iter()
+            .map(|(name, ty)| format!("{}: {}", sanitize_name(name), ty))
+            .collect::<Vec<_>>();
+        params.extend(self.ancestor_context_declarations());
+        let params = params.join(", ");
+        let wasm = if self.wasm_mode && self.current_module_path.is_empty() {
+            "#[wasm_bindgen]\n"
+        } else {
+            ""
+        };
+        let mut out = format!("{wasm}pub fn __fut_init({params}) -> __FutGlobals {{\n    let mut __fut_globals = __FutGlobals::default();\n");
+        for (name, ty) in &captures {
+            initializer.local_bindings.insert(name.clone());
+            initializer.remember_var_type(name, &Self::rust_type_to_fir(ty));
+            out.push_str(&format!(
+                "    __fut_globals.{} = Some({}.clone());\n",
+                sanitize_name(name),
+                sanitize_name(name)
+            ));
+        }
+        for stmt in statements {
+            initializer.allow_comptime_binding_emit = self.current_module_path.is_empty();
+            if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
+                out.push_str(&initializer.emit_module_initialization(name));
+            } else {
+                out.push_str(&initializer.emit_stmt(stmt));
+            }
+            if let Stmt::Bind(Pat::Var(name), _, _)
+            | Stmt::StreamBind(name, _)
+            | Stmt::Defn(Defn::Module { name, .. }) = stmt
+            {
+                if initializer.binary_global_binding_types.contains_key(name) {
+                    out.push_str(&format!(
+                        "    __fut_globals.{} = Some({}.clone());\n",
+                        sanitize_name(name),
+                        sanitize_name(name)
+                    ));
+                }
+            }
+        }
+        out.push_str("    __fut_globals\n}\n");
+        self.native_logic_runtime_needed |= initializer.native_logic_runtime_needed;
+        out
+    }
+
+    fn module_context_arg(&self, path: &str) -> String {
+        if self
+            .module_ancestor_contexts
+            .get(&self.current_module_path.join("::"))
+            .is_some_and(|paths| paths.iter().any(|ancestor| ancestor == path))
+        {
+            return Self::ancestor_context_name(path);
+        }
+        if self.local_module_instances.contains(path) {
+            return format!("(&{})", path.rsplit("::").next().unwrap_or(path));
+        }
+        let current = self.current_module_path.join("::");
+        if path == current {
+            return if self.binary_global_value_refs_in_scope {
+                "__fut_globals"
+            } else {
+                "&__fut_globals"
+            }
+            .to_string();
+        }
+        let relative = path
+            .strip_prefix(&format!("{current}::"))
+            .filter(|_| !current.is_empty());
+        let mut parts = relative.unwrap_or(path).split("::");
+        let first = parts.next().unwrap_or(path);
+        let mut context = if relative.is_some() || self.binary_global_value_refs_in_scope {
+            format!(
+                "__fut_globals.{}.as_ref().expect({:?})",
+                first,
+                format!("module `{first}` not initialized")
+            )
+        } else {
+            format!("(&{first})")
+        };
+        for part in parts {
+            context = format!(
+                "{context}.{part}.as_ref().expect({:?})",
+                format!("module `{part}` not initialized")
+            );
+        }
+        context
+    }
+
+    fn ancestor_context_name(path: &str) -> String {
+        format!(
+            "__fut_ancestor_{}",
+            path.split("::")
+                .map(|part| format!("{}_{part}", part.len()))
+                .collect::<Vec<_>>()
+                .join("_")
+        )
+    }
+
+    fn ancestor_context_declarations(&self) -> Vec<String> {
+        self.module_ancestor_contexts
+            .get(&self.current_module_path.join("::"))
+            .into_iter()
+            .flatten()
+            .map(|path| {
+                let depth = if path.is_empty() {
+                    0
+                } else {
+                    path.split("::").count()
+                };
+                format!(
+                    "{}: &{}__FutGlobals",
+                    Self::ancestor_context_name(path),
+                    "super::".repeat(self.current_module_path.len() - depth)
+                )
+            })
+            .collect()
+    }
+
+    fn global_context_declaration(&self) -> String {
+        let mut params = vec!["__fut_globals: &__FutGlobals".to_string()];
+        params.extend(self.ancestor_context_declarations());
+        params.join(", ")
+    }
+
+    fn global_context_arguments(&self, function: &str) -> Vec<String> {
+        let owner = self
+            .inherited_context_functions
+            .get(function)
+            .map(|(path, _)| path.clone())
+            .unwrap_or_else(|| self.current_module_path.join("::"));
+        let mut args = vec![self.module_context_arg(&owner)];
+        args.extend(
+            self.module_ancestor_contexts
+                .get(&owner)
+                .into_iter()
+                .flatten()
+                .map(|path| self.module_context_arg(path)),
+        );
+        args
+    }
+
     fn emit_top_level_binding_getters(
         &mut self,
         main_stmts: &[&Stmt],
         public: bool,
         public_names: Option<&BTreeSet<String>>,
     ) -> String {
+        if !self.current_module_path.is_empty() || (self.lib_mode && self.uses_binary_global_env())
+        {
+            let mut out = String::new();
+            for (name, rust_ty) in &self.binary_global_binding_types {
+                if !main_stmts.iter().any(|stmt| matches!(stmt, Stmt::Bind(Pat::Var(binding), _, _) | Stmt::StreamBind(binding, _) if binding == name)) {
+                    continue;
+                }
+                let visibility =
+                    if public && public_names.map_or(true, |names| names.contains(name)) {
+                        "pub "
+                    } else {
+                        ""
+                    };
+                out.push_str(&format!("{}fn {}(__fut_globals: &__FutGlobals) -> {} {{ __fut_globals.{}.clone().expect({:?}) }}\n", visibility, sanitize_name(name), rust_ty, sanitize_name(name), format!("module binding `{name}` not initialized")));
+            }
+            if self.current_module_path.is_empty() {
+                for (name, literal) in &self.types.comptime_values {
+                    if !literal.is_empty() && public_names.is_some_and(|names| names.contains(name))
+                    {
+                        if let Some(ty) = self.types.comptime_types.get(name) {
+                            out.push_str(&format!(
+                                "pub fn {}() -> {} {{ {} }}\n",
+                                sanitize_name(name),
+                                ty,
+                                literal
+                            ));
+                        }
+                    }
+                }
+            }
+            return out;
+        }
         let mut out = String::new();
         let emit_all = public;
         let prev_allow_global_getter_refs =
@@ -37299,10 +37668,18 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         let mut getter_names = BTreeSet::new();
 
         for stmt in fn_stmts {
+            if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
+                getter_names.extend(
+                    Self::module_free_values(body, &BTreeSet::new())
+                        .intersection(&top_level_names)
+                        .cloned(),
+                );
+            }
             if let Stmt::Defn(Defn::Fn { params, body, .. }) = stmt {
                 let bound: BTreeSet<String> = params.iter().map(|p| p.name.clone()).collect();
                 let mut free = BTreeSet::new();
                 collect_true_free_vars(body, &mut free, &bound);
+                Self::collect_nested_module_free_values(AstChild::Expr(body), &mut free, &bound);
                 for name in free {
                     if top_level_names.contains(&name) {
                         getter_names.insert(name);
@@ -38382,10 +38759,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             || (self.rule_dispatch_miss_mode == RustCodegenRuleDispatchMissMode::ProcessFailure
                 && matches!(ret_ty, FirTy::Bool));
         let mut sig_params = vec!["&self".to_string()];
-        let uses_binary_global_env = !self.lib_mode
+        let uses_binary_global_env = self.uses_binary_global_env()
             && self.rule_scope_method_uses_binary_global_env(scope_name, method_name);
         if uses_binary_global_env {
-            sig_params.push("__fut_globals: &__FutGlobals".to_string());
+            sig_params.push(self.global_context_declaration());
         }
         sig_params.extend(params.iter().zip(param_tys.iter()).map(|(param, ty)| {
             let rust_ty =
@@ -38823,10 +39200,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         };
 
         let mut sig_params = vec!["&self".to_string()];
-        let uses_binary_global_env =
-            !self.lib_mode && self.rule_scope_method_uses_binary_global_env(scope_name, name);
+        let uses_binary_global_env = self.uses_binary_global_env()
+            && self.rule_scope_method_uses_binary_global_env(scope_name, name);
         if uses_binary_global_env {
-            sig_params.push("__fut_globals: &__FutGlobals".to_string());
+            sig_params.push(self.global_context_declaration());
         }
         let mut method_param_names = Vec::new();
         let mut method_param_tys = Vec::new();
@@ -43421,12 +43798,13 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .map(|(p, ty)| format!("{}: {}", sanitize_name(p), ty))
             .collect::<Vec<_>>()
             .join(", ");
-        let uses_binary_global_env = !self.lib_mode && self.binary_global_env_fns.contains(fn_name);
+        let uses_binary_global_env =
+            self.uses_binary_global_env() && self.binary_global_env_fns.contains(fn_name);
         let rule_param_str = if uses_binary_global_env {
             if param_str.is_empty() {
-                "__fut_globals: &__FutGlobals".to_string()
+                self.global_context_declaration()
             } else {
-                format!("__fut_globals: &__FutGlobals, {}", param_str)
+                format!("{}, {}", self.global_context_declaration(), param_str)
             }
         } else {
             param_str
@@ -44073,10 +44451,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 let mut all_params = params_str.clone();
-                let uses_binary_global_env =
-                    !self.lib_mode && self.binary_global_env_fns.contains(name.as_str());
+                let uses_binary_global_env = self.uses_binary_global_env()
+                    && self.binary_global_env_fns.contains(name.as_str());
                 if uses_binary_global_env {
-                    all_params.insert(0, "__fut_globals: &__FutGlobals".to_string());
+                    all_params.insert(0, self.global_context_declaration());
                 }
                 for eff in &merged_effects {
                     all_params.push(format!("__eff_{}: &impl {}", eff, eff));
@@ -44087,8 +44465,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
                 let is_exported = self.name_is_exported_in_current_namespace(name);
                 let pub_prefix = if is_exported { "pub " } else { "" };
+                let is_wasm_export =
+                    self.wasm_mode && is_exported && self.current_module_path.is_empty();
                 // M4: wasm-bindgen annotation for exported functions with compatible types
-                let wasm_issues = if self.wasm_mode && is_exported {
+                let wasm_issues = if is_wasm_export {
                     self.wasm_export_signature_issues(
                         name,
                         params,
@@ -44099,7 +44479,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 } else {
                     Vec::new()
                 };
-                let wasm_attr = if self.wasm_mode && is_exported {
+                let wasm_attr = if is_wasm_export {
                     if wasm_issues.is_empty() {
                         // wasm-bindgen needs &str not &String for params
                         for p in all_params.iter_mut() {
@@ -44279,6 +44659,67 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 } else {
                     format!("{}::{}", self.current_module_path.join("::"), rust_name)
                 };
+                let saved_inherited_context_functions = self.inherited_context_functions.clone();
+                if self.types.module_exports.contains_key(&module_path) {
+                    self.inherited_context_functions.clear();
+                } else {
+                    let parent = self.current_module_path.join("::");
+                    for function in &self.binary_global_env_fns {
+                        self.inherited_context_functions.insert(
+                            function.clone(),
+                            (
+                                parent.clone(),
+                                self.binary_global_env_fn_arities
+                                    .get(function)
+                                    .copied()
+                                    .unwrap_or(0),
+                            ),
+                        );
+                    }
+                }
+                let free_values = Self::module_free_values(body, &BTreeSet::new());
+                self.inherited_context_functions
+                    .retain(|function, _| free_values.contains(function));
+                let mut ancestor_contexts = BTreeSet::new();
+                for (path, _) in self.inherited_context_functions.values() {
+                    ancestor_contexts.insert(path.clone());
+                    ancestor_contexts.extend(
+                        self.module_ancestor_contexts
+                            .get(path)
+                            .into_iter()
+                            .flatten()
+                            .cloned(),
+                    );
+                }
+                self.module_ancestor_contexts
+                    .insert(module_path.clone(), ancestor_contexts.into_iter().collect());
+                let captures = Self::module_free_values(body, &BTreeSet::new())
+                    .into_iter()
+                    .filter_map(|name| {
+                        if self.types.module_exports.contains_key(&module_path) {
+                            return None;
+                        }
+                        self.var_fir_types
+                            .get(&name)
+                            .and_then(Self::fir_type_to_rust)
+                            .or_else(|| {
+                                self.binary_global_binding_types
+                                    .get(&name)
+                                    .filter(|ty| !ty.ends_with("::__FutGlobals"))
+                                    .cloned()
+                            })
+                            .map(|ty| (name, ty))
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                self.module_capture_types
+                    .insert(module_path.clone(), captures.clone());
+                let saved_var_types = std::mem::take(&mut self.var_types);
+                let saved_var_fir_types = std::mem::take(&mut self.var_fir_types);
+                let saved_local_bindings = std::mem::take(&mut self.local_bindings);
+                let saved_borrow_params = std::mem::take(&mut self.current_borrow_params);
+                for (name, ty) in &captures {
+                    self.remember_var_type(name, &Self::rust_type_to_fir(ty));
+                }
                 let mut out = format!("{}mod {} {{\n", pub_prefix, rust_name);
                 out.push_str("    use super::*;\n");
                 let module_exports = self.types.module_exports.get(&module_path).cloned();
@@ -44656,6 +45097,68 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                     }
                 }
+                let module_bind_stmts: Vec<&Stmt> = body
+                    .iter()
+                    .filter(|stmt| {
+                        matches!(
+                            stmt,
+                            Stmt::Bind(Pat::Var(_), _, _)
+                                | Stmt::StreamBind(_, _)
+                                | Stmt::Defn(Defn::Module { .. })
+                        )
+                    })
+                    .collect();
+                let direct_module_bind_names = module_bind_stmts
+                    .iter()
+                    .filter_map(|stmt| match stmt {
+                        Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
+                        Stmt::StreamBind(name, _) | Stmt::Defn(Defn::Module { name, .. }) => {
+                            Some(name.clone())
+                        }
+                        _ => None,
+                    })
+                    .collect::<BTreeSet<_>>();
+                if inherit_parent_module_bindings {
+                    self.lib_static_names.extend(direct_module_bind_names);
+                } else {
+                    self.lib_static_names = direct_module_bind_names;
+                }
+                self.binary_global_binding_types = self.collect_top_level_binding_rust_types(
+                    &module_bind_stmts,
+                    &self.lib_static_names,
+                );
+                self.lib_static_names.extend(captures.keys().cloned());
+                self.binary_global_binding_types.extend(captures);
+                let module_function_stmts = body
+                    .iter()
+                    .filter(|stmt| matches!(stmt, Stmt::Defn(Defn::Fn { .. })))
+                    .collect::<Vec<_>>();
+                (
+                    self.binary_global_env_fns,
+                    self.binary_global_env_fn_arities,
+                    self.binary_global_env_rule_scope_methods,
+                ) = self.collect_binary_global_env_fn_names(
+                    body,
+                    &module_function_stmts,
+                    &rule_groups,
+                );
+                if self
+                    .module_ancestor_contexts
+                    .get(&module_path)
+                    .is_some_and(|paths| !paths.is_empty())
+                {
+                    self.binary_global_env_fns
+                        .extend(
+                            namespace_functions
+                                .iter()
+                                .filter_map(|(defn, _)| match defn {
+                                    Defn::Fn { name, .. } => Some(name.clone()),
+                                    _ => None,
+                                }),
+                        );
+                    self.binary_global_env_fns
+                        .extend(rule_groups.keys().cloned());
+                }
                 let module_path = self.current_module_path.join("::");
                 for (defn, adt_owner) in &namespace_functions {
                     let Defn::Fn { name, params, .. } = defn else {
@@ -44674,6 +45177,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         (module_path.clone(), name.clone(), arity),
                         ModuleCallableMetadata {
                             emitted_name: sanitize_name(name),
+                            uses_module_state: self.binary_global_env_fns.contains(name),
+                            ancestor_contexts: self
+                                .module_ancestor_contexts
+                                .get(&module_path)
+                                .cloned()
+                                .unwrap_or_default(),
                             param_names: effective_params
                                 .iter()
                                 .map(|param| param.name.clone())
@@ -44733,6 +45242,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             .unwrap_or_else(|| sanitize_name(rule_name));
                         let key = (module_path.clone(), rule_name.clone(), arity);
                         let metadata = ModuleCallableMetadata {
+                            uses_module_state: self.binary_global_env_fns.contains(rule_name),
+                            ancestor_contexts: self
+                                .module_ancestor_contexts
+                                .get(&module_path)
+                                .cloned()
+                                .unwrap_or_default(),
                             emitted_name,
                             param_names: inference.params,
                             borrow_only_params: vec![false; arity],
@@ -44756,31 +45271,13 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 self.indent = 1;
-                let module_bind_stmts: Vec<&Stmt> = body
-                    .iter()
-                    .filter(|stmt| {
-                        matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _))
-                    })
-                    .collect();
-                let direct_module_bind_names = module_bind_stmts
-                    .iter()
-                    .filter_map(|stmt| match stmt {
-                        Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
-                        Stmt::StreamBind(name, _) => Some(name.clone()),
-                        _ => None,
-                    })
-                    .collect::<BTreeSet<_>>();
-                if inherit_parent_module_bindings {
-                    self.lib_static_names.extend(direct_module_bind_names);
-                } else {
-                    self.lib_static_names = direct_module_bind_names;
-                }
                 for stmt in body {
                     if let Stmt::StreamBind(name, _) = stmt {
                         self.sync_subject_vars.insert(name.clone());
                     }
                 }
                 self.allow_global_getter_refs = true;
+                out.push_str(&self.emit_binary_global_env_struct());
                 if !module_bind_stmts.is_empty() {
                     out.push_str(&self.emit_top_level_binding_getters(
                         &module_bind_stmts,
@@ -44805,11 +45302,24 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 for stmt in body {
-                    if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _)) {
+                    if Self::is_module_runtime_statement(stmt)
+                        && !matches!(stmt, Stmt::Defn(Defn::Module { .. }))
+                    {
+                        continue;
+                    }
+                    if !matches!(
+                        stmt,
+                        Stmt::Defn(_)
+                            | Stmt::TypeDecl(_)
+                            | Stmt::Rule(_)
+                            | Stmt::Use(_)
+                            | Stmt::RustBlock(_)
+                    ) {
                         continue;
                     }
                     out.push_str(&self.emit_stmt(stmt));
                 }
+                out.push_str(&self.emit_module_initializer(body, &module_bind_stmts));
                 self.indent = 0;
                 out.push_str("}\n");
                 self.lib_static_names = saved_lib_static_names;
@@ -44836,6 +45346,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 self.rule_signature_inference_cache = saved_rule_signature_inference_cache;
                 self.rule_inference_environment_revision =
                     saved_rule_inference_environment_revision;
+                self.var_types = saved_var_types;
+                self.var_fir_types = saved_var_fir_types;
+                self.local_bindings = saved_local_bindings;
+                self.current_borrow_params = saved_borrow_params;
+                self.inherited_context_functions = saved_inherited_context_functions;
                 self.current_module_path.pop();
                 out
             }
@@ -46298,7 +46813,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         if self.local_bindings.contains(name)
             || self.var_fir_types.contains_key(name)
             || self.var_types.contains_key(name)
-            || self.binary_global_binding_types.contains_key(name)
+            || self
+                .binary_global_binding_types
+                .get(name)
+                .is_some_and(|ty| ty != &format!("{}::__FutGlobals", sanitize_name(name)))
             || self.types.literal_bindings.contains_key(name)
             || self.types.comptime_values.contains_key(name)
         {
@@ -49849,7 +50367,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         .emit_nullary_variant_with_parent(name, parent.as_str());
                 }
                 if self.binary_global_env_arg_in_scope
-                    && self.binary_global_env_fns.contains(name.as_str())
+                    && (self.binary_global_env_fns.contains(name.as_str())
+                        || self.inherited_context_functions.contains_key(name))
                     && !self.current_borrow_params.contains(name.as_str())
                     && !self.var_types.contains_key(name)
                     && !self.local_bindings.contains(name.as_str())
@@ -51015,17 +51534,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                     let mut leading_args = Vec::new();
                     if self.binary_global_env_arg_in_scope
-                        && self.binary_global_env_fns.contains(name.as_str())
+                        && (self.binary_global_env_fns.contains(name.as_str())
+                            || self.inherited_context_functions.contains_key(name))
                         && (bypass_non_callable_local
                             || (!self.current_borrow_params.contains(name.as_str())
                                 && !self.var_types.contains_key(name)
                                 && !self.local_bindings.contains(name.as_str())))
                     {
-                        leading_args.push(if self.binary_global_value_refs_in_scope {
-                            "__fut_globals".to_string()
-                        } else {
-                            "&__fut_globals".to_string()
-                        });
+                        leading_args.extend(self.global_context_arguments(name));
                     }
                     // Effect forwarding: if calling a function that requires effects, pass handlers
                     let mut effect_args = Vec::new();
@@ -51121,8 +51637,30 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         format!("self::{}", sanitize_name(name))
                     }
                     _ if emitted_rule_target.is_some() => emitted_rule_target.unwrap(),
+                    ExprKind::Field(module, name) if is_qualified_module_call => {
+                        format!("{}::{}", self.emit_module_path(module), sanitize_name(name))
+                    }
                     _ => self.emit_expr(func),
                 };
+                let mut args_str = args_str;
+                if module_callable_metadata
+                    .as_ref()
+                    .is_some_and(|metadata| metadata.uses_module_state)
+                {
+                    if let Some((path, _, _)) = &qualified_module_callable_key {
+                        let mut contexts = vec![self.module_context_arg(path)];
+                        contexts.extend(
+                            module_callable_metadata
+                                .as_ref()
+                                .unwrap()
+                                .ancestor_contexts
+                                .iter()
+                                .map(|path| self.module_context_arg(path)),
+                        );
+                        contexts.extend(args_str);
+                        args_str = contexts;
+                    }
+                }
                 let call = format!("{}({})", f, args_str.join(", "));
                 // Value-returning Prolog functions retain Option<T> internally.
                 // A miss must not manufacture a value of the result type.
@@ -51652,7 +52190,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         .get(&metadata_path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
-                        return format!("{}::{}()", path, sanitize_name(field));
+                        return format!(
+                            "{}::{}({})",
+                            path,
+                            sanitize_name(field),
+                            self.module_context_arg(&metadata_path)
+                        );
                     }
                     if self
                         .types
@@ -51660,7 +52203,42 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         .get(&metadata_path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
-                        return format!("{}::{}()", path, sanitize_name(field));
+                        return format!(
+                            "{}::{}({})",
+                            path,
+                            sanitize_name(field),
+                            self.module_context_arg(&metadata_path)
+                        );
+                    }
+                    if let Some(((_, _, arity), metadata)) = self
+                        .module_callable_metadata
+                        .iter()
+                        .find(|((module, name, _), metadata)| {
+                            module == &metadata_path && name == field && metadata.uses_module_state
+                        })
+                    {
+                        let params = (0..*arity)
+                            .map(|index| format!("__fut_arg{index}"))
+                            .collect::<Vec<_>>();
+                        let mut args = vec!["&__fut_module".to_string()];
+                        let mut capture_ancestors = String::new();
+                        for (index, ancestor) in metadata.ancestor_contexts.iter().enumerate() {
+                            capture_ancestors.push_str(&format!(
+                                "let __fut_captured_ancestor{index} = ({}).clone(); ",
+                                self.module_context_arg(ancestor)
+                            ));
+                            args.push(format!("&__fut_captured_ancestor{index}"));
+                        }
+                        args.extend(params.iter().cloned());
+                        return format!(
+                            "{{ let __fut_module = ({}).clone(); {}move |{}| {}::{}({}) }}",
+                            self.module_context_arg(&metadata_path),
+                            capture_ancestors,
+                            params.join(", "),
+                            path,
+                            metadata.emitted_name,
+                            args.join(", ")
+                        );
                     }
                     return format!("{}::{}", path, sanitize_name(field));
                 }
@@ -52416,7 +52994,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field));
         if is_value_binding || is_stream_binding {
-            Some(format!("{}::{}()", path, sanitize_name(field)))
+            Some(format!(
+                "{}::{}({})",
+                path,
+                sanitize_name(field),
+                self.module_context_arg(&metadata_path)
+            ))
         } else {
             None
         }
@@ -52436,7 +53019,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .module_stream_bindings
             .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field))
-            .then(|| format!("{}::{}()", path, sanitize_name(field)))
+            .then(|| {
+                format!(
+                    "{}::{}({})",
+                    path,
+                    sanitize_name(field),
+                    self.module_context_arg(&metadata_path)
+                )
+            })
     }
 
     fn emit_expr_with_rust_type_hint(&mut self, expr: &Expr, rust_ty: &str) -> String {
@@ -53306,10 +53896,39 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         stmts: &[Stmt],
         expected_ty: Option<&FirTy>,
     ) -> String {
+        let saved_modules = stmts
+            .iter()
+            .any(|stmt| matches!(stmt, Stmt::Defn(Defn::Module { .. })))
+            .then(|| {
+                let saved = (
+                    self.local_module_instances.clone(),
+                    self.types.known_module_paths.clone(),
+                    self.types.module_value_bindings.clone(),
+                    self.types.module_stream_bindings.clone(),
+                    self.module_callable_metadata.clone(),
+                );
+                let mut path = self.current_module_path.clone();
+                self.collect_module_value_bindings(stmts, &mut path);
+                saved
+            });
         let mut out = String::new();
         for (i, stmt) in stmts.iter().enumerate() {
             let is_last = i == stmts.len() - 1;
             match stmt {
+                Stmt::Defn(Defn::Module { name, .. }) => {
+                    let saved_indent = self.indent;
+                    out.push_str(&self.emit_stmt(stmt));
+                    self.indent = saved_indent;
+                    out.push_str(&self.emit_module_initialization(name));
+                    let path = self
+                        .current_module_path
+                        .iter()
+                        .cloned()
+                        .chain([sanitize_name(name)])
+                        .collect::<Vec<_>>()
+                        .join("::");
+                    self.local_module_instances.insert(path);
+                }
                 Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) => {
                     out.push_str(&self.emit_stmt(stmt));
                     collect_pattern_names(pat, &mut self.local_bindings);
@@ -53322,6 +53941,13 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
                 _ => out.push_str(&self.emit_stmt(stmt)),
             }
+        }
+        if let Some((instances, paths, values, streams, callables)) = saved_modules {
+            self.local_module_instances = instances;
+            self.types.known_module_paths = paths;
+            self.types.module_value_bindings = values;
+            self.types.module_stream_bindings = streams;
+            self.module_callable_metadata = callables;
         }
         out
     }

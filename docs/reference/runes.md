@@ -209,6 +209,12 @@ Actors have a state parameter and message handlers. Each handler returns the new
 
 Modules can be nested. Contents are accessed via `Math.square(5)`.
 
+A module instance owns its initialized bindings. Initializers run once, including
+private bindings and bindings that are never read. Reading a binding or calling
+a module function reuses that instance. A module declared inside a function is
+instantiated each time that declaration executes and captures the surrounding
+values it uses.
+
 ---
 
 ## `|` -- What must be true
@@ -453,6 +459,9 @@ to that original location. Qualified modules resolve private helpers and their
 own dependencies within the module, without inheriting the caller's local names.
 Qualified bindings and their helper calls use the module's declaration scope;
 a same-named value in the importer does not replace a module binding.
+Separate qualified aliases own separate instances. Repeating the same alias
+and source within one parent namespace reuses its existing instance. Bindings
+inside an instance follow the dependency order described above.
 
 ### Use (Rust items)
 ```runa
