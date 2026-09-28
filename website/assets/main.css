@@ -780,6 +780,10 @@ section {
     /* no border-top — discovery card provides the visual break */
 }
 
+.runes-section .code-container {
+    margin-bottom: 2.5rem;
+}
+
 .runes-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
