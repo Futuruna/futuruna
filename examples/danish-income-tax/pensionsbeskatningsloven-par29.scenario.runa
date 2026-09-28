@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./pensionsbeskatningsloven - par29
+@ importer ./pensionsbeskatningsloven-par29
 
 = pbl29_scenarie_under_hundrede = pbl29_stk1_ordinær_afgift(99)
 = pbl29_scenarie_mellem_hundrede_og_to_hundrede = pbl29_stk1_ordinær_afgift(199)

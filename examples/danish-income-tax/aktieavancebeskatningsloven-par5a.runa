@@ -2,7 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./aktieavancebeskatningsloven - kilder
+@ importer ./aktieavancebeskatningsloven-kilder
 
 = aktieavancebeskatningsloven_lbk1098_par5a = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",

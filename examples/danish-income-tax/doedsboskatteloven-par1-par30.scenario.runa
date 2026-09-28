@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./doedsboskatteloven - par1 - par30
+@ importer ./doedsboskatteloven-par1-par30
 @ importer ./kalenderdato
 
 = dødsbo_scenarie_positiv_indkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(

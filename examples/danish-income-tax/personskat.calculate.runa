@@ -1,61 +1,61 @@
 @ sprog da
-@ importer ./personskat - arbejdsfradrag - udland
+@ importer ./personskat-arbejdsfradrag-udland
 
 @ importer ./metadata
-@ importer ./ligningsloven - par8v - boligjob
-@ importer ./personskat - beregningskontrol
-@ importer ./personskat - kirkeskat
-@ importer ./source - status
+@ importer ./ligningsloven-par8v-boligjob
+@ importer ./personskat-beregningskontrol
+@ importer ./personskat-kirkeskat
+@ importer ./source-status
 @ importer ./kalenderdato
 @ importer ./loenmodtager_beregning
-@ importer ./loenmodtager - eksakt - skat
-@ importer ./arbejdsmarkedsbidragsloven - par2 - stk1 - nr5
-@ importer ./arbejdsmarkedsbidragsloven - par2 - stk1 - nr5 - beregningsmeta
+@ importer ./loenmodtager-eksakt-skat
+@ importer ./arbejdsmarkedsbidragsloven-par2-stk1-nr5
+@ importer ./arbejdsmarkedsbidragsloven-par2-stk1-nr5-beregningsmeta
 @ importer ./ejendomsskatteloven
-@ importer ./personskat - ejendomsskat - alder
-@ importer ./personskat - cfc - beregningsmeta
-@ importer ./personskat - cfc - kildefakta
-@ importer ./personskat - arbejdsudleje - beregningsmeta
-@ importer ./personskat - etableringskonto - beregningsmeta
-@ importer ./personskat - personlig - indkomst - beregningsmeta
-@ importer ./personskat - personlig - indkomst - kildefakta
-@ importer ./personskat - pensionsindbetalinger
-@ importer ./personskat - atp
-@ importer ./personskat - par3 - stk2 - nr2 - beregningsmeta
-@ importer ./personskat - par3 - erhvervsposter - beregningsmeta
-@ importer ./personskat - par4 - finansielle - poster - beregningsmeta
-@ importer ./personskat - par4 - saerlige - kapitalposter - beregningsmeta
-@ importer ./personskat - ligningslov7n - beregningsmeta
-@ importer ./personskat - kildeskat25a - beregningsmeta
-@ importer ./personskat - kildeskat25a - kildefakta
-@ importer ./personskat - pbl53a - beregningsmeta
-@ importer ./personskat - pbl53a - kildefakta
-@ importer ./personskat - udenlandske - sociale - bidrag - beregningsmeta
-@ importer ./personskat - udenlandske - sociale - bidrag - kildefakta
-@ importer ./personskat - virksomhedskapital - beregningsmeta
-@ importer ./personskat - virksomhedskapital - kildefakta
-@ importer ./ligningsloven - kontingenter - gaver
-@ importer ./ligningsloven - par9 - loenmodtagerudgifter
-@ importer ./ligningsloven - par9a - rejser
-@ importer ./ligningsloven - par9g - fiskerfradrag
-@ importer ./ligningsloven - par33
-@ importer ./ligningsloven - par33a
-@ importer ./pensionsbeskatningsloven - par49 - 49b
-@ importer ./soemandsbeskatningsloven - par3 - par4
-@ importer ./soemandsbeskatningsloven - dis - lempelse
-@ importer ./personskat - ligningsfradrag - beregningsmeta
-@ importer ./personskat - fiskerfradrag - beregningsmeta
-@ importer ./personskat - rejsefradrag - beregningsmeta
-@ importer ./personskat - soemandsfradrag - beregningsmeta
+@ importer ./personskat-ejendomsskat-alder
+@ importer ./personskat-cfc-beregningsmeta
+@ importer ./personskat-cfc-kildefakta
+@ importer ./personskat-arbejdsudleje-beregningsmeta
+@ importer ./personskat-etableringskonto-beregningsmeta
+@ importer ./personskat-personlig-indkomst-beregningsmeta
+@ importer ./personskat-personlig-indkomst-kildefakta
+@ importer ./personskat-pensionsindbetalinger
+@ importer ./personskat-atp
+@ importer ./personskat-par3-stk2-nr2-beregningsmeta
+@ importer ./personskat-par3-erhvervsposter-beregningsmeta
+@ importer ./personskat-par4-finansielle-poster-beregningsmeta
+@ importer ./personskat-par4-saerlige-kapitalposter-beregningsmeta
+@ importer ./personskat-ligningslov7n-beregningsmeta
+@ importer ./personskat-kildeskat25a-beregningsmeta
+@ importer ./personskat-kildeskat25a-kildefakta
+@ importer ./personskat-pbl53a-beregningsmeta
+@ importer ./personskat-pbl53a-kildefakta
+@ importer ./personskat-udenlandske-sociale-bidrag-beregningsmeta
+@ importer ./personskat-udenlandske-sociale-bidrag-kildefakta
+@ importer ./personskat-virksomhedskapital-beregningsmeta
+@ importer ./personskat-virksomhedskapital-kildefakta
+@ importer ./ligningsloven-kontingenter-gaver
+@ importer ./ligningsloven-par9-loenmodtagerudgifter
+@ importer ./ligningsloven-par9a-rejser
+@ importer ./ligningsloven-par9g-fiskerfradrag
+@ importer ./ligningsloven-par33
+@ importer ./ligningsloven-par33a
+@ importer ./pensionsbeskatningsloven-par49-49b
+@ importer ./soemandsbeskatningsloven-par3-par4
+@ importer ./soemandsbeskatningsloven-dis-lempelse
+@ importer ./personskat-ligningsfradrag-beregningsmeta
+@ importer ./personskat-fiskerfradrag-beregningsmeta
+@ importer ./personskat-rejsefradrag-beregningsmeta
+@ importer ./personskat-soemandsfradrag-beregningsmeta
 @ importer ./slutopgoerelse
-@ importer ./personskat - skattekreditter - beregningsmeta
-@ importer ./personskat - skattekreditter - kildekontrol
-@ importer ./aktieindkomst - slutopgoerelse
-@ importer ./kursgevinstloven - ebl - par6d
-@ importer ./kursgevinstloven - aarsnetto
-@ importer ./aktieavancebeskatningsloven - par17
-@ importer ./aktieavancebeskatningsloven - par35g - 35k
-@ importer ./aktieavancebeskatningsloven - par37 - 40 - forloeb
+@ importer ./personskat-skattekreditter-beregningsmeta
+@ importer ./personskat-skattekreditter-kildekontrol
+@ importer ./aktieindkomst-slutopgoerelse
+@ importer ./kursgevinstloven-ebl-par6d
+@ importer ./kursgevinstloven-aarsnetto
+@ importer ./aktieavancebeskatningsloven-par17
+@ importer ./aktieavancebeskatningsloven-par35g-35k
+@ importer ./aktieavancebeskatningsloven-par37-40-forloeb
 
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
 # PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, udenlandsk_skat, negativ_aktieskat, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, udenlandsk_skat: udenlandsk_skat, negativ_aktieskat: negativ_aktieskat, årsopgørelse: årsopgørelse)

@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - par14 - kildekontrol
+@ importer ../examples/danish-income-tax/personskat-par14-kildekontrol
 
 | par14_testkontrol(sti: Tekst, gyldig: Boolsk) -> PersonskatInputkontrol(sti = sti, gyldig = gyldig, forklaring = "Fiktiv kontrol")
 | par14_testgrundlag(beregning: List(PersonskatInputkontrol), afregning: List(PersonskatInputkontrol)) -> PersonskatKontrolgrundlag(beregning = beregning, afregning = afregning)

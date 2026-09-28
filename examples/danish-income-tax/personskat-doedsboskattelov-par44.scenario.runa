@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - doedsboskattelov - par44
+@ importer ./personskat-doedsboskattelov-par44
 
 | personskat_dbl44_scenarie_virksomhed() -> PersonskatOrdinærVirksomhedFakta(
     identifikation = "arkitektvirksomhed",

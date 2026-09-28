@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+@ importer ../examples/danish-income-tax/personskat-aarsopgoerelse-kildemapping
 
 -- Fiktive årsopgørelsesobservationer, ikke lønsedler eller private dokumenter.
 | indeholdelsespost(art: PersonskatÅrsopgørelseIndeholdelsesart, år: Heltal, id: Tekst, øre: Heltal) -> PersonskatÅrsopgørelseIndeholdelsespost(kildelinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = år, linje_identifikation = id, linje_label = "Original kildeetiket", beløb_øre = øre), art = art)

@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./aktieavancebeskatningsloven - par6 - 7
-@ importer ./aktieavancebeskatningsloven - par19b - 22
+@ importer ./aktieavancebeskatningsloven-par6-7
+@ importer ./aktieavancebeskatningsloven-par19b-22
 
 # AktieavancePar19Til20AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 # AktieavancePar19Fortolkningsgrænse(område: Tekst, beskrivelse: Tekst, status: Tekst)

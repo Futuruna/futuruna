@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./husholdning - scenarier.scenario
+@ importer ./husholdning-scenarier.scenario
 @ importer ./pengebeloeb
 
 -- Husholdning -- executable cross-law benefit cliff probes.

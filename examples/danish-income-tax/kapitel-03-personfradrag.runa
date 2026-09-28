@@ -2,11 +2,11 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./skatteaar - parametre
-@ importer ./personskatteloven - par11 - parametre
-@ importer ./kapitel - 02 - statsskat
-@ importer ./personfradrag - samordning
-@ importer ./kursgevinstloven - par32
+@ importer ./skatteaar-parametre
+@ importer ./personskatteloven-par11-parametre
+@ importer ./kapitel-02-statsskat
+@ importer ./personfradrag-samordning
+@ importer ./kursgevinstloven-par32
 
 -- Personskatteloven — personfradrag, negativ kapitalindkomst og underskud (§§ 10-13).
 --

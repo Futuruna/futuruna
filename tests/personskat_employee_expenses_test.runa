@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ../examples / danish - income - tax / ligningsloven - par9 - loenmodtagerudgifter
+@ importer ../examples/danish-income-tax/ligningsloven-par9-loenmodtagerudgifter
 
 -- Fiktive beløb. Afskrivningen er opgjort før erhvervsandel og LL § 9-bundgrænse.
 | udgiftsprøve_fakta(andel: Heltal) -> Ligningslov9Stk1Udgiftsfakta(

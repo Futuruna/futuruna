@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./aktieavancebeskatningsloven - par37 - 40 - forloeb
+@ importer ./aktieavancebeskatningsloven-par37-40-forloeb
 
 | abl37_til40_scenarie_aktie(identifikation: Tekst, anskaffelsessum_kroner: Heltal, handelsværdi_kroner: Heltal) -> AktieavancePar37Til40AktiepostFakta(
     identifikation = identifikation,

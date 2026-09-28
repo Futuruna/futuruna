@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - par4 - finansielle - poster - kildefakta
+@ importer ./personskat-par4-finansielle-poster-kildefakta
 
 = personskat_par4_finansielle_poster_felt_identifikation = TypetBeregningsfelt(
     path = refof(PersonskatPar4FinansielPostfakta::identifikation),

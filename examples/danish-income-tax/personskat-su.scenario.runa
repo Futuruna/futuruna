@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - su
+@ importer ./personskat-su
 
 | su_scenarie(art: PersonskatSuArt, år: Heltal, beløb: Heltal, afklaret: Boolsk, kilde: Tekst) -> personskat_su_resultat(PersonskatSuFakta(identifikation = "syntetisk-su", indkomstår = år, kildereference = kilde, art = art, beløb_før_skat_kroner = beløb, uden_udlandsforhold_og_korrektioner = afklaret))
 = su_stipendium = su_scenarie(SuStipendiumEfterDanskSuLov, 2025, 80000, Sandt, "syntetisk-bilag")

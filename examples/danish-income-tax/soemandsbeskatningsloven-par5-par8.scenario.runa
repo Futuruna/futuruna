@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./soemandsbeskatningsloven - dis - lempelse
+@ importer ./soemandsbeskatningsloven-dis-lempelse
 
 | søbl_scenarie_person(skattepligt: Søbl5Til8Skattepligt, statsborgerskab: Søbl5Til8Statsborgerskab) -> Søbl5Til8Personfakta(
     skattepligt = skattepligt,

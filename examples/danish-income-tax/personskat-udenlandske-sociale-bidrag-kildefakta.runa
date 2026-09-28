@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./metadata
-@ importer ./source - status
+@ importer ./source-status
 
 = personskat_udenlandske_sociale_bidrag_kildefakta_metadata = Metadata(
     attachments = (

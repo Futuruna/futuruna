@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - pbl53a - kildefakta
+@ importer ./personskat-pbl53a-kildefakta
 
 | pbl53a_erhvervelsesovergang_fakta(produkt: Pbl53AProduktfakta, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),

@@ -2,13 +2,13 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kapitel-04-omregning-skatteloft
 @ importer ./kildeskatteloven
 @ importer ./slutopgoerelse
 @ importer ./ejendomsskatteloven
 @ importer ./kommuneskatteloven
-@ importer ./loenmodtager - eksakt - skat
-@ importer ./soemandsbeskatningsloven - dis - lempelse
+@ importer ./loenmodtager-eksakt-skat
+@ importer ./soemandsbeskatningsloven-dis-lempelse
 
 # PersonskatMonetærAuditKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 # PersonskatMonetærEnhed = HeleKroner | Øre

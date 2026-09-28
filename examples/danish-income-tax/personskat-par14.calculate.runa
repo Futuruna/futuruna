@@ -1,8 +1,8 @@
 @ sprog da
 
 @ importer ./personskat.calculate
-@ importer ./personskat - par14 - kildekontrol
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./personskat-par14-kildekontrol
+@ importer ./kapitel-04-omregning-skatteloft
 
 ----
 Personskattelovens § 14, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021:

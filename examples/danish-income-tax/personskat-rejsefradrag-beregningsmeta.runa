@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./ligningsloven - par9a - rejser
+@ importer ./ligningsloven-par9a-rejser
 
 = personskat_ll9a_felt_personrolle = TypetBeregningsfelt(
     path = refof(Ligningslov9AÅrsinput::personrolle),

@@ -2,14 +2,14 @@
 
 @ importer ./arbejdsmarkedsbidragsloven
 @ importer ./kommuneskatteloven
-@ importer ./folkekirkens - oekonomi
+@ importer ./folkekirkens-oekonomi
 @ importer ./ligningsloven_fradrag
-@ importer ./skatteaar - parametre
-@ importer ./kapitel - 01 - indkomst
-@ importer ./kapitel - 02 - statsskat
-@ importer ./kapitel - 03 - personfradrag
-@ importer ./personfradrag - samordning
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./skatteaar-parametre
+@ importer ./kapitel-01-indkomst
+@ importer ./kapitel-02-statsskat
+@ importer ./kapitel-03-personfradrag
+@ importer ./personfradrag-samordning
+@ importer ./kapitel-04-omregning-skatteloft
 @ importer ./pengebeloeb
 
 -- Personskatteloven — ordinær lønmodtagerberegning, første fixture-slice.

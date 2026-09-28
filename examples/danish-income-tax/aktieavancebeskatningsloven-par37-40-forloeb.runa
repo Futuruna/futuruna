@@ -1,8 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./aktieavancebeskatningsloven - par37 - 39
-@ importer ./aktieavancebeskatningsloven - par39a - 40
+@ importer ./aktieavancebeskatningsloven-par37-39
+@ importer ./aktieavancebeskatningsloven-par39a-40
 
 = aktieavancebeskatningsloven_par37_til_40_forloeb_metadata = Metadata(
     attachments = (

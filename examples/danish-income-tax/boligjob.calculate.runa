@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ./ligningsloven - par8v - boligjob
+@ importer ./ligningsloven-par8v-boligjob
 
 # BoligjobBeregningsinput(indkomstår: Heltal, fødselsdato: Dato, udgifter: Ll8VÅrsinput)
 

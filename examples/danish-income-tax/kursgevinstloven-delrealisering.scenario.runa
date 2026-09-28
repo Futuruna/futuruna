@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kursgevinstloven - aarsnetto
+@ importer ./kursgevinstloven-aarsnetto
 
 = kursgevinstloven_delrealisering_scenarier_metadata = Metadata(
     attachments = (
