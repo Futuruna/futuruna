@@ -1,5 +1,5 @@
--- Authored core canary: ordinary data pipeline guarded by explicit proof-backed
--- invariants over its derived verdict semantics.
+-- Authored core canary: ordinary data pipeline guarded by runtime invariants
+-- over its derived verdict semantics.
 
 # Verdict = Queue(Int) | Review(Int) | Freeze(Int)
 
@@ -64,24 +64,4 @@
 | runtime_slots_ok: runtime_slots -> runtime_slots == 2
 ? runtime_slots_ok
 
-| freeze_points_exact: raw_priority -> verdict_points(Freeze(raw_priority)) == 100
-? freeze_points_exact by {
-    | n -> rewrite (apply verdict_points.freeze) in refl
-}
-
-| freeze_slots_exact: raw_priority -> review_slots(Freeze(raw_priority)) == 2
-? freeze_slots_exact by {
-    | n -> rewrite (apply review_slots.freeze) in refl
-}
-
-| freeze_points_capped: raw_priority -> verdict_points(Freeze(raw_priority)) <= 100
-? freeze_points_capped by {
-    | n -> rewrite (apply freeze_points_exact) in (apply int_ord.le_of_concrete)
-}
-
-| freeze_slots_bounded: raw_priority -> review_slots(Freeze(raw_priority)) >= 0 and review_slots(Freeze(raw_priority)) <= 2
-? freeze_slots_bounded by {
-    | n -> apply and.intro(rewrite (apply freeze_slots_exact) in (apply int_ord.le_of_concrete), rewrite (apply freeze_slots_exact) in (apply int_ord.le_of_concrete))
-}
-
-@ print("canary proof guarded pipeline passed")
+@ print("canary invariant guarded pipeline passed")

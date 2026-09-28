@@ -31,7 +31,7 @@ Target shape:
 | `tests/canary/core/ownership_text_pipeline_test.runa` | `core` | strings, chunking, closure captures, ownership-sensitive transforms |
 | `tests/canary/core/persistent_tree_diff_test.runa` | `core` | recursive ADTs with named list children, shared-subtree workflows, flattening, deterministic diffs |
 | `tests/canary/core/collection_join_mesh_test.runa` | `core` | nested `zip`, `enumerate`, partitioning, stable ordering |
-| `tests/canary/core/proof_guarded_pipeline_test.runa` | `core` | ordinary data pipeline with explicit proof-backed invariants |
+| `tests/canary/core/invariant_guarded_pipeline_test.runa` | `core` | ordinary data pipeline guarded by runtime `?` invariants |
 | `tests/canary/core/top_level_mesh_test.runa` | `core` | top-level values, free functions, recursive helper composition |
 | `tests/canary/stateful/subject_funnel_test.runa` | `stateful` | subjects, projection, aggregation, transitions |
 | `tests/canary/stateful/subject_window_alerts_test.runa` | `stateful` | subjects, rolling windows, threshold alerts, deterministic summaries |

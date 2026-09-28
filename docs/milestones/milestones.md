@@ -633,22 +633,6 @@ HTTP client and server as compiler builtins. Wraps `ureq` (client) and
 **Test:** `tests/http_test.runa` — client GET. `examples/grundlov-server/` —
 full server + client: 14 query types, typed JSON API, 11 end-to-end queries. ✅
 
-### M14e: `std/db` Module ✅
-
-Database access. Wraps `rusqlite` via auto-dep. Connection wrapped in `Rc<RefCell<>>` for escape analysis compatibility.
-
-> Historical entry: built-in SQLite access was retired in the 0.2.3 cleanup.
-> See [migration guidance](../compatibility-guides/0.2.x.md#database-feature-removal).
-
-- [x] **`db_open(path)`** → `Db` — open SQLite database (`:memory:` for in-memory)
-- [x] **`db_exec(db, sql)`** → `()` — execute DDL/DML (CREATE, INSERT, UPDATE, DELETE)
-- [x] **`db_query(db, sql)`** → `List(List(String))` — query all rows, all column types
-- [x] **`db_query_row(db, sql)`** → `List(String)` — query single row
-- [x] **`db_insert(db, sql)`** → `Int` — insert, return last row ID
-- [x] **`db_close(db)`** → `()` — close database
-
-**Test:** `tests/db_test.runa` — in-memory DB: CREATE TABLE, INSERT, SELECT, UPDATE, DELETE, close. ✅
-
 ### M14f: Collection Builtins (Kotlin-inspired) ✅
 
 Kotlin-inspired higher-order collection operations. All work in both interpreter
@@ -681,7 +665,6 @@ and compiled mode. Codegen uses Rust's native iterator adapters.
 | **M14b** | File I/O | Builtins | Eliminates ~10% of `@ rust {}` |
 | **M14c** | JSON | `.runa` + serde_json | Every API program needs this |
 | **M14d** | HTTP | `.runa` + ureq/tiny_http | Client + server |
-| **M14e** | Database | `.runa` + rusqlite | Data persistence |
 | **M14f** | Collections | Builtins | Kotlin-style HOFs for lists |
 
 ## M15: Trust the Topology (Multi-Core Streams) ✓
@@ -697,9 +680,6 @@ block it.
 
 - [x] **Multi-threaded Tokio runtime:** Switch codegen from `current_thread` to default
   multi-threaded `#[tokio::main]`. Tokio auto-scales to `num_cpus` worker threads.
-- [x] **Thread-safe DB builtins:** Upgrade `db_open` from `Rc<RefCell<Connection>>` to
-  `Arc<Mutex<Connection>>`. All `.borrow()` calls become `.lock().unwrap()`. This was the
-  only non-`Send` type in the entire codegen.
 - [x] **Verify Send safety:** All emitted types (structs, enums, broadcast channels, JoinHandles,
   scope guards) are `Send + Sync` by construction — immutable by default, owned data, channel
   boundaries between actors.

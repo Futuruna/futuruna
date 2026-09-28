@@ -7,7 +7,7 @@
 //! programming in one execution space.
 //!
 //! This crate contains the Futuruna lexer, parser, interpreter, type checker,
-//! compiler, proof kernel, and typed calculation support. The `runa` binary is
+//! compiler, and typed calculation support. The `runa` binary is
 //! the main command-line interface. Start with the
 //! [guided tutorial](https://futuruna.com/docs/tutorial) or the
 //! [language documentation](https://futuruna.com/docs).
@@ -45,10 +45,6 @@ mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
-/// Proof kernel — Curry-Howard verification layer for the `?` rune.
-/// Lives in its own file so it can be audited in isolation.
-/// See `docs/proof-kernel.md` for the design spec.
-pub mod proof_kernel;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
@@ -173,8 +169,6 @@ pub fn keyword_table_english() -> KeywordTable {
         "resume",
         "perform",
         "assert",
-        "retract",
-        "abort",
     ];
     let mut t = HashMap::new();
     for kw in kws {
@@ -229,10 +223,8 @@ pub fn keyword_table_dansk() -> KeywordTable {
         ("håndter", "handle", TokenKind::KW),
         ("genoptag", "resume", TokenKind::KW),
         ("udfør", "perform", TokenKind::KW),
-        // Legacy fact keywords are retained for removal diagnostics.
+        // ---- checks ----
         ("hævd", "assert", TokenKind::KW),
-        ("tilbagetræk", "retract", TokenKind::KW),
-        ("afbryd", "abort", TokenKind::KW),
         // ---- booleans ----
         ("Sandt", "True", TokenKind::Bool_),
         ("Falskt", "False", TokenKind::Bool_),
@@ -635,24 +627,20 @@ fn is_builtin_effect(name: &str) -> bool {
     )
 }
 
-fn removed_persistence_message(name: &str) -> Option<String> {
-    matches!(name, "store" | "persist" | "migrate").then(|| {
-        format!("database persistence was removed: `@ {name}` is no longer supported; manage storage in the host application and pass typed values to Futuruna")
-    })
-}
-
-fn removed_database_builtin_message(name: &str) -> Option<String> {
+/// Names accepted after `@` as a statement without an argument list:
+/// declaration markers and ordinary effect names.
+fn is_known_annotation(name: &str) -> bool {
     matches!(
         name,
-        "db_open" | "db_exec" | "db_query" | "db_query_row" | "db_insert" | "db_close" | "watch"
-    )
-    .then(|| format!("database builtin `{name}` was removed; manage storage in the host application and pass typed values to Futuruna"))
+        "export" | "comptime" | "calculate" | "sprog" | "language"
+    ) || is_builtin_effect(name)
+}
+
+fn unknown_annotation_message(name: &str) -> String {
+    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime` and `@ calculate`, and effects are called as `@ name(...)`")
 }
 
 fn unknown_effect_message(name: &str) -> String {
-    if let Some(message) = removed_database_builtin_message(name) {
-        return message;
-    }
     let hint = match name {
         "println" | "printf" => "; did you mean `print`?".to_string(),
         "assert" | "assert_with_message" => format!("; call `{name}(...)` without `@`"),
@@ -5276,17 +5264,6 @@ impl fmt::Debug for MatchArm {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProofBlock {
-    pub arms: Vec<ProofArm>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ProofArm {
-    pub binders: Vec<String>,
-    pub term: proof_kernel::ProofTerm,
-}
-
-#[derive(Debug, Clone)]
 pub enum ExploreSourceBindingKind {
     Singleton { value: Expr },
     Finite { domain: Expr },
@@ -5967,10 +5944,9 @@ pub enum Stmt {
     /// Optional: `: val` captures subject, `-> { pass }` block, `else { fail }` block
     Prove {
         name: String,
-        proof_block: Option<ProofBlock>, // `by { | ... -> proof }`
-        capture: Option<String>,         // `: val` — bind subject value
-        pass_block: Option<Vec<Stmt>>,   // `-> { ... }` — custom pass handler
-        else_block: Option<Vec<Stmt>>,   // `else { ... }` — custom fail handler (suppresses halt)
+        capture: Option<String>,       // `: val` — bind subject value
+        pass_block: Option<Vec<Stmt>>, // `-> { ... }` — custom pass handler
+        else_block: Option<Vec<Stmt>>, // `else { ... }` — custom fail handler (suppresses halt)
     },
     /// `? explore name { ... }` — finite relational exploration declaration.
     Explore(ExploreQuery),
@@ -8766,13 +8742,11 @@ fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
         },
         Stmt::Prove {
             name,
-            proof_block,
             capture,
             pass_block,
             else_block,
         } => Stmt::Prove {
             name: name.clone(),
-            proof_block: proof_block.clone(),
             capture: capture.clone(),
             pass_block: pass_block
                 .as_ref()
@@ -9368,208 +9342,6 @@ impl Parser {
             name.push_str(&seg);
         }
         Ok(name)
-    }
-
-    fn parse_proof_block(&mut self) -> Result<ProofBlock, String> {
-        self.expect(TokenKind::LBrace)?;
-        self.skip_semis();
-        let mut arms = Vec::new();
-
-        while self.peek_kind() != TokenKind::RBrace {
-            self.expect(TokenKind::Pipe)?;
-            let binders = self.parse_proof_binders()?;
-            self.expect(TokenKind::Arrow)?;
-            let term = self.parse_proof_term()?;
-            arms.push(ProofArm { binders, term });
-            self.skip_semis();
-        }
-
-        self.expect(TokenKind::RBrace)?;
-        if arms.is_empty() {
-            return Err("proof block needs at least one `| ... -> ...` arm".into());
-        }
-        Ok(ProofBlock { arms })
-    }
-
-    fn parse_proof_binders(&mut self) -> Result<Vec<String>, String> {
-        if self.peek_kind() == TokenKind::LParen {
-            self.advance();
-            self.parse_comma_separated(TokenKind::RParen, "proof binder", |parser| {
-                let binder = parser.expect_ident()?;
-                if binder == "_" {
-                    return Err("proof binders cannot use `_` yet".into());
-                }
-                if parser.peek_kind() == TokenKind::Colon {
-                    parser.advance();
-                    let _ = parser.parse_type()?;
-                }
-                Ok(binder)
-            })
-        } else {
-            let binder = self.expect_ident()?;
-            if binder == "_" {
-                return Err("proof binders cannot use `_` yet".into());
-            }
-            if self.peek_kind() == TokenKind::Colon {
-                self.advance();
-                let _ = self.parse_type()?;
-            }
-            Ok(vec![binder])
-        }
-    }
-
-    fn proof_ctor_arm_from_pattern(
-        &self,
-        pat: Pat,
-        arm_kind: &str,
-    ) -> Result<(String, Vec<String>), String> {
-        match pat {
-            Pat::Con(ctor, binders) => {
-                let mut names = Vec::new();
-                for binder in binders {
-                    match binder {
-                        Pat::Var(name) if name != "_" => names.push(name),
-                        Pat::Wild => {
-                            return Err(format!("{} cannot use `_` binders yet", arm_kind));
-                        }
-                        _ => {
-                            return Err(format!(
-                                "{} currently require simple constructor binders",
-                                arm_kind
-                            ));
-                        }
-                    }
-                }
-                Ok((ctor, names))
-            }
-            _ => Err(format!("{} require constructor patterns", arm_kind)),
-        }
-    }
-
-    fn parse_proof_term(&mut self) -> Result<proof_kernel::ProofTerm, String> {
-        if self.peek_kind() == TokenKind::LParen {
-            self.advance();
-            let term = self.parse_proof_term()?;
-            self.expect(TokenKind::RParen)?;
-            return Ok(term);
-        }
-
-        if self.peek_word("refl") {
-            self.advance();
-            return Ok(proof_kernel::ProofTerm::Refl);
-        }
-
-        if self.peek_word("apply") {
-            self.advance();
-            let name = self.parse_dotted_name()?;
-            let args = if self.peek_kind() == TokenKind::LParen {
-                self.advance();
-                self.parse_comma_separated(TokenKind::RParen, "proof argument", |parser| {
-                    parser.parse_proof_term()
-                })?
-            } else {
-                Vec::new()
-            };
-            return Ok(proof_kernel::ProofTerm::Apply(name, args));
-        }
-
-        if self.peek_word("rewrite") {
-            self.advance();
-            let eq_term = self.parse_proof_term()?;
-            if !self.peek_word("in") {
-                return Err("expected `in` after `rewrite <proof>`".into());
-            }
-            self.advance();
-            let body = self.parse_proof_term()?;
-            return Ok(proof_kernel::ProofTerm::Rewrite(
-                Box::new(eq_term),
-                Box::new(body),
-            ));
-        }
-
-        if self.peek_word("induction_on") {
-            self.advance();
-            let scrutinee = self.expect_ident()?;
-            self.expect(TokenKind::LBrace)?;
-            self.skip_semis();
-            let mut arms = Vec::new();
-            while self.peek_kind() != TokenKind::RBrace {
-                self.expect(TokenKind::Pipe)?;
-                let pat = self.parse_pattern()?;
-                let (ctor, binders) = self.proof_ctor_arm_from_pattern(pat, "induction arms")?;
-                self.expect(TokenKind::Arrow)?;
-                let body = self.parse_proof_term()?;
-                arms.push(proof_kernel::IndArm {
-                    ctor,
-                    binders,
-                    body,
-                });
-                self.skip_semis();
-            }
-            self.expect(TokenKind::RBrace)?;
-            return Ok(proof_kernel::ProofTerm::InductionOn(scrutinee, arms));
-        }
-
-        if self.peek_word("cases") {
-            self.advance();
-            let scrutinee_expr = self.parse_expr()?;
-            let scrutinee = lower_expr_to_proof_term(&scrutinee_expr)?;
-            self.expect(TokenKind::LBrace)?;
-            self.skip_semis();
-            let mut arms = Vec::new();
-            while self.peek_kind() != TokenKind::RBrace {
-                self.expect(TokenKind::Pipe)?;
-                let pat = self.parse_pattern()?;
-                let (ctor, binders) = self.proof_ctor_arm_from_pattern(pat, "case arms")?;
-                self.expect(TokenKind::Arrow)?;
-                let body = self.parse_proof_term()?;
-                arms.push(proof_kernel::CaseArm {
-                    ctor,
-                    binders,
-                    body,
-                });
-                self.skip_semis();
-            }
-            self.expect(TokenKind::RBrace)?;
-            return Ok(proof_kernel::ProofTerm::Cases(scrutinee, arms));
-        }
-
-        if self.peek_word("let") {
-            self.advance();
-            let name = self.expect_ident()?;
-            if self.peek_kind() == TokenKind::Eq {
-                self.advance();
-            } else if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
-                self.advance();
-            } else {
-                return Err("expected `=` in proof `let` binding".into());
-            }
-            let bound = self.parse_proof_term()?;
-            if !self.peek_word("in") {
-                return Err("expected `in` after proof `let` binding".into());
-            }
-            self.advance();
-            let body = self.parse_proof_term()?;
-            return Ok(proof_kernel::ProofTerm::Let(
-                name,
-                Box::new(bound),
-                Box::new(body),
-            ));
-        }
-
-        if self.peek_word("assume") {
-            self.advance();
-            let prop_expr = self.parse_expr()?;
-            let prop = lower_expr_to_proof_prop(&prop_expr)?;
-            if !self.peek_word("in") {
-                return Err("expected `in` after `assume <prop>`".into());
-            }
-            self.advance();
-            let body = self.parse_proof_term()?;
-            return Ok(proof_kernel::ProofTerm::Assume(prop, Box::new(body)));
-        }
-
-        Ok(proof_kernel::ProofTerm::Hyp(self.expect_ident()?))
     }
 
     // --- Top-level parsing ---
@@ -10824,22 +10596,7 @@ impl Parser {
         }))
     }
 
-    fn reject_removed_fact_statement(&self) -> Result<(), String> {
-        let token = self.peek();
-        if token.kind == TokenKind::KW
-            && (matches!(token.text.as_str(), "retract" | "abort")
-                || (token.text == "assert"
-                    && self.tokens.get(self.pos + 1).is_some_and(|next| {
-                        matches!(next.kind, TokenKind::Ident | TokenKind::Type)
-                    })))
-        {
-            return Err(format!("{}:{}: database persistence was removed: `{}` fact/transaction statements are no longer supported; use ordinary rules and typed values (ordinary `assert(condition)` remains available)", token.line, token.col, token.text));
-        }
-        Ok(())
-    }
-
     pub fn parse_statement(&mut self) -> Result<Stmt, String> {
-        self.reject_removed_fact_statement()?;
         self.skip_semis();
 
         // ── Detect common mistakes from other languages ──
@@ -11093,7 +10850,6 @@ impl Parser {
                 }
             }
             // ? rune: verify/prove an invariant (or "? all" for all)
-            //        ? name by { | binders -> proof }
             // Forms: ? name
             //        ? name -> { pass }
             //        ? name else { fail }
@@ -11105,32 +10861,6 @@ impl Parser {
                     return self.parse_explore_query(&question_token);
                 }
                 let name = self.expect_ident()?;
-                let proof_block = if self.peek_word("by") {
-                    self.advance();
-                    Some(self.parse_proof_block()?)
-                } else {
-                    None
-                };
-
-                if proof_block.is_some() {
-                    self.skip_semis();
-                    if self.peek_kind() == TokenKind::Colon
-                        || self.peek_kind() == TokenKind::Arrow
-                        || (self.peek_kind() == TokenKind::KW && self.peek().text == "else")
-                    {
-                        return Err(
-                            "`? name by { ... }` cannot be combined with capture/pass/else blocks yet"
-                                .into(),
-                        );
-                    }
-                    return Ok(Stmt::Prove {
-                        name,
-                        proof_block,
-                        capture: None,
-                        pass_block: None,
-                        else_block: None,
-                    });
-                }
                 // Optional `: capture_var`
                 let capture = if self.peek_kind() == TokenKind::Colon {
                     self.advance(); // consume ':'
@@ -11172,7 +10902,6 @@ impl Parser {
                 };
                 Ok(Stmt::Prove {
                     name,
-                    proof_block: None,
                     capture,
                     pass_block,
                     else_block,
@@ -12105,10 +11834,6 @@ impl Parser {
     pub fn parse_annotation(&mut self) -> Result<Stmt, String> {
         let tok = self.advance();
         let name = tok.text.clone();
-        if let Some(message) = removed_persistence_message(&name) {
-            return Err(format!("{}:{}: {message}", tok.line, tok.col));
-        }
-
         // @ use path::to::thing
         if name == "use" {
             return self.parse_use_decl();
@@ -12178,9 +11903,15 @@ impl Parser {
                 name,
                 vec![Expr::new(ExprKind::Var(token.text), span)],
             ))
-        } else {
-            // Pure annotation: @ test, @ pure, @ total
+        } else if is_known_annotation(&name) {
             Ok(Stmt::Annot(name, Vec::new()))
+        } else {
+            Err(format!(
+                "{}:{}: {}",
+                tok.line,
+                tok.col,
+                unknown_annotation_message(&name)
+            ))
         }
     }
 
@@ -13151,9 +12882,6 @@ impl Parser {
             TokenKind::At => {
                 self.advance();
                 let name_tok = self.advance();
-                if let Some(message) = removed_persistence_message(&name_tok.text) {
-                    return Err(format!("{}:{}: {message}", name_tok.line, name_tok.col));
-                }
                 let args = if self.peek_kind() == TokenKind::LParen {
                     self.parse_arg_list()?
                 } else {
@@ -13281,7 +13009,6 @@ impl Parser {
 
     pub fn parse_block_statement(&mut self) -> Result<Stmt, String> {
         self.skip_semis();
-        self.reject_removed_fact_statement()?;
         match self.peek_kind() {
             TokenKind::Eq => {
                 self.advance();
@@ -13552,97 +13279,6 @@ pub fn op_precedence(op: &str) -> u8 {
         "+" | "-" => 5,
         "*" | "/" | "%" => 6,
         _ => 0,
-    }
-}
-
-pub fn lower_expr_to_proof_term(expr: &Expr) -> Result<proof_kernel::Term, String> {
-    match &expr.kind {
-        ExprKind::Var(name) => Ok(proof_kernel::Term::Var(name.clone())),
-        ExprKind::Lit(Literal::Int(n)) => Ok(proof_kernel::Term::Int(*n)),
-        ExprKind::Lit(Literal::Bool(b)) => Ok(proof_kernel::Term::App(
-            if *b { "True" } else { "False" }.into(),
-            vec![],
-        )),
-        ExprKind::UnOp(op, inner) if op == "-" => Ok(proof_kernel::Term::Op(
-            "-".into(),
-            Box::new(proof_kernel::Term::Int(0)),
-            Box::new(lower_expr_to_proof_term(inner)?),
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if matches!(op.as_str(), "+" | "-" | "*" | "/") => {
-            Ok(proof_kernel::Term::Op(
-                op.clone(),
-                Box::new(lower_expr_to_proof_term(lhs)?),
-                Box::new(lower_expr_to_proof_term(rhs)?),
-            ))
-        }
-        ExprKind::App(func, args) => {
-            let name = match &func.kind {
-                ExprKind::Var(name) => name.clone(),
-                _ => {
-                    return Err(
-                        "proof kernel only supports simple function/constructor calls".into(),
-                    );
-                }
-            };
-            let mut lowered_args = Vec::with_capacity(args.len());
-            for arg in args {
-                lowered_args.push(lower_expr_to_proof_term(arg)?);
-            }
-            Ok(proof_kernel::Term::App(name, lowered_args))
-        }
-        _ => Err(format!(
-            "proof kernel cannot lower term expression: {:?}",
-            expr.kind
-        )),
-    }
-}
-
-pub fn lower_expr_to_proof_prop(expr: &Expr) -> Result<proof_kernel::Prop, String> {
-    let succ = |term: proof_kernel::Term| {
-        proof_kernel::Term::Op(
-            "+".into(),
-            Box::new(term),
-            Box::new(proof_kernel::Term::Int(1)),
-        )
-    };
-
-    match &expr.kind {
-        ExprKind::BinOp(op, lhs, rhs) if op == "==" => Ok(proof_kernel::Prop::Eq(
-            lower_expr_to_proof_term(lhs)?,
-            lower_expr_to_proof_term(rhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == "<=" => Ok(proof_kernel::Prop::Le(
-            lower_expr_to_proof_term(lhs)?,
-            lower_expr_to_proof_term(rhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == ">=" => Ok(proof_kernel::Prop::Le(
-            lower_expr_to_proof_term(rhs)?,
-            lower_expr_to_proof_term(lhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == "<" => Ok(proof_kernel::Prop::Le(
-            succ(lower_expr_to_proof_term(lhs)?),
-            lower_expr_to_proof_term(rhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == ">" => Ok(proof_kernel::Prop::Le(
-            succ(lower_expr_to_proof_term(rhs)?),
-            lower_expr_to_proof_term(lhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == "&&" => Ok(proof_kernel::Prop::And(
-            Box::new(lower_expr_to_proof_prop(lhs)?),
-            Box::new(lower_expr_to_proof_prop(rhs)?),
-        )),
-        ExprKind::App(func, args)
-            if matches!(&func.kind, ExprKind::Var(name) if name == "not") && args.len() == 1 =>
-        {
-            Ok(proof_kernel::Prop::Not(Box::new(lower_expr_to_proof_prop(
-                &args[0],
-            )?)))
-        }
-        ExprKind::Lit(Literal::Bool(false)) => Ok(proof_kernel::Prop::False),
-        _ => Err(format!(
-            "proof kernel cannot lower proposition expression: {:?}",
-            expr.kind
-        )),
     }
 }
 
@@ -20244,8 +19880,8 @@ impl Interpreter {
 
             match stmt {
                 Stmt::Annot(name, _) => {
-                    if let Some(message) = removed_persistence_message(name) {
-                        return self.panic_or_ground_fail(message);
+                    if !is_known_annotation(name) {
+                        return self.panic_or_ground_fail(unknown_annotation_message(name));
                     }
                     pending_annot = Some(name.clone());
                     continue;
@@ -20449,17 +20085,11 @@ impl Interpreter {
                 }
                 Stmt::Prove {
                     name,
-                    proof_block,
                     capture,
                     pass_block,
                     else_block,
                 } => {
                     if prune_top_level_bindings {
-                        last = Value::Unit;
-                        continue;
-                    }
-                    // Explicit proof blocks are checked by `runa verify`, not executed at runtime.
-                    if proof_block.is_some() {
                         last = Value::Unit;
                         continue;
                     }
@@ -21794,12 +21424,6 @@ impl Interpreter {
                         self.runtime_registry_builtin(&owner, format!("nctor:{}/{}", name, arity))
                     }
                 } else {
-                    // Retired builtins must not fall through to symbolic logic
-                    // values in unchecked embeddings. Authored declarations and
-                    // lexical bindings have already been resolved above.
-                    if let Some(message) = removed_database_builtin_message(name) {
-                        return self.panic_or_ground_fail(message);
-                    }
                     if self.evaluating_constant {
                         return self.panic_or_ground_fail(format!(
                             "constant evaluation requires an initialized value for `{name}`"
@@ -22262,9 +21886,6 @@ impl Interpreter {
         args: Vec<Value>,
         env: &Env,
     ) -> Value {
-        if let Some(message) = removed_database_builtin_message(name) {
-            return self.panic_or_ground_fail(message);
-        }
         if self.calculation_failed() {
             return Value::Unit;
         }
@@ -58604,7 +58225,6 @@ impl TypeChecker {
             }
             Stmt::Prove {
                 name,
-                proof_block: _,
                 capture,
                 pass_block,
                 else_block,
@@ -58641,19 +58261,18 @@ impl TypeChecker {
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_) => {}
             Stmt::Annot(name, args) => {
-                if let Some(message) = removed_persistence_message(name) {
-                    self.error(message);
-                } else {
-                    for a in args {
-                        // A posthoc export may name the type itself even when
-                        // none of its value constructors share that name.
-                        if name == "export"
-                            && matches!(&a.kind, ExprKind::Var(symbol) if self.types.contains(symbol))
-                        {
-                            continue;
-                        }
-                        self.check_expr(a, None);
+                if !is_known_annotation(name) {
+                    self.error(unknown_annotation_message(name));
+                }
+                for a in args {
+                    // A posthoc export may name the type itself even when
+                    // none of its value constructors share that name.
+                    if name == "export"
+                        && matches!(&a.kind, ExprKind::Var(symbol) if self.types.contains(symbol))
+                    {
+                        continue;
                     }
+                    self.check_expr(a, None);
                 }
             }
         }
@@ -68910,115 +68529,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn parse_explicit_proof_block_on_prove_stmt() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-"#;
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("parse failed");
-
-        match &stmts[1] {
-            Stmt::Prove {
-                name,
-                proof_block: Some(block),
-                capture,
-                pass_block,
-                else_block,
-            } => {
-                assert_eq!(name, "add_comm");
-                assert!(capture.is_none());
-                assert!(pass_block.is_none());
-                assert!(else_block.is_none());
-                assert_eq!(block.arms.len(), 1);
-                assert_eq!(block.arms[0].binders, vec!["lhs", "rhs"]);
-                match &block.arms[0].term {
-                    proof_kernel::ProofTerm::Apply(name, args) => {
-                        assert_eq!(name, "int_ring.comm_add");
-                        assert!(args.is_empty());
-                    }
-                    other => panic!("unexpected proof term: {:?}", other),
-                }
-            }
-            other => panic!("expected explicit proof stmt, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn lower_expr_to_proof_prop_handles_ge_and_conjunction() {
-        let source = "x >= 0 and y == y";
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let expr = parser.parse_expr().expect("expr parse failed");
-        let prop = lower_expr_to_proof_prop(&expr).expect("lowering failed");
-
-        match prop {
-            proof_kernel::Prop::And(lhs, rhs) => {
-                match *lhs {
-                    proof_kernel::Prop::Le(
-                        proof_kernel::Term::Int(0),
-                        proof_kernel::Term::Var(ref x),
-                    ) if x == "x" => {}
-                    other => panic!("unexpected lhs: {:?}", other),
-                }
-                match *rhs {
-                    proof_kernel::Prop::Eq(
-                        proof_kernel::Term::Var(ref a),
-                        proof_kernel::Term::Var(ref b),
-                    ) if a == "y" && b == "y" => {}
-                    other => panic!("unexpected rhs: {:?}", other),
-                }
-            }
-            other => panic!("unexpected prop: {:?}", other),
-        }
-    }
-
-    #[test]
-    fn lower_expr_to_proof_prop_desugars_strict_order() {
-        let source = "x < x + 1 and x + 1 > x";
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let expr = parser.parse_expr().expect("expr parse failed");
-        let prop = lower_expr_to_proof_prop(&expr).expect("lowering failed");
-
-        match prop {
-            proof_kernel::Prop::And(lhs, rhs) => {
-                match *lhs {
-                    proof_kernel::Prop::Le(
-                        proof_kernel::Term::Op(ref plus, ref l, ref r),
-                        proof_kernel::Term::Op(ref inner_plus, ref il, ref ir),
-                    ) if plus == "+" && inner_plus == "+" => {
-                        assert_eq!(**l, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**r, proof_kernel::Term::Int(1));
-                        assert_eq!(**il, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**ir, proof_kernel::Term::Int(1));
-                    }
-                    other => panic!("unexpected lhs strict-order lowering: {:?}", other),
-                }
-                match *rhs {
-                    proof_kernel::Prop::Le(
-                        proof_kernel::Term::Op(ref plus, ref l, ref r),
-                        proof_kernel::Term::Op(ref inner_plus, ref il, ref ir),
-                    ) if plus == "+" && inner_plus == "+" => {
-                        assert_eq!(**l, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**r, proof_kernel::Term::Int(1));
-                        assert_eq!(**il, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**ir, proof_kernel::Term::Int(1));
-                    }
-                    other => panic!("unexpected rhs strict-order lowering: {:?}", other),
-                }
-            }
-            other => panic!("unexpected prop: {:?}", other),
-        }
-    }
-
-    #[test]
     fn diagnostic_display_with_context_breadcrumbs() {
         let source = "= x = bad()";
         let d = Diagnostic::error("undefined function `bad`").with_context("in function `main`");
@@ -69919,7 +69429,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 label: "Prove",
                 stmt: Stmt::Prove {
                     name: "prove_visit".to_string(),
-                    proof_block: None,
                     capture: None,
                     pass_block: Some(vec![typechecker_expr_stmt("missing_prove_pass")]),
                     else_block: Some(vec![typechecker_expr_stmt("missing_prove_else")]),
@@ -71776,16 +71285,6 @@ handle <- Left
         message: String,
         level: Int,
     ) -> ()
-}
-
-| proof_target: (left, right) -> left + right == right + left
-? proof_target by {
-    | (
-        left: Int,
-        right: Int,
-    ) -> apply int_ring.comm_add(
-        refl,
-    )
 }
 
 = handled = | handle Console {
