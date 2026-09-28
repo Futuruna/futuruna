@@ -24731,7 +24731,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut acc = {1}; {0}.clone().into_iter().map(|x| { acc = ({2})(acc.clone(), x); acc.clone() }).collect::<Vec<_>>() }",
+                rust_tpl: "__futuruna_scan({0}.clone(), {1}, {2})",
             },
         ),
         (
@@ -24903,7 +24903,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }",
+                rust_tpl: "{0}.clone().into_iter().fold({1}, {2})",
             },
         ),
         (
@@ -31629,6 +31629,22 @@ impl RustCodegen {
         val: &Value,
         variant_parent: &BTreeMap<String, String>,
     ) -> Option<(String, String)> {
+        // A user-declared `Cons`/`Nil` list is an ADT, not a Rust Vec literal.
+        fn contains_cons_list(value: &Value) -> bool {
+            match value {
+                Value::Constructor(name, args) => {
+                    name == "Cons" || name == "Nil" || args.iter().any(contains_cons_list)
+                }
+                Value::NamedConstructor(_, fields) => {
+                    fields.iter().any(|(_, value)| contains_cons_list(value))
+                }
+                Value::List(items) | Value::Tuple(items) => items.iter().any(contains_cons_list),
+                _ => false,
+            }
+        }
+        if variant_parent.contains_key("Cons") && contains_cons_list(val) {
+            return None;
+        }
         let (rust_lit, rust_ty) = Self::value_to_rust_literal(val, variant_parent);
         if rust_lit.contains("todo!(\"comptime: unsupported value\")") {
             None
@@ -34974,6 +34990,10 @@ fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
 // Fix the key type from the map so compiler-inserted borrows can coerce to &K.
 fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
     map.get(key)
+}
+fn __futuruna_scan<T, A: Clone, F: FnMut(A, T) -> A>(items: Vec<T>, init: A, mut step: F) -> Vec<A> {
+    let mut acc = init;
+    items.into_iter().map(|item| { acc = step(acc.clone(), item); acc.clone() }).collect()
 }
 fn __futuruna_join(items: &[String], separator: &str) -> String {
     items.join(separator)
@@ -49226,10 +49246,7 @@ fn __futuruna_install_error_hook() {
             "reduce" if args.len() == 3 => {
                 let init = self.emit_expr(&args[1]);
                 let f = self.emit_expr(&args[2]);
-                Some(format!(
-                    "{{ let mut __acc = {}; for __x in {}.into_iter() {{ __acc = ({}) (__acc.clone(), __x); }} __acc }}",
-                    init, snapshot, f
-                ))
+                Some(format!("{}.into_iter().fold({}, {})", snapshot, init, f))
             }
             _ => None,
         }
@@ -51681,7 +51698,7 @@ fn __futuruna_install_error_hook() {
                                     coll, sp, key_expr
                                 ),
                                 _ => format!(
-                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| {{ let {} = __item.clone(); format!(\"{{}}\", {}) }}); __v }}",
+                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| {{ let {} = __item.clone(); __futuruna_key_of(&({})) }}); __v }}",
                                     coll, sp, key_expr
                                 ),
                             };
@@ -51702,7 +51719,7 @@ fn __futuruna_install_error_hook() {
                                     coll, key_expr
                                 ),
                                 _ => format!(
-                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| format!(\"{{}}\", {})); __v }}",
+                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| __futuruna_key_of(&({}))); __v }}",
                                     coll, key_expr
                                 ),
                             };
