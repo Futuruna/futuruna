@@ -109,9 +109,11 @@ gate. It runs `runa test tests/downstream` as well as the native checks, so
 imported subject initialization is exercised by the interpreter even when a
 fixture is excluded from generic roundtrip testing.
 
-Database retirement regressions run in the ordinary Rust test lane. They check
-explicit errors for removed persistence syntax and builtins, plus preserved
-in-memory logic, typed calculations, ordinary assertions, and scope behavior.
+Unknown surface form regressions run in the ordinary Rust test lane
+(`tests/unknown_surface_forms.rs`). They check located errors for unknown
+annotations, undefined functions, `assert`/`retract`/`abort` statements and
+`? name by { ... }` blocks, plus in-memory logic, typed calculations, ordinary
+assertions, and scope behavior.
 
 The WASM canary lane discovers fixtures marked with `-- wasm-build-canary` and
 runs `runa wasm` for each one. By default, a missing `wasm-pack` is reported as

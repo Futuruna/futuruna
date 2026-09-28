@@ -10,8 +10,6 @@ tags:
 related:
   - "[[current-state]]"
   - "[[wiki/modules/proof-kernel|proof-kernel]]"
-  - "[[verified-bootstrap-doc]]"
-  - "[[wiki/sources/proof-backed-checking|proof-backed-checking]]"
 ---
 
 # Verified Bootstrap
@@ -50,7 +48,4 @@ theorem prover.
 
 ## Primary Sources
 
-- [[verified-bootstrap-doc]]
-- [[wiki/sources/proof-backed-checking|proof-backed-checking]]
-- [[proof-kernel-spec]]
 - [[wiki/sources/state-and-roadmap|state-and-roadmap]]

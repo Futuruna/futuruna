@@ -1,7 +1,8 @@
 ---
-feature_stage: stable
+feature_stage: mixed
 feature_stage_surfaces:
   - documented-stdlib
+  - http-builtins
 ---
 
 # Standard Library

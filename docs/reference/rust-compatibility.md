@@ -3,6 +3,8 @@ feature_stage: mixed
 feature_stage_surfaces:
   - pure-core-rust-artifacts
   - rust-interop
+  - rust-escape-hatches
+  - wasm-target
 ---
 
 # Rust Compatibility

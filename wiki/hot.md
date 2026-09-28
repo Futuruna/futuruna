@@ -40,7 +40,7 @@ tags:
 - Created indexes for modules, decisions, dependencies, flows, concepts, entities, thesis, gaps, questions, sources, and meta
 - Added shared Obsidian config for `bases`, `canvas`, and optional community plugins
 - Added Obsidian CSS snippet `vault-colors`
-- Ingested core repo docs into [[wiki/sources/state-and-roadmap|state-and-roadmap]], [[proof-kernel-spec]], [[verified-bootstrap-doc]], [[wiki/sources/mint-gate|mint-gate]], and [[wiki/sources/canary-matrix|canary-matrix]]
+- Ingested core repo docs into [[wiki/sources/state-and-roadmap|state-and-roadmap]], [[wiki/sources/mint-gate|mint-gate]], and [[wiki/sources/canary-matrix|canary-matrix]]
 - Added thesis note [[wiki/thesis/verified-bootstrap|verified-bootstrap]] and expanded the main seed notes around it
 - Added source notes [[kotlin-evolution-and-compatibility]], [[rust-testing-and-stability]], [[swift-source-compatibility-and-governance]], [[alive2-translation-validation]], and [[compiler-fuzzing-csmith-and-csmithedge]]
 - Added concepts [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], and [[translation-validation]]

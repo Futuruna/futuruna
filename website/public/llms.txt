@@ -21,7 +21,7 @@ Contact: research@futuruna.com
 - [Language basics](https://futuruna.com/docs/basics): Learn Futuruna's ordinary programming foundations.
 - [The seven runes](https://futuruna.com/docs): See how front runes give each kind of statement its own space.
 - [Standard library](https://futuruna.com/docs/stdlib): Browse Futuruna's maintained standard-library reference.
-- [Reactive streams](https://futuruna.com/docs/streams): Learn the stream model, operators, subscriptions, and lifetimes.
+- [Reactive streams](https://futuruna.com/docs/streams): Learn the experimental stream model, operators, subscriptions, and lifetimes.
 - [Rust compatibility](https://futuruna.com/docs/rust): Read the maintained Rust interoperability and code-generation contract.
 - [Modeling style](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/style.md): Learn to keep source-backed rules, facts, assumptions, interpretations, and unknowns separate.
 - [Typed calculations](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/calculations.md): Turn a typed rule model into structured inputs, interview questions, workbooks, and deterministic results.

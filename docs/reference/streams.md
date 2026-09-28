@@ -1,5 +1,5 @@
 ---
-feature_stage: stable
+feature_stage: experimental
 feature_stage_surfaces:
   - reactive-stateful-surfaces
 ---

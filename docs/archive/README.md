@@ -5,7 +5,7 @@ numbers are historical, not current feature-status claims.
 
 | Historical document | Current reference |
 | --- | --- |
-| [Self-hosting plan](self-hosting-plan.md), formerly `projects/self-hosting/README.md` | [Verified bootstrap](../verified-bootstrap.md), [state and roadmap](../state-and-roadmap.md) |
+| [Self-hosting plan](self-hosting-plan.md), formerly `projects/self-hosting/README.md` | [State and roadmap](../state-and-roadmap.md) |
 
 Other development records remain under [milestones](../milestones/README.md).
 The [migration manifest](../repository-migrations.json) preserves old locations

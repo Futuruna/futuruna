@@ -15,7 +15,6 @@ related:
   - "[[current-state]]"
   - "[[repo-docs]]"
   - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
-  - "[[proof-kernel-spec]]"
 ---
 
 # Proof Kernel
@@ -56,5 +55,4 @@ The kernel matters because it enables [[wiki/thesis/verified-bootstrap|verified-
 
 - [[current-state]]
 - [[repo-docs]]
-- [[proof-kernel-spec]]
 - [[wiki/thesis/verified-bootstrap|verified-bootstrap]]

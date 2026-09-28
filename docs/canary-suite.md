@@ -74,8 +74,8 @@ The blocking authored lane. These canaries should stay green in interpreter,
 compiled, codegen, and roundtrip execution.
 
 - `tests/canary/stateful/`
-Subjects, actors, lifecycle, and richer effectful workflows. This tier is part
-of the production evidence for the stable reactive/stateful surface: compiled
+Subjects, actors, lifecycle, and richer effectful workflows. This tier tracks
+the experimental reactive/stateful surface: compiled
 execution is blocking, live-async roundtrip/check-codegen skips are reported
 explicitly, and async runtime artifact expectations cover emitted Rust shapes
 that the generic lanes intentionally skip.

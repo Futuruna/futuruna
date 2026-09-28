@@ -71,5 +71,3 @@ Futuruna is no longer in the “add features and hope” phase. It now has a rea
 - [[wiki/sources/state-and-roadmap|state-and-roadmap]]
 - [[wiki/sources/mint-gate|mint-gate]]
 - [[wiki/sources/canary-matrix|canary-matrix]]
-- [[verified-bootstrap-doc]]
-- [[proof-kernel-spec]]
