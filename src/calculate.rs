@@ -1337,6 +1337,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
     let mut candidates = Vec::new();
     let mut diagnostics = Vec::new();
     let mut pending_markers = Vec::new();
+    let callables = host_effects::LocalCallables::new(stmts);
 
     for stmt in stmts {
         if let Stmt::Annot(name, args) = stmt {
@@ -1365,6 +1366,18 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
 
         match endpoint_from_stmt(stmt, stmts, checker) {
             Ok(mut candidate) => {
+                if let Some(effect) =
+                    callables.first_reachable_effect(&[AstChild::Stmt(stmt)], true)
+                {
+                    diagnostics.push(Diagnostic::error_at(
+                        effect.span,
+                        format!(
+                            "calculation `{}` performs the effect {}; calculations must be pure, so pass external data in through the input",
+                            candidate.name,
+                            host_effects::reached_effect_location(&effect)
+                        ),
+                    ));
+                }
                 candidate.label = label;
                 candidates.push(candidate);
             }
@@ -1527,7 +1540,6 @@ fn endpoint_from_stmt(
                     effects.join(", ")
                 ));
             }
-            reject_direct_effects(name, body)?;
             Ok(EndpointCandidate {
                 name: name.clone(),
                 label: None,
@@ -1577,7 +1589,6 @@ fn endpoint_from_stmt(
                 if let Some(output_name) = inferred_rule_output(rule, checker) {
                     output_names.insert(output_name);
                 }
-                reject_rule_direct_effects(&name, rule)?;
             }
             if output_names.is_empty() {
                 return Err(format!(
@@ -1661,45 +1672,6 @@ fn inferred_rule_output(rule: &Rule, checker: &TypeChecker) -> Option<String> {
         }
         Rule::ReactiveScope { .. } => None,
     }
-}
-
-fn reject_direct_effects(name: &str, expr: &Expr) -> Result<(), String> {
-    let mut effects = BTreeSet::new();
-    walk_ast_expr(expr, &mut |child| {
-        if let AstChild::Expr(Expr {
-            kind: ExprKind::Effect(effect, _),
-            ..
-        }) = child
-        {
-            effects.insert(effect.clone());
-        }
-    });
-    if effects.is_empty() {
-        Ok(())
-    } else {
-        Err(format!(
-            "calculation `{}` directly performs effects ({}); move external input outside the calculation boundary",
-            name,
-            effects.into_iter().collect::<Vec<_>>().join(", ")
-        ))
-    }
-}
-
-fn reject_rule_direct_effects(name: &str, rule: &Rule) -> Result<(), String> {
-    let expressions: Vec<&Expr> = match rule {
-        Rule::Clause { body, .. } => body.iter().collect(),
-        Rule::Default {
-            value, condition, ..
-        }
-        | Rule::Exception {
-            value, condition, ..
-        } => std::iter::once(value).chain(condition.iter()).collect(),
-        Rule::ReactiveScope { .. } => Vec::new(),
-    };
-    for expression in expressions {
-        reject_direct_effects(name, expression)?;
-    }
-    Ok(())
 }
 
 fn primitive_name(name: &str) -> Option<&'static str> {
@@ -4305,6 +4277,7 @@ impl<'a> CalculationWorker<'a> {
     fn from_program(program: CalculationProgram<'a>) -> Self {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
+        interpreter.deny_host_effects("a calculation");
         interpreter.source_dir = program.source_dir.clone();
         interpreter.install_rule_dispatch_return_metadata(
             program.rule_dispatch_return_types,

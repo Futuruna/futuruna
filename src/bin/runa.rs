@@ -16,11 +16,13 @@ mod runa_verification_arithmetic;
 mod runa_logic_search;
 
 macro_rules! status_eprintln {
-    ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), true, true) }};
+    ($($argument:tt)*) => {{ crate::runa_check_output::write_status(format_args!($($argument)*), true, true) }};
 }
 macro_rules! status_println {
-    ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), false, true) }};
+    ($($argument:tt)*) => {{ crate::runa_check_output::write_status(format_args!($($argument)*), false, true) }};
 }
+
+mod runa_packages;
 
 use futuruna::*;
 use quote::ToTokens;
@@ -40,9 +42,71 @@ static TEMP_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
 static COMPILER_EXECUTABLE_HASH: OnceLock<Option<String>> = OnceLock::new();
 static RUSTC_FINGERPRINT: OnceLock<Option<String>> = OnceLock::new();
 
+#[cfg(test)]
 fn unique_temp_workspace(prefix: &str) -> PathBuf {
     let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("{prefix}-{}-{sequence}", std::process::id()))
+}
+
+/// Create `path` if needed and make it private to the current user. An
+/// existing directory must be a real directory (not a symbolic link) owned by
+/// the current user; group and other permissions are removed. Compiler
+/// caches, cached executables and build workspaces live only below such a
+/// directory, so no other account can plant or replace what we compile or run.
+fn ensure_private_directory(path: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(path)
+        .map_err(|error| format!("cannot create {}: {}", path.display(), error))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let metadata = std::fs::symlink_metadata(path)
+            .map_err(|error| format!("cannot inspect {}: {}", path.display(), error))?;
+        if !metadata.file_type().is_dir() {
+            return Err(format!(
+                "{} is not a directory; refusing to cache or build there",
+                path.display()
+            ));
+        }
+        // SAFETY: geteuid has no preconditions and cannot fail.
+        if metadata.uid() != unsafe { libc::geteuid() } {
+            return Err(format!(
+                "{} is owned by another user; refusing to cache or build there",
+                path.display()
+            ));
+        }
+        if metadata.mode() & 0o077 != 0 {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+                .map_err(|error| format!("cannot restrict {}: {}", path.display(), error))?;
+        }
+    }
+    Ok(())
+}
+
+/// The per-user, private root of compiler caches and build workspaces:
+/// `FUTURUNA_COMPILER_CACHE_DIR` when set, otherwise the Futuruna user cache.
+fn compiler_cache_base() -> Result<PathBuf, String> {
+    let base = match std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
+        Some(path) => PathBuf::from(path),
+        None => manifest::user_cache_root()
+            .ok_or("cannot locate a per-user cache directory: HOME is not set")?,
+    };
+    ensure_private_directory(&base)?;
+    Ok(base)
+}
+
+/// Claim a fresh directory for one build or validation run below the
+/// private cache base. Callers remove it when they no longer need it.
+fn claim_build_workspace() -> PathBuf {
+    compiler_cache_base()
+        .and_then(|base| {
+            create_native_build_workspace(&base.join("builds")).map_err(|error| {
+                format!("cannot create a build directory: {error}")
+            })
+        })
+        .unwrap_or_else(|error| {
+            status_eprintln!("\x1b[1;31merror\x1b[0m: {}", error);
+            std::process::exit(1);
+        })
 }
 
 // Claim a new directory atomically. A stale process ID or another compiler
@@ -144,6 +208,9 @@ fn main_inner() {
     let mut calculation_input = None;
     let mut calculation_output = None;
     let mut calculation_all_tables = false;
+    let mut check_build_deps = false; // --build-deps flag for `runa check`
+    let mut add_rev: Option<String> = None; // --rev flag for `runa add`
+    let mut fetch_update = false; // --update flag for `runa fetch`
 
     let mut i = 1;
     while i < args.len() {
@@ -182,6 +249,22 @@ fn main_inner() {
             }
             "--frontend" if mode == "check" => {
                 check_frontend_only = true;
+                i += 1;
+            }
+            "--build-deps" if mode == "check" => {
+                check_build_deps = true;
+                i += 1;
+            }
+            "--rev" if mode == "add" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --rev requires a branch, tag or commit");
+                    std::process::exit(1);
+                }
+                add_rev = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--update" if mode == "fetch" => {
+                fetch_update = true;
                 i += 1;
             }
             "--fir" if mode == "emit" => {
@@ -521,7 +604,8 @@ fn main_inner() {
                 eprintln!("Commands:");
                 eprintln!("  (none)        Interpret directly (default)");
                 eprintln!("  init [name]   Create a new project with runa.toml");
-                eprintln!("  add <path>    Add a local dependency to runa.toml");
+                eprintln!("  add <src>     Add a directory or git repository (fetches it) to runa.toml");
+                eprintln!("  fetch         Download git dependencies pinned in runa.lock");
                 eprintln!("  emit          Print generated Rust to stdout");
                 eprintln!("  emit --imports  Print normalized public import/export graph");
                 eprintln!("  build         Compile to native binary");
@@ -564,6 +648,8 @@ fn main_inner() {
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
                 eprintln!("  check --frontend  Run frontend validation only");
                 eprintln!("  check --json      Emit one structured diagnostic report");
+                eprintln!("  check --build-deps  Let Cargo download and build @ depend crates");
+                eprintln!("  fetch --update    Re-resolve git dependencies and rewrite runa.lock");
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
@@ -689,6 +775,10 @@ fn main_inner() {
             }
             "add" => {
                 mode = "add";
+                i += 1;
+            }
+            "fetch" => {
+                mode = "fetch";
                 i += 1;
             }
             "emit" => {
@@ -829,15 +919,25 @@ fn main_inner() {
         return;
     }
 
-    // ── runa add <path> — add dependency ──
+    // ── runa add <path-or-git-url> [--rev REV] — add dependency ──
     if mode == "add" {
-        if let Some(ref dep_path) = filename {
-            runa_add(dep_path);
+        if let Some(source) = &filename {
+            runa_packages::runa_add(source, add_rev.as_deref());
         } else {
-            eprintln!("Usage: runa add <path>");
-            eprintln!("  Adds a local path dependency to runa.toml");
+            eprintln!("Usage: runa add <path-or-git-url> [--rev <branch|tag|commit>]");
+            eprintln!("  Adds a local directory or a git repository to runa.toml and runa.lock");
             std::process::exit(1);
         }
+        return;
+    }
+
+    // ── runa fetch [--update] — download git dependencies pinned in runa.lock ──
+    if mode == "fetch" {
+        if filename.is_some() {
+            eprintln!("Usage: runa fetch [--update]");
+            std::process::exit(1);
+        }
+        runa_packages::runa_fetch(fetch_update);
         return;
     }
 
@@ -1130,7 +1230,14 @@ fn main_inner() {
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
                 "check" => {
-                    check_source(&source, path, use_prelude, check_frontend_only, check_json)
+                    check_source(
+                        &source,
+                        path,
+                        use_prelude,
+                        check_frontend_only,
+                        check_json,
+                        check_build_deps,
+                    )
                 }
                 "meta" => print_meta_index(
                     &source,
@@ -1365,51 +1472,18 @@ fn calculation_contract_cache_dir() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("FUTURUNA_CALCULATION_CACHE_DIR") {
         return Some(PathBuf::from(path).join("contracts-v2"));
     }
-    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/calculation-contracts-v2"));
-    }
-    let home = std::env::var_os("HOME")?;
-    let root = if cfg!(target_os = "macos") {
-        PathBuf::from(home).join("Library/Caches/futuruna")
-    } else {
-        PathBuf::from(home).join(".cache/futuruna")
-    };
-    Some(root.join("calculation-contracts-v2"))
+    Some(manifest::user_cache_root()?.join("calculation-contracts-v2"))
 }
 
 fn compiler_artifact_cache_dir() -> Option<PathBuf> {
     if cache_env_enabled("FUTURUNA_DISABLE_COMPILER_CACHE") {
         return None;
     }
-    if let Some(path) = std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
-        return Some(PathBuf::from(path).join("compiler-artifacts-v1"));
-    }
-    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/compiler-artifacts-v1"));
-    }
-    let home = std::env::var_os("HOME")?;
-    let root = if cfg!(target_os = "macos") {
-        PathBuf::from(home).join("Library/Caches/futuruna")
-    } else {
-        PathBuf::from(home).join(".cache/futuruna")
-    };
-    Some(root.join("compiler-artifacts-v1"))
+    Some(compiler_cache_base().ok()?.join("compiler-artifacts-v1"))
 }
 
 fn compiler_fingerprint_cache_dir() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
-        return Some(PathBuf::from(path).join("compiler-fingerprints-v1"));
-    }
-    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/compiler-fingerprints-v1"));
-    }
-    let home = std::env::var_os("HOME")?;
-    let root = if cfg!(target_os = "macos") {
-        PathBuf::from(home).join("Library/Caches/futuruna")
-    } else {
-        PathBuf::from(home).join(".cache/futuruna")
-    };
-    Some(root.join("compiler-fingerprints-v1"))
+    Some(compiler_cache_base().ok()?.join("compiler-fingerprints-v1"))
 }
 
 fn cache_hash_segment(hasher: &mut Sha256, value: &[u8]) {
@@ -1564,7 +1638,7 @@ fn collect_source_graph_module(
     let source_dir = canonical_cache_path(source_dir);
     let source_dir_text = source_dir.to_string_lossy();
     let manifest_path =
-        find_runa_toml(source_dir_text.as_ref()).map(|path| canonical_cache_path(Path::new(&path)));
+        manifest::find_manifest(&source_dir).map(|path| canonical_cache_path(&path));
     if let Some(manifest_path) = manifest_path.as_ref() {
         let manifest_source = std::fs::read(manifest_path).ok()?;
         record_source_graph_file(manifest_path, &manifest_source, files);
@@ -1700,11 +1774,8 @@ fn source_graph_snapshot_is_current(
     }
 
     for context in &snapshot.resolution_contexts {
-        let current_manifest = find_runa_toml(&context.source_dir).map(|path| {
-            canonical_cache_path(Path::new(&path))
-                .to_string_lossy()
-                .to_string()
-        });
+        let current_manifest = manifest::find_manifest(Path::new(&context.source_dir))
+            .map(|path| canonical_cache_path(&path).to_string_lossy().to_string());
         if current_manifest != context.manifest_path {
             return false;
         }
@@ -3261,8 +3332,87 @@ fn write_calculation_xlsx_value(
     Ok(())
 }
 
+/// Calculation workbooks are bounded before any sheet is materialized: the
+/// archive's unpacked size and entry count are measured by streaming, and every
+/// sheet's used rectangle is measured by scanning its cells, because reading a
+/// sheet allocates that whole rectangle.
+const CALCULATION_XLSX_MAX_UNPACKED_BYTES: u64 = 256 * 1024 * 1024;
+const CALCULATION_XLSX_MAX_ENTRIES: usize = 10_000;
+const CALCULATION_XLSX_MAX_SHEET_CELLS: u64 = 4_000_000;
+
+fn check_calculation_xlsx_unpacked_size(path: &str) -> Result<(), String> {
+    use std::io::Read;
+
+    let file = std::fs::File::open(path).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+        .map_err(|error| format!("not a readable .xlsx workbook: {error}"))?;
+    if archive.len() > CALCULATION_XLSX_MAX_ENTRIES {
+        return Err(format!(
+            "workbook has {} archive entries; calculation workbooks are limited to {}",
+            archive.len(),
+            CALCULATION_XLSX_MAX_ENTRIES
+        ));
+    }
+    let too_large = || {
+        format!(
+            "workbook unpacks to more than {} MiB; calculation workbooks are limited to that size",
+            CALCULATION_XLSX_MAX_UNPACKED_BYTES / (1024 * 1024)
+        )
+    };
+    let mut remaining = CALCULATION_XLSX_MAX_UNPACKED_BYTES;
+    for index in 0..archive.len() {
+        let entry = archive
+            .by_index(index)
+            .map_err(|error| format!("not a readable .xlsx workbook: {error}"))?;
+        if entry.size() > remaining {
+            return Err(too_large());
+        }
+        // Declared sizes can lie; count what actually decompresses.
+        let unpacked = std::io::copy(&mut entry.take(remaining + 1), &mut std::io::sink())
+            .map_err(|error| format!("not a readable .xlsx workbook: {error}"))?;
+        if unpacked > remaining {
+            return Err(too_large());
+        }
+        remaining -= unpacked;
+    }
+    Ok(())
+}
+
+fn check_calculation_xlsx_sheet_dimensions(
+    workbook: &mut calamine::Xlsx<std::io::BufReader<std::fs::File>>,
+) -> Result<(), String> {
+    use calamine::Reader;
+
+    for sheet_name in workbook.sheet_names() {
+        let mut cells = workbook
+            .worksheet_cells_reader(&sheet_name)
+            .map_err(|error| error.to_string())?;
+        let mut bounds: Option<((u32, u32), (u32, u32))> = None;
+        while let Some(cell) = cells.next_cell().map_err(|error| error.to_string())? {
+            let (row, column) = cell.get_position();
+            bounds = Some(match bounds {
+                None => ((row, column), (row, column)),
+                Some(((top, left), (bottom, right))) => (
+                    (top.min(row), left.min(column)),
+                    (bottom.max(row), right.max(column)),
+                ),
+            });
+        }
+        if let Some(((top, left), (bottom, right))) = bounds {
+            let rows = u64::from(bottom - top) + 1;
+            let columns = u64::from(right - left) + 1;
+            if rows * columns > CALCULATION_XLSX_MAX_SHEET_CELLS {
+                return Err(format!(
+                    "sheet `{sheet_name}` spans {rows} rows × {columns} columns; calculation workbooks are limited to {CALCULATION_XLSX_MAX_SHEET_CELLS} cells per sheet"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn calculation_xlsx_materialized_sheets(
-    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    workbook: &mut calamine::Xlsx<std::io::BufReader<std::fs::File>>,
     layout: &calculate::CalculationInputLayout,
     legacy: bool,
 ) -> Result<BTreeSet<String>, String> {
@@ -3360,7 +3510,10 @@ fn read_calculation_xlsx(
     {
         return Err("calculation workbooks must use the macro-free .xlsx format".to_string());
     }
-    let mut workbook = calamine::open_workbook_auto(path).map_err(|error| error.to_string())?;
+    check_calculation_xlsx_unpacked_size(path)?;
+    let mut workbook: calamine::Xlsx<_> =
+        calamine::open_workbook(path).map_err(|error: calamine::XlsxError| error.to_string())?;
+    check_calculation_xlsx_sheet_dimensions(&mut workbook)?;
     if workbook
         .vba_project()
         .map_err(|error| error.to_string())?
@@ -4644,171 +4797,8 @@ fn calculation_xlsx_text_chunks(value: &str) -> Vec<String> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ── Package Manager: runa init / runa add / runa.toml ──────────────────
+// ── Project scaffolding (runa add / runa fetch live in runa_packages.rs) ──
 // ══════════════════════════════════════════════════════════════════════════
-
-/// Dependency specification: local path or git remote
-#[derive(Clone, Debug)]
-enum DepSpec {
-    Path(String),
-    Git { url: String, rev: Option<String> },
-}
-
-/// Parsed runa.toml manifest
-struct RunaManifest {
-    name: String,
-    version: String,
-    dependencies: Vec<(String, DepSpec)>,
-}
-
-/// Extract a quoted value for a given key from an inline TOML table
-fn extract_toml_table_value(raw: &str, key: &str) -> Option<String> {
-    if let Some(k_start) = raw.find(key) {
-        let after = &raw[k_start + key.len()..];
-        if let Some(eq) = after.find('=') {
-            let val_part = after[eq + 1..]
-                .trim()
-                .trim_end_matches('}')
-                .trim()
-                .trim_end_matches(',')
-                .trim()
-                .trim_matches('"');
-            if !val_part.is_empty() {
-                return Some(val_part.to_string());
-            }
-        }
-    }
-    None
-}
-
-/// Parse a minimal runa.toml — supports [package] and [dependencies] sections
-fn parse_runa_toml(toml_path: &str) -> Option<RunaManifest> {
-    let content = std::fs::read_to_string(toml_path).ok()?;
-    let mut name = String::new();
-    let mut version = String::from("0.1.0");
-    let mut deps: Vec<(String, DepSpec)> = Vec::new();
-    let mut section = "";
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        if trimmed == "[package]" {
-            section = "package";
-            continue;
-        }
-        if trimmed == "[dependencies]" {
-            section = "deps";
-            continue;
-        }
-        if trimmed.starts_with('[') {
-            section = "";
-            continue;
-        }
-        if let Some(eq_pos) = trimmed.find('=') {
-            let key = trimmed[..eq_pos].trim();
-            let val_raw = trimmed[eq_pos + 1..].trim();
-            let val = val_raw.trim_matches('"');
-            match section {
-                "package" => match key {
-                    "name" => name = val.to_string(),
-                    "version" => version = val.to_string(),
-                    _ => {}
-                },
-                "deps" => {
-                    if val_raw.contains("git") {
-                        // Git dependency: { git = "https://...", rev = "abc" }
-                        if let Some(url) = extract_toml_table_value(val_raw, "git") {
-                            let rev = extract_toml_table_value(val_raw, "rev");
-                            deps.push((key.to_string(), DepSpec::Git { url, rev }));
-                        }
-                    } else if val_raw.contains("path") {
-                        if let Some(path) = extract_toml_table_value(val_raw, "path") {
-                            deps.push((key.to_string(), DepSpec::Path(path)));
-                        }
-                    } else {
-                        // Simple string path
-                        deps.push((key.to_string(), DepSpec::Path(val.to_string())));
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    if name.is_empty() {
-        return None;
-    }
-
-    Some(RunaManifest {
-        name,
-        version,
-        dependencies: deps,
-    })
-}
-
-/// Find runa.toml by walking up from a directory
-fn find_runa_toml(start_dir: &str) -> Option<String> {
-    let mut dir = std::path::PathBuf::from(start_dir);
-    loop {
-        let candidate = dir.join("runa.toml");
-        if candidate.exists() {
-            return Some(candidate.to_string_lossy().to_string());
-        }
-        if !dir.pop() {
-            return None;
-        }
-    }
-}
-
-/// Generate a runa.lock file from resolved dependencies.
-/// Records exact resolved paths for reproducible builds.
-fn write_lock_file(toml_path: &str, manifest: &RunaManifest) {
-    let lock_path = toml_path.replace("runa.toml", "runa.lock");
-    let mut content = String::new();
-    content.push_str("# This file is auto-generated by runa. Do not edit.\n");
-    content.push_str(&format!("# Generated from: {}\n\n", toml_path));
-    content.push_str(&format!(
-        "[package]\nname = \"{}\"\nversion = \"{}\"\n\n",
-        manifest.name, manifest.version
-    ));
-
-    if !manifest.dependencies.is_empty() {
-        content.push_str("[dependencies]\n");
-        for (name, spec) in &manifest.dependencies {
-            match spec {
-                DepSpec::Path(p) => {
-                    // Resolve to absolute path for lock file
-                    let toml_dir = std::path::Path::new(toml_path)
-                        .parent()
-                        .unwrap_or_else(|| std::path::Path::new("."));
-                    let abs = if std::path::Path::new(p).is_absolute() {
-                        p.clone()
-                    } else {
-                        toml_dir.join(p).to_string_lossy().to_string()
-                    };
-                    content.push_str(&format!("{} = {{ path = \"{}\" }}\n", name, abs));
-                }
-                DepSpec::Git { url, rev } => {
-                    if let Some(r) = rev {
-                        content.push_str(&format!(
-                            "{} = {{ git = \"{}\", rev = \"{}\" }}\n",
-                            name, url, r
-                        ));
-                    } else {
-                        content.push_str(&format!("{} = {{ git = \"{}\" }}\n", name, url));
-                    }
-                }
-            }
-        }
-    }
-
-    match std::fs::write(&lock_path, &content) {
-        Ok(_) => eprintln!("  wrote {}", lock_path),
-        Err(e) => eprintln!("  warning: could not write lock file: {}", e),
-    }
-}
 
 /// `runa init [name]` — scaffold a new project
 fn runa_init(name: &str) {
@@ -4866,273 +4856,6 @@ entry = "src/main.runa"
     eprintln!("  {}/src/main.runa", name);
     eprintln!();
     eprintln!("  cd {} && runa run src/main.runa", name);
-}
-
-/// Get the dependency cache directory (~/.cache/futuruna/deps/)
-fn dep_cache_dir() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    std::path::PathBuf::from(home)
-        .join(".cache")
-        .join("futuruna")
-        .join("deps")
-}
-
-/// Check if a string looks like a git URL
-fn is_git_url(s: &str) -> bool {
-    s.starts_with("https://")
-        || s.starts_with("http://")
-        || s.starts_with("git@")
-        || s.ends_with(".git")
-}
-
-/// Extract repo name from a git URL (e.g., "https://github.com/user/mylib" → "mylib")
-fn repo_name_from_url(url: &str) -> String {
-    let clean = url.trim_end_matches(".git").trim_end_matches('/');
-    clean.rsplit('/').next().unwrap_or("dep").to_string()
-}
-
-/// Hash a git URL to create a unique cache directory name
-fn git_cache_key(url: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut h = DefaultHasher::new();
-    url.hash(&mut h);
-    format!("{:016x}", h.finish())
-}
-
-/// Ensure a git dependency is cloned/updated in the cache. Returns the local path.
-fn ensure_git_dep(url: &str, rev: Option<&str>) -> Result<String, String> {
-    let cache = dep_cache_dir();
-    let repo_dir = cache.join(git_cache_key(url));
-
-    if repo_dir.exists() {
-        // Already cloned — fetch latest if no specific rev pinned
-        if rev.is_none() {
-            let status = std::process::Command::new("git")
-                .args(["fetch", "--quiet"])
-                .current_dir(&repo_dir)
-                .status();
-            if let Ok(s) = status {
-                if s.success() {
-                    let _ = std::process::Command::new("git")
-                        .args(["reset", "--hard", "origin/HEAD"])
-                        .current_dir(&repo_dir)
-                        .status();
-                }
-            }
-        }
-    } else {
-        // Clone
-        std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create cache dir: {}", e))?;
-        status_eprintln!("\x1b[1;36mCloning\x1b[0m {} ...", url);
-        let status = std::process::Command::new("git")
-            .args([
-                "clone",
-                "--quiet",
-                "--depth",
-                "1",
-                url,
-                &repo_dir.to_string_lossy(),
-            ])
-            .status()
-            .map_err(|e| format!("git clone failed: {}", e))?;
-        if !status.success() {
-            return Err(format!("git clone failed for {}", url));
-        }
-    }
-
-    // Checkout specific rev if specified
-    if let Some(r) = rev {
-        let status = std::process::Command::new("git")
-            .args(["checkout", "--quiet", r])
-            .current_dir(&repo_dir)
-            .status()
-            .map_err(|e| format!("git checkout failed: {}", e))?;
-        if !status.success() {
-            return Err(format!("git checkout '{}' failed", r));
-        }
-    }
-
-    // Get the current commit hash for pinning
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .current_dir(&repo_dir)
-        .output()
-        .map_err(|e| format!("git rev-parse failed: {}", e))?;
-    let _commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-    Ok(repo_dir.to_string_lossy().to_string())
-}
-
-/// Resolve a DepSpec to a local filesystem path (cloning git deps if needed)
-fn resolve_dep_to_path(spec: &DepSpec, toml_dir: &str) -> Option<String> {
-    match spec {
-        DepSpec::Path(p) => {
-            if std::path::Path::new(p).is_absolute() {
-                Some(p.clone())
-            } else {
-                Some(format!("{}/{}", toml_dir, p))
-            }
-        }
-        DepSpec::Git { url, rev } => match ensure_git_dep(url, rev.as_deref()) {
-            Ok(path) => Some(path),
-            Err(e) => {
-                status_eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
-                None
-            }
-        },
-    }
-}
-
-/// `runa add <path-or-url>` — add a dependency to runa.toml
-fn runa_add(dep_arg: &str) {
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let toml_path = match find_runa_toml(&cwd.to_string_lossy()) {
-        Some(p) => p,
-        None => {
-            status_eprintln!(
-                "\x1b[1;31merror\x1b[0m: no runa.toml found in current or parent directories"
-            );
-            eprintln!("  Run 'runa init <name>' to create a project first");
-            std::process::exit(1);
-        }
-    };
-
-    let (dep_name, dep_line) = if is_git_url(dep_arg) {
-        // Git dependency
-        let name = repo_name_from_url(dep_arg);
-
-        // Verify we can clone it
-        match ensure_git_dep(dep_arg, None) {
-            Ok(_) => {}
-            Err(e) => {
-                status_eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
-                std::process::exit(1);
-            }
-        }
-
-        let line = format!("{} = {{ git = \"{}\" }}\n", name, dep_arg);
-        (name, line)
-    } else {
-        // Local path dependency
-        let abs_dep = if std::path::Path::new(dep_arg).is_absolute() {
-            std::path::PathBuf::from(dep_arg)
-        } else {
-            cwd.join(dep_arg)
-        };
-
-        if !abs_dep.exists() {
-            status_eprintln!("\x1b[1;31merror\x1b[0m: path '{}' does not exist", dep_arg);
-            std::process::exit(1);
-        }
-
-        let name = abs_dep
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "dep".to_string());
-
-        let toml_dir = std::path::Path::new(&toml_path)
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
-        let rel_path = pathdiff_relative(&abs_dep, toml_dir);
-        let line = format!("{} = {{ path = \"{}\" }}\n", name, rel_path);
-        (name, line)
-    };
-
-    // Read existing content
-    let content = match std::fs::read_to_string(&toml_path) {
-        Ok(c) => c,
-        Err(e) => {
-            status_eprintln!("\x1b[1;31merror\x1b[0m: cannot read {}: {}", toml_path, e);
-            std::process::exit(1);
-        }
-    };
-
-    // Check if dependency already exists
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with(&dep_name) && trimmed.contains('=') {
-            status_eprintln!(
-                "\x1b[1;33mwarning\x1b[0m: dependency '{}' already exists in runa.toml",
-                dep_name
-            );
-            return;
-        }
-    }
-
-    // Append to [dependencies] section
-    let new_content = append_dep_to_toml(&content, &dep_line);
-
-    if let Err(e) = std::fs::write(&toml_path, new_content) {
-        status_eprintln!("\x1b[1;31merror\x1b[0m: cannot write {}: {}", toml_path, e);
-        std::process::exit(1);
-    }
-
-    let display = if is_git_url(dep_arg) {
-        dep_arg.to_string()
-    } else {
-        let abs_dep = if std::path::Path::new(dep_arg).is_absolute() {
-            std::path::PathBuf::from(dep_arg)
-        } else {
-            cwd.join(dep_arg)
-        };
-        let toml_dir = std::path::Path::new(&toml_path)
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
-        pathdiff_relative(&abs_dep, toml_dir)
-    };
-    status_eprintln!(
-        "\x1b[1;32mAdded\x1b[0m dependency '{}' → {}",
-        dep_name,
-        display
-    );
-
-    // Regenerate lock file
-    if let Some(manifest) = parse_runa_toml(&toml_path) {
-        write_lock_file(&toml_path, &manifest);
-    }
-}
-
-/// Append a dependency line to TOML content's [dependencies] section
-fn append_dep_to_toml(content: &str, dep_line: &str) -> String {
-    if content.contains("[dependencies]") {
-        let mut result = String::new();
-        let mut in_deps = false;
-        let mut added = false;
-        for line in content.lines() {
-            result.push_str(line);
-            result.push('\n');
-            if line.trim() == "[dependencies]" {
-                in_deps = true;
-            } else if in_deps && !added {
-                if line.trim().starts_with('[') || line.trim().is_empty() {
-                    if line.trim().starts_with('[') {
-                        let len = result.len();
-                        result.truncate(len - line.len() - 1);
-                        result.push_str(dep_line);
-                        result.push_str(line);
-                        result.push('\n');
-                    } else {
-                        result.push_str(dep_line);
-                    }
-                    added = true;
-                    in_deps = false;
-                }
-            }
-        }
-        if !added {
-            result.push_str(dep_line);
-        }
-        result
-    } else {
-        let mut result = content.to_string();
-        if !result.ends_with('\n') {
-            result.push('\n');
-        }
-        result.push_str("\n[dependencies]\n");
-        result.push_str(dep_line);
-        result
-    }
 }
 
 /// Compute a relative path from `base` to `target` (simple implementation)
@@ -5634,12 +5357,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 // Reuse only the compiler/source-graph keyed cache checked at
                 // entry. The former stem-only scratch cache ignored compiler
                 // identity and cache controls, and raced concurrent builds.
-                let workspace =
-                    create_native_build_workspace(&std::env::temp_dir().join("runa-native"))
-                        .unwrap_or_else(|error| {
-                            eprintln!("Error creating native build directory: {error}");
-                            std::process::exit(1);
-                        });
+                let workspace = claim_build_workspace();
                 let built_binary = workspace.join(&artifact_stem);
                 let rs_path = workspace
                     .join(format!("{}.rs", artifact_stem))
@@ -5719,15 +5437,15 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 // Cargo also needs an owned manifest, source and target tree:
                 // Cargo's build lock alone does not protect our source writes
                 // or the interval between compilation and copying/execution.
-                let build_dir =
-                    create_native_build_workspace(&Path::new(".runa-build").join(&artifact_stem))
-                        .and_then(std::fs::canonicalize)
-                        .unwrap_or_else(|error| {
-                            eprintln!("Error creating Cargo build directory: {error}");
-                            std::process::exit(1);
-                        })
-                        .to_string_lossy()
-                        .into_owned();
+                // The workspace lives in the private per-user cache, so no
+                // `.cargo/config.toml` from the source tree applies to it.
+                let build_dir = std::fs::canonicalize(claim_build_workspace())
+                    .unwrap_or_else(|error| {
+                        eprintln!("Error creating Cargo build directory: {error}");
+                        std::process::exit(1);
+                    })
+                    .to_string_lossy()
+                    .into_owned();
                 let src_dir = format!("{}/src", build_dir);
                 std::fs::create_dir_all(&src_dir).unwrap_or_else(|e| {
                     eprintln!("Error creating {}: {}", src_dir, e);
@@ -5806,6 +5524,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                                 eprintln!("Error running {}: {}", cargo_bin, e);
                                 std::process::exit(1);
                             });
+                            std::fs::remove_dir_all(&build_dir).ok();
                             std::process::exit(status.code().unwrap_or(1));
                         } else {
                             // Copy binary to current directory
@@ -5813,6 +5532,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                                 eprintln!("Error copying binary: {}", e);
                                 std::process::exit(1);
                             });
+                            std::fs::remove_dir_all(&build_dir).ok();
                             let dep_count = cg.cargo_deps.len();
                             eprintln!(
                                 "runa: {} -> {} ({} lines of Rust, {} dep{})",
@@ -5903,8 +5623,9 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 })
                 .collect();
 
-            // Generate Cargo project in .runa-build/<name>-wasm/
-            let build_dir = format!(".runa-build/{}-wasm", safe_stem);
+            // Generate the Cargo project in a private build workspace; only
+            // the finished package is copied to ./<name>-wasm/.
+            let build_dir = claim_build_workspace().to_string_lossy().into_owned();
             let src_dir = format!("{}/src", build_dir);
             std::fs::create_dir_all(&src_dir).unwrap_or_else(|e| {
                 eprintln!("Error creating {}: {}", src_dir, e);
@@ -5975,7 +5696,28 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             let elapsed = start.elapsed();
             match output {
                 Ok(o) if o.status.success() => {
-                    let pkg_dir = format!("{}/pkg", build_dir);
+                    let pkg_dir = format!("{}-wasm", safe_stem);
+                    let copied = std::fs::create_dir_all(&pkg_dir).and_then(|()| {
+                        for entry in std::fs::read_dir(format!("{}/pkg", build_dir))? {
+                            let entry = entry?;
+                            if entry.file_type()?.is_file() {
+                                std::fs::copy(
+                                    entry.path(),
+                                    Path::new(&pkg_dir).join(entry.file_name()),
+                                )?;
+                            }
+                        }
+                        Ok(())
+                    });
+                    if let Err(error) = copied {
+                        status_eprintln!(
+                            "\x1b[1;31merror\x1b[0m: cannot copy the wasm package to {}: {}",
+                            pkg_dir,
+                            error
+                        );
+                        std::process::exit(1);
+                    }
+                    std::fs::remove_dir_all(&build_dir).ok();
                     status_eprintln!("\x1b[1;32mwasm ok\x1b[0m: {} → {}/", filename, pkg_dir);
                     // List generated files
                     if let Ok(entries) = std::fs::read_dir(&pkg_dir) {
@@ -9513,8 +9255,10 @@ fn build_explore_native_classifier_v2_cache_enabled(
             return None;
         }
     };
-    let cache_root = compiler_artifact_cache_dir()
-        .unwrap_or_else(|| std::env::temp_dir().join("futuruna-compiler-artifacts-v1"));
+    let cache_root = match compiler_artifact_cache_dir() {
+        Some(cache_root) => cache_root,
+        None => compiler_cache_base().ok()?.join("compiler-artifacts-v1"),
+    };
     let target = explore_native_classifier_cache_target_v3(&cache_root, &cache_key);
     let resolution = explore_native_classifier_cache_or_build_v3(target, |target| {
         build_explore_native_classifier_v2_cache_miss(plan, target, started)
@@ -12617,8 +12361,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
     );
 
     let suite_start = Instant::now();
-    let temp_workspace = unique_temp_workspace("runa-codegen-check");
-    let _ = std::fs::create_dir_all(&temp_workspace);
+    let temp_workspace = claim_build_workspace();
     let tmp_rs = temp_workspace.join("check.rs");
     let tmp_out = temp_workspace.join("check-out");
 
@@ -16284,6 +16027,7 @@ fn audit_calculation_reachability_source(
         .cloned()
         .collect::<Vec<_>>();
     let mut interpreter = Interpreter::new();
+    interpreter.deny_host_effects("`runa audit`");
     interpreter.source_dir = source_dir_for(filename);
     interpreter.install_rule_dispatch_metadata(&artifacts);
     let mut env = interpreter.default_env();
@@ -16398,18 +16142,43 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
     };
 
+    // An audit inspects the model: it registers declarations and evaluates
+    // bindings and rules, but never runs top-level statements (effects,
+    // loops, sends, proofs) and never performs host effects.
+    let effect_diagnostics = audit_host_effect_diagnostics(&stmts);
+    if print_type_check_diagnostics(&effect_diagnostics, source, filename) {
+        std::process::exit(1);
+    }
     let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
+    interp.deny_host_effects("`runa audit`");
     interp.source_dir = source_dir.clone();
     interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
     let mut env = interp.default_env();
 
-    // Filter out Prove statements — we don't want verification output during audit
     let audit_stmts: Vec<Stmt> = stmts
         .into_iter()
-        .filter(|s| !matches!(s, Stmt::Prove { .. }))
+        .filter(|s| {
+            !matches!(
+                s,
+                Stmt::Expr(_)
+                    | Stmt::For(..)
+                    | Stmt::While(..)
+                    | Stmt::Send(..)
+                    | Stmt::StreamSub(..)
+                    | Stmt::Prove { .. }
+            )
+        })
         .collect();
-    let _ = interp.run_program(&audit_stmts, &mut env);
+    if let Err(diagnostic) =
+        interp.run_program_with_diagnostics(&audit_stmts, &mut env, Path::new(filename), source)
+    {
+        eprint!(
+            "{}",
+            diagnostic.display(source, filename, should_use_color())
+        );
+        std::process::exit(1);
+    }
 
     // Phase 2: Evaluate all zero-arg rules, classify by return VALUE TYPE
     struct RuleResult {
@@ -19389,7 +19158,14 @@ fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<St
 }
 
 /// Parse and type-check without running, optionally skipping Rust backend validation.
-fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: bool, json: bool) {
+fn check_source(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    frontend_only: bool,
+    json: bool,
+    build_deps: bool,
+) {
     use std::process::Command;
     use std::time::Instant;
 
@@ -19510,7 +19286,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 let persistent_workspace = rustc_incremental_check_workspace(filename, use_prelude);
                 let check_workspace = persistent_workspace
                     .clone()
-                    .unwrap_or_else(|| unique_temp_workspace("runa-check"));
+                    .unwrap_or_else(claim_build_workspace);
                 std::fs::create_dir_all(&check_workspace).ok();
                 let rs_path = check_workspace.join("check.rs");
                 write_file_if_changed(&rs_path, code.as_bytes()).ok();
@@ -19574,16 +19350,28 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                     }
                 }
             } else {
-                // Has deps — use cargo check in .runa-build/
-                let stem = std::path::Path::new(filename)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("tau_out");
-                let build_dir = format!(".runa-build/{}", stem);
-                let src_dir = format!("{}/src", build_dir);
+                // Cargo downloads crates and runs their build scripts and
+                // procedural macros; checking never does that implicitly.
+                if !build_deps {
+                    let crates = cg
+                        .cargo_deps
+                        .keys()
+                        .map(|name| format!("`{name}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    check_output.failure(
+                        "backend",
+                        format!(
+                            "validating the generated Rust needs Cargo to download and build the crates {crates}, which runs their build scripts; rerun with `runa check --build-deps` to allow it, or use `runa check --frontend`"
+                        ),
+                    );
+                    std::process::exit(1);
+                }
+                let build_dir = claim_build_workspace();
+                let src_dir = build_dir.join("src");
                 std::fs::create_dir_all(&src_dir).ok();
-                let main_rs = format!("{}/main.rs", src_dir);
-                write_file_if_changed(Path::new(&main_rs), code.as_bytes()).ok();
+                let main_rs = src_dir.join("main.rs");
+                write_file_if_changed(&main_rs, code.as_bytes()).ok();
                 // Generate Cargo.toml
                 let package_name = rust_artifact_stem_for_source(filename, "tau_out");
                 let mut cargo_toml = format!(
@@ -19605,17 +19393,14 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                         cargo_toml.push_str(&format!("{} = \"{}\"\n", safe_name, safe_version));
                     }
                 }
-                write_file_if_changed(
-                    Path::new(&format!("{}/Cargo.toml", build_dir)),
-                    cargo_toml.as_bytes(),
-                )
-                .ok();
+                write_file_if_changed(&build_dir.join("Cargo.toml"), cargo_toml.as_bytes()).ok();
                 let cargo_bin = find_rust_tool("cargo");
                 let cargo_start = Instant::now();
                 let output = Command::new(&cargo_bin)
                     .args(["check", "--color", "never"])
                     .current_dir(&build_dir)
                     .output();
+                std::fs::remove_dir_all(&build_dir).ok();
                 trace_compiler_timing("cargo validation", cargo_start.elapsed());
                 match output {
                     Ok(o) if o.status.success() => {
@@ -20549,51 +20334,8 @@ fn collect_library_import_graph_issues(
 }
 
 fn resolve_library_hygiene_import_path(import_path: &str, dir: &str) -> String {
-    let rel = import_path.trim_start_matches("./");
-    let file_path = format!("{}/{}.runa", dir, rel);
-
-    if import_path.starts_with("./")
-        || import_path.starts_with("../")
-        || std::path::Path::new(&file_path).exists()
-    {
-        return file_path;
-    }
-
-    if let Some(toml_path) = find_runa_toml(dir) {
-        if let Some(manifest) = parse_runa_toml(&toml_path) {
-            let toml_dir = std::path::Path::new(&toml_path)
-                .parent()
-                .map(|p| {
-                    let s = p.to_string_lossy().to_string();
-                    if s.is_empty() {
-                        ".".to_string()
-                    } else {
-                        s
-                    }
-                })
-                .unwrap_or_else(|| ".".to_string());
-            let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-            let dep_name = parts[0];
-            let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-            for (name, dep_spec) in &manifest.dependencies {
-                if name == dep_name {
-                    if let Some(abs_dep) = resolve_dep_to_path(dep_spec, &toml_dir) {
-                        let dep_file = format!("{}/{}.runa", abs_dep, module);
-                        if std::path::Path::new(&dep_file).exists() {
-                            return dep_file;
-                        }
-                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-                        if std::path::Path::new(&dep_file_src).exists() {
-                            return dep_file_src;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    file_path
+    Interpreter::resolve_import_path_for_source(import_path, dir)
+        .unwrap_or_else(|| format!("{}/{}.runa", dir, import_path.trim_start_matches("./")))
 }
 
 fn import_time_impure_builtin_names() -> BTreeSet<String> {
@@ -31053,90 +30795,9 @@ impl RustCodegen {
     /// Returns the parsed statements plus the imported file's directory so nested
     /// imports resolve relative to the file they appear in.
     fn resolve_import_from_dir(&mut self, import_path: &str, dir: &str) -> (Vec<Stmt>, String) {
-        // Try relative path first (existing behavior)
-        let rel = import_path.trim_start_matches("./");
-        let file_path = format!("{}/{}.runa", dir, rel);
-
-        // If file exists OR path starts with ./ or ../, use it directly
-        if import_path.starts_with("./")
-            || import_path.starts_with("../")
-            || std::path::Path::new(&file_path).exists()
-        {
-            let canon = std::fs::canonicalize(&file_path)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or(file_path.clone());
-            if self.imported.contains(&canon) {
-                return (Vec::new(), dir.to_string());
-            }
-            self.imported.insert(canon);
-            let resolved_dir = std::path::Path::new(&file_path)
-                .parent()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| dir.to_string());
-            return (Self::parse_tau_file(&file_path), resolved_dir);
-        }
-
-        // Try manifest-based resolution: `dep_name/module` → dependency path
-        if let Some(toml_path) = find_runa_toml(&dir) {
-            if let Some(manifest) = parse_runa_toml(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                // Split import path: first component is dep name, rest is module path
-                let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-                let dep_name = parts[0];
-                let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-                for (name, dep_spec) in &manifest.dependencies {
-                    if name == dep_name {
-                        let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
-                            Some(p) => p,
-                            None => return (Vec::new(), dir.to_string()),
-                        };
-                        let dep_file = format!("{}/{}.runa", abs_dep, module);
-                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-
-                        let resolved = if std::path::Path::new(&dep_file).exists() {
-                            dep_file
-                        } else if std::path::Path::new(&dep_file_src).exists() {
-                            dep_file_src
-                        } else {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
-                                module, dep_name
-                            );
-                            eprintln!("  Searched: {}", dep_file);
-                            eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string());
-                        };
-
-                        let canon = std::fs::canonicalize(&resolved)
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or(resolved.clone());
-                        if self.imported.contains(&canon) {
-                            return (Vec::new(), dir.to_string());
-                        }
-                        self.imported.insert(canon);
-                        let resolved_dir = std::path::Path::new(&resolved)
-                            .parent()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or_else(|| dir.to_string());
-                        return (Self::parse_tau_file(&resolved), resolved_dir);
-                    }
-                }
-            }
-        }
-
-        // Fallback: try the original relative path anyway (gives a proper error)
+        // Relative files first, then manifest dependencies (local files only).
+        let file_path = Interpreter::resolve_import_path_for_source(import_path, dir)
+            .unwrap_or_else(|| format!("{}/{}.runa", dir, import_path.trim_start_matches("./")));
         let canon = std::fs::canonicalize(&file_path)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
@@ -31160,93 +30821,8 @@ impl RustCodegen {
         dir: &str,
         seen: &mut BTreeSet<String>,
     ) -> (Vec<Stmt>, String, Option<String>, bool) {
-        let rel = import_path.trim_start_matches("./");
-        let file_path = format!("{}/{}.runa", dir, rel);
-
-        if import_path.starts_with("./")
-            || import_path.starts_with("../")
-            || std::path::Path::new(&file_path).exists()
-        {
-            let canon = std::fs::canonicalize(&file_path)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or(file_path.clone());
-            if !seen.insert(canon.clone()) {
-                return (Vec::new(), dir.to_string(), Some(canon), false);
-            }
-            let resolved_dir = std::path::Path::new(&file_path)
-                .parent()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| dir.to_string());
-            return (
-                Self::parse_tau_file(&file_path),
-                resolved_dir,
-                Some(canon),
-                true,
-            );
-        }
-
-        if let Some(toml_path) = find_runa_toml(&dir) {
-            if let Some(manifest) = parse_runa_toml(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-                let dep_name = parts[0];
-                let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-                for (name, dep_spec) in &manifest.dependencies {
-                    if name == dep_name {
-                        let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
-                            Some(p) => p,
-                            None => return (Vec::new(), dir.to_string(), None, false),
-                        };
-                        let dep_file = format!("{}/{}.runa", abs_dep, module);
-                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-
-                        let resolved = if std::path::Path::new(&dep_file).exists() {
-                            dep_file
-                        } else if std::path::Path::new(&dep_file_src).exists() {
-                            dep_file_src
-                        } else {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
-                                module, dep_name
-                            );
-                            eprintln!("  Searched: {}", dep_file);
-                            eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string(), None, false);
-                        };
-
-                        let canon = std::fs::canonicalize(&resolved)
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or(resolved.clone());
-                        if !seen.insert(canon.clone()) {
-                            return (Vec::new(), dir.to_string(), Some(canon), false);
-                        }
-                        let resolved_dir = std::path::Path::new(&resolved)
-                            .parent()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or_else(|| dir.to_string());
-                        return (
-                            Self::parse_tau_file(&resolved),
-                            resolved_dir,
-                            Some(canon),
-                            true,
-                        );
-                    }
-                }
-            }
-        }
-
+        let file_path = Interpreter::resolve_import_path_for_source(import_path, dir)
+            .unwrap_or_else(|| format!("{}/{}.runa", dir, import_path.trim_start_matches("./")));
         let canon = std::fs::canonicalize(&file_path)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
