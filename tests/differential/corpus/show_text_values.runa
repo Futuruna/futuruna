@@ -1,0 +1,14 @@
+-- `show` renders strings inside lists, streams and records unchanged in both
+-- modes: no quote stripping, brace rewriting or `.0` removal.
+# Note(code: String, amount: Float)
+= xs = ["v1.0", "a { b }", "say \"hi\"", "tab\there"]
+@ print(show(xs))
+~ s = from_list(xs)
+~ s | x -> { @ print(show(x)) }
+= v = trim("v1.0 { beta } \"q\"")
+@ print(show(v))
+@ print(show(string_length(show(["1.0"]))))
+@ print(show(Note("100.0", 100.0)))
+@ print(show([Some("2.0"), None]))
+@ print(show(Pair(1, "a")))
+@ print(show('c'))

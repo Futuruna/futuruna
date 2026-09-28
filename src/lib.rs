@@ -14718,25 +14718,29 @@ fn runtime_map_entry_parts<'a>(
     }
 }
 
-// Collection identity uses structural hash buckets, but iteration is a public
-// operation: retain the display-key ordering used by the native backend. Never
+// Collection identity uses structural hash buckets; iteration follows the
+// language's value order (`value_sort_cmp`), which compiled code shares. Never
 // use display text for lookup or equality (distinct values can render alike).
 fn runtime_map_ordered_entries(entries: &BTreeMap<String, Value>) -> Vec<(&str, &Value)> {
     let mut ordered = entries
         .iter()
         .map(|(key, value)| (key.as_str(), value))
         .collect::<Vec<_>>();
-    ordered.sort_by_cached_key(|(stored_key, stored_value)| {
-        runtime_map_entry_parts(stored_key, stored_value)
-            .map(|(key, _)| key.to_string())
-            .unwrap_or_else(|| stored_key.to_string())
+    ordered.sort_by(|(left_key, left_value), (right_key, right_value)| {
+        match (
+            runtime_map_entry_parts(left_key, left_value),
+            runtime_map_entry_parts(right_key, right_value),
+        ) {
+            (Some((left, _)), Some((right, _))) => value_sort_cmp(left, right),
+            _ => left_key.cmp(right_key),
+        }
     });
     ordered
 }
 
 fn runtime_set_ordered_values(entries: &BTreeMap<String, Value>) -> Vec<&Value> {
     let mut ordered = entries.values().collect::<Vec<_>>();
-    ordered.sort_by_cached_key(|value| value.to_string());
+    ordered.sort_by(|left, right| value_sort_cmp(left, right));
     ordered
 }
 
@@ -14940,6 +14944,13 @@ impl fmt::Display for Value {
             Value::NamedConstructor(name, fields) if fields.is_empty() => {
                 write!(f, "{}", name)
             }
+            // `Pair(a, b)` is the two-element tuple `(a, b)` and displays as one.
+            Value::NamedConstructor(name, fields)
+                if name == "Pair"
+                    && matches!(fields.as_slice(), [(fst, _), (snd, _)] if fst == "fst" && snd == "snd") =>
+            {
+                write!(f, "({}, {})", fields[0].1, fields[1].1)
+            }
             Value::NamedConstructor(name, fields) => {
                 write!(f, "{}(", name)?;
                 for (i, (fname, val)) in fields.iter().enumerate() {
@@ -14987,8 +14998,9 @@ impl fmt::Display for Value {
             Value::Actor {
                 actor_name, state, ..
             } => write!(f, "<actor:{}({})>", actor_name, state),
+            // A stream displays as the sequence of its values, like a list.
             Value::Stream(items) => {
-                write!(f, "~[")?;
+                write!(f, "[")?;
                 for (i, v) in items.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -22715,7 +22727,7 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     let mut items = list_to_vec(list);
-                    items.sort_by(|a, b| format!("{}", a).cmp(&format!("{}", b)));
+                    items.sort_by(value_sort_cmp);
                     Value::List(items)
                 }
                 _ => Value::List(vec![]),
@@ -23075,6 +23087,8 @@ impl Interpreter {
                         .collect();
                     Value::List(chunks)
                 }
+                (Some(_), Some(Value::Int(n))) => self
+                    .panic_or_ground_fail(format!("chunked size must be greater than 0, got {n}")),
                 _ => Value::List(vec![]),
             },
             "subscribe" => match (args.get(0), args.get(1)) {
@@ -24961,6 +24975,16 @@ impl Interpreter {
                 .checked_rem(*right)
                 .map(Value::Int)
                 .ok_or_else(|| "integer remainder by zero or overflow in ground expression"),
+            ("/", Value::Float(_) | Value::Int(_), Value::Float(_) | Value::Int(_))
+                if runtime_numeric_is_zero(&r) =>
+            {
+                Err("float division by zero in ground expression")
+            }
+            ("%", Value::Float(_) | Value::Int(_), Value::Float(_) | Value::Int(_))
+                if runtime_numeric_is_zero(&r) =>
+            {
+                Err("float remainder by zero in ground expression")
+            }
             _ => return self.eval_binop_unchecked(op, l, r),
         };
         checked.unwrap_or_else(|message| self.checked_arithmetic_fail(message))
@@ -28302,20 +28326,111 @@ fn rust_debug_value(value: &Value) -> String {
     }
 }
 
-fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
+/// The language's single value order, used by `sort`, `sort_by`,
+/// `list_min`/`list_max` and Map/Set iteration: numbers numerically, text and
+/// characters by code point, `false` before `true`, lists and tuples element by
+/// element (a prefix first), constructors by name and then by fields in
+/// declaration order. Compiled code implements the same order.
+fn runtime_numeric_is_zero(value: &Value) -> bool {
+    match value {
+        Value::Float(number) => *number == 0.0,
+        Value::Int(number) => *number == 0,
+        _ => false,
+    }
+}
+
+pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    fn float_key(value: f64) -> f64 {
+        if value == 0.0 {
+            0.0
+        } else if value.is_nan() {
+            f64::NAN
+        } else {
+            value
+        }
+    }
+    fn seq_cmp(a: &[Value], b: &[Value]) -> Ordering {
+        for (left, right) in a.iter().zip(b.iter()) {
+            let ordering = value_sort_cmp(left, right);
+            if ordering != Ordering::Equal {
+                return ordering;
+            }
+        }
+        a.len().cmp(&b.len())
+    }
+    fn constructor_parts(value: &Value) -> Option<(&str, Vec<&Value>)> {
+        match value {
+            Value::Constructor(name, _) if name == "Cons" || name == "Nil" => None,
+            Value::Constructor(name, args) => Some((name, args.iter().collect())),
+            Value::NamedConstructor(name, fields) => {
+                Some((name, fields.iter().map(|(_, value)| value).collect()))
+            }
+            Value::NamespacedConstructor {
+                name, arguments, ..
+            } => Some((name, arguments.iter().collect())),
+            Value::NamespacedNamedConstructor { name, fields, .. } => {
+                Some((name, fields.iter().map(|(_, value)| value).collect()))
+            }
+            _ => None,
+        }
+    }
     match (a, b) {
         (Value::Int(a), Value::Int(b)) => a.cmp(b),
-        (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
-        (Value::Int(a), Value::Float(b)) => (*a as f64)
-            .partial_cmp(b)
-            .unwrap_or(std::cmp::Ordering::Equal),
-        (Value::Float(a), Value::Int(b)) => a
-            .partial_cmp(&(*b as f64))
-            .unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Float(a), Value::Float(b)) => float_key(*a).total_cmp(&float_key(*b)),
+        (Value::Int(a), Value::Float(b)) => (*a as f64).partial_cmp(b).unwrap_or(Ordering::Equal),
+        (Value::Float(a), Value::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal),
         (Value::Str(a), Value::Str(b)) => a.cmp(b),
         (Value::Char(a), Value::Char(b)) => a.cmp(b),
         (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
-        _ => format!("{}", a).cmp(&format!("{}", b)),
+        (Value::Unit, Value::Unit) => Ordering::Equal,
+        (Value::List(a), Value::List(b))
+        | (Value::Tuple(a), Value::Tuple(b))
+        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b),
+        (Value::Map(a), Value::Map(b)) => {
+            let flatten = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
+                runtime_map_ordered_entries(entries)
+                    .into_iter()
+                    .flat_map(|(stored_key, stored_value)| {
+                        match runtime_map_entry_parts(stored_key, stored_value) {
+                            Some((key, value)) => [key.clone(), value.clone()],
+                            None => [Value::Str(stored_key.to_string()), stored_value.clone()],
+                        }
+                    })
+                    .collect()
+            };
+            seq_cmp(&flatten(a), &flatten(b))
+        }
+        (Value::Set(a), Value::Set(b)) => {
+            let ordered = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
+                runtime_set_ordered_values(entries)
+                    .into_iter()
+                    .cloned()
+                    .collect()
+            };
+            seq_cmp(&ordered(a), &ordered(b))
+        }
+        _ => match (constructor_parts(a), constructor_parts(b)) {
+            (Some((left_name, left)), Some((right_name, right))) => {
+                left_name.cmp(right_name).then_with(|| {
+                    for (left, right) in left.iter().zip(right.iter()) {
+                        let ordering = value_sort_cmp(left, right);
+                        if ordering != Ordering::Equal {
+                            return ordering;
+                        }
+                    }
+                    left.len().cmp(&right.len())
+                })
+            }
+            _ => {
+                let (left, right) = (list_to_vec(a), list_to_vec(b));
+                if matches!(a, Value::Constructor(..)) && matches!(b, Value::Constructor(..)) {
+                    seq_cmp(&left, &right)
+                } else {
+                    format!("{}", a).cmp(&format!("{}", b))
+                }
+            }
+        },
     }
 }
 
@@ -54345,6 +54460,66 @@ impl TypeChecker {
         self.pop_context();
     }
 
+    /// Map keys and Set elements need exact equality and one total order in
+    /// every execution mode; Float values have neither.
+    fn check_collection_key_not_float(&mut self, func: &Expr, args: &[Expr]) {
+        let ExprKind::Var(name) = &func.kind else {
+            return;
+        };
+        if self.var_defined(name) || self.functions.contains_key(name) {
+            return;
+        }
+        fn mentions_float(type_name: &str) -> bool {
+            type_name
+                .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .any(|word| word == "Float")
+        }
+        fn first_component(type_name: &str) -> Option<&str> {
+            let inner = type_name.strip_prefix("List(")?.strip_suffix(')')?;
+            let inner = inner
+                .strip_prefix("Pair(")
+                .or_else(|| inner.strip_prefix('('))?
+                .strip_suffix(')')?;
+            let mut depth = 0usize;
+            for (index, ch) in inner.char_indices() {
+                match ch {
+                    '(' => depth += 1,
+                    ')' => depth = depth.saturating_sub(1),
+                    ',' if depth == 0 => return Some(inner[..index].trim()),
+                    _ => {}
+                }
+            }
+            None
+        }
+        let key = match (name.as_str(), args) {
+            ("map_insert", [_, key, _]) | ("set_insert", [_, key]) => {
+                self.infer_expr_type_name(key).map(|ty| (key, ty))
+            }
+            ("set_from_list", [items]) => self
+                .infer_expr_type_name(items)
+                .and_then(|ty| {
+                    ty.strip_prefix("List(")?
+                        .strip_suffix(')')
+                        .map(str::to_string)
+                })
+                .map(|ty| (items, ty)),
+            ("map_from", [entries]) => self
+                .infer_expr_type_name(entries)
+                .and_then(|ty| first_component(&ty).map(str::to_string))
+                .map(|ty| (entries, ty)),
+            _ => None,
+        };
+        if let Some((anchor, key_type)) = key {
+            if mentions_float(&key_type) {
+                self.error_at_expr(
+                    anchor,
+                    "Float values cannot be Map keys or Set elements; use Int (e.g. cents) or String"
+                        .to_string(),
+                );
+            }
+        }
+    }
+
     pub fn var_defined(&self, name: &str) -> bool {
         for scope in self.scopes.iter().rev() {
             if scope.contains(name) {
@@ -59068,6 +59243,7 @@ impl TypeChecker {
                 for arg in args {
                     self.check_expr(arg, _in_fn);
                 }
+                self.check_collection_key_not_float(func, args);
             }
             ExprKind::BinOp(_, _, _) => {
                 self.check_binary_expression(expr, _in_fn);

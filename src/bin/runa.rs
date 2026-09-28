@@ -127,6 +127,7 @@ fn main_inner() {
     let mut test_file_kind = TestFileKind::All; // --kind flag for `runa test`
     let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
+    let mut roundtrip_allow_list: Option<String> = None;
     let mut stress_save_failures = None;
     let mut meta_type_filter = None;
     let mut meta_role_filter = None;
@@ -453,6 +454,14 @@ fn main_inner() {
             "--roundtrip" if mode == "test" => {
                 mode = "test-roundtrip";
                 i += 1;
+            }
+            "--allow-list" if mode == "test-roundtrip" => {
+                if i + 1 >= args.len() {
+                    eprintln!("error: --allow-list requires a file");
+                    std::process::exit(1);
+                }
+                roundtrip_allow_list = Some(args[i + 1].clone());
+                i += 2;
             }
             "--seed" if mode == "stress-gen" => {
                 if i + 1 >= args.len() {
@@ -862,7 +871,7 @@ fn main_inner() {
             std::process::exit(1);
         }
         let test_dir = filename.as_deref().unwrap_or("tests");
-        run_roundtrip_tests(test_dir, use_prelude);
+        run_roundtrip_tests(test_dir, use_prelude, roundtrip_allow_list.as_deref());
         return;
     }
     // ── runa test [--run] [--check-codegen] [dir] — test runner ──
@@ -6631,25 +6640,15 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             // Set source directory for @ import resolution
             interp.source_dir = source_dir_for(filename);
             let mut env = interp.default_env();
-            let result = match interp.run_program_with_diagnostics(
-                &stmts,
-                &mut env,
-                Path::new(filename),
-                source,
-            ) {
-                Ok(value) => value,
-                Err(diagnostic) => {
-                    eprint!(
-                        "{}",
-                        diagnostic.display(source, filename, should_use_color())
-                    );
-                    std::process::exit(1);
-                }
-            };
-
-            match result {
-                Value::Unit => {}
-                _ => println!("=> {}", result),
+            // A program's output is what it prints, as in compiled code.
+            if let Err(diagnostic) =
+                interp.run_program_with_diagnostics(&stmts, &mut env, Path::new(filename), source)
+            {
+                eprint!(
+                    "{}",
+                    diagnostic.display(source, filename, should_use_color())
+                );
+                std::process::exit(1);
             }
         }
         Err(e) => {
@@ -12289,7 +12288,12 @@ fn run_from_rust_tests(path: &str) {
     }
 }
 
-fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
+/// Strict differential gate: every program runs in the interpreter (the
+/// reference) and as compiled code; stdout, exit status and the reported
+/// `error:` lines must be identical. A compiled build failure is a failure.
+/// Only an explicit `-- roundtrip-skip: <reason>` or `-- expect-error:` marker
+/// skips a file; known gaps are listed with a reason in an allow-list file.
+fn run_roundtrip_tests(dir: &str, use_prelude: bool, allow_list: Option<&str>) {
     use std::process::Command;
     use std::time::Instant;
 
@@ -12299,210 +12303,217 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
         std::process::exit(1);
     }
 
-    let mut entries: Vec<_> = std::fs::read_dir(path)
-        .unwrap_or_else(|e| {
-            eprintln!("Cannot read {}: {}", dir, e);
-            std::process::exit(1);
-        })
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map(|x| x == "runa").unwrap_or(false))
-        .collect();
-    entries.sort_by_key(|e| e.file_name());
+    fn collect(dir: &std::path::Path, files: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                collect(&path, files);
+            } else if path.extension().is_some_and(|x| x == "runa") {
+                files.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    collect(path, &mut files);
+    files.sort();
 
-    let total = entries.len();
-    let mut matched = 0usize;
-    let mut diverged = 0usize;
-    let mut skipped = 0usize;
-    let mut divergences: Vec<String> = Vec::new();
+    // Allow-list lines: `<path> -- <reason>`; `#` starts a comment.
+    let mut allowed: BTreeMap<String, String> = BTreeMap::new();
+    if let Some(list) = allow_list {
+        let text = std::fs::read_to_string(list).unwrap_or_else(|e| {
+            eprintln!("error: cannot read allow-list {}: {}", list, e);
+            std::process::exit(1);
+        });
+        for line in text.lines().map(str::trim) {
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            match line.split_once(" -- ") {
+                Some((entry, reason)) if !reason.trim().is_empty() => {
+                    allowed.insert(entry.trim().to_string(), reason.trim().to_string());
+                }
+                _ => {
+                    eprintln!(
+                        "error: allow-list entry needs `<path> -- <reason>`: {}",
+                        line
+                    );
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+    let allow_reason = |file: &std::path::Path| -> Option<String> {
+        let shown = file.to_string_lossy();
+        allowed
+            .iter()
+            .find(|(entry, _)| shown.ends_with(entry.as_str()))
+            .map(|(_, reason)| reason.clone())
+    };
+
+    fn error_lines(stderr: &[u8]) -> Vec<String> {
+        let text = String::from_utf8_lossy(stderr);
+        let mut plain = String::with_capacity(text.len());
+        let mut chars = text.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                for next in chars.by_ref() {
+                    if next.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            } else {
+                plain.push(c);
+            }
+        }
+        plain
+            .lines()
+            .filter(|line| line.starts_with("error:"))
+            .map(str::to_string)
+            .collect()
+    }
 
     status_eprintln!(
         "\x1b[1mruna test --roundtrip\x1b[0m: comparing interpreter vs compiled for {} files\n",
-        total
+        files.len()
     );
-
     let suite_start = Instant::now();
-    let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+    let self_bin = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("runa"));
+    let (mut matched, mut skipped, mut allowed_failures) = (0usize, 0usize, 0usize);
+    let mut failures: Vec<String> = Vec::new();
 
-    for entry in &entries {
-        let file_path = entry.path();
-        let name = file_path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-        let file_str = file_path.to_string_lossy().to_string();
+    for file_path in &files {
+        let name = file_path.to_string_lossy().to_string();
+        let source = std::fs::read_to_string(file_path).unwrap_or_default();
+        if source.contains("-- roundtrip-skip:") || source.contains("-- expect-error:") {
+            skipped += 1;
+            continue;
+        }
+        let run = |args: &[&str]| {
+            let mut cmd = Command::new(&self_bin);
+            cmd.args(args);
+            if !use_prelude {
+                cmd.arg("--no-prelude");
+            }
+            cmd.env("FUTURUNA_DISABLE_COMPILER_CACHE", "1");
+            cmd.output()
+        };
         let test_start = Instant::now();
-
-        // Read source to check for skip conditions
-        let source = match std::fs::read_to_string(&file_path) {
-            Ok(s) => s,
-            Err(_) => {
-                skipped += 1;
-                continue;
-            }
-        };
-
-        // Skip negative tests, runtime-error fixtures, and roundtrip-skip tests
-        if source.contains("-- expect-error:")
-            || source.contains("-- expect-runtime-error:")
-            || source.contains("-- roundtrip-skip:")
-        {
-            skipped += 1;
-            continue;
-        }
-
-        // Skip tests that need external crates or async (can't compile standalone)
-        let needs_skip = source.contains("@ depend")
-            || source.contains("http_get")
-            || source.contains("http_serve")
-            || source.contains("json_parse")
-            || source.contains("json_get")
-            || source.contains("regex_match")
-            || source.contains("regex_find")
-            || source.contains("subject(")
-            || source.contains("> actor")
-            || source.contains("spawn(")
-            || source.contains("@ import");
-        if needs_skip {
-            skipped += 1;
-            continue;
-        }
-
-        // Step 1: Run in interpreter — capture stdout
-        let interp_result = {
-            let mut cmd = Command::new(&self_bin);
-            cmd.args(&[&file_str]);
-            if !use_prelude {
-                cmd.arg("--no-prelude");
-            }
-            cmd.stdout(std::process::Stdio::piped());
-            cmd.stderr(std::process::Stdio::piped());
-            cmd.output()
-        };
-
-        let interp_stdout = match interp_result {
-            Ok(ref o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
-            Ok(ref o) => {
-                // Interpreter failed — skip (can't compare)
-                let stderr = String::from_utf8_lossy(&o.stderr);
-                if stderr.contains("type error") || stderr.contains("parse error") {
-                    skipped += 1;
-                    continue;
-                }
-                String::from_utf8_lossy(&o.stdout).to_string()
-            }
-            Err(_) => {
-                skipped += 1;
-                continue;
-            }
-        };
-
-        // Step 2: Compile and run — capture stdout
-        let compiled_result = {
-            let mut cmd = Command::new(&self_bin);
-            cmd.args(&["run", &file_str]);
-            if !use_prelude {
-                cmd.arg("--no-prelude");
-            }
-            cmd.stdout(std::process::Stdio::piped());
-            cmd.stderr(std::process::Stdio::piped());
-            cmd.output()
-        };
-
-        let elapsed = test_start.elapsed();
-        let time_str = if elapsed.as_millis() >= 1000 {
-            format!("{:.1}s", elapsed.as_secs_f64())
-        } else {
-            format!("{}ms", elapsed.as_millis())
-        };
-
-        match compiled_result {
-            Ok(ref o) if o.status.success() => {
-                let compiled_stdout = String::from_utf8_lossy(&o.stdout).to_string();
-
-                if interp_stdout == compiled_stdout {
-                    status_eprintln!(
-                        "  \x1b[1;32mMATCH\x1b[0m {} \x1b[2m({})\x1b[0m",
-                        name,
-                        time_str
-                    );
-                    matched += 1;
+        let outcome = match (run(&[&name]), run(&["run", &name])) {
+            (Ok(interp), Ok(compiled)) => {
+                let compiled_stderr = String::from_utf8_lossy(&compiled.stderr);
+                if compiled_stderr.contains("generated Rust did not compile") {
+                    let first = compiled_stderr
+                        .lines()
+                        .find(|l| l.starts_with("error[") || l.starts_with("error:"))
+                        .unwrap_or("build failed")
+                        .to_string();
+                    Err(format!("compiled build failed: {}", first))
+                } else if interp.stdout != compiled.stdout {
+                    let i = String::from_utf8_lossy(&interp.stdout).to_string();
+                    let c = String::from_utf8_lossy(&compiled.stdout).to_string();
+                    let line = i
+                        .lines()
+                        .zip(c.lines())
+                        .position(|(a, b)| a != b)
+                        .map(|n| {
+                            format!(
+                                "line {}: interp={:?} compiled={:?}",
+                                n + 1,
+                                i.lines().nth(n).unwrap_or(""),
+                                c.lines().nth(n).unwrap_or("")
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            format!(
+                                "interp {} lines, compiled {} lines",
+                                i.lines().count(),
+                                c.lines().count()
+                            )
+                        });
+                    Err(format!("stdout differs: {}", line))
+                } else if interp.status.code() != compiled.status.code() {
+                    Err(format!(
+                        "exit status differs: interp={:?} compiled={:?}",
+                        interp.status.code(),
+                        compiled.status.code()
+                    ))
+                } else if error_lines(&interp.stderr) != error_lines(&compiled.stderr) {
+                    Err(format!(
+                        "errors differ: interp={:?} compiled={:?}",
+                        error_lines(&interp.stderr),
+                        error_lines(&compiled.stderr)
+                    ))
                 } else {
-                    status_eprintln!(
-                        "  \x1b[1;31mDIVERGE\x1b[0m {} \x1b[2m({})\x1b[0m",
-                        name,
-                        time_str
-                    );
-                    // Show first difference
-                    let interp_lines: Vec<&str> = interp_stdout.lines().collect();
-                    let compiled_lines: Vec<&str> = compiled_stdout.lines().collect();
-                    for (i, (il, cl)) in interp_lines.iter().zip(compiled_lines.iter()).enumerate()
-                    {
-                        if il != cl {
-                            eprintln!("    line {}: interp: {}", i + 1, il);
-                            eprintln!("    line {}: compil: {}", i + 1, cl);
-                            break;
-                        }
-                    }
-                    if interp_lines.len() != compiled_lines.len() {
-                        eprintln!(
-                            "    interp: {} lines, compiled: {} lines",
-                            interp_lines.len(),
-                            compiled_lines.len()
-                        );
-                    }
-                    diverged += 1;
-                    divergences.push(name);
+                    Ok(())
                 }
             }
-            Ok(_) => {
-                // Compiled version failed to build/run
-                let stderr = compiled_result
-                    .as_ref()
-                    .map(|o| String::from_utf8_lossy(&o.stderr).to_string())
-                    .unwrap_or_default();
-                let first_err = stderr
-                    .lines()
-                    .find(|l| l.contains("error"))
-                    .unwrap_or("(build failed)");
+            (Err(e), _) | (_, Err(e)) => Err(format!("cannot run runa: {}", e)),
+        };
+        let time_str = format!("{}ms", test_start.elapsed().as_millis());
+        match (outcome, allow_reason(file_path)) {
+            (Ok(()), None) => {
+                matched += 1;
                 status_eprintln!(
-                    "  \x1b[1;33mSKIP\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
+                    "  \x1b[1;32mMATCH\x1b[0m {} \x1b[2m({})\x1b[0m",
                     name,
-                    first_err.trim(),
                     time_str
                 );
-                skipped += 1;
             }
-            Err(_) => {
-                skipped += 1;
+            (Ok(()), Some(reason)) => {
+                failures.push(format!(
+                    "{} (allow-listed but matches; remove the entry: {})",
+                    name, reason
+                ));
+                status_eprintln!(
+                    "  \x1b[1;31mSTALE\x1b[0m {} — allow-listed but matches",
+                    name
+                );
+            }
+            (Err(problem), Some(reason)) => {
+                allowed_failures += 1;
+                status_eprintln!(
+                    "  \x1b[1;33mALLOWED\x1b[0m {} — {} (reason: {})",
+                    name,
+                    problem,
+                    reason
+                );
+            }
+            (Err(problem), None) => {
+                status_eprintln!(
+                    "  \x1b[1;31mFAIL\x1b[0m {} — {} \x1b[2m({})\x1b[0m",
+                    name,
+                    problem,
+                    time_str
+                );
+                failures.push(format!("{}: {}", name, problem));
             }
         }
     }
 
-    let suite_elapsed = suite_start.elapsed();
-    let suite_time = if suite_elapsed.as_secs_f64() >= 1.0 {
-        format!("{:.1}s", suite_elapsed.as_secs_f64())
-    } else {
-        format!("{}ms", suite_elapsed.as_millis())
-    };
-
+    let suite_time = format!("{:.1}s", suite_start.elapsed().as_secs_f64());
     eprintln!();
-    if diverged == 0 {
+    if failures.is_empty() {
         status_eprintln!(
-            "\x1b[1;32mRoundtrip: {} matched\x1b[0m, {} skipped in {}.",
+            "\x1b[1;32mRoundtrip: {} matched\x1b[0m, {} allow-listed, {} skipped by marker in {}.",
             matched,
+            allowed_failures,
             skipped,
             suite_time
         );
     } else {
         status_eprintln!(
-            "\x1b[1;31mRoundtrip: {} matched, {} diverged\x1b[0m, {} skipped in {}:",
+            "\x1b[1;31mRoundtrip: {} matched, {} failed\x1b[0m, {} allow-listed, {} skipped by marker in {}:",
             matched,
-            diverged,
+            failures.len(),
+            allowed_failures,
             skipped,
             suite_time
         );
-        for d in &divergences {
-            eprintln!("  - {}", d);
+        for failure in &failures {
+            eprintln!("  - {}", failure);
         }
         std::process::exit(1);
     }
@@ -19844,7 +19855,7 @@ fn emit_fir_ty_as_rust(ty: &Ty) -> String {
                 "Result" => format!("Result<{}>", arg_strs.join(", ")),
                 "Map" => format!("BTreeMap<{}>", arg_strs.join(", ")),
                 "Set" => format!(
-                    "BTreeMap<String, {}>",
+                    "__FutSet<{}>",
                     arg_strs
                         .first()
                         .cloned()
@@ -23745,7 +23756,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.join(&*{1})",
+                rust_tpl: "__futuruna_join(&({0}), &({1}))",
             },
         ),
         (
@@ -24253,7 +24264,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }",
+                rust_tpl: "__futuruna_sorted({0}.clone())",
             },
         ),
         (
@@ -24263,7 +24274,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }",
+                rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| __futuruna_key_of(&__key(__item))); __v }",
             },
         ),
         (
@@ -24273,7 +24284,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
+                rust_tpl: "{0}.clone().into_iter().min_by(|a, b| __futuruna_cmp(a, b))",
             },
         ),
         (
@@ -24283,7 +24294,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
+                rust_tpl: "{0}.clone().into_iter().max_by(|a, b| __futuruna_cmp(a, b))",
             },
         ),
         (
@@ -24447,7 +24458,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.iter().filter(|x| ({1})((*x).clone())).count() as i64",
+                rust_tpl: "({0}.iter().filter(|x| ({1})((*x).clone())).count() as i64)",
             },
         ),
         (
@@ -24467,7 +24478,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let __v = {0}.clone(); let __n = ({1} as usize).max(1); __v.chunks(__n).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }",
+                rust_tpl: "{ let __v = {0}.clone(); let __n: i64 = {1}; if __n <= 0 { panic!(\"chunked size must be greater than 0, got {}\", __n); } __v.chunks(__n as usize).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }",
             },
         ),
         (
@@ -24538,7 +24549,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }",
+                rust_tpl: "{ let mut __m = {0}.clone(); __futuruna_map_remove(&mut __m, &({1})); __m }",
             },
         ),
         (
@@ -24609,7 +24620,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "BTreeMap::new()",
+                rust_tpl: "__FutSet::new()",
             },
         ),
         (
@@ -24679,7 +24690,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
+                rust_tpl: "{ let mut __s = __FutSet::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
             },
         ),
         (
@@ -24689,7 +24700,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
+                rust_tpl: "{ let mut __s = __FutSet::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
             },
         ),
         (
@@ -24699,7 +24710,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
+                rust_tpl: "{ let mut __s = __FutSet::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
             },
         ),
         // ---- Stream builtins (M12, sync Vec-based — clean names, no s_ prefix) ----
@@ -25266,6 +25277,8 @@ struct TypeRegistry {
     explicit_display_impls: BTreeSet<String>,
     /// Lexical module path + source type for explicit Display impls.
     module_explicit_display_impls: BTreeSet<(String, String)>,
+    /// Types with a user-provided Eq/PartialOrd/Ord impl (skip generated order impls).
+    explicit_order_impls: BTreeSet<String>,
     /// Types that are structs (single-variant ADTs where variant name == type name)
     struct_types: BTreeSet<String>,
     /// User-defined ADTs whose emitted Rust type actually derives Default
@@ -25351,6 +25364,7 @@ impl TypeRegistry {
             rule_scope_member_params: BTreeMap::new(),
             explicit_display_impls: BTreeSet::new(),
             module_explicit_display_impls: BTreeSet::new(),
+            explicit_order_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
             default_derive_types: BTreeSet::new(),
             default_derive_param_requirements: BTreeMap::new(),
@@ -28727,7 +28741,18 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
             format!("{}({})", f, arg_strs.join(", "))
         }
         FirExprKind::Field(obj, field) => {
-            format!("{}.{}", emit_fir_expr(obj, types), field)
+            // `Pair` is lowered to a Rust tuple: `.fst`/`.snd`/`.trd` are positions.
+            let tuple_receiver = match &obj.ty {
+                FirTy::Named(name) => name == "Pair" && types.pair_uses_rust_tuple_representation(),
+                _ => true,
+            };
+            let rust_field = match field.as_str() {
+                "fst" if tuple_receiver => "0",
+                "snd" if tuple_receiver => "1",
+                "trd" if tuple_receiver => "2",
+                _ => field.as_str(),
+            };
+            format!("{}.{}", emit_fir_expr(obj, types), rust_field)
         }
         FirExprKind::Index(base, idx) => {
             let base_expr = emit_fir_expr(base, types);
@@ -30810,6 +30835,11 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "not" => Some(FirTy::Bool),
         "substring"
         | "char_at"
+        | "trim"
+        | "to_upper"
+        | "to_lower"
+        | "replace"
+        | "join"
         | "show"
         | "show_int"
         | "show_float"
@@ -30828,7 +30858,7 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "http_request_method"
         | "http_request_body"
         | "regex_replace" => Some(FirTy::String),
-        "read_lines" | "json_array" | "regex_find_all" => {
+        "read_lines" | "json_array" | "regex_find_all" | "split" | "string_chars" => {
             Some(FirTy::List(Box::new(FirTy::String)))
         }
         "range" => Some(FirTy::List(Box::new(FirTy::Int))),
@@ -31410,6 +31440,16 @@ impl RustCodegen {
     ) -> (String, String) {
         match val {
             Value::Int(n) => (format!("{}", n), "i64".to_string()),
+            Value::Float(v) if !v.is_finite() => {
+                let literal = if v.is_nan() {
+                    "f64::NAN"
+                } else if v.is_sign_positive() {
+                    "f64::INFINITY"
+                } else {
+                    "f64::NEG_INFINITY"
+                };
+                (literal.to_string(), "f64".to_string())
+            }
             Value::Float(v) => {
                 let s = format!("{}", v);
                 // Ensure it has a decimal point for Rust
@@ -34715,6 +34755,21 @@ impl RustCodegen {
         let Some(fn_name) = Self::callable_name(func) else {
             return;
         };
+        // `push(xs, item)` fixes the element type of an empty `xs`.
+        if builtin_canonical(&fn_name) == "push" && args.len() == 2 {
+            if let ExprKind::Var(var_name) = &args[0].kind {
+                if self.empty_list_bindings.contains(var_name.as_str())
+                    && !self.empty_list_var_types.contains_key(var_name)
+                {
+                    // An element type the prescan cannot see yet is left to
+                    // rustc, which infers it from the pushed values.
+                    let item_ty = self.infer_expr_fir_ty(&args[1]);
+                    let rust_ty = Self::fir_type_to_rust(&FirTy::List(Box::new(item_ty)))
+                        .unwrap_or_else(|| "Vec<_>".to_string());
+                    self.empty_list_var_types.insert(var_name.clone(), rust_ty);
+                }
+            }
+        }
         for (idx, arg) in args.iter().enumerate() {
             let ExprKind::Var(var_name) = &arg.kind else {
                 continue;
@@ -34920,6 +34975,12 @@ fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
 fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
     map.get(key)
 }
+fn __futuruna_join(items: &[String], separator: &str) -> String {
+    items.join(separator)
+}
+fn __futuruna_map_remove<K: Ord, V>(map: &mut BTreeMap<K, V>, key: &K) {
+    map.remove(key);
+}
 "#,
         );
         for collision in Self::prolog_ordinary_name_collisions(stmts) {
@@ -34930,43 +34991,112 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 )
             ));
         }
-        // __futuruna_show: format like the interpreter (Display, no string quotes)
+        // `show` and collection order follow the reference semantics shared
+        // with the interpreter: every value has one display text and one
+        // total value order (numbers numerically, text by code point,
+        // constructors by name then fields). Sets are keyed by an injective,
+        // order-preserving encoding of the value, never by its display text.
         out.push_str(
-            "fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n",
+            r#"
+trait __FuturunaShow { fn __futuruna_fmt(&self, out: &mut String); }
+fn __futuruna_show_any<T: __FuturunaShow + ?Sized>(v: &T) -> String { let mut out = String::new(); v.__futuruna_fmt(&mut out); out }
+macro_rules! __futuruna_show_via_display { ($($t:ty),*) => { $(impl __FuturunaShow for $t { fn __futuruna_fmt(&self, out: &mut String) { use std::fmt::Write as _; let _ = write!(out, "{}", self); } })* } }
+__futuruna_show_via_display!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64, bool, char, String, str);
+impl __FuturunaShow for () { fn __futuruna_fmt(&self, out: &mut String) { out.push_str("()"); } }
+impl<T: __FuturunaShow + ?Sized> __FuturunaShow for &T { fn __futuruna_fmt(&self, out: &mut String) { (**self).__futuruna_fmt(out) } }
+impl<T: __FuturunaShow + ?Sized> __FuturunaShow for &mut T { fn __futuruna_fmt(&self, out: &mut String) { (**self).__futuruna_fmt(out) } }
+impl<T: __FuturunaShow + ?Sized> __FuturunaShow for Box<T> { fn __futuruna_fmt(&self, out: &mut String) { (**self).__futuruna_fmt(out) } }
+impl<T: __FuturunaShow + ?Sized> __FuturunaShow for std::rc::Rc<T> { fn __futuruna_fmt(&self, out: &mut String) { (**self).__futuruna_fmt(out) } }
+impl<T: __FuturunaShow + ?Sized> __FuturunaShow for std::sync::Arc<T> { fn __futuruna_fmt(&self, out: &mut String) { (**self).__futuruna_fmt(out) } }
+fn __futuruna_fmt_items<'a, T: __FuturunaShow + 'a>(open: &str, close: &str, items: impl Iterator<Item = &'a T>, out: &mut String) {
+    out.push_str(open);
+    for (i, item) in items.enumerate() { if i > 0 { out.push_str(", "); } item.__futuruna_fmt(out); }
+    out.push_str(close);
+}
+impl<T: __FuturunaShow> __FuturunaShow for [T] { fn __futuruna_fmt(&self, out: &mut String) { __futuruna_fmt_items("[", "]", self.iter(), out) } }
+impl<T: __FuturunaShow> __FuturunaShow for Vec<T> { fn __futuruna_fmt(&self, out: &mut String) { __futuruna_fmt_items("[", "]", self.iter(), out) } }
+impl<T: __FuturunaShow> __FuturunaShow for Option<T> { fn __futuruna_fmt(&self, out: &mut String) { match self { Some(v) => { out.push_str("Some("); v.__futuruna_fmt(out); out.push(')'); } None => out.push_str("None") } } }
+impl<T: __FuturunaShow, E: __FuturunaShow> __FuturunaShow for Result<T, E> { fn __futuruna_fmt(&self, out: &mut String) { match self { Ok(v) => { out.push_str("Ok("); v.__futuruna_fmt(out); out.push(')'); } Err(e) => { out.push_str("Err("); e.__futuruna_fmt(out); out.push(')'); } } } }
+macro_rules! __futuruna_show_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaShow),+> __FuturunaShow for ($($t,)+) { fn __futuruna_fmt(&self, out: &mut String) { out.push('('); let mut __first = true; $( if !__first { out.push_str(", "); } __first = false; self.$n.__futuruna_fmt(out); )+ out.push(')'); } })* } }
+__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+impl<K: __FuturunaShow, V: __FuturunaShow> __FuturunaShow for BTreeMap<K, V> {
+    fn __futuruna_fmt(&self, out: &mut String) {
+        out.push('{');
+        for (i, (k, v)) in self.iter().enumerate() { if i > 0 { out.push_str(", "); } k.__futuruna_fmt(out); out.push_str(": "); v.__futuruna_fmt(out); }
+        out.push('}');
+    }
+}
+impl<T: __FuturunaShow> __FuturunaShow for __FutSet<T> { fn __futuruna_fmt(&self, out: &mut String) { __futuruna_fmt_items("{", "}", self.0.values(), out) } }
+
+trait __FuturunaOrd { fn __futuruna_key(&self, out: &mut String); }
+fn __futuruna_key_of<T: __FuturunaOrd + ?Sized>(v: &T) -> String { let mut out = String::new(); v.__futuruna_key(&mut out); out }
+fn __futuruna_cmp<T: __FuturunaOrd + ?Sized>(a: &T, b: &T) -> std::cmp::Ordering { __futuruna_key_of(a).cmp(&__futuruna_key_of(b)) }
+fn __futuruna_key_text(tag: char, text: &str, out: &mut String) {
+    out.push(tag);
+    for ch in text.chars() { match ch { '\0' => out.push_str("\u{1}\u{1}"), '\u{1}' => out.push_str("\u{1}\u{2}"), c => out.push(c) } }
+    out.push('\0');
+}
+fn __futuruna_key_name(name: &str, out: &mut String) { __futuruna_key_text('v', name, out) }
+macro_rules! __futuruna_key_int { ($($t:ty),*) => { $(impl __FuturunaOrd for $t { fn __futuruna_key(&self, out: &mut String) { use std::fmt::Write as _; let _ = write!(out, "i{:016x}", ((*self as i64) as u64) ^ (1u64 << 63)); } })* } }
+__futuruna_key_int!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
+impl __FuturunaOrd for f64 {
+    fn __futuruna_key(&self, out: &mut String) {
+        use std::fmt::Write as _;
+        let v = if *self == 0.0 { 0.0 } else if self.is_nan() { f64::NAN } else { *self };
+        let bits = v.to_bits();
+        let ordered = if bits >> 63 == 1 { !bits } else { bits | (1u64 << 63) };
+        let _ = write!(out, "f{:016x}", ordered);
+    }
+}
+impl __FuturunaOrd for f32 { fn __futuruna_key(&self, out: &mut String) { (*self as f64).__futuruna_key(out) } }
+impl __FuturunaOrd for bool { fn __futuruna_key(&self, out: &mut String) { out.push_str(if *self { "b1" } else { "b0" }); } }
+impl __FuturunaOrd for char { fn __futuruna_key(&self, out: &mut String) { let mut buf = [0u8; 4]; __futuruna_key_text('c', self.encode_utf8(&mut buf), out) } }
+impl __FuturunaOrd for String { fn __futuruna_key(&self, out: &mut String) { __futuruna_key_text('s', self, out) } }
+impl __FuturunaOrd for str { fn __futuruna_key(&self, out: &mut String) { __futuruna_key_text('s', self, out) } }
+impl __FuturunaOrd for () { fn __futuruna_key(&self, out: &mut String) { out.push('u'); } }
+impl<T: __FuturunaOrd + ?Sized> __FuturunaOrd for &T { fn __futuruna_key(&self, out: &mut String) { (**self).__futuruna_key(out) } }
+impl<T: __FuturunaOrd + ?Sized> __FuturunaOrd for Box<T> { fn __futuruna_key(&self, out: &mut String) { (**self).__futuruna_key(out) } }
+impl<T: __FuturunaOrd + ?Sized> __FuturunaOrd for std::rc::Rc<T> { fn __futuruna_key(&self, out: &mut String) { (**self).__futuruna_key(out) } }
+impl<T: __FuturunaOrd + ?Sized> __FuturunaOrd for std::sync::Arc<T> { fn __futuruna_key(&self, out: &mut String) { (**self).__futuruna_key(out) } }
+impl<T: __FuturunaOrd> __FuturunaOrd for [T] { fn __futuruna_key(&self, out: &mut String) { out.push('l'); for item in self { item.__futuruna_key(out); } out.push('\0'); } }
+impl<T: __FuturunaOrd> __FuturunaOrd for Vec<T> { fn __futuruna_key(&self, out: &mut String) { self.as_slice().__futuruna_key(out) } }
+impl<T: __FuturunaOrd> __FuturunaOrd for Option<T> { fn __futuruna_key(&self, out: &mut String) { match self { None => out.push_str("o0"), Some(v) => { out.push_str("o1"); v.__futuruna_key(out); } } } }
+impl<T: __FuturunaOrd, E: __FuturunaOrd> __FuturunaOrd for Result<T, E> { fn __futuruna_key(&self, out: &mut String) { match self { Err(e) => { out.push_str("r0"); e.__futuruna_key(out); } Ok(v) => { out.push_str("r1"); v.__futuruna_key(out); } } } }
+macro_rules! __futuruna_key_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaOrd),+> __FuturunaOrd for ($($t,)+) { fn __futuruna_key(&self, out: &mut String) { out.push('t'); $( self.$n.__futuruna_key(out); )+ } })* } }
+__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+impl<K: __FuturunaOrd, V: __FuturunaOrd> __FuturunaOrd for BTreeMap<K, V> {
+    fn __futuruna_key(&self, out: &mut String) {
+        let mut entries: Vec<(String, &V)> = self.iter().map(|(k, v)| (__futuruna_key_of(k), v)).collect();
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        out.push('m');
+        for (k, v) in entries { out.push_str(&k); v.__futuruna_key(out); }
+        out.push('\0');
+    }
+}
+impl<T> __FuturunaOrd for __FutSet<T> { fn __futuruna_key(&self, out: &mut String) { out.push('e'); for k in self.0.keys() { out.push_str(k); } out.push('\0'); } }
+fn __futuruna_sorted<T: __FuturunaOrd>(mut items: Vec<T>) -> Vec<T> { items.sort_by_cached_key(|item| __futuruna_key_of(item)); items }
+
+#[derive(Clone, Debug, PartialEq)]
+struct __FutSet<T>(BTreeMap<String, T>);
+impl<T> Default for __FutSet<T> { fn default() -> Self { __FutSet(BTreeMap::new()) } }
+impl<T> __FutSet<T> { fn new() -> Self { __FutSet(BTreeMap::new()) } }
+impl<T> std::ops::Deref for __FutSet<T> { type Target = BTreeMap<String, T>; fn deref(&self) -> &Self::Target { &self.0 } }
+impl<T> std::ops::DerefMut for __FutSet<T> { fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 } }
+impl<T> IntoIterator for __FutSet<T> { type Item = T; type IntoIter = std::collections::btree_map::IntoValues<String, T>; fn into_iter(self) -> Self::IntoIter { self.0.into_values() } }
+fn __futuruna_set_key<T: __FuturunaOrd + ?Sized>(v: &T) -> String { __futuruna_key_of(v) }
+// A runtime error reports `error: <message>` on stderr and exits with status 1,
+// like the interpreter.
+fn __futuruna_install_error_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let payload = info.payload();
+        let message = payload.downcast_ref::<&str>().map(|s| s.to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "runtime error".to_string());
+        eprintln!("error: {}", message);
+    }));
+}
+"#,
         );
-        // __futuruna_show_any: works for Debug types, strips string quotes, fixes struct display
-        // Also strips trailing .0 on whole floats to match interpreter behavior
-        out.push_str("fn __futuruna_show_any<T: fmt::Debug>(v: &T) -> String {\n");
-        out.push_str("    let s = format!(\"{:?}\", v);\n");
-        out.push_str("    // Strip string quotes, fix struct brace→paren, strip trailing .0\n");
-        out.push_str(
-            "    let s = s.replace('\\\"', \"\").replace(\" { \", \"(\").replace(\" }\", \")\");\n",
-        );
-        out.push_str(
-            "    // Strip .0 from whole floats (e.g. \"22.0\" → \"22\") to match interpreter\n",
-        );
-        out.push_str("    let mut result = String::new();\n");
-        out.push_str("    let mut chars = s.chars().peekable();\n");
-        out.push_str("    while let Some(c) = chars.next() {\n");
-        out.push_str("        if c == '.' && chars.peek() == Some(&'0') {\n");
-        out.push_str("            let rest_start = chars.clone();\n");
-        out.push_str("            chars.next(); // consume '0'\n");
-        out.push_str("            let next = chars.peek().copied();\n");
-        out.push_str("            if next.map_or(true, |n| !n.is_ascii_digit()) {\n");
-        out.push_str("                continue; // skip .0\n");
-        out.push_str("            } else {\n");
-        out.push_str("                result.push(c);\n");
-        out.push_str("                result.push('0');\n");
-        out.push_str("            }\n");
-        out.push_str("        } else {\n");
-        out.push_str("            result.push(c);\n");
-        out.push_str("        }\n");
-        out.push_str("    }\n");
-        out.push_str("    result\n");
-        out.push_str("}\n");
-        out.push_str("fn __futuruna_set_key<T: fmt::Debug>(v: &T) -> String {\n");
-        out.push_str("    __futuruna_show_any(v)\n");
-        out.push_str("}\n");
         out.push_str("trait __FuturunaLen { fn __futuruna_len(&self) -> i64; }\n");
         out.push_str("impl __FuturunaLen for String { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }\n");
         out.push_str("impl __FuturunaLen for str { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }\n");
@@ -34981,31 +35111,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         out.push_str("impl<N: AsRef<str> + ?Sized> __FuturunaContains<N> for str { fn __futuruna_contains(&self, needle: &N) -> bool { self.contains(needle.as_ref()) } }\n");
         out.push_str("impl<H: __FuturunaContains<N> + ?Sized, N: ?Sized> __FuturunaContains<N> for &H { fn __futuruna_contains(&self, needle: &N) -> bool { (*self).__futuruna_contains(needle) } }\n");
         out.push_str("fn __futuruna_contains<H: __FuturunaContains<N> + ?Sized, N: ?Sized>(haystack: &H, needle: &N) -> bool { haystack.__futuruna_contains(needle) }\n");
-        out.push_str(
-            "fn __futuruna_show_set<T: fmt::Debug>(items: &BTreeMap<String, T>) -> String {\n",
-        );
-        out.push_str(
-            "    let parts = items.values().map(|v| __futuruna_show_any(v)).collect::<Vec<_>>();\n",
-        );
-        out.push_str("    format!(\"{{{}}}\", parts.join(\", \"))\n");
-        out.push_str("}\n");
-        out.push_str("fn __futuruna_show_vec<T: fmt::Display>(v: &[T]) -> String {\n");
-        out.push_str(
-            "    let items: Vec<String> = v.iter().map(|x| format!(\"{}\", x)).collect();\n",
-        );
-        out.push_str("    format!(\"[{}]\", items.join(\", \"))\n");
-        out.push_str("}\n");
-        out.push_str("fn __futuruna_show_opt<T: fmt::Display>(v: &Option<T>) -> String {\n");
-        out.push_str(
-            "    match v { Some(x) => format!(\"Some({})\", x), None => \"None\".to_string() }\n",
-        );
-        out.push_str("}\n");
-        out.push_str("fn __futuruna_show_result<T: fmt::Display, E: fmt::Display>(v: &Result<T, E>) -> String {\n");
-        out.push_str(
-            "    match v { Ok(x) => format!(\"Ok({})\", x), Err(e) => format!(\"Err({})\", e) }\n",
-        );
-        out.push_str("}\n");
-
         // Emit use declarations
         for stmt in stmts.iter() {
             if let Stmt::Use(path) = stmt {
@@ -35227,6 +35332,28 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
             }
         }
+        fn collect_explicit_order_impls(stmts: &[Stmt], found: &mut BTreeSet<String>) {
+            for stmt in stmts {
+                match stmt {
+                    Stmt::TypeDecl(TypeDecl::ImplBlock {
+                        trait_name,
+                        for_type,
+                        ..
+                    }) if matches!(
+                        trait_name.rsplit("::").next().unwrap_or(trait_name),
+                        "Ord" | "PartialOrd" | "Eq"
+                    ) =>
+                    {
+                        found.insert(for_type.clone());
+                    }
+                    Stmt::Defn(Defn::Module { body, .. }) => {
+                        collect_explicit_order_impls(body, found)
+                    }
+                    _ => {}
+                }
+            }
+        }
+        collect_explicit_order_impls(stmts, &mut self.types.explicit_order_impls);
 
         self.prepare_effect_metadata(stmts);
         self.precollect_module_codegen_metadata(stmts);
@@ -35850,6 +35977,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 } else {
                     out.push_str("#[tokio::main]\nasync fn main() {\n");
                 }
+                out.push_str("    __futuruna_install_error_hook();\n");
             } else if uses_try {
                 out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
                 out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
@@ -35960,24 +36088,26 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     out.push_str(
                         "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
                     );
+                    out.push_str("    __futuruna_install_error_hook();\n");
                     out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
                     out.push_str("        .name(\"futuruna-main\".to_string())\n");
                     out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
                     out.push_str("        .spawn(__fut_runtime_main_inner)?;\n");
                     out.push_str("    match __fut_runtime_main.join() {\n");
                     out.push_str("        Ok(result) => result,\n");
-                    out.push_str("        Err(payload) => std::panic::resume_unwind(payload),\n");
+                    out.push_str("        Err(_) => std::process::exit(1),\n");
                     out.push_str("    }\n");
                     out.push_str("}\n");
                 } else {
                     out.push_str("fn main() {\n");
+                    out.push_str("    __futuruna_install_error_hook();\n");
                     out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
                     out.push_str("        .name(\"futuruna-main\".to_string())\n");
                     out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
                     out.push_str("        .spawn(__fut_runtime_main_inner)\n");
                     out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
-                    out.push_str("    if let Err(payload) = __fut_runtime_main.join() {\n");
-                    out.push_str("        std::panic::resume_unwind(payload);\n");
+                    out.push_str("    if __fut_runtime_main.join().is_err() {\n");
+                    out.push_str("        std::process::exit(1);\n");
                     out.push_str("    }\n");
                     out.push_str("}\n");
                 }
@@ -37168,7 +37298,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         Self::type_arguments(
             &params
                 .iter()
-                .map(|name| format!("{name}: fmt::Display + Clone"))
+                .map(|name| format!("{name}: __FuturunaShow + __FuturunaOrd + Clone"))
                 .collect::<Vec<_>>(),
         )
     }
@@ -39527,16 +39657,22 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     format!("<{}>", param_rust_names.join(", "))
                 };
 
-                // Display trait bound needed for generic params
-                let display_bounds = if param_rust_names.is_empty() {
-                    String::new()
-                } else {
-                    let bounds: Vec<String> = param_rust_names
-                        .iter()
-                        .map(|p| format!("{}: fmt::Display", p))
-                        .collect();
-                    format!("<{}>", bounds.join(", "))
+                // Generic parameters must support display and value order for
+                // the generated `show` and collection-order impls.
+                let bounds_with = |bound: &str| -> String {
+                    if param_rust_names.is_empty() {
+                        String::new()
+                    } else {
+                        let bounds: Vec<String> = param_rust_names
+                            .iter()
+                            .map(|p| format!("{}: {}", p, bound))
+                            .collect();
+                        format!("<{}>", bounds.join(", "))
+                    }
                 };
+                let show_bounds = bounds_with("__FuturunaShow");
+                let display_bounds = bounds_with("fmt::Display");
+                let order_bounds = bounds_with("__FuturunaOrd + PartialEq");
 
                 let mut out = String::new();
                 let is_struct = self.types.struct_types.contains(&rust_name);
@@ -39651,144 +39787,147 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     out.push_str("}\n");
                 }
 
-                // Helper: check if a field type needs {:?} format (Vec, Option, BTreeMap, HashMap, HashSet)
-                let field_needs_debug_fmt = |f: &Field| -> bool {
-                    let ty_str = self.emit_type_with_params(&f.ty, params);
-                    let base = ty_str.split('<').next().unwrap_or(&ty_str).trim();
-                    matches!(
-                        base,
-                        "Vec"
-                            | "Option"
-                            | "Result"
-                            | "BTreeMap"
-                            | "HashMap"
-                            | "HashSet"
-                            | "Rc"
-                            | "Arc"
-                    )
+                // `show` renders every value exactly like the interpreter:
+                // `Name`, `Name(a, b)` for positional fields and
+                // `Name(field: a)` for named fields. Collection order compares
+                // constructor names first, then fields in declaration order.
+                let variant_pattern = |v: &Variant| -> (String, Vec<String>) {
+                    let binds: Vec<String> =
+                        (0..v.fields.len()).map(|i| format!("__f{}", i)).collect();
+                    let head = if is_struct {
+                        "Self".to_string()
+                    } else {
+                        format!("Self::{}", v.name)
+                    };
+                    let pattern = if v.fields.is_empty() {
+                        if is_struct && !v.positional {
+                            format!("{} {{}}", head)
+                        } else if is_struct {
+                            format!("{}()", head)
+                        } else {
+                            head
+                        }
+                    } else if v.positional {
+                        format!("{}({})", head, binds.join(", "))
+                    } else {
+                        let named: Vec<String> = v
+                            .fields
+                            .iter()
+                            .zip(binds.iter())
+                            .map(|(f, b)| format!("{}: {}", f.name, b))
+                            .collect();
+                        format!("{} {{ {} }}", head, named.join(", "))
+                    };
+                    (pattern, binds)
                 };
-
-                // Impl Display (skip if user provided explicit # impl fmt::Display)
-                if self.types.explicit_display_impls.contains(name) {
-                    // User provides their own Display impl
-                } else if is_struct {
-                    let v = &variants[0];
+                let shown_name = |v: &Variant| -> String {
+                    if is_struct {
+                        name.clone()
+                    } else {
+                        v.name.clone()
+                    }
+                };
+                // `Nil`/`Cons(head, tail)` values display and order as lists.
+                let is_cons_list = !is_struct
+                    && variants.len() == 2
+                    && variants
+                        .iter()
+                        .any(|v| v.name == "Nil" && v.fields.is_empty())
+                    && variants
+                        .iter()
+                        .any(|v| v.name == "Cons" && v.positional && v.fields.len() == 2);
+                let cons_items = "let mut __items = Vec::new(); let mut __rest = self; while let Self::Cons(__head, __tail) = __rest { __items.push(__head); __rest = &**__tail; }";
+                if is_cons_list && !self.types.explicit_display_impls.contains(name) {
                     out.push_str(&format!(
-                        "\nimpl{} fmt::Display for {}{} {{\n",
+                        "\nimpl{} __FuturunaShow for {}{} {{\n    fn __futuruna_fmt(&self, out: &mut String) {{ {} __futuruna_fmt_items(\"[\", \"]\", __items.into_iter(), out) }}\n}}\n",
+                        show_bounds, rust_name, type_params, cons_items
+                    ));
+                    out.push_str(&format!(
+                        "\nimpl{} fmt::Display for {}{} {{\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {{ f.write_str(&__futuruna_show_any(self)) }}\n}}\n",
+                        show_bounds, rust_name, type_params
+                    ));
+                } else if self.types.explicit_display_impls.contains(name) {
+                    out.push_str(&format!(
+                        "\nimpl{} __FuturunaShow for {}{} {{\n    fn __futuruna_fmt(&self, out: &mut String) {{ use std::fmt::Write as _; let _ = write!(out, \"{{}}\", self); }}\n}}\n",
                         display_bounds, rust_name, type_params
                     ));
-                    out.push_str(
-                        "    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n",
-                    );
-                    out.push_str(&format!("        write!(f, \"{}(\")?;\n", name));
-                    for (i, field) in v.fields.iter().enumerate() {
-                        if i > 0 {
-                            out.push_str("        write!(f, \", \")?;\n");
-                        }
-                        let fmt_spec = if field_needs_debug_fmt(field) {
-                            "{:?}"
-                        } else {
-                            "{}"
-                        };
-                        if v.positional {
-                            out.push_str(&format!(
-                                "        write!(f, \"{}\", self.{})?;\n",
-                                fmt_spec, i
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "        write!(f, \"{}: {}\", self.{})?;\n",
-                                field.name, fmt_spec, field.name
-                            ));
-                        }
-                    }
-                    out.push_str("        write!(f, \")\")\n");
-                    out.push_str("    }\n");
-                    out.push_str("}\n");
                 } else {
                     out.push_str(&format!(
-                        "\nimpl{} fmt::Display for {}{} {{\n",
-                        display_bounds, rust_name, type_params
+                        "\nimpl{} __FuturunaShow for {}{} {{\n",
+                        show_bounds, rust_name, type_params
                     ));
-                    out.push_str(
-                        "    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n",
-                    );
+                    out.push_str("    fn __futuruna_fmt(&self, out: &mut String) {\n");
                     out.push_str("        match self {\n");
                     for v in variants {
-                        if v.fields.is_empty() {
-                            out.push_str(&format!(
-                                "            {}::{} => write!(f, \"{}\"),\n",
-                                rust_name, v.name, v.name
-                            ));
-                        } else if v.positional {
-                            // Tuple variant Display
-                            let binds: Vec<String> =
-                                (0..v.fields.len()).map(|i| format!("f{}", i)).collect();
-                            out.push_str(&format!(
-                                "            {}::{}({}) => {{\n",
-                                rust_name,
-                                v.name,
-                                binds.join(", ")
-                            ));
-                            out.push_str(&format!(
-                                "                write!(f, \"{}(\")?;\n",
-                                v.name
-                            ));
-                            for (i, b) in binds.iter().enumerate() {
-                                if i > 0 {
-                                    out.push_str("                write!(f, \", \")?;\n");
-                                }
-                                if field_needs_debug_fmt(&v.fields[i]) {
-                                    out.push_str(&format!(
-                                        "                write!(f, \"{{:?}}\", {})?;\n",
-                                        b
-                                    ));
+                        let (pattern, binds) = variant_pattern(v);
+                        out.push_str(&format!("            {} => {{\n", pattern));
+                        out.push_str(&format!(
+                            "                out.push_str({:?});\n",
+                            shown_name(v)
+                        ));
+                        if !binds.is_empty() {
+                            out.push_str("                out.push('(');\n");
+                            for (i, (b, f)) in binds.iter().zip(v.fields.iter()).enumerate() {
+                                let sep = if i > 0 { ", " } else { "" };
+                                let label = if v.positional {
+                                    sep.to_string()
                                 } else {
+                                    format!("{}{}: ", sep, f.name)
+                                };
+                                if !label.is_empty() {
                                     out.push_str(&format!(
-                                        "                write!(f, \"{{}}\", {})?;\n",
-                                        b
+                                        "                out.push_str({:?});\n",
+                                        label
                                     ));
                                 }
+                                out.push_str(&format!(
+                                    "                __FuturunaShow::__futuruna_fmt({}, out);\n",
+                                    b
+                                ));
                             }
-                            out.push_str("                write!(f, \")\")\n");
-                            out.push_str("            }\n");
-                        } else {
-                            // Struct variant Display
-                            let binds: Vec<String> =
-                                v.fields.iter().map(|f| f.name.clone()).collect();
-                            out.push_str(&format!(
-                                "            {}::{} {{ {} }} => {{\n",
-                                rust_name,
-                                v.name,
-                                binds.join(", ")
-                            ));
-                            out.push_str(&format!(
-                                "                write!(f, \"{}(\")?;\n",
-                                v.name
-                            ));
-                            for (i, b) in binds.iter().enumerate() {
-                                if i > 0 {
-                                    out.push_str("                write!(f, \", \")?;\n");
-                                }
-                                if field_needs_debug_fmt(&v.fields[i]) {
-                                    out.push_str(&format!(
-                                        "                write!(f, \"{}: {{:?}}\", {})?;\n",
-                                        b, b
-                                    ));
-                                } else {
-                                    out.push_str(&format!(
-                                        "                write!(f, \"{}: {{}}\", {})?;\n",
-                                        b, b
-                                    ));
-                                }
-                            }
-                            out.push_str("                write!(f, \")\")\n");
-                            out.push_str("            }\n");
+                            out.push_str("                out.push(')');\n");
                         }
+                        out.push_str("            }\n");
                     }
-                    out.push_str("        }\n");
-                    out.push_str("    }\n");
-                    out.push_str("}\n");
+                    out.push_str("        }\n    }\n}\n");
+                    out.push_str(&format!(
+                        "\nimpl{} fmt::Display for {}{} {{\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {{ f.write_str(&__futuruna_show_any(self)) }}\n}}\n",
+                        show_bounds, rust_name, type_params
+                    ));
+                }
+                if is_cons_list {
+                    out.push_str(&format!(
+                        "\nimpl{} __FuturunaOrd for {}{} {{\n    fn __futuruna_key(&self, out: &mut String) {{ {} out.push('l'); for __item in __items {{ __item.__futuruna_key(out); }} out.push('\\0'); }}\n}}\n",
+                        order_bounds, rust_name, type_params, cons_items
+                    ));
+                } else {
+                    out.push_str(&format!(
+                        "\nimpl{} __FuturunaOrd for {}{} {{\n",
+                        order_bounds, rust_name, type_params
+                    ));
+                    out.push_str("    fn __futuruna_key(&self, out: &mut String) {\n");
+                    out.push_str("        match self {\n");
+                    for v in variants {
+                        let (pattern, binds) = variant_pattern(v);
+                        out.push_str(&format!(
+                            "            {} => {{ __futuruna_key_name({:?}, out);",
+                            pattern,
+                            shown_name(v)
+                        ));
+                        for b in &binds {
+                            out.push_str(&format!(" __FuturunaOrd::__futuruna_key({}, out);", b));
+                        }
+                        out.push_str(" }\n");
+                    }
+                    out.push_str("        }\n    }\n}\n");
+                }
+                if !self.types.explicit_order_impls.contains(name) {
+                    out.push_str(&format!(
+                        "impl{} Eq for {}{} {{}}\nimpl{} PartialOrd for {}{} {{ fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {{ Some(__futuruna_cmp(self, other)) }} }}\nimpl{} Ord for {}{} {{ fn cmp(&self, other: &Self) -> std::cmp::Ordering {{ __futuruna_cmp(self, other) }} }}\n",
+                        order_bounds, rust_name, type_params,
+                        order_bounds, rust_name, type_params,
+                        order_bounds, rust_name, type_params
+                    ));
                 }
 
                 // Emit methods as standalone functions (not in impl block)
@@ -40281,7 +40420,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     format!("BTreeMap<{}>", args_str.join(", "))
                 } else if con_str == "Set" && !self.types.type_decls.contains_key("Set") {
                     format!(
-                        "BTreeMap<String, {}>",
+                        "__FutSet<{}>",
                         args_str.first().unwrap_or(&"()".to_string())
                     )
                 } else {
@@ -46518,8 +46657,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         // Rebound accumulators retain assignment semantics.
                         if let Stmt::Bind(Pat::Var(name), _, value) = s {
                             if rebound_vars.contains(name) {
-                                let val_str = this.emit_expr(value);
-                                out.push_str(&format!("{}{} = {};\n", this.ind(), name, val_str));
+                                let assignment = this.emit_rebind_assignment(name, value);
+                                out.push_str(&assignment);
                                 continue;
                             }
                         }
@@ -46551,8 +46690,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 for s in body_stmts {
                     if let Stmt::Bind(Pat::Var(name), _, value) = s {
                         if rebound_vars.contains(name) {
-                            let val_str = self.emit_expr(value);
-                            out.push_str(&format!("{}{} = {};\n", self.ind(), name, val_str));
+                            let assignment = self.emit_rebind_assignment(name, value);
+                            out.push_str(&assignment);
                             continue;
                         }
                     }
@@ -47187,10 +47326,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 Self::fir_type_to_rust(key)?,
                 Self::fir_type_to_rust(val)?
             )),
-            FirTy::Set(inner) => Some(format!(
-                "BTreeMap<String, {}>",
-                Self::fir_type_to_rust(inner)?
-            )),
+            FirTy::Set(inner) => Some(format!("__FutSet<{}>", Self::fir_type_to_rust(inner)?)),
             FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown => None,
         }
     }
@@ -47839,10 +47975,22 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     }
 
     fn lambda_free_var_is_runtime_capture(&self, name: &str) -> bool {
+        let is_param = self.current_borrow_params.contains(name);
+        let locally_bound = is_param || self.local_bindings.contains(name);
+        // Copy-typed comptime values are Rust `const`s; builtins lowered by
+        // codegen (such as `push`) are not values at all.
+        let comptime_const = self.types.comptime_values.contains_key(name)
+            && matches!(
+                self.types.comptime_types.get(name).map(String::as_str),
+                Some("i64" | "f64" | "bool" | "char" | "u64" | "()")
+            );
+        let lowered_builtin = matches!(builtin_canonical(name), "push");
         !self.types.user_functions.contains(name)
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
             && self.visible_bare_module_path(name).is_none()
+            && (is_param || !comptime_const)
+            && (locally_bound || !lowered_builtin)
     }
 
     fn collect_subject_send_targets_from_expr(&self, expr: &Expr, targets: &mut BTreeSet<String>) {
@@ -48228,6 +48376,27 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .fast_known_expr_fir_ty(value)
             .unwrap_or_else(|| self.infer_expr_fir_ty(value));
         self.remember_pat_type(pat, &ty);
+    }
+
+    /// Assign a rebound loop accumulator. `= xs = push(xs, v)` appends in place.
+    fn emit_rebind_assignment(&mut self, name: &str, value: &Expr) -> String {
+        if let ExprKind::App(func, args) = &value.kind {
+            if matches!(&func.kind, ExprKind::Var(f) if builtin_canonical(f) == "push" && !self.builtin_shadowed_by_callable(f))
+                && args.len() == 2
+                && matches!(&args[0].kind, ExprKind::Var(target) if target == name)
+            {
+                let mut item = self.emit_expr(&args[1]);
+                // The loop body runs repeatedly: never move a captured value.
+                if matches!(&args[1].kind, ExprKind::Var(v) if !self.copy_vars.contains(v.as_str()))
+                    && !item.ends_with(".clone()")
+                {
+                    item = format!("{}.clone()", item);
+                }
+                return format!("{}{}.push({});\n", self.ind(), sanitize_name(name), item);
+            }
+        }
+        let val_str = self.emit_expr(value);
+        format!("{}{} = {};\n", self.ind(), name, val_str)
     }
 
     fn empty_list_binding_rust_type(&self, pat: &Pat, value: &Expr) -> Option<String> {
@@ -51625,14 +51794,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                     // Custom builtins that need runtime state beyond templates
                     if name == "push" && args_str.len() == 2 {
-                        let is_mutable_target = if let ExprKind::Var(vn) = &args[0].kind {
-                            self.mutable_vars.contains(vn.as_str())
-                        } else {
-                            false
-                        };
-                        if is_mutable_target {
-                            return format!("{}.push({})", args_str[0], args_str[1]);
-                        }
                         return format!(
                             "{{ let mut v = {}; v.push({}); v }}",
                             args_str[0], args_str[1]
@@ -52081,20 +52242,27 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         l, r, method, failure,
                     );
                 }
-                // Float zero-divisor behavior is a separate compatibility
-                // boundary; this correction changes the Int domain only.
+                // A zero Float divisor is a runtime error, like an Int one.
                 if matches!(rust_op, "/" | "%") && is_float_arithmetic {
-                    let numerator = if l.trim_start().starts_with('{') {
-                        format!("({})", l)
+                    let diagnostic = if rust_op == "/" {
+                        "float division by zero"
                     } else {
-                        l
+                        "float remainder by zero"
                     };
                     return format!(
-                        "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
-                        r, numerator, rust_op
+                        "{{ let __n: f64 = {}; let __d: f64 = {}; if __d == 0.0 {{ panic!({:?}) }} __n {} __d }}",
+                        l, r, diagnostic, rust_op
                     );
                 }
-                format!("({} {} {})", l, rust_op, r)
+                let operand = |text: String| {
+                    let trimmed = text.trim_start();
+                    if trimmed.starts_with("if ") || trimmed.starts_with("match ") {
+                        format!("({})", text)
+                    } else {
+                        text
+                    }
+                };
+                format!("({} {} {})", operand(l), rust_op, operand(r))
             }
             ExprKind::UnOp(op, operand) => {
                 let emitted_operand = self.emit_expr(operand);
@@ -52609,10 +52777,26 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             } else {
                                 ""
                             };
+                            // `Pair` is lowered to a Rust tuple.
+                            let rust_field = match field.as_str() {
+                                "fst"
+                                    if type_name == "Pair"
+                                        && self.types.pair_uses_rust_tuple_representation() =>
+                                {
+                                    "0"
+                                }
+                                "snd"
+                                    if type_name == "Pair"
+                                        && self.types.pair_uses_rust_tuple_representation() =>
+                                {
+                                    "1"
+                                }
+                                _ => field.as_str(),
+                            };
                             if is_boxed {
-                                return format!("(*{}.{}){}", obj_str, field, clone_suffix);
+                                return format!("(*{}.{}){}", obj_str, rust_field, clone_suffix);
                             } else {
-                                return format!("{}.{}{}", obj_str, field, clone_suffix);
+                                return format!("{}.{}{}", obj_str, rust_field, clone_suffix);
                             }
                         }
                     }
@@ -53157,14 +53341,36 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         if self.expr_is_string(expr) {
             return format!("format!(\"{{}}\", {})", emitted);
         }
-        if matches!(self.infer_expr_fir_ty(expr), FirTy::Named(name) if self.lexical_type_params.contains(&name))
-        {
-            return format!("format!(\"{{}}\", {})", emitted);
+        // Parts of the type nothing constrains (`None`, the error of `Ok(1)`)
+        // are displayed through `()`; they hold no value.
+        fn fill_unknown(ty: &FirTy) -> FirTy {
+            match ty {
+                FirTy::Unknown | FirTy::Var(_) => FirTy::Unit,
+                FirTy::Option(inner) => FirTy::Option(Box::new(fill_unknown(inner))),
+                FirTy::List(inner) => FirTy::List(Box::new(fill_unknown(inner))),
+                FirTy::Result(ok, err) => {
+                    FirTy::Result(Box::new(fill_unknown(ok)), Box::new(fill_unknown(err)))
+                }
+                other => other.clone(),
+            }
         }
-        if matches!(self.infer_expr_fir_ty(expr), FirTy::Set(_)) {
-            return format!("__futuruna_show_set(&{})", emitted);
+        let is_constructor_literal = match &expr.kind {
+            ExprKind::Var(name) => name == "None",
+            ExprKind::App(func, _) => {
+                matches!(&func.kind, ExprKind::Var(name) if matches!(name.as_str(), "Some" | "Ok" | "Err"))
+            }
+            _ => false,
+        };
+        let ty = self.infer_expr_fir_ty(expr);
+        if is_constructor_literal && matches!(&ty, FirTy::Option(_) | FirTy::Result(_, _)) {
+            if let Some(rust_ty) = Self::fir_type_to_rust(&fill_unknown(&ty)) {
+                return format!(
+                    "{{ let __fut_shown: {} = {}; __futuruna_show_any(&__fut_shown) }}",
+                    rust_ty, emitted
+                );
+            }
         }
-        format!("__futuruna_show_any(&{})", emitted)
+        format!("__futuruna_show_any(&({}))", emitted)
     }
 
     fn should_clone_literal_element_var(&self, expr: &Expr) -> bool {
@@ -61971,7 +62177,6 @@ assert_with_message(true, message())
         assert!(output.contains(".name(\"futuruna-main\".to_string())"));
         assert!(output.contains(".stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)"));
         assert!(output.contains(".spawn(__fut_runtime_main_inner)"));
-        assert!(output.contains("std::panic::resume_unwind(payload)"));
     }
 
     #[test]
@@ -62026,9 +62231,8 @@ assert_with_message(true, message())
 "#;
         let panic = compile_and_capture_test_source(panic_source, None);
         let panic_stderr = String::from_utf8_lossy(&panic.stderr);
-        assert!(!panic.status.success());
-        assert!(panic_stderr.contains("intentional worker panic"));
-        assert!(panic_stderr.contains("futuruna-main"));
+        assert_eq!(panic.status.code(), Some(1));
+        assert!(panic_stderr.contains("error: intentional worker panic"));
     }
 
     #[test]
@@ -64184,7 +64388,7 @@ fn main() {{
         if let Stmt::Bind(_, _, expr) = &stmts[1] {
             let rust = cg.emit_expr(expr);
             assert!(
-                rust.contains("if __d == 0.0 { 0.0 }"),
+                rust.contains("if __d == 0.0 { panic!(\"float division by zero\") }"),
                 "float-returning call should keep float-safe division: {}",
                 rust
             );
@@ -64204,7 +64408,7 @@ fn main() {{
             rust
         );
         assert!(
-            !rust.contains("if __d == 0.0 { 0.0 }"),
+            !rust.contains("if __d == 0.0 { panic!(\"float division by zero\") }"),
             "Int-returning modulo helpers should not emit float zero guards: {}",
             rust
         );
@@ -64329,7 +64533,7 @@ fn main() {{
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("if __d == 0.0 { 0.0 } else { x / __d }"),
+            rust.contains("let __n: f64 = x; let __d: f64 = "),
             "monadic Float bindings in function body should drive float-safe division: {}",
             rust
         );
@@ -64341,7 +64545,7 @@ fn main() {{
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("if __d == 0.0 { 0.0 } else { x / __d }"),
+            rust.contains("let __n: f64 = x; let __d: f64 = "),
             "direct Ok bindings in function body should drive float-safe division: {}",
             rust
         );
@@ -64375,7 +64579,7 @@ fn main() {{
         if let Stmt::Bind(_, _, expr) = &stmts[0] {
             let rust = cg.emit_expr(expr);
             assert!(
-                rust.contains("if __d == 0.0 { 0.0 }"),
+                rust.contains("if __d == 0.0 { panic!(\"float division by zero\") }"),
                 "FIR Float bindings should drive float-safe division without legacy compatibility state: {}",
                 rust
             );
@@ -69237,7 +69441,7 @@ routes <- "b"
             rust
         );
         assert!(
-            rust.contains("if __d == 0.0 { 0.0 }"),
+            rust.contains("if __d == 0.0 { panic!(\"float division by zero\") }"),
             "rule body should keep float-safe division from inferred rule param type: {}",
             rust
         );
@@ -69360,7 +69564,7 @@ routes <- "b"
             rust
         );
         assert!(
-            rust.contains("if __d == 0.0 { 0.0 }"),
+            rust.contains("if __d == 0.0 { panic!(\"float division by zero\") }"),
             "computed ground-body prolog value rule should preserve float-safe division: {}",
             rust
         );

@@ -1,0 +1,5 @@
+-- A constant Float division by zero is the same runtime error; folding never
+-- produces non-finite literals.
+@ print("start")
+= r = 5.0 / 0.0
+@ print(show(r))

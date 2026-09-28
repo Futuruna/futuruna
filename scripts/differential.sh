@@ -20,6 +20,11 @@ CORPUS_DIR="${FUTURUNA_DIFFERENTIAL_CORPUS:-tests/differential/corpus}"
 IMPORT_CORPUS_DIR="${FUTURUNA_DIFFERENTIAL_IMPORT_CORPUS:-${CORPUS_DIR}/imports}"
 OUT_DIR="${FUTURUNA_DIFFERENTIAL_OUT:-${TMPDIR:-/tmp}/futuruna-differential}"
 GENERATED_IMPORT_DIR="${FUTURUNA_DIFFERENTIAL_GENERATED_IMPORT_DIR:-${OUT_DIR}/generated-imports}"
+ALLOW_LIST="${FUTURUNA_DIFFERENTIAL_ALLOW_LIST:-tests/differential/roundtrip-allowlist.txt}"
+TYPED_SEEDS="${FUTURUNA_DIFFERENTIAL_TYPED_SEEDS:-16}"
+TYPED_DIR="${OUT_DIR}/generated-typed"
+# Set FUTURUNA_DIFFERENTIAL_EXAMPLES=1 (scheduled CI) to also compare examples/.
+RUN_EXAMPLES="${FUTURUNA_DIFFERENTIAL_EXAMPLES:-0}"
 
 if [[ ! -x "$RUNA_BIN" ]]; then
     run_step cargo build --release
@@ -192,16 +197,28 @@ EOF
 }
 
 if [[ -d "$CORPUS_DIR" ]] && find "$CORPUS_DIR" -type f -name '*.runa' -print -quit | grep -q .; then
-    run_step "$RUNA_BIN" test --roundtrip "$CORPUS_DIR"
+    run_step "$RUNA_BIN" test --roundtrip "$CORPUS_DIR" --allow-list "$ALLOW_LIST"
 else
     echo "[differential] no differential corpus cases in $CORPUS_DIR"
 fi
 
 if [[ -d "$IMPORT_CORPUS_DIR" ]] && find "$IMPORT_CORPUS_DIR" -type f -name '*.runa' -print -quit | grep -q .; then
-    # `runa test --roundtrip` intentionally skips @ import entrypoints, so
-    # import-aware corpus cases use compiled execution plus codegen checks.
+    # Import entrypoints are also compared by the roundtrip lane above; these
+    # add compiled execution plus codegen checks for the import graph.
     run_step "$RUNA_BIN" test --run "$IMPORT_CORPUS_DIR"
     run_step "$RUNA_BIN" test --check-codegen "$IMPORT_CORPUS_DIR"
+fi
+
+# Seeded typed programs (records, sum types, rules, collections, strings).
+rm -rf "$TYPED_DIR"
+mkdir -p "$TYPED_DIR"
+for (( typed_seed = 1; typed_seed <= TYPED_SEEDS; typed_seed++ )); do
+    scripts/gen-typed-program.sh "$typed_seed" "$TYPED_DIR/typed_${typed_seed}.runa"
+done
+run_step "$RUNA_BIN" test --roundtrip "$TYPED_DIR" --allow-list "$ALLOW_LIST"
+
+if [[ "$RUN_EXAMPLES" == "1" ]]; then
+    run_step "$RUNA_BIN" test --roundtrip examples --allow-list "$ALLOW_LIST"
 fi
 
 rm -rf "$GENERATED_IMPORT_DIR"
