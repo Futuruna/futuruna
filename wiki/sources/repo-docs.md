@@ -37,9 +37,7 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
   and WASM canary lanes.
 - [[wiki/sources/differential-testing|differential-testing]]
   The reproducible stress-generation and minimized-corpus lane.
-- [[verified-bootstrap-doc]]
   The honest statement of what native proof-backed compiler work means today.
-- [[proof-kernel-spec]]
   The kernel design boundary and its v1 logic fragment.
 - [[language-reference]]
   The stable/preview split across core language reference pages.

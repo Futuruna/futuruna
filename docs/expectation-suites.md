@@ -92,7 +92,6 @@ Expectation suites are the narrow compiler-contract lane:
 - `canary`: holds authored realistic programs that mix subsystems.
 - `downstream-canary`: models library-consumer import usage.
 - `differential`: searches for unknown semantic divergence.
-- `proof-backed checking`: reduces trust in selected compiler transformations.
 
 When a user reports a compiler bug, choose the smallest permanent lane that
 matches the failure:
@@ -101,4 +100,3 @@ matches the failure:
 - realistic workflow regression: add `tests/canary/`
 - library-consumer/import regression: add `tests/downstream/`
 - unknown semantic drift: add or minimize into `tests/differential/`
-- proof-elaboration trust issue: add proof-backed validation or a proof snapshot

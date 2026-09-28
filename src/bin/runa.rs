@@ -628,12 +628,14 @@ fn main_inner() {
                     "  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,"
                 );
                 eprintln!(
-                    "    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing"
+                    "    importable local libraries, Rust interop, FRSS-v0, differential/generative testing"
                 );
                 eprintln!(
-                    "  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call"
+                    "  Preview: add, lsp, expect, bench, meta, verify, schema, template, call"
                 );
-                eprintln!("  Experimental: audit, explore");
+                eprintln!(
+                    "  Experimental: audit, explore, wasm, streams/subjects/actors, HTTP builtins, @ rust/@ depend"
+                );
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
                 eprintln!();
@@ -9117,19 +9119,9 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
         Stmt::Invariant { name, .. } => {
             names.insert(name.clone());
         }
-        Stmt::Prove {
-            name,
-            proof_block,
-            capture,
-            ..
-        } => {
+        Stmt::Prove { name, capture, .. } => {
             names.insert(name.clone());
             names.extend(capture.iter().cloned());
-            if let Some(proof_block) = proof_block {
-                for arm in &proof_block.arms {
-                    names.extend(arm.binders.iter().cloned());
-                }
-            }
         }
         Stmt::Rule(_)
         | Stmt::PreludeBoundary
@@ -17380,1158 +17372,6 @@ fn collect_rule_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum ExplicitProofStatus {
-    Proved,
-    Unsupported(String),
-    Failed(String),
-}
-
-#[derive(Debug, Clone, Default)]
-struct ProofConstructorTable {
-    family_by_type: BTreeMap<String, Vec<String>>,
-    family_by_ctor: BTreeMap<String, Vec<String>>,
-    arity_by_ctor: BTreeMap<String, usize>,
-    field_families_by_ctor: BTreeMap<String, Vec<Option<Vec<String>>>>,
-    recursive_by_ctor: BTreeMap<String, Vec<usize>>,
-}
-
-impl ProofConstructorTable {
-    fn from_adts(adts: &[(String, Vec<Variant>)]) -> Self {
-        let mut table = Self::default();
-        for (ty_name, variants) in adts {
-            let family: Vec<String> = variants
-                .iter()
-                .map(|variant| variant.name.clone())
-                .collect();
-            table.family_by_type.insert(ty_name.clone(), family.clone());
-        }
-        for (ty_name, variants) in adts {
-            let family = table
-                .family_by_type
-                .get(ty_name)
-                .cloned()
-                .unwrap_or_default();
-            for variant in variants {
-                table
-                    .family_by_ctor
-                    .insert(variant.name.clone(), family.clone());
-                table
-                    .arity_by_ctor
-                    .insert(variant.name.clone(), variant.fields.len());
-                table.field_families_by_ctor.insert(
-                    variant.name.clone(),
-                    variant
-                        .fields
-                        .iter()
-                        .map(|field| constructors_family_for_ty(&table.family_by_type, &field.ty))
-                        .collect(),
-                );
-                table.recursive_by_ctor.insert(
-                    variant.name.clone(),
-                    proof_recursive_field_positions(ty_name, variant),
-                );
-            }
-        }
-        table
-    }
-
-    fn family_for_type(&self, ty: &Ty) -> Option<&Vec<String>> {
-        proof_type_name(ty).and_then(|name| self.family_by_type.get(name))
-    }
-}
-
-fn constructors_family_for_ty(
-    family_by_type: &BTreeMap<String, Vec<String>>,
-    ty: &Ty,
-) -> Option<Vec<String>> {
-    proof_type_name(ty).and_then(|name| family_by_type.get(name).cloned())
-}
-
-fn proof_recursive_field_positions(ty_name: &str, variant: &Variant) -> Vec<usize> {
-    variant
-        .fields
-        .iter()
-        .enumerate()
-        .filter_map(|(index, field)| (proof_type_name(&field.ty) == Some(ty_name)).then_some(index))
-        .collect()
-}
-
-#[cfg(test)]
-fn collect_function_param_types(stmts: &[Stmt]) -> BTreeMap<String, Vec<Option<Ty>>> {
-    stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Defn(Defn::Fn { name, params, .. }) => Some((
-                name.clone(),
-                params.iter().map(|param| param.ty.clone()).collect(),
-            )),
-            _ => None,
-        })
-        .collect()
-}
-
-fn collect_function_param_types_from_defs(
-    functions: &[(String, Vec<Param>, Option<Ty>, Expr)],
-) -> BTreeMap<String, Vec<Option<Ty>>> {
-    functions
-        .iter()
-        .map(|(name, params, _, _)| {
-            (
-                name.clone(),
-                params.iter().map(|param| param.ty.clone()).collect(),
-            )
-        })
-        .collect()
-}
-
-fn note_inferred_family(
-    name: &str,
-    family: Vec<String>,
-    inferred: &mut BTreeMap<String, Vec<String>>,
-    conflicted: &mut BTreeSet<String>,
-) {
-    if conflicted.contains(name) {
-        return;
-    }
-    match inferred.get(name) {
-        None => {
-            inferred.insert(name.into(), family);
-        }
-        Some(existing) if *existing == family => {}
-        Some(_) => {
-            inferred.remove(name);
-            conflicted.insert(name.into());
-        }
-    }
-}
-
-fn infer_expr_var_families(
-    expr: &Expr,
-    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
-    constructors: &ProofConstructorTable,
-    inferred: &mut BTreeMap<String, Vec<String>>,
-    conflicted: &mut BTreeSet<String>,
-) {
-    match &expr.kind {
-        ExprKind::Var(_) | ExprKind::Lit(_) => {}
-        ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = &func.kind {
-                if let Some(param_types) = function_param_types.get(name) {
-                    for (arg, param_ty) in args.iter().zip(param_types.iter()) {
-                        if let Some(family) = param_ty
-                            .as_ref()
-                            .and_then(|ty| constructors.family_for_type(ty))
-                            .cloned()
-                        {
-                            if let ExprKind::Var(var_name) = &arg.kind {
-                                note_inferred_family(var_name, family, inferred, conflicted);
-                            }
-                        }
-                    }
-                }
-            }
-            infer_expr_var_families(
-                func,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-            for arg in args {
-                infer_expr_var_families(
-                    arg,
-                    function_param_types,
-                    constructors,
-                    inferred,
-                    conflicted,
-                );
-            }
-        }
-        ExprKind::BinOp(_, lhs, rhs) => {
-            infer_expr_var_families(
-                lhs,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-            infer_expr_var_families(
-                rhs,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-        }
-        ExprKind::UnOp(_, inner) => {
-            infer_expr_var_families(
-                inner,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-        }
-        ExprKind::Tuple(elems) => {
-            for elem in elems {
-                infer_expr_var_families(
-                    elem,
-                    function_param_types,
-                    constructors,
-                    inferred,
-                    conflicted,
-                );
-            }
-        }
-        _ => {}
-    }
-}
-
-fn infer_explicit_proof_var_families(
-    subject_expr: &Expr,
-    pred_expr: &Expr,
-    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
-    constructors: &ProofConstructorTable,
-) -> BTreeMap<String, Vec<String>> {
-    let mut inferred = BTreeMap::new();
-    let mut conflicted = BTreeSet::new();
-    infer_expr_var_families(
-        subject_expr,
-        function_param_types,
-        constructors,
-        &mut inferred,
-        &mut conflicted,
-    );
-    infer_expr_var_families(
-        pred_expr,
-        function_param_types,
-        constructors,
-        &mut inferred,
-        &mut conflicted,
-    );
-    inferred
-}
-
-fn proof_type_name(ty: &Ty) -> Option<&str> {
-    match ty {
-        Ty::Name(name) => Some(name),
-        Ty::App(base, _) => proof_type_name(base),
-        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
-            proof_type_name(inner)
-        }
-        Ty::Arrow(_, _) | Ty::Var(_) | Ty::Unit | Ty::Hole => None,
-    }
-}
-
-fn proof_schema_vars(prop: &proof_kernel::Prop) -> Vec<String> {
-    let mut vars = BTreeSet::new();
-    collect_proof_prop_vars(prop, &mut vars);
-    vars.into_iter().collect()
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProofExprContext {
-    Term,
-    Prop,
-}
-
-fn proof_expr_is_lowerable(expr: &Expr, context: ProofExprContext) -> bool {
-    match context {
-        ProofExprContext::Term => lower_expr_to_proof_term(expr).is_ok(),
-        ProofExprContext::Prop => lower_expr_to_proof_prop(expr).is_ok(),
-    }
-}
-
-fn substitute_expr_bindings_for_proof(
-    expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-    active: &mut BTreeSet<String>,
-    context: ProofExprContext,
-) -> Expr {
-    match &expr.kind {
-        ExprKind::Var(name) => {
-            if let Some(bound_expr) = bindings.get(name) {
-                if active.insert(name.clone()) {
-                    let expanded =
-                        substitute_expr_bindings_for_proof(bound_expr, bindings, active, context);
-                    active.remove(name);
-                    if proof_expr_is_lowerable(&expanded, context) {
-                        expanded
-                    } else {
-                        expr.clone()
-                    }
-                } else {
-                    expr.clone()
-                }
-            } else {
-                expr.clone()
-            }
-        }
-        ExprKind::App(func, args) => Expr::new(
-            ExprKind::App(
-                func.clone(),
-                args.iter()
-                    .map(|arg| {
-                        substitute_expr_bindings_for_proof(
-                            arg,
-                            bindings,
-                            active,
-                            ProofExprContext::Term,
-                        )
-                    })
-                    .collect(),
-            ),
-            expr.span,
-        ),
-        ExprKind::BinOp(op, lhs, rhs) => {
-            let child_context = if op == "&&" {
-                ProofExprContext::Prop
-            } else {
-                ProofExprContext::Term
-            };
-            Expr::new(
-                ExprKind::BinOp(
-                    op.clone(),
-                    Box::new(substitute_expr_bindings_for_proof(
-                        lhs,
-                        bindings,
-                        active,
-                        child_context,
-                    )),
-                    Box::new(substitute_expr_bindings_for_proof(
-                        rhs,
-                        bindings,
-                        active,
-                        child_context,
-                    )),
-                ),
-                expr.span,
-            )
-        }
-        ExprKind::UnOp(op, inner) => Expr::new(
-            ExprKind::UnOp(
-                op.clone(),
-                Box::new(substitute_expr_bindings_for_proof(
-                    inner,
-                    bindings,
-                    active,
-                    ProofExprContext::Term,
-                )),
-            ),
-            expr.span,
-        ),
-        ExprKind::Tuple(elems) => Expr::new(
-            ExprKind::Tuple(
-                elems
-                    .iter()
-                    .map(|elem| {
-                        substitute_expr_bindings_for_proof(
-                            elem,
-                            bindings,
-                            active,
-                            ProofExprContext::Term,
-                        )
-                    })
-                    .collect(),
-            ),
-            expr.span,
-        ),
-        _ => expr.clone(),
-    }
-}
-
-fn invariant_proof_schema(
-    pred_expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Schema, String> {
-    let expanded_pred = substitute_expr_bindings_for_proof(
-        pred_expr,
-        bindings,
-        &mut BTreeSet::new(),
-        ProofExprContext::Prop,
-    );
-    let conclusion = lower_expr_to_proof_prop(&expanded_pred)?;
-    Ok(proof_kernel::Schema {
-        vars: proof_schema_vars(&conclusion),
-        premises: vec![],
-        conclusion,
-    })
-}
-
-fn pattern_to_proof_term(pat: &Pat) -> Result<proof_kernel::Term, String> {
-    match pat {
-        Pat::Wild => Err("computation lemmas do not support wildcard patterns yet".into()),
-        Pat::Var(name) => Ok(proof_kernel::Term::Var(name.clone())),
-        Pat::Lit(Literal::Int(n)) => Ok(proof_kernel::Term::Int(*n)),
-        Pat::Lit(Literal::Bool(b)) => Ok(proof_kernel::Term::App(
-            if *b { "True" } else { "False" }.into(),
-            vec![],
-        )),
-        Pat::Lit(Literal::Float(_)) => {
-            Err("computation lemmas do not support float literal patterns".into())
-        }
-        Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
-            Err("computation lemmas only support integer, boolean, and constructor patterns".into())
-        }
-        Pat::Con(name, args) if args.is_empty() => Ok(proof_kernel::Term::Var(name.clone())),
-        Pat::Con(name, args) => Ok(proof_kernel::Term::App(
-            name.clone(),
-            args.iter()
-                .map(pattern_to_proof_term)
-                .collect::<Result<Vec<_>, _>>()?,
-        )),
-        Pat::NamedCon(_, _) => {
-            Err("computation lemmas do not support named-constructor patterns yet".into())
-        }
-        Pat::As(_, _) => Err("computation lemmas do not support alias patterns yet".into()),
-    }
-}
-
-fn computation_lemma_case_suffix(pat: &Pat) -> Result<String, String> {
-    match pat {
-        Pat::Con(name, _) | Pat::NamedCon(name, _) => Ok(name.to_ascii_lowercase()),
-        Pat::Lit(Literal::Bool(true)) => Ok("true".into()),
-        Pat::Lit(Literal::Bool(false)) => Ok("false".into()),
-        Pat::Lit(Literal::Int(n)) if *n >= 0 => Ok(format!("int_{}", n)),
-        Pat::Lit(Literal::Int(n)) => Ok(format!("int_neg_{}", n.abs())),
-        Pat::Wild | Pat::Var(_) | Pat::As(_, _) => {
-            Err("computation lemmas require constructor or literal match arms".into())
-        }
-        Pat::Lit(Literal::Float(_)) | Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
-            Err("computation lemmas only name integer, boolean, and constructor arms".into())
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ComputationLemmaSourceArm {
-    lemma_name: String,
-    function_name: String,
-    param_names: Vec<String>,
-    pattern: Pat,
-    body: Expr,
-}
-
-fn computation_lemma_match_body(body: &Expr) -> Option<(&Expr, &Vec<MatchArm>)> {
-    match &body.kind {
-        ExprKind::Match(scrutinee, arms) => Some((scrutinee, arms)),
-        ExprKind::Block(stmts) if stmts.len() == 1 => match &stmts[0] {
-            Stmt::Expr(expr) => computation_lemma_match_body(expr),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn computation_lemma_source_arms_for_function(
-    name: &str,
-    params: &[Param],
-    body: &Expr,
-) -> Option<Vec<ComputationLemmaSourceArm>> {
-    if params.is_empty() {
-        return None;
-    }
-
-    let (scrutinee, arms) = computation_lemma_match_body(body)?;
-    let ExprKind::Var(scrut_name) = &scrutinee.kind else {
-        return None;
-    };
-    if scrut_name != &params[0].name || arms.is_empty() {
-        return None;
-    }
-
-    let param_names: Vec<String> = params.iter().map(|param| param.name.clone()).collect();
-    let mut source_arms = Vec::new();
-    for arm in arms {
-        if arm.guard.is_some() {
-            return None;
-        }
-        let suffix = computation_lemma_case_suffix(&arm.pat).ok()?;
-        source_arms.push(ComputationLemmaSourceArm {
-            lemma_name: format!("{}.{}", name, suffix),
-            function_name: name.to_string(),
-            param_names: param_names.clone(),
-            pattern: arm.pat.clone(),
-            body: arm.body.clone(),
-        });
-    }
-
-    Some(source_arms)
-}
-
-fn collect_computation_lemma_source_arms(stmts: &[Stmt]) -> Vec<ComputationLemmaSourceArm> {
-    let mut source_arms = Vec::new();
-    for stmt in stmts {
-        if let Stmt::Defn(Defn::Fn {
-            name, params, body, ..
-        }) = stmt
-        {
-            if let Some(mut arms) = computation_lemma_source_arms_for_function(name, params, body) {
-                source_arms.append(&mut arms);
-            }
-        }
-    }
-    source_arms
-}
-
-fn lower_computation_lemma_source_body(
-    source_arm: &ComputationLemmaSourceArm,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Term, String> {
-    let mut active: BTreeSet<String> = source_arm.param_names.iter().cloned().collect();
-    collect_pattern_binding_names(&source_arm.pattern, &mut active);
-    let expanded_body = substitute_expr_bindings_for_proof(
-        &source_arm.body,
-        bindings,
-        &mut active,
-        ProofExprContext::Term,
-    );
-    lower_expr_to_proof_term(&expanded_body)
-}
-
-fn lower_computation_lemma_source_lhs_args(
-    source_arm: &ComputationLemmaSourceArm,
-) -> Result<Vec<proof_kernel::Term>, String> {
-    let first_arg = pattern_to_proof_term(&source_arm.pattern)?;
-    let mut lhs_args = vec![first_arg];
-    lhs_args.extend(
-        source_arm
-            .param_names
-            .iter()
-            .skip(1)
-            .map(|name| proof_kernel::Term::Var(name.clone())),
-    );
-    Ok(lhs_args)
-}
-
-fn generated_computation_lemma_schema_from_source_arm(
-    source_arm: &ComputationLemmaSourceArm,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Schema, String> {
-    let lhs_args = lower_computation_lemma_source_lhs_args(source_arm)?;
-    let rhs = lower_computation_lemma_source_body(source_arm, bindings)?;
-    let conclusion = proof_kernel::Prop::Eq(
-        proof_kernel::Term::App(source_arm.function_name.clone(), lhs_args),
-        rhs,
-    );
-    Ok(proof_kernel::Schema {
-        vars: proof_schema_vars(&conclusion),
-        premises: vec![],
-        conclusion,
-    })
-}
-
-fn expected_computation_lemma_schema_from_source_arm(
-    source_arm: &ComputationLemmaSourceArm,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Schema, String> {
-    let lhs_args = lower_computation_lemma_source_lhs_args(source_arm)?;
-    let rhs = lower_computation_lemma_source_body(source_arm, bindings)?;
-    let conclusion = proof_kernel::Prop::Eq(
-        proof_kernel::Term::App(source_arm.function_name.clone(), lhs_args),
-        rhs,
-    );
-    Ok(proof_kernel::Schema {
-        vars: proof_schema_vars(&conclusion),
-        premises: vec![],
-        conclusion,
-    })
-}
-
-fn computation_lemmas_for_function(
-    name: &str,
-    params: &[Param],
-    body: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-) -> Option<Vec<(String, proof_kernel::Schema)>> {
-    let source_arms = computation_lemma_source_arms_for_function(name, params, body)?;
-    let mut lemmas = Vec::new();
-    for source_arm in source_arms {
-        let schema =
-            generated_computation_lemma_schema_from_source_arm(&source_arm, bindings).ok()?;
-        lemmas.push((source_arm.lemma_name, schema));
-    }
-
-    Some(lemmas)
-}
-
-fn collect_computation_lemmas(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-) -> Vec<(String, proof_kernel::Schema)> {
-    let mut lemmas = Vec::new();
-    for stmt in stmts {
-        if let Stmt::Defn(Defn::Fn {
-            name, params, body, ..
-        }) = stmt
-        {
-            if let Some(mut generated) =
-                computation_lemmas_for_function(name, params, body, bindings)
-            {
-                lemmas.append(&mut generated);
-            }
-        }
-    }
-    lemmas
-}
-
-fn computation_lemma_schema_matches(
-    actual: &proof_kernel::Schema,
-    expected: &proof_kernel::Schema,
-) -> bool {
-    actual.vars == expected.vars
-        && actual.premises == expected.premises
-        && actual.conclusion == expected.conclusion
-}
-
-fn expected_computation_lemma_map(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<BTreeMap<String, proof_kernel::Schema>, String> {
-    let mut expected = BTreeMap::new();
-    let mut by_function: BTreeMap<String, Vec<ComputationLemmaSourceArm>> = BTreeMap::new();
-    for source_arm in collect_computation_lemma_source_arms(stmts) {
-        by_function
-            .entry(source_arm.function_name.clone())
-            .or_default()
-            .push(source_arm);
-    }
-
-    for (_, source_arms) in by_function {
-        let mut derived = Vec::new();
-        let mut all_arms_lowerable = true;
-        for source_arm in &source_arms {
-            match expected_computation_lemma_schema_from_source_arm(source_arm, bindings) {
-                Ok(schema) => derived.push((source_arm.lemma_name.clone(), schema)),
-                Err(_) => {
-                    all_arms_lowerable = false;
-                    break;
-                }
-            }
-        }
-
-        if !all_arms_lowerable {
-            continue;
-        }
-
-        for (lemma_name, schema) in derived {
-            if expected.insert(lemma_name.clone(), schema).is_some() {
-                return Err(format!(
-                    "duplicate eligible source computation lemma `{}`",
-                    lemma_name
-                ));
-            }
-        }
-    }
-    Ok(expected)
-}
-
-fn validate_computation_lemmas_against_sources(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-    generated: &[(String, proof_kernel::Schema)],
-) -> Result<(), String> {
-    let expected = expected_computation_lemma_map(stmts, bindings)?;
-    let mut seen = BTreeSet::new();
-
-    for (name, schema) in generated {
-        if !seen.insert(name.clone()) {
-            return Err(format!("duplicate generated computation lemma `{}`", name));
-        }
-        let Some(expected_schema) = expected.get(name) else {
-            return Err(format!(
-                "generated computation lemma `{}` has no eligible source arm",
-                name
-            ));
-        };
-        if !computation_lemma_schema_matches(schema, expected_schema) {
-            return Err(format!(
-                "generated computation lemma `{}` does not match its source arm: expected `{}`, got `{}`",
-                name, expected_schema.conclusion, schema.conclusion
-            ));
-        }
-    }
-
-    for expected_name in expected.keys() {
-        if !seen.contains(expected_name) {
-            return Err(format!(
-                "missing generated computation lemma `{}` for eligible source arm",
-                expected_name
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-fn collect_computation_lemmas_checked(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<Vec<(String, proof_kernel::Schema)>, String> {
-    let generated = collect_computation_lemmas(stmts, bindings);
-    validate_computation_lemmas_against_sources(stmts, bindings, &generated)?;
-    Ok(generated)
-}
-
-fn build_explicit_proof_registry(
-    computation_lemmas: &[(String, proof_kernel::Schema)],
-    proved_invariants: &BTreeMap<String, proof_kernel::Schema>,
-) -> Result<proof_kernel::Registry, String> {
-    let mut reg = proof_kernel::Registry::with_builtins();
-
-    for (name, schema) in computation_lemmas {
-        reg.register(name.clone(), schema.clone())
-            .map_err(|err| err.to_string())?;
-    }
-    for (name, schema) in proved_invariants {
-        reg.register(name.clone(), schema.clone())
-            .map_err(|err| err.to_string())?;
-    }
-
-    Ok(reg)
-}
-
-fn substitute_proof_term_vars(
-    term: &proof_kernel::Term,
-    substitutions: &BTreeMap<String, proof_kernel::Term>,
-) -> proof_kernel::Term {
-    match term {
-        proof_kernel::Term::Int(n) => proof_kernel::Term::Int(*n),
-        proof_kernel::Term::Var(name) => substitutions
-            .get(name)
-            .cloned()
-            .unwrap_or_else(|| proof_kernel::Term::Var(name.clone())),
-        proof_kernel::Term::Op(op, lhs, rhs) => proof_kernel::Term::Op(
-            op.clone(),
-            Box::new(substitute_proof_term_vars(lhs, substitutions)),
-            Box::new(substitute_proof_term_vars(rhs, substitutions)),
-        ),
-        proof_kernel::Term::App(name, args) => proof_kernel::Term::App(
-            name.clone(),
-            args.iter()
-                .map(|arg| substitute_proof_term_vars(arg, substitutions))
-                .collect(),
-        ),
-    }
-}
-
-fn substitute_proof_prop_vars(
-    prop: &proof_kernel::Prop,
-    substitutions: &BTreeMap<String, proof_kernel::Term>,
-) -> proof_kernel::Prop {
-    match prop {
-        proof_kernel::Prop::Eq(lhs, rhs) => proof_kernel::Prop::Eq(
-            substitute_proof_term_vars(lhs, substitutions),
-            substitute_proof_term_vars(rhs, substitutions),
-        ),
-        proof_kernel::Prop::Le(lhs, rhs) => proof_kernel::Prop::Le(
-            substitute_proof_term_vars(lhs, substitutions),
-            substitute_proof_term_vars(rhs, substitutions),
-        ),
-        proof_kernel::Prop::And(lhs, rhs) => proof_kernel::Prop::And(
-            Box::new(substitute_proof_prop_vars(lhs, substitutions)),
-            Box::new(substitute_proof_prop_vars(rhs, substitutions)),
-        ),
-        proof_kernel::Prop::Not(inner) => {
-            proof_kernel::Prop::Not(Box::new(substitute_proof_prop_vars(inner, substitutions)))
-        }
-        proof_kernel::Prop::Imply(lhs, rhs) => proof_kernel::Prop::Imply(
-            Box::new(substitute_proof_prop_vars(lhs, substitutions)),
-            Box::new(substitute_proof_prop_vars(rhs, substitutions)),
-        ),
-        proof_kernel::Prop::False => proof_kernel::Prop::False,
-    }
-}
-
-fn collect_proof_term_vars(term: &proof_kernel::Term, vars: &mut BTreeSet<String>) {
-    match term {
-        proof_kernel::Term::Int(_) => {}
-        proof_kernel::Term::Var(name) => {
-            vars.insert(name.clone());
-        }
-        proof_kernel::Term::Op(_, lhs, rhs) => {
-            collect_proof_term_vars(lhs, vars);
-            collect_proof_term_vars(rhs, vars);
-        }
-        proof_kernel::Term::App(_, args) => {
-            for arg in args {
-                collect_proof_term_vars(arg, vars);
-            }
-        }
-    }
-}
-
-fn collect_proof_prop_vars(prop: &proof_kernel::Prop, vars: &mut BTreeSet<String>) {
-    match prop {
-        proof_kernel::Prop::Eq(lhs, rhs) | proof_kernel::Prop::Le(lhs, rhs) => {
-            collect_proof_term_vars(lhs, vars);
-            collect_proof_term_vars(rhs, vars);
-        }
-        proof_kernel::Prop::And(lhs, rhs) | proof_kernel::Prop::Imply(lhs, rhs) => {
-            collect_proof_prop_vars(lhs, vars);
-            collect_proof_prop_vars(rhs, vars);
-        }
-        proof_kernel::Prop::Not(inner) => collect_proof_prop_vars(inner, vars),
-        proof_kernel::Prop::False => {}
-    }
-}
-
-fn collect_proof_term_term_vars(term: &proof_kernel::ProofTerm, vars: &mut BTreeSet<String>) {
-    match term {
-        proof_kernel::ProofTerm::Refl | proof_kernel::ProofTerm::Hyp(_) => {}
-        proof_kernel::ProofTerm::Apply(_, args) => {
-            for arg in args {
-                collect_proof_term_term_vars(arg, vars);
-            }
-        }
-        proof_kernel::ProofTerm::Rewrite(lhs, rhs) => {
-            collect_proof_term_term_vars(lhs, vars);
-            collect_proof_term_term_vars(rhs, vars);
-        }
-        proof_kernel::ProofTerm::InductionOn(name, arms) => {
-            vars.insert(name.clone());
-            for arm in arms {
-                collect_proof_term_term_vars(&arm.body, vars);
-            }
-        }
-        proof_kernel::ProofTerm::Cases(scrut, arms) => {
-            collect_proof_term_vars(scrut, vars);
-            for arm in arms {
-                collect_proof_term_term_vars(&arm.body, vars);
-            }
-        }
-        proof_kernel::ProofTerm::Contra(body) => collect_proof_term_term_vars(body, vars),
-        proof_kernel::ProofTerm::Let(_, bound, body) => {
-            collect_proof_term_term_vars(bound, vars);
-            collect_proof_term_term_vars(body, vars);
-        }
-        proof_kernel::ProofTerm::Assume(prop, body) => {
-            collect_proof_prop_vars(prop, vars);
-            collect_proof_term_term_vars(body, vars);
-        }
-    }
-}
-
-fn substitute_proof_term_binders(
-    term: &proof_kernel::ProofTerm,
-    substitutions: &BTreeMap<String, proof_kernel::Term>,
-) -> proof_kernel::ProofTerm {
-    match term {
-        proof_kernel::ProofTerm::Refl => proof_kernel::ProofTerm::Refl,
-        proof_kernel::ProofTerm::Apply(name, args) => proof_kernel::ProofTerm::Apply(
-            name.clone(),
-            args.iter()
-                .map(|arg| substitute_proof_term_binders(arg, substitutions))
-                .collect(),
-        ),
-        proof_kernel::ProofTerm::Rewrite(eq_term, body_term) => proof_kernel::ProofTerm::Rewrite(
-            Box::new(substitute_proof_term_binders(eq_term, substitutions)),
-            Box::new(substitute_proof_term_binders(body_term, substitutions)),
-        ),
-        proof_kernel::ProofTerm::InductionOn(name, arms) => {
-            let induction_name = match substitutions.get(name) {
-                Some(proof_kernel::Term::Var(var)) => var.clone(),
-                _ => name.clone(),
-            };
-            proof_kernel::ProofTerm::InductionOn(
-                induction_name,
-                arms.iter()
-                    .map(|arm| proof_kernel::IndArm {
-                        ctor: arm.ctor.clone(),
-                        binders: arm.binders.clone(),
-                        body: substitute_proof_term_binders(&arm.body, substitutions),
-                    })
-                    .collect(),
-            )
-        }
-        proof_kernel::ProofTerm::Cases(scrut, arms) => proof_kernel::ProofTerm::Cases(
-            substitute_proof_term_vars(scrut, substitutions),
-            arms.iter()
-                .map(|arm| proof_kernel::CaseArm {
-                    ctor: arm.ctor.clone(),
-                    binders: arm.binders.clone(),
-                    body: substitute_proof_term_binders(&arm.body, substitutions),
-                })
-                .collect(),
-        ),
-        proof_kernel::ProofTerm::Contra(body) => proof_kernel::ProofTerm::Contra(Box::new(
-            substitute_proof_term_binders(body, substitutions),
-        )),
-        proof_kernel::ProofTerm::Let(name, bound, body) => proof_kernel::ProofTerm::Let(
-            name.clone(),
-            Box::new(substitute_proof_term_binders(bound, substitutions)),
-            Box::new(substitute_proof_term_binders(body, substitutions)),
-        ),
-        proof_kernel::ProofTerm::Assume(prop, body) => proof_kernel::ProofTerm::Assume(
-            substitute_proof_prop_vars(prop, substitutions),
-            Box::new(substitute_proof_term_binders(body, substitutions)),
-        ),
-        proof_kernel::ProofTerm::Hyp(name) => proof_kernel::ProofTerm::Hyp(name.clone()),
-    }
-}
-
-fn proof_binder_substitutions(
-    subject_expr: &Expr,
-    binders: &[String],
-) -> Result<BTreeMap<String, proof_kernel::Term>, String> {
-    let mut substitutions = BTreeMap::new();
-    match &subject_expr.kind {
-        ExprKind::Var(name) if binders.len() == 1 => {
-            substitutions.insert(binders[0].clone(), proof_kernel::Term::Var(name.clone()));
-            Ok(substitutions)
-        }
-        ExprKind::Tuple(elems) if elems.len() == binders.len() => {
-            for (elem, binder) in elems.iter().zip(binders) {
-                substitutions.insert(binder.clone(), lower_expr_to_proof_term(elem)?);
-            }
-            Ok(substitutions)
-        }
-        _ if binders.len() == 1 => {
-            substitutions.insert(binders[0].clone(), lower_expr_to_proof_term(subject_expr)?);
-            Ok(substitutions)
-        }
-        _ => Err("proof binder count does not match invariant subject".into()),
-    }
-}
-
-fn explicit_proof_ctx(
-    goal: &proof_kernel::Prop,
-    proof: &proof_kernel::ProofTerm,
-    binding_types: &BTreeMap<String, Option<Ty>>,
-    inferred_var_families: &BTreeMap<String, Vec<String>>,
-    constructors: &ProofConstructorTable,
-) -> proof_kernel::Ctx {
-    let mut ctx = proof_kernel::Ctx::new();
-    for (ctor, family) in &constructors.family_by_ctor {
-        let arity = constructors
-            .arity_by_ctor
-            .get(ctor)
-            .copied()
-            .unwrap_or_default();
-        let recursive_fields = constructors
-            .recursive_by_ctor
-            .get(ctor)
-            .cloned()
-            .unwrap_or_default();
-        let field_families = constructors
-            .field_families_by_ctor
-            .get(ctor)
-            .cloned()
-            .unwrap_or_default();
-        ctx = ctx
-            .with_constructor(ctor.clone(), family.clone(), arity)
-            .with_constructor_field_families(ctor.clone(), field_families)
-            .with_constructor_recursive_fields(ctor.clone(), recursive_fields);
-    }
-
-    let mut vars = BTreeSet::new();
-    collect_proof_prop_vars(goal, &mut vars);
-    collect_proof_term_term_vars(proof, &mut vars);
-    for var in vars {
-        let family = binding_types
-            .get(&var)
-            .and_then(|ty| ty.as_ref())
-            .and_then(|ty| constructors.family_for_type(ty))
-            .cloned()
-            .or_else(|| inferred_var_families.get(&var).cloned());
-        ctx = match family {
-            Some(family) => ctx.with_var_family(var, family),
-            None => ctx.with_var(var),
-        };
-    }
-
-    ctx
-}
-
-// This checks the mathematical proposition only. The public verifier must
-// also discharge source arithmetic obligations before reporting a runtime
-// guarantee or registering this result as an available local lemma.
-fn evaluate_explicit_proof(
-    subject_expr: &Expr,
-    pred_expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-    binding_types: &BTreeMap<String, Option<Ty>>,
-    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
-    constructors: &ProofConstructorTable,
-    proof_block: &ProofBlock,
-    reg: &proof_kernel::Registry,
-) -> ExplicitProofStatus {
-    if proof_block.arms.len() != 1 {
-        return ExplicitProofStatus::Unsupported(
-            "proof blocks currently require exactly one arm".into(),
-        );
-    }
-
-    let arm = &proof_block.arms[0];
-    let expanded_subject = substitute_expr_bindings_for_proof(
-        subject_expr,
-        bindings,
-        &mut BTreeSet::new(),
-        ProofExprContext::Term,
-    );
-    let expanded_pred = substitute_expr_bindings_for_proof(
-        pred_expr,
-        bindings,
-        &mut BTreeSet::new(),
-        ProofExprContext::Prop,
-    );
-    let substitutions = match proof_binder_substitutions(&expanded_subject, &arm.binders) {
-        Ok(substitutions) => substitutions,
-        Err(err) => return ExplicitProofStatus::Unsupported(err),
-    };
-
-    let goal = match lower_expr_to_proof_prop(&expanded_pred) {
-        Ok(prop) => prop,
-        Err(err) => return ExplicitProofStatus::Unsupported(err),
-    };
-    let proof = substitute_proof_term_binders(&arm.term, &substitutions);
-    let inferred_var_families = infer_explicit_proof_var_families(
-        &expanded_subject,
-        &expanded_pred,
-        function_param_types,
-        constructors,
-    );
-    let ctx = explicit_proof_ctx(
-        &goal,
-        &proof,
-        binding_types,
-        &inferred_var_families,
-        constructors,
-    );
-
-    match proof_kernel::check(&proof, &goal, &ctx, reg) {
-        Ok(()) => ExplicitProofStatus::Proved,
-        Err(err) => ExplicitProofStatus::Failed(err.to_string()),
-    }
-}
-
-#[cfg(test)]
-fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, ExplicitProofStatus> {
-    let adts: Vec<(String, Vec<Variant>)> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
-                Some((name.clone(), variants.clone()))
-            }
-            _ => None,
-        })
-        .collect();
-    let bindings: BTreeMap<String, Expr> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-            _ => None,
-        })
-        .collect();
-    let binding_types: BTreeMap<String, Option<Ty>> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Bind(Pat::Var(name), ty, _) => Some((name.clone(), ty.clone())),
-            _ => None,
-        })
-        .collect();
-
-    let invariants: Vec<(String, Expr, Expr)> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Invariant {
-                name,
-                subject,
-                predicate,
-            } => Some((name.clone(), subject.clone(), predicate.clone())),
-            _ => None,
-        })
-        .collect();
-    let constructors = ProofConstructorTable::from_adts(&adts);
-    let function_param_types = collect_function_param_types(stmts);
-    let computation_lemmas = match collect_computation_lemmas_checked(stmts, &bindings) {
-        Ok(lemmas) => lemmas,
-        Err(err) => {
-            return invariants
-                .into_iter()
-                .map(|(name, _, _)| {
-                    (
-                        name,
-                        ExplicitProofStatus::Failed(format!(
-                            "computation lemma validation failed: {}",
-                            err
-                        )),
-                    )
-                })
-                .collect();
-        }
-    };
-    let proof_blocks: BTreeMap<String, ProofBlock> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Prove {
-                name,
-                proof_block: Some(block),
-                ..
-            } => Some((name.clone(), block.clone())),
-            _ => None,
-        })
-        .collect();
-
-    let mut statuses = BTreeMap::new();
-    let mut proved_invariants = BTreeMap::new();
-
-    for (name, subject, predicate) in invariants {
-        let Some(block) = proof_blocks.get(&name) else {
-            continue;
-        };
-
-        let reg = match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
-            Ok(reg) => reg,
-            Err(err) => {
-                statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
-                continue;
-            }
-        };
-
-        let status = evaluate_explicit_proof(
-            &subject,
-            &predicate,
-            &bindings,
-            &binding_types,
-            &function_param_types,
-            &constructors,
-            block,
-            &reg,
-        );
-        if matches!(status, ExplicitProofStatus::Proved) {
-            match invariant_proof_schema(&predicate, &bindings) {
-                Ok(schema) => {
-                    let mut next_reg = match build_explicit_proof_registry(
-                        &computation_lemmas,
-                        &proved_invariants,
-                    ) {
-                        Ok(reg) => reg,
-                        Err(err) => {
-                            statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
-                            continue;
-                        }
-                    };
-                    if let Err(err) = next_reg.register(name.clone(), schema.clone()) {
-                        statuses.insert(name.clone(), ExplicitProofStatus::Failed(err.to_string()));
-                        continue;
-                    }
-                    proved_invariants.insert(name.clone(), schema);
-                }
-                Err(err) => {
-                    statuses.insert(name.clone(), ExplicitProofStatus::Unsupported(err));
-                    continue;
-                }
-            }
-        }
-
-        statuses.insert(name, status);
-    }
-
-    statuses
-}
-
 /// Run one complete solver request. Drain output while supplying input, and
 /// treat process, pipe, encoding, and solver diagnostics as failures rather
 /// than trusting a success-looking first line from a failed process.
@@ -18573,9 +17413,13 @@ fn run_z3_script(script: &str) -> Result<String, String> {
     Ok(stdout)
 }
 
+/// What a PROVED result from `runa verify` guarantees. Printed with every run
+/// and repeated in the reference documentation.
+const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
+
 /// Generate SMT-LIB2 for all invariants and verify with Z3.
-/// Successful exit requires every claim and any authored explicit proof to
-/// pass. Unsupported claims and unavailable solvers are incomplete checks.
+/// Successful exit requires every claim to be proved. Unsupported claims and
+/// unavailable solvers are incomplete checks.
 fn verify_with_z3(source: &str, filename: &str) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
@@ -18629,7 +17473,6 @@ fn verify_with_z3(source: &str, filename: &str) {
     let mut adt_indexes: BTreeMap<String, usize> = BTreeMap::new();
     let mut ctor_to_type: BTreeMap<String, String> = BTreeMap::new();
     let mut invariants: Vec<(String, Expr, Expr)> = Vec::new();
-    let mut proof_blocks: BTreeMap<String, ProofBlock> = BTreeMap::new();
     let mut bindings: BTreeMap<String, Expr> = BTreeMap::new();
     let mut binding_types: BTreeMap<String, Option<Ty>> = BTreeMap::new();
     let mut functions: Vec<(String, Vec<Param>, Option<Ty>, Expr)> = Vec::new();
@@ -18672,13 +17515,6 @@ fn verify_with_z3(source: &str, filename: &str) {
                 predicate,
             } => {
                 invariants.push((name.clone(), subject.clone(), predicate.clone()));
-            }
-            Stmt::Prove {
-                name,
-                proof_block: Some(block),
-                ..
-            } => {
-                proof_blocks.insert(name.clone(), block.clone());
             }
             Stmt::Bind(Pat::Var(name), ty, expr) => {
                 bindings.insert(name.clone(), expr.clone());
@@ -18788,16 +17624,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         std::process::exit(1);
     }
 
-    let function_param_types = collect_function_param_types_from_defs(&functions);
-    let (computation_lemmas, computation_lemma_error) =
-        match collect_computation_lemmas_checked(&all_stmts, &bindings) {
-            Ok(lemmas) => (lemmas, None),
-            Err(err) => (Vec::new(), Some(err)),
-        };
-    let constructors = ProofConstructorTable::from_adts(&adts);
-    let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
     let mut proved_count = 0usize;
-    let mut explicit_proof_failed = false;
     let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
     let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
     let function_map: BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)> = functions
@@ -18813,6 +17640,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         adts.len(),
         filename
     );
+    println!("{VERIFY_GUARANTEE}");
     println!();
 
     // For each invariant, generate SMT-LIB2 and run Z3
@@ -18885,88 +17713,6 @@ fn verify_with_z3(source: &str, filename: &str) {
             println!();
             continue;
         }
-        let known_calls = fn_names.union(&ctor_names).cloned().collect();
-        let needs_arithmetic_check = arithmetic_expressions
-            .iter()
-            .any(|expr| runa_verification_arithmetic::needs_arithmetic_check(expr, &known_calls));
-        let mut pending_kernel_schema = None;
-
-        if let Some(proof_block) = proof_blocks.get(inv_name) {
-            if let Some(err) = &computation_lemma_error {
-                explicit_proof_failed = true;
-                println!(
-                    "  ✗ explicit proof failed in kernel: computation lemma validation failed: {}",
-                    err
-                );
-                println!("  falling back to Z3 for semantic verification\n");
-            } else {
-                match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
-                    Ok(reg) => match evaluate_explicit_proof(
-                        subject_expr,
-                        pred_expr,
-                        &bindings,
-                        &binding_types,
-                        &function_param_types,
-                        &constructors,
-                        proof_block,
-                        &reg,
-                    ) {
-                        ExplicitProofStatus::Proved if needs_arithmetic_check => {
-                            println!("  explicit mathematical proof checked; verifying runtime arithmetic with Z3");
-                            pending_kernel_schema =
-                                invariant_proof_schema(pred_expr, &bindings).ok();
-                        }
-                        ExplicitProofStatus::Proved => {
-                            match invariant_proof_schema(pred_expr, &bindings) {
-                                Ok(schema) => {
-                                    let mut next_reg = reg;
-                                    if let Err(err) =
-                                        next_reg.register(inv_name.clone(), schema.clone())
-                                    {
-                                        explicit_proof_failed = true;
-                                        println!("  ✗ explicit proof failed in kernel: {}", err);
-                                        println!(
-                                            "  falling back to Z3 for semantic verification\n"
-                                        );
-                                    } else {
-                                        proved_invariants.insert(inv_name.clone(), schema);
-                                        proved_count += 1;
-                                        println!(
-                                            "  ✓ PROVED by kernel: |{}| closed explicit proof",
-                                            inv_name
-                                        );
-                                        println!();
-                                        continue;
-                                    }
-                                }
-                                Err(err) => {
-                                    println!(
-                                        "  ? explicit proof unsupported in kernel path: {}",
-                                        err
-                                    );
-                                    println!("  falling back to Z3\n");
-                                }
-                            }
-                        }
-                        ExplicitProofStatus::Failed(err) => {
-                            explicit_proof_failed = true;
-                            println!("  ✗ explicit proof failed in kernel: {}", err);
-                            println!("  falling back to Z3 for semantic verification\n");
-                        }
-                        ExplicitProofStatus::Unsupported(reason) => {
-                            println!("  ? explicit proof unsupported in kernel path: {}", reason);
-                            println!("  falling back to Z3\n");
-                        }
-                    },
-                    Err(err) => {
-                        explicit_proof_failed = true;
-                        println!("  ✗ explicit proof failed in kernel: {}", err);
-                        println!("  falling back to Z3 for semantic verification\n");
-                    }
-                }
-            }
-        }
-
         let mut smt = String::new();
         smt.push_str("; Auto-generated by runa --verify\n");
         smt.push_str(&format!("; Invariant: | {}\n", inv_name));
@@ -19154,26 +17900,10 @@ fn verify_with_z3(source: &str, filename: &str) {
             Ok(stdout) => match stdout.trim() {
                 "unsat" => {
                     proved_count += 1;
-                    println!("  ✓ PROVED: |{}| holds for all values", inv_name);
-                    // Only a theorem already checked mathematically may become
-                    // a kernel lemma; a bounded SMT proof is not an axiom over
-                    // the unbounded mathematical integer domain.
-                    if let Some(schema) = pending_kernel_schema {
-                        match build_explicit_proof_registry(&computation_lemmas, &proved_invariants)
-                            .and_then(|mut registry| {
-                                registry
-                                    .register(inv_name.clone(), schema.clone())
-                                    .map_err(|error| error.to_string())
-                            }) {
-                            Ok(()) => {
-                                proved_invariants.insert(inv_name.clone(), schema);
-                            }
-                            Err(reason) => {
-                                explicit_proof_failed = true;
-                                println!("  local kernel lemma unavailable: {}", reason);
-                            }
-                        }
-                    }
+                    println!(
+                        "  ✓ PROVED: |{}| holds for every input, and no Int overflow or division by zero is reachable",
+                        inv_name
+                    );
                 }
                 "sat" => {
                     println!("  ✗ COUNTEREXAMPLE found for |{}|:", inv_name);
@@ -19205,10 +17935,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         proved_count,
         invariants.len()
     );
-    if explicit_proof_failed {
-        eprintln!("Verification failed: explicit proof validation failed.");
-    }
-    if proved_count != invariants.len() || explicit_proof_failed {
+    if proved_count != invariants.len() {
         std::process::exit(1);
     }
 }
@@ -26681,7 +25408,6 @@ enum FirStmt {
     },
     Prove {
         name: String,
-        proof_block: Option<ProofBlock>,
         capture: Option<String>,
         pass_block: Option<Vec<FirStmt>>,
         else_block: Option<Vec<FirStmt>>,
@@ -28617,13 +27343,11 @@ impl<'a> LoweringCtx<'a> {
             },
             Stmt::Prove {
                 name,
-                proof_block,
                 capture,
                 pass_block,
                 else_block,
             } => FirStmt::Prove {
                 name: name.clone(),
-                proof_block: proof_block.clone(),
                 capture: capture.clone(),
                 pass_block: pass_block
                     .as_ref()
@@ -46671,19 +45395,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             }
             Stmt::Prove {
                 name,
-                proof_block,
                 capture,
                 pass_block,
                 else_block,
             } => {
-                if proof_block.is_some() {
-                    return format!(
-                        "{}// ? {} by {{ ... }} checked by runa verify; no runtime proof emission\n",
-                        self.ind(),
-                        name
-                    );
-                }
-
                 // ? name → runtime verification with inlined predicate
                 let mut out = String::new();
 
@@ -56088,8 +54803,8 @@ mod tests {
 
     #[test]
     fn formatter_canonicalizes_specialized_multiline_sequences() {
-        let source = "@ use std::collections::{\nHashMap,\nBTreeMap,\n}\n\n? proof by {\n| (\nleft: Int,\nright: Int,\n) -> apply theorem(\nrefl,\n)\n}\n";
-        let expected = "@ use std::collections::{\n    HashMap,\n    BTreeMap,\n}\n\n? proof by {\n    | (\n        left: Int,\n        right: Int,\n    ) -> apply theorem(\n        refl,\n    )\n}\n";
+        let source = "@ use std::collections::{\nHashMap,\nBTreeMap,\n}\n";
+        let expected = "@ use std::collections::{\n    HashMap,\n    BTreeMap,\n}\n";
 
         assert_eq!(format_runa_source(source), expected);
         assert_eq!(format_runa_source(expected), expected);
@@ -56996,55 +55711,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         rust_to_runa_checked(source).expect("simple Result try should stay supported");
     }
 
-    fn parse_invariant_and_proof(source: &str) -> (Expr, Expr, ProofBlock, BTreeMap<String, Expr>) {
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("parse failed");
-
-        let (subject, predicate) = match &stmts[0] {
-            Stmt::Invariant {
-                subject, predicate, ..
-            } => (subject.clone(), predicate.clone()),
-            other => panic!("expected invariant, got {:?}", other),
-        };
-        let proof_block = match &stmts[1] {
-            Stmt::Prove {
-                proof_block: Some(block),
-                ..
-            } => block.clone(),
-            other => panic!("expected explicit proof, got {:?}", other),
-        };
-
-        let bindings = stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-                _ => None,
-            })
-            .collect();
-
-        (subject, predicate, proof_block, bindings)
-    }
-
-    fn explicit_proof_statuses(source: &str) -> BTreeMap<String, ExplicitProofStatus> {
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("parse failed");
-        explicit_proof_statuses_for_stmts(&stmts)
-    }
-
-    fn proof_bindings_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Expr> {
-        stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-                _ => None,
-            })
-            .collect()
-    }
-
     fn smt_skip_reason_for_named_invariant(source: &str, inv_name: &str) -> Option<String> {
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -57367,380 +56033,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     }
 
     #[test]
-    fn explicit_proof_evaluates_successfully() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-"#;
-        let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
-        let reg = proof_kernel::Registry::with_builtins();
-        let binding_types = BTreeMap::<String, Option<Ty>>::new();
-        let function_param_types = BTreeMap::<String, Vec<Option<Ty>>>::new();
-        let constructors = ProofConstructorTable::default();
-        assert_eq!(
-            evaluate_explicit_proof(
-                &subject,
-                &predicate,
-                &bindings,
-                &binding_types,
-                &function_param_types,
-                &constructors,
-                &proof_block,
-                &reg,
-            ),
-            ExplicitProofStatus::Proved
-        );
-    }
-
-    #[test]
-    fn explicit_proof_reports_failed_kernel_check() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> refl
-}
-"#;
-        let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
-        let reg = proof_kernel::Registry::with_builtins();
-        let binding_types = BTreeMap::<String, Option<Ty>>::new();
-        let function_param_types = BTreeMap::<String, Vec<Option<Ty>>>::new();
-        let constructors = ProofConstructorTable::default();
-        match evaluate_explicit_proof(
-            &subject,
-            &predicate,
-            &bindings,
-            &binding_types,
-            &function_param_types,
-            &constructors,
-            &proof_block,
-            &reg,
-        ) {
-            ExplicitProofStatus::Failed(err) => {
-                assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
-            }
-            other => panic!("expected failed proof, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn explicit_proof_can_apply_previously_proved_local_invariant() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-
-| add_comm_symm: (a, b) -> b + a == a + b
-? add_comm_symm by {
-    | (lhs, rhs) -> apply eq.sym(apply add_comm)
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("add_comm"), Some(&ExplicitProofStatus::Proved));
-        assert_eq!(
-            statuses.get("add_comm_symm"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
-    fn explicit_proof_can_apply_generated_computation_lemma() {
-        let source = r#"
-# Switch = On | Off
-> flip(s: Switch) -> Switch {
-    match s {
-        | On -> Off
-        | Off -> On
-    }
-}
-
-= anchor = 0
-| flip_on: anchor -> flip(On) == Off
-? flip_on by {
-    | n -> apply flip.on
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("flip_on"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn computation_lemma_validation_accepts_verified_bootstrap_fixture() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/verified_bootstrap_test.runa"
-        ))
-        .expect("fixture should read");
-        let stmts = parse_test_program(&source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let lemmas = collect_computation_lemmas_checked(&stmts, &bindings)
-            .expect("verified bootstrap computation lemmas should validate");
-        let names: BTreeSet<String> = lemmas.into_iter().map(|(name, _)| name).collect();
-
-        assert!(names.contains("lower.sadd3"));
-        assert!(names.contains("lower_value.svadd"));
-        assert!(names.contains("eval_surface_let.slet"));
-        assert!(names.contains("lower_let.slet"));
-    }
-
-    #[test]
-    fn computation_lemma_expected_map_is_source_arm_derived() {
-        let source = r#"
-# Switch = On | Off
-> flip(s: Switch) -> Switch {
-    match s {
-        | On -> Off
-        | Off -> On
-    }
-}
-"#;
-        let stmts = parse_test_program(source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let source_arms = collect_computation_lemma_source_arms(&stmts);
-        let source_names: Vec<String> = source_arms
-            .iter()
-            .map(|arm| arm.lemma_name.clone())
-            .collect();
-
-        assert_eq!(source_names, vec!["flip.on", "flip.off"]);
-
-        let expected = expected_computation_lemma_map(&stmts, &bindings)
-            .expect("source-derived expected map should build");
-        assert_eq!(expected.len(), 2);
-        assert!(expected.contains_key("flip.on"));
-        assert!(expected.contains_key("flip.off"));
-    }
-
-    #[test]
-    fn computation_lemma_expected_map_skips_unlowerable_function_arms() {
-        let source = r#"
-# Verdict = Accept | Queue
-> verdict_label(v: Verdict) -> String {
-    match v {
-        | Accept -> "accept"
-        | Queue -> "queue"
-    }
-}
-"#;
-        let stmts = parse_test_program(source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let source_arms = collect_computation_lemma_source_arms(&stmts);
-
-        assert_eq!(source_arms.len(), 2);
-        assert!(
-            collect_computation_lemmas(&stmts, &bindings).is_empty(),
-            "unlowerable source arms must not generate computation lemmas"
-        );
-        assert!(
-            expected_computation_lemma_map(&stmts, &bindings)
-                .expect("unlowerable functions should be treated as ineligible")
-                .is_empty(),
-            "unlowerable source arms should not become expected proof lemmas"
-        );
-    }
-
-    #[test]
-    fn computation_lemma_validation_rejects_tampered_generated_lemmas() {
-        let source = r#"
-# Switch = On | Off
-> flip(s: Switch) -> Switch {
-    match s {
-        | On -> Off
-        | Off -> On
-    }
-}
-"#;
-        let stmts = parse_test_program(source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let generated = collect_computation_lemmas(&stmts, &bindings);
-        validate_computation_lemmas_against_sources(&stmts, &bindings, &generated)
-            .expect("untampered generated lemmas should validate");
-
-        let mut missing = generated.clone();
-        missing.retain(|(name, _)| name != "flip.off");
-        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &missing)
-            .expect_err("missing source-backed lemma should fail validation");
-        assert!(err.contains("missing generated computation lemma `flip.off`"));
-
-        let mut ghost = generated.clone();
-        ghost.push(("flip.ghost".into(), generated[0].1.clone()));
-        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &ghost)
-            .expect_err("ghost lemma should fail validation");
-        assert!(err.contains("has no eligible source arm"));
-
-        let mut mismatched = generated.clone();
-        let (_, schema) = mismatched
-            .iter_mut()
-            .find(|(name, _)| name == "flip.on")
-            .expect("flip.on should be generated");
-        schema.conclusion = proof_kernel::Prop::Eq(
-            proof_kernel::Term::App("flip".into(), vec![proof_kernel::Term::Var("On".into())]),
-            proof_kernel::Term::Var("On".into()),
-        );
-        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &mismatched)
-            .expect_err("mismatched lemma schema should fail validation");
-        assert!(err.contains("does not match its source arm"));
-    }
-
-    #[test]
-    fn explicit_proof_can_case_split_over_bound_constructor_subject() {
-        let source = r#"
-# Switch = On | Off
-
-= state: Switch = On
-| stable: state -> state == state
-? stable by {
-    | s -> cases s {
-        | On -> refl
-        | Off -> refl
-    }
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("stable"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn explicit_proof_can_case_split_on_constructor_field() {
-        let source = r#"
-# Switch = On | Off
-# Packet = Drop | Wrap(Switch)
-
-= packet: Packet = Wrap(On)
-| stable: packet -> packet == packet
-? stable by {
-    | value -> cases value {
-        | Drop -> refl
-        | Wrap(mode) -> cases mode {
-            | On -> refl
-            | Off -> refl
-        }
-    }
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("stable"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn explicit_proof_reports_missing_case_arm() {
-        let source = r#"
-# Switch = On | Off
-
-= state: Switch = On
-| stable: 0 -> state == state
-? stable by {
-    | witness -> cases state {
-        | On -> refl
-    }
-}
-"#;
-        match explicit_proof_statuses(source).get("stable") {
-            Some(ExplicitProofStatus::Failed(err)) => {
-                assert!(err.contains("missing case arm"));
-            }
-            other => panic!("expected missing-case-arm failure, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn explicit_proof_can_induct_over_recursive_list() {
-        let source = r#"
-# List(a) = Nil | Cons(a, List(a))
-
-> keep(xs: List(a)) -> List(a) {
-    match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(h, keep(t))
-    }
-}
-
-| keep_id: xs -> keep(xs) == xs
-? keep_id by {
-    | xs -> induction_on xs {
-        | Nil -> rewrite (apply keep.nil) in refl
-        | Cons(h, t) -> rewrite (apply keep.cons) in (rewrite ih in refl)
-    }
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("keep_id"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn verified_bootstrap_fixture_proves_verified_bootstrap_stages() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/verified_bootstrap_test.runa"
-        ))
-        .expect("fixture should read");
-
-        let statuses = explicit_proof_statuses(&source);
-        assert_eq!(
-            statuses.get("lower_sound"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("lower_value_sound"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("lower_let_sound"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
-    fn explicit_proof_handles_non_kernel_top_level_bindings_without_expanding_through_them() {
-        let source = r#"
-= base_scores = [18, 42, 37, 41]
-= escalation_score = foldl(base_scores, 0, |acc, score| acc + score)
-= audit_bonus = 12
-= raw_priority = escalation_score + audit_bonus
-
-| raw_identity: raw_priority -> raw_priority == raw_priority
-? raw_identity by {
-    | n -> refl
-}
-"#;
-
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(
-            statuses.get("raw_identity"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
-    fn proof_guarded_canary_fixture_proves_its_explicit_invariants() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/canary/core/proof_guarded_pipeline_test.runa"
-        ))
-        .expect("fixture should read");
-
-        let statuses = explicit_proof_statuses(&source);
-        assert_eq!(
-            statuses.get("freeze_points_exact"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("freeze_slots_exact"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("freeze_points_capped"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("freeze_slots_bounded"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
     fn smt_symbol_encoding_is_ascii_and_does_not_merge_distinct_names() {
         let names = [
             "øre",
@@ -57781,7 +56073,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     fn smt_skip_reason_reports_unsupported_ordinary_pipeline_invariant_cleanly() {
         let source = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/canary/core/proof_guarded_pipeline_test.runa"
+            "/tests/canary/core/invariant_guarded_pipeline_test.runa"
         ))
         .expect("fixture should read");
 
@@ -57808,88 +56100,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             smt_skip_reason_for_named_invariant(source, "balance_bounded"),
             None
         );
-    }
-
-    #[test]
-    fn explicit_proof_registry_rejects_duplicate_local_names_clearly() {
-        let conclusion = proof_kernel::Prop::Eq(
-            proof_kernel::Term::Var("x".into()),
-            proof_kernel::Term::Var("x".into()),
-        );
-        let mut proved_invariants = BTreeMap::new();
-        proved_invariants.insert(
-            "eq.refl".into(),
-            proof_kernel::Schema {
-                vars: vec!["x".into()],
-                premises: vec![],
-                conclusion,
-            },
-        );
-
-        match build_explicit_proof_registry(&[], &proved_invariants) {
-            Ok(_) => panic!("expected duplicate-schema failure"),
-            Err(err) => assert!(err.contains("schema already registered")),
-        }
-    }
-
-    #[test]
-    fn proof_adversarial_fixture_covers_all_kernel_statuses() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/proof_adversarial_test.runa"
-        ))
-        .expect("fixture should read");
-
-        let statuses = explicit_proof_statuses(&source);
-        assert_eq!(
-            statuses.get("add_comm_ok"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        match statuses.get("add_comm_bad") {
-            Some(ExplicitProofStatus::Failed(err)) => {
-                assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
-            }
-            other => panic!("expected failed proof status, got {:?}", other),
-        }
-        match statuses.get("lt_progress") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved `<` proof, got {:?}", other),
-        }
-        match statuses.get("gt_progress") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved `>` proof, got {:?}", other),
-        }
-        match statuses.get("mul_comm_ok") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!(
-                "expected proved multiplication-commutativity proof, got {:?}",
-                other
-            ),
-        }
-        match statuses.get("literal_order_ok") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved concrete-order proof, got {:?}", other),
-        }
-        match statuses.get("literal_order_bad") {
-            Some(ExplicitProofStatus::Failed(err)) => {
-                assert!(err.contains("concrete literals") || err.contains("goal mismatch"));
-            }
-            other => panic!("expected failed concrete-order proof, got {:?}", other),
-        }
-        match statuses.get("both_zero") {
-            Some(ExplicitProofStatus::Unsupported(reason)) => {
-                assert!(reason.contains("exactly one arm"));
-            }
-            other => panic!("expected multi-arm unsupported proof, got {:?}", other),
-        }
-        match statuses.get("computed_subject") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected computed-subject proved status, got {:?}", other),
-        }
-        match statuses.get("bound_subject") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected bound-subject proved status, got {:?}", other),
-        }
     }
 
     #[test]
@@ -58122,7 +56332,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             },
             Stmt::Prove {
                 name: "prove_visit".to_string(),
-                proof_block: None,
                 capture: None,
                 pass_block: Some(vec![expr_stmt("prove_pass")]),
                 else_block: Some(vec![expr_stmt("prove_else")]),
@@ -59112,7 +57321,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "Prove",
                 stmt: Stmt::Prove {
                     name: "prove_visit".to_string(),
-                    proof_block: None,
                     capture: None,
                     pass_block: Some(vec![coverage_expr_stmt("prove_pass")]),
                     else_block: Some(vec![coverage_expr_stmt("prove_else")]),
@@ -59332,7 +57540,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "FirStmt::Prove",
                 stmt: FirStmt::Prove {
                     name: "prove_visit".to_string(),
-                    proof_block: None,
                     capture: None,
                     pass_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_pass"))]),
                     else_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_else"))]),
@@ -60963,7 +59170,6 @@ module Local
             ),
             Stmt::Prove {
                 name: "run_check".to_string(),
-                proof_block: None,
                 capture: None,
                 pass_block: Some(vec![Stmt::Bind(
                     Pat::Var("pass_probe".to_string()),
@@ -66025,30 +64231,6 @@ fn main() {{
             output.lines().collect::<Vec<_>>(),
             vec!["2", "2", "1"],
             "function-pointer top-level binding should stay on the single-eval hidden-env path"
-        );
-    }
-
-    #[test]
-    fn legacy_emit_program_skips_runtime_emission_for_explicit_proof_blocks() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains(
-                "// ? add_comm by { ... } checked by runa verify; no runtime proof emission"
-            ),
-            "explicit proof blocks should emit a comment, not runtime verification: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("panic!(\"? add_comm FAILED\")"),
-            "explicit proof blocks must not lower to runtime ? checks: {}",
-            rust
         );
     }
 

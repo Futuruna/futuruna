@@ -3,6 +3,7 @@ feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
   - typed-calculation-contracts
+  - rust-escape-hatches
 ---
 
 # The Seven Runes
@@ -628,20 +629,16 @@ unselected branches do not have to be defined. Unsupported helpers and Float
 claims remain explicitly unverified; exact real arithmetic cannot substitute
 for floating-point evaluation.
 
-An explicit `by` proof checks a mathematical proposition in the proof kernel.
-If its source dependency graph performs arithmetic, `runa verify` additionally
-requires the supported semantic check before reporting a proof. The ordinary
-interpreter and native emitter skip explicit proof blocks; use `runa verify`
-to check them. A plain `?` without `by` retains its runtime assertion behavior.
+`runa verify` is Preview. PROVED means that for every value of the invariant's
+free variables (Int ranges over the 64-bit values) the predicate is true and no
+Int operation it evaluates overflows or divides by zero. Claims involving Float
+are reported as unsupported, never proved.
 
 ### Verifying rule dispatch
 
 For CI, `runa verify` exits 0 only when at least one invariant exists and every
-invariant is proved without an explicit-proof validation failure. A
-counterexample, unsupported claim, unknown result, missing or failed solver,
-or empty invariant set exits 1. If an authored proof fails validation, a
-successful SMT fallback does not turn the command into a successful check.
-Kernel-only proofs do not require Z3.
+invariant is PROVED. A counterexample, unsupported claim, unknown result,
+missing or failed solver, or empty invariant set exits 1.
 
 `runa verify` can translate pure, total, non-recursive `|` rule groups directly,
 including rules inside a product RuleScope. Conditions and exceptions use the

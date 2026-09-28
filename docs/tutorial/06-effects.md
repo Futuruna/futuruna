@@ -3,6 +3,7 @@ feature_stage: mixed
 feature_stage_surfaces:
   - reactive-stateful-surfaces
   - rust-interop
+  - rust-escape-hatches
 ---
 
 # 6. Effects and Actors

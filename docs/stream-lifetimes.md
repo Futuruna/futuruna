@@ -1,5 +1,5 @@
 ---
-feature_stage: stable
+feature_stage: experimental
 feature_stage_surfaces:
   - reactive-stateful-surfaces
 ---
@@ -332,8 +332,9 @@ That is not part of the current contract.
 
 ## Current Status
 
-This surface is [Stable](feature-stages.md), and the ownership rule is part of
-the production contract:
+This surface is [Experimental](feature-stages.md): it has no compatibility
+guarantee, and interpreter and compiled behavior are not guaranteed to match.
+The ownership rule is:
 
 - named scopes own live subscription lifetimes
 - named scopes own derived async stream operator tasks created inside them

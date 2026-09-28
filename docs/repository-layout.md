@@ -5,7 +5,7 @@ website, and supporting research in one repository.
 
 | Location | Purpose |
 | --- | --- |
-| `src/` | Compiler, runtime, proof system, and command-line implementation |
+| `src/` | Compiler, runtime, verifier, and command-line implementation |
 | `std/` | Futuruna standard-library source |
 | `tests/` | Regression tests, authored canaries, fixtures, and reviewed expectations |
 | `examples/` | Language examples, application demonstrations, and legal corpora; see the [index](../examples/README.md) |
