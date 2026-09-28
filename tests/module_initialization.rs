@@ -183,6 +183,137 @@ fn escaping_module_callback_keeps_its_instance_alive() {
 }
 
 #[test]
+fn generic_local_module_owns_each_calls_value() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> a {
+    > module Local {
+        = seed = x
+        > read() -> a { seed }
+    }
+    Local.read()
+}
+@ print(show(make(7)))
+@ print(make("yes"))
+@ print(show(make(11)))
+"#,
+    )])
+    .agrees("7\nyes\n11");
+}
+
+#[test]
+fn generic_local_module_captures_local_alias_and_compound_values() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: List(a)) -> List(a) {
+    = saved = x
+    > module Local {
+        = seed = saved
+        > read() -> List(a) { seed }
+    }
+    Local.read()
+}
+> optional(x: Option(a)) -> Option(a) {
+    > module Local { = seed = x; > read() -> Option(a) { seed } }
+    Local.read()
+}
+@ print(show(make([7, 8])))
+@ print(show(make(["yes", "again"])))
+@ print(show(optional(Some(9))))
+@ print(show(optional(Some("value"))))
+"#,
+    )])
+    .agrees("[7, 8]\n[yes, again]\nSome(9)\nSome(value)");
+}
+
+#[test]
+fn generic_module_callback_owns_its_value_after_enclosing_call_returns() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> Int -> a {
+    > module Local {
+        = seed = x
+        > read(ignored: Int) -> a { seed }
+    }
+    Local.read
+}
+= earlier_reader = make("earlier")
+= later_reader = make("later")
+= number_reader = make(19)
+@ print(earlier_reader(0))
+@ print(later_reader(0))
+@ print(show(number_reader(0)))
+@ print(earlier_reader(0))
+"#,
+    )])
+    .agrees("earlier\nlater\n19\nearlier");
+}
+
+#[test]
+fn nested_generic_module_owns_parent_values() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> a {
+    > module Parent {
+        = seed = x
+        > module Child { > read() -> a { seed } }
+    }
+    Parent.Child.read()
+}
+@ print(make("value"))
+@ print(show(make(23)))
+"#,
+    )])
+    .agrees("value\n23");
+}
+
+#[test]
+fn nested_generic_module_helpers_receive_parent_context_type() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> a {
+    > module Parent {
+        = seed = x
+        > read() -> a { seed }
+        > module Child { > value() -> a { read() } }
+    }
+    Parent.Child.value()
+}
+@ print(make("helper"))
+@ print(show(make(29)))
+"#,
+    )])
+    .agrees("helper\n29");
+}
+
+#[test]
+fn generic_module_state_does_not_require_default_or_unused_type_parameters() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+# Token = Token(value: Int)
+> make(x: a, unrelated: b) -> a {
+    > module Local {
+        = seed = x
+        > read() -> a { seed }
+        > rendered() -> String { show(seed) }
+    }
+    @ print(Local.rendered())
+    Local.read()
+}
+@ print(show(make(Token(31), "unused")))
+@ print(show(make(Token(37), True)))
+"#,
+    )])
+    .agrees("Token(value: 31)\nToken(value: 31)\nToken(value: 37)\nToken(value: 37)");
+}
+
+#[test]
 fn rust_library_consumer_initializes_and_reuses_module_values() {
     let fixture = Fixture::new(&[("dependency.runa", DEPENDENCY), ("main.runa", "@ import Lib from ./dependency\n@ export answer\n> answer() -> Int { Lib.seed + Lib.read() }\n")]);
     let output = Command::new(env!("CARGO_BIN_EXE_runa"))
@@ -207,4 +338,106 @@ fn rust_library_consumer_initializes_and_reuses_module_values() {
         String::from_utf8_lossy(&execution.stdout),
         "boot\n1000\n1000\n"
     );
+}
+
+#[test]
+fn generic_module_rule_returns_owned_capture() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> a { > module Local { = seed = x
+| read() -> seed }
+Local.read() }
+@ print(show(make(7)))
+@ print(make("yes"))
+"#,
+    )])
+    .agrees("7\nyes");
+}
+
+#[test]
+fn generic_capture_metadata_does_not_leak_to_a_same_named_outer_module() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> module Local { = value = 4
+> read() -> Int { value } }
+> make(x: a) -> a { > module Local { = seed = x
+> read() -> a { seed } }
+Local.read() }
+@ print(make("yes"))
+@ print(show(Local.read()))
+"#,
+    )])
+    .agrees("yes\n4");
+}
+
+#[test]
+fn generic_typed_empty_module_binding_retains_declared_parameter() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> Option(a) { > module Local { = seed: Option(a) = None
+> read() -> Option(a) { seed } }
+Local.read() }
+@ print(show(make(7)))
+"#,
+    )])
+    .agrees("None");
+}
+
+#[test]
+fn nested_generic_empty_binding_parameter_reaches_parent_state() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(x: a) -> Option(a) { > module Parent { > module Child { = seed: Option(a) = None
+> read() -> Option(a) { seed } }
+> read() -> Option(a) { Child.read() } }
+Parent.read() }
+@ print(show(make(7)))
+"#,
+    )])
+    .agrees("None");
+}
+
+#[test]
+fn generic_module_capture_preserves_nested_result_and_pair_types() {
+    Fixture::new(&[("main.runa", r#"
+> make(x: Result(Pair(a, b), String)) -> Result(Pair(a, b), String) {
+    > module Local {
+        = seed = x
+        > read() -> Result(Pair(a, b), String) { seed }
+    }
+    Local.read()
+}
+= number_text: Result(Pair(Int, String), String) = Ok(Pair(7, "yes"))
+= text_number: Result(Pair(String, Int), String) = Ok(Pair("again", 11))
+= failed: Result(Pair(Int, String), String) = Err("failure")
+@ print(match make(number_text) { | Ok(value) -> show(value.fst) + value.snd; | Err(message) -> message })
+@ print(match make(text_number) { | Ok(value) -> value.fst + show(value.snd); | Err(message) -> message })
+@ print(match make(failed) { | Ok(value) -> show(value.fst) + value.snd; | Err(message) -> message })
+"#)]).agrees("7yes\nagain11\nfailure");
+}
+
+#[test]
+fn generic_child_helper_uses_the_complete_ancestor_state_type() {
+    Fixture::new(&[(
+        "main.runa",
+        r#"
+> make(y: b, x: a) -> Int {
+    > module Parent {
+        > size_of_child() -> Int { length(Child.items) }
+        > module Child {
+            = items: List(Pair(a, b)) = []
+            > count() -> Int { size_of_child() }
+        }
+        > read() -> Int { Child.count() }
+    }
+    Parent.read()
+}
+@ print(show(make(5, "unused")))
+"#,
+    )])
+    .agrees("0");
 }

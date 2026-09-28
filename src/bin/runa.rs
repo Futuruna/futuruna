@@ -25978,6 +25978,10 @@ struct RustCodegen {
     binary_global_binding_types: BTreeMap<String, String>,
     /// Values owned by a module instance, captured from its declaration scope.
     module_capture_types: BTreeMap<String, BTreeMap<String, String>>,
+    /// Rust type parameters visible in the executable lexical scope.
+    lexical_type_params: Vec<String>,
+    /// Parameters used by each module's owned state (not by unrelated callers).
+    module_state_type_params: BTreeMap<String, Vec<String>>,
     module_ancestor_contexts: BTreeMap<String, Vec<String>>,
     inherited_context_functions: BTreeMap<String, (String, usize)>,
     /// Module instances declared in the current executable lexical scope.
@@ -30915,6 +30919,8 @@ impl RustCodegen {
             binary_global_env_rule_scope_methods: BTreeSet::new(),
             binary_global_binding_types: BTreeMap::new(),
             module_capture_types: BTreeMap::new(),
+            lexical_type_params: Vec::new(),
+            module_state_type_params: BTreeMap::new(),
             module_ancestor_contexts: BTreeMap::new(),
             inherited_context_functions: BTreeMap::new(),
             local_module_instances: BTreeSet::new(),
@@ -36089,7 +36095,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 || self
                     .binary_global_binding_types
                     .values()
-                    .any(|ty| ty.ends_with("::__FutGlobals")))
+                    .any(|ty| Self::is_module_state_type(ty)))
     }
 
     fn rule_group_name(rule: &Rule) -> Option<String> {
@@ -37150,6 +37156,103 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         Some(format!("BTreeMap<String, {}>", val_type))
     }
 
+    fn type_arguments(params: &[String]) -> String {
+        if params.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", params.join(", "))
+        }
+    }
+
+    fn generic_declaration(params: &[String]) -> String {
+        Self::type_arguments(
+            &params
+                .iter()
+                .map(|name| format!("{name}: fmt::Display + Clone"))
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    fn module_state_type(&self, path: &str) -> String {
+        let params = self
+            .module_state_type_params
+            .get(path)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        format!("__FutGlobals{}", Self::type_arguments(params))
+    }
+
+    fn module_context_type_params(&self) -> Vec<String> {
+        self.module_context_type_params_at(&self.current_module_path.join("::"))
+    }
+
+    fn module_context_type_params_at(&self, path: &str) -> Vec<String> {
+        let mut params = self
+            .module_state_type_params
+            .get(path)
+            .cloned()
+            .unwrap_or_default();
+        for ancestor in self
+            .module_ancestor_contexts
+            .get(path)
+            .into_iter()
+            .flatten()
+        {
+            for param in self
+                .module_state_type_params
+                .get(ancestor)
+                .into_iter()
+                .flatten()
+            {
+                if !params.contains(param) {
+                    params.push(param.clone());
+                }
+            }
+        }
+        params
+    }
+
+    fn used_lexical_type_params<'a>(&self, types: impl Iterator<Item = &'a String>) -> Vec<String> {
+        struct TypeNames(BTreeSet<String>);
+        impl<'ast> syn::visit::Visit<'ast> for TypeNames {
+            fn visit_type_path(&mut self, ty: &'ast syn::TypePath) {
+                if let Some(name) = ty.path.get_ident() {
+                    self.0.insert(name.to_string());
+                }
+                syn::visit::visit_type_path(self, ty);
+            }
+        }
+        let mut names = TypeNames(BTreeSet::new());
+        for ty in types {
+            if let Ok(ty) = syn::parse_str::<syn::Type>(ty) {
+                syn::visit::Visit::visit_type(&mut names, &ty);
+            }
+        }
+        self.lexical_type_params
+            .iter()
+            .filter(|param| names.0.contains(*param))
+            .cloned()
+            .collect()
+    }
+
+    fn collect_module_binding_type_params(&self, body: &[Stmt], params: &mut Vec<String>) {
+        for stmt in body {
+            match stmt {
+                Stmt::Bind(_, Some(ty), _) => self.collect_type_vars(ty, params),
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    self.collect_module_binding_type_params(body, params);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn is_module_state_type(ty: &str) -> bool {
+        ty.split('<')
+            .next()
+            .is_some_and(|name| name.ends_with("::__FutGlobals"))
+    }
+
     fn emit_binary_global_env_struct(&self) -> String {
         if !self.uses_binary_global_env() {
             return String::new();
@@ -37165,10 +37268,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         } else {
             ""
         };
-        let mut out = format!(
-            "{}#[derive(Clone, Default)]\n{}struct __FutGlobals {{\n",
-            wasm, visibility
-        );
+        let path = self.current_module_path.join("::");
+        let state_type = self.module_state_type(&path);
+        let params = self
+            .module_state_type_params
+            .get(&path)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let derive = if params.is_empty() {
+            "Clone, Default"
+        } else {
+            "Clone"
+        };
+        let mut out = format!("{wasm}#[derive({derive})]\n{visibility}struct {state_type} {{\n");
         for (name, rust_ty) in &self.binary_global_binding_types {
             out.push_str(&format!(
                 "    pub(crate) {}: Option<{}>,\n",
@@ -37177,6 +37289,18 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             ));
         }
         out.push_str("}\n");
+        if !params.is_empty() {
+            // Every field is optional until initialization. Deriving Default
+            // would unnecessarily require each captured type to implement it.
+            out.push_str(&format!(
+                "impl{} Default for {state_type} {{\n    fn default() -> Self {{ Self {{\n",
+                Self::type_arguments(params)
+            ));
+            for name in self.binary_global_binding_types.keys() {
+                out.push_str(&format!("        {}: None,\n", sanitize_name(name)));
+            }
+            out.push_str("    } }\n}\n");
+        }
         out
     }
 
@@ -37317,8 +37441,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 .flatten()
                 .map(|path| self.module_context_arg(path)),
         );
+        let params = self.module_context_type_params_at(&path);
+        let type_args = if params.is_empty() {
+            String::new()
+        } else {
+            format!("::{}", Self::type_arguments(&params))
+        };
         format!(
-            "{}let {} = {}::__fut_init({});\n",
+            "{}let {} = {}::__fut_init{type_args}({});\n",
             self.ind(),
             name,
             name,
@@ -37379,7 +37509,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         } else {
             ""
         };
-        let mut out = format!("{wasm}pub fn __fut_init({params}) -> __FutGlobals {{\n    let mut __fut_globals = __FutGlobals::default();\n");
+        let generics = Self::generic_declaration(&self.module_context_type_params());
+        let state_type = self.module_state_type(&self.current_module_path.join("::"));
+        let mut out = format!("{wasm}pub fn __fut_init{generics}({params}) -> {state_type} {{\n    let mut __fut_globals = __FutGlobals::default();\n");
         for (name, ty) in &captures {
             initializer.local_bindings.insert(name.clone());
             initializer.remember_var_type(name, &Self::rust_type_to_fir(ty));
@@ -37479,16 +37611,20 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     path.split("::").count()
                 };
                 format!(
-                    "{}: &{}__FutGlobals",
+                    "{}: &{}{}",
                     Self::ancestor_context_name(path),
-                    "super::".repeat(self.current_module_path.len() - depth)
+                    "super::".repeat(self.current_module_path.len() - depth),
+                    self.module_state_type(path)
                 )
             })
             .collect()
     }
 
     fn global_context_declaration(&self) -> String {
-        let mut params = vec!["__fut_globals: &__FutGlobals".to_string()];
+        let mut params = vec![format!(
+            "__fut_globals: &{}",
+            self.module_state_type(&self.current_module_path.join("::"))
+        )];
         params.extend(self.ancestor_context_declarations());
         params.join(", ")
     }
@@ -37529,7 +37665,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     } else {
                         ""
                     };
-                out.push_str(&format!("{}fn {}(__fut_globals: &__FutGlobals) -> {} {{ __fut_globals.{}.clone().expect({:?}) }}\n", visibility, sanitize_name(name), rust_ty, sanitize_name(name), format!("module binding `{name}` not initialized")));
+                let path = self.current_module_path.join("::");
+                let generics = Self::generic_declaration(
+                    self.module_state_type_params
+                        .get(&path)
+                        .map(Vec::as_slice)
+                        .unwrap_or_default(),
+                );
+                let state_type = self.module_state_type(&path);
+                out.push_str(&format!("{}fn {}{generics}(__fut_globals: &{state_type}) -> {} {{ __fut_globals.{}.clone().expect({:?}) }}\n", visibility, sanitize_name(name), rust_ty, sanitize_name(name), format!("module binding `{name}` not initialized")));
             }
             if self.current_module_path.is_empty() {
                 for (name, literal) in &self.types.comptime_values {
@@ -43853,9 +43997,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 ""
             };
             let mut out = format!(
-                "{}fn {}({}) -> {} {{\n",
+                "{}fn {}{}({}) -> {} {{\n",
                 pub_prefix,
                 sanitize_name(emitted_name),
+                if uses_binary_global_env { Self::generic_declaration(&cg.module_context_type_params()) } else { String::new() },
                 rule_param_str,
                 ret_type
             );
@@ -44345,16 +44490,16 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 if let Some(ty) = ret_ty {
                     self.collect_type_vars(ty, &mut type_vars);
                 }
-                let generics = if type_vars.is_empty() {
-                    String::new()
-                } else {
-                    // Add Display bound so .to_string() works
-                    let bounds: Vec<String> = type_vars
-                        .iter()
-                        .map(|v| format!("{}: fmt::Display + Clone", v))
-                        .collect();
-                    format!("<{}>", bounds.join(", "))
-                };
+                if self.uses_binary_global_env() && self.binary_global_env_fns.contains(name) {
+                    for param in self.module_context_type_params() {
+                        if !type_vars.contains(&param) {
+                            type_vars.push(param);
+                        }
+                    }
+                }
+                let generics = Self::generic_declaration(&type_vars);
+                let previous_type_params =
+                    std::mem::replace(&mut self.lexical_type_params, type_vars);
 
                 // Escape analysis: count variable uses in function body
                 // Phase 3b: Use borrow-aware counting for consuming uses
@@ -44394,7 +44539,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 for (idx, p) in params.iter().enumerate() {
                     if let Some(ty) =
                         p.ty.as_ref()
-                            .map(|ty| LoweringCtx::ty_to_fir_with_registry(ty, &self.types))
+                            .map(|ty| self.source_ty_to_fir(ty))
                             .or_else(|| {
                                 self.function_param_fir_ty(name, idx)
                                     .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
@@ -44473,7 +44618,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         name,
                         params,
                         ret_ty.as_ref(),
-                        &type_vars,
+                        &self.lexical_type_params,
                         &self.current_effects,
                     )
                 } else {
@@ -44544,6 +44689,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 self.var_types = prev_var_types;
                 self.var_fir_types = prev_var_fir_types;
                 self.current_effects = prev_effects;
+                self.lexical_type_params = previous_type_params;
                 out
             }
             Defn::Actor {
@@ -44705,7 +44851,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             .or_else(|| {
                                 self.binary_global_binding_types
                                     .get(&name)
-                                    .filter(|ty| !ty.ends_with("::__FutGlobals"))
+                                    .filter(|ty| !Self::is_module_state_type(ty))
                                     .cloned()
                             })
                             .map(|ty| (name, ty))
@@ -45129,6 +45275,28 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 );
                 self.lib_static_names.extend(captures.keys().cloned());
                 self.binary_global_binding_types.extend(captures);
+                self.global_binding_type_revision += 1;
+                self.prescan_value_rule_and_rule_scope_signatures(body, &rule_groups);
+                let mut state_params =
+                    self.used_lexical_type_params(self.binary_global_binding_types.values());
+                // Descendant state is owned by this instance. Its annotated
+                // generic fields must already be visible when a child emits
+                // a signature that borrows this ancestor's context.
+                let mut annotated_params = Vec::new();
+                self.collect_module_binding_type_params(body, &mut annotated_params);
+                for param in annotated_params {
+                    if self.lexical_type_params.contains(&param) && !state_params.contains(&param) {
+                        state_params.push(param);
+                    }
+                }
+                let state_params = self
+                    .lexical_type_params
+                    .iter()
+                    .filter(|param| state_params.contains(param))
+                    .cloned()
+                    .collect();
+                self.module_state_type_params
+                    .insert(module_path.clone(), state_params);
                 let module_function_stmts = body
                     .iter()
                     .filter(|stmt| matches!(stmt, Stmt::Defn(Defn::Fn { .. })))
@@ -45277,14 +45445,27 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 self.allow_global_getter_refs = true;
-                out.push_str(&self.emit_binary_global_env_struct());
-                if !module_bind_stmts.is_empty() {
-                    out.push_str(&self.emit_top_level_binding_getters(
-                        &module_bind_stmts,
-                        true,
-                        module_exports.as_ref(),
-                    ));
+                for stmt in body {
+                    if matches!(stmt, Stmt::Defn(Defn::Module { .. })) {
+                        out.push_str(&self.emit_stmt(stmt));
+                    }
                 }
+                for stmt in &module_bind_stmts {
+                    if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
+                        let child_path = format!("{module_path}::{}", sanitize_name(name));
+                        let child_type = format!(
+                            "{}::{}",
+                            sanitize_name(name),
+                            self.module_state_type(&child_path)
+                        );
+                        self.binary_global_binding_types
+                            .insert(name.clone(), child_type);
+                    }
+                }
+                let state_params =
+                    self.used_lexical_type_params(self.binary_global_binding_types.values());
+                self.module_state_type_params
+                    .insert(module_path.clone(), state_params);
                 for (rule_name, rules) in &rule_groups {
                     for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
                         let emitted_name = self
@@ -45302,9 +45483,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 for stmt in body {
-                    if Self::is_module_runtime_statement(stmt)
-                        && !matches!(stmt, Stmt::Defn(Defn::Module { .. }))
-                    {
+                    if Self::is_module_runtime_statement(stmt) {
                         continue;
                     }
                     if !matches!(
@@ -45318,6 +45497,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         continue;
                     }
                     out.push_str(&self.emit_stmt(stmt));
+                }
+                out.push_str(&self.emit_binary_global_env_struct());
+                if !module_bind_stmts.is_empty() {
+                    out.push_str(&self.emit_top_level_binding_getters(
+                        &module_bind_stmts,
+                        true,
+                        module_exports.as_ref(),
+                    ));
                 }
                 out.push_str(&self.emit_module_initializer(body, &module_bind_stmts));
                 self.indent = 0;
@@ -46816,7 +47003,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             || self
                 .binary_global_binding_types
                 .get(name)
-                .is_some_and(|ty| ty != &format!("{}::__FutGlobals", sanitize_name(name)))
+                .is_some_and(|ty| !Self::is_module_state_type(ty))
             || self.types.literal_bindings.contains_key(name)
             || self.types.comptime_values.contains_key(name)
         {
@@ -46931,17 +47118,45 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 FirTy::Option(Box::new(Self::rust_type_to_fir(inner)))
             }
             _ if ty.starts_with("Result<") && ty.ends_with('>') => {
-                let inner = &ty[7..ty.len() - 1];
-                let mut parts = inner.split(',').map(|s| s.trim());
-                let ok = parts
-                    .next()
-                    .map(Self::rust_type_to_fir)
-                    .unwrap_or(FirTy::Unknown);
-                let err = parts
-                    .next()
-                    .map(Self::rust_type_to_fir)
-                    .unwrap_or(FirTy::Unknown);
-                FirTy::Result(Box::new(ok), Box::new(err))
+                // Commas inside a tuple or nested generic are not separators
+                // between Result's success and error types.
+                let Ok(syn::Type::Path(path)) = syn::parse_str::<syn::Type>(ty) else {
+                    return FirTy::Unknown;
+                };
+                let syn::PathArguments::AngleBracketed(args) =
+                    &path.path.segments.last().unwrap().arguments
+                else {
+                    return FirTy::Unknown;
+                };
+                let parts = args
+                    .args
+                    .iter()
+                    .filter_map(|arg| match arg {
+                        syn::GenericArgument::Type(ty) => Self::rust_syn_type_to_rust_string(ty)
+                            .map(|ty| Self::rust_type_to_fir(&ty)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                match parts.as_slice() {
+                    [ok, err] => FirTy::Result(Box::new(ok.clone()), Box::new(err.clone())),
+                    _ => FirTy::Unknown,
+                }
+            }
+            _ if ty.starts_with('(') && ty.ends_with(')') => {
+                let Ok(syn::Type::Tuple(tuple)) = syn::parse_str::<syn::Type>(ty) else {
+                    return FirTy::Named(ty.to_string());
+                };
+                FirTy::Tuple(
+                    tuple
+                        .elems
+                        .iter()
+                        .map(|ty| {
+                            Self::rust_syn_type_to_rust_string(ty)
+                                .map(|ty| Self::rust_type_to_fir(&ty))
+                                .unwrap_or(FirTy::Unknown)
+                        })
+                        .collect(),
+                )
             }
             other => FirTy::Named(other.to_string()),
         }
@@ -47589,7 +47804,21 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     }
 
     fn source_ty_to_fir(&self, ty: &Ty) -> FirTy {
-        LoweringCtx::ty_to_fir_with_registry(ty, &self.types)
+        if let Ty::Arrow(param, ret) = ty {
+            return FirTy::Arrow(
+                Box::new(self.source_ty_to_fir(param)),
+                Box::new(self.source_ty_to_fir(ret)),
+            );
+        }
+        let mut params = Vec::new();
+        self.collect_type_vars(ty, &mut params);
+        if !params.is_empty() {
+            // Generic names remain rigid Rust parameters during emission.
+            // Treating them as Unknown loses the types of captured locals.
+            Self::rust_type_to_fir(&self.emit_type(ty))
+        } else {
+            LoweringCtx::ty_to_fir_with_registry(ty, &self.types)
+        }
     }
 
     fn tuple_field_index(field: &str) -> Option<usize> {
@@ -52928,6 +53157,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         if self.expr_is_string(expr) {
             return format!("format!(\"{{}}\", {})", emitted);
         }
+        if matches!(self.infer_expr_fir_ty(expr), FirTy::Named(name) if self.lexical_type_params.contains(&name))
+        {
+            return format!("format!(\"{{}}\", {})", emitted);
+        }
         if matches!(self.infer_expr_fir_ty(expr), FirTy::Set(_)) {
             return format!("__futuruna_show_set(&{})", emitted);
         }
@@ -53906,6 +54139,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     self.types.module_value_bindings.clone(),
                     self.types.module_stream_bindings.clone(),
                     self.module_callable_metadata.clone(),
+                    self.module_capture_types.clone(),
+                    self.module_state_type_params.clone(),
+                    self.module_ancestor_contexts.clone(),
                 );
                 let mut path = self.current_module_path.clone();
                 self.collect_module_value_bindings(stmts, &mut path);
@@ -53942,12 +54178,25 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 _ => out.push_str(&self.emit_stmt(stmt)),
             }
         }
-        if let Some((instances, paths, values, streams, callables)) = saved_modules {
+        if let Some((
+            instances,
+            paths,
+            values,
+            streams,
+            callables,
+            captures,
+            state_params,
+            ancestors,
+        )) = saved_modules
+        {
             self.local_module_instances = instances;
             self.types.known_module_paths = paths;
             self.types.module_value_bindings = values;
             self.types.module_stream_bindings = streams;
             self.module_callable_metadata = callables;
+            self.module_capture_types = captures;
+            self.module_state_type_params = state_params;
+            self.module_ancestor_contexts = ancestors;
         }
         out
     }
