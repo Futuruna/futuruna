@@ -1,8 +1,10 @@
 # CLI diagnostics
 
-`runa check model.runa` validates the frontend and the generated Rust.
-It can evaluate compile-time effects and run dependency build scripts;
-it is not a sandbox for untrusted source.
+`runa check model.runa` validates the frontend and the generated Rust. It
+performs no host effects: `@ comptime` evaluation is pure, and Rust crates
+declared with `@ depend` are downloaded and built (running their build
+scripts) only with `runa check --build-deps model.runa`; without the flag such
+a program fails the check with an error naming the flag.
 `runa check --frontend model.runa` skips Rust generation and validation.
 Both return exit code 0 on success and 1 on a reported check failure.
 

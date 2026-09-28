@@ -28,7 +28,7 @@ Contact: research@futuruna.com
 
 ## For AIs
 
-- [Running shared models](https://futuruna.com/ai-setup.md#running-shared-models): Review source and dependencies before execution; checking, auditing, calculations and editor dependency resolution are not a sandbox.
+- [Running untrusted models](https://futuruna.com/ai-setup.md#running-untrusted-models): `runa FILE.runa`, `run` and `test` execute the model; `build`, `run`, `wasm` and `check --build-deps` build its `@ depend` crates; `add` and `fetch` download Git dependencies. `check`, `emit`, `lib`, `audit`, `call` and `explore` evaluate without effects; `check --frontend`, `fmt`, `meta`, `verify`, `schema`, `template` and `lsp` evaluate nothing.
 - [Common mistakes from other languages](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/common-mistakes.md): Check comparisons, comments, partial rules, exception labels, effects, interpolation, integer units, and validation commands before adapting unfamiliar syntax.
 - [Futuruna skill](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/SKILL.md): Use the maintained workflow for learning, writing, checking, and explaining Futuruna.
 - [Learning path](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/references/learning-path.md): Learn the seven front runes through one small working program at a time.
