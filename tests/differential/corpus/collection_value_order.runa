@@ -1,0 +1,14 @@
+-- Maps, sets and `sort` share one value order: numbers numerically, text by
+-- code point, constructors by name then fields.
+# Level = Low | High(Int)
+= m = map_from([(10, "ten"), (9, "nine"), (100, "hundred")])
+@ print(show(head(map_values(m))))
+@ print(show(map_keys(m)))
+@ print(show(m))
+@ print(show(set_from_list([10, 9, 100])))
+@ print(show(sort([10, 9, 100])))
+@ print(show(sort([2.5, 10.0, -1.0])))
+@ print(show(sort(["b", "B", "a"])))
+@ print(show(sort([High(2), Low, High(1)])))
+@ print(show(sort([[2], [1, 5], [1]])))
+@ print(show(sort_by(["ccc", "a", "bb"], |w| string_length(w))))

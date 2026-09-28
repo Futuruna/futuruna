@@ -1,0 +1,11 @@
+# Reviewed known gaps for `runa test --roundtrip --allow-list`.
+# Format: <path suffix> -- <reason>. A listed file that matches fails the gate
+# (stale entry), so this list only shrinks.
+examples/festival.runa -- codegen leaves the accumulator parameter of an untyped `fold` lambda without a Rust type (E0282)
+examples/conscious_system.runa -- codegen emits `List<Service>` for a user `List` parameter instead of `Vec<Service>` (E0308)
+examples/apps/log-analyzer/analyzer.runa -- codegen cannot infer every return clause of rule `alert_level` and refuses the dispatch
+examples/danish-constitution-legacy/analyse.runa -- codegen does not resolve nullary constructors passed to a rule (`Udovende`, `Dommende`)
+examples/danish-constitution-legacy/analyse-2.runa -- codegen does not resolve a nullary constructor passed to a rule (`Ministerraadet`)
+examples/danish-constitution-legacy/grundlov.audit.runa -- codegen resolves `Nyvalg` to the wrong sum type when two types share the variant name
+examples/danish-constitution-legacy/verifikation.runa -- codegen resolves `Nyvalg` to the wrong sum type when two types share the variant name
+examples/danish-constitution-legacy/verify_grundlov.runa -- compiled `? all` reports the intended counterexample differently from the interpreter
