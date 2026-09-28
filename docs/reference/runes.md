@@ -215,6 +215,23 @@ a module function reuses that instance. A module declared inside a function is
 instantiated each time that declaration executes and captures the surrounding
 values it uses.
 
+Captures retain their types, including type parameters of the enclosing
+function and compound values such as `List(a)` or `Result(a, b)`. Each call
+owns a separate instance. A module function returned as a value keeps that
+instance alive:
+
+```runa
+> remember(value: a) -> Int -> a {
+    > module Saved {
+        = item = value
+        > read(ignored: Int) -> a { item }
+    }
+    Saved.read
+}
+= reader = remember("retained")
+@ print(reader(0))
+```
+
 ---
 
 ## `|` -- What must be true
