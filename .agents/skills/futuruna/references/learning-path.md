@@ -77,8 +77,9 @@ Load only the lessons needed for the current task.
 
 State command maturity when it matters: core rules and invariants are Stable,
 while `runa verify` is Preview; project initialization's documented first-run
-path is Stable, while commands such as `add` and `lsp` are Preview and `audit`
-is Experimental.
+path is Stable, while commands such as `add` and `lsp` are Preview. `audit`,
+`explore`, `wasm`, streams, subjects, actors, HTTP builtins, `@ rust` and
+`@ depend` are Experimental.
 
 ## Reinforce the Main Idioms
 

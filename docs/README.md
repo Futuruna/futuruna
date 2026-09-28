@@ -19,8 +19,7 @@ and historical material live.
 - [Contributing](../CONTRIBUTING.md) and [mint gate](mint-gate.md)
 - [Canary matrix](canary-matrix.md), [canary suite](canary-suite.md),
   [differential testing](differential-testing.md), and [expectation suites](expectation-suites.md)
-- [Compiler pass contracts](compiler-pass-contracts.md), [proof kernel](proof-kernel.md),
-  and [verified bootstrap](verified-bootstrap.md)
+- [Compiler pass contracts](compiler-pass-contracts.md)
 - [State and roadmap](state-and-roadmap.md)
 - [Danish tax-audit readiness](tax-audit-readiness.md): current workflows, correctness evidence, and remaining limits
 

@@ -49,10 +49,6 @@ fn verify_proved_by_solver(source: &str) -> String {
     verify_with_status(source, z3_available())
 }
 
-fn verify_proved_by_kernel(source: &str) -> String {
-    verify_with_status(source, true)
-}
-
 fn assert_solver_result(output: &str, expected: &str) {
     if Command::new("z3").arg("--version").output().is_ok() {
         assert!(output.contains(expected), "{output}");
@@ -142,25 +138,28 @@ fn verify_refuses_real_number_substitution_for_float_arithmetic() {
     }
     for source in [
         "> same(x: Float) -> Bool { x == x }\n= f = 0.1\n| claim: f -> same(f)\n",
-        "# FloatingBox = FloatingBox(Float)\n= b = FloatingBox(0.1)\n| claim: b -> b == b\n? claim by { | b -> refl }\n",
+        "# FloatingBox = FloatingBox(Float)\n= b = FloatingBox(0.1)\n| claim: b -> b == b\n",
     ] {
         let output = verify_unproved(source);
         assert!(!output.contains("PROVED"), "{output}");
-        assert!(output.contains("Float verification requires runtime floating-point semantics"), "{output}");
+        assert!(
+            output.contains("Float verification requires runtime floating-point semantics"),
+            "{output}"
+        );
     }
 }
 
 #[test]
-fn explicit_kernel_proof_cannot_bypass_runtime_arithmetic_checks() {
-    let output = verify_unproved("= big = 9223372036854775807\n| claim: big -> big < big + 1\n? claim by { | x -> apply int_ord.le_refl }\n");
+fn increment_at_the_int_boundary_is_a_counterexample() {
+    let output = verify_unproved("= big = 9223372036854775807\n| claim: big -> big < big + 1\n");
+    assert!(!output.contains("PROVED"), "{output}");
+    assert_solver_result(&output, "COUNTEREXAMPLE found for |claim|");
+    let output = verify_unproved("| claim: x -> x < x + 1\n");
     assert!(!output.contains("PROVED"), "{output}");
     assert_solver_result(&output, "COUNTEREXAMPLE found for |claim|");
     let output =
-        verify_unproved("| claim: x -> x < x + 1\n? claim by { | x -> apply int_ord.le_refl }\n");
-    assert!(!output.contains("PROVED"), "{output}");
-    assert_solver_result(&output, "COUNTEREXAMPLE found for |claim|");
-    let output = verify_proved_by_kernel("= big = 9223372036854775807\n| claim: big -> big <= big\n? claim by { | x -> apply int_ord.le_refl }\n");
-    assert!(output.contains("PROVED by kernel"), "{output}");
+        verify_proved_by_solver("= big = 9223372036854775807\n| claim: big -> big <= big\n");
+    assert_solver_result(&output, "PROVED: |claim|");
 }
 
 #[test]
@@ -185,7 +184,7 @@ fn helper_calls_and_unused_local_values_preserve_arithmetic_failures() {
         "> bad(x: Int) -> Int { = ignored = x + 1\n 0 }\n| claim: x -> bad(x) == 0\n",
         "> bad(x: Int) -> Int { x + 1\n 0 }\n| claim: x -> bad(x) == 0\n",
         "= bad = 9223372036854775807 + 1\n| claim: bad -> bad == bad\n",
-        "> bad(x: Int) -> Int { x + 1 }\n> outer(x: Int) -> Int { bad(x) }\n| claim: x -> outer(x) == outer(x)\n? claim by { | x -> refl }\n",
+        "> bad(x: Int) -> Int { x + 1 }\n> outer(x: Int) -> Int { bad(x) }\n| claim: x -> outer(x) == outer(x)\n",
     ] {
         let output = verify_unproved(source);
         assert!(!output.contains("PROVED"), "{output}");
@@ -202,7 +201,9 @@ fn opaque_builtin_arithmetic_cannot_be_certified_by_reflexivity() {
         "sum_list([9223372036854775807, 1])",
     ] {
         assert!(eval_source_with_prelude(&format!("= value = {expression}\n"), false).is_err());
-        let output = verify_unproved(&format!("= value = {expression}\n| claim: value -> value == value\n? claim by {{ | x -> refl }}\n"));
+        let output = verify_unproved(&format!(
+            "= value = {expression}\n| claim: value -> value == value\n"
+        ));
         assert!(!output.contains("PROVED"), "{output}");
         assert!(output.contains("SMT fallback skipped"), "{output}");
     }
@@ -267,42 +268,4 @@ fn match_patterns_guards_and_field_values_select_the_same_arithmetic_paths() {
         &verify_unproved(&format!("{source}| claim: p -> route(p) == route(p)\n")),
         "COUNTEREXAMPLE found for |claim|",
     );
-}
-
-#[test]
-fn a_failed_arithmetic_proof_does_not_become_a_trusted_local_lemma() {
-    let output = verify_unproved(
-        r#"
-| bad: x -> x < x + 1
-? bad by { | x -> apply int_ord.le_refl }
-| copied: x -> x < x + 1
-? copied by { | x -> apply bad }
-"#,
-    );
-    assert!(!output.contains("PROVED"), "{output}");
-    assert_solver_result(&output, "COUNTEREXAMPLE found for |bad|");
-    assert_solver_result(&output, "COUNTEREXAMPLE found for |copied|");
-}
-
-#[test]
-fn a_mathematical_lemma_is_available_after_its_arithmetic_check_passes() {
-    let output = verify_proved_by_solver(
-        r#"
-| zero: x -> 0 + x == x
-? zero by { | x -> apply int_ring.zero_add }
-| reversed: x -> x == 0 + x
-? reversed by { | x -> apply eq.sym(apply zero) }
-"#,
-    );
-    assert_solver_result(&output, "PROVED: |zero|");
-    assert_solver_result(&output, "PROVED: |reversed|");
-    if Command::new("z3").arg("--version").output().is_ok() {
-        assert_eq!(
-            output
-                .matches("explicit mathematical proof checked")
-                .count(),
-            2,
-            "{output}"
-        );
-    }
 }

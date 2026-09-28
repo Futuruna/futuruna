@@ -19,8 +19,7 @@ Classify changes so reviewers can assess their consequences:
 - **Source:** syntax, name resolution, imports, types, and accepted programs.
 - **Behavior:** interpretation, native execution, builtins, runtime errors,
   ordering, and equality.
-- **Verification:** proof terms, invariants, kernel rules, and what verification
-  results establish.
+- **Verification:** invariants and what verification results establish.
 - **Artifacts and integration:** generated workbooks, reports, journals, native
   interfaces, and emitted program behavior.
 - **Internals:** compiler representations, helper names, diagnostic wording,

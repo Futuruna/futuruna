@@ -64,7 +64,7 @@ is_compatibility_guide() {
 
 is_stable_surface() {
     case "$1" in
-        src/bin/runa.rs|src/lib.rs|src/proof_kernel.rs) return 0 ;;
+        src/bin/runa.rs|src/lib.rs) return 0 ;;
         docs/reference/basics.md|docs/reference/runes.md|docs/reference/stdlib.md) return 0 ;;
         docs/tutorial/01-hello.md|docs/tutorial/02-types.md|docs/tutorial/03-functions.md) return 0 ;;
         docs/feature-stages.md|docs/feature-stages.json|docs/compatibility-policy.md) return 0 ;;

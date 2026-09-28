@@ -66,7 +66,6 @@ tags:
 
 	**References**
 	- [[wiki/sources/expectation-suites|expectation-suites]]
-	- [[wiki/sources/proof-backed-checking|proof-backed-checking]]
 
 
 - [ ] ### Canary Matrix Tail
