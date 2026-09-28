@@ -120,6 +120,14 @@ fn existential_continuations_stop_before_unneeded_recursive_candidates() {
 fn incomplete_queries_fail_without_printing_partial_results() {
     for (name, source) in [
         (
+            "direct_cycle",
+            "| edge(\"a\", \"b\")\n| edge(\"b\", \"a\")\n| reach(x, y) -> edge(x, y)\n| reach(x, y) -> edge(x, m), reach(m, y)\n@ print(\"reach a z: \" + show(reach(\"a\", \"z\")))\n",
+        ),
+        (
+            "negated_direct_cycle",
+            "| edge(\"a\", \"b\")\n| edge(\"b\", \"a\")\n| reach(x, y) -> edge(x, y)\n| reach(x, y) -> edge(x, m), reach(m, y)\n@ print(show(not(reach(\"a\", \"z\"))))\n",
+        ),
+        (
             "recursive",
             "| edge(1, 2)\n| edge(2, 1)\n| reach(x, y) -> edge(x, y)\n| reach(x, y) -> edge(x, z), reach(z, y)\n@ print(show(findall(y, reach(1, y))))\n",
         ),
