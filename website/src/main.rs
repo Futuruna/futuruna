@@ -765,6 +765,18 @@ const RUNES: [RuneInfo; 7] = [
     },
 ];
 
+const RUNES_EXAMPLE: &str = r#"# Applicant(student: Bool, waiver: Bool)
+| fee(a: Applicant) -> 100
+| fee(a: Applicant) -> 40 under a.student
+| exception waived fee(a: Applicant) -> 0 under a.waiver
+> invoice(a: Applicant) -> String {
+    "Fee: " + show(fee(a))
+}
+= applicant = Applicant(true, true)
+@ print(invoice(applicant))"#;
+
+const RUNES_EXAMPLE_OUTPUT: &str = "Fee: 0";
+
 #[component]
 fn RunesShowcase() -> Element {
     rsx! {
@@ -773,6 +785,14 @@ fn RunesShowcase() -> Element {
             p { class: "section-desc",
                 "Each line begins with a semantic fly-in: a compact signal for types, functions, "
                 "rules, values, flows, effects, or verification."
+            }
+            div { class: "code-container",
+                pre { class: "code-block",
+                    code { dangerous_inner_html: highlight_runa(RUNES_EXAMPLE) }
+                }
+                pre { class: "code-output",
+                    code { "{RUNES_EXAMPLE_OUTPUT}" }
+                }
             }
             div { class: "runes-grid",
                 for rune in RUNES.iter() {
