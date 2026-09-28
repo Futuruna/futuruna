@@ -202,4 +202,47 @@ impl TypeChecker {
             );
         }
     }
+
+    /// `= x <- e` unwraps a `Result` or `Option` (returning early on `Err` or
+    /// `None`) or resumes from an effect operation. Returns the bound value's
+    /// type when it is known.
+    pub(super) fn check_monadic_bind_operand(&mut self, operand: &Expr) -> Option<String> {
+        if let ExprKind::App(function, _) = &operand.kind {
+            if let ExprKind::Var(operation) = &function.kind {
+                if is_builtin_effect(builtin_canonical(operation))
+                    || self
+                        .effect_ops
+                        .values()
+                        .any(|operations| operations.contains_key(operation))
+                {
+                    return None;
+                }
+            }
+        }
+        let actual = self.ordinary_expression_type(operand)?;
+        let mut ty = parse_type_annotation(&actual).ok()?;
+        while let Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) = ty {
+            ty = *inner;
+        }
+        let inner = match &ty {
+            Ty::Optional(inner) => Some(inner.as_ref().clone()),
+            Ty::App(head, arguments) if matches!(head.as_ref(), Ty::Name(name) if name == "Result" || name == "Option") => {
+                arguments.first().cloned()
+            }
+            Ty::Name(name) if name == "Result" || name == "Option" => None,
+            Ty::Var(_) | Ty::Hole => return None,
+            _ => {
+                self.error_at_expr(
+                    operand,
+                    format!(
+                        "`<-` needs a `Result` or `Option` value, got `{actual}`; bind a plain value with `= name = ...`"
+                    ),
+                );
+                return None;
+            }
+        };
+        inner
+            .filter(|inner| !matches!(inner, Ty::Var(_) | Ty::Hole))
+            .map(|inner| Self::canonical_explore_ty_name(&inner))
+    }
 }

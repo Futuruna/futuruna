@@ -131,8 +131,8 @@ types (Int, Float, Bool, Char) never clone.
 ## Honest Remaining Limits
 
 1. **Structural sharing is now O(1).** Since M25, immutable recursive ADTs use `Rc<T>`
-   (or `Arc<T>` in async programs) instead of `Box<T>`. `= branch_a = Cons(10, shared_tail);
-   = branch_b = Cons(20, shared_tail)` shares `shared_tail` via refcount — O(1) clone.
+   (or `Arc<T>` in async programs) instead of `Box<T>`. `= branch_a = Link(10, shared_tail);
+   = branch_b = Link(20, shared_tail)` shares `shared_tail` via refcount — O(1) clone.
    Immutability guarantees no aliasing hazards. Recursive ADTs are structurally acyclic
    (always terminate at a base case), so Rc cycle leaks are impossible.
    Future: Perceus-style `Rc::try_unwrap` can reuse allocations in-place when refcount=1.

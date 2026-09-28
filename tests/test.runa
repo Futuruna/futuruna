@@ -4,7 +4,7 @@
 -- # Type declarations (Axis 2)
 # Bool = True | False
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 
 -- > Function definitions (Axis 1)
 > add(a: Int, b: Int) -> Int {
@@ -19,24 +19,24 @@
     }
 }
 
-> length(xs: List(a)) -> Int {
+> length(xs: Chain(a)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(_, tail) -> 1 + length(tail)
+        | End -> 0
+        | Link(_, tail) -> 1 + length(tail)
     }
 }
 
-> map(xs: List(a), f: a -> b) -> List(b) {
+> map(xs: Chain(a), f: a -> b) -> Chain(b) {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(f(h), map(t, f))
+        | End -> End
+        | Link(h, t) -> Link(f(h), map(t, f))
     }
 }
 
-> sum(xs: List(Int)) -> Int {
+> sum(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, t) -> h + sum(t)
+        | End -> 0
+        | Link(h, t) -> h + sum(t)
     }
 }
 
@@ -59,7 +59,7 @@
 -- Test: pattern matching with ADTs
 @ print("")
 @ print("--- ADTs & Pattern Matching ---")
-= nums = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+= nums = Link(1, Link(2, Link(3, Link(4, Link(5, End)))))
 @ print("length([1,2,3,4,5]) = " + show(length(nums)))
 @ print("sum([1,2,3,4,5]) = " + show(sum(nums)))
 
@@ -93,20 +93,20 @@
 @ print("Some(-7) = " + describe(Some(-7)))
 
 -- Test: recursive data structures
-> reverse_acc(xs: List(a), acc: List(a)) -> List(a) {
+> reverse_acc(xs: Chain(a), acc: Chain(a)) -> Chain(a) {
     match xs {
-        | Nil -> acc
-        | Cons(h, t) -> reverse_acc(t, Cons(h, acc))
+        | End -> acc
+        | Link(h, t) -> reverse_acc(t, Link(h, acc))
     }
 }
 
-> my_reverse(xs: List(a)) -> List(a) {
-    reverse_acc(xs, Nil)
+> my_reverse(xs: Chain(a)) -> Chain(a) {
+    reverse_acc(xs, End)
 }
 
-> list_to_string(xs: List(Int)) -> String {
+> list_to_string(xs: Chain(Int)) -> String {
     match xs {
-        | Nil -> "[]"
+        | End -> "[]"
         | _ -> {
             = inner = list_items(xs)
             "[" + inner + "]"
@@ -114,11 +114,11 @@
     }
 }
 
-> list_items(xs: List(Int)) -> String {
+> list_items(xs: Chain(Int)) -> String {
     match xs {
-        | Nil -> ""
-        | Cons(h, Nil) -> show(h)
-        | Cons(h, t) -> show(h) + ", " + list_items(t)
+        | End -> ""
+        | Link(h, End) -> show(h)
+        | Link(h, t) -> show(h) + ", " + list_items(t)
     }
 }
 
@@ -156,12 +156,12 @@
 @ print("fib(20) = " + show(fib(20)))
 
 -- Test: list comprehension-style with filter
-> my_filter(xs: List(Int), pred: Int -> Bool) -> List(Int) {
+> my_filter(xs: Chain(Int), pred: Int -> Bool) -> Chain(Int) {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> {
+        | End -> End
+        | Link(h, t) -> {
             if pred(h) {
-                Cons(h, my_filter(t, pred))
+                Link(h, my_filter(t, pred))
             } else {
                 my_filter(t, pred)
             }

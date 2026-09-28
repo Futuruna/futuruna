@@ -27,10 +27,10 @@ end-exclusive `range(start, end)`.
 
 ## Nominal types and numeric wrappers
 
-`# Money = Int` does not make `Money` an alias for integers. It declares a
-nominal type with a nullary variant named `Int`; an ordinary integer such as
-`42` is still not a `Money`. To give a number a domain-specific type, put it in
-a record and access its field explicitly:
+Futuruna has no type aliases. `# Money = Int` is a type error: a variant may
+not reuse a built-in type name, and the declaration would otherwise be a
+nominal type with a nullary variant named `Int`. To give a number a
+domain-specific type, put it in a record and access its field explicitly:
 
 ```runa
 # Money(amount: Int)

@@ -180,9 +180,10 @@ impl TypeChecker {
                             self.error_at_expr(
                                 argument,
                                 format!(
-                                    "argument `{}` to `{name}` expects `{}`, got `{actual}`",
+                                    "argument `{}` to `{name}` expects `{}`, got `{actual}`{}",
                                     parameter.name,
-                                    Self::canonical_explore_ty_name(expected)
+                                    Self::canonical_explore_ty_name(expected),
+                                    Self::numeric_conversion_hint(&actual_ty, expected)
                                 ),
                             );
                         }
@@ -192,6 +193,57 @@ impl TypeChecker {
             _ => {}
         }
         true
+    }
+
+    /// Positional constructor arguments have the declared field types. An
+    /// `Int` is not a `Float`: numeric conversion is explicit.
+    pub(super) fn check_positional_constructor_arguments(
+        &mut self,
+        name: &str,
+        arguments: &[Expr],
+    ) {
+        let Some(signature) = self.constructor_signature_for_args(name, arguments) else {
+            return;
+        };
+        let mut substitutions = BTreeMap::new();
+        for ((field, field_ty), argument) in signature
+            .fields
+            .iter()
+            .zip(&signature.field_tys)
+            .zip(arguments)
+        {
+            let Some(expected) = field_ty
+                .as_deref()
+                .and_then(|ty| parse_type_annotation(ty).ok())
+            else {
+                continue;
+            };
+            let Some(actual) = self.ordinary_expression_type(argument) else {
+                continue;
+            };
+            let Ok(actual_ty) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if !Self::ordinary_argument_matches(&actual_ty, &expected, &mut substitutions) {
+                self.error_at_expr(
+                    argument,
+                    format!(
+                        "constructor `{name}` field `{field}` expects `{}`, got `{actual}`{}",
+                        Self::canonical_explore_ty_name(&expected),
+                        Self::numeric_conversion_hint(&actual_ty, &expected)
+                    ),
+                );
+            }
+        }
+    }
+
+    fn numeric_conversion_hint(actual: &Ty, expected: &Ty) -> &'static str {
+        match (actual, expected) {
+            (Ty::Name(actual), Ty::Name(expected)) if actual == "Int" && expected == "Float" => {
+                "; write a Float literal such as `25.0` or convert with `to_float`"
+            }
+            _ => "",
+        }
     }
 
     pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
@@ -218,6 +270,12 @@ impl TypeChecker {
             return;
         };
         let owner = Self::canonical_nominal_owner(&type_name);
+        if owner
+            .as_deref()
+            .is_some_and(|owner| self.check_sum_type_field(expression, base, owner, field))
+        {
+            return;
+        }
         let tuple_size = parse_type_annotation(&type_name).ok().and_then(|ty| match ty {
             Ty::App(head, arguments) if matches!(head.as_ref(), Ty::Name(name) if name == "Tuple") => {
                 Some(arguments.len())
@@ -287,6 +345,104 @@ impl TypeChecker {
             expression,
             format!("type `{type_name}` has no field `{field}` or method with that name"),
         );
+    }
+
+    /// A field of a sum type is readable when every variant declares it with
+    /// the same type, or when a match arm has refined the value to a variant
+    /// that declares it. Returns true when the field was judged here.
+    fn check_sum_type_field(
+        &mut self,
+        expression: &Expr,
+        base: &Expr,
+        owner: &str,
+        field: &str,
+    ) -> bool {
+        let Some(variants) = self.type_variants.get(owner).cloned() else {
+            return false;
+        };
+        let carriers = variants
+            .iter()
+            .filter_map(|variant| {
+                let signature = self.constructor_signature_for_parent(variant, Some(owner))?;
+                if signature.parent != owner {
+                    return None;
+                }
+                let index = signature.fields.iter().position(|name| name == field)?;
+                Some((
+                    variant.clone(),
+                    signature.field_tys.get(index).cloned().flatten(),
+                ))
+            })
+            .collect::<Vec<_>>();
+        if carriers.is_empty() {
+            return false;
+        }
+        if let Some(variant) = self.refined_variant(base) {
+            if !carriers.iter().any(|(carrier, _)| carrier == &variant) {
+                self.error_at_expr(
+                    expression,
+                    format!(
+                        "variant `{variant}` of `{owner}` has no field `{field}`; this match arm has refined the value to `{variant}`"
+                    ),
+                );
+            }
+            return true;
+        }
+        let uniform = carriers.iter().all(|(_, ty)| ty == &carriers[0].1);
+        if carriers.len() == variants.len() && uniform {
+            return true;
+        }
+        if carriers.len() == variants.len() {
+            let types = carriers
+                .iter()
+                .map(|(variant, ty)| format!("`{}` in `{variant}`", ty.as_deref().unwrap_or("_")))
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.error_at_expr(
+                expression,
+                format!(
+                    "field `{field}` has different types in the variants of `{owner}` ({types}); match on the variant before reading it"
+                ),
+            );
+        } else {
+            let names = carriers
+                .iter()
+                .map(|(variant, _)| format!("`{variant}`"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.error_at_expr(
+                expression,
+                format!(
+                    "field `{field}` exists only on variant{} {names} of `{owner}`; match on the variant first, e.g. `| {} -> ...`",
+                    if carriers.len() == 1 { "" } else { "s" },
+                    carriers[0].0
+                ),
+            );
+        }
+        true
+    }
+
+    /// The variant a match arm has refined a named subject to, unless the
+    /// name has been rebound inside the arm.
+    fn refined_variant(&self, base: &Expr) -> Option<String> {
+        let ExprKind::Var(name) = &base.kind else {
+            return None;
+        };
+        let (depth, _, variant) = self
+            .variant_refinements
+            .iter()
+            .rev()
+            .find(|(_, subject, _)| subject == name)?;
+        let binder = self.scopes.iter().rposition(|names| names.contains(name))?;
+        (binder < *depth).then(|| variant.clone())
+    }
+
+    pub(super) fn pattern_variant_name(pattern: &Pat) -> Option<&str> {
+        match pattern {
+            Pat::Con(name, _) | Pat::NamedCon(name, _) => Some(name),
+            Pat::As(inner, _) => Self::pattern_variant_name(inner),
+            Pat::Var(_) | Pat::Wild | Pat::Lit(_) => None,
+        }
     }
 
     fn ordinary_bound_method_available(&self, name: &str) -> bool {
@@ -380,7 +536,6 @@ impl TypeChecker {
             // A nominal result may have unknown generic arguments in ordinary
             // inference. Absence of evidence does not establish a mismatch.
             (Ty::Name(a), Ty::App(e, _)) => matches!(e.as_ref(), Ty::Name(e) if a == e),
-            (Ty::Name(a), Ty::Name(e)) if a == "Int" && e == "Float" => true,
             _ => {
                 Self::canonical_explore_ty_name(actual) == Self::canonical_explore_ty_name(expected)
             }
