@@ -38,6 +38,17 @@ fn interpolation_error_retains_its_line_and_unicode_column() {
 }
 
 #[test]
+fn unary_operand_errors_point_at_the_operator_after_unicode_and_crlf() {
+    for operator in ["!3", "-True"] {
+        let source = format!("= intro = \"æøå ! - before\"\r\n= invalid = {operator}\r\n");
+        assert_eq!(
+            position(&source, "unsupported operands for operator"),
+            (2, 13)
+        );
+    }
+}
+
+#[test]
 fn constructor_arity_error_points_at_the_pattern() {
     let source = "# Pair(left: Int, right: Int)\n> value(p: Pair) -> Int {\n    match p {\n        | Pair(x) -> x\n    }\n}\n";
     assert_eq!(
