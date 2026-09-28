@@ -13113,7 +13113,8 @@ impl Parser {
                     return Ok(Expr::new(ExprKind::Lit(Literal::Int(i64::MIN)), span));
                 }
                 let operand = self.parse_expr_prec(u8::MAX)?;
-                Ok(ExprKind::UnOp(tok.text, Box::new(operand)).into())
+                let span = self.token_span(&tok).merge(operand.span);
+                Ok(Expr::new(ExprKind::UnOp(tok.text, Box::new(operand)), span))
             }
             // & reference
             TokenKind::Amp => {
@@ -47172,9 +47173,14 @@ impl TypeChecker {
     }
 
     fn var_type_name(&self, name: &str) -> Option<&str> {
-        for scope in self.var_types.iter().rev() {
-            if let Some(type_name) = scope.get(name) {
+        for (types, names) in self.var_types.iter().zip(&self.scopes).rev() {
+            if let Some(type_name) = types.get(name) {
                 return Some(type_name);
+            }
+            // An untyped inner binding still shadows an outer binding. Its
+            // type is unknown here, not inherited from the outer value.
+            if names.contains(name) {
+                return None;
             }
         }
         None
@@ -58984,11 +58990,11 @@ impl TypeChecker {
             ExprKind::BinOp(_, _, _) => {
                 self.check_binary_expression(expr, _in_fn);
             }
-            ExprKind::UnOp(_, operand) => {
-                self.check_expr(operand, _in_fn);
+            ExprKind::UnOp(_, _) => {
+                self.check_unary_expression(expr, _in_fn);
             }
             ExprKind::If(cond, then_br, else_br) => {
-                self.check_expr(cond, _in_fn);
+                self.check_if_condition(cond, _in_fn);
                 self.check_expr(then_br, _in_fn);
                 self.check_expr(else_br, _in_fn);
             }

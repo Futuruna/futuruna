@@ -51202,6 +51202,17 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
                 // Futuruna uses = for equality; Rust uses ==
                 let rust_op = if op == "=" { "==" } else { op.as_str() };
+                // Ordinary arithmetic and numeric ordering promote a known
+                // Int operand when the other operand is Float. Rust does not
+                // perform this conversion implicitly. Equality and remainder
+                // instead require same-type operands in the source contract.
+                if matches!(rust_op, "+" | "-" | "*" | "/" | "<" | ">" | "<=" | ">=") {
+                    match (self.infer_expr_fir_ty(lhs), self.infer_expr_fir_ty(rhs)) {
+                        (FirTy::Int, FirTy::Float) => l = format!("(({}) as f64)", l),
+                        (FirTy::Float, FirTy::Int) => r = format!("(({}) as f64)", r),
+                        _ => {}
+                    }
+                }
                 let arithmetic = matches!(rust_op, "+" | "-" | "*" | "/" | "%");
                 let exact_mode = self.int_arithmetic_mode
                     == RustCodegenIntArithmeticMode::ExploreClassifierExact;

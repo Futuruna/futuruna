@@ -227,11 +227,24 @@ Lowercase single letters are type variables: `a`, `b`, `c`, etc. They become upp
 | `+`, `-` | addition, subtraction |
 | `*`, `/`, `%` | multiplication, division, modulo |
 
+Arithmetic uses `Int` or `Float` operands. For `+`, `-`, `*`, and `/`, mixing
+`Int` and `Float` converts the integer to `Float` and produces a `Float`.
+Remainder (`%`) requires two `Int` values or two `Float` values. Use `to_float`
+when an explicit conversion is needed. `+` also concatenates when either operand
+is a `String`; use `concat` to combine lists.
+
 ### Comparison
 | Op | Meaning |
 |----|---------|
 | `==`, `!=` | equality, inequality |
 | `<`, `>`, `<=`, `>=` | ordering |
+
+Primitive equality requires operands of the same type: `5 == 5.0` is a type
+error; `to_float(5) == 5.0` compares two floats. Lists, tuples, and data
+constructors support structural equality. Ordering compares numbers, two
+strings, or two characters. Numeric ordering permits `Int`/`Float` mixing with
+the same conversion as arithmetic. Floating-point conversion can lose integer
+precision, so keep exact integer calculations in `Int`.
 
 ### Logical
 | Op | Meaning |
@@ -239,6 +252,10 @@ Lowercase single letters are type variables: `a`, `b`, `c`, etc. They become upp
 | `&&` | logical AND |
 | `\|\|` | logical OR |
 | `not(x)` | logical NOT (function) |
+
+Logical operators require `Bool` operands. `!x` is also Boolean negation;
+unary `-x` requires a number. Invalid operand types known to the frontend are
+reported at the source expression before program effects run.
 
 ### Special operators
 | Op | Meaning | Example |
@@ -258,6 +275,10 @@ x |> f |> g      -- g(f(x))
 ## Control Flow
 
 ### if/else
+
+An `if` condition must return `Bool`. Numbers, strings, lists, and `()` are not
+converted to Boolean values.
+
 ```runa
 if condition { then_expr }
 if condition { then_expr } else { else_expr }
