@@ -400,3 +400,214 @@ Block comment
 can span multiple lines
 ----
 ```
+
+## Danish Source Files
+
+A file whose first declaration is `@ sprog da` is written in Danish. Comments,
+blank lines and a leading byte-order mark may precede the declaration, and a
+comment may follow it on the same line. `@sprog da` and `@ language da` are the
+same declaration. Language codes are case-insensitive: `da` or `dansk` selects
+Danish, `en` or `english` selects English. Any other code, and a language
+declaration after another declaration, is an error. A file without the
+declaration is English.
+
+The language of a file selects its keywords and the Danish names of builtins.
+It never renames what the author declares, and it never changes how values
+behave.
+
+### Keywords
+
+| Danish | English | Danish | English |
+|--------|---------|--------|---------|
+| `skel` | `match` | `hvis` | `if` |
+| `ellers` | `else` | `med` | `with` |
+| `undtagelse` | `exception` | `omfang` | `scope` |
+| `på` | `on` | `aktør` | `actor` |
+| `start` | `spawn` | `effekt` | `effect` |
+| `modul` | `module` | `importer` | `import` |
+| `brug` | `use` | `træk` | `trait` |
+| `hvor` | `where` | `lad` | `let` |
+| `gør` | `do` | `så` | `then` |
+| `returner` | `return` | `håndter` | `handle` |
+| `genoptag` | `resume` | `udfør` | `perform` |
+| `Sandt`, `sandt` | `True` | `Falskt`, `falskt` | `False` |
+| `og` | `and` | `eller` | `or` |
+
+`og` binds more tightly than `eller`; both work in Boolean expressions and
+between rule goals. English keywords, `&&` and `||` remain available. A keyword
+may also be used as a parameter or field name (`start`, `under`); the name keeps
+the Danish spelling. `indud` marks an `inout` parameter, `delt` a `shared` type,
+and `@ eksport` / `@ afhæng` are `@ export` / `@ depend`.
+
+### Danish names for builtins, types and constructors
+
+A Danish file may call a builtin by its Danish name, and write builtin types
+and the constructors of `Option` and `Result` in Danish:
+
+| Danish | English | Danish | English |
+|--------|---------|--------|---------|
+| `Heltal` | `Int` | `Kommatal` | `Float` |
+| `Tekst` | `String` | `Boolsk` | `Bool` |
+| `Tegn` | `Char` | `Liste` | `List` |
+| `Naturligt` | `Nat` | `Intet` | `None` |
+| `Noget` | `Some` | `Fejl` | `Err` |
+
+A Danish name refers to the builtin only when neither the file nor a module it
+imports with a plain `@ importer` declares that name. Declared names — functions,
+rules, bindings, parameters, fields, types and constructors — always mean what
+the author declared, in every file:
+
+```runa
+@ sprog da
+# Kontrol = Godkendt | Fejl          -- a user constructor named Fejl
+> vis(s: Sag) -> Tekst { ... }       -- a user function named vis
+@ print(vis(sag))                     -- calls the user function
+@ print("""Beløb: {{beløb}}""")       -- interpolation always uses the builtin `show`
+```
+
+Here `Fejl` is the declared `Kontrol` constructor, and calculation schemas and
+results publish it as `"Fejl"`. Where no user declaration exists, `Fejl(…)`,
+`Noget(…)` and `Intet` construct the built-in `Result` and `Option` values,
+which are always published and shown under their English names `Err`, `Some`
+and `None`. A name after `.` is always a field or member name, never a builtin.
+
+Names cross language boundaries unchanged: an English file that imports a Danish
+module calls its functions by their declared Danish names (`tæl(1)`), and a
+Danish file that imports an English module calls `tag(…)` or `hale(…)` as
+declared there. English files do not know the Danish names; `hale([1, 2])` in an
+English file is an undefined name unless the program declares it.
+
+Diagnostics in a Danish file name builtins, types and keywords the way the
+source line spells them (`fold`, not `foldl`; `returner`, not `return`).
+
+| Danish | English |
+|--------|---------|
+| `vis` | `show` |
+| `skriv` | `print` |
+| `vis_heltal` | `show_int` |
+| `vis_kommatal` | `show_float` |
+| `kvrod` | `sqrt` |
+| `potens` | `pow` |
+| `til_kommatal` | `to_float` |
+| `afrund` | `round` |
+| `gulv` | `floor` |
+| `længde` | `length` |
+| `tekst_længde` | `string_length` |
+| `opdel` | `split` |
+| `saml` | `join` |
+| `indeholder` | `contains` |
+| `starter_med` | `starts_with` |
+| `ender_med` | `ends_with` |
+| `erstat` | `replace` |
+| `til_store` | `to_upper` |
+| `til_små` | `to_lower` |
+| `deltekst` | `substring` |
+| `tegn_ved` | `char_at` |
+| `indeks_af` | `index_of` |
+| `formater_kommatal` | `format_float` |
+| `fortolk_heltal` | `parse_danish_int` |
+| `fortolk_kommatal` | `parse_danish_float` |
+| `tekst_tegn` | `string_chars` |
+| `hoved` | `head` |
+| `hale` | `tail` |
+| `nte` | `nth` |
+| `vend` | `reverse` |
+| `tilføj` | `push` |
+| `område` | `range` |
+| `afbild` | `map` |
+| `filtrer` | `filter` |
+| `fold` | `foldl` |
+| `sorter` | `sort` |
+| `sorter_efter` | `sort_by` |
+| `nogen` | `any` |
+| `alle` | `all` |
+| `flad_afbild` | `flat_map` |
+| `par` | `zip` |
+| `numerer` | `enumerate` |
+| `tag_mens` | `take_while` |
+| `spring_mens` | `drop_while` |
+| `sum_liste` | `sum_list` |
+| `unikke` | `distinct` |
+| `tæl_efter` | `count_by` |
+| `opdel_efter` | `partition` |
+| `stykker` | `chunked` |
+| `abonner` | `subscribe` |
+| `læs_fil` | `read_file` |
+| `skriv_fil` | `write_file` |
+| `tilføj_fil` | `append_file` |
+| `fil_eksisterer` | `file_exists` |
+| `læs_linjer` | `read_lines` |
+| `miljø_var` | `env_var` |
+| `json_fortolk` | `json_parse` |
+| `json_hent` | `json_get` |
+| `json_tekst` | `json_string` |
+| `json_tal` | `json_number` |
+| `json_sand` | `json_bool` |
+| `json_liste` | `json_array` |
+| `json_udsend` | `json_emit` |
+| `json_objekt` | `json_object` |
+| `kort_nyt` | `map_new` |
+| `kort_indsæt` | `map_insert` |
+| `kort_hent` | `map_get` |
+| `kort_hent_eller` | `map_get_or` |
+| `kort_indeholder` | `map_contains` |
+| `kort_fjern` | `map_remove` |
+| `kort_nøgler` | `map_keys` |
+| `kort_værdier` | `map_values` |
+| `kort_poster` | `map_entries` |
+| `kort_længde` | `map_len` |
+| `kort_flet` | `map_merge` |
+| `kort_fra` | `map_from` |
+| `sæt_nyt` | `set_new` |
+| `sæt_indsæt` | `set_insert` |
+| `sæt_indeholder` | `set_contains` |
+| `sæt_fjern` | `set_remove` |
+| `sæt_længde` | `set_len` |
+| `sæt_til_liste` | `set_to_list` |
+| `sæt_forening` | `set_union` |
+| `sæt_fælles` | `set_intersect` |
+| `sæt_forskel` | `set_diff` |
+| `sæt_fra_liste` | `set_from_list` |
+| `fra_liste` | `from_list` |
+| `tag` | `take` |
+| `spring` | `skip` |
+| `indsaml` | `collect` |
+| `tæl` | `count` |
+| `vindue` | `window` |
+| `sidste` | `last` |
+| `kombiner_seneste` | `combine_latest` |
+| `flet` | `merge` |
+| `første` | `first` |
+| `reducer` | `reduce` |
+| `start_med` | `start_with` |
+| `sammenkæd` | `concat` |
+| `parvis` | `pairwise` |
+| `spørg` | `ask` |
+| `delt` | `shared` |
+| `ikke` | `not` |
+| `find_alle` | `findall` |
+
+### Numbers, sorting and printed values
+
+`fortolk_heltal` and `fortolk_kommatal` (English `parse_danish_int` and
+`parse_danish_float`) read Danish number text and return
+`Result(Int, String)` and `Result(Float, String)`. Surrounding whitespace is
+ignored. The text is an optional sign, an integer part written either as plain
+digits or with `.` between groups of three digits, and — for `fortolk_kommatal`
+only — an optional `,` followed by digits:
+
+```runa
+@ sprog da
+fortolk_heltal("1.250.000")     -- Ok(1250000)
+fortolk_kommatal("1.234,75")    -- Ok(1234.75)
+fortolk_kommatal("1,5")         -- Ok(1.5)
+fortolk_heltal("1,5")           -- Err("`1,5` is not a Danish integer")
+fortolk_kommatal("1.5")         -- Err("`1.5` is not a Danish decimal number")
+```
+
+`parse_int` and `parse_float` read the language-neutral format with a decimal
+point in every file. `sorter` orders strings by Unicode code point, and `vis`
+prints values exactly as `show` does (`true`, `None`, `Some(3)`, `1.5`). Neither
+depends on the language of the file, so a value sorts and prints the same
+wherever it is used. Order Danish text with `sorter_efter` and an explicit key,
+and format amounts for Danish readers with `formater_kommatal` and `erstat`.
