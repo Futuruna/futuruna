@@ -142,7 +142,7 @@ impl TypeChecker {
         // the interpreter's separate inout support or certifying Explore code.
         if let ExprKind::App(function, arguments) = &expr.kind {
             if matches!(&function.kind, ExprKind::Var(callee)
-                if builtin_canonical(callee) == "push"
+                if callee == "push"
                     && !locals.types.contains_key(callee)
                     && !self.explore_contextual_intrinsic_is_shadowed(callee, arguments.len()))
                 && arguments.len() == 2

@@ -37,6 +37,7 @@ mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod danish;
 mod editor_fields;
 pub use editor_fields::EditorField;
 pub mod explore;
@@ -54,6 +55,8 @@ mod runtime_guard_coverage;
 mod runtime_imports;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub mod semantic_interface;
+
+pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
 
 // ============================================================================
 // PART 1: TOKENS
@@ -136,9 +139,37 @@ impl Token {
 // ============================================================================
 
 // ---- Language keyword tables for @ sprog / @ language ----
-// Maps localized keyword → (canonical English text, TokenKind)
-// The lexer normalizes all tokens to canonical form so the parser stays untouched.
+// Maps a keyword spelling to its canonical keyword text and token kind. Only
+// keywords, boolean literals and word operators are translated by the lexer;
+// identifiers and type names keep their source spelling. Danish names for
+// builtins are resolved per file by the parser (see `DANISH_BUILTIN_NAMES`).
 type KeywordTable = HashMap<String, (String, TokenKind)>;
+
+/// The language a source file is written in, selected by its first
+/// declaration `@ sprog <code>` / `@ language <code>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceLanguage {
+    English,
+    Danish,
+}
+
+impl SourceLanguage {
+    /// Language codes are case-insensitive: `da`/`dansk` and `en`/`english`.
+    pub fn from_code(code: &str) -> Option<Self> {
+        match code.to_lowercase().as_str() {
+            "da" | "dansk" => Some(SourceLanguage::Danish),
+            "en" | "english" => Some(SourceLanguage::English),
+            _ => None,
+        }
+    }
+
+    pub fn keyword_table(self) -> KeywordTable {
+        match self {
+            SourceLanguage::English => keyword_table_english(),
+            SourceLanguage::Danish => keyword_table_dansk(),
+        }
+    }
+}
 
 pub fn keyword_table_english() -> KeywordTable {
     let kws = [
@@ -238,137 +269,6 @@ pub fn keyword_table_dansk() -> KeywordTable {
         ("Falskt", "False", TokenKind::Bool_),
         ("sandt", "True", TokenKind::Bool_),
         ("falskt", "False", TokenKind::Bool_),
-        // ---- type name aliases ----
-        ("Heltal", "Int", TokenKind::Type),
-        ("Kommatal", "Float", TokenKind::Type),
-        ("Tekst", "String", TokenKind::Type),
-        ("Boolsk", "Bool", TokenKind::Type),
-        ("Tegn", "Char", TokenKind::Type),
-        ("Liste", "List", TokenKind::Type),
-        ("Naturligt", "Nat", TokenKind::Type),
-        // ---- constructor aliases ----
-        ("Intet", "None", TokenKind::Type),
-        ("Noget", "Some", TokenKind::Type),
-        ("Fejl", "Err", TokenKind::Type),
-        // ---- @ directive aliases ----
-        ("eksport", "export", TokenKind::Ident),
-        ("afhæng", "depend", TokenKind::Ident),
-        ("indud", "inout", TokenKind::Ident),
-        // ---- builtin function aliases (normalized at lex time) ----
-        // display & output
-        ("vis", "show", TokenKind::Ident),
-        ("vis_heltal", "show_int", TokenKind::Ident),
-        ("vis_kommatal", "show_float", TokenKind::Ident),
-        ("beskriv", "describe", TokenKind::Ident),
-        // math
-        ("kvrod", "sqrt", TokenKind::Ident),
-        ("potens", "pow", TokenKind::Ident),
-        ("til_kommatal", "to_float", TokenKind::Ident),
-        ("afrund", "round", TokenKind::Ident),
-        ("gulv", "floor", TokenKind::Ident),
-        // string
-        ("længde", "length", TokenKind::Ident),
-        ("tekst_længde", "string_length", TokenKind::Ident),
-        ("opdel", "split", TokenKind::Ident),
-        ("saml", "join", TokenKind::Ident),
-        ("indeholder", "contains", TokenKind::Ident),
-        ("starter_med", "starts_with", TokenKind::Ident),
-        ("ender_med", "ends_with", TokenKind::Ident),
-        ("erstat", "replace", TokenKind::Ident),
-        ("til_store", "to_upper", TokenKind::Ident),
-        ("til_små", "to_lower", TokenKind::Ident),
-        ("deltekst", "substring", TokenKind::Ident),
-        ("tegn_ved", "char_at", TokenKind::Ident),
-        ("indeks_af", "index_of", TokenKind::Ident),
-        ("formater_kommatal", "format_float", TokenKind::Ident),
-        ("fortolk_heltal", "parse_int", TokenKind::Ident),
-        ("fortolk_kommatal", "parse_float", TokenKind::Ident),
-        ("tekst_tegn", "string_chars", TokenKind::Ident),
-        // list
-        ("hoved", "head", TokenKind::Ident),
-        ("hale", "tail", TokenKind::Ident),
-        ("nte", "nth", TokenKind::Ident),
-        ("vend", "reverse", TokenKind::Ident),
-        ("tilføj", "push", TokenKind::Ident),
-        ("område", "range", TokenKind::Ident),
-        ("afbild", "map", TokenKind::Ident),
-        ("filtrer", "filter", TokenKind::Ident),
-        ("fold", "foldl", TokenKind::Ident),
-        ("sorter", "sort", TokenKind::Ident),
-        ("sorter_efter", "sort_by", TokenKind::Ident),
-        ("nogen", "any", TokenKind::Ident),
-        ("alle", "all", TokenKind::Ident),
-        ("flad_afbild", "flat_map", TokenKind::Ident),
-        ("par", "zip", TokenKind::Ident),
-        ("numerer", "enumerate", TokenKind::Ident),
-        ("tag_mens", "take_while", TokenKind::Ident),
-        ("spring_mens", "drop_while", TokenKind::Ident),
-        ("sum_liste", "sum_list", TokenKind::Ident),
-        ("unikke", "distinct", TokenKind::Ident),
-        ("tæl_efter", "count_by", TokenKind::Ident),
-        ("opdel_efter", "partition", TokenKind::Ident),
-        ("stykker", "chunked", TokenKind::Ident),
-        ("abonner", "subscribe", TokenKind::Ident),
-        // file I/O
-        ("læs_fil", "read_file", TokenKind::Ident),
-        ("skriv_fil", "write_file", TokenKind::Ident),
-        ("tilføj_fil", "append_file", TokenKind::Ident),
-        ("fil_eksisterer", "file_exists", TokenKind::Ident),
-        ("læs_linjer", "read_lines", TokenKind::Ident),
-        ("miljø_var", "env_var", TokenKind::Ident),
-        // JSON
-        ("json_fortolk", "json_parse", TokenKind::Ident),
-        ("json_hent", "json_get", TokenKind::Ident),
-        ("json_tekst", "json_string", TokenKind::Ident),
-        ("json_tal", "json_number", TokenKind::Ident),
-        ("json_sand", "json_bool", TokenKind::Ident),
-        ("json_liste", "json_array", TokenKind::Ident),
-        ("json_udsend", "json_emit", TokenKind::Ident),
-        ("json_objekt", "json_object", TokenKind::Ident),
-        // map & set
-        ("kort_nyt", "map_new", TokenKind::Ident),
-        ("kort_indsæt", "map_insert", TokenKind::Ident),
-        ("kort_hent", "map_get", TokenKind::Ident),
-        ("kort_hent_eller", "map_get_or", TokenKind::Ident),
-        ("kort_indeholder", "map_contains", TokenKind::Ident),
-        ("kort_fjern", "map_remove", TokenKind::Ident),
-        ("kort_nøgler", "map_keys", TokenKind::Ident),
-        ("kort_værdier", "map_values", TokenKind::Ident),
-        ("kort_poster", "map_entries", TokenKind::Ident),
-        ("kort_længde", "map_len", TokenKind::Ident),
-        ("kort_flet", "map_merge", TokenKind::Ident),
-        ("kort_fra", "map_from", TokenKind::Ident),
-        ("sæt_nyt", "set_new", TokenKind::Ident),
-        ("sæt_indsæt", "set_insert", TokenKind::Ident),
-        ("sæt_indeholder", "set_contains", TokenKind::Ident),
-        ("sæt_fjern", "set_remove", TokenKind::Ident),
-        ("sæt_længde", "set_len", TokenKind::Ident),
-        ("sæt_til_liste", "set_to_list", TokenKind::Ident),
-        ("sæt_forening", "set_union", TokenKind::Ident),
-        ("sæt_fælles", "set_intersect", TokenKind::Ident),
-        ("sæt_forskel", "set_diff", TokenKind::Ident),
-        ("sæt_fra_liste", "set_from_list", TokenKind::Ident),
-        // streams & reactive
-        ("fra_liste", "from_list", TokenKind::Ident),
-        ("tag", "take", TokenKind::Ident),
-        ("spring", "skip", TokenKind::Ident),
-        ("indsaml", "collect", TokenKind::Ident),
-        ("tæl", "count", TokenKind::Ident),
-        ("vindue", "window", TokenKind::Ident),
-        ("sidste", "last", TokenKind::Ident),
-        ("kombiner_seneste", "combine_latest", TokenKind::Ident),
-        ("flet", "merge", TokenKind::Ident),
-        ("første", "first", TokenKind::Ident),
-        ("reducer", "reduce", TokenKind::Ident),
-        ("start_med", "start_with", TokenKind::Ident),
-        ("sammenkæd", "concat", TokenKind::Ident),
-        ("parvis", "pairwise", TokenKind::Ident),
-        // actor & concurrency
-        ("spørg", "ask", TokenKind::Ident),
-        ("delt", "shared", TokenKind::Ident),
-        // logic
-        ("ikke", "not", TokenKind::Ident),
-        ("find_alle", "findall", TokenKind::Ident),
         // Keep conjunction as an identifier: the rule parser uses it as a
         // goal separator, while ordinary expressions interpret it as &&.
         ("og", "and", TokenKind::Ident),
@@ -410,59 +310,35 @@ pub fn keyword_table_dansk() -> KeywordTable {
     t
 }
 
-/// Detect the initial @ sprog / @ language declaration, allowing whitespace,
-/// comment lines and empty statement separators before it.
-pub fn detect_language(source: &str) -> KeywordTable {
-    let mut in_block_comment = false;
-    for line in source.lines() {
-        let trimmed = line.trim_start_matches(|c: char| c.is_whitespace() || c == ';');
-        if in_block_comment {
-            if trimmed.contains("----") {
-                in_block_comment = false;
-            }
-            continue;
-        }
-        if trimmed.starts_with("----") {
-            // Block comment might open and close on same line
-            if trimmed.matches("----").count() < 2 {
-                in_block_comment = true;
-            }
-            continue;
-        }
-        if trimmed.trim().is_empty() || trimmed.starts_with("--") {
-            continue;
-        }
-        // Token spacing and a trailing comment must not change the selected
-        // language. The parser diagnoses misplaced declarations separately.
-        let mut words = trimmed.strip_prefix('@').unwrap_or("").split_whitespace();
-        if matches!(words.next(), Some("sprog" | "language")) {
-            let code = words.next().unwrap_or("en");
-            let code = code.split(';').next().unwrap_or(code);
-            return match code {
-                "da" | "dansk" => keyword_table_dansk(),
-                "en" | "english" => keyword_table_english(),
-                other => {
-                    eprintln!("runa: unknown language '{}', defaulting to English", other);
-                    keyword_table_english()
-                }
-            };
-        }
-        break; // first non-comment, non-empty line isn't a language declaration
+/// Detect the language declared by the first declaration of a file. The
+/// header is read with the ordinary tokenizer, so comments, blank lines,
+/// statement separators and a leading byte-order mark are ignored. A file
+/// without `@ sprog` / `@ language` as its first declaration is English. An
+/// unknown language code lexes as English; the parser reports it.
+pub fn detect_source_language(source: &str) -> SourceLanguage {
+    let tokens = Lexer::with_keywords(source, keyword_table_english()).tokenize_prefix(3);
+    let mut header = tokens.iter().filter(|token| token.kind != TokenKind::Semi);
+    let (Some(at), Some(directive), Some(code)) = (header.next(), header.next(), header.next())
+    else {
+        return SourceLanguage::English;
+    };
+    if at.kind != TokenKind::At || !matches!(directive.text.as_str(), "sprog" | "language") {
+        return SourceLanguage::English;
     }
-    keyword_table_english()
+    SourceLanguage::from_code(&code.source_text).unwrap_or(SourceLanguage::English)
 }
 
-// ---- Builtin aliases for localized builtins ----
-// Single source of truth: (alias, canonical_english).
-// Adding a new language: just add entries here.
-// All codegen sites use builtin_canonical(); runtime uses builtin_aliases().
-const BUILTIN_ALIASES: &[(&str, &str)] = &[
-    // ---- dansk: display & output ----
+// ---- Danish names for builtins ----
+// A Danish file may call a builtin by its Danish name. The parser resolves
+// these names per file after user declarations: a name declared anywhere in
+// the file or in a plainly imported module is a user name and is never
+// translated. English files never see Danish names.
+pub const DANISH_BUILTIN_NAMES: &[(&str, &str)] = &[
+    // display & output
     ("vis", "show"),
     ("skriv", "print"),
     ("vis_heltal", "show_int"),
     ("vis_kommatal", "show_float"),
-    ("beskriv", "describe"),
     // ---- dansk: math ----
     ("kvrod", "sqrt"),
     ("potens", "pow"),
@@ -484,8 +360,8 @@ const BUILTIN_ALIASES: &[(&str, &str)] = &[
     ("tegn_ved", "char_at"),
     ("indeks_af", "index_of"),
     ("formater_kommatal", "format_float"),
-    ("fortolk_heltal", "parse_int"),
-    ("fortolk_kommatal", "parse_float"),
+    ("fortolk_heltal", "parse_danish_int"),
+    ("fortolk_kommatal", "parse_danish_float"),
     ("tekst_tegn", "string_chars"),
     // ---- dansk: list ----
     ("hoved", "head"),
@@ -572,43 +448,49 @@ const BUILTIN_ALIASES: &[(&str, &str)] = &[
     // ---- dansk: logic ----
     ("ikke", "not"),
     ("find_alle", "findall"),
-    // backward compat: s_ prefix → clean name
-    ("s_map", "map"),
-    ("s_filter", "filter"),
-    ("s_scan", "scan"),
-    ("s_merge", "merge"),
-    ("s_zip", "zip"),
-    ("s_take", "take"),
-    ("s_skip", "skip"),
-    ("s_distinct", "distinct"),
-    ("s_flat_map", "flat_map"),
-    ("s_sum", "sum"),
-    ("s_any", "any"),
-    ("s_all", "all"),
-    ("s_last", "last"),
-    ("s_window", "window"),
-    ("s_enumerate", "enumerate"),
-    ("s_count", "count"),
-    ("s_collect", "collect"),
-    ("s_combine_latest", "combine_latest"),
 ];
 
-/// Returns the canonical (English) builtin name for a possibly-localized name.
-/// If the name is not an alias, returns it unchanged.
-pub fn builtin_canonical(name: &str) -> &str {
-    for &(alias, canonical) in BUILTIN_ALIASES {
-        if alias == name {
-            return canonical;
-        }
-    }
-    name
+/// Danish names for builtin types and the constructors of `Option` and
+/// `Result`. Like builtin function names they apply only when the file and
+/// its plain imports declare no type or constructor with the same name.
+pub const DANISH_TYPE_NAMES: &[(&str, &str)] = &[
+    ("Heltal", "Int"),
+    ("Kommatal", "Float"),
+    ("Tekst", "String"),
+    ("Boolsk", "Bool"),
+    ("Tegn", "Char"),
+    ("Liste", "List"),
+    ("Naturligt", "Nat"),
+    ("Intet", "None"),
+    ("Noget", "Some"),
+    ("Fejl", "Err"),
+];
+
+/// Danish spellings of modifier and directive words that are recognised only
+/// in their syntactic position (`indud` parameters, `delt` types, `@ eksport`,
+/// `@ afhæng`).
+const DANISH_POSITIONAL_WORDS: &[(&str, &str)] = &[
+    ("indud", "inout"),
+    ("delt", "shared"),
+    ("eksport", "export"),
+    ("afhæng", "depend"),
+];
+
+/// The Danish name of a builtin, type or constructor, for diagnostics in
+/// Danish files.
+pub fn danish_name_for(canonical: &str) -> Option<&'static str> {
+    DANISH_BUILTIN_NAMES
+        .iter()
+        .chain(DANISH_TYPE_NAMES)
+        .find(|(_, english)| *english == canonical)
+        .map(|(danish, _)| *danish)
 }
 
 /// Names implemented by the ordinary `@` effect dispatcher. Functions and
 /// declared algebraic operations use normal calls, even when they are impure.
 fn is_builtin_effect(name: &str) -> bool {
     matches!(
-        builtin_canonical(name),
+        name,
         "print"
             | "spawn"
             | "teardown"
@@ -659,14 +541,6 @@ fn unknown_effect_message(name: &str) -> String {
         _ => "; call functions and declared effect operations without `@`".to_string(),
     };
     format!("unknown effect `{name}`{hint}")
-}
-
-/// Returns alias→canonical map for runtime env registration.
-pub fn builtin_aliases() -> Vec<(String, String)> {
-    BUILTIN_ALIASES
-        .iter()
-        .map(|&(a, c)| (a.into(), c.into()))
-        .collect()
 }
 
 // ---- Standard Prelude ----
@@ -824,20 +698,17 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(source: &str) -> Self {
-        let keywords = detect_language(source);
-        Lexer {
-            chars: source.chars().collect(),
-            pos: 0,
-            line: 1,
-            col: 1,
-            keywords,
-        }
+        Self::with_keywords(source, detect_source_language(source).keyword_table())
     }
 
+    /// A leading byte-order mark is not source text: it is skipped without
+    /// occupying a column.
     pub fn with_keywords(source: &str, keywords: KeywordTable) -> Self {
+        let chars: Vec<char> = source.chars().collect();
+        let pos = usize::from(chars.first() == Some(&'\u{feff}'));
         Lexer {
-            chars: source.chars().collect(),
-            pos: 0,
+            chars,
+            pos,
             line: 1,
             col: 1,
             keywords,
@@ -869,8 +740,30 @@ impl Lexer {
     }
 
     pub fn tokenize(&mut self) -> Vec<Token> {
-        let mut tokens = Vec::new();
+        self.tokenize_until(usize::MAX)
+    }
+
+    /// Tokenize only until `limit` tokens other than statement separators
+    /// exist; used to read a file header without lexing the whole file.
+    pub fn tokenize_prefix(&mut self, limit: usize) -> Vec<Token> {
+        self.tokenize_until(limit)
+    }
+
+    fn tokenize_until(&mut self, limit: usize) -> Vec<Token> {
+        let mut tokens: Vec<Token> = Vec::new();
+        let mut counted = 0usize;
+        let mut significant = 0usize;
         loop {
+            if limit != usize::MAX {
+                significant += tokens[counted..]
+                    .iter()
+                    .filter(|token| token.kind != TokenKind::Semi)
+                    .count();
+                counted = tokens.len();
+                if significant >= limit {
+                    break;
+                }
+            }
             self.skip_whitespace_not_newline();
             let line = self.line;
             let col = self.col;
@@ -1798,7 +1691,8 @@ pub fn char_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
         if ch == '\n' {
             line += 1;
             col = 1;
-        } else {
+        } else if !(i == 0 && ch == '\u{feff}') {
+            // A leading byte-order mark occupies no column.
             col += 1;
         }
     }
@@ -3013,7 +2907,7 @@ impl MetaGroundEvaluator {
                 | Stmt::Send(..)
                 | Stmt::StreamSub(..)
                 | Stmt::Prove { .. } => safe = false,
-                Stmt::Annot(name, _) if builtin_canonical(name) == "print" => safe = false,
+                Stmt::Annot(name, _) if name == "print" => safe = false,
                 _ => {}
             },
         });
@@ -3025,8 +2919,7 @@ impl MetaGroundEvaluator {
             if bound_names.contains(&name) {
                 continue;
             }
-            let canonical = builtin_canonical(&name);
-            if self.impure_names.contains(&name) || self.impure_names.contains(canonical) {
+            if self.impure_names.contains(&name) {
                 return false;
             }
             if bindings.contains_key(&name) {
@@ -4833,6 +4726,7 @@ impl Diagnostic {
         } else {
             (source, filename, self.span)
         };
+        let message = danish::localize_danish_message(source, diagnostic_span, &self.message);
         let mut out = String::new();
 
         // Colors
@@ -4868,7 +4762,7 @@ impl Diagnostic {
             let (end_line, end_col) = span.end_line_col(source);
 
             // Location header
-            out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
+            out.push_str(&format!("{}: {}{}{}\n", label, bold, message, reset));
             out.push_str(&format!(
                 " {}-->{} {}:{}:{}\n",
                 blue, reset, filename, line, col
@@ -4876,7 +4770,7 @@ impl Diagnostic {
 
             let lines: Vec<&str> = source.lines().collect();
             if line > 0 && line <= lines.len() {
-                let src_line = lines[line - 1];
+                let src_line = lines[line - 1].trim_start_matches('\u{feff}');
                 let line_str = format!("{}", line);
                 let padding = " ".repeat(line_str.len());
 
@@ -4905,7 +4799,7 @@ impl Diagnostic {
                 ));
             }
         } else {
-            out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
+            out.push_str(&format!("{}: {}{}{}\n", label, bold, message, reset));
         }
 
         // Notes
@@ -7880,9 +7774,10 @@ pub fn parse_source_module_cached(
         }
     }
 
+    register_source_origin(&path, source);
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
-    let mut parser = Parser::new(tokens, source);
+    let mut parser = Parser::new(tokens, source).with_source_path(&path);
     let statements = parser.parse_program()?;
     let module = Arc::new(ParsedSourceModule {
         source: Arc::from(source),
@@ -9115,6 +9010,8 @@ pub struct Parser {
     pub in_rule_body: bool,      // true when parsing | rule body (and = conjunction, not &&)
     // Opt-in diagnostic indexing; excluded from the semantic AST and hashes.
     type_name_spans: Option<Vec<(String, Span)>>,
+    language: SourceLanguage,
+    source_path: Option<PathBuf>,
 }
 
 impl Parser {
@@ -9134,13 +9031,45 @@ impl Parser {
             line_starts,
             in_rule_body: false,
             type_name_spans: None,
+            language: detect_source_language(source),
+            source_path: None,
         }
+    }
+
+    /// The file the source was read from; a Danish file resolves the names
+    /// declared by its plain imports relative to it.
+    pub fn with_source_path(mut self, path: &Path) -> Self {
+        self.source_path = Some(path.to_path_buf());
+        self
+    }
+
+    /// Whether `token` spells `word` in this file's language: `inout`/`indud`,
+    /// `shared`/`delt`, `export`/`eksport`, `depend`/`afhæng`.
+    fn token_spells(&self, token: &Token, word: &str) -> bool {
+        token.text == word
+            || (self.language == SourceLanguage::Danish
+                && DANISH_POSITIONAL_WORDS
+                    .iter()
+                    .any(|(danish, english)| *english == word && token.text == *danish))
+    }
+
+    fn import_dir(&self) -> String {
+        let path = self.source_path.clone().or_else(|| {
+            danish::registered_source_origin(&self.source_chars.iter().collect::<String>())
+        });
+        path.as_deref()
+            .and_then(Path::parent)
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string())
     }
 
     /// Convert token line/col (1-based) to char offset in source_chars.
     pub fn char_offset(&self, line: usize, col: usize) -> usize {
         let line_idx = (line - 1).min(self.line_starts.len() - 1);
-        self.line_starts[line_idx] + (col - 1)
+        // A leading byte-order mark occupies a character but no column.
+        let bom = usize::from(line_idx == 0 && self.source_chars.first() == Some(&'\u{feff}'));
+        self.line_starts[line_idx] + bom + (col - 1)
     }
 
     /// Create a Span from a token's position to the end of its text.
@@ -9251,7 +9180,9 @@ impl Parser {
     pub fn expect_ident(&mut self) -> Result<String, String> {
         let tok = self.advance();
         match tok.kind {
-            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => Ok(tok.text),
+            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ => Ok(tok.text),
+            // A keyword used as a name keeps the spelling the author wrote.
+            TokenKind::KW => Ok(tok.source_text),
             _ => Err(format!(
                 "{}:{}: expected an identifier, got `{}`",
                 tok.line, tok.col, tok.source_text
@@ -9574,7 +9505,45 @@ impl Parser {
 
     // --- Top-level parsing ---
 
+    /// Parse a complete file. In a Danish file, Danish builtin names that the
+    /// file and its plain imports do not declare are resolved to the builtins
+    /// they name (see `danish`).
     pub fn parse_program(&mut self) -> Result<Vec<Stmt>, String> {
+        if self.language != SourceLanguage::Danish {
+            return self.parse_program_without_danish_names();
+        }
+        let tokens = self.tokens.clone();
+        let type_name_spans = self.type_name_spans.clone();
+        let stmts = self
+            .parse_program_without_danish_names()
+            .map_err(|errors| {
+                danish::localize_danish_parse_errors(
+                    &self.source_chars.iter().collect::<String>(),
+                    &errors,
+                )
+            })?;
+        let mut globals = BTreeSet::new();
+        danish::collect_top_level_names(&stmts, &mut globals);
+        if stmts.iter().any(|stmt| matches!(stmt, Stmt::Import(_))) {
+            danish::collect_imported_names(&stmts, &self.import_dir(), &mut globals);
+        }
+        let references = danish::danish_builtin_references(&stmts, &globals);
+        let Some(tokens) = danish::translate_danish_builtin_names(
+            &tokens,
+            |token| self.char_offset(token.line, token.col),
+            &references,
+            &globals,
+        ) else {
+            return Ok(stmts);
+        };
+        self.tokens = tokens;
+        self.pos = 0;
+        self.in_rule_body = false;
+        self.type_name_spans = type_name_spans;
+        self.parse_program_without_danish_names()
+    }
+
+    pub(crate) fn parse_program_without_danish_names(&mut self) -> Result<Vec<Stmt>, String> {
         // Lexical failure is independent of parser recovery and specialized
         // declaration loops. Invalid source must never produce an executable AST.
         let lexical_errors: Vec<_> = self
@@ -11358,7 +11327,9 @@ impl Parser {
             let ty = if parser.peek_kind() == TokenKind::Colon {
                 parser.advance();
                 // Check for inout modifier BEFORE parsing type
-                if parser.peek_kind() == TokenKind::Ident && parser.peek().text == "inout" {
+                if parser.peek_kind() == TokenKind::Ident
+                    && parser.token_spells(parser.peek(), "inout")
+                {
                     parser.advance(); // consume 'inout'
                     inout = true;
                 }
@@ -12104,7 +12075,10 @@ impl Parser {
 
     pub fn parse_annotation(&mut self) -> Result<Stmt, String> {
         let tok = self.advance();
-        let name = tok.text.clone();
+        let name = ["export", "depend"]
+            .into_iter()
+            .find(|word| self.token_spells(&tok, word))
+            .map_or_else(|| tok.text.clone(), str::to_string);
         if let Some(message) = removed_persistence_message(&name) {
             return Err(format!("{}:{}: {message}", tok.line, tok.col));
         }
@@ -12141,8 +12115,16 @@ impl Parser {
                     tok.line, tok.col
                 ));
             }
-            if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::KW {
-                self.advance(); // consume the language code (da, en, etc.)
+            let code = self.advance();
+            if !matches!(
+                code.kind,
+                TokenKind::Ident | TokenKind::Type | TokenKind::KW
+            ) || SourceLanguage::from_code(&code.source_text).is_none()
+            {
+                return Err(format!(
+                    "{}:{}: unknown language `{}` in `@ {name}`; write `da` (dansk) or `en` (english)",
+                    code.line, code.col, code.source_text
+                ));
             }
             return Ok(Stmt::Annot(name, Vec::new()));
         }
@@ -12427,7 +12409,7 @@ impl Parser {
 
     pub fn parse_type_atom(&mut self) -> Result<Ty, String> {
         // shared T → Ty::Shared(T)
-        if self.peek_kind() == TokenKind::Ident && self.peek().text == "shared" {
+        if self.peek_kind() == TokenKind::Ident && self.token_spells(self.peek(), "shared") {
             self.advance(); // consume "shared"
             let inner = self.parse_type_atom()?;
             return Ok(Ty::Shared(Box::new(inner)));
@@ -12530,7 +12512,8 @@ impl Parser {
                 if tok.text == "_" {
                     Ok(Pat::Wild)
                 } else {
-                    Ok(Pat::Var(tok.text))
+                    // A keyword used as a name keeps the spelling the author wrote.
+                    Ok(Pat::Var(tok.source_text))
                 }
             }
             TokenKind::Type => {
@@ -13171,7 +13154,11 @@ impl Parser {
                         Ok(expression)
                     }
                     "if" => self.parse_if_expr(tok),
-                    _ => Ok(ExprKind::Var(tok.text).into()),
+                    // A keyword used as a name keeps the spelling the author wrote.
+                    _ => {
+                        let span = self.token_span(&tok);
+                        Ok(Expr::new(ExprKind::Var(tok.source_text), span))
+                    }
                 }
             }
             // = inside expressions (binding in block)
@@ -18453,6 +18440,14 @@ impl Interpreter {
         env.set("format_float".into(), Value::Builtin("format_float".into()));
         env.set("parse_int".into(), Value::Builtin("parse_int".into()));
         env.set("parse_float".into(), Value::Builtin("parse_float".into()));
+        env.set(
+            "parse_danish_int".into(),
+            Value::Builtin("parse_danish_int".into()),
+        );
+        env.set(
+            "parse_danish_float".into(),
+            Value::Builtin("parse_danish_float".into()),
+        );
         env.set("string_chars".into(), Value::Builtin("string_chars".into()));
         // File I/O builtins (M14b)
         env.set("read_file".into(), Value::Builtin("read_file".into()));
@@ -18553,10 +18548,6 @@ impl Interpreter {
         env.set("struct_type".into(), Value::Builtin("struct_type".into()));
         env.set("enum_type".into(), Value::Builtin("enum_type".into()));
         env.set("field".into(), Value::Builtin("field".into()));
-        // Localized builtin aliases (vis→show, skriv→print, længde→length, etc.)
-        for (alias, canonical) in builtin_aliases() {
-            env.set(alias, Value::Builtin(canonical));
-        }
         env
     }
 
@@ -22317,22 +22308,19 @@ impl Interpreter {
         }
 
         if self.exhaustive_preview_forbid_effects {
-            let canonical = builtin_canonical(name);
             let impure = meta_impure_runtime_names();
             let list_shaped = |value: &Value| {
                 matches!(value, Value::List(_))
                     || matches!(value, Value::Constructor(name, _) if name == "Cons" || name == "Nil")
             };
-            let pure_eager_collection_overload = match canonical {
+            let pure_eager_collection_overload = match name {
                 "last" | "take" => args.first().is_some_and(list_shaped),
                 "collect" => args
                     .first()
                     .is_some_and(|value| matches!(value, Value::Stream(_)) || list_shaped(value)),
                 _ => false,
             };
-            if (impure.contains(name) || impure.contains(canonical))
-                && !pure_eager_collection_overload
-            {
+            if impure.contains(name) && !pure_eager_collection_overload {
                 return self.exhaustive_preview_fail(format!(
                     "exact exploration refuses impure runtime operation `{}`",
                     name
@@ -23599,6 +23587,23 @@ impl Interpreter {
                 Some(Value::Int(n)) => Value::Float(*n as f64),
                 _ => Value::Float(0.0),
             },
+            "parse_danish_int" | "parse_danish_float" => {
+                let parsed = match args.first() {
+                    Some(Value::Str(text)) if name == "parse_danish_int" => {
+                        danish::__futuruna_parse_danish_int(text).map(Value::Int)
+                    }
+                    Some(Value::Str(text)) => {
+                        danish::__futuruna_parse_danish_float(text).map(Value::Float)
+                    }
+                    _ => Err(format!("{name} expects a String")),
+                };
+                match parsed {
+                    Ok(value) => Value::Constructor("Ok".into(), vec![value].into()),
+                    Err(message) => {
+                        Value::Constructor("Err".into(), vec![Value::Str(message)].into())
+                    }
+                }
+            }
             "string_chars" => match args.first() {
                 Some(Value::Str(s)) => {
                     let size = s.chars().count();
@@ -24747,7 +24752,7 @@ impl Interpreter {
     }
 
     pub fn eval_effect(&mut self, name: &str, args: Vec<Value>) -> Value {
-        match builtin_canonical(name) {
+        match name {
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -28371,7 +28376,7 @@ pub fn display_diagnostic(source: &str, diag: &Diagnostic, filename: &str) {
 /// Convert 1-based line:col to a Span (for legacy error format).
 fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
     let mut current_line = 1;
-    let mut line_start = 0;
+    let mut line_start = usize::from(source.starts_with('\u{feff}'));
     for (i, ch) in source.chars().enumerate() {
         if current_line == line {
             let start = line_start + (col - 1);
@@ -43738,7 +43743,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         let rule_families = self.effective_rule_value_candidates(name);
         if !rule_families.is_empty()
             && (self.checker.constructor_signatures.contains_key(name)
-                || self.checker.builtins.contains_key(builtin_canonical(name)))
+                || self.checker.builtins.contains_key(name))
         {
             // A bare rule name is materialized only after runtime Env lookup;
             // constructor and builtin values therefore make the first-class
@@ -43838,7 +43843,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         // Callable-position variables are suppressed by their App parent, so
         // reaching this branch means the builtin is genuinely first-class.
         // CheckedValueBinding has no builtin-value identity yet.
-        if self.checker.builtins.contains_key(builtin_canonical(name)) {
+        if self.checker.builtins.contains_key(name) {
             self.issue(
                 &site,
                 CheckedResolutionIssue::UnsupportedExpression(
@@ -44236,7 +44241,6 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 ExactConstructorSignature::NoMatch => {}
             }
 
-            let canonical = builtin_canonical(name);
             if self.checker.functions.contains_key(name) {
                 if let Some(target) =
                     self.exact_callable_target(declaration, path, None, name, effective_arity)
@@ -44261,14 +44265,14 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 );
                 return (None, None);
             }
-            if self.checker.builtins.contains_key(canonical) {
+            if self.checker.builtins.contains_key(name) {
                 if has_named_args(arguments) {
                     self.issue(&site, CheckedResolutionIssue::NamedArgumentOrderNotResolved);
                     return (None, None);
                 }
                 return (
                     Some(CheckedCallTarget::Builtin {
-                        canonical_name: canonical.to_string().into_boxed_str(),
+                        canonical_name: name.to_string().into_boxed_str(),
                         arity: effective_arity,
                     }),
                     None,
@@ -46618,6 +46622,8 @@ impl TypeChecker {
             ("rust_debug", 1),
             ("parse_int", 1),
             ("parse_float", 1),
+            ("parse_danish_int", 1),
+            ("parse_danish_float", 1),
             ("string_chars", 1),
             ("string_length", 1),
             // File I/O
@@ -50605,7 +50611,7 @@ impl TypeChecker {
                         && !self.explore_contextual_intrinsic_is_shadowed(name, args.len())
                     {
                         if let Some(result) = self.infer_checked_intrinsic_result_with_locals(
-                            builtin_canonical(name),
+                            name,
                             args,
                             locals,
                             active_rule_scope,
@@ -52516,8 +52522,7 @@ impl TypeChecker {
         active_scope: Option<&str>,
         visiting_functions: &mut BTreeSet<RuleDispatchKey>,
     ) -> Option<CanonicalDispatchValue> {
-        let canonical = builtin_canonical(name);
-        if !Self::explore_observation_builtin_is_total(canonical) {
+        if !Self::explore_observation_builtin_is_total(name) {
             return None;
         }
         let mut values = Vec::with_capacity(arguments.len());
@@ -52538,7 +52543,7 @@ impl TypeChecker {
         let exact = |index: usize, expected: &str| {
             value_type(index).is_some_and(|actual| actual == expected)
         };
-        let result = match (canonical, arguments.len()) {
+        let result = match (name, arguments.len()) {
             ("show" | "rust_debug", 1) => {
                 let actual = parse_type_annotation(&values[0].type_name).ok()?;
                 (!matches!(actual, Ty::Arrow(_, _) | Ty::Hole)).then_some("String")
@@ -56082,11 +56087,10 @@ impl TypeChecker {
                 // authoritative for the concrete closure supplied by a call.
                 continue;
             }
-            let canonical = builtin_canonical(&call.name);
-            if ((impure_names.contains(&call.name) || impure_names.contains(canonical))
-                && !matches!(canonical, "last" | "take" | "collect"))
+            if (impure_names.contains(&call.name)
+                && !matches!(call.name.as_str(), "last" | "take" | "collect"))
                 || effect_operations.contains(&call.name)
-                || matches!(canonical, "findall" | "search")
+                || matches!(call.name.as_str(), "findall" | "search")
             {
                 supported = false;
             }
@@ -56108,10 +56112,9 @@ impl TypeChecker {
         {
             return true;
         }
-        let canonical = builtin_canonical(name);
         if self
             .builtins
-            .get(canonical)
+            .get(name)
             .is_some_and(|expected| expected == arity)
         {
             return true;
@@ -56338,7 +56341,7 @@ impl TypeChecker {
     /// arithmetic-overflow, callback, stream, or external-runtime edge.
     fn explore_observation_builtin_is_total(name: &str) -> bool {
         matches!(
-            builtin_canonical(name),
+            name,
             "show"
                 | "show_int"
                 | "show_float"
@@ -56467,7 +56470,7 @@ impl TypeChecker {
                 }
                 continue;
             }
-            let canonical = builtin_canonical(&call.0);
+            let canonical = call.0.as_str();
             if self
                 .builtins
                 .get(canonical)
@@ -58669,10 +58672,9 @@ impl TypeChecker {
                 {
                     return;
                 }
-                let canonical = builtin_canonical(name);
                 if !self.var_defined(name)
                     && !self.functions.contains_key(name)
-                    && !self.builtins.contains_key(canonical)
+                    && !self.builtins.contains_key(name)
                     && !self.constructors.contains_key(name)
                     && !name.contains("::")
                     && !name.contains(".")
@@ -58859,7 +58861,6 @@ impl TypeChecker {
                     return;
                 }
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
                     let lexical_call_checked = self.check_ordinary_call(expr, name, args);
                     if has_named_args(args) {
@@ -58889,7 +58890,7 @@ impl TypeChecker {
                                     self.check_expr(arg, _in_fn);
                                 }
                             }
-                        } else if self.builtins.contains_key(canonical) {
+                        } else if self.builtins.contains_key(name) {
                             self.error_at_expr(
                                 expr,
                                 format!("named arguments are not supported for builtin `{}`", name),
@@ -58937,10 +58938,8 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if let Some(&expected) = self
-                        .builtins
-                        .get(canonical)
-                        .filter(|_| !lexical_call_checked)
+                    } else if let Some(&expected) =
+                        self.builtins.get(name).filter(|_| !lexical_call_checked)
                     {
                         if actual_arity != expected {
                             self.error_at_expr(
@@ -58954,7 +58953,7 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                        if canonical == "assert_with_message"
+                        if name == "assert_with_message"
                             && actual_arity == 2
                             && !self.var_defined(name)
                         {
@@ -58971,7 +58970,7 @@ impl TypeChecker {
                                 }
                             }
                         }
-                        if canonical == "length" && actual_arity == 1 && !self.var_defined(name) {
+                        if name == "length" && actual_arity == 1 && !self.var_defined(name) {
                             if let Some(actual) = self.infer_expr_type_name(&args[0]) {
                                 if let Ok(ty) = parse_type_annotation(&actual) {
                                     let mut operand = &ty;
@@ -59183,10 +59182,9 @@ impl TypeChecker {
                 for a in args {
                     self.check_expr(a, _in_fn);
                 }
-                let canonical = builtin_canonical(name);
-                if !is_builtin_effect(canonical) {
+                if !is_builtin_effect(name) {
                     self.error_at_expr(expr, unknown_effect_message(name));
-                } else if let Some(&expected) = self.builtins.get(canonical) {
+                } else if let Some(&expected) = self.builtins.get(name) {
                     if args.len() != expected {
                         self.error_at_expr(
                             expr,
@@ -64548,12 +64546,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             .expect("localized keyword token");
         assert_eq!(localized_scope.kind, TokenKind::KW);
         assert_eq!(localized_scope.text, "scope");
-        let localized_fold = tokens
-            .iter()
-            .find(|token| token.source_text == "fold")
-            .expect("localized builtin token");
-        assert_eq!(localized_fold.kind, TokenKind::Ident);
-        assert_eq!(localized_fold.text, "foldl");
 
         let mut parser = Parser::new(tokens, source);
         let statements = parser.parse_program().expect("parse localized field");
