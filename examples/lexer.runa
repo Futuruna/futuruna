@@ -95,7 +95,7 @@
 > read_span(src: String, start: Int, pos: Int, ln: Int, col: Int, pred: String -> Bool) -> Span {
     = ch = pk(src, pos)
     if ch != "" && pred(ch) { read_span(src, start, pos + 1, ln, col + 1, pred) }
-    else { Span(pos, ln, col, substring(src, start, pos)) }
+    else { Span(pos, ln, col, substring(src, start, pos - start)) }
 }
 
 > read_word(src: String, pos: Int, ln: Int, col: Int) -> Lexed {
