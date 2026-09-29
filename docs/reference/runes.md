@@ -85,7 +85,21 @@ Here `i.amount` is also readable outside a match, because both variants declare
 }
 ```
 
-Methods are standalone functions. The first parameter (without type annotation) receives the ADT type.
+A method belongs to its type, not to the global namespace. The first parameter
+(without type annotation) receives the value the method is called on, so two
+types may each declare a method with the same name.
+
+Methods declared in a type body and in `# impl Trait for Type` blocks are
+called the same way:
+
+- `x.m(args)` calls the method `m` of the type of `x`.
+- A free call `m(x, args)` of a method name dispatches on the type of its first
+  argument, exactly like `x.m(args)`.
+- A declared global function always wins for free calls. With
+  `> fee(x: Int) -> Int` declared, `fee(10)` calls that function even when a
+  type has a `fee` method; `Case(1).fee()` still calls the method of `Case`.
+- A free call whose first argument's type has no such method is a runtime
+  error naming the method and the type.
 
 ### Product types with rule members
 ```runa
@@ -147,7 +161,7 @@ Defines abstract operations that callers can intercept via `| handle`.
 
 # trait Greetable {
     > greet(self) -> String {
-        "Hello, " + display(self)    -- default implementation
+        "Hello, " + self.display()    -- default implementation
     }
 }
 ```

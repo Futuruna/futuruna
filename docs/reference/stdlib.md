@@ -471,7 +471,7 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `http_get` | `String -> Result(String, String)` | GET request; `Ok` body for a 2xx response, `Err` for other statuses, connection failures and a 30 s timeout |
-| `http_post` | `(String, String) -> String` | POST with body, return response |
+| `http_post` | `(String, String) -> Result(String, String)` | POST with body; non-2xx, connection errors and timeouts are `Err` |
 | `http_serve` | `(Int, (String, String, String) -> (Int, String, String)) -> ()` | Start HTTP server |
 | `http_respond` | `(Int, String, String) -> (Int, String, String)` | Build response tuple |
 | `http_request_path` | `Request -> String` | Extract request URL path |
@@ -482,10 +482,10 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 
 ```runa
 = body = http_get("https://httpbin.org/get")
-@ print(body)
+@ print(match body { | Ok(text) -> text | Err(e) -> "failed: " + e })
 
 = response = http_post("https://httpbin.org/post", "{\"key\": \"value\"}")
-@ print(response)
+@ print(match response { | Ok(text) -> text | Err(e) -> "failed: " + e })
 ```
 
 ### Server
