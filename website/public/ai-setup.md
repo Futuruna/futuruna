@@ -26,7 +26,7 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 19 September 2026 predate calculation-safety fixes now present in this checkout.
 They must not be used for this checkout's tax-audit workflow. A development
 binary may also report `0.2.0`, so the version string alone is insufficient.
-Use [v0.2.1](https://github.com/Futuruna/futuruna/releases/tag/v0.2.1) or a newer
+Use [v0.2.3](https://github.com/Futuruna/futuruna/releases/tag/v0.2.3) or a newer
 verified release with these fixes.
 Use the [runtime compatibility check](#tax-audit-runtime-check) on the exact
 binary selected. If it fails, build from this checkout or obtain a newer verified
@@ -197,7 +197,7 @@ diagnose the error before continuing with the source build below. Do not change
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.2.1 supports Rust
+installing software or changing a shell profile. Futuruna 0.2.3 supports Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary

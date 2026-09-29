@@ -113,8 +113,8 @@ Use an annotated or
 signed tag when the maintainer's signing setup is available:
 
 ```bash
-git tag -s v0.2.1 -m "Futuruna 0.2.1"
-git push origin v0.2.1
+git tag -s v0.2.3 -m "Futuruna 0.2.3"
+git push origin v0.2.3
 ```
 
 If signed tags are not configured, stop and configure them instead of silently
@@ -139,7 +139,7 @@ From clean Linux x86-64, Linux ARM64, Apple Silicon, and Intel macOS machines:
 4. On macOS, compare the observed Gatekeeper behavior with the signing status
    stated in the release notes. Never disable Gatekeeper globally.
 5. If the crate was published, run
-   `cargo install futuruna --version 0.2.1 --locked` in an isolated Cargo home
+   `cargo install futuruna --version 0.2.3 --locked` in an isolated Cargo home
    and repeat the smoke checks.
 6. Confirm `https://futuruna.com/ai-setup.md` completes successfully from a
    clean agent session.
