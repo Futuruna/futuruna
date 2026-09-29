@@ -22859,7 +22859,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()",
+                rust_tpl: "{0}.clone().into_iter().filter(|x| __futuruna_predicate(\"filter\", ({1})( x.clone()))).collect::<Vec<_>>()",
             },
         ),
         (
@@ -22940,7 +22940,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))",
+                rust_tpl: "{0}.clone().into_iter().any(|x| __futuruna_predicate(\"any\", ({1})( x.clone())))",
             },
         ),
         (
@@ -22949,7 +22949,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))",
+                rust_tpl: "{0}.clone().into_iter().all(|x| __futuruna_predicate(\"all\", ({1})( x.clone())))",
             },
         ),
         (
@@ -22958,7 +22958,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()",
+                rust_tpl: "{0}.iter().find(|x| __futuruna_predicate(\"find\", ({1})((*x).clone()))).cloned()",
             },
         ),
         (
@@ -33393,6 +33393,25 @@ impl<T> std::ops::Deref for __FutSet<T> { type Target = BTreeMap<String, T>; fn 
 impl<T> std::ops::DerefMut for __FutSet<T> { fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 } }
 impl<T> IntoIterator for __FutSet<T> { type Item = T; type IntoIter = std::collections::btree_map::IntoValues<String, T>; fn into_iter(self) -> Self::IntoIter { self.0.into_values() } }
 fn __futuruna_set_key<T: __FuturunaOrd + ?Sized>(v: &T) -> String { __futuruna_key_of(v) }
+// A collection predicate answers Bool. A callback whose result type the
+// compiler could not fix is checked here, so any other result is a runtime
+// error, as in the interpreter.
+fn __futuruna_predicate<T: 'static>(builtin: &str, value: T) -> bool {
+    match (&value as &dyn std::any::Any).downcast_ref::<bool>() {
+        Some(holds) => *holds,
+        None => {
+            let name = std::any::type_name::<T>();
+            let label = match name {
+                "i64" => "Int",
+                "f64" => "Float",
+                "alloc::string::String" => "String",
+                "char" => "Char",
+                other => other.rsplit("::").next().unwrap_or(other),
+            };
+            panic!("{} predicate must return Bool, got {}", builtin, label)
+        }
+    }
+}
 // A runtime error reports `error: <message>` on stderr and exits with status 1,
 // like the interpreter.
 fn __futuruna_install_error_hook() {
@@ -38412,10 +38431,23 @@ fn __futuruna_install_error_hook() {
                             self.indent = 2;
                             let prev_in_self = self.in_self_method;
                             self.in_self_method = true;
-                            out.push_str(&self.emit_expr_as_return_with_expected_ty(
-                                body,
-                                expected_ret_fir_ty.as_ref(),
-                            ));
+                            // `self` is a `&Self` receiver of the impl's type.
+                            let self_was_borrowed =
+                                !self.current_borrow_params.insert("self".to_string());
+                            let body_code = self.with_temporary_named_types(
+                                &["self".to_string()],
+                                &[FirTy::Named(for_type.clone())],
+                                |cg| {
+                                    cg.emit_expr_as_return_with_expected_ty(
+                                        body,
+                                        expected_ret_fir_ty.as_ref(),
+                                    )
+                                },
+                            );
+                            if !self_was_borrowed {
+                                self.current_borrow_params.remove("self");
+                            }
+                            out.push_str(&body_code);
                             self.in_self_method = prev_in_self;
                             self.indent = saved_indent;
                             self.var_use_counts = prev_counts;
@@ -46916,6 +46948,7 @@ fn __futuruna_install_error_hook() {
                     &[String::from("__x")],
                     &seeded_param_tys,
                 );
+                let call = self.collection_predicate_code(name, &args[1], call);
                 Some(format!("{}.into_iter().{}(|__x| {})", snapshot, name, call))
             }
             _ => None,
@@ -46931,6 +46964,16 @@ fn __futuruna_install_error_hook() {
                 .unwrap_or(false);
         }
         false
+    }
+
+    /// The Rust test of a collection predicate call. A callback not known to
+    /// answer `bool` is checked at run time by `__futuruna_predicate`.
+    fn collection_predicate_code(&self, builtin: &str, callback: &Expr, code: String) -> String {
+        if self.callable_return_fir_ty(callback, 1) == FirTy::Bool {
+            code
+        } else {
+            format!("__futuruna_predicate({builtin:?}, {code})")
+        }
     }
 
     fn callable_return_fir_ty(&self, callable: &Expr, arity: usize) -> FirTy {
@@ -48767,6 +48810,11 @@ fn __futuruna_install_error_hook() {
                             };
                             let borrowed_param_prefix =
                                 format!("let {} = (*{}).clone();", param, param);
+                            let body_code = if matches!(name.as_str(), "any" | "all" | "find") {
+                                self.collection_predicate_code(name, &args[1], body_code)
+                            } else {
+                                body_code
+                            };
                             return match name.as_str() {
                                 "any" => format!(
                                     "{}.clone().into_iter().any(|{}| {{ {} {} }})",
@@ -48881,6 +48929,8 @@ fn __futuruna_install_error_hook() {
                                     + " "
                             };
                             if name == "filter" {
+                                let body_code =
+                                    self.collection_predicate_code(name, &args[1], body_code);
                                 return format!(
                                     "{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
                                     coll, param, clone_prefix, param, param, body_code
@@ -48942,6 +48992,7 @@ fn __futuruna_install_error_hook() {
                                 let pred = self
                                     .emit_function_value_call(&args[1], &[("__x.clone()", "__x")])
                                     .unwrap_or(call);
+                                let pred = self.collection_predicate_code(name, &args[1], pred);
                                 return format!(
                                     "{}.clone().into_iter().filter(|__x| {}).collect::<Vec<_>>()",
                                     coll, pred
@@ -48983,6 +49034,7 @@ fn __futuruna_install_error_hook() {
                                     let pred = self
                                         .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                         .unwrap();
+                                    let pred = self.collection_predicate_code(name, &args[1], pred);
                                     return format!(
                                         "{}.clone().into_iter().any(|__x| {})",
                                         coll, pred
@@ -48992,6 +49044,7 @@ fn __futuruna_install_error_hook() {
                                     let pred = self
                                         .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                         .unwrap();
+                                    let pred = self.collection_predicate_code(name, &args[1], pred);
                                     return format!(
                                         "{}.clone().into_iter().all(|__x| {})",
                                         coll, pred
@@ -49004,6 +49057,7 @@ fn __futuruna_install_error_hook() {
                                             &[("__x.clone()", "__x")],
                                         )
                                         .unwrap();
+                                    let pred = self.collection_predicate_code(name, &args[1], pred);
                                     return format!(
                                         "{}.clone().into_iter().find(|__x| {})",
                                         coll, pred

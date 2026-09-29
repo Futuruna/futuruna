@@ -171,7 +171,7 @@ impl SourceLanguage {
         }
     }
 
-    pub fn keyword_table(self) -> KeywordTable {
+    pub fn keyword_table(self) -> &'static KeywordTable {
         match self {
             SourceLanguage::English => keyword_table_english(),
             SourceLanguage::Danish => keyword_table_dansk(),
@@ -179,7 +179,12 @@ impl SourceLanguage {
     }
 }
 
-pub fn keyword_table_english() -> KeywordTable {
+pub fn keyword_table_english() -> &'static KeywordTable {
+    static TABLE: std::sync::OnceLock<KeywordTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(build_keyword_table_english)
+}
+
+fn build_keyword_table_english() -> KeywordTable {
     let kws = [
         "match",
         "if",
@@ -228,7 +233,12 @@ pub fn keyword_table_english() -> KeywordTable {
     t
 }
 
-pub fn keyword_table_dansk() -> KeywordTable {
+pub fn keyword_table_dansk() -> &'static KeywordTable {
+    static TABLE: std::sync::OnceLock<KeywordTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(build_keyword_table_dansk)
+}
+
+fn build_keyword_table_dansk() -> KeywordTable {
     let pairs: &[(&str, &str, TokenKind)] = &[
         // ---- core keywords ----
         ("skel", "match", TokenKind::KW),
@@ -714,7 +724,7 @@ pub struct Lexer {
     pub pos: usize,
     pub line: usize,
     pub col: usize,
-    pub keywords: KeywordTable,
+    pub keywords: &'static KeywordTable,
 }
 
 impl Lexer {
@@ -724,7 +734,7 @@ impl Lexer {
 
     /// A leading byte-order mark is not source text: it is skipped without
     /// occupying a column.
-    pub fn with_keywords(source: &str, keywords: KeywordTable) -> Self {
+    pub fn with_keywords(source: &str, keywords: &'static KeywordTable) -> Self {
         let chars: Vec<char> = source.chars().collect();
         let pos = usize::from(chars.first() == Some(&'\u{feff}'));
         Lexer {
@@ -1194,7 +1204,7 @@ impl Lexer {
                                 tokens.push(Token::new(TokenKind::Ident, "show", line, col));
                                 tokens.push(Token::new(TokenKind::LParen, "(", line, col));
                                 // Lex the interpolated expression (inherit parent's keywords)
-                                let mut sub = Lexer::with_keywords(expr_src, self.keywords.clone());
+                                let mut sub = Lexer::with_keywords(expr_src, self.keywords);
                                 let sub_tokens = sub.tokenize();
                                 for st in &sub_tokens {
                                     if st.kind != TokenKind::Eof {
@@ -13489,6 +13499,27 @@ impl Parser {
 /// backward compatibility, while this helper restores the structured `Ty` used
 /// by type checking, interpretation, and code generation.
 pub fn parse_type_annotation(source: &str) -> Result<Ty, String> {
+    // Checking re-reads the same few type spellings very many times.
+    const CACHE_LIMIT: usize = 1 << 16;
+    thread_local! {
+        static PARSED: RefCell<HashMap<Box<str>, Result<Ty, String>>> =
+            RefCell::new(HashMap::new());
+    }
+    if let Some(parsed) = PARSED.with(|cache| cache.borrow().get(source).cloned()) {
+        return parsed;
+    }
+    let parsed = parse_type_annotation_uncached(source);
+    PARSED.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(source.into(), parsed.clone());
+    });
+    parsed
+}
+
+fn parse_type_annotation_uncached(source: &str) -> Result<Ty, String> {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
@@ -15422,6 +15453,11 @@ struct RuntimeNamespaceState {
     /// Names of receiver methods declared in type bodies and impl blocks; a
     /// free call of one of these names dispatches on its first argument.
     receiver_method_names: BTreeSet<String>,
+    /// Default method bodies declared by each trait, with the trait's
+    /// declaration environment.
+    trait_default_methods: BTreeMap<String, (Vec<(String, FnDef)>, RuntimeDeclarationEnv)>,
+    /// Types with an impl block for each trait in this namespace.
+    trait_impl_types: BTreeMap<String, BTreeSet<String>>,
     rule_scopes: BTreeMap<String, Rc<RuleScopeDef>>,
     rule_scope_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     invariants: BTreeMap<String, (Expr, Expr)>,
@@ -15481,6 +15517,8 @@ impl RuntimeNamespaceState {
             impl_methods: BTreeMap::new(),
             impl_method_declaration_envs: BTreeMap::new(),
             receiver_method_names: BTreeSet::new(),
+            trait_default_methods: BTreeMap::new(),
+            trait_impl_types: BTreeMap::new(),
             rule_scopes: BTreeMap::new(),
             rule_scope_declaration_envs: BTreeMap::new(),
             invariants: BTreeMap::new(),
@@ -15701,7 +15739,8 @@ fn runtime_value_kind(value: &Value) -> &'static str {
         Value::Map(_) => "Map",
         Value::Set(_) => "Set",
         Value::Stream(_) => "Stream",
-        Value::Subject(_) => "Subject",
+        Value::LiveStream(_) => "Stream",
+        Value::Actor(_) => "Actor",
         Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. } => "function",
         _ => "value",
     }
@@ -18687,6 +18726,41 @@ impl Interpreter {
         self.register_type_in_namespace(&namespace, decl, declaration_env);
     }
 
+    /// Give `for_type` every default method of `trait_name` that its impl
+    /// does not define itself.
+    fn install_trait_default_methods(
+        &mut self,
+        namespace: &RuntimeNamespace,
+        trait_name: &str,
+        for_type: &str,
+    ) {
+        let Some((_, (defaults, declaration_env))) =
+            Self::runtime_namespace_find(namespace, |state| {
+                state.trait_default_methods.get(trait_name).cloned()
+            })
+        else {
+            return;
+        };
+        for (method_name, definition) in defaults {
+            let key = (for_type.to_string(), method_name);
+            if namespace.state.borrow().impl_methods.contains_key(&key) {
+                continue;
+            }
+            self.register_runtime_callable_declaration(
+                namespace,
+                RuntimeCallableKind::Method,
+                &key.1,
+                Some(for_type),
+            );
+            let mut state = namespace.state.borrow_mut();
+            state.receiver_method_names.insert(key.1.clone());
+            state
+                .impl_method_declaration_envs
+                .insert(key.clone(), declaration_env.clone());
+            state.impl_methods.insert(key, definition);
+        }
+    }
+
     fn register_type_in_namespace(
         &mut self,
         namespace: &RuntimeNamespace,
@@ -18818,9 +18892,39 @@ impl Interpreter {
                     .effect_decls
                     .insert(name.clone(), effect_ops);
             }
-            TypeDecl::TraitDecl { .. } => {} // traits are type-level, no runtime registration
+            TypeDecl::TraitDecl { name, methods, .. } => {
+                let defaults: Vec<(String, FnDef)> = methods
+                    .iter()
+                    .filter_map(|method| {
+                        let body = method.default_body.as_ref()?;
+                        Some((
+                            method.name.clone(),
+                            FnDef {
+                                params: method.params.iter().map(|p| p.name.clone()).collect(),
+                                body: body.clone(),
+                            },
+                        ))
+                    })
+                    .collect();
+                let implementors = {
+                    let mut state = namespace.state.borrow_mut();
+                    state
+                        .trait_default_methods
+                        .insert(name.clone(), (defaults, declaration_env));
+                    state
+                        .trait_impl_types
+                        .get(name)
+                        .cloned()
+                        .unwrap_or_default()
+                };
+                for for_type in implementors {
+                    self.install_trait_default_methods(namespace, name, &for_type);
+                }
+            }
             TypeDecl::ImplBlock {
-                for_type, methods, ..
+                trait_name,
+                for_type,
+                methods,
             } => {
                 // Register impl methods as functions
                 for method in methods {
@@ -18850,6 +18954,14 @@ impl Interpreter {
                         state.receiver_method_names.insert(name.clone());
                     }
                 }
+                namespace
+                    .state
+                    .borrow_mut()
+                    .trait_impl_types
+                    .entry(trait_name.clone())
+                    .or_default()
+                    .insert(for_type.clone());
+                self.install_trait_default_methods(namespace, trait_name, for_type);
             }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
@@ -21881,7 +21993,7 @@ impl Interpreter {
                         }
                     }
                     (list, Value::Int(i))
-                        if matches!(list, Value::Stream(_) | Value::Subject(_))
+                        if matches!(list, Value::Stream(_))
                             || matches!(list, Value::Constructor(name, _) if name == "Cons" || name == "Nil") =>
                     {
                         let elems = list_to_vec(&arr_val);
@@ -25847,11 +25959,15 @@ impl Interpreter {
         caller_env: &Env,
         dispatch: &PreparedRuntimeRuleDispatch,
     ) -> Option<Env> {
-        let mut base_env = self.registered_declaration_env(
-            declaration_env,
-            family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
-            &family.name,
-        )?;
+        // A child frame keeps the shared declaration snapshot intact: binding
+        // RuleScope captures must not copy every global binding per call.
+        let mut base_env = self
+            .registered_declaration_env(
+                declaration_env,
+                family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
+                &family.name,
+            )?
+            .child();
         base_env.set_runtime_namespace(namespace.clone());
 
         let scoped_binding_names = if let Some(scope_name) = family.scope.as_deref() {
@@ -58929,6 +59045,12 @@ impl TypeChecker {
                                     actual_arity
                                 ),
                             );
+                        }
+                        if matches!(name.as_str(), "filter" | "any" | "all" | "find")
+                            && actual_arity == 2
+                            && !self.var_defined(name)
+                        {
+                            self.check_collection_predicate(name, args);
                         }
                         if name == "assert_with_message"
                             && actual_arity == 2
