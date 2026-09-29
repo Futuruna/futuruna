@@ -219,8 +219,11 @@ fn calculation_contracts_publish_declared_danish_variants() {
     assert_eq!(variants, ["Godkendt", "Fejl"]);
 
     let input = project.path("input.json");
-    let template = stdout(&project.runa(&["template", "kontrol.runa"]));
-    std::fs::write(&input, template.replace("\"draft\"", "\"ready\"")).unwrap();
+    let mut template: Value =
+        serde_json::from_str(&stdout(&project.runa(&["template", "kontrol.runa"]))).unwrap();
+    template["cases"][0]["input_status"] = Value::from("ready");
+    template["cases"][0]["input"]["beløb"] = Value::from(0);
+    std::fs::write(&input, template.to_string()).unwrap();
     let result: Value = serde_json::from_str(&stdout(&project.runa(&[
         "call",
         "kontrol.runa",
