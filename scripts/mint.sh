@@ -29,6 +29,8 @@ run_step ./scripts/compiler-cross-product-canary.sh
 run_step "$RELEASE_RUNA" test
 run_step "$RELEASE_RUNA" test --run
 run_step "$RELEASE_RUNA" expect tests/expect
+run_step "$RELEASE_RUNA" expect tests/issue-repros
+run_step ./scripts/docs-oracle.sh
 run_step "$RELEASE_RUNA" test --check-codegen
 run_step "$RELEASE_RUNA" test --roundtrip tests
 run_step "$RELEASE_RUNA" run tests/codegen_integration_regression_test.runa

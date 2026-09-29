@@ -4,6 +4,16 @@ use std::process::{Command, Output};
 
 const MODEL: &str = "examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa";
 
+#[path = "support/calculation_baseline.rs"]
+mod calculation_baseline;
+
+/// A generated template whose cases start from the explicit test baseline.
+fn baseline_template() -> Value {
+    let mut template = run(&["template", MODEL, "--format", "json"]);
+    calculation_baseline::fill_template(&mut template, &run(&["schema", MODEL]));
+    template
+}
+
 fn execute(args: &[&str]) -> Output {
     let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
@@ -91,7 +101,7 @@ fn audit_interview_has_danish_questions_and_provenance() {
 
 #[test]
 fn public_audit_preserves_mixed_income_and_withholds_unknown_results() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let placeholder = envelope["cases"][0]["input"].clone();
     assert!(placeholder["grundlag_før_udlandsafgrænsning_kroner"].is_null());
     assert_eq!(

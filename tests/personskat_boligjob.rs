@@ -42,10 +42,11 @@ fn invoice_facts_dates_allocations_and_caps() {
         assert!(!field["sources"].as_array().unwrap().is_empty());
     }
     let mut template = run(&["template", MODEL, "--format", "json"]);
-    assert_eq!(
-        template["cases"][0]["input"]["udgifter"]["$variant"],
-        "BoligjobUoplyst"
-    );
+    // The expense alternative is left for the user to choose.
+    assert!(template["cases"][0]["input"]["udgifter"]["$fill"]
+        .as_str()
+        .unwrap()
+        .contains("BoligjobUoplyst"));
     let mut rows = Vec::new();
     let mut expected = Vec::new();
     let mut add = |name: &str, year: i64, valid: bool, service: i64, craft: i64, input: Value| {

@@ -97,7 +97,9 @@ fn generated_item_name(line: &str) -> Option<&str> {
             .unwrap_or(text.len());
         (end > 0).then_some(end)
     };
-    for keyword in ["fn ", "struct ", "enum ", "const ", "static ", "type ", "trait "] {
+    for keyword in [
+        "fn ", "struct ", "enum ", "const ", "static ", "type ", "trait ",
+    ] {
         if let Some(rest) = line.strip_prefix(keyword) {
             return identifier(rest).map(|end| &rest[..end]);
         }
@@ -117,7 +119,10 @@ fn generated_rust_origin(
 ) -> GeneratedRustOrigin {
     let code_lines: Vec<&str> = code.lines().collect();
     let source_lines: Vec<&str> = source.lines().collect();
-    let Some(index) = line.checked_sub(1).filter(|index| *index < code_lines.len()) else {
+    let Some(index) = line
+        .checked_sub(1)
+        .filter(|index| *index < code_lines.len())
+    else {
         return GeneratedRustOrigin::Unknown;
     };
     for statement in statements {
@@ -210,7 +215,10 @@ pub(super) fn generated_rust_diagnostics(
                 continue;
             }
         };
-        if seen.insert((diagnostic.span.map(|span| span.start), diagnostic.message.clone())) {
+        if seen.insert((
+            diagnostic.span.map(|span| span.start),
+            diagnostic.message.clone(),
+        )) {
             diagnostics.push(diagnostic);
         }
     }

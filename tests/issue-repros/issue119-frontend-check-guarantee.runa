@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-args: --frontend
+-- expect-status: pass
+-- expect-stderr: frontend check ok
+-- expect-stderr: guarantee: The program parses, its imports resolve and it type-checks
+> double(x: Int) -> Int { x * 2 }
+@ print(show(double(4)))

@@ -7,6 +7,16 @@ mod foreign_employment;
 
 const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
 
+#[path = "support/calculation_baseline.rs"]
+mod calculation_baseline;
+
+/// A generated template whose cases start from the explicit test baseline.
+fn baseline_template() -> Value {
+    let mut template = run(&["template", MODEL, "--format", "json"]);
+    calculation_baseline::fill_template(&mut template, &run(&["schema", MODEL]));
+    template
+}
+
 fn run(args: &[&str]) -> Value {
     let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
@@ -103,7 +113,7 @@ fn sport_payout(year: i64, amount: i64) -> Value {
 }
 
 fn fictional_input() -> (Value, Value) {
-    let envelope = run(&["template", MODEL, "--format", "json"]);
+    let envelope = baseline_template();
     let mut input = envelope["cases"][0]["input"].clone();
     // Fictional resident employee, no church tax/spouse/other income/deductions.
     input["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
@@ -489,7 +499,7 @@ fn supplementary_deductions_and_sub_ore_cases_match_official_tax_components() {
 
 #[test]
 fn atp_template_distinguishes_unknown_from_confirmed_absence() {
-    let template = run(&["template", MODEL, "--format", "json"]);
+    let template = baseline_template();
     assert_eq!(
         template["cases"][0]["input"]["lønmodtager"]["pension"]["atp"]["$variant"],
         "AtpUoplyst"
