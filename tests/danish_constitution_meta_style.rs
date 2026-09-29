@@ -186,7 +186,7 @@ fn constitution_uses_shared_typed_source_protocol() {
     for path in chapter_paths(&root) {
         let source = fs::read_to_string(&path).expect("read Constitution chapter");
         assert!(
-            source.contains("@ importer ./grundlov - faelles"),
+            source.contains("@ importer ./grundlov-faelles"),
             "{} must import the shared domain and source protocol",
             path.display()
         );

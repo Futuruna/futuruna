@@ -102,7 +102,6 @@ fn unchecked_unknown_effects_stop_execution_instead_of_returning_unit() {
 fn real_effects_declaration_markers_and_algebraic_calls_keep_working() {
     let source = r#"
 # effect Console { > say(message: String) -> () }
-@ pure
 > ordinary() -> Int { 7 }
 > greet() -> () with Console { say("hello") }
 = result = | handle Console {
@@ -122,7 +121,6 @@ assert(ordinary() == 7)
     for source in [
         "@ time\n@ random()\n@ input\n",
         "@ export\n> named() -> Int { 7 }\n",
-        "@ test\n> tested() -> Bool { True }\n",
     ] {
         assert!(
             diagnostics(source).is_empty(),

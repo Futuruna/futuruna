@@ -22814,7 +22814,7 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
     std::fs::write(
         &source_path,
         "# Child(name: String, age: Int)\n\
-# Selection = Empty | Fixed(amount: Int) | Pair(Int, String) | Family(label: String, children: List(Child))\n\
+# Selection = Empty | Fixed(amount: Int) | Couple(Int, String) | Family(label: String, children: List(Child))\n\
 # Input(selection: Selection, history: List(Selection))\n\
 @ calculate\n\
 > echo(input: Input) -> Input { input }\n",
@@ -22844,8 +22844,8 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
                 "input_status",
                 "Selection / Variant",
                 "Selection / Fixed / Amount",
-                "Selection / Pair / 0",
-                "Selection / Pair / 1",
+                "Selection / Couple / 0",
+                "Selection / Couple / 1",
                 "Selection / Family / Label",
             ]
         );
@@ -22857,8 +22857,8 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
                 "position",
                 "Variant",
                 "Fixed / Amount",
-                "Pair / 0",
-                "Pair / 1",
+                "Couple / 0",
+                "Couple / 1",
                 "Family / Label",
             ]
         );
@@ -22914,7 +22914,7 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
                 Data::String("case-1".to_string()),
                 Data::String("history-pair".to_string()),
                 Data::Int(2),
-                Data::String("Pair".to_string()),
+                Data::String("Couple".to_string()),
                 Data::Empty,
                 Data::Int(7),
                 Data::String("seven".to_string()),
@@ -22966,7 +22966,7 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
     );
     assert_eq!(
         result["results"][0]["result"]["history"][1],
-        serde_json::json!({ "$variant": "Pair", "$values": [7, "seven"] })
+        serde_json::json!({ "$variant": "Couple", "$values": [7, "seven"] })
     );
     assert_eq!(
         result["results"][0]["result"]["history"][2]["children"][0]["name"],
@@ -23757,7 +23757,7 @@ fn canonical_values_cover_generics_sums_maps_sets_and_case_isolation() {
     let input_path = temp_path("json");
     std::fs::write(
         &source_path,
-        "# Choice = Fixed(amount: Int) | Pair(Int, String) | Empty\n\
+        "# Choice = Fixed(amount: Int) | Couple(Int, String) | Empty\n\
 # Box(a) = Box(value: a)\n\
 # Input(choice: Choice, boxed: Box(Int), totals: Map(String, Int), flags: Set(Int))\n\
 # Output(choice: Choice, boxed: Box(Int), totals: Map(String, Int), flags: Set(Int))\n\
@@ -23784,7 +23784,7 @@ fn canonical_values_cover_generics_sums_maps_sets_and_case_isolation() {
         {
             "case_id": "valid",
             "input": {
-                "choice": { "$variant": "Pair", "$values": [7, "seven"] },
+                "choice": { "$variant": "Couple", "$values": [7, "seven"] },
                 "boxed": { "value": 9 },
                 "totals": { "a": 1, "b": 2 },
                 "flags": [2, 1]
@@ -23827,7 +23827,7 @@ fn canonical_values_cover_generics_sums_maps_sets_and_case_isolation() {
     assert_eq!(result["results"][0]["case_id"], "valid");
     assert_eq!(
         result["results"][0]["result"]["choice"],
-        serde_json::json!({ "$variant": "Pair", "$values": [7, "seven"] })
+        serde_json::json!({ "$variant": "Couple", "$values": [7, "seven"] })
     );
     assert_eq!(result["results"][0]["result"]["boxed"]["value"], 9);
     let diagnostics = result["diagnostics"].as_array().expect("diagnostics");
