@@ -16,8 +16,8 @@ related:
 Futuruna is both:
 
 - a compiler and runtime in Rust
-- a language design and proof project
-- a growing quality system built around mint gates, canaries, audits, and proof-backed slices
+- a language design project
+- a growing quality system built around mint gates, canaries, and audits
 
 This vault is meant to make those threads easier to navigate without replacing the source tree.
 
@@ -35,7 +35,6 @@ This vault is meant to make those threads easier to navigate without replacing t
 
 - semantic hardening of codegen and runtime behavior
 - authored canary coverage
-- proof-kernel and verified-bootstrap expansion
 - downstream-user bug burn-down
 - production-readiness mapping for stable core versus preview language surfaces
 
@@ -46,5 +45,4 @@ This vault is meant to make those threads easier to navigate without replacing t
 - [[dashboard]]
 - [[verification-lanes]]
 - [[language-surface]]
-- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[test-surface]]

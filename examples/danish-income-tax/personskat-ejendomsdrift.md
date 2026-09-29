@@ -66,9 +66,8 @@ herunder ændringslovene og den tidsafhængige nummerering. Typede
 feltbeskrivelser følger ejendomsgrenen i både hovedpersonens og ægtefællens
 kontrakt med lovkilder, vejledning og ruteforbehold.
 
-Generér schema/skabelon fra den aktuelle model, og følg
-[migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
-ved genbrug af tidligere sager. Bevar oprindelige kildefakta privat.
+Generér schema/skabelon fra den aktuelle model, og genberegn tidligere sager
+fra den friske skabelon. Bevar oprindelige kildefakta privat.
 De [fokuserede tests](../../tests/personskat_property_route.test.mjs)
 er model- og indgangskontroller med opdigtede fakta, ikke dokumentautentifikation,
 uafhængig officiel skatteberegning eller fuld dækning af udlejning. Typede

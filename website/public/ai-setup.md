@@ -15,22 +15,19 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 
 ## Setup at a glance
 
-- **Installation:** Use the verified Futuruna download made for the user's computer when one is available. Otherwise, install it with Cargo or build it on that computer.
+- **Installation:** Use the verified Futuruna release binary for the user's computer when one is available. Otherwise, install the tagged release from source with Cargo or build it from the checkout on that computer.
 - **Local result:** Leave the user with a working local `runa` executable and, when they want the examples or legal models, a local Futuruna checkout they can use after this AI session ends.
 - **Time:** A download normally takes 1–3 minutes. Building Futuruna normally takes 5–10 minutes when Rust and Cargo are already installed.
 - **Rust:** Formatting, interpreted execution (`runa FILE.runa`), `check --frontend`, and typed calculations do not require Rust. The default `runa check`, native `runa run`, `runa build`, and building Futuruna itself require Rust. A frontend-only check does not validate the Rust backend.
 - **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Before tax calculations, also run the small runtime compatibility check below. Do not run the full project test suite merely to check an installation.
 
-**Tax-audit compatibility:** The GitHub
-[`v0.2.0` binaries](https://github.com/Futuruna/futuruna/releases/tag/v0.2.0) published on
-19 September 2026 predate calculation-safety fixes now present in this checkout.
-They must not be used for this checkout's tax-audit workflow. A development
-binary may also report `0.2.0`, so the version string alone is insufficient.
-Use [v0.2.3](https://github.com/Futuruna/futuruna/releases/tag/v0.2.3) or a newer
-verified release with these fixes.
-Use the [runtime compatibility check](#tax-audit-runtime-check) on the exact
-binary selected. If it fails, build from this checkout or obtain a newer verified
-release that passes it; do not proceed using an older binary.
+**Tax-audit compatibility:** Use the verified
+[v0.2.3 release](https://github.com/Futuruna/futuruna/releases/tag/v0.2.3) or a
+source build of the same checkout as the models. A version string alone does
+not prove that a binary matches the models, so run the
+[runtime compatibility check](#tax-audit-runtime-check) on the exact binary
+selected before any tax calculation. If it fails, stop; build from the checkout
+instead of proceeding with that binary.
 
 ## Running untrusted models
 
@@ -65,7 +62,7 @@ where you run untrusted code.
 
 1. Establish which operating system and processor will actually run `runa`.
 2. Fetch the Futuruna repository onto that computer when the user wants the examples and legal models.
-3. Install a local Futuruna executable there. Prefer the verified download for that computer; otherwise use crates.io or build Futuruna locally.
+3. Install a local Futuruna executable there. Prefer the verified release binary for that computer; otherwise install the tagged release with Cargo or build Futuruna locally.
 4. Verify Futuruna on the user's computer.
 5. Ask the user which first project they want to explore.
 6. Help them complete that project without guessing facts or silently changing source material.
@@ -125,19 +122,17 @@ Choose the filename for the user's operating system and processor:
 | macOS `arm64` | `runa-macos-arm64` |
 | macOS `x86_64` | `runa-macos-x86_64` |
 
-From the repository root, replace `DOWNLOAD_NAME` below with that exact filename
-and `RELEASE_TAG` with the selected tag from the
-[GitHub releases](https://github.com/Futuruna/futuruna/releases).
-Use one explicit tag for both files, not two independently changing `latest`
-downloads. This block leaves the verified binary in a new directory and prints
-its path; it does not overwrite an existing compiler. The tax-audit warning above
-still applies to `v0.2.0`.
+From the repository root, replace `DOWNLOAD_NAME` below with that exact filename.
+`RELEASE_TAG` is `v0.2.3`; use one explicit tag for both files, never two
+independently changing `latest` downloads. This block leaves the verified binary
+in a new directory and prints its path; it never overwrites an existing
+compiler such as a source build in `target/release/runa`.
 
 ```sh
 (
 set -eu
 BINARY=DOWNLOAD_NAME
-RELEASE_TAG=RELEASE_TAG
+RELEASE_TAG=v0.2.3
 case "$BINARY" in
     runa-linux-x86_64|runa-linux-arm64|runa-macos-arm64|runa-macos-x86_64) ;;
     *) echo "Choose the exact download filename first." >&2; exit 1 ;;
@@ -166,38 +161,54 @@ printf 'Verified binary: %s/%s\n' "$DOWNLOAD_DIR" "$BINARY"
 Stop if the download or checksum is unavailable, the checksum line is missing,
 or verification fails. If the operating system blocks the downloaded program,
 show the user the exact message and ask before changing any security setting.
-Use Cargo or a local source build when that is the safer available route.
+Use the tagged Cargo installation or a local source build when that is the
+safer available route.
 
-**macOS browser downloads:** Check the selected release's signing status in its
-release notes. The `v0.2.0` macOS downloads are not Apple Developer ID signed or
-notarized. A browser download can carry a quarantine flag, so Gatekeeper may
-block it even when its checksum matches. A checksum confirms file integrity;
-it is not Apple notarization. If blocked, use the local source build below.
-Do not disable Gatekeeper or remove quarantine as an automatic setup step.
+**macOS and Gatekeeper:** When the release was built with Apple credentials,
+the macOS binaries are signed with an Apple Developer ID and notarized; the
+release notes state whether that applies to the selected release. A binary
+downloaded with `curl`, as above, carries no quarantine flag and runs directly.
+A binary downloaded in a web browser is quarantined: if it is not notarized,
+Gatekeeper refuses to open it ("cannot be opened because the developer cannot be
+verified" or "Apple could not verify"). The safe route is to verify its
+checksum as above and then, with the user's approval, remove the quarantine
+flag from that one verified file only:
+
+```sh
+xattr -d com.apple.quarantine /absolute/path/to/runa-macos-arm64
+```
+
+A checksum confirms the file is the published one; it is not Apple
+notarization. Never disable Gatekeeper (`spctl --master-disable`) or strip
+quarantine from unverified files. If the user prefers not to, use the source
+build below.
 
 If there is no download for the user's computer, use one of the installation
 methods below instead of trying to build from an unrelated AI sandbox.
 
-### 4. Install with Cargo
+### 4. Install the tagged release with Cargo
 
 When Cargo is already available and the user approves a user-level Cargo
-installation, try the crates.io source distribution:
+installation, install the exact release tag from the canonical repository:
 
 ```
-cargo install futuruna --locked
+cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked
 runa --version
 ```
 
+The version must print `0.2.3`. Do not use `cargo install futuruna` unless
+[crates.io](https://crates.io/crates/futuruna) lists version 0.2.3; the
+crates.io package is not guaranteed to match the current release.
 This installs into Cargo's configured binary directory, normally
-`~/.cargo/bin`. If Cargo cannot reach crates.io or the installation fails,
-diagnose the error before continuing with the source build below. Do not change
-`PATH` or shell profiles unless the user asks.
+`~/.cargo/bin`. If the installation fails, diagnose the error before
+continuing with the source build below. Do not change `PATH` or shell profiles
+unless the user asks.
 
 ### 5. Build from source
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.2.3 supports Rust
+installing software or changing a shell profile. Futuruna 0.2.3 requires Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary
@@ -212,8 +223,8 @@ restricted sandbox: they require additional Rust toolchain downloads and still
 need a suitable linker. Prefer the published download or build directly on the
 user's computer.
 
-On Windows, use the corresponding `runa.exe` path. Windows does not yet have a
-published download.
+On Windows, use the corresponding `runa.exe` path. Windows has no published
+release binary; build from source.
 
 ### 6. Check the installation on the user's computer
 
@@ -362,7 +373,7 @@ Retain it when either the relationship or the necessary spouse facts are
 unresolved; it withholds the independent comparison. Missing documents do not
 justify `UdenÆgtefælle` or a spouse filled with zero amounts. Use the conditional
 review below instead. The [spouse-input guide](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-validity.md#manglende-ægtefælleoplysninger-er-ikke-ingen-ægtefælle)
-explains the alternatives and fresh-template migration.
+explains the alternatives and when to generate a fresh template.
 
 First establish whether Danish tax liability applied throughout the income year
 or began/ended during it, including for a calculated spouse. Months worked are
@@ -462,8 +473,8 @@ Generated cases start with `input_status: "draft"` beside `case_id` (or the
 the supplied inputs, including related tables and explicitly represented
 unknowns. Do not auto-confirm every template just to make `call` run. Readiness
 does not verify documents, establish completeness or guarantee a valid tax
-result; the model's own checks still apply. Unmarked older inputs require
-refresh and review too. Never bypass the guard by rewriting the format version
+result; the model's own checks still apply. Inputs without `input_status` require
+a fresh template and review. Never bypass the guard by rewriting the format version
 or fingerprint. Review again after editing facts.
 
 For a worked source-to-field record, read
@@ -484,7 +495,7 @@ The single-parent employment deduction requires facts about extra børnetilskud,
 not a deduction copied from the tax report or an inference from marital status.
 Its default is unknown; do not silently change it to no benefit received.
 Read `examples/danish-income-tax/ligningsloven-par9j-enlig.md` for quarter facts
-and migration of existing templates. This applies to an active spouse too;
+and template handling. This applies to an active spouse too;
 unavailable facts still permit the separate conditional reconciliation above.
 
 Service and handyman deductions likewise require invoice and payment facts,

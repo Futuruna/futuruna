@@ -30,8 +30,8 @@ Modellen træffer ikke selv en afgørelse om hjemsted.
 ## Se et lille eksempel først
 
 Brug en compiler, der består det aktuelle
-[tax-audit-kompatibilitetstjek](../../website/public/ai-setup.md#tax-audit-runtime-check),
-ikke alene det oprindelige download med versionsnummer 0.2.0. Bevar den
+[tax-audit-kompatibilitetstjek](../../website/public/ai-setup.md#tax-audit-runtime-check);
+versionsnummeret alene er ikke nok. Bevar den
 afprøvede binærs absolutte sti i `RUNA_BIN`, og brug den samme binær i alle
 kommandoer nedenfor. Kør fra repoets rod:
 

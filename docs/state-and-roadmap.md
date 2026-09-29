@@ -15,7 +15,6 @@ For the detailed contracts behind each lane, see:
 - [docs/new-user-stability-packet.md](new-user-stability-packet.md)
 - [docs/compatibility-policy.md](compatibility-policy.md)
 - [docs/feature-stages.md](feature-stages.md)
-- [docs/compatibility-guides/](compatibility-guides/README.md)
 - [docs/canary-suite.md](canary-suite.md)
 - [docs/canary-matrix.md](canary-matrix.md)
 - [docs/expectation-suites.md](expectation-suites.md)
@@ -25,9 +24,7 @@ For the detailed contracts behind each lane, see:
 
 ## Current State
 
-Futuruna is no longer in the "add features and hope" phase.
-
-The project now has a real assurance stack:
+The project has a real assurance stack:
 
 - A blocking mint gate in [scripts/mint.sh](../scripts/mint.sh) that checks interpreted execution, compiled execution, Rust codegen validation, roundtrip parity, and real example programs.
 - A compiletest-style expectation lane for narrow diagnostics, run/fail
@@ -52,7 +49,6 @@ The project now has a real assurance stack:
   states production claims, conjectures, trust boundaries, first-hour
   diagnostics, fail-closed unsupported paths, and the formal-strengthening
   ranking in one place.
-- A versioned compatibility-guide discipline in [docs/compatibility-guides/](compatibility-guides/README.md) so stable changes and bug-fix exceptions become release-facing history instead of only PR-local context.
 
 On the language side, the recent focus has been semantic parity and determinism:
 

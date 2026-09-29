@@ -223,7 +223,7 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
 - Trait/impl method bodies emit real compiled code with escape analysis (was `todo!()`)
 - Qualified paths: `fmt::Display`, `std::ops::Add` in `# impl`, types, and annotations
 - Auto-generated `impl fmt::Display` suppressed when user provides explicit impl
-- Fixed `self` sanitization — no longer escaped to invalid `r#self`
+- Fixed `self` sanitization — not escaped to invalid `r#self`
 - **Verification:** `interop.runa` + `# impl fmt::Display` demo — end-to-end Futuruna + Rust interop compiles and runs
 
 ### Phase 1d: Algebraic Effects ✅ DONE
@@ -318,7 +318,7 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
 ### Phase 2c: Independence Analysis ✅ DONE
 - **Alias-at-binding detection:** `= y = x` now counts as a consuming use of `x`.
   If `x` is used later, the compiler emits `let y = x.clone()`.
-  Bug fix — previously `Stmt::Bind(_, _, Expr::Var(name))` was not counted as consuming.
+  `Stmt::Bind(_, _, Expr::Var(name))` counts as consuming.
 - **Branch-aware counting in all paths:** Main body and function bodies both use
   `count_consuming_uses_branch_aware()` (was only functions before).
 - **Adversarial borrow checker test:** `borrow_checker_test.runa` — 12 patterns that trip up

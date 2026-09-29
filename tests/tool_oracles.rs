@@ -270,8 +270,8 @@ fn invariants_proved_by_verify_hold_at_integer_boundaries() {
         root().join("tests/verify_test.runa"),
         root().join("tests/verify_blocks_test.runa"),
         root().join("tests/list_equality_verify_test.runa"),
-        root().join("tests/issue-repros/issue80-math/main.runa"),
-        root().join("tests/issue-repros/issue80-math/math.runa"),
+        root().join("tests/issue-repros/tutorial-project-math/main.runa"),
+        root().join("tests/issue-repros/tutorial-project-math/math.runa"),
     ];
     collect_runa(&root().join("tests/fixtures/verify"), false, &mut files);
     let marker = "__verify_oracle__";

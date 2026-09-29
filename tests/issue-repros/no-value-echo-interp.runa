@@ -1,6 +1,6 @@
 -- expect-command: interp
 -- expect-status: pass
--- expect-stdout-file: golden/issue84-no-value-echo.stdout
+-- expect-stdout-file: golden/no-value-echo.stdout
 = a = 1
 = b = a + 1
 @ print(show(b))
