@@ -341,12 +341,13 @@ whichever style fits their mental model.
 
 ### Phase 2: Stream operators (core set)
 - `map`, `filter`, `scan`, `merge`, `zip` as builtins
-- Emit tokio broadcast channels + spawned tasks
-- `@ depend "tokio" "1"` auto-added when `~` is used
+- Live streams use the shared synchronous runtime (`src/live_streams.rs` in the
+  interpreter, `src/live_runtime.rs` in compiled programs); see
+  [streams.md](reference/streams.md#live-stream-semantics)
 
 ### Phase 3: Timing operators
-- `debounce`, `throttle`, `delay`, `buffer`, `window`
-- Emit tokio timer-based operators
+- `debounce`, `throttle`, `delay`, `buffer`, `window` are defined for finite
+  streams; applying them to a live stream is an error
 
 ### Phase 4: DOM/Event integration (WASM target)
 - `events(selector, type)` → wasm-bindgen event listeners

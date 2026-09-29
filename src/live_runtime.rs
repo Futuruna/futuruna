@@ -487,8 +487,22 @@ impl<T: Clone + Send + 'static> __FutStream<T> {
         let out = Self::with_limit(__fut_combined_limit(self.limit(), other.limit()), false);
         // Values both sources already retain alternate, as for finite
         // streams; later values follow emission order.
-        let left = self.cell.lock().unwrap().retained.iter().cloned().collect::<Vec<_>>();
-        let right = other.cell.lock().unwrap().retained.iter().cloned().collect::<Vec<_>>();
+        let left = self
+            .cell
+            .lock()
+            .unwrap()
+            .retained
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        let right = other
+            .cell
+            .lock()
+            .unwrap()
+            .retained
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
         for index in 0..left.len().max(right.len()) {
             for side in [&left, &right] {
                 if let Some(value) = side.get(index) {

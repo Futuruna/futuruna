@@ -32208,8 +32208,7 @@ impl RustCodegen {
                         ..
                     }) = child
                     {
-                        if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "subject")
-                        {
+                        if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "subject") {
                             creates_subject = true;
                         }
                     }
@@ -40938,9 +40937,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     if LIVE_STREAM_OPERATORS.contains(&name.as_str()) && !args.is_empty() {
                         return self.is_live_stream_expr_for_validation(&args[0])
                             || (matches!(name.as_str(), "merge" | "concat")
-                                && args
-                                    .get(1)
-                                    .is_some_and(|arg| self.is_live_stream_expr_for_validation(arg)));
+                                && args.get(1).is_some_and(|arg| {
+                                    self.is_live_stream_expr_for_validation(arg)
+                                }));
                     }
                 }
                 false
@@ -45546,7 +45545,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 if self.has_async {
                     format!("{}__fut_teardown({:?});\n", self.ind(), scope_name)
                 } else {
-                    format!("{}// teardown {} (no live subscriptions)\n", self.ind(), scope_name)
+                    format!(
+                        "{}// teardown {} (no live subscriptions)\n",
+                        self.ind(),
+                        scope_name
+                    )
                 }
             }
             Stmt::Expr(expr) => {
@@ -45680,7 +45683,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 let mut error_arm = None;
                 let mut complete_arm = None;
                 for arm in arms {
-                    let is_complete = matches!(&arm.pat, Pat::Var(n) | Pat::Con(n, _) if n == "Complete");
+                    let is_complete =
+                        matches!(&arm.pat, Pat::Var(n) | Pat::Con(n, _) if n == "Complete");
                     let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
                     if is_complete {
                         complete_arm = Some(arm);
@@ -45757,7 +45761,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             self.indent -= 1;
                             out.push_str(&format!("{}}}\n", self.ind()));
                         }
-                        None => out.push_str(&format!("{}__FutEvent::Complete => {{}}\n", self.ind())),
+                        None => {
+                            out.push_str(&format!("{}__FutEvent::Complete => {{}}\n", self.ind()))
+                        }
                     }
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
@@ -45776,7 +45782,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 }
                 let mut out = String::new();
                 if !value_arms.is_empty() {
-                    out.push_str(&format!("{}for __item in {}.into_iter() {{\n", self.ind(), iter_name));
+                    out.push_str(&format!(
+                        "{}for __item in {}.into_iter() {{\n",
+                        self.ind(),
+                        iter_name
+                    ));
                     self.indent += 1;
                     out.push_str(&self.emit_subscription_value_match("__item", &value_arms));
                     self.indent -= 1;
@@ -45804,7 +45814,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         guard: None,
                         body: ExprKind::Block(body.clone()).into(),
                     };
-                    let captures = self.stream_sub_runtime_captures(std::slice::from_ref(&capture_arm));
+                    let captures =
+                        self.stream_sub_runtime_captures(std::slice::from_ref(&capture_arm));
                     let mut out = format!("{}{}.subscribe({{\n", self.ind(), stream);
                     self.indent += 1;
                     for name in captures
@@ -45828,11 +45839,15 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         self.ind(),
                         sanitize_name(var)
                     ));
-                    self.with_temporary_named_types(std::slice::from_ref(var), &[item_ty], |this| {
-                        for s in body {
-                            out.push_str(&this.emit_stmt(s));
-                        }
-                    });
+                    self.with_temporary_named_types(
+                        std::slice::from_ref(var),
+                        &[item_ty],
+                        |this| {
+                            for s in body {
+                                out.push_str(&this.emit_stmt(s));
+                            }
+                        },
+                    );
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
                     out.push_str(&format!(
@@ -47169,7 +47184,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         let indexes = params
                             .iter()
                             .enumerate()
-                            .filter(|(_, param)| param.ty.is_none() && targets.contains(&param.name))
+                            .filter(|(_, param)| {
+                                param.ty.is_none() && targets.contains(&param.name)
+                            })
                             .map(|(index, _)| index)
                             .collect::<Vec<_>>();
                         if !indexes.is_empty() {
@@ -47177,9 +47194,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                     }
                     Stmt::Bind(Pat::Var(var), _, value) => match &value.kind {
-                        ExprKind::App(func, args)
-                            if matches!(&func.as_ref().kind, ExprKind::Var(n) if n == "spawn") =>
-                        {
+                        ExprKind::App(func, args) if matches!(&func.as_ref().kind, ExprKind::Var(n) if n == "spawn") => {
                             if let Some(ExprKind::Var(actor)) = args.first().map(|arg| &arg.kind) {
                                 actor_handles.insert(var.clone(), actor.clone());
                             }
@@ -47245,9 +47260,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     fn teardown_scope_name(expr: &Expr) -> Option<String> {
         let args = match &expr.kind {
             ExprKind::Effect(name, args) if name == "teardown" => args,
-            ExprKind::App(func, args)
-                if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "teardown") =>
-            {
+            ExprKind::App(func, args) if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "teardown") => {
                 args
             }
             _ => return None,
@@ -47268,7 +47281,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             match &arm.guard {
                 Some(guard) => {
                     let guard_str = self.emit_expr(guard);
-                    out.push_str(&format!("{}{} if {} => {{\n", self.ind(), pat_str, guard_str));
+                    out.push_str(&format!(
+                        "{}{} if {} => {{\n",
+                        self.ind(),
+                        pat_str,
+                        guard_str
+                    ));
                 }
                 None => out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str)),
             }
@@ -48301,9 +48319,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         let two_sources = matches!(name.as_str(), "merge" | "concat");
                         return self.is_live_stream_expr_for_validation(&args[0])
                             || (two_sources
-                                && args
-                                    .get(1)
-                                    .is_some_and(|arg| self.is_live_stream_expr_for_validation(arg)));
+                                && args.get(1).is_some_and(|arg| {
+                                    self.is_live_stream_expr_for_validation(arg)
+                                }));
                     }
                 }
                 false
@@ -48586,7 +48604,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
         let two_sources = matches!(name, "merge" | "concat");
         let live_source = self.is_async_stream_expr(&args[0])
-            || (two_sources && args.get(1).is_some_and(|arg| self.is_async_stream_expr(arg)));
+            || (two_sources
+                && args
+                    .get(1)
+                    .is_some_and(|arg| self.is_async_stream_expr(arg)));
         if !live_source {
             return None;
         }
@@ -67885,12 +67906,13 @@ routes <- "b"
              }\n",
         );
         assert!(
-            diags.iter().any(|d| d.message
-                == "derived live streams require a named scope"
-                && d.context.iter().any(|ctx| ctx == "in function `install`")
-                && d.notes
-                    .iter()
-                    .any(|note| note.contains("return the stream expression directly"))),
+            diags.iter().any(
+                |d| d.message == "derived live streams require a named scope"
+                    && d.context.iter().any(|ctx| ctx == "in function `install`")
+                    && d.notes
+                        .iter()
+                        .any(|note| note.contains("return the stream expression directly"))
+            ),
             "expected function-local live stream binding diagnostic, got: {:?}",
             diags
                 .iter()
@@ -67909,9 +67931,10 @@ routes <- "b"
              }\n",
         );
         assert!(
-            diags.iter().any(|d| d.message
-                == "derived live streams require a named scope"
-                && d.context.iter().any(|ctx| ctx == "in function `install`")),
+            diags.iter().any(
+                |d| d.message == "derived live streams require a named scope"
+                    && d.context.iter().any(|ctx| ctx == "in function `install`")
+            ),
             "expected nested function-local live stream work diagnostic, got: {:?}",
             diags
                 .iter()
