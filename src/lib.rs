@@ -4319,6 +4319,7 @@ Raw additions
 # impl Meta for BoolMeta {}
 
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 = boolean_meta = BoolMeta(
@@ -11870,7 +11871,11 @@ impl Parser {
             if is_gt {
                 self.advance(); // consume >
                 let method_token = self.pos;
-                if let Some(method) = self.tokens.get(method_token).map(|token| token.text.clone()) {
+                if let Some(method) = self
+                    .tokens
+                    .get(method_token)
+                    .map(|token| token.text.clone())
+                {
                     self.record_declaration_name_span(
                         format!("impl:{trait_name}:{for_type}:{method}"),
                         method_token,
@@ -29774,7 +29779,8 @@ pub struct TypeChecker {
     declaration_source_spans: Option<(String, BTreeMap<String, Span>)>,
     /// (scope depth, subject variable, variant) for each enclosing match arm
     /// whose pattern names a variant of a named subject's sum type.
-    variant_refinements: Vec<(usize, String, String)>,
+    /// The flag marks refinements established by `= name = Variant(...)`.
+    variant_refinements: Vec<(usize, String, String, bool)>,
     /// constructor/variant name -> (parent type, field count)
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -47153,6 +47159,9 @@ impl TypeChecker {
         self.rule_scope_vars.pop();
         self.var_types.pop();
         self.actor_handle_scopes.pop();
+        let depth = self.scopes.len();
+        self.variant_refinements
+            .retain(|(scope, _, _, _)| *scope < depth);
     }
 
     pub fn define_var(&mut self, name: &str) {
@@ -54195,12 +54204,13 @@ impl TypeChecker {
     /// lambda parameters, loop variables over untyped lists) are dispatched
     /// by their runtime value.
     fn receiver_type_known(&self, expr: &Expr) -> bool {
-        self.ordinary_expression_type(expr).is_some_and(|type_name| {
-            !matches!(
-                parse_type_annotation(&type_name),
-                Err(_) | Ok(Ty::Var(_) | Ty::Hole)
-            )
-        })
+        self.ordinary_expression_type(expr)
+            .is_some_and(|type_name| {
+                !matches!(
+                    parse_type_annotation(&type_name),
+                    Err(_) | Ok(Ty::Var(_) | Ty::Hole)
+                )
+            })
     }
 
     fn resolved_rule_scope_return_type(&self, rule_name: &str) -> Option<String> {
@@ -58444,6 +58454,7 @@ impl TypeChecker {
                 if let Pat::Var(name) = pat {
                     let actor = Self::spawned_actor_name(expr);
                     self.define_actor_handle(name, actor);
+                    self.record_binding_variant_refinement(name, expr);
                 }
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
@@ -58592,10 +58603,21 @@ impl TypeChecker {
                             .map(|ty| (name.clone(), ty))
                     })
                     .collect::<Vec<_>>();
+                let subject_variants = subject_names[0]
+                    .iter()
+                    .filter_map(|name| {
+                        self.refined_variant(&Expr::unspanned(ExprKind::Var(name.clone())))
+                            .map(|variant| (name.clone(), variant))
+                    })
+                    .collect::<Vec<_>>();
                 self.push_scope();
                 Self::define_rule_head_vars(subject, &mut self.scopes);
                 for (name, ty) in subject_types {
                     self.define_inferred_var_type_name(&name, &ty);
+                }
+                let depth = self.scopes.len() - 1;
+                for (name, variant) in subject_variants {
+                    self.variant_refinements.push((depth, name, variant, true));
                 }
                 self.define_rule_head_var_types(subject);
                 self.check_expr(subject, None);
@@ -59132,6 +59154,7 @@ impl TypeChecker {
                             self.scopes.len() - 1,
                             subject.clone(),
                             variant.clone(),
+                            false,
                         ));
                     }
                     self.define_pat_vars(&arm.pat);
@@ -59165,9 +59188,6 @@ impl TypeChecker {
                         } else {
                             first_arm_type = Some(arm_type);
                         }
-                    }
-                    if refined.is_some() {
-                        self.variant_refinements.pop();
                     }
                     self.pop_scope();
                 }
@@ -65132,6 +65152,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn interpreted_typed_boolean_rule_misses_use_exact_return_metadata() {
         let source = r#"
 | condition(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 | mixed(value: Int) -> True under value > 0
@@ -65287,6 +65308,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 # Case(limit: Int) {
     | allowed(value: Int) -> True under value > 0
+    | exception_allowed(value: Int) -> True under value > 100
     | exception above_limit exception_allowed(value: Int) -> True under value > 0
     | wrapper(value: Int) -> allowed(value)
     | memo_allowed() -> True under False
@@ -65724,6 +65746,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn eval_source_installs_boolean_rule_miss_metadata() {
         let source = r#"
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ print(show(conditional(0)))

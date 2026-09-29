@@ -63349,6 +63349,7 @@ assert_with_message(true, message())
     fn interpreted_and_generated_boolean_rule_misses_match() {
         let source = r#"
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ print(show(conditional(1)))

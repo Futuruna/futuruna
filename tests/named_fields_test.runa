@@ -57,7 +57,10 @@
 = xs = Link(1, Link(2, Link(3, End)))
 @ print("--- List ---")
 @ print(xs.head)
-@ print(xs.tail.head)
+@ print(match xs.tail {
+    | Link(head: h, tail: _) -> show(h)
+    | End -> "end"
+})
 
 -- ============================================
 -- Part 2: Sealed Interfaces (method blocks)
