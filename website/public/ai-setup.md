@@ -562,11 +562,12 @@ Start with the
 [law-exploration workbook](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/exploration-workbook.md)
 and inspect its
 [income-cliff audit](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa).
-The complete audit evaluates the full tax model 980 times across 490 transitions
-before printing its report. Allow for a substantial run and plan the search
-scope and time budget before starting it. Use the weather example or the small
-typed calculation above to check an installation. The workbook gives the
-execution commands; runtime varies with the compiler and model version.
+The complete audit evaluates the full tax model 980 times across 490
+transitions. Run it from its directory with
+`runa personskat-income-cliffs.audit.runa`: each check prints its result as it
+completes, the first within about half a minute, and the whole audit takes a few
+minutes. Use the weather example or the small typed calculation above to check
+an installation.
 
 ### Encode a contract
 

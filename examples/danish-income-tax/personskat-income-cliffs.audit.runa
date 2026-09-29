@@ -5,6 +5,10 @@
 -- Map the places where one additional krone of gross income leaves less
 -- after-tax income in the encoded 2026 phase-out of Ligningsloven § 9 C's
 -- low-income commuting supplement.
+--
+-- Run from this directory: runa personskat-income-cliffs.audit.runa
+-- Each check prints its result as it completes; the whole audit takes a few
+-- minutes.
 
 ----
 Question:
