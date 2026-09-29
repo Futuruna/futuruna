@@ -215,16 +215,6 @@ fn a_user_function_shadows_the_builtin_of_the_same_name() {
 fn ill_typed_runtime_operands_are_located_errors() {
     for (name, source, message) in [
         (
-            "filter_predicate",
-            "@ print(show(filter([1, 2, 3], |x| x)))\n",
-            "filter predicate must return Bool, got Int",
-        ),
-        (
-            "any_predicate",
-            "@ print(show(any([1, 2, 3], |x| \"yes\")))\n",
-            "any predicate must return Bool, got String",
-        ),
-        (
             "all_find_predicate",
             "> pick(x) { x }\n@ print(show(all([1, 2, 3], pick)))\n",
             "all predicate must return Bool, got Int",
@@ -247,6 +237,92 @@ fn ill_typed_runtime_operands_are_located_errors() {
     ] {
         assert_fails_with(name, source, message);
     }
+}
+
+#[test]
+fn collection_callbacks_with_a_known_non_bool_result_are_type_errors() {
+    for (name, source, message) in [
+        (
+            "filter_lambda",
+            "@ print(show(filter([1, 2, 3], |x| x)))\n",
+            "`filter` callback must return `Bool`, but it returns `Int`",
+        ),
+        (
+            "any_lambda",
+            "@ print(show(any([1, 2, 3], |x| \"yes\")))\n",
+            "`any` callback must return `Bool`, but it returns `String`",
+        ),
+        (
+            "find_function",
+            "> half(x: Int) -> Int { x / 2 }\n@ print(show(find([1, 2, 3], half)))\n",
+            "`find` callback must return `Bool`, but it returns `Int`",
+        ),
+    ] {
+        for compiled in [false, true] {
+            let output = run(name, source, compiled);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{name} compiled={compiled}: {output:?}"
+            );
+            assert!(
+                stderr.contains(message),
+                "{name} compiled={compiled}: {stderr}"
+            );
+            assert!(
+                stdout(&output).is_empty(),
+                "{name} compiled={compiled}: {output:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_generic_callback_with_a_non_bool_result_fails_at_run_time_in_both_modes() {
+    let source =
+        "> pick(x: a) -> a { x }\n@ print(\"before\")\n@ print(show(all([1, 2, 3], pick)))\n";
+    for compiled in [false, true] {
+        let output = run("generic_predicate", source, compiled);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "compiled={compiled}: {output:?}"
+        );
+        assert_eq!(stdout(&output), "before", "compiled={compiled}: {output:?}");
+        assert!(
+            stderr.contains("all predicate must return Bool, got Int"),
+            "compiled={compiled}: {stderr}"
+        );
+    }
+}
+
+#[test]
+fn trait_default_methods_apply_to_impls_without_their_own_body() {
+    assert_both_modes_print(
+        "trait_default_method",
+        r#"# Dog = Dog(name: String)
+# Cat = Cat(name: String)
+# impl Greeter for Dog {
+    > name_of(self) -> String { self.name }
+}
+# impl Greeter for Cat {
+    > name_of(self) -> String { self.name }
+    > greet(self) -> String { "Purr, " + self.name_of() }
+}
+# trait Greeter {
+    > name_of(self) -> String
+    > greet(self) -> String {
+        "Hello, " + self.name_of()
+    }
+}
+@ print(Dog("Rex").greet())
+@ print(greet(Dog("Fido")))
+@ print(Cat("Tom").greet())
+"#,
+        "Hello, Rex\nHello, Fido\nPurr, Tom",
+    );
 }
 
 #[test]

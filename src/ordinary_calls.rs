@@ -246,7 +246,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
+    /// Types of the lexical bindings in scope; untyped binders shadow outer
+    /// declarations with an unknown type.
+    fn ordinary_locals(&self) -> BTreeMap<String, String> {
         let mut locals = BTreeMap::new();
         for (names, types) in self.scopes.iter().zip(&self.var_types).skip(1) {
             for name in names {
@@ -259,6 +261,64 @@ impl TypeChecker {
                 );
             }
         }
+        locals
+    }
+
+    /// `filter`, `any`, `all` and `find` test each element with a callback
+    /// that answers `Bool`. A callback whose result type is known to be
+    /// anything else is a type error.
+    pub(super) fn check_collection_predicate(&mut self, name: &str, arguments: &[Expr]) {
+        let [collection, callback] = arguments else {
+            return;
+        };
+        let locals = self.ordinary_locals();
+        let result = match &callback.kind {
+            ExprKind::Lambda(params, body) => {
+                let [param] = params.as_slice() else {
+                    return;
+                };
+                let element = match param.ty.as_ref() {
+                    Some(ty) if !matches!(ty, Ty::Hole) => {
+                        Some(Self::canonical_explore_ty_name(ty))
+                    }
+                    _ => self
+                        .infer_expr_type_name_with_locals(collection, &locals)
+                        .and_then(|ty| Self::applied_type_argument(&ty, "List", 0)),
+                };
+                let mut lambda_locals = locals;
+                lambda_locals.insert(
+                    param.name.clone(),
+                    element.unwrap_or_else(|| CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.into()),
+                );
+                self.infer_expr_type_name_with_locals(body, &lambda_locals)
+            }
+            _ => self.infer_callable_result_type_with_locals(
+                callback,
+                1,
+                &locals,
+                self.active_rule_scope_inference.as_deref(),
+            ),
+        };
+        let Some(result) = result else {
+            return;
+        };
+        let Ok(result_ty) = parse_type_annotation(&result) else {
+            return;
+        };
+        if matches!(&result_ty, Ty::Name(bool) if bool == "Bool")
+            || matches!(result_ty, Ty::Hole)
+            || Self::canonical_type_contains_variable(&result_ty)
+        {
+            return;
+        }
+        self.error_at_expr(
+            callback,
+            format!("`{name}` callback must return `Bool`, but it returns `{result}`"),
+        );
+    }
+
+    pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
+        let locals = self.ordinary_locals();
         self.infer_expr_type_name_with_locals(expression, &locals)
             .or_else(|| Self::is_polymorphic_empty_list_expr(expression).then(|| "List(_)".into()))
     }

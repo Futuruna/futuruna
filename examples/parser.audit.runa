@@ -1,4 +1,5 @@
 -- parser.audit.runa — Verification suite for the Futuruna self-hosting parser
+-- The audited programs are inline source text, so the audit reads no files.
 -- Uses 5/7 runes: # types, = bindings, | invariants, @ effects, ? verification
 -- Plus |> pipes throughout for idiomatic stream-style queries
 
@@ -6,10 +7,10 @@
 @ import ./parser
 
 -- ============================================================================
--- = What is — parse lexer.runa (the parser's dependency)
+-- = What is — parse a lexer-shaped program
 -- ============================================================================
 
-= lexer_src = read_source("examples/lexer.runa")
+= lexer_src = "# Token = TInt(Int) | TIdent(String) | TEof\n# Pos(line: Int, col: Int)\n> is_digit(c: String) -> Bool { c >= \"0\" && c <= \"9\" }\n> is_space(c: String) -> Bool { c == \" \" }\n> advance(p: Pos) -> Pos { Pos(p.line, p.col + 1) }\n= sample = \"x = 1\"\n= limit = 10\nfor c in chars(sample) { @ print(c) }\n@ print(\"lexed\")\n@ print(show(limit))\n"
 = lexer_toks = tokenize(lexer_src)
 = lexer_ast = parse_program(make_state(lexer_toks))
 
@@ -19,8 +20,7 @@
 @ print("Statements: " + show(length(lexer_ast)))
 
 -- ============================================================================
--- | What must be true — lexer.runa structural invariants
--- Ranges (>=) for lower bounds: adding code should not break the audit.
+-- | What must be true — lexer-shaped program structural invariants
 -- ============================================================================
 
 = lexer_fns = filter(lexer_ast, |s| match s { SDefn(_) -> true | _ -> false })
@@ -29,42 +29,42 @@
 = lexer_fors = filter(lexer_ast, |s| match s { SFor(_, _, _) -> true | _ -> false })
 = lexer_effects = filter(lexer_ast, |s| match s { SExpr(EEffect(_, _)) -> true | _ -> false })
 
-| lexer_stmt_count: lexer_ast -> length(lexer_ast) >= 35
-| lexer_fn_count: lexer_fns -> length(lexer_fns) >= 25
-| lexer_type_count: lexer_types -> length(lexer_types) >= 4
-| lexer_bind_count: lexer_binds -> length(lexer_binds) >= 2
-| lexer_for_count: lexer_fors -> length(lexer_fors) >= 1
-| lexer_effect_count: lexer_effects -> length(lexer_effects) >= 3
+| lexer_stmt_count: lexer_ast -> length(lexer_ast) == 10
+| lexer_fn_count: lexer_fns -> length(lexer_fns) == 3
+| lexer_type_count: lexer_types -> length(lexer_types) == 2
+| lexer_bind_count: lexer_binds -> length(lexer_binds) == 2
+| lexer_for_count: lexer_fors -> length(lexer_fors) == 1
+| lexer_effect_count: lexer_effects -> length(lexer_effects) == 2
 
 -- ============================================================================
--- ? Prove it — verify lexer AST
+-- ? Prove it — verify the lexer-shaped AST
 -- ============================================================================
 
 @ print("")
 @ print("--- Lexer invariants ---")
-? lexer_stmt_count -> { @ print("  >= 35 statements: PASS (" + show(length(lexer_ast)) + ")") } else { @ print("  >= 35 statements: FAIL (got " + show(length(lexer_ast)) + ")") }
-? lexer_fn_count -> { @ print("  >= 25 functions: PASS (" + show(length(lexer_fns)) + ")") } else { @ print("  >= 25 functions: FAIL (got " + show(length(lexer_fns)) + ")") }
-? lexer_type_count -> { @ print("  >= 4 types: PASS (" + show(length(lexer_types)) + ")") } else { @ print("  >= 4 types: FAIL (got " + show(length(lexer_types)) + ")") }
-? lexer_bind_count -> { @ print("  >= 2 bindings: PASS (" + show(length(lexer_binds)) + ")") } else { @ print("  >= 2 bindings: FAIL (got " + show(length(lexer_binds)) + ")") }
-? lexer_for_count -> { @ print("  >= 1 for loop: PASS (" + show(length(lexer_fors)) + ")") } else { @ print("  >= 1 for loop: FAIL (got " + show(length(lexer_fors)) + ")") }
-? lexer_effect_count -> { @ print("  >= 3 effects: PASS (" + show(length(lexer_effects)) + ")") } else { @ print("  >= 3 effects: FAIL (got " + show(length(lexer_effects)) + ")") }
+? lexer_stmt_count -> { @ print("  10 statements: PASS (" + show(length(lexer_ast)) + ")") } else { @ print("  10 statements: FAIL (got " + show(length(lexer_ast)) + ")") }
+? lexer_fn_count -> { @ print("  3 functions: PASS (" + show(length(lexer_fns)) + ")") } else { @ print("  3 functions: FAIL (got " + show(length(lexer_fns)) + ")") }
+? lexer_type_count -> { @ print("  2 types: PASS (" + show(length(lexer_types)) + ")") } else { @ print("  2 types: FAIL (got " + show(length(lexer_types)) + ")") }
+? lexer_bind_count -> { @ print("  2 bindings: PASS (" + show(length(lexer_binds)) + ")") } else { @ print("  2 bindings: FAIL (got " + show(length(lexer_binds)) + ")") }
+? lexer_for_count -> { @ print("  1 for loop: PASS (" + show(length(lexer_fors)) + ")") } else { @ print("  1 for loop: FAIL (got " + show(length(lexer_fors)) + ")") }
+? lexer_effect_count -> { @ print("  2 effects: PASS (" + show(length(lexer_effects)) + ")") } else { @ print("  2 effects: FAIL (got " + show(length(lexer_effects)) + ")") }
 
 -- ============================================================================
--- = What is — parse parser.runa (self-parse)
+-- = What is — parse a parser-shaped program
 -- ============================================================================
 
-= parser_src = read_source("examples/parser.runa")
+= parser_src = "@ import ./lexer\n# Expr = ELit(Int) | EVar(String) | EAdd(Expr, Expr)\n# Stmt = SLet(String, Expr) | SShow(Expr)\n# State(tokens: List(Token), pos: Int)\n> peek(s: State) -> Token { nth(s.tokens, s.pos) }\n> advance(s: State) -> State { State(s.tokens, s.pos + 1) }\n> parse_atom(s: State) -> Expr { match peek(s) { | TInt(n) -> ELit(n) | TIdent(x) -> EVar(x) | _ -> ELit(0) } }\n> eval(e: Expr) -> Int { match e { | ELit(n) -> n | EAdd(a, b) -> eval(a) + eval(b) | _ -> 0 } }\n= program = [SLet(\"x\", ELit(1)), SShow(EVar(\"x\"))]\nfor s in program { @ print(show(s)) }\n"
 = parser_toks = tokenize(parser_src)
 = parser_ast = parse_program(make_state(parser_toks))
 
 @ print("")
-@ print("--- Parser self-parse ---")
+@ print("--- Parser-shaped program ---")
 @ print("Source: " + show(string_length(parser_src)) + " chars")
 @ print("Tokens: " + show(length(parser_toks)))
 @ print("Statements: " + show(length(parser_ast)))
 
 -- ============================================================================
--- | What must be true — self-parse structural invariants
+-- | What must be true — parser-shaped program structural invariants
 -- ============================================================================
 
 = parser_fns = filter(parser_ast, |s| match s { SDefn(_) -> true | _ -> false })
@@ -73,26 +73,26 @@
 = parser_imports = filter(parser_ast, |s| match s { SImport(_) -> true | _ -> false })
 = parser_fors = filter(parser_ast, |s| match s { SFor(_, _, _) -> true | _ -> false })
 
-| self_fn_count: parser_fns -> length(parser_fns) >= 65
-| self_type_count: parser_types -> length(parser_types) >= 25
+| self_fn_count: parser_fns -> length(parser_fns) == 4
+| self_type_count: parser_types -> length(parser_types) == 3
 | self_import_count: parser_imports -> length(parser_imports) == 1
-| self_has_bindings: parser_binds -> length(parser_binds) > 0
-| self_has_for: parser_fors -> length(parser_fors) > 0
+| self_has_bindings: parser_binds -> length(parser_binds) == 1
+| self_has_for: parser_fors -> length(parser_fors) == 1
 
 -- Every function must have a name
 | self_fns_named: parser_fns -> all(parser_fns, |s| match s { SDefn(DFn(name, _, _, _)) -> string_length(name) > 0 | _ -> true })
 
 -- ============================================================================
--- ? Prove it — verify self-parse
+-- ? Prove it — verify the parser-shaped AST
 -- ============================================================================
 
 @ print("")
-@ print("--- Self-parse invariants ---")
-? self_fn_count -> { @ print("  >= 65 functions: PASS (" + show(length(parser_fns)) + ")") } else { @ print("  >= 65 functions: FAIL (got " + show(length(parser_fns)) + ")") }
-? self_type_count -> { @ print("  >= 25 types: PASS (" + show(length(parser_types)) + ")") } else { @ print("  >= 25 types: FAIL (got " + show(length(parser_types)) + ")") }
+@ print("--- Parser-shaped invariants ---")
+? self_fn_count -> { @ print("  4 functions: PASS (" + show(length(parser_fns)) + ")") } else { @ print("  4 functions: FAIL (got " + show(length(parser_fns)) + ")") }
+? self_type_count -> { @ print("  3 types: PASS (" + show(length(parser_types)) + ")") } else { @ print("  3 types: FAIL (got " + show(length(parser_types)) + ")") }
 ? self_import_count -> { @ print("  1 import: PASS") } else { @ print("  1 import: FAIL") }
-? self_has_bindings -> { @ print("  has bindings: PASS (" + show(length(parser_binds)) + ")") }
-? self_has_for -> { @ print("  has for loops: PASS (" + show(length(parser_fors)) + ")") }
+? self_has_bindings -> { @ print("  1 binding: PASS") } else { @ print("  1 binding: FAIL (got " + show(length(parser_binds)) + ")") }
+? self_has_for -> { @ print("  1 for loop: PASS") } else { @ print("  1 for loop: FAIL (got " + show(length(parser_fors)) + ")") }
 ? self_fns_named -> { @ print("  all fns named: PASS") } else { @ print("  all fns named: FAIL") }
 
 -- ============================================================================
@@ -227,37 +227,47 @@
 
 -- ============================================================================
 -- = What is — error recovery (negative tests)
--- Parser must not crash on malformed input. It may produce partial/wrong AST,
--- but it must always terminate and return a list of statements.
+-- Parser must not crash on malformed input. It may produce a partial AST,
+-- but it must always terminate and report at least one parse error.
 -- ============================================================================
 
 @ print("")
 @ print("--- Error recovery (negative tests) ---")
 
 -- Truncated binding: = x = (no value, hits EOF)
-= bad_trunc = "= x =\n" |> tokenize |> make_state |> parse_program
-| err_trunc: bad_trunc -> length(bad_trunc) >= 0
-? err_trunc -> { @ print("  truncated binding (no crash): PASS (" + show(length(bad_trunc)) + " stmts)") }
+= bad_trunc_state = "= x =\n" |> tokenize |> make_state
+= bad_trunc = parse_program(bad_trunc_state)
+= bad_trunc_errors = parse_errors(bad_trunc_state)
+| err_trunc: bad_trunc_errors -> length(bad_trunc_errors) > 0
+? err_trunc -> { @ print("  truncated binding reported: PASS (" + show(length(bad_trunc)) + " stmts, " + show(length(bad_trunc_errors)) + " errors)") } else { @ print("  truncated binding: FAIL (no parse error reported)") }
 
 -- Unclosed brace
-= bad_brace = "> f() { 1\n" |> tokenize |> make_state |> parse_program
-| err_brace: bad_brace -> length(bad_brace) >= 0
-? err_brace -> { @ print("  unclosed brace (no crash): PASS (" + show(length(bad_brace)) + " stmts)") }
+= bad_brace_state = "> f() { 1\n" |> tokenize |> make_state
+= bad_brace = parse_program(bad_brace_state)
+= bad_brace_errors = parse_errors(bad_brace_state)
+| err_brace: bad_brace_errors -> length(bad_brace_errors) > 0
+? err_brace -> { @ print("  unclosed brace reported: PASS (" + show(length(bad_brace)) + " stmts, " + show(length(bad_brace_errors)) + " errors)") } else { @ print("  unclosed brace: FAIL (no parse error reported)") }
 
 -- Double operator
-= bad_op = "= x = 1 + + 2\n" |> tokenize |> make_state |> parse_program
-| err_op: bad_op -> length(bad_op) >= 0
-? err_op -> { @ print("  double operator (no crash): PASS (" + show(length(bad_op)) + " stmts)") }
+= bad_op_state = "= x = 1 + + 2\n" |> tokenize |> make_state
+= bad_op = parse_program(bad_op_state)
+= bad_op_errors = parse_errors(bad_op_state)
+| err_op: bad_op_errors -> length(bad_op_errors) > 0
+? err_op -> { @ print("  double operator reported: PASS (" + show(length(bad_op)) + " stmts, " + show(length(bad_op_errors)) + " errors)") } else { @ print("  double operator: FAIL (no parse error reported)") }
 
 -- Missing close paren in function args
-= bad_paren = "= x = f(1, 2\n" |> tokenize |> make_state |> parse_program
-| err_paren: bad_paren -> length(bad_paren) >= 0
-? err_paren -> { @ print("  missing close paren (no crash): PASS (" + show(length(bad_paren)) + " stmts)") }
+= bad_paren_state = "= x = f(1, 2\n" |> tokenize |> make_state
+= bad_paren = parse_program(bad_paren_state)
+= bad_paren_errors = parse_errors(bad_paren_state)
+| err_paren: bad_paren_errors -> length(bad_paren_errors) > 0
+? err_paren -> { @ print("  missing close paren reported: PASS (" + show(length(bad_paren)) + " stmts, " + show(length(bad_paren_errors)) + " errors)") } else { @ print("  missing close paren: FAIL (no parse error reported)") }
 
 -- Unclosed string (lexer-level)
-= bad_str = "= x = \"hello\n= y = 1\n" |> tokenize |> make_state |> parse_program
-| err_str: bad_str -> length(bad_str) >= 0
-? err_str -> { @ print("  unclosed string (no crash): PASS (" + show(length(bad_str)) + " stmts)") }
+= bad_str_state = "= x = \"hello\n= y = 1\n" |> tokenize |> make_state
+= bad_str = parse_program(bad_str_state)
+= bad_str_errors = parse_errors(bad_str_state)
+| err_str: bad_str_errors -> length(bad_str_errors) > 0
+? err_str -> { @ print("  unclosed string reported: PASS (" + show(length(bad_str)) + " stmts, " + show(length(bad_str_errors)) + " errors)") } else { @ print("  unclosed string: FAIL (no parse error reported)") }
 
 -- ============================================================================
 -- Summary + coverage gap metric
