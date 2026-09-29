@@ -1,0 +1,40 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout-file: ../golden/run/actor_shared_handles.stdout
+-- Actors are shared: `ask` keeps the new state, aliases and function
+-- parameters reach the same actor, and every message is handled before the
+-- send returns, so nothing is pending when the program ends.
+> actor counter(state: Int) {
+    | Inc -> state + 1
+}
+
+> bump(target) -> () {
+    target <- Inc
+}
+
+= c = spawn(counter, 0)
+@ print(show(ask(c, Inc)))
+@ print(show(ask(c, Inc)))
+= a = ask(c, Inc)
+= b = ask(c, Inc)
+@ print(show(a) + " " + show(b))
+= d = c
+d <- Inc
+d <- Inc
+= e = ask(c, Inc)
+@ print("via alias " + show(e))
+bump(c)
+@ print("via parameter " + show(ask(c, Inc)))
+
+> actor logger(state: Int) {
+    | Put(n) -> {
+        @ print("put " + show(n))
+        state + 1
+    }
+}
+
+= log = spawn(logger, 0)
+for i in range(0, 3) {
+    log <- Put(i)
+}
+@ print("handled " + show(ask(log, Put(3))))

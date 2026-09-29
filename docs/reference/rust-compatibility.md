@@ -354,9 +354,9 @@ Definitions accessed as `Utils.function()`. Only `@ export`-marked definitions a
 
 Import by structural hash. Same hash = same code, regardless of filename. Inspired by Unison.
 
-## Actors (Concurrency)
+## Actors
 
-Actors compile to tokio tasks:
+Actors compile to a message enum and a handler function behind a shared handle:
 
 ```runa
 > actor counter(state: Int) {
@@ -368,5 +368,7 @@ Actors compile to tokio tasks:
 
 Generated Rust:
 - A message enum with variants for each handler pattern
-- An async `_run()` function with a receive loop
-- A `_spawn()` helper that creates an mpsc channel and spawns the task
+- A `_handle(state, message)` function that returns the next state
+- A `_spawn()` helper that returns a clonable handle (`__FutActor`) whose copies share the state
+
+Messages are handled one at a time, before `<-` returns; see [Actors](streams.md#actors).

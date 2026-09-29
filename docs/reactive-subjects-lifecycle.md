@@ -1,10 +1,13 @@
 # Reactive Futuruna: Subjects, Lifecycle, and the Weather App
 
-> Status: historical design sketch with current-contract annotations. The
-> authoritative lifetime contract is [Stream Lifetimes](stream-lifetimes.md):
-> live subscriptions must be top-level script work or owned by an explicit named
+> Status: design overview. Code blocks marked `tau` sketch the application
+> shape and use operators (`poll`, `debounce`, named arguments) that are not part
+> of the language. The authoritative semantics of subjects, live streams,
+> subscriptions and actors are in [Reactive Streams](reference/streams.md); the
+> lifetime contract is [Stream Lifetimes](stream-lifetimes.md): live
+> subscriptions are top-level script work or owned by an explicit named
 > `| scope Name { ... }`. Returned subscription handles and `subscribe()`-style
-> disposables are not a supported surface today.
+> disposables are not part of the language.
 
 **The gap:** `~ stream = source |> map(f) |> filter(p)` gives us derived streams —
 cold, pull-based, pipeline-only. Real applications need two more things:
@@ -21,13 +24,13 @@ A Subject is a stream you can write to. RxJS has `Subject`, `BehaviorSubject`,
 
 ```tau
 -- subject(initial?) creates a pushable stream
-~ weather = subject()              -- no initial value (like Subject)
-~ count = subject(0)               -- with initial value (like BehaviorSubject)
-~ history = subject([], replay: 5) -- replays last 5 to new subscribers (like ReplaySubject)
+~ weather = subject()              -- empty, keeps every value
+~ count = subject(0)               -- starts with 0, keeps every value
+~ history = subject(0, 5)          -- starts with 0, keeps the last 5 values
 
 -- Push with <-
 weather <- Sunny(temp: 22.0)
-count <- count.latest() + 1
+count <- count.latest + 1
 
 -- Subscribe with the current ~ + | terminal form
 ~ weather | w -> {
@@ -39,36 +42,34 @@ count <- count.latest() + 1
 ```
 
 **Why `<-` and not `.next()`:** Futuruna already has `<-` for actor sends. A subject
-IS an actor with no logic — it just forwards what it receives. Same operator,
-same mental model. The send operator creates the bridge between imperative
-code and reactive pipelines.
+is an actor with no logic — it forwards what it receives. Same operator, same
+mental model: `<-` returns after the value has been handled by every
+subscriber (subjects) or by the actor's handler (actors).
 
 ### Subject Variants
 
-| Futuruna | RxJS | Behavior |
+| Futuruna | Keeps | A late subscriber first receives |
 |-----|------|----------|
-| `subject()` | `new Subject()` | No initial value, hot |
-| `subject(val)` | `new BehaviorSubject(val)` | Has `.latest()`, emits current to new subscribers |
-| `subject(val, replay: n)` | `new ReplaySubject(n)` | Buffers last n values for late subscribers |
+| `subject()` | every value | every value sent so far |
+| `subject(val)` | every value, starting with `val` | `val` and every value sent since |
+| `subject(val, n)` | the last `n` values | the last `n` values |
 
-### `.latest()` — Synchronous Access
-
-BehaviorSubjects in RxJS have `.getValue()`. In Futuruna:
+### `.latest` — Synchronous Access
 
 ```tau
 ~ temp = subject(20.0)
 temp <- 25.0
 
--- .latest() gives the current value synchronously
-= current = temp.latest()    -- 25.0
+-- .latest gives the most recent value
+= current = temp.latest    -- 25.0
 
 -- Use in expressions directly
-if temp.latest() > 30.0 {
+if temp.latest > 30.0 {
     @ print("It's hot!")
 }
 ```
 
-This is the bridge between `~` (time) and `=` (moment). `.latest()` collapses
+This is the bridge between `~` (time) and `=` (moment). `.latest` collapses
 a stream to its current point.
 
 ## Lifecycle: Scoped Streams
@@ -111,14 +112,11 @@ scope dies.**
 -- WeatherDashboard exits → every ~ binding unsubscribes, channels close, tasks cancel
 ```
 
-**The Rust bridge:** Each `~` in a scope compiles to a `tokio::broadcast::channel`
-+ a `JoinHandle`. The scope holds a `Vec<JoinHandle>`. When the scope drops,
-all handles are aborted. Zero manual cleanup. Rust's `Drop` does what RxJS
-needs `takeUntil` hacks for.
-
-Current-codegen note: this bridge is valid for top-level script work and named
-scopes. Ordinary functions may snapshot streams or return stream expressions,
-but they may not start live subscriptions unless a named scope owns them.
+**Ownership:** every subscription and derived stream created in a scope is
+registered under the scope's name; `@ teardown("WeatherDashboard")` stops all of
+them at once. Ordinary functions may snapshot streams or return stream
+expressions, but they may not start live subscriptions unless a named scope owns
+them.
 
 ### `| scope` Nesting (Component Trees)
 
@@ -150,10 +148,10 @@ but they may not start live subscriptions unless a named scope owns them.
 -- Navigate away from MainContent → only WeatherPanel + NewsPanel torn down
 ```
 
-### Explicit Teardown (Current Contract)
+### Explicit Teardown
 
-Current Futuruna uses named scopes as the explicit lifetime owner. Manual
-subscription handles are a deferred design, not a supported surface today:
+Named scopes are the explicit lifetime owner. Manual subscription handles are
+a deferred design, not part of the language:
 
 ```tau
 | scope WeatherPanel {
@@ -164,11 +162,10 @@ subscription handles are a deferred design, not a supported surface today:
 @ teardown("WeatherPanel")
 ```
 
-Historical sketches sometimes described `subscribe()` returning a disposable
-handle. That route is intentionally not part of the current contract because it
-would let ordinary helpers hide background work behind returned values. The
-supported shape is to return streams from helpers and subscribe inside the
-caller's named scope.
+A `subscribe()` that returns a disposable handle is intentionally not part of
+the language: it would let ordinary helpers hide running subscriptions behind
+returned values. Return streams from helpers and subscribe inside the caller's
+named scope.
 
 ## `poll()` — Interval + Async Fetch
 
@@ -201,11 +198,11 @@ Streams aren't infinite. They end.
 ```tau
 ~ countdown = subject(10)
 
--- Complete a subject (no more values)
+-- Complete a subject (no more values; later sends are errors)
 complete(countdown)
 
--- Error a subject (propagate failure)
-error(countdown, "timeout exceeded")
+-- Or end it with an error instead (subscribers' Err arms receive the message)
+-- error(countdown, "timeout exceeded")
 
 -- Detect completion in pipelines
 ~ safe = weather
@@ -218,7 +215,8 @@ error(countdown, "timeout exceeded")
 
 ### Completion Propagation
 
-When a source completes, derived streams complete too:
+When a source completes, derived streams complete too, and every subscription's
+`Complete` arm runs once:
 
 ```tau
 ~ nums = from_list([1, 2, 3, 4, 5])     -- completes after 5
@@ -481,14 +479,14 @@ The architecture doesn't change when you swap mock for real. That's the point.
 |---------|------|-----|------------|
 | Create subject | `new Subject<T>()` | `~ s = subject()` | `~` rune makes it visually stream |
 | Push value | `s.next(val)` | `s <- val` | Same operator as actors — one mental model |
-| Get current | `s.getValue()` | `s.latest()` | Only on `subject(initial)` — type-safe |
+| Get current | `s.getValue()` | `s.latest` | Most recent value; an error when there is none |
 | Complete | `s.complete()` | `complete(s)` | Function, not method — composable |
 | Error | `s.error(e)` | `error(s, e)` | Same |
 | Subscribe | `s.subscribe(fn)` | `~ s \| x -> { }` | Dedicated syntax (`~ + |`) — structurally sound |
-| Unsubscribe | `sub.unsubscribe()` | Named scope exit or `@ teardown("Name")` | Rust's Drop = no memory leaks |
-| takeUntil | `s.pipe(takeUntil(d$))` | `s \|> take_until(d)` | Same, but scope makes it rarely needed |
-| BehaviorSubject | `new BehaviorSubject(0)` | `subject(0)` | Initial value = behavior, no initial = plain |
-| ReplaySubject | `new ReplaySubject(5)` | `subject([], replay: 5)` | Named parameter, obvious |
+| Unsubscribe | `sub.unsubscribe()` | `@ teardown("Name")` of the owning scope | One name stops every subscription it owns |
+| Delivery | synchronous, re-entrant | synchronous, in order | A value sent during delivery waits for the current one |
+| BehaviorSubject | `new BehaviorSubject(0)` | `subject(0)` | Starts with the initial value |
+| ReplaySubject | `new ReplaySubject(5)` | `subject(0, 5)` | Keeps the last 5 values |
 
 ## How Lifecycle Differs from RxJS/Angular/React
 
@@ -498,11 +496,11 @@ The architecture doesn't change when you swap mock for real. That's the point.
 | **Angular** | `takeUntilDestroyed()`, `DestroyRef` | Bolted onto DI system, easy to forget |
 | **React** | `useEffect` cleanup return | Closure footgun, stale closures |
 | **Svelte** | `onDestroy()` | Manual callback |
-| **Futuruna** | named `\| scope Name { }` block exit or `@ teardown("Name")` | Automatic. Compiler enforces. Zero leaks possible |
+| **Futuruna** | `@ teardown("Name")` of the owning named `\| scope Name { }` | One call stops everything the scope owns. The compiler rejects unowned subscriptions in functions |
 
-The key insight: **Rust already solved this problem** with `Drop`. A named
-`| scope Name` is a struct that holds its owned task handles. When it drops,
-handles abort. The compiler guarantees it. No discipline required.
+The key insight: ownership is a name. Every live subscription is owned by the
+script or by a named scope, and the compiler rejects subscriptions started in
+ordinary functions without one.
 
 ### Nested Scope = Component Tree
 
@@ -525,125 +523,31 @@ handles abort. The compiler guarantees it. No discipline required.
 ```
 
 Navigate from Weather to Settings:
-1. `WeatherPanel` scope drops → poll cancelled, filter cancelled, subscription cancelled
-2. `SettingsPanel` scope created → fresh streams, fresh subscriptions
-3. Zero manual cleanup. Zero leaked intervals. Zero stale closures.
+1. `@ teardown("WeatherPanel")` → filter and subscription stop
+2. `SettingsPanel` scope runs → fresh streams, fresh subscriptions
+3. No stale subscriptions remain.
 
-## Transpilation Strategy
+## Execution Model
 
-Historical note: the standalone subject emission below sketches the mechanism.
-In current Futuruna, live subscriber tasks must be top-level script work or be
-registered under a named scope. A helper that wants reusable stream behavior
-should return a stream expression and let the caller subscribe inside its scope.
+Subjects, live streams and actors are shared runtime cells in both execution
+modes (`src/live_streams.rs` in the interpreter, `src/live_runtime.rs` in
+compiled programs). Delivery is synchronous: `count <- 5` returns after every
+subscription and derived stream has handled 5, so output order is the same in
+`runa file.runa` and `runa run`. A scope registers what it owns under its name;
+`@ teardown("Panel")` unsubscribes it.
 
-### Subject → Rust
+## Feature Summary
 
-```tau
-~ count = subject(0)
-count <- 5
-~ count | x -> { @ print(show(x)) }
-```
+| Feature | Form |
+|---------|------|
+| Derived stream | `~ x = source \|> map(f)` |
+| Subject | `~ s = subject()`, `subject(v)`, `subject(v, n)` |
+| Push | `s <- value` |
+| Current value | `s.latest`, `s.count` |
+| Termination | `complete(s)`, `error(s, message)` |
+| Subscription | `~ s \| x -> { ... } \| Err(e) -> { ... } \| Complete -> { ... }` |
+| Lifetime | named `\| scope Name { }` and `@ teardown("Name")` |
+| Actor | `> actor name(state: T) { \| Msg -> ... }`, `spawn`, `<-`, `ask` |
 
-Becomes:
-
-```rust
-// ~ count = subject(0) → broadcast channel with initial value
-let (count_tx, _) = tokio::sync::broadcast::channel::<i64>(64);
-let count_latest = Arc::new(Mutex::new(0i64));
-
-// count <- 5 → send + update latest
-{
-    let val = 5i64;
-    *count_latest.lock().unwrap() = val;
-    let _ = count_tx.send(val);
-}
-
-// ~ count | x -> { ... } → spawned subscriber task
-let _sub_handle = tokio::spawn({
-    let mut rx = count_tx.subscribe();
-    async move {
-        while let Ok(x) = rx.recv().await {
-            println!("{}", x);
-        }
-    }
-});
-```
-
-### Scope → Rust
-
-```tau
-| scope Panel {
-    ~ data = poll(fetch, 30000)
-    ~ data | d -> { render(d) }
-}
-```
-
-Becomes:
-
-```rust
-{
-    let mut _scope_handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
-
-    // ~ data = poll(fetch, 30000)
-    let (data_tx, _) = tokio::sync::broadcast::channel(64);
-    _scope_handles.push(tokio::spawn({
-        let tx = data_tx.clone();
-        async move {
-            let mut interval = tokio::time::interval(Duration::from_millis(30000));
-            loop {
-                interval.tick().await;
-                match fetch().await {
-                    Ok(val) => { let _ = tx.send(val); }
-                    Err(_) => {} // TODO: error handling
-                }
-            }
-        }
-    }));
-
-    // ~ data | d -> { render(d) }
-    _scope_handles.push(tokio::spawn({
-        let mut rx = data_tx.subscribe();
-        async move {
-            while let Ok(d) = rx.recv().await {
-                render(d);
-            }
-        }
-    }));
-
-    // Scope cleanup: abort all tasks when block exits
-    // (In practice, wrapped in a struct with Drop impl)
-    struct _ScopeGuard(Vec<tokio::task::JoinHandle<()>>);
-    impl Drop for _ScopeGuard {
-        fn drop(&mut self) {
-            for h in &self.0 { h.abort(); }
-        }
-    }
-    let _guard = _ScopeGuard(_scope_handles);
-
-    // ... scope body runs ...
-
-}  // _guard drops here → all tasks aborted
-```
-
-## What This Means for Futuruna Milestones
-
-M12 as currently spec'd covers `~` and `|>` (the cold/derived side). This
-design adds the hot/imperative side:
-
-| Feature | M12 (current) | M12+ (this doc) |
-|---------|--------------|-----------------|
-| `~ x = derived` | Yes | Yes |
-| `\|>` pipe | Yes | Yes |
-| `map`, `filter`, etc | Yes | Yes |
-| `for x in stream` | Historical shorthand | Current contract uses `~ stream | x -> { ... }` for live subscriptions |
-| `subject()` | No | **Yes** |
-| `s <- val` (push) | No (actor only) | **Yes** (unified with actors) |
-| `.latest()` | No | **Yes** |
-| `complete(s)` / `error(s, e)` | No | **Yes** |
-| named `\| scope Name { }` teardown | No | **Yes** |
-| `poll(fn, ms)` | No | **Yes** |
-| `take_until(signal)` | No | **Yes** |
-| Nested scope lifecycle | No | **Yes** |
-
-The actor unification is the insight: **subjects ARE actors, actors ARE subjects.**
-`<-` works on both. Scope teardown works on both. One mechanism, two views.
+The actor unification is the insight: `<-` works on subjects and actors with one
+meaning — the value is handled before the send returns.

@@ -6,7 +6,7 @@ feature_stage_surfaces:
 
 # 5. Streams and Reactivity
 
-## Cold streams (pipelines)
+## Finite streams (pipelines)
 
 ```runa
 ~ data = from_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -14,9 +14,10 @@ feature_stage_surfaces:
 @ print(show(collect(big)))  -- [60, 70, 80, 90, 100]
 ```
 
-The `~` rune declares streams. `|>` composes operators. Streams are lazy — nothing runs until collected or subscribed.
+The `~` rune declares streams. `|>` composes operators. `from_list` makes a finite
+stream: all its values are known.
 
-## Hot streams (subjects)
+## Live streams (subjects)
 
 ```runa
 ~ clicks = subject()
@@ -30,6 +31,25 @@ clicks <- "button3"
 
 Subjects are push-based streams. `<-` sends values. `.count` and `.latest` inspect state.
 
+Subscriptions and derived streams are live: they see every value, including
+values sent after they were created, and `<-` returns only after every
+subscriber has handled the value:
+
+```runa
+~ clicks = subject()
+~ clicks | c -> { @ print("clicked " + c) }
+~ firsts = clicks |> take(2)
+clicks <- "a"          -- clicked a
+clicks <- "b"          -- clicked b
+clicks <- "c"          -- clicked c
+@ print(show(collect(firsts)))  -- [a, b]
+complete(clicks)
+```
+
+A subject or stream is shared: passing it to a function or binding it to another
+name refers to the same stream. After `complete(clicks)`, sending to it is an
+error.
+
 ## Scoped lifecycle
 
 ```runa
@@ -42,14 +62,14 @@ Subjects are push-based streams. `<-` sends values. `.count` and `.latest` inspe
     ~ alerts = sensor |> filter(|t| t > 23.0)
     @ print("alerts: " + show(collect(alerts)))
 }
--- Monitor scope ends here — all streams automatically cleaned up
+@ teardown("Monitor")   -- stops what the scope owns
 ```
 
-Scopes control when streams live and die. No manual unsubscribe. No memory leaks.
+A scope owns the subscriptions and derived streams created inside it;
+`@ teardown("Monitor")` stops them. No manual unsubscribe per subscription.
 Named scopes are also the required owner for live subscriptions created inside
 ordinary functions. If a function wants to start `~ stream | ...` or `for x in
-stream { ... }` over a live subject/derived async stream, that work must live
-inside a named `| scope`.
+stream { ... }` over a live stream, that work must live inside a named `| scope`.
 
 ```runa
 > install_monitor(readings) -> () {
@@ -59,15 +79,17 @@ inside a named `| scope`.
 }
 ```
 
-Detached function-local live subscriptions are rejected instead of silently
-outliving the function that created them. See
-[docs/stream-lifetimes.md](../stream-lifetimes.md) for the current contract.
+Function-local live subscriptions without a named scope are rejected. See
+[docs/stream-lifetimes.md](../stream-lifetimes.md) for the lifetime contract and
+[streams.md](../reference/streams.md#live-stream-semantics) for delivery rules.
 
 ## Stream operators
 
-20+ operators: `map`, `filter`, `scan`, `merge`, `zip`, `take`, `skip`,
-`distinct`, `flat_map`, `debounce`, `throttle`, `delay`, `buffer`,
-`timeout`, `switch_map`, `sample`, `reduce`, `pairwise`, and more.
+`map`, `filter`, `scan`, `take`, `skip`, `tap`, `merge`, `start_with`,
+`concat`, and `catch` work on finite and live streams. `zip`, `window`,
+`distinct`, `flat_map`, `pairwise` and the other operators in
+[streams.md](../reference/streams.md) work on finite streams; `collect` a live
+stream first.
 
 ## Next
 

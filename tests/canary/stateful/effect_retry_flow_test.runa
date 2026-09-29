@@ -1,4 +1,3 @@
--- roundtrip-skip: effect handlers and actors use the external async runtime path
 -- Authored stateful canary: effect handlers over actor-backed retry state with
 -- deterministic retries, branching outcomes, and summary output.
 
