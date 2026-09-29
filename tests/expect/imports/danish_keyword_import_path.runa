@@ -1,0 +1,8 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 25
+@ sprog da
+
+@ importer ./skat-og-afgift_lib
+
+@ print(vis(skat_og_afgift_sats()))
