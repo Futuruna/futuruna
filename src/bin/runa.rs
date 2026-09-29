@@ -1116,56 +1116,59 @@ fn main_inner() {
             std::process::exit(1);
         }
         match std::fs::read_to_string(path) {
-            Ok(source) => match mode {
-                "emit" if emit_imports => {
-                    emit_import_normalization_source(&source, path, use_prelude)
-                }
-                "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
-                "emit" => emit_rust_source(&source, path, use_prelude),
-                "build" => build_native(&source, path, false, use_prelude),
-                "run" => build_native(&source, path, true, use_prelude),
-                "lib" => emit_rust_lib(&source, path, use_prelude),
-                "hashes" => show_hashes(&source, path),
-                "interface" => print_semantic_interface_graph(&source, path, use_prelude),
-                "registry" => update_registry(&source, path),
-                "wasm" => build_wasm(&source, path, use_prelude),
-                "check" => {
-                    check_source(&source, path, use_prelude, check_frontend_only, check_json)
-                }
-                "meta" => print_meta_index(
-                    &source,
-                    path,
-                    meta_type_filter.as_deref(),
-                    meta_role_filter.as_deref(),
-                    meta_json,
-                ),
-                "audit" if audit_json || calculation_entry.is_some() => {
-                    audit_calculation_reachability_source(
+            Ok(source) => {
+                register_source_origin(std::path::Path::new(path), &source);
+                match mode {
+                    "emit" if emit_imports => {
+                        emit_import_normalization_source(&source, path, use_prelude)
+                    }
+                    "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
+                    "emit" => emit_rust_source(&source, path, use_prelude),
+                    "build" => build_native(&source, path, false, use_prelude),
+                    "run" => build_native(&source, path, true, use_prelude),
+                    "lib" => emit_rust_lib(&source, path, use_prelude),
+                    "hashes" => show_hashes(&source, path),
+                    "interface" => print_semantic_interface_graph(&source, path, use_prelude),
+                    "registry" => update_registry(&source, path),
+                    "wasm" => build_wasm(&source, path, use_prelude),
+                    "check" => {
+                        check_source(&source, path, use_prelude, check_frontend_only, check_json)
+                    }
+                    "meta" => print_meta_index(
+                        &source,
+                        path,
+                        meta_type_filter.as_deref(),
+                        meta_role_filter.as_deref(),
+                        meta_json,
+                    ),
+                    "audit" if audit_json || calculation_entry.is_some() => {
+                        audit_calculation_reachability_source(
+                            &source,
+                            path,
+                            use_prelude,
+                            calculation_entry.as_deref(),
+                            audit_json,
+                        )
+                    }
+                    "audit" => audit_source(&source, path, use_prelude),
+                    "verify" => verify_with_z3(&source, path),
+                    "explore" => run_relational_explore_stream(
                         &source,
                         path,
                         use_prelude,
-                        calculation_entry.as_deref(),
-                        audit_json,
-                    )
+                        explore_query.as_deref(),
+                        explore_json,
+                        explore_run_state
+                            .as_deref()
+                            .expect("stream dispatch requires --run-state"),
+                        explore_output_directory.as_deref(),
+                        explore_max_runtime,
+                        explore_assumed_checkpoint,
+                        explore_assume_verified_result_rows,
+                    ),
+                    _ => run_source(&source, path, use_prelude),
                 }
-                "audit" => audit_source(&source, path, use_prelude),
-                "verify" => verify_with_z3(&source, path),
-                "explore" => run_relational_explore_stream(
-                    &source,
-                    path,
-                    use_prelude,
-                    explore_query.as_deref(),
-                    explore_json,
-                    explore_run_state
-                        .as_deref()
-                        .expect("stream dispatch requires --run-state"),
-                    explore_output_directory.as_deref(),
-                    explore_max_runtime,
-                    explore_assumed_checkpoint,
-                    explore_assume_verified_result_rows,
-                ),
-                _ => run_source(&source, path, use_prelude),
-            },
+            }
             Err(e) => {
                 if mode == "check" && check_json {
                     runa_check_output::CheckOutput {
@@ -20813,7 +20816,7 @@ fn top_level_expr_issue_with_helpers(
     if matches!(
         expr.kind,
         ExprKind::App(ref func, _)
-            if matches!(func.as_ref().kind, ExprKind::Var(ref name) if builtin_canonical(name) == "print")
+            if matches!(func.as_ref().kind, ExprKind::Var(ref name) if name == "print")
     ) {
         "top-level `@ print` is script-only; move it into an entrypoint function"
     } else if expr_is_impure_for_library(expr, impure_builtins, impure_helpers) {
@@ -20847,9 +20850,7 @@ fn expr_is_impure_for_library(
                 }
             }
             if let ExprKind::Var(name) = &func.as_ref().kind {
-                if impure_builtins.contains(builtin_canonical(name))
-                    || impure_builtins.contains(name)
-                {
+                if impure_builtins.contains(name) {
                     return true;
                 }
             }
@@ -23425,6 +23426,8 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("index_of", 2),
     ("parse_int", 1),
     ("parse_float", 1),
+    ("parse_danish_int", 1),
+    ("parse_danish_float", 1),
     ("string_chars", 1),
     ("format_float", 2),
     ("rust_debug", 1),
@@ -23886,6 +23889,26 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)",
+            },
+        ),
+        (
+            "parse_danish_int",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_parse_danish_int(&{0})",
+            },
+        ),
+        (
+            "parse_danish_float",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_parse_danish_float(&{0})",
             },
         ),
         (
@@ -29033,7 +29056,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
     match &expr.kind {
         ExprKind::App(func, args) => {
             count_consuming_uses(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(n.as_str(), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
                     // Non-borrow function call: Var args are consuming
@@ -29137,14 +29160,13 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
 }
 
 fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
-    match builtin_canonical(name) {
+    match name {
         "show" | "rust_debug" | "length" | "head" | "tail" | "string_length" | "trim"
-        | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float" | "map_len"
-        | "map_keys" | "map_values" | "map_entries" | "set_len" | "set_to_list" | "is_some"
-        | "is_none" | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list"
-        | "collect" | "count" | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => {
-            arg_index == 0
-        }
+        | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float"
+        | "parse_danish_int" | "parse_danish_float" | "map_len" | "map_keys" | "map_values"
+        | "map_entries" | "set_len" | "set_to_list" | "is_some" | "is_none" | "sort"
+        | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list" | "collect" | "count"
+        | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => arg_index == 0,
 
         "nth" | "contains" | "starts_with" | "ends_with" | "char_at" | "index_of" | "split"
         | "join" | "format_float" | "map_get" | "map_contains" | "map_remove" | "set_contains"
@@ -30798,7 +30820,7 @@ fn is_copy_type(ty: &Ty) -> bool {
 /// argument types. Used by lowering, top-level getter inference, and codegen
 /// heuristics like expr_is_float/expr_is_string.
 fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
-    match builtin_canonical(name) {
+    match name {
         "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float"
         | "random_float" | "json_number" => Some(FirTy::Float),
         "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
@@ -30832,6 +30854,11 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
             Some(FirTy::List(Box::new(FirTy::String)))
         }
         "range" => Some(FirTy::List(Box::new(FirTy::Int))),
+        "parse_danish_int" => Some(FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String))),
+        "parse_danish_float" => Some(FirTy::Result(
+            Box::new(FirTy::Float),
+            Box::new(FirTy::String),
+        )),
         "regex_find" => Some(FirTy::Option(Box::new(FirTy::String))),
         "http_respond" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
@@ -30848,12 +30875,11 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
 }
 
 fn builtin_fixed_return_can_be_shadowed(name: &str) -> bool {
-    let canonical = builtin_canonical(name);
-    if let Some(def) = rust_builtin_registry().get(canonical) {
+    if let Some(def) = rust_builtin_registry().get(name) {
         return def.shadowable;
     }
     matches!(
-        canonical,
+        name,
         "show" | "show_int" | "show_float" | "print" | "not" | "assert"
     )
 }
@@ -30862,11 +30888,10 @@ fn builtin_fixed_return_fir_ty_for_call(
     name: &str,
     user_functions: &BTreeSet<String>,
 ) -> Option<FirTy> {
-    let canonical = builtin_canonical(name);
-    if user_functions.contains(name) && builtin_fixed_return_can_be_shadowed(canonical) {
+    if user_functions.contains(name) && builtin_fixed_return_can_be_shadowed(name) {
         None
     } else {
-        builtin_fixed_return_fir_ty(canonical)
+        builtin_fixed_return_fir_ty(name)
     }
 }
 
@@ -34400,7 +34425,7 @@ impl RustCodegen {
         if self.types.user_functions.contains(op_name.as_str()) {
             return;
         }
-        let op = builtin_canonical(op_name);
+        let op = op_name.as_str();
         match op {
             "map" | "filter" | "sort_by" | "any" | "all" | "find" | "flat_map" | "take_while"
             | "drop_while" | "count_by" | "partition" | "tap" | "switch_map" | "subscribe"
@@ -34922,6 +34947,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 }
 "#,
         );
+        out.push_str(DANISH_NUMBER_PARSERS_RUST);
+        out.push('\n');
         for collision in Self::prolog_ordinary_name_collisions(stmts) {
             out.push_str(&format!(
                 "compile_error!({:?});\n",
@@ -37145,7 +37172,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         let ExprKind::Var(fn_name) = &func.as_ref().kind else {
             return None;
         };
-        if !matches!(builtin_canonical(fn_name), "map_new" | "map_insert") {
+        if !matches!(fn_name.as_str(), "map_new" | "map_insert") {
             return None;
         }
         let val_type = self
@@ -45691,7 +45718,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             .unwrap_or_else(|| ": Vec<i64>".to_string()),
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                                match builtin_canonical(fn_name) {
+                                match fn_name.as_str() {
                                     "map_new" => {
                                         // Use pre-scanned value type if available
                                         let var_name = if let Pat::Var(n) = pat {
@@ -45724,7 +45751,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                                             let inferred = self.infer_expr_fir_ty(value);
                                             match Self::fir_type_to_rust(&inferred) {
                                                 Some(rust_ty) => format!(": {}", rust_ty),
-                                                None if builtin_canonical(fn_name) == "tail" => {
+                                                None if fn_name == "tail" => {
                                                     ": Vec<i64>".to_string()
                                                 }
                                                 None => ": i64".to_string(),
@@ -45754,7 +45781,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             Stmt::Expr(Expr {
                 kind: ExprKind::Effect(name, args),
                 ..
-            }) if builtin_canonical(name) == "print" => self.emit_print(args, &self.ind()),
+            }) if name == "print" => self.emit_print(args, &self.ind()),
             // M13c: @ teardown("ScopeName") → drop scope guard + yield for cleanup
             Stmt::Expr(Expr {
                 kind: ExprKind::Effect(name, args),
@@ -49104,7 +49131,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             return None;
         };
 
-        let builtin_name = builtin_canonical(fn_name);
+        let builtin_name = fn_name.as_str();
         if let Some((arity, shadowable, deps, rust_tpl)) = self
             .builtin_registry
             .get(builtin_name)
@@ -49146,7 +49173,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         let ExprKind::Var(fn_name) = &callable.kind else {
             return false;
         };
-        let builtin_name = builtin_canonical(fn_name);
+        let builtin_name = fn_name.as_str();
         self.builtin_registry
             .get(builtin_name)
             .map(|def| {
@@ -50711,7 +50738,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                 }
                 // Phase 1b: Check if this is a borrow-builtin BEFORE processing args
-                let is_borrow_call = matches!(func.as_ref().kind, ExprKind::Var(ref n) if builtin_canonical(n) == "show");
+                let is_borrow_call =
+                    matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == "show");
                 let qualified_module_callable_key =
                     self.qualified_module_callable_key(func, args.len());
                 let is_qualified_module_call = qualified_module_callable_key.is_some();
@@ -50981,10 +51009,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     }
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
-                    if builtin_canonical(name) == "show" && args_str.len() == 1 {
+                    if name == "show" && args_str.len() == 1 {
                         return self.emit_display_value_expr(&args[0], &args_str[0]);
                     }
-                    if builtin_canonical(name) == "length"
+                    if name == "length"
                         && args.len() == 1
                         && self.expr_is_known_empty_list_value(&args[0])
                     {
@@ -50994,7 +51022,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     if name == "not" && args_str.len() == 1 {
                         return format!("!({})", args_str[0]);
                     }
-                    if builtin_canonical(name) == "head"
+                    if name == "head"
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -51005,7 +51033,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     {
                         return "panic!(\"head: empty list\")".to_string();
                     }
-                    if builtin_canonical(name) == "nth"
+                    if name == "nth"
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -53275,7 +53303,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             ExprKind::List(elems) => elems.is_empty(),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    matches!(builtin_canonical(name), "tail")
+                    matches!(name.as_str(), "tail")
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -53791,7 +53819,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         free.into_iter().all(|name| {
             env.get(name.as_str()).is_some()
                 || pure_fns.contains(&name)
-                || registry.contains_key(builtin_canonical(&name))
+                || registry.contains_key(name.as_str())
                 || self.types.variant_parent.contains_key(name.as_str())
                 || self.types.prolog_rule_fns.contains_key(name.as_str())
         })

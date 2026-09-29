@@ -108,7 +108,7 @@ fn real_effects_declaration_markers_and_algebraic_calls_keep_working() {
 = result = | handle Console {
     | say(message) -> { @ print(message); resume(()) }
 } in greet()
-@ skriv("world")
+@ print("world")
 assert(ordinary() == 7)
 # EffectInput(value: Int)
 @ calculate
@@ -160,7 +160,7 @@ fn ordinary_assertions_cannot_be_silently_ignored() {
 #[test]
 fn supported_effects_execute_in_interpreted_and_native_programs() {
     let source = include_str!("differential/corpus/supported_effect_calls.runa");
-    let expected = "supported\naliases\n1\n2\ndone";
+    let expected = "supported\n1\n2\ndone";
     assert_eq!(
         eval_source_with_prelude(source, false).unwrap().trim(),
         expected
