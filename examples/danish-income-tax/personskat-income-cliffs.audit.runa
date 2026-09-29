@@ -34,13 +34,13 @@ full calls to beregn_personskat.
 Verified map result:
 - All 490 transitions are modeled income cliffs.
 - The loss ranges from 6,923 to 17,002 øre.
-- The four 50-DKK histogram buckets contain 0, 245, 16, and 229
+- The four 50-DKK histogram buckets contain 0, 245, 15, and 230
 transitions; every transition is counted once.
-- The minimum occurs 14 times; the maximum occurs 41 times.
+- The minimum occurs 14 times; the maximum occurs 40 times.
 - At the first boundary, 60 km without church tax ranges from 6,947 to 8,626
-øre; 60 km with church tax ranges from 7,141 to 9,052 øre.
+øre; 60 km with church tax ranges from 7,139 to 9,052 øre.
 - At the first boundary, 130 km without church tax ranges from 14,408 to
-16,201 øre; 130 km with church tax ranges from 14,809 to 17,002 øre.
+16,201 øre; 130 km with church tax ranges from 14,808 to 17,002 øre.
 - Copenhagen without church tax at 60 km ranges from 6,923 to 6,947 øre over
 all 50 steps. Læsø with church tax at 130 km ranges from 17,000 to 17,002 øre.
 
@@ -301,14 +301,14 @@ components of the final-tax calculation.
 = personskat_indkomstklint_alle_input_gyldige = length(personskat_ligningsfradrag_gyldige_indkomstovergange) == length(personskat_indkomstovergange)
 = personskat_indkomstklint_fundantal = length(personskat_indkomstklinter)
 = personskat_indkomstklint_histogramantal = length(personskat_indkomstklint_histogram_0_til_50_kroner) + length(personskat_indkomstklint_histogram_50_til_100_kroner) + length(personskat_indkomstklint_histogram_100_til_150_kroner) + length(personskat_indkomstklint_histogram_150_til_200_kroner)
-= personskat_indkomstklint_histogram_præcist = length(personskat_indkomstklint_histogram_0_til_50_kroner) == 0 && length(personskat_indkomstklint_histogram_50_til_100_kroner) == 245 && length(personskat_indkomstklint_histogram_100_til_150_kroner) == 16 && length(personskat_indkomstklint_histogram_150_til_200_kroner) == 229 && personskat_indkomstklint_histogramantal == 490
+= personskat_indkomstklint_histogram_præcist = length(personskat_indkomstklint_histogram_0_til_50_kroner) == 0 && length(personskat_indkomstklint_histogram_50_til_100_kroner) == 245 && length(personskat_indkomstklint_histogram_100_til_150_kroner) == 15 && length(personskat_indkomstklint_histogram_150_til_200_kroner) == 230 && personskat_indkomstklint_histogramantal == 490
 = personskat_indkomstklint_delområder_fundantal = length(personskat_indkomstklint_nationale_fund) == 392 && length(personskat_indkomstklint_københavn_60_fund) == 50 && length(personskat_indkomstklint_læsø_130_fund) == 50
 = personskat_indkomstklint_nationale_afstandsantal = length(personskat_indkomstklint_nationale_60) == 196 && length(personskat_indkomstklint_nationale_130) == 196
 = personskat_indkomstklint_nationale_profilantal = length(personskat_indkomstklint_nationale_60_uden_kirkeskat) == 98 && length(personskat_indkomstklint_nationale_60_med_kirkeskat) == 98 && length(personskat_indkomstklint_nationale_130_uden_kirkeskat) == 98 && length(personskat_indkomstklint_nationale_130_med_kirkeskat) == 98
 = personskat_indkomstklint_københavn_60_procentgren = all(personskat_indkomstklint_københavn_60_spor, |overgang: PersonskatIndkomstovergang| overgang.grundfradrag_før_lavindkomsttillæg_kroner == 23166 && (overgang.lavindkomsttillægstab_kroner == 296 || overgang.lavindkomsttillægstab_kroner == 297))
 = personskat_indkomstklint_læsø_130_maksimumsgren = all(personskat_indkomstklint_læsø_130_spor, |overgang: PersonskatIndkomstovergang| overgang.grundfradrag_før_lavindkomsttillæg_kroner == 75528 && overgang.lavindkomsttillægstab_kroner == 616)
 = personskat_indkomstklint_342499_til_342500_præcis = match personskat_indkomstklint_342499_til_342500_fund {
-    | Some(overgang) -> overgang.profil.kommune == København && overgang.profil.betaler_kirkeskat == Falskt && overgang.profil.daglige_befordringskilometer == 60 && overgang.indkomst_før_kroner == 342499 && overgang.indkomst_efter_kroner == 342500 && overgang.grundfradrag_før_lavindkomsttillæg_kroner == 23166 && overgang.lavindkomsttillæg_før_kroner == 14826 && overgang.lavindkomsttillæg_efter_kroner == 14529 && overgang.slutskat_før_øre == 9996763 && overgang.slutskat_efter_øre == 10003810 && overgang.netto_før_øre == 24253137 && overgang.netto_efter_øre == 24246190 && overgang.nettotab_øre == 6947
+    | Some(overgang) -> overgang.profil.kommune == København && overgang.profil.betaler_kirkeskat == Falskt && overgang.profil.daglige_befordringskilometer == 60 && overgang.indkomst_før_kroner == 342499 && overgang.indkomst_efter_kroner == 342500 && overgang.grundfradrag_før_lavindkomsttillæg_kroner == 23166 && overgang.lavindkomsttillæg_før_kroner == 14826 && overgang.lavindkomsttillæg_efter_kroner == 14529 && overgang.slutskat_før_øre == 9996740 && overgang.slutskat_efter_øre == 10003787 && overgang.netto_før_øre == 24253160 && overgang.netto_efter_øre == 24246213 && overgang.nettotab_øre == 6947
     | None -> Falskt
 }
 = personskat_indkomstklint_mindste_minimal = match personskat_indkomstklint_mindste_fund {
@@ -319,11 +319,11 @@ components of the final-tax calculation.
     | Some(overgang) -> contains(personskat_indkomstklinter, overgang) && overgang.nettotab_øre > 0 && all(personskat_indkomstklinter, |kandidat: PersonskatIndkomstovergang| kandidat.nettotab_øre <= overgang.nettotab_øre)
     | None -> Falskt
 }
-= personskat_indkomstklint_kortresultat_præcist = personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_mindste_fund) == 6923 && length(personskat_indkomstklint_mindste_ligestillede) == 14 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_største_fund) == 17002 && length(personskat_indkomstklint_største_ligestillede) == 41
-= personskat_indkomstklint_nationale_profiler_præcise = personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_uden_kirkeskat_mindste) == 6947 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_uden_kirkeskat_største) == 8626 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_med_kirkeskat_mindste) == 7141 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_med_kirkeskat_største) == 9052 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_uden_kirkeskat_mindste) == 14408 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_uden_kirkeskat_største) == 16201 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_med_kirkeskat_mindste) == 14809 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_med_kirkeskat_største) == 17002
+= personskat_indkomstklint_kortresultat_præcist = personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_mindste_fund) == 6923 && length(personskat_indkomstklint_mindste_ligestillede) == 14 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_største_fund) == 17002 && length(personskat_indkomstklint_største_ligestillede) == 40
+= personskat_indkomstklint_nationale_profiler_præcise = personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_uden_kirkeskat_mindste) == 6947 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_uden_kirkeskat_største) == 8626 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_med_kirkeskat_mindste) == 7139 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_60_med_kirkeskat_største) == 9052 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_uden_kirkeskat_mindste) == 14408 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_uden_kirkeskat_største) == 16201 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_med_kirkeskat_mindste) == 14808 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_nationale_130_med_kirkeskat_største) == 17002
 = personskat_indkomstklint_sporresultater_præcise = personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_københavn_60_mindste) == 6923 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_københavn_60_største) == 6947 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_læsø_130_mindste) == 17000 && personskat_indkomstklint_nettotab_øre(personskat_indkomstklint_læsø_130_største) == 17002
 = personskat_indkomstklint_største_fund_præcist = match personskat_indkomstklint_største_fund {
-    | Some(overgang) -> overgang.profil.kommune == Læsø && overgang.profil.betaler_kirkeskat && overgang.profil.daglige_befordringskilometer == 130 && overgang.indkomst_før_kroner == 342499 && overgang.indkomst_efter_kroner == 342500 && overgang.grundfradrag_før_lavindkomsttillæg_kroner == 75528 && overgang.lavindkomsttillæg_før_kroner == 30800 && overgang.lavindkomsttillæg_efter_kroner == 30184 && overgang.lavindkomsttillægstab_kroner == 616 && overgang.slutskat_før_øre == 8852660 && overgang.slutskat_efter_øre == 8869762 && overgang.netto_før_øre == 25397240 && overgang.netto_efter_øre == 25380238 && overgang.nettotab_øre == 17002
+    | Some(overgang) -> overgang.profil.kommune == Læsø && overgang.profil.betaler_kirkeskat && overgang.profil.daglige_befordringskilometer == 130 && overgang.indkomst_før_kroner == 342499 && overgang.indkomst_efter_kroner == 342500 && overgang.grundfradrag_før_lavindkomsttillæg_kroner == 75528 && overgang.lavindkomsttillæg_før_kroner == 30800 && overgang.lavindkomsttillæg_efter_kroner == 30184 && overgang.lavindkomsttillægstab_kroner == 616 && overgang.slutskat_før_øre == 8852631 && overgang.slutskat_efter_øre == 8869733 && overgang.netto_før_øre == 25397269 && overgang.netto_efter_øre == 25380267 && overgang.nettotab_øre == 17002
     | None -> Falskt
 }
 

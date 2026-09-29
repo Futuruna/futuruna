@@ -198,6 +198,11 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 | `chunked` | `(List(a), Int) -> List(List(a))` | Split into chunks of size N; a size of 0 or less is an error |
 | `subscribe` | `(List(a), a -> ()) -> ()` | Iterate and apply callback |
 
+The callback of `filter`, `any`, `all` and `find` answers `Bool`. A callback
+whose result type is known to be anything else is a type error; a callback
+whose result type is only known at run time (for example a generic function)
+stops the program with a runtime error when it returns a non-`Bool` value.
+
 Integer `sum_list` and stream `sum` reject an overflowing intermediate total.
 Integer `abs` also fails if its result is outside the signed 64-bit range.
 See [integer arithmetic](basics.md#numbers) for ordinary and calculation error
