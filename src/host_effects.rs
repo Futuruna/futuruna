@@ -13,7 +13,7 @@ use super::*;
 /// or performed as `@ name(...)`.
 pub fn is_host_effect_builtin(name: &str) -> bool {
     matches!(
-        builtin_canonical(name),
+        name,
         "print"
             | "input"
             | "write_file"
@@ -78,7 +78,7 @@ impl<'a> Summary<'a> {
             };
             match &expr.kind {
                 ExprKind::Effect(name, _) => {
-                    let effect = (builtin_canonical(name).to_string(), expr.span);
+                    let effect = (name.to_string(), expr.span);
                     if is_host_effect_builtin(name) && self.host.is_none() {
                         self.host = Some(effect.clone());
                     }
@@ -95,7 +95,7 @@ impl<'a> Summary<'a> {
                 ExprKind::App(function, _) => {
                     if let ExprKind::Var(name) = &function.kind {
                         if known(name).is_none() && is_host_effect_builtin(name) {
-                            let effect = (builtin_canonical(name).to_string(), expr.span);
+                            let effect = (name.to_string(), expr.span);
                             if self.host.is_none() {
                                 self.host = Some(effect.clone());
                             }

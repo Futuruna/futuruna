@@ -910,7 +910,7 @@ impl Interpreter {
         args: &[Value],
         env: &Env,
     ) -> Option<Value> {
-        let canonical = builtin_canonical(name);
+        let canonical = name;
         if LIVE_STREAM_PASS_THROUGH.contains(&canonical) {
             return None;
         }

@@ -16505,7 +16505,7 @@ impl Interpreter {
         is_host_effect_builtin(name).then(|| {
             self.panic_or_ground_fail(format!(
                 "{context} cannot perform the host effect `{}`",
-                builtin_canonical(name)
+                name
             ))
         })
     }

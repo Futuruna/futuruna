@@ -29358,11 +29358,6 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
             Some(FirTy::List(Box::new(FirTy::String)))
         }
         "range" => Some(FirTy::List(Box::new(FirTy::Int))),
-        "parse_danish_int" => Some(FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String))),
-        "parse_danish_float" => Some(FirTy::Result(
-            Box::new(FirTy::Float),
-            Box::new(FirTy::String),
-        )),
         "regex_find" => Some(FirTy::Option(Box::new(FirTy::String))),
         "http_respond" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
@@ -33036,7 +33031,7 @@ impl RustCodegen {
             return;
         };
         // `push(xs, item)` fixes the element type of an empty `xs`.
-        if builtin_canonical(&fn_name) == "push" && args.len() == 2 {
+        if fn_name.as_str() == "push" && args.len() == 2 {
             if let ExprKind::Var(var_name) = &args[0].kind {
                 if self.empty_list_bindings.contains(var_name.as_str())
                     && !self.empty_list_var_types.contains_key(var_name)
@@ -45620,7 +45615,7 @@ fn __futuruna_install_error_hook() {
                 self.types.comptime_types.get(name).map(String::as_str),
                 Some("i64" | "f64" | "bool" | "char" | "u64" | "()")
             );
-        let lowered_builtin = matches!(builtin_canonical(name), "push");
+        let lowered_builtin = matches!(name, "push");
         !self.types.user_functions.contains(name)
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
@@ -46049,7 +46044,7 @@ fn __futuruna_install_error_hook() {
     /// Assign a rebound loop accumulator. `= xs = push(xs, v)` appends in place.
     fn emit_rebind_assignment(&mut self, name: &str, value: &Expr) -> String {
         if let ExprKind::App(func, args) = &value.kind {
-            if matches!(&func.kind, ExprKind::Var(f) if builtin_canonical(f) == "push" && !self.builtin_shadowed_by_callable(f))
+            if matches!(&func.kind, ExprKind::Var(f) if f == "push" && !self.builtin_shadowed_by_callable(f))
                 && args.len() == 2
                 && matches!(&args[0].kind, ExprKind::Var(target) if target == name)
             {
