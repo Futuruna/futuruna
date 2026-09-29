@@ -34,8 +34,8 @@
       "patterns": [
         {
           "name": "comment.block.runa",
-          "begin": "----",
-          "end": "----"
+          "begin": "-{4,}",
+          "end": "-{4,}"
         },
         {
           "name": "comment.line.double-dash.runa",
