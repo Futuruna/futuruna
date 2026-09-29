@@ -26079,7 +26079,10 @@ struct RustCodegen {
     has_async: bool,
     /// Variables bound to subjects.
     subject_vars: BTreeSet<String>,
-    /// M13c: variables that evaluate to async streams (subjects or derived stream ops)
+    /// Rust types of untyped function parameters that receive `<-`, from the
+    /// subjects and actor handles passed at call sites: (function, index).
+    send_target_param_types: BTreeMap<(String, usize), String>,
+    /// Variables bound to live streams (subjects or live derived streams).
     async_stream_vars: BTreeSet<String>,
     /// Named scope being emitted.
     current_scope: Option<String>,
@@ -30964,6 +30967,7 @@ impl RustCodegen {
             var_fir_types: BTreeMap::new(),
             has_async: false,
             subject_vars: BTreeSet::new(),
+            send_target_param_types: BTreeMap::new(),
             async_stream_vars: BTreeSet::new(),
             current_scope: None,
             scope_bindings: BTreeMap::new(),
@@ -32542,7 +32546,7 @@ impl RustCodegen {
                                     );
                                 }
                             }
-                            Stmt::For(_, iter, body) => {
+                            Stmt::For(var, iter, body) => {
                                 scan_expr_for_subject_sends(
                                     iter,
                                     subject_names,
@@ -32551,12 +32555,17 @@ impl RustCodegen {
                                     local_tys,
                                     stream_bind_exprs,
                                 );
+                                let mut body_tys = local_tys.clone();
+                                if matches!(&iter.kind, ExprKind::App(func, _) if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "range"))
+                                {
+                                    body_tys.insert(var.clone(), "i64".to_string());
+                                }
                                 scan_stmts_for_subject_sends(
                                     body,
                                     subject_names,
                                     fn_types,
                                     types,
-                                    local_tys,
+                                    &body_tys,
                                     stream_bind_exprs,
                                 );
                             }
@@ -34805,6 +34814,7 @@ impl RustCodegen {
         self.prescan_hof_named_callback_param_types(&all_stmts);
         if self.has_async {
             self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
+            self.prescan_send_target_param_types(&all_stmts);
         }
         let stmts = &all_stmts;
         self.codegen_invariants.clear();
@@ -40738,7 +40748,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 {
                     let mut diag = Diagnostic::error_at(
                         iter_expr.span,
-                        "live async stream for-loops require a named scope",
+                        "live stream for-loops require a named scope",
                     )
                     .with_note("wrap this subscription in `| scope Name { ... }` so its lifetime is owned explicitly")
                     .with_note("see docs/stream-lifetimes.md");
@@ -40756,7 +40766,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         expr.span,
                         "live stream subscriptions require a named scope",
                     )
-                    .with_note("ordinary functions must not spawn detached subscription tasks; use `| scope Name { ... }` instead")
+                    .with_note("ordinary functions must not start subscriptions that no scope owns; use `| scope Name { ... }` instead")
                     .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
@@ -40781,9 +40791,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 {
                     let mut diag = Diagnostic::error_at(
                         expr.span,
-                        "derived async stream operators require a named scope",
+                        "derived live streams require a named scope",
                     )
-                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` start background forwarder tasks; wrap them in `| scope Name { ... }` or return the stream expression directly")
+                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` keep following their source; wrap them in `| scope Name { ... }` or return the stream expression directly")
                     .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
@@ -44245,6 +44255,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             p.ty.as_ref()
                                 .map(|t| self.emit_type(t))
                                 .or_else(|| {
+                                    self.send_target_param_types
+                                        .get(&(name.clone(), idx))
+                                        .cloned()
+                                })
+                                .or_else(|| {
                                     self.function_param_fir_ty(name, idx)
                                         .and_then(|ty| Self::fir_type_to_rust(&ty))
                                 })
@@ -45702,7 +45717,10 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     } else {
                         out.push_str(&format!("{}__FutEvent::Value(__item) => {{\n", self.ind()));
                         self.indent += 1;
-                        out.push_str(&self.emit_subscription_value_match("__item.clone()", &value_arms));
+                        out.push_str(&self.emit_subscription_value_match(
+                            "std::clone::Clone::clone(__item)",
+                            &value_arms,
+                        ));
                         self.indent -= 1;
                         out.push_str(&format!("{}}}\n", self.ind()));
                     }
@@ -45806,7 +45824,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     out.push_str(&format!("{}__FutEvent::Value(__item) => {{\n", self.ind()));
                     self.indent += 1;
                     out.push_str(&format!(
-                        "{}let {} = __item.clone();\n",
+                        "{}let {} = std::clone::Clone::clone(__item);\n",
                         self.ind(),
                         sanitize_name(var)
                     ));
@@ -47121,6 +47139,108 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             && self.visible_bare_module_path(name).is_none()
     }
 
+    /// Untyped parameters that receive `<-` take the type of the subject or
+    /// actor handle passed at the call sites.
+    fn prescan_send_target_param_types(&mut self, stmts: &[Stmt]) {
+        let mut send_params: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        let mut actor_handles: BTreeMap<String, String> = BTreeMap::new();
+        let mut subject_aliases: BTreeMap<String, String> = self
+            .subject_vars
+            .iter()
+            .map(|name| (name.clone(), name.clone()))
+            .collect();
+        for stmt in stmts {
+            walk_ast_stmt(stmt, &mut |child| {
+                let AstChild::Stmt(stmt) = child else {
+                    return;
+                };
+                match stmt {
+                    Stmt::Defn(Defn::Fn {
+                        name, params, body, ..
+                    }) => {
+                        let mut targets = BTreeSet::new();
+                        walk_ast_expr(body, &mut |inner| {
+                            if let AstChild::Stmt(Stmt::Send(target, _)) = inner {
+                                if let ExprKind::Var(target) = &target.kind {
+                                    targets.insert(target.clone());
+                                }
+                            }
+                        });
+                        let indexes = params
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, param)| param.ty.is_none() && targets.contains(&param.name))
+                            .map(|(index, _)| index)
+                            .collect::<Vec<_>>();
+                        if !indexes.is_empty() {
+                            send_params.insert(name.clone(), indexes);
+                        }
+                    }
+                    Stmt::Bind(Pat::Var(var), _, value) => match &value.kind {
+                        ExprKind::App(func, args)
+                            if matches!(&func.as_ref().kind, ExprKind::Var(n) if n == "spawn") =>
+                        {
+                            if let Some(ExprKind::Var(actor)) = args.first().map(|arg| &arg.kind) {
+                                actor_handles.insert(var.clone(), actor.clone());
+                            }
+                        }
+                        ExprKind::Var(source) => {
+                            if let Some(actor) = actor_handles.get(source).cloned() {
+                                actor_handles.insert(var.clone(), actor);
+                            }
+                            if let Some(subject) = subject_aliases.get(source).cloned() {
+                                subject_aliases.insert(var.clone(), subject);
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            });
+        }
+        if send_params.is_empty() {
+            return;
+        }
+        let mut resolved = BTreeMap::new();
+        for stmt in stmts {
+            walk_ast_stmt(stmt, &mut |child| {
+                let AstChild::Expr(Expr {
+                    kind: ExprKind::App(func, args),
+                    ..
+                }) = child
+                else {
+                    return;
+                };
+                let ExprKind::Var(function) = &func.as_ref().kind else {
+                    return;
+                };
+                let Some(indexes) = send_params.get(function) else {
+                    return;
+                };
+                for &index in indexes {
+                    let Some(ExprKind::Var(arg)) = args.get(index).map(|arg| &arg.kind) else {
+                        continue;
+                    };
+                    let rust_ty = if let Some(actor) = actor_handles.get(arg) {
+                        format!("{}ActorHandle", sanitize_name(actor))
+                    } else if let Some(subject) = subject_aliases.get(arg) {
+                        format!(
+                            "__FutStream<{}>",
+                            self.subject_elem_type
+                                .get(subject)
+                                .cloned()
+                                .unwrap_or_else(|| "i64".to_string())
+                        )
+                    } else {
+                        continue;
+                    };
+                    resolved.insert((function.clone(), index), rust_ty);
+                }
+            });
+        }
+        self.send_target_param_types = resolved;
+    }
+
     /// The scope named by `@ teardown("Scope")` or `teardown("Scope")`.
     fn teardown_scope_name(expr: &Expr) -> Option<String> {
         let args = match &expr.kind {
@@ -48118,7 +48238,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     }
 
     /// Check if an expression evaluates to an async broadcast stream.
-    /// Returns true for: subject variables, and stream ops applied to async streams.
+    /// Returns true for: subject variables, and live operators applied to live streams.
     fn is_async_stream_expr(&self, expr: &Expr) -> bool {
         if !self.has_async {
             return false;
@@ -48581,7 +48701,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         if !Self::is_fusible_vec_op(&args[0]) {
             return None;
         }
-        // Don't fuse async stream expressions
+        // Don't fuse live stream expressions
         if self.is_async_stream_expr(&args[0]) {
             return None;
         }
@@ -49975,7 +50095,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     if let Some(async_code) = self.emit_async_stream_op(name, args) {
                         return async_code;
                     }
-                    // Pure aggregations over async stream state operate on the current snapshot.
+                    // Terminal operations on live streams read the values the stream holds now.
                     if let Some(snapshot_builtin) =
                         self.emit_async_stream_snapshot_builtin(name, args)
                     {
@@ -67744,11 +67864,11 @@ routes <- "b"
         );
         assert!(
             diags.iter().any(
-                |d| d.message == "live async stream for-loops require a named scope"
+                |d| d.message == "live stream for-loops require a named scope"
                     && d.context.iter().any(|ctx| ctx == "in function `install`")
                     && d.notes.iter().any(|note| note.contains("| scope Name"))
             ),
-            "expected function-local async stream for-loop diagnostic, got: {:?}",
+            "expected function-local live stream for-loop diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
@@ -67766,12 +67886,12 @@ routes <- "b"
         );
         assert!(
             diags.iter().any(|d| d.message
-                == "derived async stream operators require a named scope"
+                == "derived live streams require a named scope"
                 && d.context.iter().any(|ctx| ctx == "in function `install`")
                 && d.notes
                     .iter()
                     .any(|note| note.contains("return the stream expression directly"))),
-            "expected function-local async stream binding diagnostic, got: {:?}",
+            "expected function-local live stream binding diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
@@ -67790,9 +67910,9 @@ routes <- "b"
         );
         assert!(
             diags.iter().any(|d| d.message
-                == "derived async stream operators require a named scope"
+                == "derived live streams require a named scope"
                 && d.context.iter().any(|ctx| ctx == "in function `install`")),
-            "expected nested function-local async stream work diagnostic, got: {:?}",
+            "expected nested function-local live stream work diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
@@ -67815,7 +67935,7 @@ routes <- "b"
         assert!(
             diags.iter().all(
                 |d| d.message != "live stream subscriptions require a named scope"
-                    && d.message != "live async stream for-loops require a named scope"
+                    && d.message != "live stream for-loops require a named scope"
             ),
             "named scopes inside functions should own live subscriptions explicitly, got: {:?}",
             diags

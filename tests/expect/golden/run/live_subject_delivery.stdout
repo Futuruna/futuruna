@@ -1,0 +1,14 @@
+A got 1
+A got 2
+B got 1
+B got 2
+A got 3
+B got 3
+count 3
+latest 3
+merge [1, 2, 3]
+take 2
+shared [1, 3, 10, 20]
+bulk 3000 4498500
+B complete
+end

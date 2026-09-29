@@ -324,6 +324,24 @@ impl fmt::Debug for ActorRef {
 }
 
 impl Interpreter {
+    /// Run `f` with runtime errors located at `span` (statements carry no
+    /// span of their own).
+    pub(crate) fn with_statement_span<R>(&mut self, span: Span, f: impl FnOnce(&mut Self) -> R) -> R {
+        let function_depth = self.runtime_function_call_depth.get();
+        let rule_depth = self.runtime_rule_call_depth.get();
+        let previous = self.runtime_diagnostic_context.as_mut().and_then(|context| {
+            (context.function_depth == function_depth
+                && context.rule_depth == rule_depth
+                && !span.is_dummy())
+            .then(|| context.span.replace(span))
+        });
+        let result = f(self);
+        if let (Some(previous), Some(context)) = (previous, self.runtime_diagnostic_context.as_mut()) {
+            context.span = previous;
+        }
+        result
+    }
+
     // ── Subjects ────────────────────────────────────────────────────────
 
     /// `subject()`, `subject(initial)` or `subject(initial, keep)`.

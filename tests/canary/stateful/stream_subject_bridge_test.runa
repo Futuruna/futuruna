@@ -1,4 +1,3 @@
--- roundtrip-skip: subject() bridge canaries are intentionally skipped by the generic roundtrip lane
 -- Authored stateful canary: bridge a source subject through derived subscriptions
 -- into downstream subjects, then assert deterministic review and priority output.
 
