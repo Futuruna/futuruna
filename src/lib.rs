@@ -15419,6 +15419,9 @@ struct RuntimeNamespaceState {
     function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     impl_methods: BTreeMap<(String, String), FnDef>,
     impl_method_declaration_envs: BTreeMap<(String, String), RuntimeDeclarationEnv>,
+    /// Names of receiver methods declared in type bodies and impl blocks; a
+    /// free call of one of these names dispatches on its first argument.
+    receiver_method_names: BTreeSet<String>,
     rule_scopes: BTreeMap<String, Rc<RuleScopeDef>>,
     rule_scope_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     invariants: BTreeMap<String, (Expr, Expr)>,
@@ -15477,6 +15480,7 @@ impl RuntimeNamespaceState {
             function_declaration_envs: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
             impl_method_declaration_envs: BTreeMap::new(),
+            receiver_method_names: BTreeSet::new(),
             rule_scopes: BTreeMap::new(),
             rule_scope_declaration_envs: BTreeMap::new(),
             invariants: BTreeMap::new(),
@@ -15683,31 +15687,86 @@ fn runtime_err(message: String) -> Value {
     Value::Constructor("Err".into(), vec![Value::Str(message)].into())
 }
 
-/// Seconds before a `http_get` request is abandoned, in both execution modes.
+/// The kind of a runtime value without a nominal type, for diagnostics.
+fn runtime_value_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Int(_) => "Int",
+        Value::Float(_) => "Float",
+        Value::Str(_) => "String",
+        Value::Char(_) => "Char",
+        Value::Bool(_) => "Bool",
+        Value::Unit => "()",
+        Value::List(_) => "List",
+        Value::Tuple(_) => "Tuple",
+        Value::Map(_) => "Map",
+        Value::Set(_) => "Set",
+        Value::Stream(_) => "Stream",
+        Value::Subject(_) => "Subject",
+        Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. } => "function",
+        _ => "value",
+    }
+}
+
+/// The variant and payload of a `Result`/`Option` value (`Ok`/`Err` with one
+/// payload, `Some` with one, `None` with none).
+fn runtime_result_or_option_parts(value: &Value) -> Option<(&str, &[Value])> {
+    let (name, args) = match value {
+        Value::Constructor(name, args)
+        | Value::NamespacedConstructor {
+            name,
+            arguments: args,
+            ..
+        } => (name.as_str(), args.as_slice()),
+        _ => return None,
+    };
+    match (name, args.len()) {
+        ("Ok" | "Err" | "Some", 1) | ("None", 0) => Some((name, args)),
+        _ => None,
+    }
+}
+
+/// Seconds before a `http_get`/`http_post` request is abandoned, in both
+/// execution modes.
 const HTTP_GET_TIMEOUT_SECONDS: u64 = 30;
 
-/// `http_get` in the interpreter. Only a 2xx response is a success; the
-/// request is delegated to `curl` so HTTPS works without a TLS dependency.
-fn runtime_http_get(url: &str) -> Result<String, String> {
+/// `http_get` (no body) and `http_post` (with body) in the interpreter. Only a
+/// 2xx response is a success; the request is delegated to `curl` so HTTPS
+/// works without a TLS dependency. A POST body travels over stdin.
+fn runtime_http_request(url: &str, body: Option<&str>) -> Result<String, String> {
+    use std::io::Write;
     const STATUS_MARKER: &str = "\n__futuruna_http_status:";
-    let output = std::process::Command::new("curl")
-        .args([
-            "--silent",
-            "--show-error",
-            "--location",
-            "--proto",
-            "=http,https",
-            "--max-time",
-            &HTTP_GET_TIMEOUT_SECONDS.to_string(),
-            "--write-out",
-            &format!("{STATUS_MARKER}%{{http_code}}"),
-            "--url",
-            url,
-        ])
-        .output()
-        .map_err(|error| {
-            format!("request to {url} failed: the interpreter needs `curl` for HTTP: {error}")
-        })?;
+    let mut command = std::process::Command::new("curl");
+    command.args([
+        "--silent",
+        "--show-error",
+        "--location",
+        "--proto",
+        "=http,https",
+        "--max-time",
+        &HTTP_GET_TIMEOUT_SECONDS.to_string(),
+        "--write-out",
+        &format!("{STATUS_MARKER}%{{http_code}}"),
+        "--url",
+        url,
+    ]);
+    if body.is_some() {
+        command.args(["--data-binary", "@-"]);
+    }
+    let needs_curl = |error: std::io::Error| {
+        format!("request to {url} failed: the interpreter needs `curl` for HTTP: {error}")
+    };
+    let mut child = command
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(needs_curl)?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(body.unwrap_or_default().as_bytes())
+            .map_err(|error| format!("request to {url} failed: {error}"))?;
+    }
+    let output = child.wait_with_output().map_err(needs_curl)?;
     if output.status.code() == Some(28) {
         return Err(format!(
             "request to {url} timed out after {HTTP_GET_TIMEOUT_SECONDS} s"
@@ -15988,6 +16047,13 @@ impl Interpreter {
             current = parent;
         }
         None
+    }
+
+    fn runtime_receiver_method_declared(&self, namespace: &RuntimeNamespace, name: &str) -> bool {
+        Self::runtime_namespace_find(namespace, |state| {
+            state.receiver_method_names.contains(name).then_some(())
+        })
+        .is_some()
     }
 
     fn runtime_impl_method(
@@ -16506,6 +16572,25 @@ impl Interpreter {
                 self.panic_or_ground_fail(format!("{builtin} expects a String, got {value}"))
             }
             None => self.panic_or_ground_fail(format!("{builtin} expects a String argument")),
+        }
+    }
+
+    fn runtime_value_type_label(&self, value: &Value) -> String {
+        self.runtime_type_name(value)
+            .unwrap_or_else(|| runtime_value_kind(value).to_string())
+    }
+
+    /// A collection predicate must answer with a Bool.
+    fn builtin_predicate_holds(&self, builtin: &str, result: Value) -> bool {
+        match result {
+            Value::Bool(holds) => holds,
+            other => {
+                let _ = self.panic_or_ground_fail(format!(
+                    "{builtin} predicate must return Bool, got {}",
+                    self.runtime_value_type_label(&other)
+                ));
+                false
+            }
         }
     }
 
@@ -18147,36 +18232,49 @@ impl Interpreter {
         result.unwrap_or(Some(Value::Unit))
     }
 
-    fn bind_method_value(&self, obj_val: &Value, field: &str, env: &Env) -> Option<Value> {
+    /// Bind the method `method` declared for the receiver's own type (type
+    /// body or impl block). The first parameter receives the receiver.
+    fn bind_receiver_method(&self, obj_val: &Value, method: &str) -> Option<Value> {
         let object_namespace = self.runtime_value_namespace(obj_val);
-        if let Some(type_name) = self.runtime_type_name(obj_val) {
-            if let Some((owner, func_def, declaration_env)) =
-                self.runtime_impl_method(&object_namespace, &type_name, field)
-            {
-                let declaration_call_env =
-                    self.registered_declaration_env(&declaration_env, "method", field)?;
-                let mut method_env = declaration_call_env.child();
-                method_env.set_runtime_namespace(owner);
-                method_env.set("self".to_string(), obj_val.clone());
-                if let Some((_, _, bindings)) = self.runtime_rule_scope_value_parts(obj_val) {
-                    method_env.set("__rulescope_self".to_string(), obj_val.clone());
-                    for (name, value) in bindings.iter() {
-                        method_env.set(name.clone(), value.clone());
-                    }
-                }
-                let remaining_params: Vec<String> = func_def
-                    .params
-                    .iter()
-                    .filter(|p| p.as_str() != "self")
-                    .cloned()
-                    .collect();
-                return Some(Value::Closure {
-                    name: None,
-                    params: remaining_params,
-                    body: func_def.body.clone(),
-                    env: method_env,
-                });
+        let type_name = self.runtime_type_name(obj_val)?;
+        let (owner, func_def, declaration_env) =
+            self.runtime_impl_method(&object_namespace, &type_name, method)?;
+        let declaration_call_env =
+            self.registered_declaration_env(&declaration_env, "method", method)?;
+        let mut method_env = declaration_call_env.child();
+        method_env.set_runtime_namespace(owner);
+        method_env.set("self".to_string(), obj_val.clone());
+        let rule_scope_parts = self.runtime_rule_scope_value_parts(obj_val);
+        if let Some((_, _, bindings)) = &rule_scope_parts {
+            method_env.set("__rulescope_self".to_string(), obj_val.clone());
+            for (name, value) in bindings.iter() {
+                method_env.set(name.clone(), value.clone());
             }
+        }
+        let mut remaining_params = func_def.params;
+        match remaining_params.first() {
+            Some(first) if first == "self" => {
+                remaining_params.remove(0);
+            }
+            // RuleScope members read the instance through its fields; other
+            // type-body methods name their receiver as the first parameter.
+            Some(first) if rule_scope_parts.is_none() => {
+                method_env.set(first.clone(), obj_val.clone());
+                remaining_params.remove(0);
+            }
+            _ => {}
+        }
+        Some(Value::Closure {
+            name: None,
+            params: remaining_params,
+            body: func_def.body,
+            env: method_env,
+        })
+    }
+
+    fn bind_method_value(&self, obj_val: &Value, field: &str, env: &Env) -> Option<Value> {
+        if let Some(method) = self.bind_receiver_method(obj_val, field) {
+            return Some(method);
         }
 
         let lookup_namespace = self.namespace_for_env(env);
@@ -18694,16 +18792,13 @@ impl Interpreter {
                             body: body.clone(),
                         };
                         let method_key = (name.clone(), method_name.clone());
-                        state
-                            .impl_methods
-                            .insert(method_key.clone(), definition.clone());
+                        state.impl_methods.insert(method_key.clone(), definition);
                         state
                             .impl_method_declaration_envs
                             .insert(method_key, declaration_env.clone());
-                        state.functions.insert(method_name.clone(), definition);
-                        state
-                            .function_declaration_envs
-                            .insert(method_name.clone(), declaration_env.clone());
+                        if !params.is_empty() {
+                            state.receiver_method_names.insert(method_name.clone());
+                        }
                     }
                 }
             }
@@ -18745,23 +18840,14 @@ impl Interpreter {
                         state.impl_methods.insert(
                             (for_type.clone(), name.clone()),
                             FnDef {
-                                params: param_names.clone(),
+                                params: param_names,
                                 body: body.clone(),
                             },
                         );
                         state
                             .impl_method_declaration_envs
                             .insert((for_type.clone(), name.clone()), declaration_env.clone());
-                        state.functions.insert(
-                            name.clone(),
-                            FnDef {
-                                params: param_names,
-                                body: body.clone(),
-                            },
-                        );
-                        state
-                            .function_declaration_envs
-                            .insert(name.clone(), declaration_env.clone());
+                        state.receiver_method_names.insert(name.clone());
                     }
                 }
             }
@@ -20585,13 +20671,13 @@ impl Interpreter {
                 }
                 Stmt::MonadicBind(pat, _ty, expr) => {
                     let val = self.eval(expr, env);
-                    match &val {
-                        Value::Constructor(name, args) if name == "Ok" || name == "Some" => {
+                    match runtime_result_or_option_parts(&val) {
+                        Some(("Ok" | "Some", args)) => {
                             let inner = args.first().cloned().unwrap_or(Value::Unit);
                             self.bind_pattern(pat, &inner, env);
                             last = inner;
                         }
-                        Value::Constructor(name, _) if name == "Err" || name == "None" => {
+                        Some(_) => {
                             return val; // Early return from enclosing block
                         }
                         _ if self.is_runtime_effect_operation_call(expr, env) => {
@@ -20941,11 +21027,8 @@ impl Interpreter {
 
     pub fn register_constructors(&self, decl: &TypeDecl, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
-        let declaration_env = env.ensure_runtime_declaration_env();
         match decl {
-            TypeDecl::ADT {
-                variants, methods, ..
-            } => {
+            TypeDecl::ADT { variants, .. } => {
                 for v in variants {
                     if v.fields.is_empty() {
                         // Nullary constructor: just a value
@@ -20977,50 +21060,11 @@ impl Interpreter {
                         );
                     }
                 }
-                // Register methods as functions
-                for method in methods {
-                    if let Defn::Fn {
-                        name, params, body, ..
-                    } = method
-                    {
-                        let param_names: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let closure = Value::Closure {
-                            name: Some(name.clone()),
-                            params: param_names,
-                            body: body.clone(),
-                            env: Env::new()
-                                .with_runtime_namespace(namespace.clone())
-                                .with_runtime_declaration_env(declaration_env.clone()),
-                        };
-                        env.set(name.clone(), closure);
-                    }
-                }
             }
             TypeDecl::EffectDecl { .. } => {}
             TypeDecl::TraitDecl { .. } => {} // no runtime values for traits
             TypeDecl::WhenType { .. } => {}  // handled in run_program
-            TypeDecl::ImplBlock { methods, .. } => {
-                // Register impl methods as callable functions
-                for method in methods {
-                    if let Defn::Fn {
-                        name, params, body, ..
-                    } = method
-                    {
-                        let param_names: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let closure = Value::Closure {
-                            name: Some(name.clone()),
-                            params: param_names,
-                            body: body.clone(),
-                            env: Env::new()
-                                .with_runtime_namespace(namespace.clone())
-                                .with_runtime_declaration_env(declaration_env.clone()),
-                        };
-                        env.set(name.clone(), closure);
-                    }
-                }
-            }
+            TypeDecl::ImplBlock { .. } => {}
             TypeDecl::RuleScope { name, params, .. } => {
                 env.set(
                     name.clone(),
@@ -21251,6 +21295,31 @@ impl Interpreter {
             {
                 if let Some(value) = self.eval_constructor_call(function_name, arguments, env) {
                     return value;
+                }
+            }
+            // A free call of a type-body or impl method dispatches on its first
+            // argument's type unless a global function or rule owns the name.
+            if !arguments.is_empty()
+                && !has_named_args(arguments)
+                && self.runtime_receiver_method_declared(&namespace, function_name)
+                && self.runtime_function(&namespace, function_name).is_none()
+                && self.rules_named(&namespace, function_name).is_none()
+            {
+                let receiver = self.eval(&arguments[0], env);
+                if let Some(method) = self.bind_receiver_method(&receiver, function_name) {
+                    let rest = arguments[1..]
+                        .iter()
+                        .map(|argument| self.eval(argument, env))
+                        .collect();
+                    return self.apply(method, rest, env);
+                }
+                if !matches!(env.get(function_name), Some(Value::Builtin(_))) {
+                    let type_name = self
+                        .runtime_type_name(&receiver)
+                        .unwrap_or_else(|| runtime_value_kind(&receiver).to_string());
+                    return self.panic_or_ground_fail(format!(
+                        "no method `{function_name}` for a value of type `{type_name}`"
+                    ));
                 }
             }
             if has_named_args(arguments) {
@@ -21663,7 +21732,10 @@ impl Interpreter {
                     }),
                     ("-", Value::Float(f)) => Value::Float(-f),
                     ("&", v) | ("&mut", v) => v, // References are just values for now
-                    _ => Value::Unit,
+                    (op, v) => self.panic_or_ground_fail(format!(
+                        "unsupported operand for operator `{op}`: `{}`",
+                        self.runtime_value_type_label(&v)
+                    )),
                 }
             }
             ExprKind::If(condition, then_expression, else_expression) => {
@@ -21808,8 +21880,10 @@ impl Interpreter {
                             elems[i as usize].clone()
                         }
                     }
-                    (_, Value::Int(i)) => {
-                        // Handle Cons/Nil linked lists and other list-like values
+                    (list, Value::Int(i))
+                        if matches!(list, Value::Stream(_) | Value::Subject(_))
+                            || matches!(list, Value::Constructor(name, _) if name == "Cons" || name == "Nil") =>
+                    {
                         let elems = list_to_vec(&arr_val);
                         let i = *i;
                         if i < 0 || i as usize >= elems.len() {
@@ -21822,7 +21896,16 @@ impl Interpreter {
                             elems[i as usize].clone()
                         }
                     }
-                    _ => Value::Unit,
+                    (Value::Map(entries), key) => runtime_map_get_value(entries, key)
+                        .cloned()
+                        .unwrap_or_else(|| {
+                            self.panic_or_calculation_fail(format!("map has no key {key}"))
+                        }),
+                    _ => self.panic_or_ground_fail(format!(
+                        "cannot index a value of type {} with {}",
+                        self.runtime_value_type_label(&arr_val),
+                        self.runtime_value_type_label(&idx_val)
+                    )),
                 }
             }
             ExprKind::List(elems) => {
@@ -21894,27 +21977,17 @@ impl Interpreter {
                 }
                 // ? operator: unwrap Ok/Some, early-return Err/None (matches compiled ? behavior)
                 let val = self.eval(inner, env);
-                match &val {
-                    Value::Constructor(name, args)
-                    | Value::NamespacedConstructor {
-                        name,
-                        arguments: args,
-                        ..
-                    } if name == "Ok" && args.len() == 1 => args[0].clone(),
-                    Value::Constructor(name, args)
-                    | Value::NamespacedConstructor {
-                        name,
-                        arguments: args,
-                        ..
-                    } if name == "Some" && args.len() == 1 => args[0].clone(),
-                    Value::Constructor(name, _) | Value::NamespacedConstructor { name, .. }
-                        if name == "Err" || name == "None" =>
-                    {
+                match runtime_result_or_option_parts(&val) {
+                    Some(("Ok" | "Some", args)) => args[0].clone(),
+                    Some(_) => {
                         // Early-return the error/none value (same as ? in Rust)
                         eprintln!("Error: ? operator on {}", val);
                         std::process::exit(1);
                     }
-                    _ => val, // pass through non-Result/Option values
+                    None => self.panic_or_ground_fail(format!(
+                        "`?` expects a Result or Option, got {}",
+                        self.runtime_value_type_label(&val)
+                    )),
                 }
             }
             ExprKind::Unit => Value::Unit,
@@ -22426,7 +22499,12 @@ impl Interpreter {
             }
             "not" => match args.first() {
                 Some(Value::Bool(b)) => Value::Bool(!b),
-                _ => Value::Bool(false),
+                other => self.panic_or_ground_fail(format!(
+                    "not expects a Bool, got {}",
+                    other.map_or("no argument".to_string(), |value| {
+                        self.runtime_value_type_label(value)
+                    })
+                )),
             },
             "concat" => {
                 match (args.get(0), args.get(1)) {
@@ -22502,20 +22580,18 @@ impl Interpreter {
                     Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
-                let filtered: Vec<Value> = items
-                    .into_iter()
-                    .filter(|item| {
-                        match self.apply_checked_builtin_callback(
-                            1,
-                            func.clone(),
-                            vec![item.clone()],
-                            env,
-                        ) {
-                            Value::Bool(true) => true,
-                            _ => false,
-                        }
-                    })
-                    .collect();
+                let mut filtered = Vec::new();
+                for item in items {
+                    let result = self.apply_checked_builtin_callback(
+                        1,
+                        func.clone(),
+                        vec![item.clone()],
+                        env,
+                    );
+                    if self.builtin_predicate_holds("filter", result) {
+                        filtered.push(item);
+                    }
+                }
                 if is_stream {
                     Value::Stream(filtered)
                 } else {
@@ -22608,10 +22684,9 @@ impl Interpreter {
                     other => list_to_vec(other),
                 };
                 Value::Bool(items.into_iter().any(|item| {
-                    matches!(
-                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env),
-                        Value::Bool(true)
-                    )
+                    let result =
+                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
+                    self.builtin_predicate_holds("any", result)
                 }))
             }
             "all" => {
@@ -22623,25 +22698,22 @@ impl Interpreter {
                     other => list_to_vec(other),
                 };
                 Value::Bool(items.into_iter().all(|item| {
-                    matches!(
-                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env),
-                        Value::Bool(true)
-                    )
+                    let result =
+                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
+                    self.builtin_predicate_holds("all", result)
                 }))
             }
             "find" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
                     let items = list_to_vec(list);
                     for item in items {
-                        if matches!(
-                            self.apply_checked_builtin_callback(
-                                1,
-                                func.clone(),
-                                vec![item.clone()],
-                                env,
-                            ),
-                            Value::Bool(true)
-                        ) {
+                        let result = self.apply_checked_builtin_callback(
+                            1,
+                            func.clone(),
+                            vec![item.clone()],
+                            env,
+                        );
+                        if self.builtin_predicate_holds("find", result) {
                             return Value::Constructor("Some".into(), vec![item].into());
                         }
                     }
@@ -23662,16 +23734,22 @@ impl Interpreter {
 
             // ---- M14d: HTTP builtins ----
             "http_get" => match args.first() {
-                Some(Value::Str(url)) => match runtime_http_get(url) {
+                Some(Value::Str(url)) => match runtime_http_request(url, None) {
                     Ok(body) => runtime_ok(Value::Str(body)),
                     Err(message) => runtime_err(message),
                 },
                 other => self.builtin_string_argument_fail(name, other),
             },
-            "http_post" => {
-                println!("[runa interpreter] http_post: use `runa run` for real HTTP requests");
-                Value::Str(String::new())
-            }
+            "http_post" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(url)), Some(Value::Str(body))) => {
+                    match runtime_http_request(url, Some(body)) {
+                        Ok(response) => runtime_ok(Value::Str(response)),
+                        Err(message) => runtime_err(message),
+                    }
+                }
+                (Some(Value::Str(_)), other) => self.builtin_string_argument_fail(name, other),
+                (other, _) => self.builtin_string_argument_fail(name, other),
+            },
             "http_serve" => {
                 println!(
                     "[runa interpreter] {}: use `runa run` for real HTTP server",
@@ -50304,7 +50382,7 @@ impl TypeChecker {
             ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
             ("parse_int", 1) => Some("Result(Int, String)".to_string()),
             ("parse_float", 1) => Some("Result(Float, String)".to_string()),
-            ("read_file" | "http_get" | "json_parse", 1) => {
+            ("read_file" | "http_get" | "json_parse", 1) | ("http_post", 2) => {
                 Some("Result(String, String)".to_string())
             }
             ("round" | "floor" | "string_length", 1) => Some("Int".to_string()),
