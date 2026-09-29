@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 = personskat_personlig_indkomst_felt_arbejdsgiverydelse_id = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::identifikation),

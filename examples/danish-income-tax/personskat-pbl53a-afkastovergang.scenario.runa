@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - pbl53a - kildefakta
+@ importer ./personskat-pbl53a-kildefakta
 
 = pbl53a_overgang_omfangsfakta_1995 = Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1995, måned = 1, dag = 1),

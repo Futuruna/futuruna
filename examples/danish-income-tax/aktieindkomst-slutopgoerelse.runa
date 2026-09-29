@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./kapitel - 02 - statsskat
-@ importer ./kapitel - 03 - personfradrag
+@ importer ./kapitel-02-statsskat
+@ importer ./kapitel-03-personfradrag
 @ importer ./slutopgoerelse
 @ importer ./loenmodtager_beregning
 

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./grundlov - faelles
+@ importer ./grundlov-faelles
 
 -- Denne type tilhører prøvningslaget. Den klassificerer et fund og dets
 -- evidens uden at ændre reglerne i kildemodellen.

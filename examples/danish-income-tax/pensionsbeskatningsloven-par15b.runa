@@ -2,10 +2,10 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./kapitel - 04 - omregning - skatteloft
-@ importer ./pensionsbeskatningsloven - par11a
-@ importer ./pensionsbeskatningsloven - par20
-@ importer ./pensionsbeskatningsloven - par29
+@ importer ./kapitel-04-omregning-skatteloft
+@ importer ./pensionsbeskatningsloven-par11a
+@ importer ./pensionsbeskatningsloven-par20
+@ importer ./pensionsbeskatningsloven-par29
 
 # Pbl15BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

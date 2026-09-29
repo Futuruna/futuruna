@@ -444,8 +444,7 @@
     {
       "name": "registry",
       "stage": "experimental",
-      "surface": "internal-codegen-layout",
-      "hidden": true
+      "surface": "internal-codegen-layout"
     },
     {
       "name": "interface",

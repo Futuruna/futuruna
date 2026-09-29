@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ../examples / danish - income - tax / ligningsloven - par10 - par11 - underhold
+@ importer ../examples/danish-income-tax/ligningsloven-par10-par11-underhold
 
 -- Fiktive kildefakta. Disse kontroller afprøver modtagersammenhæng, ikke
 -- identitetsbevis eller alle øvrige betingelser for fradrag og beskatning.

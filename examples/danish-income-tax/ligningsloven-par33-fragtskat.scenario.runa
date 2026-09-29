@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par33
+@ importer ./ligningsloven-par33
 @ importer ./metadata
 
 = ligningslov33_fragtskat_scenarier_metadata = Metadata(

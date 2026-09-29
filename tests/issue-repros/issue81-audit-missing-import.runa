@@ -1,0 +1,8 @@
+-- expect-command: audit
+-- expect-status: fail
+-- expect-stderr: cannot resolve import `./does_not_exist`
+-- expect-stderr: issue81-audit-missing-import.runa:6
+-- expect-stdout-not: No structural findings
+@ import ./does_not_exist
+| exception a r() -> True under 1 == 1
+| exception b r() -> False under 1 == 1

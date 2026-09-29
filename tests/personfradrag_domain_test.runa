@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / kapitel - 03 - personfradrag
+@ importer ../examples/danish-income-tax/kapitel-03-personfradrag
 
 -- Bevarer den indkodede lovs beløb; ikke en ny, uafhængig skatteberegner.
 -- Grundbeløb i 2010-niveau er ikke årets regulerede personfradrag.

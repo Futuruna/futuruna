@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./kapitel - 04 - omregning - skatteloft
-@ importer ./pensionsbeskatningsloven - par15a - fortjeneste
+@ importer ./kapitel-04-omregning-skatteloft
+@ importer ./pensionsbeskatningsloven-par15a-fortjeneste
 @ importer ./kildeskatteloven
 
 -- Pensionsbeskatningsloven §§ 15 og 15 A -- indeksordning og ophørspension.

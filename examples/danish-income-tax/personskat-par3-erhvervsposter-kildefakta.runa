@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./metadata
 
 = personskat_par3_erhvervsposter_kildefakta_metadata = Metadata(

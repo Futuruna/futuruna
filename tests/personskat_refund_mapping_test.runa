@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+@ importer ../examples/danish-income-tax/personskat-aarsopgoerelse-kildemapping
 
 -- En fiktiv linjeetiket beviser ikke hjemlen for en skattetilbagebetaling.
 = tidligere_udbetalt = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "side-2-linje-4", linje_label = "Tidligere udbetalt overskydende skat", beløb_øre = 100000)

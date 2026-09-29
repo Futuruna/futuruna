@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./ligningsloven - par9g - fiskerfradrag
+@ importer ./ligningsloven-par9g-fiskerfradrag
 
 = personskat_fiskerfradrag_felt_valg = TypetBeregningsfelt(
     path = refof(Ligningslov9GÅrsinput::valg::$variant),

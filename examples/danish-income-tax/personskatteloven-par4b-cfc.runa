@@ -3,7 +3,7 @@
 @ importer ./ligningsloven_cfc
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./source - status
+@ importer ./source-status
 
 = personskatteloven_par4b_metadata = Metadata(
     attachments = (

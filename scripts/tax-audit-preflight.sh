@@ -28,22 +28,24 @@ compact() { tr -d '[:space:]' < "$1"; }
 
 mark_fixture_ready() {
     local template="$1" destination="$2"
-    # Only these fixed synthetic probe inputs are acknowledged here. Never use
-    # this substitution as an intake helper for personal tax documents.
+    # Only these fixed synthetic probe inputs are filled and acknowledged here:
+    # every unfilled Int becomes 0. Never use this substitution as an intake
+    # helper for personal tax documents.
     if [[ "$(grep -Ec '"input_status": "draft"' "$template")" != 1 ]]; then
         echo "[tax-audit] Compiler did not generate one explicit draft case; use a compatible binary." >&2
         exit 1
     fi
-    sed 's/"input_status": "draft"/"input_status": "ready"/' "$template" > "$destination"
+    compact "$template" |
+        sed -e 's/"input_status":"draft"/"input_status":"ready"/' -e 's/{"\$fill":"Int"}/0/g' > "$destination"
 }
 
 make_variant() {
     local template="$1" field="$2" replacement="$3" destination="$4"
-    if [[ "$(grep -Ec "\"$field\": 0([,]|$)" "$template")" != 1 ]]; then
+    if [[ "$(grep -Ec "\"$field\":0([,}]|$)" "$template")" != 1 ]]; then
         echo "[tax-audit] Unexpected synthetic template layout; stopping." >&2
         exit 1
     fi
-    sed "s/\"$field\": 0/$replacement/" "$template" > "$destination"
+    sed "s/\"$field\":0/$replacement/" "$template" > "$destination"
 }
 
 expect_success() {

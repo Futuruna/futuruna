@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / ligningsloven - par9j - senior
+@ importer ../examples/danish-income-tax/ligningsloven-par9j-senior
 
 > seniorgrænse(år: Heltal, fødselsår: Heltal, grundlag: Heltal, stk1: Boolsk, forventet: Heltal) -> Boolsk {
     = resultat = ll9j_senior_resultat(år, Dato(år = fødselsår, måned = 1, dag = 1), grundlag, stk1)

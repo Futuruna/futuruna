@@ -1,12 +1,12 @@
 @ sprog da
 
-@ importer ./kapitel - 01
-@ importer ./kapitel - 02
-@ importer ./kapitel - 04
-@ importer ./kapitel - 08
-@ importer ./kapitel - 09
-@ importer ./kapitel - 11
-@ importer ./grundlov - proevning - faelles
+@ importer ./kapitel-01
+@ importer ./kapitel-02
+@ importer ./kapitel-04
+@ importer ./kapitel-08
+@ importer ./kapitel-09
+@ importer ./kapitel-11
+@ importer ./grundlov-proevning-faelles
 
 -- Bestemmelsesprøvningen prøver lukkede, ordlydsnære domæner. Konkrete
 -- livsforløb og hypotetiske personer hører til scenariefilerne.

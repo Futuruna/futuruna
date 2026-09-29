@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
-@ importer ./aktieavancebeskatningsloven - par23 - 27
-@ importer ./aktieavancebeskatningsloven - par5a
+@ importer ./aktieavancebeskatningsloven-par23-27
+@ importer ./aktieavancebeskatningsloven-par5a
 @ importer ./pengebeloeb
 
 = aktieavancebeskatningsloven_lbk1098_par9 = AktieavancebeskatningslovKildeInfo(

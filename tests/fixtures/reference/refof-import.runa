@@ -1,4 +1,4 @@
-@ import ./refof - declarations
+@ import ./refof-declarations
 
 = imported_rule_ref = refof(imported_rule)
 = imported_function_ref = refof(imported_function)

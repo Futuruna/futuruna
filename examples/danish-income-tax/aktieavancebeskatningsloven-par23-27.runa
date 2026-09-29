@@ -2,9 +2,9 @@
 
 @ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
-@ importer ./aktieavancebeskatningsloven - par6 - 7
-@ importer ./aktieavancebeskatningsloven - par19 - 20a
-@ importer ./aktieavancebeskatningsloven - par33a
+@ importer ./aktieavancebeskatningsloven-par6-7
+@ importer ./aktieavancebeskatningsloven-par19-20a
+@ importer ./aktieavancebeskatningsloven-par33a
 
 -- Aktieavancebeskatningsloven §§ 23-26 -- opgørelsesprincipper og
 -- anskaffelsessumsregler, som bygger videre på de ordinære aktiepositioner.

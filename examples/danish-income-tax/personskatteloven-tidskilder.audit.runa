@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./personskat.calculate
-@ importer ./ligningsloven - par9a - rejser.calculate
+@ importer ./ligningsloven-par9a-rejser.calculate
 @ importer ./investeringsklassifikation.calculate
 
 # OffentligBeregningskæde(navn: Tekst, entry: ProgramReference, metadata: ProgramReference, første_indkomstår: Heltal, sidste_indkomstår: Heltal, tidskilder: List(ProgramReference))

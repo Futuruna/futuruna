@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kulbrinteskatteloven - par21
+@ importer ./kulbrinteskatteloven-par21
 
 | kulbrinte_scenarie_kildefakta(beskatningsret: Kulbrinteskattelov21Stk2DanskBeskatningsret, valg: Kulbrinteskattelov21Stk2Beskatningsvalg, alder: Heltal) -> Kulbrinteskattelov21Stk2Kildefakta(
     personstatus = KulbrintePersonIkkeOmfattetAfKildeskattelov1,

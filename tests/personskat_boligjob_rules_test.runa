@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / ligningsloven - par8v - boligjob
+@ importer ../examples/danish-income-tax/ligningsloven-par8v-boligjob
 
 = boligjob_lofter = [ll8v_service_loft(2023) == 6600, ll8v_service_loft(2024) == 11900, ll8v_service_loft(2025) == 17500, ll8v_service_loft(2026) == 18300, ll8v_håndværker_loft(2023) == 0, ll8v_håndværker_loft(2024) == 0, ll8v_håndværker_loft(2025) == 8600, ll8v_håndværker_loft(2026) == 9000, ll8v_service_loft(2027) == 0]
 = boligjob_datoer = [

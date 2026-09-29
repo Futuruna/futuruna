@@ -7,6 +7,16 @@ mod foreign_employment;
 
 const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
 
+#[path = "support/calculation_baseline.rs"]
+mod calculation_baseline;
+
+/// A generated template whose cases start from the explicit test baseline.
+fn baseline_template() -> Value {
+    let mut template = run(&["template", MODEL, "--format", "json"]);
+    calculation_baseline::fill_template(&mut template, &run(&["schema", MODEL]));
+    template
+}
+
 fn execute(args: &[&str]) -> Output {
     let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
@@ -70,7 +80,7 @@ fn canonical_interview_and_workbook_preserve_foreign_facts_and_unknowns() {
             }
         }
     }
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let ordinary = ordinary_facts(envelope["cases"][0]["input"].clone());
     let mut mixed = ordinary.clone();
     set_allocation(&mut mixed, allocation(300000, 300000));
@@ -161,7 +171,7 @@ fn ordinary_facts(mut ordinary: Value) -> Value {
 
 #[test]
 fn canonical_tax_uses_filtered_work_basis_without_changing_am_or_ll9l() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let ordinary = ordinary_facts(envelope["cases"][0]["input"].clone());
     let mut cases = vec![json!({"case_id":"ordinary","input_status":"ready", "input":ordinary})];
     let mut mixed = ordinary.clone();
@@ -327,6 +337,10 @@ fn part_year_preserves_source_exclusion_and_recomputes_annual_work_deductions() 
     const PART_YEAR: &str = "examples/danish-income-tax/personskat-par14.calculate.runa";
     const ENTRY: &str = "beregn_personskat_delår";
     let mut envelope = run(&["template", PART_YEAR, "--entry", ENTRY, "--format", "json"]);
+    calculation_baseline::fill_template(
+        &mut envelope,
+        &run(&["schema", PART_YEAR, "--entry", ENTRY]),
+    );
     let mut facts = ordinary_facts(envelope["cases"][0]["input"]["personskat"].clone());
     facts["lønmodtager"]["bruttoløn_kroner"] = json!(300000);
     let mut split = allocation(150000, 150000);

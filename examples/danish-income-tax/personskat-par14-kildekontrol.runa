@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ./personskat - beregningskontrol
+@ importer ./personskat-beregningskontrol
 
 -- Modelkomposition, ikke en selvstændig skatteregel eller bilagsgodkendelse.
 -- Bevar alle kanoniske kilde-/personkontroller, også nye og ægtefællens.

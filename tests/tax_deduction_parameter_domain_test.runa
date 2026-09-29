@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / ligningsloven_fradrag
+@ importer ../examples/danish-income-tax/ligningsloven_fradrag
 
 -- Eksisterende kildetabellers værdier, ikke en ny juridisk konformitetsoracle.
 = fradrag_j = map(range(2012, 2027), ll9j_parametre_for)

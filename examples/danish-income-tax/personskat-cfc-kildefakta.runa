@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ./personskatteloven - par4b - cfc
+@ importer ./personskatteloven-par4b-cfc
 @ importer ./metadata
-@ importer ./source - status
+@ importer ./source-status
 
 = personskat_cfc_kildefakta_metadata = Metadata(
     attachments = (

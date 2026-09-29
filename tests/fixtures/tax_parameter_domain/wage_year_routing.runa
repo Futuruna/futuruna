@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../../../examples / danish - income - tax / loenmodtager_beregning
+@ importer ../../../examples/danish-income-tax/loenmodtager_beregning
 
 -- Fiktive input og modelregression, ikke uafhængig skattevalidering.
 | lønår_input(år: Heltal, løn: Heltal, kapital: Heltal, kirke: Boolsk) -> LønmodtagerInput(

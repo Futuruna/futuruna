@@ -27,7 +27,7 @@ fi
 
 TARGETS=("$@")
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
-    TARGETS=(tests/expect)
+    TARGETS=(tests/expect tests/issue-repros)
 fi
 
 for target in "${TARGETS[@]}"; do

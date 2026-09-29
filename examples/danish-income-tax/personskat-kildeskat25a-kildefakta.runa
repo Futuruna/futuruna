@@ -2,7 +2,7 @@
 
 @ importer ./kildeskatteloven
 @ importer ./metadata
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 = skat_ksl25a_medarbejdende_ægtefælle_vejledning = KildeskatKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1976890",

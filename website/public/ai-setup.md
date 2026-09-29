@@ -445,9 +445,11 @@ The schema and navigation view are not the input envelope. If the user prefers a
 workbook, use `template --format xlsx` with an `.xlsx` output and the same
 selected compiler; follow the calculation guide for related tables and refresh.
 
-Template values are placeholders, not confirmed facts. In particular, zero,
-`false`, empty lists and the first alternative must not silently become the
-person's income, marital status or absence of deductions. Review applicable
+Template values are placeholders such as `{"$fill": "Int"}`, not facts; `call`
+refuses a case until every placeholder is replaced and lists each unfilled
+path. Never replace a placeholder with zero, `false`, an empty list or the
+first alternative just to make `call` run: those would become the person's
+income, marital status or absence of deductions. Review applicable
 sections, choose alternatives before their payloads, and keep a private note of
 each supplied value's document/page or explicit user confirmation. A missing
 line is not proof of zero. Preserve an available unknown alternative or `null`;

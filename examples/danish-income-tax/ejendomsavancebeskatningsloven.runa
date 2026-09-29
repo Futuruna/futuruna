@@ -2,10 +2,10 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./ejendomsavancebeskatningsloven - par5 - par5a
-@ importer ./ejendomsavancebeskatningsloven - par6d
-@ importer ./ejendomsavancebeskatningsloven - par8 - par9
-@ importer ./ejendomsavancebeskatningsloven - par11
+@ importer ./ejendomsavancebeskatningsloven-par5-par5a
+@ importer ./ejendomsavancebeskatningsloven-par6d
+@ importer ./ejendomsavancebeskatningsloven-par8-par9
+@ importer ./ejendomsavancebeskatningsloven-par11
 
 # EjendomsavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

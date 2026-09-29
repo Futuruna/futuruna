@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - pbl53a - kildefakta
+@ importer ./personskat-pbl53a-kildefakta
 
 | pbl53a_kontraktændringsscenarie_fakta(repræsentation: Pbl53AKontraktdelsrepræsentation, ændringer: List(Pbl53AKontraktændring)) -> Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),

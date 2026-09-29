@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - income - distance - unit.explore
+@ importer ./personskat-income-distance-unit.explore
 
 ----
 Output-first boundary window for the full 2026 unit-resolution exploration.
