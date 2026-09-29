@@ -132,3 +132,134 @@ fn take_and_skip_keep_lists_as_lists_in_both_modes() {
         );
     }
 }
+
+fn assert_both_modes_print(name: &str, source: &str, expected: &str) {
+    for compiled in [false, true] {
+        let output = run(name, source, compiled);
+        assert!(output.status.success(), "compiled={compiled}: {output:?}");
+        assert_eq!(stdout(&output), expected, "compiled={compiled}");
+    }
+}
+
+#[test]
+fn a_declared_global_function_wins_over_a_same_named_impl_method() {
+    assert_both_modes_print(
+        "impl_method_global_function",
+        r#"> fee(x: Int) -> Int { x * 2 }
+# trait Fee {
+    > fee(self) -> Int
+}
+# Case = Case(n: Int)
+# impl Fee for Case {
+    > fee(self) -> Int { 999 }
+}
+@ print(show(fee(10)))
+@ print(show(Case(1).fee()))
+"#,
+        "20\n999",
+    );
+}
+
+#[test]
+fn a_free_trait_method_call_dispatches_on_its_first_argument() {
+    assert_both_modes_print(
+        "free_trait_call",
+        r#"# trait Rate {
+    > rate(self) -> Int
+}
+# Resident = Resident(years: Int)
+# NonResident = NonResident(days: Int)
+# impl Rate for Resident {
+    > rate(self) -> Int { 37 }
+}
+# impl Rate for NonResident {
+    > rate(self) -> Int { 52 }
+}
+= r = Resident(3)
+@ print(show(r.rate()))
+@ print(show(rate(r)))
+@ print(show(rate(NonResident(4))))
+"#,
+        "37\n37\n52",
+    );
+}
+
+#[test]
+fn two_types_keep_their_own_same_named_methods() {
+    assert_both_modes_print(
+        "same_named_type_methods",
+        r#"# Color = Red | Green {
+    > label(c) -> String { match c { | Red -> "red" | Green -> "green" } }
+}
+# Size = Small | Big {
+    > label(s) -> String { match s { | Small -> "small" | Big -> "big" } }
+}
+@ print(label(Red))
+@ print(Red.label())
+@ print(Big.label())
+"#,
+        "red\nred\nbig",
+    );
+}
+
+#[test]
+fn a_user_function_shadows_the_builtin_of_the_same_name() {
+    assert_both_modes_print(
+        "shadow_count",
+        "> count(xs: List(Int)) -> Int { 42 }\n@ print(show(count([1, 2, 3])))\n",
+        "42",
+    );
+}
+
+#[test]
+fn ill_typed_runtime_operands_are_located_errors() {
+    for (name, source, message) in [
+        (
+            "filter_predicate",
+            "@ print(show(filter([1, 2, 3], |x| x)))\n",
+            "filter predicate must return Bool, got Int",
+        ),
+        (
+            "any_predicate",
+            "@ print(show(any([1, 2, 3], |x| \"yes\")))\n",
+            "any predicate must return Bool, got String",
+        ),
+        (
+            "all_find_predicate",
+            "> pick(x) { x }\n@ print(show(all([1, 2, 3], pick)))\n",
+            "all predicate must return Bool, got Int",
+        ),
+        (
+            "negate_string",
+            "> neg(x) { -x }\n@ print(neg(\"abc\"))\n",
+            "unsupported operand for operator `-`: `String`",
+        ),
+        (
+            "index_int",
+            "> get(x) { x[0] }\n@ print(show(get(5)))\n",
+            "cannot index a value of type Int with Int",
+        ),
+        (
+            "try_int",
+            "> q(x) { x? }\n@ print(show(q(5)))\n",
+            "`?` expects a Result or Option, got Int",
+        ),
+    ] {
+        assert_fails_with(name, source, message);
+    }
+}
+
+#[test]
+fn string_concatenation_rejects_structured_operands() {
+    let output = run(
+        "concat_result",
+        "= r = parse_int(\"3\")\n@ print(\"r=\" + r)\n",
+        false,
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(
+        stderr.contains("not `Result(Int, String)`; convert the value with show(...)"),
+        "{stderr}"
+    );
+}
