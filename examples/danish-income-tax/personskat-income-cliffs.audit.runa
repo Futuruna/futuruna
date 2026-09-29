@@ -228,6 +228,22 @@ components of the final-tax calculation.
 
 = personskat_indkomstklint_kirkestatusser = [Falskt, Sandt]
 = personskat_indkomstklint_pendlerafstande = [60, 130]
+
+= personskat_indkomstklint_kommuneantal = length(kommunale_parametre_2026)
+= personskat_indkomstklint_kommuner_understøttet = all(kommunale_parametre_2026, |parametre: KommunaleParametre| kommune_understøttet_i_år(2026, parametre.kommune))
+= personskat_indkomstklint_kommunekoder_unikke = length(distinct(map(kommunale_parametre_2026, |parametre: KommunaleParametre| parametre.kommunekode))) == length(kommunale_parametre_2026)
+= personskat_indkomstklint_yderkommuneantal = length(filter(kommunale_parametre_2026, |parametre: KommunaleParametre| personskat_indkomstklint_yderkommune(parametre.kommune)))
+
+| personskat_indkomstklint_søger_98_kommuner: personskat_indkomstklint_kommuneantal -> personskat_indkomstklint_kommuneantal == 98
+| personskat_indkomstklint_kommuner_understøttet_i_2026: personskat_indkomstklint_kommuner_understøttet -> personskat_indkomstklint_kommuner_understøttet
+| personskat_indkomstklint_kommunekoder_er_unikke: personskat_indkomstklint_kommunekoder_unikke -> personskat_indkomstklint_kommunekoder_unikke
+| personskat_indkomstklint_afleder_25_yderkommuner: personskat_indkomstklint_yderkommuneantal -> personskat_indkomstklint_yderkommuneantal == 25
+
+? personskat_indkomstklint_søger_98_kommuner
+? personskat_indkomstklint_kommuner_understøttet_i_2026
+? personskat_indkomstklint_kommunekoder_er_unikke
+? personskat_indkomstklint_afleder_25_yderkommuner
+
 = personskat_indkomstklint_nationale_profiler = flat_map(kommunale_parametre_2026, |parametre: KommunaleParametre| {
         flat_map(personskat_indkomstklint_kirkestatusser, |betaler_kirkeskat: Boolsk| {
                 map(personskat_indkomstklint_pendlerafstande, |daglige_befordringskilometer: Heltal| personskat_indkomstklint_profil(parametre, betaler_kirkeskat, daglige_befordringskilometer))
@@ -235,6 +251,12 @@ components of the final-tax calculation.
     })
 
 = personskat_indkomstklint_nationale_første_overgange = map(personskat_indkomstklint_nationale_profiler, |profil: PersonskatIndkomstklintProfil| personskat_indkomstklint_overgang(profil, 342499))
+
+= personskat_indkomstklint_nationalt_overgangsantal = length(personskat_indkomstklint_nationale_første_overgange)
+
+| personskat_indkomstklint_nationalt_søgerum_har_392_overgange: personskat_indkomstklint_nationalt_overgangsantal -> personskat_indkomstklint_nationalt_overgangsantal == 392
+
+? personskat_indkomstklint_nationalt_søgerum_har_392_overgange
 
 = personskat_indkomstklint_københavn_60_profil = personskat_indkomstklint_profil(kommunale_parametre_for(2026, København), Falskt, 60)
 = personskat_indkomstklint_læsø_130_profil = personskat_indkomstklint_profil(kommunale_parametre_for(2026, Læsø), Sandt, 130)
@@ -289,11 +311,6 @@ components of the final-tax calculation.
 = personskat_indkomstklint_mindste_ligestillede = personskat_indkomstklint_ligestillede(personskat_indkomstklinter, personskat_indkomstklint_mindste_fund)
 = personskat_indkomstklint_største_ligestillede = personskat_indkomstklint_ligestillede(personskat_indkomstklinter, personskat_indkomstklint_største_fund)
 
-= personskat_indkomstklint_kommuneantal = length(kommunale_parametre_2026)
-= personskat_indkomstklint_kommuner_understøttet = all(kommunale_parametre_2026, |parametre: KommunaleParametre| kommune_understøttet_i_år(2026, parametre.kommune))
-= personskat_indkomstklint_kommunekoder_unikke = length(distinct(map(kommunale_parametre_2026, |parametre: KommunaleParametre| parametre.kommunekode))) == length(kommunale_parametre_2026)
-= personskat_indkomstklint_yderkommuneantal = length(filter(kommunale_parametre_2026, |parametre: KommunaleParametre| personskat_indkomstklint_yderkommune(parametre.kommune)))
-= personskat_indkomstklint_nationalt_overgangsantal = length(personskat_indkomstklint_nationale_første_overgange)
 = personskat_indkomstklint_sporantal = length(personskat_indkomstklint_københavn_60_spor) == 50 && length(personskat_indkomstklint_læsø_130_spor) == 50
 = personskat_indkomstklint_ankre_fundet = length(personskat_indkomstklint_københavn_60_første) == 1 && length(personskat_indkomstklint_læsø_130_første) == 1
 = personskat_indkomstklint_kortantal = length(personskat_indkomstovergange)
@@ -327,11 +344,6 @@ components of the final-tax calculation.
     | None -> Falskt
 }
 
-| personskat_indkomstklint_søger_98_kommuner: personskat_indkomstklint_kommuneantal -> personskat_indkomstklint_kommuneantal == 98
-| personskat_indkomstklint_kommuner_understøttet_i_2026: personskat_indkomstklint_kommuner_understøttet -> personskat_indkomstklint_kommuner_understøttet
-| personskat_indkomstklint_kommunekoder_er_unikke: personskat_indkomstklint_kommunekoder_unikke -> personskat_indkomstklint_kommunekoder_unikke
-| personskat_indkomstklint_afleder_25_yderkommuner: personskat_indkomstklint_yderkommuneantal -> personskat_indkomstklint_yderkommuneantal == 25
-| personskat_indkomstklint_nationalt_søgerum_har_392_overgange: personskat_indkomstklint_nationalt_overgangsantal -> personskat_indkomstklint_nationalt_overgangsantal == 392
 | personskat_indkomstklint_nationale_snit_har_forventede_størrelser: personskat_indkomstklint_nationale_afstandsantal -> personskat_indkomstklint_nationale_afstandsantal && personskat_indkomstklint_nationale_profilantal
 | personskat_indkomstklint_ankre_fundet_præcis_en_gang: personskat_indkomstklint_ankre_fundet -> personskat_indkomstklint_ankre_fundet
 | personskat_indkomstklint_spor_har_50_overgange: personskat_indkomstklint_sporantal -> personskat_indkomstklint_sporantal
@@ -350,11 +362,6 @@ components of the final-tax calculation.
 | personskat_indkomstklint_sporresultater_er_præcise: personskat_indkomstklint_sporresultater_præcise -> personskat_indkomstklint_sporresultater_præcise
 | personskat_indkomstklint_største_fund_er_præcist: personskat_indkomstklint_største_fund_præcist -> personskat_indkomstklint_største_fund_præcist
 
-? personskat_indkomstklint_søger_98_kommuner
-? personskat_indkomstklint_kommuner_understøttet_i_2026
-? personskat_indkomstklint_kommunekoder_er_unikke
-? personskat_indkomstklint_afleder_25_yderkommuner
-? personskat_indkomstklint_nationalt_søgerum_har_392_overgange
 ? personskat_indkomstklint_nationale_snit_har_forventede_størrelser
 ? personskat_indkomstklint_ankre_fundet_præcis_en_gang
 ? personskat_indkomstklint_spor_har_50_overgange

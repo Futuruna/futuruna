@@ -37,17 +37,17 @@
 
 @ export
 > external_match_count(probe: PatternProbe) -> Int {
-    rust_regex_count(probe.pattern.clone(), probe.text.clone())
+    rust_regex_count(probe.pattern, probe.text)
 }
 
 @ export
 > external_first_match(probe: PatternProbe) -> Option(String) {
-    rust_regex_first(probe.pattern.clone(), probe.text.clone())
+    rust_regex_first(probe.pattern, probe.text)
 }
 
 @ export
 > external_replace_all(probe: PatternProbe, replacement: String) -> String {
-    rust_regex_replace(probe.pattern.clone(), probe.text.clone(), replacement)
+    rust_regex_replace(probe.pattern, probe.text, replacement)
 }
 
 @ export
@@ -57,6 +57,6 @@
 
 @ export
 > classify_external(pattern: String, text: String) -> String {
-    = count = rust_regex_count(pattern.clone(), text.clone())
+    = count = rust_regex_count(pattern, text)
     if count > 0 { "matched:" + show(count) } else { "none" }
 }
