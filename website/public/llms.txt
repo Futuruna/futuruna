@@ -54,7 +54,7 @@ Contact: research@futuruna.com
 - [Logic rules](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/cocktails.runa): See facts, rules, queries, and ordinary collection processing work side by side.
 - [Typed calculation](https://raw.githubusercontent.com/Futuruna/futuruna/main/tests/fixtures/calculation/tax.calculate.runa): See a small rule model become a typed, interview-ready calculation.
 - [Law-exploration workbook](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/exploration-workbook.md): Learn how to search a finite rule space, find counterexamples, and select the worst case with ordinary Futuruna.
-- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Full audit of 490 adjacent 2026 tax transitions, requiring 980 complete model evaluations before its report. Read the workbook and plan for a substantial run before launching it; use the weather demo or small typed calculation for a first-run check.
+- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Full audit of 490 adjacent 2026 tax transitions (980 complete model evaluations). Run `runa personskat-income-cliffs.audit.runa` from its directory; each check prints as it completes, the first within about half a minute, and the whole audit takes a few minutes. Use the weather demo or small typed calculation for a first-run check.
 
 ## Law, Rules, and Research
 
