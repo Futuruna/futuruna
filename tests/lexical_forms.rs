@@ -44,7 +44,7 @@ fn a_dash_run_is_one_delimiter_whatever_its_length() {
         let banner = "-".repeat(length);
         let closing = "-".repeat(16 - length);
         let source = format!(
-            "{banner}\n@ print(\"quoted\")\n{closing}\n@ print(\"code\")\n---- inline {banner} = after = 1\n"
+            "{banner}\n@ print(\"quoted\")\n{closing}\n---- inline {banner} @ print(\"code\")\n"
         );
         assert_eq!(output(&source), "code", "{length} dashes");
         let unclosed = format!("= x = 1\n{banner}\n= y = 2\n");
