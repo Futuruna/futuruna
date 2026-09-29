@@ -118,7 +118,7 @@ fn rejected_initializer_does_not_become_a_symbolic_constant() {
 #[test]
 fn runtime_file_reads_are_not_frozen_by_automatic_folding() {
     let fixture = Fixture::new(
-        "> load() -> String { @ read_file(\"MARKER\") }\n> snapshot() -> String { load() }\n= text = snapshot()\n@ print(text)\n",
+        "> load() -> Result(String, String) { @ read_file(\"MARKER\") }\n> snapshot() -> String {\n    match load() {\n        | Ok(text) -> text\n        | Err(message) -> message\n    }\n}\n= text = snapshot()\n@ print(text)\n",
         None,
     );
     fixture.write("effects.txt", "compile-time contents");

@@ -74,6 +74,21 @@ enum GeneratedRustOrigin {
 }
 
 fn trimmed_window_start(haystack: &[&str], needle: &[&str]) -> Option<usize> {
+    window_start(haystack, needle, |line, block| line.trim() == block.trim())
+}
+
+/// Source lines of an `@ rust { ... }` block may also hold the `@ rust {`
+/// opener or the closing brace, as in a one-line block.
+fn authored_window_start(haystack: &[&str], needle: &[&str]) -> Option<usize> {
+    trimmed_window_start(haystack, needle)
+        .or_else(|| window_start(haystack, needle, |line, block| line.contains(block.trim())))
+}
+
+fn window_start(
+    haystack: &[&str],
+    needle: &[&str],
+    matches: impl Fn(&str, &str) -> bool,
+) -> Option<usize> {
     if needle.is_empty() || needle.len() > haystack.len() {
         return None;
     }
@@ -81,7 +96,7 @@ fn trimmed_window_start(haystack: &[&str], needle: &[&str]) -> Option<usize> {
         needle
             .iter()
             .enumerate()
-            .all(|(offset, line)| haystack[start + offset].trim() == line.trim())
+            .all(|(offset, line)| matches(haystack[start + offset], line))
     })
 }
 
@@ -132,7 +147,7 @@ fn generated_rust_origin(
         let block_lines: Vec<&str> = block.lines().collect();
         let (Some(generated), Some(authored)) = (
             trimmed_window_start(&code_lines, &block_lines),
-            trimmed_window_start(&source_lines, &block_lines),
+            authored_window_start(&source_lines, &block_lines),
         ) else {
             continue;
         };
