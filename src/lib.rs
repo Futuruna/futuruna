@@ -20537,18 +20537,24 @@ impl Interpreter {
                 }
                 Stmt::StreamSub(expr, arms) => {
                     let source = self.eval(expr, env);
-                    self.live_subscribe_statement(source, arms, env);
+                    self.with_statement_span(expr.span, |this| {
+                        this.live_subscribe_statement(source, arms, env)
+                    });
                 }
 
                 Stmt::Send(target_expr, msg_expr) => {
                     let target = self.eval(target_expr, env);
                     let msg = self.eval(msg_expr, env);
-                    self.live_send(target, msg);
+                    self.with_statement_span(target_expr.span.merge(msg_expr.span), |this| {
+                        this.live_send(target, msg)
+                    });
                 }
                 Stmt::For(var, iter_expr, body_stmts) => {
                     let iter_val = self.eval(iter_expr, env);
                     if let Value::LiveStream(stream) = &iter_val {
-                        self.live_for_statement(stream, var, body_stmts, env);
+                        self.with_statement_span(iter_expr.span, |this| {
+                            this.live_for_statement(stream, var, body_stmts, env)
+                        });
                         last = Value::Unit;
                         continue;
                     }

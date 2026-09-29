@@ -1,8 +1,6 @@
--- roundtrip-skip: known interpreter/codegen semantic difference
--- M13c: Scoped Lifecycle Test
--- Async subjects, subscriptions, scope guards, teardown
+-- Scoped lifecycle: subjects, subscriptions, scope ownership, teardown
 
--- Demo 1: Subject push + async subscription
+-- Demo 1: Subject push + subscription
 @ print("--- Demo 1: Subject push + subscribe ---")
 ~ counter = subject(0)
 
