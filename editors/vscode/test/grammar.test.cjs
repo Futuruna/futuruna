@@ -54,6 +54,10 @@ test('quoted law blocks stay comments until the closing fence', () => {
   const inline = tokenize('---- quoted ---- = after = 1');
   has(inline, 0, 'quoted', 'comment.block.runa');
   has(inline, 0, 'after', 'variable.other.binding.runa');
+  const banner = tokenize('-----\n-- Tax law\n---------\n= after = 1');
+  has(banner, 1, 'Tax', 'comment.block.runa');
+  has(banner, 3, 'after', 'variable.other.binding.runa');
+  assert.ok(!scopes(banner, 3, 'after').some((scope) => scope.startsWith('comment.')));
 });
 
 test('character literals cannot start a runaway double-quoted string', () => {

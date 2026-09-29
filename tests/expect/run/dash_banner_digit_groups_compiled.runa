@@ -1,0 +1,8 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 1000005
+-----
+-- Tax law
+---------
+= x = 1_000_000 + 5
+@ print(show(x))
