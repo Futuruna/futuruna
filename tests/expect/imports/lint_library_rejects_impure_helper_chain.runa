@@ -4,8 +4,8 @@
 -- expect-stderr: binding `leaked` executes obvious side effects at import time
 -- expect-stderr: stream binding `updates` executes obvious side effects at import time
 
-> read_seed() -> String { read_file("seed.txt") }
-> delegated_seed() -> String { read_seed() }
+> read_seed() -> Result(String, String) { read_file("seed.txt") }
+> delegated_seed() -> Result(String, String) { read_seed() }
 
 = leaked = delegated_seed()
 ~ updates = subject(delegated_seed())

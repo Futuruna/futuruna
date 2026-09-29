@@ -36,10 +36,14 @@
     if path == "/intake" && method == "POST" {
         = service = map_get_or(fields, "service", "unknown")
         = severity = map_get_or(fields, "severity", "sev0")
-        = attempt = parse_int(map_get_or(fields, "attempt", "0"))
-        = owner = if severity == "sev1" { "pager" } else { "review" }
-        = payload = "ticket=" + service + "-" + severity + ";owner=" + owner + ";attempt=" + show(attempt + 1)
-        shape_response(202, "application/vnd.futuruna.contract+json", payload)
+        match parse_int(map_get_or(fields, "attempt", "0")) {
+            | Ok(attempt) -> {
+                = owner = if severity == "sev1" { "pager" } else { "review" }
+                = payload = "ticket=" + service + "-" + severity + ";owner=" + owner + ";attempt=" + show(attempt + 1)
+                shape_response(202, "application/vnd.futuruna.contract+json", payload)
+            }
+            | Err(e) -> shape_response(400, "text/plain", "bad-attempt:" + e)
+        }
     } else if path == "/status" && method == "GET" {
         shape_response(200, "text/plain", "ok:" + map_get_or(fields, "service", "unknown"))
     } else if path == "/intake" {

@@ -87,9 +87,9 @@
 }
 
 -- Extract URL from POST body
-> extract_url(body: String) -> String {
-    = parsed = json_parse(body)
-    json_string(json_get(parsed, "url"))
+> extract_url(body: String) -> Result(String, String) {
+    = parsed <- json_parse(body)
+    Ok(json_string(json_get(parsed, "url")))
 }
 
 -- Extract code from path /r/{code}
@@ -198,13 +198,17 @@ for url in demo_urls {
 
 @ http_serve(3000, |path, method, body| {
         if path == "/shorten" {
-            = url = extract_url(body)
-            = verdict = check_spam(url)
-            if verdict == Blocked {
-                http_respond(400, "application/json", error_response("URL rejected"))
-            } else {
-                = code = hash_url(url, 42)
-                http_respond(200, "application/json", shorten_response(url, code))
+            match extract_url(body) {
+                | Err(e) -> http_respond(400, "application/json", error_response("invalid JSON body: " + e))
+                | Ok(url) -> {
+                    = verdict = check_spam(url)
+                    if verdict == Blocked {
+                        http_respond(400, "application/json", error_response("URL rejected"))
+                    } else {
+                        = code = hash_url(url, 42)
+                        http_respond(200, "application/json", shorten_response(url, code))
+                    }
+                }
             }
         } else if path == "/stats" {
             http_respond(200, "application/json", json_object([["service", "futuruna-shortener"], ["status", "running"]]))

@@ -38,6 +38,7 @@ pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
 mod editor_fields;
+mod effect_handling;
 pub use editor_fields::EditorField;
 pub mod explore;
 mod host_effects;
@@ -51,7 +52,9 @@ mod parser_hints;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
+mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
+pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
 
 // ============================================================================
@@ -15067,8 +15070,31 @@ struct RuntimeConstructorSignature {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuleMissFallback {
+    /// Relations answer `False` when no clause proves them.
     PredicateFalse,
-    EmptyValue,
+    /// Value rules have no answer when no clause applies; evaluation fails.
+    NoValue,
+}
+
+impl RuleMissFallback {
+    fn of_rule(rule: &Rule) -> Self {
+        match rule {
+            Rule::Default { .. } | Rule::Exception { .. } => Self::NoValue,
+            Rule::Clause {
+                body: Some(body_expr),
+                ..
+            } if matches!(
+                &body_expr.kind,
+                ExprKind::Lit(Literal::Str(_))
+                    | ExprKind::Lit(Literal::Int(_))
+                    | ExprKind::Lit(Literal::Float(_))
+            ) =>
+            {
+                Self::NoValue
+            }
+            _ => Self::PredicateFalse,
+        }
+    }
 }
 
 /// One runtime declaration namespace. Registry lookup walks `parent`, while
@@ -15501,8 +15527,80 @@ struct ExplorationRuntimeDemandState {
     local_module_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
 }
 
-const RUNTIME_RULE_CALL_DEPTH_LIMIT: usize = 128;
-const RUNTIME_FUNCTION_CALL_DEPTH_LIMIT: usize = 128;
+/// Call depth limit for platforms that do not expose the thread's stack.
+const RUNTIME_FALLBACK_CALL_DEPTH_LIMIT: usize = 128;
+
+/// Recursion is limited by the evaluating thread's real stack: a nested call
+/// is refused while enough stack remains to report it.
+fn runtime_call_depth_exhausted(depth: usize) -> bool {
+    runtime_stack::call_stack_exhausted().unwrap_or(depth >= RUNTIME_FALLBACK_CALL_DEPTH_LIMIT)
+}
+
+fn runtime_recursion_limit_message(kind: &str, name: &str, depth: usize) -> String {
+    format!(
+        "{kind} call `{name}` exceeded the recursion limit at depth {depth}: the evaluation stack is exhausted; evaluation is incomplete (FUTURUNA_STACK_MB sets the stack size of `runa`)"
+    )
+}
+
+fn runtime_ok(value: Value) -> Value {
+    Value::Constructor("Ok".into(), vec![value].into())
+}
+
+fn runtime_err(message: String) -> Value {
+    Value::Constructor("Err".into(), vec![Value::Str(message)].into())
+}
+
+/// Seconds before a `http_get` request is abandoned, in both execution modes.
+const HTTP_GET_TIMEOUT_SECONDS: u64 = 30;
+
+/// `http_get` in the interpreter. Only a 2xx response is a success; the
+/// request is delegated to `curl` so HTTPS works without a TLS dependency.
+fn runtime_http_get(url: &str) -> Result<String, String> {
+    const STATUS_MARKER: &str = "\n__futuruna_http_status:";
+    let output = std::process::Command::new("curl")
+        .args([
+            "--silent",
+            "--show-error",
+            "--location",
+            "--proto",
+            "=http,https",
+            "--max-time",
+            &HTTP_GET_TIMEOUT_SECONDS.to_string(),
+            "--write-out",
+            &format!("{STATUS_MARKER}%{{http_code}}"),
+            "--url",
+            url,
+        ])
+        .output()
+        .map_err(|error| {
+            format!("request to {url} failed: the interpreter needs `curl` for HTTP: {error}")
+        })?;
+    if output.status.code() == Some(28) {
+        return Err(format!(
+            "request to {url} timed out after {HTTP_GET_TIMEOUT_SECONDS} s"
+        ));
+    }
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        let detail = detail.trim().trim_start_matches("curl: ");
+        return Err(format!("request to {url} failed: {detail}"));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some((body, status)) = stdout.rsplit_once(STATUS_MARKER) else {
+        return Err(format!("request to {url} failed: no HTTP status"));
+    };
+    match status.trim().parse::<u16>() {
+        Ok(status) if (200..300).contains(&status) => Ok(body.to_string()),
+        Ok(status) => Err(format!("HTTP {status} from {url}")),
+        Err(_) => Err(format!("request to {url} failed: no HTTP status")),
+    }
+}
+
+fn unhandled_effect_message(effect: &str, operation: &str) -> String {
+    format!(
+        "effect `{effect}` is not handled: `{operation}` must be called inside `| handle {effect} {{ ... }} in ...`"
+    )
+}
 
 /// Own the counter handle so recursive evaluation can still mutably borrow the
 /// interpreter. Unwinding and guarded failures both restore the caller depth.
@@ -15619,6 +15717,16 @@ pub struct Interpreter {
     /// endpoint, so no dynamic activation, visit ordinal, or error can leak
     /// from Before to After (or from one case to another).
     checked_mechanism_trace: Option<CheckedInterpreterMechanismTraceState>,
+    /// One flag per running effect handler clause: whether it called `resume`.
+    effect_handler_resumed: Vec<bool>,
+    /// Result of a handler clause that finished without `resume`; it becomes
+    /// the value of its `| handle` expression.
+    effect_handler_result: Option<Value>,
+}
+
+/// Unwinds from a handler clause that did not `resume` to its `| handle`.
+struct EffectHandlerReturn {
+    handler_index: usize,
 }
 
 impl Interpreter {
@@ -15669,6 +15777,8 @@ impl Interpreter {
             exploration_runtime_demand: ExplorationRuntimeDemandState::default(),
             runtime_type_annotations: RefCell::new(HashMap::new()),
             checked_mechanism_trace: None,
+            effect_handler_resumed: Vec::new(),
+            effect_handler_result: None,
         }
     }
 
@@ -15862,6 +15972,25 @@ impl Interpreter {
         Self::runtime_namespace_find(namespace, |state| state.invariants.get(name).cloned())
     }
 
+    fn runtime_effect_of_operation(
+        &self,
+        namespace: &RuntimeNamespace,
+        operation: &str,
+    ) -> Option<String> {
+        Self::runtime_namespace_find(namespace, |state| {
+            state
+                .effect_decls
+                .iter()
+                .find(|(_, operations)| {
+                    operations
+                        .iter()
+                        .any(|(candidate, _)| candidate == operation)
+                })
+                .map(|(effect, _)| effect.clone())
+        })
+        .map(|(_, effect)| effect)
+    }
+
     fn runtime_effect_operation_exists(
         &self,
         namespace: &RuntimeNamespace,
@@ -15910,9 +16039,23 @@ impl Interpreter {
             return Some(self.calculation_rule_miss(&owner, key));
         }
         Some(match fallback.unwrap_or(RuleMissFallback::PredicateFalse) {
-            RuleMissFallback::EmptyValue => Value::Str(String::new()),
+            RuleMissFallback::NoValue => {
+                self.panic_or_ground_fail(Self::value_rule_miss_message(key))
+            }
             RuleMissFallback::PredicateFalse => Value::Bool(false),
         })
+    }
+
+    fn value_rule_miss_message(key: &RuleDispatchKey) -> String {
+        let scope = key
+            .scope
+            .as_ref()
+            .map(|name| format!("{name}."))
+            .unwrap_or_default();
+        format!(
+            "no value rule matched `{scope}{}/{}`; input is outside the rule's supported conditions",
+            key.name, key.arity
+        )
     }
 
     fn runtime_value_namespace(&self, value: &Value) -> RuntimeNamespace {
@@ -16131,15 +16274,7 @@ impl Interpreter {
         if is_boolean {
             return Value::Bool(false);
         }
-        let scope = key
-            .scope
-            .as_ref()
-            .map(|name| format!("{name}."))
-            .unwrap_or_default();
-        self.calculation_fail(format!(
-            "no value rule matched `{scope}{}/{}`; input is outside the rule's supported conditions",
-            key.name, key.arity
-        ))
+        self.calculation_fail(Self::value_rule_miss_message(key))
     }
 
     fn calculation_checked_value(&self, value: Value) -> Value {
@@ -16212,6 +16347,15 @@ impl Interpreter {
             self.ground_fail(message)
         } else {
             self.ordinary_runtime_fail(message)
+        }
+    }
+
+    fn builtin_string_argument_fail(&self, builtin: &str, argument: Option<&Value>) -> Value {
+        match argument {
+            Some(value) => {
+                self.panic_or_ground_fail(format!("{builtin} expects a String, got {value}"))
+            }
+            None => self.panic_or_ground_fail(format!("{builtin} expects a String argument")),
         }
     }
 
@@ -17147,29 +17291,14 @@ impl Interpreter {
                 name: name.clone(),
                 arity,
             };
-            let fallback = match &rule {
-                Rule::Default { .. } | Rule::Exception { .. } => RuleMissFallback::EmptyValue,
-                Rule::Clause {
-                    body: Some(body_expr),
-                    ..
-                } if matches!(
-                    &body_expr.kind,
-                    ExprKind::Lit(Literal::Str(_))
-                        | ExprKind::Lit(Literal::Int(_))
-                        | ExprKind::Lit(Literal::Float(_))
-                ) =>
-                {
-                    RuleMissFallback::EmptyValue
-                }
-                _ => RuleMissFallback::PredicateFalse,
-            };
+            let fallback = RuleMissFallback::of_rule(&rule);
             state
                 .rule_miss_fallbacks
                 .entry(name.clone())
                 .or_default()
                 .entry(arity)
                 .and_modify(|existing| {
-                    if fallback == RuleMissFallback::EmptyValue {
+                    if fallback == RuleMissFallback::NoValue {
                         *existing = fallback;
                     }
                 })
@@ -20995,6 +21124,14 @@ impl Interpreter {
             if let Some(result) = self.try_effect_dispatch(function_name, arguments, env) {
                 return result;
             }
+            if env.get(function_name).is_none()
+                && self.runtime_function(&namespace, function_name).is_none()
+            {
+                if let Some(effect) = self.runtime_effect_of_operation(&namespace, function_name) {
+                    return self
+                        .panic_or_ground_fail(unhandled_effect_message(&effect, function_name));
+                }
+            }
             if let Some(result) = self.try_active_rule_scope_call(function_name, arguments, env) {
                 return result;
             }
@@ -21087,9 +21224,8 @@ impl Interpreter {
             if let Some(result) = self.try_rule_call(function_name, arguments, env) {
                 return result;
             }
-            // A known exact global family preserves the legacy empty value for
-            // non-Boolean partial rules. Canonically typed, context-closed
-            // Boolean families use the same False miss as generated Rust/SMT.
+            // A known global value-rule family fails closed on a miss;
+            // canonically typed Boolean families and relations answer False.
             let dispatch_key = RuleDispatchKey {
                 scope: None,
                 name: function_name.clone(),
@@ -21097,6 +21233,15 @@ impl Interpreter {
             };
             if let Some(value) = self.runtime_rule_miss_value_for_key(&namespace, &dispatch_key) {
                 return value;
+            }
+            // Inside a RuleScope, fields are values read without call syntax;
+            // a call of the same name reaches the ordinary function.
+            if let Some(callable) = self.function_behind_rule_scope_field(function_name, env) {
+                let argument_values = arguments
+                    .iter()
+                    .map(|argument| self.eval(argument, env))
+                    .collect();
+                return self.apply(callable, argument_values, env);
             }
         }
         let function_value = self.eval(function, env);
@@ -21324,6 +21469,11 @@ impl Interpreter {
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
         if self.calculation_failed() {
             return Value::Unit;
+        }
+        if runtime_stack::expression_stack_exhausted() == Some(true) {
+            return self.panic_or_ground_fail(
+                "expression nesting exhausted the evaluation stack; evaluation is incomplete (FUTURUNA_STACK_MB sets the stack size of `runa`)",
+            );
         }
         // Retain the innermost expression in the active source. A function or
         // rule body may come from another file, so it keeps its caller's site
@@ -21669,15 +21819,28 @@ impl Interpreter {
                     ));
                 }
                 self.synchronize_effect_handler_lexical_env_stack();
+                let handler_index = self.handler_stack.len();
+                let rule_scope_depth = self.active_rule_scopes.len();
+                let resumed_depth = self.effect_handler_resumed.len();
                 self.handler_stack.push((effect.clone(), handlers.clone()));
                 self.handler_lexical_env_stack.push(Some(env.clone()));
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(body, env)));
-                self.handler_lexical_env_stack.pop();
-                self.handler_stack.pop();
+                self.handler_lexical_env_stack.truncate(handler_index);
+                self.handler_stack.truncate(handler_index);
                 match result {
                     Ok(value) => value,
-                    Err(payload) => std::panic::resume_unwind(payload),
+                    Err(payload) => match payload.downcast::<EffectHandlerReturn>() {
+                        Ok(signal) if signal.handler_index == handler_index => {
+                            while self.active_rule_scopes.len() > rule_scope_depth {
+                                self.pop_active_rule_scope_frame();
+                            }
+                            self.effect_handler_resumed.truncate(resumed_depth);
+                            self.effect_handler_result.take().unwrap_or(Value::Unit)
+                        }
+                        Ok(signal) => std::panic::resume_unwind(signal),
+                        Err(payload) => std::panic::resume_unwind(payload),
+                    },
                 }
             }
             ExprKind::Try(inner) => {
@@ -21768,10 +21931,11 @@ impl Interpreter {
                 ref env,
             } => {
                 let depth = self.runtime_function_call_depth.get();
-                if depth >= RUNTIME_FUNCTION_CALL_DEPTH_LIMIT {
-                    return self.panic_or_ground_fail(format!(
-                        "function call `{}` exceeded its recursion limit of {RUNTIME_FUNCTION_CALL_DEPTH_LIMIT}; evaluation is incomplete",
-                        name.as_deref().unwrap_or("<closure>")
+                if runtime_call_depth_exhausted(depth) {
+                    return self.panic_or_ground_fail(runtime_recursion_limit_message(
+                        "function",
+                        name.as_deref().unwrap_or("<closure>"),
+                        depth,
                     ));
                 }
                 self.runtime_function_call_depth.set(depth + 1);
@@ -21884,6 +22048,9 @@ impl Interpreter {
         }
         // resume(val) — algebraic effect continuation (identity in tail-resumptive)
         if name == "__resume" {
+            if let Some(resumed) = self.effect_handler_resumed.last_mut() {
+                *resumed = true;
+            }
             return args.into_iter().next().unwrap_or(Value::Unit);
         }
         if let Some(rule_name) = name.strip_prefix("rule:") {
@@ -23197,26 +23364,17 @@ impl Interpreter {
             },
             "parse_int" => match args.first() {
                 Some(Value::Str(s)) => match s.trim().parse::<i64>() {
-                    Ok(n) => Value::Int(n),
-                    Err(_) => {
-                        // Silent fallback — use monadic bind (= n <- parse_int(s)) for error handling
-                        Value::Int(0)
-                    }
+                    Ok(n) => runtime_ok(Value::Int(n)),
+                    Err(_) => runtime_err(format!("not an integer: `{s}`")),
                 },
-                Some(Value::Int(n)) => Value::Int(*n),
-                _ => Value::Int(0),
+                other => self.builtin_string_argument_fail(name, other),
             },
             "parse_float" => match args.first() {
                 Some(Value::Str(s)) => match s.trim().parse::<f64>() {
-                    Ok(f) => Value::Float(f),
-                    Err(_) => {
-                        // Silent fallback — use monadic bind (= f <- parse_float(s)) for error handling
-                        Value::Float(0.0)
-                    }
+                    Ok(f) if f.is_finite() => runtime_ok(Value::Float(f)),
+                    _ => runtime_err(format!("not a number: `{s}`")),
                 },
-                Some(Value::Float(f)) => Value::Float(*f),
-                Some(Value::Int(n)) => Value::Float(*n as f64),
-                _ => Value::Float(0.0),
+                other => self.builtin_string_argument_fail(name, other),
             },
             "string_chars" => match args.first() {
                 Some(Value::Str(s)) => {
@@ -23231,31 +23389,31 @@ impl Interpreter {
             // ---- M14b: File I/O builtins ----
             "read_file" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => Value::Str(content),
-                    Err(_) => Value::Str(String::new()),
+                    Ok(content) => runtime_ok(Value::Str(content)),
+                    Err(error) => runtime_err(format!("cannot read {path}: {error}")),
                 },
-                _ => Value::Str(String::new()),
+                other => self.builtin_string_argument_fail(name, other),
             },
-            "write_file" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(path)), Some(Value::Str(content))) => {
-                    let _ = std::fs::write(path, content);
-                    Value::Unit
-                }
-                _ => Value::Unit,
-            },
-            "append_file" => match (args.get(0), args.get(1)) {
+            "write_file" | "append_file" => match (args.first(), args.get(1)) {
                 (Some(Value::Str(path)), Some(Value::Str(content))) => {
                     use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new()
-                        .append(true)
+                    let append = name == "append_file";
+                    let written = std::fs::OpenOptions::new()
+                        .write(true)
                         .create(true)
+                        .append(append)
+                        .truncate(!append)
                         .open(path)
-                    {
-                        let _ = f.write_all(content.as_bytes());
+                        .and_then(|mut file| file.write_all(content.as_bytes()));
+                    match written {
+                        Ok(()) => Value::Unit,
+                        Err(error) => self
+                            .panic_or_ground_fail(format!("{name} cannot write {path}: {error}")),
                     }
-                    Value::Unit
                 }
-                _ => Value::Unit,
+                _ => self.panic_or_ground_fail(format!(
+                    "{name} expects a String path and String content"
+                )),
             },
             "file_exists" => match args.first() {
                 Some(Value::Str(path)) => Value::Bool(std::path::Path::new(path.as_str()).exists()),
@@ -23323,10 +23481,10 @@ impl Interpreter {
             // ---- M14c: JSON builtins ----
             "json_parse" => match args.first() {
                 Some(Value::Str(s)) => match serde_json::from_str::<serde_json::Value>(s) {
-                    Ok(_) => Value::Str(s.clone()),
-                    Err(_) => Value::Str("null".to_string()),
+                    Ok(_) => runtime_ok(Value::Str(s.clone())),
+                    Err(error) => runtime_err(format!("invalid JSON: {error}")),
                 },
-                _ => Value::Str("null".to_string()),
+                other => self.builtin_string_argument_fail(name, other),
             },
             "json_get" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(json)), Some(Value::Str(key))) => {
@@ -23436,10 +23594,13 @@ impl Interpreter {
             }
 
             // ---- M14d: HTTP builtins ----
-            "http_get" => {
-                println!("[runa interpreter] http_get: use `runa run` for real HTTP requests");
-                Value::Str(String::new())
-            }
+            "http_get" => match args.first() {
+                Some(Value::Str(url)) => match runtime_http_get(url) {
+                    Ok(body) => runtime_ok(Value::Str(body)),
+                    Err(message) => runtime_err(message),
+                },
+                other => self.builtin_string_argument_fail(name, other),
+            },
             "http_post" => {
                 println!("[runa interpreter] http_post: use `runa run` for real HTTP requests");
                 Value::Str(String::new())
@@ -23744,18 +23905,32 @@ impl Interpreter {
                 }
                 Value::Stream(merged)
             }
-            "take" => {
-                // take(stream, n) → Stream — take first n elements
-                let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
+            "take" | "skip" => {
+                // Streams and subjects yield a stream; lists yield a list.
                 let n = match args.get(1) {
-                    Some(Value::Int(n)) if *n > 0 => *n as usize,
-                    _ => 0,
+                    Some(Value::Int(n)) => usize::try_from(*n).unwrap_or(0),
+                    other => {
+                        return self.panic_or_ground_fail(format!(
+                            "{name} expects an Int count, got {}",
+                            other.map(ToString::to_string).unwrap_or_default()
+                        ))
+                    }
                 };
-                let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
-                    other => list_to_vec(&other),
+                let (items, is_stream) = match args.first() {
+                    Some(Value::Stream(items) | Value::Subject(items)) => (items.clone(), true),
+                    Some(other) => (list_to_vec(other), false),
+                    None => (Vec::new(), true),
                 };
-                Value::Stream(items.into_iter().take(n).collect())
+                let selected: Vec<Value> = if name == "take" {
+                    items.into_iter().take(n).collect()
+                } else {
+                    items.into_iter().skip(n).collect()
+                };
+                if is_stream {
+                    Value::Stream(selected)
+                } else {
+                    Value::List(selected)
+                }
             }
             "collect" => {
                 // collect(stream) → List — convert stream to list
@@ -23774,19 +23949,6 @@ impl Interpreter {
                     other => list_to_vec(&other),
                 };
                 Value::Int(items.len() as i64)
-            }
-            "skip" => {
-                // skip(stream, n) → Stream — skip first n elements
-                let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let n = match args.get(1) {
-                    Some(Value::Int(n)) if *n > 0 => *n as usize,
-                    _ => 0,
-                };
-                let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
-                    other => list_to_vec(&other),
-                };
-                Value::Stream(items.into_iter().skip(n).collect())
             }
             "window" => {
                 // window(stream, n) → Stream of Stream — sliding window of size n
@@ -24362,7 +24524,17 @@ impl Interpreter {
         handler_env.set("resume".into(), Value::Builtin("__resume".into()));
 
         // Evaluate handler body
-        Some(self.eval(&handler.body, &handler_env))
+        // A clause that does not `resume` ends its `| handle` expression with
+        // the clause's value; the handled body does not continue.
+        self.effect_handler_resumed.push(false);
+        let value = self.eval(&handler.body, &handler_env);
+        if self.effect_handler_resumed.pop().unwrap_or(true) {
+            return Some(value);
+        }
+        self.effect_handler_result = Some(value);
+        std::panic::resume_unwind(Box::new(EffectHandlerReturn {
+            handler_index: handler_idx,
+        }))
     }
 
     pub fn eval_effect(&mut self, name: &str, args: Vec<Value>) -> Value {
@@ -24397,55 +24569,9 @@ impl Interpreter {
                     Value::Unit
                 }
             }
-            // I/O builtins: handle directly (eval_effect has no env)
-            "write_file" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(path)), Some(Value::Str(content))) => {
-                    let _ = std::fs::write(path, content);
-                    Value::Unit
-                }
-                _ => Value::Unit,
-            },
-            "append_file" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(path)), Some(Value::Str(content))) => {
-                    use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new()
-                        .append(true)
-                        .create(true)
-                        .open(path)
-                    {
-                        let _ = f.write_all(content.as_bytes());
-                    }
-                    Value::Unit
-                }
-                _ => Value::Unit,
-            },
-            "read_file" => match args.first() {
-                Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => Value::Str(content),
-                    Err(_) => Value::Str(String::new()),
-                },
-                _ => Value::Str(String::new()),
-            },
-            "file_exists" => match args.first() {
-                Some(Value::Str(path)) => Value::Bool(std::path::Path::new(path.as_str()).exists()),
-                _ => Value::Bool(false),
-            },
-            "read_lines" => match args.first() {
-                Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => {
-                        Value::List(content.lines().map(|l| Value::Str(l.to_string())).collect())
-                    }
-                    Err(_) => Value::List(vec![]),
-                },
-                _ => Value::List(vec![]),
-            },
-            "env_var" => match args.first() {
-                Some(Value::Str(name)) => match std::env::var(name) {
-                    Ok(val) => Value::Str(val),
-                    Err(_) => Value::Str(String::new()),
-                },
-                _ => Value::Str(String::new()),
-            },
+            // I/O effects share the builtin implementations.
+            canonical @ ("write_file" | "append_file" | "read_file" | "file_exists"
+            | "read_lines" | "env_var") => self.eval_builtin(canonical, args, &Env::new()),
             "time" => {
                 // Return current Unix timestamp as Float
                 use std::time::{SystemTime, UNIX_EPOCH};
@@ -24752,7 +24878,18 @@ impl Interpreter {
                 if let Some(guard) = &arm.guard {
                     match self.eval(guard, &arm_env) {
                         Value::Bool(true) => {}
-                        _ => continue,
+                        Value::Bool(false) => continue,
+                        other => {
+                            if self.calculation_failed() || self.ground_error.borrow().is_some() {
+                                return (Value::Unit, None);
+                            }
+                            return (
+                                self.panic_or_ground_fail(format!(
+                                    "match guard must return Bool, got {other}"
+                                )),
+                                None,
+                            );
+                        }
                     }
                 }
                 return (self.eval(&arm.body, &arm_env), Some(arm_index));
@@ -25319,6 +25456,29 @@ impl Interpreter {
         frame
     }
 
+    /// The ordinary function reached by call syntax on a RuleScope field name.
+    /// Function-valued fields stay callable; data fields never are.
+    fn function_behind_rule_scope_field(&self, name: &str, env: &Env) -> Option<Value> {
+        let (_, bindings, _) = self.active_rule_scope_for_env(env)?;
+        let field = bindings.get(name)?;
+        if matches!(
+            field,
+            Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. }
+        ) {
+            return None;
+        }
+        let namespace = self.namespace_for_env(env);
+        let (owner, definition, declaration_env) = self.runtime_function(&namespace, name)?;
+        Some(Value::Closure {
+            name: Some(name.to_string()),
+            params: definition.params,
+            body: definition.body,
+            env: Env::new()
+                .with_runtime_namespace(owner)
+                .with_runtime_declaration_env(declaration_env),
+        })
+    }
+
     fn active_rule_scope_for_env(
         &self,
         env: &Env,
@@ -25408,20 +25568,31 @@ impl Interpreter {
             (None, None) => None,
         };
         self.pop_active_rule_scope_frame();
-        result.unwrap_or_else(|| {
-            if self.checking_calculation {
-                return self.calculation_rule_miss(&owner, &family);
-            }
-            self.boolean_rule_miss_value_in_namespace(
-                &owner,
-                &RuleDispatchKey {
-                    scope: Some(scope_name.to_string()),
-                    name: method.to_string(),
-                    arity: args.len(),
-                },
-            )
-            .unwrap_or(Value::Bool(false))
-        })
+        result.unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family))
+    }
+
+    /// A RuleScope member that no clause answers: `False` for relations and
+    /// typed Boolean families, an evaluation error for value rules.
+    fn scoped_rule_miss_value(
+        &self,
+        owner: &RuntimeNamespace,
+        definition: &RuleScopeDef,
+        family: &RuleDispatchKey,
+    ) -> Value {
+        if self.checking_calculation {
+            return self.calculation_rule_miss(owner, family);
+        }
+        if let Some(value) = self.boolean_rule_miss_value_in_namespace(owner, family) {
+            return value;
+        }
+        let value_family = Self::rule_scope_matching_rules(definition, &family.name, family.arity)
+            .iter()
+            .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue);
+        if value_family {
+            self.panic_or_ground_fail(Self::value_rule_miss_message(family))
+        } else {
+            Value::Bool(false)
+        }
     }
 
     fn try_active_rule_scope_call(
@@ -25514,20 +25685,7 @@ impl Interpreter {
             ),
             (None, None) => None,
         }
-        .unwrap_or_else(|| {
-            if self.checking_calculation {
-                return self.calculation_rule_miss(&owner, &family);
-            }
-            self.boolean_rule_miss_value_in_namespace(
-                &owner,
-                &RuleDispatchKey {
-                    scope: Some(scope_name.clone()),
-                    name: fn_name.to_string(),
-                    arity: args.len(),
-                },
-            )
-            .unwrap_or(Value::Bool(false))
-        });
+        .unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family));
         let trace_active = self.checked_mechanism_trace.is_some();
         let selection_memo = (args.is_empty() && trace_active)
             .then(|| self.checked_mechanism_completed_rule_selection_memo(&family))
@@ -25675,10 +25833,11 @@ impl Interpreter {
         family: &RuleDispatchKey,
     ) -> Option<Value> {
         let depth = self.runtime_rule_call_depth.get();
-        if depth >= RUNTIME_RULE_CALL_DEPTH_LIMIT {
-            return Some(self.panic_or_ground_fail(format!(
-                "rule call `{}` exceeded its recursion limit of {RUNTIME_RULE_CALL_DEPTH_LIMIT}; evaluation is incomplete",
-                family.name
+        if runtime_call_depth_exhausted(depth) {
+            return Some(self.panic_or_ground_fail(runtime_recursion_limit_message(
+                "rule",
+                &family.name,
+                depth,
             )));
         }
         self.runtime_rule_call_depth.set(depth + 1);
@@ -50141,6 +50300,11 @@ impl TypeChecker {
                 Some("String".to_string())
             }
             ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
+            ("parse_int", 1) => Some("Result(Int, String)".to_string()),
+            ("parse_float", 1) => Some("Result(Float, String)".to_string()),
+            ("read_file" | "http_get" | "json_parse", 1) => {
+                Some("Result(String, String)".to_string())
+            }
             ("round" | "floor" | "string_length", 1) => Some("Int".to_string()),
             ("contains" | "map_contains" | "set_contains", 2)
             | ("is_some" | "is_none" | "not", 1) => Some("Bool".to_string()),
@@ -50205,15 +50369,14 @@ impl TypeChecker {
                 Some(format!("Option({item_type})"))
             }
             ("take" | "skip", 2) => {
+                // Lists stay lists; streams and subjects stay streams.
                 let collection_type = argument_type(0)?;
-                let item_type =
-                    ["List", "Stream", "Subject"]
-                        .into_iter()
-                        .find_map(|constructor| {
-                            Self::applied_type_argument(&collection_type, constructor, 0)
-                        })?;
-                // Runtime `take`/`skip` are stream-producing even when their
-                // finite input happens to be represented as a list.
+                if let Some(item_type) = Self::applied_type_argument(&collection_type, "List", 0) {
+                    return Some(format!("List({item_type})"));
+                }
+                let item_type = ["Stream", "Subject"].into_iter().find_map(|constructor| {
+                    Self::applied_type_argument(&collection_type, constructor, 0)
+                })?;
                 Some(format!("Stream({item_type})"))
             }
             ("collect", 1) => {
@@ -55412,6 +55575,7 @@ impl TypeChecker {
     pub fn check_program(&mut self, stmts: &[Stmt]) {
         self.check_rule_result_contracts(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
+        self.check_unhandled_effects(stmts);
         self.check_imported_bodies();
         // Check trait impl completeness
         self.check_trait_impls();
@@ -64676,7 +64840,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | known_value(1) -> "one"
 
 = predicate_miss = known_predicate(2)
-= value_miss = known_value(2)
 "#;
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -64698,15 +64861,11 @@ starters first from mechanisms paths for node activation "{digest}" using values
             root.rule_miss_fallbacks
                 .get("known_value")
                 .and_then(|by_arity| by_arity.get(&1)),
-            Some(&RuleMissFallback::EmptyValue)
+            Some(&RuleMissFallback::NoValue)
         );
         assert_eq!(
             env.get("predicate_miss").map(ToString::to_string),
             Some("false".to_string())
-        );
-        assert_eq!(
-            env.get("value_miss").map(ToString::to_string),
-            Some(String::new())
         );
     }
 
@@ -64720,7 +64879,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = predicate_hit = mixed(1)
 = predicate_miss = mixed(0)
 = value_hit = mixed(1, 1)
-= value_miss = mixed(0, 0)
 = builtin_fallthrough = not(False)
 "#;
         let mut lexer = Lexer::new(source);
@@ -64745,7 +64903,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             root.rule_miss_fallbacks
                 .get("mixed")
                 .and_then(|by_arity| by_arity.get(&2)),
-            Some(&RuleMissFallback::EmptyValue)
+            Some(&RuleMissFallback::NoValue)
         );
         assert_eq!(
             env.get("predicate_hit").map(ToString::to_string),
@@ -64758,10 +64916,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert_eq!(
             env.get("value_hit").map(ToString::to_string),
             Some("1".to_string())
-        );
-        assert_eq!(
-            env.get("value_miss").map(ToString::to_string),
-            Some(String::new())
         );
         assert_eq!(
             env.get("builtin_fallthrough").map(ToString::to_string),
