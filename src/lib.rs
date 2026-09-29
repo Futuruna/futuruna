@@ -24338,9 +24338,10 @@ impl Interpreter {
                 // teardown("ScopeName") stops the scope's subscriptions; the
                 // scope's bindings stay readable with the values they hold.
                 match args.first() {
-                    Some(Value::Str(scope_name)) | Some(Value::Scope { name: scope_name, .. }) => {
-                        self.live_teardown(scope_name)
-                    }
+                    Some(Value::Str(scope_name))
+                    | Some(Value::Scope {
+                        name: scope_name, ..
+                    }) => self.live_teardown(scope_name),
                     Some(other) => self.ordinary_runtime_fail(format!(
                         "teardown needs a scope name string, found {}",
                         other

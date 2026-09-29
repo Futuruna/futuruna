@@ -141,8 +141,8 @@ Current status: preview runtime surface guarded by canaries.
 
 Why it is not first:
 
-- stream correctness includes scheduling, teardown, barriers, and task lifetime
-  behavior
+- stream correctness includes delivery order, teardown, and subscription
+  lifetime behavior
 - these are exactly the wrong ingredients for the first small proof-backed pass
 
 Target for now:

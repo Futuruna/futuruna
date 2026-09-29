@@ -326,17 +326,26 @@ impl fmt::Debug for ActorRef {
 impl Interpreter {
     /// Run `f` with runtime errors located at `span` (statements carry no
     /// span of their own).
-    pub(crate) fn with_statement_span<R>(&mut self, span: Span, f: impl FnOnce(&mut Self) -> R) -> R {
+    pub(crate) fn with_statement_span<R>(
+        &mut self,
+        span: Span,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
         let function_depth = self.runtime_function_call_depth.get();
         let rule_depth = self.runtime_rule_call_depth.get();
-        let previous = self.runtime_diagnostic_context.as_mut().and_then(|context| {
-            (context.function_depth == function_depth
-                && context.rule_depth == rule_depth
-                && !span.is_dummy())
-            .then(|| context.span.replace(span))
-        });
+        let previous = self
+            .runtime_diagnostic_context
+            .as_mut()
+            .and_then(|context| {
+                (context.function_depth == function_depth
+                    && context.rule_depth == rule_depth
+                    && !span.is_dummy())
+                .then(|| context.span.replace(span))
+            });
         let result = f(self);
-        if let (Some(previous), Some(context)) = (previous, self.runtime_diagnostic_context.as_mut()) {
+        if let (Some(previous), Some(context)) =
+            (previous, self.runtime_diagnostic_context.as_mut())
+        {
             context.span = previous;
         }
         result
@@ -368,15 +377,12 @@ impl Interpreter {
     fn live_writable_subject(&mut self, target: Option<&Value>, operation: &str) -> LiveStream {
         match target {
             Some(Value::LiveStream(stream)) if stream.is_writable() => stream.clone(),
-            Some(Value::LiveStream(_)) => {
-                self.ordinary_runtime_fail(format!(
-                    "{operation} needs a subject; this stream is read-only"
-                ))
-            }
-            Some(other) => self.ordinary_runtime_fail(format!(
-                "{operation} needs a subject, found {}",
-                other
+            Some(Value::LiveStream(_)) => self.ordinary_runtime_fail(format!(
+                "{operation} needs a subject; this stream is read-only"
             )),
+            Some(other) => {
+                self.ordinary_runtime_fail(format!("{operation} needs a subject, found {}", other))
+            }
             None => self.ordinary_runtime_fail(format!("{operation} needs a subject")),
         }
     }
@@ -384,9 +390,9 @@ impl Interpreter {
     fn live_require_open(&self, stream: &LiveStream, operation: &str) {
         match stream.end() {
             None => {}
-            Some(StreamEnd::Complete) => self.ordinary_runtime_fail(format!(
-                "{operation}: the subject is already completed"
-            )),
+            Some(StreamEnd::Complete) => {
+                self.ordinary_runtime_fail(format!("{operation}: the subject is already completed"))
+            }
             Some(StreamEnd::Error(message)) => self.ordinary_runtime_fail(format!(
                 "{operation}: the subject already ended with error: {message}"
             )),
@@ -534,7 +540,12 @@ impl Interpreter {
 
     /// Attach an observer: it first receives the retained values (and the
     /// end, if the stream has ended), then every later event.
-    fn live_attach(&mut self, stream: &LiveStream, observer: Observer, replay: bool) -> Option<u64> {
+    fn live_attach(
+        &mut self,
+        stream: &LiveStream,
+        observer: Observer,
+        replay: bool,
+    ) -> Option<u64> {
         let observer = Rc::new(RefCell::new(observer));
         let (retained, end, was_delivering, id) = {
             let mut cell = stream.cell.borrow_mut();
@@ -635,7 +646,10 @@ impl Interpreter {
                         Step::Emit(out.clone(), event.clone())
                     }
                 }
-                (Observer::MergeSide { out, open_sides }, StreamEvent::End(StreamEnd::Complete)) => {
+                (
+                    Observer::MergeSide { out, open_sides },
+                    StreamEvent::End(StreamEnd::Complete),
+                ) => {
                     let open = open_sides.get().saturating_sub(1);
                     open_sides.set(open);
                     if open == 0 {
@@ -699,9 +713,9 @@ impl Interpreter {
                     self.run_statement_block(&body, &mut loop_env);
                 }
                 StreamEvent::End(StreamEnd::Complete) => {}
-                StreamEvent::End(StreamEnd::Error(message)) => self.ordinary_runtime_fail(
-                    format!("unhandled stream error in `for` loop: {message}"),
-                ),
+                StreamEvent::End(StreamEnd::Error(message)) => self.ordinary_runtime_fail(format!(
+                    "unhandled stream error in `for` loop: {message}"
+                )),
             },
             Step::Map(callback, env, out) => {
                 if let StreamEvent::Value(value) = event {
@@ -729,8 +743,12 @@ impl Interpreter {
             }
             Step::Scan(callback, env, acc, out) => {
                 if let StreamEvent::Value(value) = event {
-                    let next =
-                        self.apply_checked_builtin_callback(2, callback, vec![acc, value.clone()], &env);
+                    let next = self.apply_checked_builtin_callback(
+                        2,
+                        callback,
+                        vec![acc, value.clone()],
+                        &env,
+                    );
                     if let Observer::Scan { acc, .. } = &mut *observer.borrow_mut() {
                         *acc = next.clone();
                     }
@@ -759,9 +777,7 @@ impl Interpreter {
     }
 
     fn live_run_subscription_arms(&mut self, arms: &[MatchArm], env: &Env, event: &StreamEvent) {
-        let is_complete_arm = |arm: &MatchArm| {
-            matches!(&arm.pat, Pat::Var(name) | Pat::Con(name, _) if name == "Complete")
-        };
+        let is_complete_arm = |arm: &MatchArm| matches!(&arm.pat, Pat::Var(name) | Pat::Con(name, _) if name == "Complete");
         let is_error_arm = |arm: &MatchArm| matches!(&arm.pat, Pat::Con(name, _) if name == "Err");
         match event {
             StreamEvent::Value(value) => {
@@ -804,7 +820,8 @@ impl Interpreter {
                     ));
                 };
                 let mut arm_env = env.child();
-                let error = Value::Constructor("Err".into(), vec![Value::Str(message.clone())].into());
+                let error =
+                    Value::Constructor("Err".into(), vec![Value::Str(message.clone())].into());
                 if self.match_pattern(&arm.pat, &error, &mut arm_env) {
                     self.eval(&arm.body, &arm_env);
                 }
@@ -825,10 +842,9 @@ impl Interpreter {
             Value::LiveStream(stream) => stream,
             Value::Stream(items) | Value::List(items) => LiveStream::finished(items),
             other @ Value::Constructor(..) => LiveStream::finished(list_to_vec(&other)),
-            other => self.ordinary_runtime_fail(format!(
-                "`{operator}` needs a stream, found {}",
-                other
-            )),
+            other => {
+                self.ordinary_runtime_fail(format!("`{operator}` needs a stream, found {}", other))
+            }
         }
     }
 
@@ -846,7 +862,13 @@ impl Interpreter {
     }
 
     /// `for x in stream { ... }` over a live stream.
-    pub(crate) fn live_for_statement(&mut self, stream: &LiveStream, var: &str, body: &[Stmt], env: &Env) {
+    pub(crate) fn live_for_statement(
+        &mut self,
+        stream: &LiveStream,
+        var: &str,
+        body: &[Stmt],
+        env: &Env,
+    ) {
         let observer = Observer::ForLoop {
             var: var.to_string(),
             body: Rc::new(body.to_vec()),
@@ -868,7 +890,11 @@ impl Interpreter {
     /// `@ teardown("Scope")`: every subscription and derived-stream link
     /// created inside the scope stops receiving values.
     pub(crate) fn live_teardown(&mut self, scope: &str) {
-        for (stream, id) in self.live_scope_subscriptions.remove(scope).unwrap_or_default() {
+        for (stream, id) in self
+            .live_scope_subscriptions
+            .remove(scope)
+            .unwrap_or_default()
+        {
             stream.unsubscribe(id);
         }
     }
@@ -916,10 +942,8 @@ impl Interpreter {
         let argument = |index: usize| args.get(index).cloned().unwrap_or(Value::Unit);
         let count_argument = |this: &Self, index: usize| match args.get(index) {
             Some(Value::Int(count)) => (*count).max(0),
-            Some(other) => this.ordinary_runtime_fail(format!(
-                "`{operator}` needs an Int count, found {}",
-                other
-            )),
+            Some(other) => this
+                .ordinary_runtime_fail(format!("`{operator}` needs an Int count, found {}", other)),
             None => this.ordinary_runtime_fail(format!("`{operator}` needs a count")),
         };
         let source = self.live_source(argument(0), operator);
