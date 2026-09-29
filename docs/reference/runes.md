@@ -45,8 +45,32 @@ Fields are accessed with dot notation: `w.temp`, `w.condition`.
 # Color = Red | Green | Blue
 # Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(head: a, tail: List(a))
+# Chain(a) = End | Link(head: a, tail: Chain(a))
 ```
+
+`Option(a) = None | Some(a)` and `Result(a, e) = Ok(a) | Err(e)` are part of
+the prelude. Their constructors (`None`, `Some`, `Ok`, `Err`), `Pair`, and the
+built-in list constructors `Nil` and `Cons` belong to those types: another type
+may not declare a variant with one of these names. A variant may also not reuse
+a built-in type name such as `Int` or `String`; Futuruna has no type aliases.
+
+A field of a multi-variant type can be read directly only when every variant
+declares it with the same type. Otherwise, match on the variant first. Inside
+an arm whose pattern names the variant, the matched variable is refined to that
+variant and its fields are readable:
+
+```runa
+# Income = Salary(amount: Int) | Pension(amount: Int, supplement: Int)
+> total(i: Income) -> Int {
+    match i {
+        | Salary -> i.amount
+        | Pension -> i.amount + i.supplement
+    }
+}
+```
+
+Here `i.amount` is also readable outside a match, because both variants declare
+`amount: Int`; `i.supplement` is not.
 
 ### ADT with methods
 ```runa
@@ -94,6 +118,13 @@ Fields are also available in product methods, so `person.gross_income` works in
 both `|` rule members and `>` methods. A `|` rule member and `>` method cannot
 use the same member name.
 
+A rule member or method is called on any expression whose value is the
+product: a variable, a nested field (`x.p.rate()`), a call result
+(`head(members).rate()`), or a lambda or loop parameter
+(`map(members, |p| p.rate())`). When the receiver's type is known, the checker
+resolves the member before execution; otherwise the call is resolved from the
+runtime value.
+
 RuleScope is different from `| scope Name { ... }`: `| scope` owns reactive
 lifecycle work such as subjects, streams, subscriptions, and teardown. A
 RuleScope has no mutation or lifecycle ownership.
@@ -133,6 +164,12 @@ Defines abstract operations that callers can intercept via `| handle`.
     }
 }
 ```
+
+An impl names a declared trait and a declared (or built-in) type. It provides
+every trait method that has no default body and no other methods. Each method
+restates its trait signature: the same number of parameters, `self` in the
+same position, and the parameter and result types the trait declares (`Self`
+stands for the implementing type). Any difference is a type error at the impl.
 
 ---
 
@@ -179,10 +216,10 @@ The `with` clause declares which effects the function may perform.
 
 ### Generic function
 ```runa
-> map_list(xs: List(a), f: a -> b) -> List(b) {
+> map_list(xs: Chain(a), f: a -> b) -> Chain(b) {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(f(h), map_list(t, f))
+        | End -> End
+        | Link(h, t) -> Link(f(h), map_list(t, f))
     }
 }
 ```
@@ -260,7 +297,10 @@ places the rule in the exception tier for the same head. The label (here
 affect priority. Write both the label and the named call:
 `| exception reduced rate(x) -> 10 under x < 10`. For a rule with no arguments,
 use `rate()`. Missing labels, parenthesized heads, and heads that are not named
-rule calls are parsing errors.
+rule calls are parsing errors. An exception overrides an existing rule: the
+same scope (or its plain imports) must declare an ordinary clause or default
+with the same name and arity. An exception whose head names no such rule, for
+example a misspelled rule name, is a type error at that head.
 
 An `under` guard must return `Bool`. A known non-Boolean guard is rejected at
 its declaration, even if the rule is never called. A dynamically supplied
@@ -268,7 +308,7 @@ non-Boolean guard fails evaluation; it is not treated as `False` and cannot
 select a fallback rule. Clauses in one family (same scope, name, and arity)
 must have compatible result types. Known conflicting results are diagnosed
 before execution. Unresolved generic results do not establish compatibility
-or totality. Exception-only families remain supported.
+or totality.
 
 A rule with safely known Boolean results returns `False` when no clause
 applies, including `| eligible(age) -> True under age >= 18` without a
@@ -362,6 +402,10 @@ bindings is rejected with the complete initialization path.
 ```
 
 If the expression returns `Ok(v)` or `Some(v)`, binds `v` and continues. If `Err(e)` or `None`, returns immediately (early return). Equivalent to Rust's `?` operator.
+
+The expression must be a `Result` or an `Option`, or a call to an effect
+operation, which resumes with a plain value. `<-` on any other value is a type
+error; bind a plain value with `= name = expression`.
 
 ```runa
 > add_parsed(a_str: String, b_str: String) -> Result(Int, String) {

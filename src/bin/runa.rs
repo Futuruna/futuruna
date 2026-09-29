@@ -16167,6 +16167,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     if print_type_check_diagnostics(&effect_diagnostics, source, filename) {
         std::process::exit(1);
     }
+    let artifacts = type_check_artifacts(&stmts, source, filename);
+    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
+        std::process::exit(1);
+    }
     let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
     interp.deny_host_effects("`runa audit`");
@@ -60395,6 +60399,7 @@ assert_with_message(true, message())
     fn interpreted_and_generated_boolean_rule_misses_match() {
         let source = r#"
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ print(show(conditional(1)))

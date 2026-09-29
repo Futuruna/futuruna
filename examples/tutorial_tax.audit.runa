@@ -7,5 +7,6 @@
 
 = family_tax = TaxCase(person = parent)
 
+| reduced_rate_applies() -> False
 | exception family_policy reduced_rate_applies() -> family_tax.rate_percent() == 20 under length(parent.children) >= 2
 | exception audit_only_income_exclusion reduced_rate_applies() -> False under parent.annual_income >= 500000

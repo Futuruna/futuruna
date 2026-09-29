@@ -3,6 +3,7 @@
 | exception local_above_eight imported_band(amount: Int) -> 80 under amount > 8
 
 | conditional_boolean(value: Int) -> True under value > 0
+| exception_boolean(value: Int) -> False
 | exception positive exception_boolean(value: Int) -> True under value > 0
 
 | ordered_band(amount: Int) -> 0

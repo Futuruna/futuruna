@@ -44,8 +44,8 @@ fn unbounded_positive_overrides_fail_without_partial_answers() {
         std::process::id()
     ));
     for rule in [
-        "| exception everyone selected(person: Int) -> True",
-        "| exception positive selected(person: Int) -> True under person > 0",
+        "| selected(0)\n| exception everyone selected(person: Int) -> True",
+        "| selected(0)\n| exception positive selected(person: Int) -> True under person > 0",
         "> decision(person: Int) -> Bool { False }\n| selected(1)\n| exception unresolved selected(person: Int) -> decision(person) under person > 0",
     ] {
         std::fs::write(
