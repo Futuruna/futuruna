@@ -23587,7 +23587,6 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
 #[derive(Clone, Copy)]
 struct BuiltinDef {
     arity: usize,
-    shadowable: bool,
     impure: bool,
     deps: &'static [(&'static str, &'static str)],
     rust_tpl: &'static str,
@@ -23634,12 +23633,11 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
     ];
 
     let entries: Vec<(&str, BuiltinDef)> = vec![
-        // ---- Math (not shadowable, pure) ----
+        // ---- Math (pure) ----
         (
             "exp",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).exp()",
@@ -23649,7 +23647,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "ln",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).ln()",
@@ -23659,7 +23656,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sqrt",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).sqrt()",
@@ -23669,7 +23665,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "pow",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).powf({1} as f64)",
@@ -23679,7 +23674,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "abs",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_abs({0})",
@@ -23689,7 +23683,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "to_float",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64)",
@@ -23699,7 +23692,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "round",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "(({0} as f64).round() as i64)",
@@ -23709,7 +23701,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "floor",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "(({0} as f64).floor() as i64)",
@@ -23719,7 +23710,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "max_f",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).max({1} as f64)",
@@ -23729,18 +23719,16 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "min_f",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).min({1} as f64)",
             },
         ),
-        // ---- String (shadowable, pure) ----
+        // ---- String (pure) ----
         (
             "split",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()",
@@ -23750,7 +23738,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "join",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.join(&*{1})",
@@ -23760,7 +23747,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "trim",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.trim().to_string()",
@@ -23770,7 +23756,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "contains",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_contains(&{0}, &{1})",
@@ -23780,7 +23765,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "starts_with",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.starts_with(&*{1})",
@@ -23790,7 +23774,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "ends_with",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.ends_with(&*{1})",
@@ -23800,7 +23783,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "replace",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.replace(&*{1}, &*{2})",
@@ -23810,7 +23792,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "to_upper",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.to_uppercase()",
@@ -23820,7 +23801,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "to_lower",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.to_lowercase()",
@@ -23830,7 +23810,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "substring",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }",
@@ -23840,7 +23819,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "char_at",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }",
@@ -23850,7 +23828,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "index_of",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }",
@@ -23860,7 +23837,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "format_float",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __number = ({0}) as f64; let __precision: i64 = {1}; assert!((0..=65535).contains(&__precision), \"format_float precision must be between 0 and 65535, got {}\", __precision); format!(\"{:.prec$}\", __number, prec = __precision as usize) }",
@@ -23870,7 +23846,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "rust_debug",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "format!(\"{:?}\", {0})",
@@ -23880,7 +23855,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "parse_int",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: String = {0}.to_string(); match __s.trim().parse::<i64>() { Ok(__n) => Ok::<i64, String>(__n), Err(_) => Err(format!(\"not an integer: `{}`\", __s)) } }",
@@ -23890,7 +23864,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "parse_float",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: String = {0}.to_string(); match __s.trim().parse::<f64>() { Ok(__f) if __f.is_finite() => Ok::<f64, String>(__f), _ => Err(format!(\"not a number: `{}`\", __s)) } }",
@@ -23900,7 +23873,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "string_chars",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()",
@@ -23910,7 +23882,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "string_length",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.chars().count() as i64)",
@@ -23920,7 +23891,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "length",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_len(&{0})",
@@ -23930,7 +23900,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "head",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }",
@@ -23940,7 +23909,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "tail",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }",
@@ -23950,18 +23918,16 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "nth",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }",
             },
         ),
-        // ---- File I/O (not shadowable, impure) ----
+        // ---- File I/O (impure) ----
         (
             "read_file",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __p: String = {0}.to_string(); std::fs::read_to_string(&__p).map_err(|__e| format!(\"cannot read {}: {}\", __p, __e)) }",
@@ -23971,7 +23937,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "write_file",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __p: String = {0}.to_string(); if let Err(__e) = std::fs::write(&__p, {1}.as_bytes()) { panic!(\"write_file cannot write {}: {}\", __p, __e) } }",
@@ -23981,7 +23946,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "append_file",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ use std::io::Write; let __p: String = {0}.to_string(); if let Err(__e) = std::fs::OpenOptions::new().append(true).create(true).open(&__p).and_then(|mut __f| __f.write_all({1}.as_bytes())) { panic!(\"append_file cannot write {}: {}\", __p, __e) } }",
@@ -23991,7 +23955,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "file_exists",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::path::Path::new(&*{0}).exists()",
@@ -24001,7 +23964,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "read_lines",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()",
@@ -24011,7 +23973,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "env_var",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::env::var(&*{0}).unwrap_or_default()",
@@ -24021,18 +23982,16 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "process_run",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }",
             },
         ),
-        // ---- JSON (shadowable, pure, deps: serde_json) ----
+        // ---- JSON (pure, deps: serde_json) ----
         (
             "json_parse",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __s: String = {0}.to_string(); match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => Ok::<String, String>(__s), Err(__e) => Err(format!(\"invalid JSON: {}\", __e)) } }",
@@ -24042,7 +24001,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_get",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }",
@@ -24052,7 +24010,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_string",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }",
@@ -24062,7 +24019,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_number",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }",
@@ -24072,7 +24028,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_bool",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }",
@@ -24082,7 +24037,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_array",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }",
@@ -24092,7 +24046,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_emit",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{0}.clone()",
@@ -24102,18 +24055,16 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_object",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __pairs = &{0}; let mut __obj = serde_json::Map::new(); for __p in __pairs.iter() { if __p.len() >= 2 { let __k = __p[0].clone(); let __v: serde_json::Value = serde_json::from_str(&__p[1]).unwrap_or(serde_json::Value::String(__p[1].clone())); __obj.insert(__k, __v); } } serde_json::Value::Object(__obj).to_string() }",
             },
         ),
-        // ---- HTTP (shadowable, impure for I/O ones) ----
+        // ---- HTTP (impure for I/O ones) ----
         (
             "http_get",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: true,
                 deps: UREQ,
                 rust_tpl: "{ let __url: String = {0}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().get(&__url).call() { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
@@ -24123,17 +24074,15 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_post",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: UREQ,
-                rust_tpl: "ureq::post(&*{0}).send_string(&*{1}).map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+                rust_tpl: "{ let __url: String = {0}.to_string(); let __body: String = {1}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().post(&__url).send_string(&__body) { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
             },
         ),
         (
             "http_serve",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: AXUM,
                 rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }",
@@ -24143,7 +24092,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_respond",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as i64, {1}.to_string(), {2}.to_string())",
@@ -24153,7 +24101,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_request_path",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.0.clone()",
@@ -24163,7 +24110,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_request_method",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.1.clone()",
@@ -24173,7 +24119,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_request_body",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.2.clone()",
@@ -24184,7 +24129,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "assert",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: true,
                 deps: D,
                 rust_tpl: "assert!({0}, \"Assertion failed!\")",
@@ -24194,7 +24138,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "assert_with_message",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: D,
                 // Ordinary eager argument evaluation, even on success. The
@@ -24206,7 +24149,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "shared",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "std::sync::Arc::new({0})",
@@ -24216,19 +24158,17 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "range",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}..{1}).collect::<Vec<i64>>()",
             },
         ),
-        // ---- Functional / Collection (shadowable, pure) ----
+        // ---- Functional / Collection (pure) ----
         // Unified: list and stream ops share names. Templates use .clone() for pipe safety.
         (
             "map",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().map({1}).collect::<Vec<_>>()",
@@ -24238,7 +24178,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "filter",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()",
@@ -24248,7 +24187,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "foldl",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().fold({1}, {2})",
@@ -24258,7 +24196,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sort",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }",
@@ -24268,7 +24205,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sort_by",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }",
@@ -24278,7 +24214,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "list_min",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
@@ -24288,7 +24223,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "list_max",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
@@ -24298,7 +24232,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "reverse",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }",
@@ -24308,7 +24241,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "is_some",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.is_some()",
@@ -24318,7 +24250,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "is_none",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.is_none()",
@@ -24328,7 +24259,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "any",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))",
@@ -24338,7 +24268,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "all",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))",
@@ -24348,7 +24277,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "find",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()",
@@ -24358,7 +24286,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "flat_map",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()",
@@ -24368,7 +24295,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "zip",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().zip({1}.clone().into_iter()).collect::<Vec<_>>()",
@@ -24378,7 +24304,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "enumerate",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().enumerate().map(|(i, v)| (i as i64, v)).collect::<Vec<_>>()",
@@ -24388,7 +24313,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "take_while",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().take_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
@@ -24398,7 +24322,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "drop_while",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().skip_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
@@ -24408,7 +24331,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sum_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_sum::<i64, _>(({0}).iter().copied())",
@@ -24418,7 +24340,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "distinct",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 // Compare values, never their display text. Autoref dispatch keeps
@@ -24452,7 +24373,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "count_by",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.iter().filter(|x| ({1})((*x).clone())).count() as i64",
@@ -24462,7 +24382,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "partition",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let (__yes, __no): (Vec<_>, Vec<_>) = {0}.clone().into_iter().partition(|x| ({1})(x.clone())); (__yes, __no) }",
@@ -24472,7 +24391,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "chunked",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v = {0}.clone(); let __n = ({1} as usize).max(1); __v.chunks(__n).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }",
@@ -24482,7 +24400,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "subscribe",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }",
@@ -24493,7 +24410,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_new",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "BTreeMap::new()",
@@ -24503,7 +24419,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_insert",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }",
@@ -24513,7 +24428,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_get",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_map_get(&({0}), &({1})).cloned()",
@@ -24523,7 +24437,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_get_or",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_map_get(&({0}), &({1})).cloned().unwrap_or_else(|| {2}.clone())",
@@ -24533,7 +24446,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_contains",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_map_get(&({0}), &({1})).is_some()",
@@ -24543,7 +24455,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_remove",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }",
@@ -24553,7 +24464,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_keys",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()",
@@ -24563,7 +24473,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_values",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
@@ -24573,7 +24482,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_entries",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()",
@@ -24583,7 +24491,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_len",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.len() as i64)",
@@ -24593,7 +24500,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_merge",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }",
@@ -24603,7 +24509,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_from",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()",
@@ -24614,7 +24519,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_new",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "BTreeMap::new()",
@@ -24624,7 +24528,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_insert",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }",
@@ -24634,7 +24537,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_contains",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))",
@@ -24644,7 +24546,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_remove",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }",
@@ -24654,7 +24555,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_len",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.len() as i64)",
@@ -24664,7 +24564,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_to_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
@@ -24674,7 +24573,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_union",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }",
@@ -24684,7 +24582,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_intersect",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
@@ -24694,7 +24591,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_diff",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
@@ -24704,7 +24600,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_from_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
@@ -24715,7 +24610,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "from_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24725,7 +24619,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "scan",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut acc = {1}; {0}.clone().into_iter().map(|x| { acc = ({2})(acc.clone(), x); acc.clone() }).collect::<Vec<_>>() }",
@@ -24735,7 +24628,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "merge",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut m = Vec::new(); let (mut a, mut b) = ({0}.clone().into_iter(), {1}.clone().into_iter()); loop { match (a.next(), b.next()) { (Some(x), Some(y)) => { m.push(x); m.push(y); }, (Some(x), None) => { m.push(x); m.extend(a); break; }, (None, Some(y)) => { m.push(y); m.extend(b); break; }, _ => break } }; m }",
@@ -24745,7 +24637,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "take",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().take(({1}).max(0) as usize).collect::<Vec<_>>()",
@@ -24755,7 +24646,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "collect",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24765,7 +24655,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "count",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.len() as i64)",
@@ -24775,7 +24664,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "skip",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()",
@@ -24785,7 +24673,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "window",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }",
@@ -24795,7 +24682,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sum",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_sum(({0}).clone().into_iter())",
@@ -24805,7 +24691,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "last",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))",
@@ -24815,7 +24700,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "combine_latest",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }",
@@ -24826,7 +24710,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "complete",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}",
@@ -24836,7 +24719,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "error",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }",
@@ -24846,7 +24728,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "take_until",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}",
@@ -24856,7 +24737,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "poll",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "({0})()",
@@ -24867,7 +24747,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "tap",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }",
@@ -24877,7 +24756,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "catch",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24887,7 +24765,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "first",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))",
@@ -24897,7 +24774,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "reduce",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }",
@@ -24907,7 +24783,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "start_with",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }",
@@ -24917,7 +24792,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "concat",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }",
@@ -24927,7 +24801,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "pairwise",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()",
@@ -24937,7 +24810,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "fst",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.0",
@@ -24947,7 +24819,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "snd",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.1",
@@ -24957,7 +24828,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "trd",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.2",
@@ -24968,7 +24838,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "debounce",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }",
@@ -24978,7 +24847,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "throttle",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v: Vec<_> = {0}.clone(); let __step = if {1} > 0 {{ (__v.len() / 10).max(1) }} else {{ 1 }}; __v.iter().step_by(__step).cloned().collect::<Vec<_>>() }",
@@ -24988,7 +24856,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "delay",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24998,7 +24865,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "buffer",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "vec![{0}.clone()]",
@@ -25008,7 +24874,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "timeout",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -25018,7 +24883,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "switch_map",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }",
@@ -25028,7 +24892,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sample",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }",
@@ -25039,7 +24902,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "random_float",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }",
@@ -25049,7 +24911,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "random_choice",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }",
@@ -25059,7 +24920,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "shuffle",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }",
@@ -25069,7 +24929,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sleep",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))",
@@ -25079,7 +24938,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "now",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)",
@@ -25089,7 +24947,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "time_diff",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} - {1})",
@@ -25100,7 +24957,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_match",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)",
@@ -25110,7 +24966,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_find",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))",
@@ -25120,7 +24975,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_find_all",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()",
@@ -25130,7 +24984,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_replace",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }",
@@ -26064,9 +25917,12 @@ struct RustCodegen {
     fn_once_mode: bool,
     /// True when emitting a method body where self is &self — skip boxed unboxing
     in_self_method: bool,
-    /// ADT-block methods are emitted as free functions, so their source `self`
-    /// parameter must use the non-keyword Rust identifier `self_` in the body.
-    in_standalone_adt_method: bool,
+    /// Names of receiver methods declared in type bodies and impl blocks. A
+    /// free call `m(x, ...)` of one of these names that no ordinary callable
+    /// owns is emitted as the method call `x.m(...)`.
+    receiver_method_names: BTreeSet<String>,
+    /// Functions supplied by the prelude rather than by the program.
+    prelude_function_names: BTreeSet<String>,
     /// Effects of the function currently being emitted (for routing op calls to handler params)
     current_effects: Vec<String>,
     /// Effects provided by `| handle` blocks (concrete struct types, need `&mut`)
@@ -30816,7 +30672,7 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
             Box::new(FirTy::Float),
             Box::new(FirTy::String),
         )),
-        "read_file" | "json_parse" | "http_get" => Some(FirTy::Result(
+        "read_file" | "json_parse" | "http_get" | "http_post" => Some(FirTy::Result(
             Box::new(FirTy::String),
             Box::new(FirTy::String),
         )),
@@ -30835,7 +30691,6 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "json_string"
         | "json_emit"
         | "json_object"
-        | "http_post"
         | "http_request_path"
         | "http_request_method"
         | "http_request_body"
@@ -30859,26 +30714,16 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
     }
 }
 
-fn builtin_fixed_return_can_be_shadowed(name: &str) -> bool {
-    let canonical = builtin_canonical(name);
-    if let Some(def) = rust_builtin_registry().get(canonical) {
-        return def.shadowable;
-    }
-    matches!(
-        canonical,
-        "show" | "show_int" | "show_float" | "print" | "not" | "assert"
-    )
-}
-
+/// A declared function shadows the builtin of the same name, so its declared
+/// signature, not the builtin's, types the call.
 fn builtin_fixed_return_fir_ty_for_call(
     name: &str,
     user_functions: &BTreeSet<String>,
 ) -> Option<FirTy> {
-    let canonical = builtin_canonical(name);
-    if user_functions.contains(name) && builtin_fixed_return_can_be_shadowed(canonical) {
+    if user_functions.contains(name) {
         None
     } else {
-        builtin_fixed_return_fir_ty(canonical)
+        builtin_fixed_return_fir_ty(builtin_canonical(name))
     }
 }
 
@@ -30973,7 +30818,8 @@ impl RustCodegen {
             string_returning_fns: BTreeSet::new(),
             fn_once_mode: false,
             in_self_method: false,
-            in_standalone_adt_method: false,
+            receiver_method_names: BTreeSet::new(),
+            prelude_function_names: BTreeSet::new(),
             current_effects: Vec::new(),
             handle_scope_effects: BTreeSet::new(),
             var_types: BTreeMap::new(),
@@ -32127,6 +31973,19 @@ impl RustCodegen {
         self.collect_module_value_bindings(&all_stmts, &mut module_path);
 
         let stmts = &all_stmts;
+        self.receiver_method_names.clear();
+        Self::collect_receiver_method_names(stmts, &mut self.receiver_method_names);
+        let prelude_len = stmts
+            .iter()
+            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+            .map_or(0, |index| index + 1);
+        self.prelude_function_names = stmts[..prelude_len]
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::Defn(Defn::Fn { name, .. }) => Some(name.clone()),
+                _ => None,
+            })
+            .collect();
 
         // Pre-scan: collect @ export annotations (M3b)
         // Two forms: `@ export` (prefix, next stmt is exported) or `@ export name` (post-hoc)
@@ -33729,22 +33588,18 @@ impl RustCodegen {
         let functions = fn_stmts
             .iter()
             .filter_map(|stmt| match stmt {
-                Stmt::Defn(defn @ Defn::Fn { .. }) => Some((defn, None)),
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some(defn),
                 _ => None,
             })
             .collect::<Vec<_>>();
         self.compute_namespace_borrow_flags(&functions, false);
     }
 
-    fn compute_namespace_borrow_flags(
-        &mut self,
-        functions: &[(&Defn, Option<&str>)],
-        require_stable_flags: bool,
-    ) {
+    fn compute_namespace_borrow_flags(&mut self, functions: &[&Defn], require_stable_flags: bool) {
         for _round in 0..8 {
             let previous = self.borrow_only_params.clone();
             let previous_count = previous.len();
-            for (defn, adt_owner) in functions {
+            for defn in functions {
                 if let Defn::Fn {
                     name,
                     params,
@@ -33753,24 +33608,19 @@ impl RustCodegen {
                     ..
                 } = defn
                 {
-                    let effective_params = Self::namespace_function_params(params, *adt_owner);
                     let mut borrow_flags = analyze_borrow_only_params_named(
-                        &effective_params,
+                        &params,
                         body,
                         ret_ty.as_ref(),
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_wasm_export_borrow_flags(
-                        name,
-                        &effective_params,
-                        &mut borrow_flags,
-                    );
+                    self.constrain_wasm_export_borrow_flags(name, &params, &mut borrow_flags);
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
                         collect_matched_vars(body, &mut matched_vars);
-                        for (idx, p) in effective_params.iter().enumerate() {
+                        for (idx, p) in params.iter().enumerate() {
                             if borrow_flags[idx] && matched_vars.contains(&p.name) {
                                 if let Some(ty) = &p.ty {
                                     let type_name = match ty {
@@ -33818,7 +33668,7 @@ impl RustCodegen {
                         self.borrow_only_params.remove(name);
                     }
                     // Also pre-register inout params
-                    let inout_flags: Vec<bool> = effective_params.iter().map(|p| p.inout).collect();
+                    let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
                     if inout_flags.iter().any(|f| *f) {
                         self.types.inout_params.insert(name.clone(), inout_flags);
                     }
@@ -36146,42 +35996,58 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
     /// Direct ordinary functions owned by one generated Rust namespace.
     /// ADT-block methods are runtime namespace functions, not inherent methods,
     /// so qualified modules must retain their callable ABI alongside `>` defs.
-    fn namespace_function_defns<'a>(stmts: &'a [Stmt]) -> Vec<(&'a Defn, Option<&'a str>)> {
-        let mut functions = Vec::new();
+    /// Ordinary functions declared directly in a namespace. Type-body and
+    /// impl methods belong to their type, not to the namespace.
+    fn namespace_function_defns(stmts: &[Stmt]) -> Vec<&Defn> {
+        stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some(defn),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Receiver methods (type-body methods with a first parameter, impl and
+    /// trait methods taking `self`) declared anywhere in the program.
+    fn collect_receiver_method_names(stmts: &[Stmt], names: &mut BTreeSet<String>) {
         for stmt in stmts {
             match stmt {
-                Stmt::Defn(defn @ Defn::Fn { .. }) => functions.push((defn, None)),
-                Stmt::TypeDecl(TypeDecl::ADT { name, methods, .. }) => {
-                    functions.extend(
-                        methods
-                            .iter()
-                            .filter(|method| matches!(method, Defn::Fn { .. }))
-                            .map(|method| (method, Some(name.as_str()))),
-                    );
+                Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn { name, params, .. } = method {
+                            if !params.is_empty() {
+                                names.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn { name, params, .. } = method {
+                            if params.first().is_some_and(|param| param.name == "self") {
+                                names.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+                    for method in methods {
+                        if method
+                            .params
+                            .first()
+                            .is_some_and(|param| param.name == "self")
+                        {
+                            names.insert(method.name.clone());
+                        }
+                    }
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    Self::collect_receiver_method_names(body, names);
                 }
                 _ => {}
             }
         }
-        functions
-    }
-
-    fn namespace_function_params(params: &[Param], adt_owner: Option<&str>) -> Vec<Param> {
-        params
-            .iter()
-            .enumerate()
-            .map(|(index, param)| {
-                if index == 0 && param.ty.is_none() {
-                    if let Some(adt_owner) = adt_owner {
-                        return Param {
-                            name: param.name.clone(),
-                            ty: Some(Ty::Name(adt_owner.to_string())),
-                            inout: param.inout,
-                        };
-                    }
-                }
-                param.clone()
-            })
-            .collect()
     }
 
     /// The current Prolog/value registries are keyed by bare name. Until
@@ -36191,7 +36057,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         fn collect(stmts: &[Stmt], owner: &[String], collisions: &mut BTreeSet<String>) {
             let ordinary_names = RustCodegen::namespace_function_defns(stmts)
                 .into_iter()
-                .filter_map(|(defn, _)| match defn {
+                .filter_map(|defn| match defn {
                     Defn::Fn { name, .. } => Some(name.clone()),
                     _ => None,
                 })
@@ -39803,10 +39669,26 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     out.push_str("}\n");
                 }
 
-                // Emit methods as standalone functions (not in impl block)
-                // In Futuruna, methods defined in ADT blocks are callable by name: name(Red)
-                // First param without type annotation gets the parent ADT type
+                // Type-body methods are inherent methods of the emitted type, so
+                // `x.m()` and a free call `m(x)` (emitted as `x.m()`) reach the
+                // receiver's own method. The first parameter is the receiver.
                 if !methods.is_empty() {
+                    let generic_impl = if param_rust_names.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "<{}>",
+                            param_rust_names
+                                .iter()
+                                .map(|param| format!("{param}: fmt::Display + Clone"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    };
+                    out.push_str(&format!(
+                        "impl{} {}{} {{\n",
+                        generic_impl, rust_name, type_params
+                    ));
                     for method in methods {
                         if let Defn::Fn {
                             name: mname,
@@ -39816,8 +39698,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             ..
                         } = method
                         {
-                            let self_type = format!("{}{}", rust_name, type_params);
-                            // Fill in missing type for first param (the ADT type) so borrow analysis works
+                            let receiver = mparams.first();
+                            // Fill in missing type for the receiver so borrow analysis works
                             let augmented_params: Vec<Param> = mparams
                                 .iter()
                                 .enumerate()
@@ -39833,76 +39715,63 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                                     }
                                 })
                                 .collect();
-                            // Borrow inference: analyze if params are read-only
-                            let mut borrow_flags = analyze_borrow_only_params(
+                            let receiver_is_borrowed = analyze_borrow_only_params(
                                 &augmented_params,
                                 body,
                                 ret_ty.as_ref(),
                                 &self.borrow_only_params,
-                            );
-                            self.constrain_wasm_export_borrow_flags(
-                                mname,
-                                &augmented_params,
-                                &mut borrow_flags,
-                            );
-                            if borrow_flags.iter().any(|f| *f) {
-                                self.borrow_only_params
-                                    .insert(mname.clone(), borrow_flags.clone());
-                            }
-                            let rust_params: Vec<String> = mparams
-                                .iter()
-                                .enumerate()
-                                .map(|(i, p)| {
-                                    let param_name = if p.name == "self" {
-                                        "self_".to_string()
+                            )
+                            .first()
+                            .copied()
+                            .unwrap_or(false);
+                            let mut rust_params: Vec<String> = Vec::new();
+                            if receiver.is_some() {
+                                rust_params.push(
+                                    if receiver_is_borrowed {
+                                        "&self"
                                     } else {
-                                        sanitize_name(&p.name)
-                                    };
-                                    let ty = if p.name == "self" || (i == 0 && p.ty.is_none()) {
-                                        self_type.clone()
-                                    } else {
-                                        p.ty.as_ref()
-                                            .map(|ty| self.emit_type(ty))
-                                            .unwrap_or_else(|| "String".to_string())
-                                    };
-                                    if p.inout {
-                                        let inner_ty = match p.ty.as_ref() {
-                                            Some(Ty::Shared(inner)) => self.emit_type(inner),
-                                            _ => ty,
-                                        };
-                                        format!("{}: &mut {}", param_name, inner_ty)
-                                    } else if borrow_flags.get(i).copied().unwrap_or(false) {
-                                        let borrowed_ty = if self.wasm_mode
-                                            && matches!(p.ty.as_ref(), Some(Ty::Name(name)) if name == "String")
-                                        {
-                                            "str".to_string()
-                                        } else {
-                                            ty
-                                        };
-                                        format!("{}: &{}", param_name, borrowed_ty)
-                                    } else {
-                                        format!("{}: {}", param_name, ty)
+                                        "self"
                                     }
-                                })
-                                .collect();
+                                    .to_string(),
+                                );
+                            }
+                            for p in mparams.iter().skip(1) {
+                                let ty =
+                                    p.ty.as_ref()
+                                        .map(|ty| self.emit_type(ty))
+                                        .unwrap_or_else(|| "String".to_string());
+                                if p.inout {
+                                    let inner_ty = match p.ty.as_ref() {
+                                        Some(Ty::Shared(inner)) => self.emit_type(inner),
+                                        _ => ty,
+                                    };
+                                    rust_params.push(format!(
+                                        "{}: &mut {}",
+                                        sanitize_name(&p.name),
+                                        inner_ty
+                                    ));
+                                } else {
+                                    rust_params.push(format!("{}: {}", sanitize_name(&p.name), ty));
+                                }
+                            }
                             let ret = ret_ty
                                 .as_ref()
                                 .map(|t| format!(" -> {}", self.emit_type(t)))
                                 .unwrap_or_default();
                             let expected_ret_fir_ty =
                                 ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
-                            let pub_prefix = if self.name_is_exported_in_current_namespace(mname) {
-                                "pub "
-                            } else {
-                                ""
-                            };
                             out.push_str(&format!(
-                                "{}fn {}({}){} {{\n",
-                                pub_prefix,
+                                "    pub fn {}({}){} {{\n",
                                 sanitize_name(mname),
                                 rust_params.join(", "),
                                 ret
                             ));
+                            if let Some(receiver) = receiver.filter(|p| p.name != "self") {
+                                out.push_str(&format!(
+                                    "        let {} = self;\n",
+                                    sanitize_name(&receiver.name)
+                                ));
+                            }
                             // Emit actual method body (escape analysis for methods)
                             let prev_counts = std::mem::take(&mut self.var_use_counts);
                             let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
@@ -39911,22 +39780,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             self.var_use_counts = ownership.var_uses;
                             self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
-                            let saved_in_standalone_adt_method = self.in_standalone_adt_method;
-                            self.in_standalone_adt_method =
-                                mparams.iter().any(|param| param.name == "self");
-                            self.indent = 1;
+                            self.indent = 2;
                             out.push_str(&self.emit_expr_as_return_with_expected_ty(
                                 body,
                                 expected_ret_fir_ty.as_ref(),
                             ));
                             self.indent = saved_indent;
-                            self.in_standalone_adt_method = saved_in_standalone_adt_method;
                             self.var_use_counts = prev_counts;
                             self.var_consuming_counts = prev_consuming;
                             self.copy_vars = prev_copy;
-                            out.push_str("}\n\n");
+                            out.push_str("    }\n\n");
                         }
                     }
+                    out.push_str("}\n\n");
                 }
 
                 out
@@ -44917,12 +44783,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                 let rule_groups = Self::collect_rule_groups_from_stmts(body);
                 let namespace_functions = Self::namespace_function_defns(body);
                 let mut local_owned_names = rule_groups.keys().cloned().collect::<BTreeSet<_>>();
-                local_owned_names.extend(namespace_functions.iter().filter_map(|(defn, _)| {
-                    match defn {
+                local_owned_names.extend(namespace_functions.iter().filter_map(
+                    |defn| match defn {
                         Defn::Fn { name, .. } => Some(name.clone()),
                         _ => None,
-                    }
-                }));
+                    },
+                ));
                 for stmt in body {
                     if let Stmt::Defn(Defn::Actor { name, .. })
                     | Stmt::Defn(Defn::Module { name, .. }) = stmt
@@ -45160,7 +45026,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
 
                 // Overlay direct module callables before inferring rules so private
                 // helpers and same-named root functions cannot supply their signatures.
-                for (defn, adt_owner) in &namespace_functions {
+                for defn in &namespace_functions {
                     if let Defn::Fn {
                         name,
                         params,
@@ -45169,22 +45035,18 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         ..
                     } = defn
                     {
-                        let effective_params = Self::namespace_function_params(params, *adt_owner);
                         self.ordinary_function_arities
-                            .insert((name.clone(), effective_params.len()));
+                            .insert((name.clone(), params.len()));
                         self.types.user_functions.insert(name.clone());
                         self.types.call_params.insert(
                             name.clone(),
-                            effective_params
-                                .iter()
-                                .map(|param| param.name.clone())
-                                .collect(),
+                            params.iter().map(|param| param.name.clone()).collect(),
                         );
                         let mut fn_ty = ret_ty
                             .as_ref()
                             .map(|ty| self.source_ty_to_fir(ty))
                             .unwrap_or(FirTy::Unknown);
-                        for param in effective_params.iter().rev() {
+                        for param in params.iter().rev() {
                             let param_ty = param
                                 .ty
                                 .as_ref()
@@ -45195,11 +45057,11 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         self.types.fn_types.insert(name.clone(), fn_ty.clone());
                         self.types
                             .fn_types_by_arity
-                            .insert((name.clone(), effective_params.len()), fn_ty);
+                            .insert((name.clone(), params.len()), fn_ty);
                         if !effects.is_empty() {
                             self.types.fn_effects.insert(name.clone(), effects.clone());
                         }
-                        let cow_flags = effective_params
+                        let cow_flags = params
                             .iter()
                             .map(|param| {
                                 param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
@@ -45328,24 +45190,19 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     .is_some_and(|paths| !paths.is_empty())
                 {
                     self.binary_global_env_fns
-                        .extend(
-                            namespace_functions
-                                .iter()
-                                .filter_map(|(defn, _)| match defn {
-                                    Defn::Fn { name, .. } => Some(name.clone()),
-                                    _ => None,
-                                }),
-                        );
+                        .extend(namespace_functions.iter().filter_map(|defn| match defn {
+                            Defn::Fn { name, .. } => Some(name.clone()),
+                            _ => None,
+                        }));
                     self.binary_global_env_fns
                         .extend(rule_groups.keys().cloned());
                 }
                 let module_path = self.current_module_path.join("::");
-                for (defn, adt_owner) in &namespace_functions {
+                for defn in &namespace_functions {
                     let Defn::Fn { name, params, .. } = defn else {
                         continue;
                     };
-                    let effective_params = Self::namespace_function_params(params, *adt_owner);
-                    let arity = effective_params.len();
+                    let arity = params.len();
                     let return_type = self
                         .types
                         .fn_types_by_arity
@@ -45363,20 +45220,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                                 .get(&module_path)
                                 .cloned()
                                 .unwrap_or_default(),
-                            param_names: effective_params
-                                .iter()
-                                .map(|param| param.name.clone())
-                                .collect(),
+                            param_names: params.iter().map(|param| param.name.clone()).collect(),
                             borrow_only_params: self
                                 .borrow_only_params
                                 .get(name)
                                 .cloned()
                                 .unwrap_or_else(|| vec![false; arity]),
-                            inout_params: effective_params
-                                .iter()
-                                .map(|param| param.inout)
-                                .collect(),
-                            cow_params: effective_params
+                            inout_params: params.iter().map(|param| param.inout).collect(),
+                            cow_params: params
                                 .iter()
                                 .map(|param| {
                                     param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
@@ -49117,12 +48968,12 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         };
 
         let builtin_name = builtin_canonical(fn_name);
-        if let Some((arity, shadowable, deps, rust_tpl)) = self
+        if let Some((arity, deps, rust_tpl)) = self
             .builtin_registry
             .get(builtin_name)
-            .map(|def| (def.arity, def.shadowable, def.deps, def.rust_tpl))
+            .map(|def| (def.arity, def.deps, def.rust_tpl))
         {
-            if arity == args.len() && (!shadowable || !self.builtin_shadowed_by_callable(fn_name)) {
+            if arity == args.len() && !self.builtin_shadowed_by_callable(fn_name) {
                 for &(dep_name, dep_ver) in deps {
                     self.cargo_deps
                         .entry(dep_name.to_string())
@@ -49161,10 +49012,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         let builtin_name = builtin_canonical(fn_name);
         self.builtin_registry
             .get(builtin_name)
-            .map(|def| {
-                def.arity == arity
-                    && (!def.shadowable || !self.builtin_shadowed_by_callable(fn_name))
-            })
+            .map(|def| def.arity == arity && !self.builtin_shadowed_by_callable(fn_name))
             .unwrap_or(false)
     }
 
@@ -49182,8 +49030,39 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
             .unwrap_or(false)
     }
 
+    /// A free call `m(x, ...)` of a type-body or impl method that no ordinary
+    /// function, rule, or local owns dispatches on its first argument: it is
+    /// emitted as the method call `x.m(...)`.
+    fn free_receiver_method_call(&self, func: &Expr, args: &[Expr], span: Span) -> Option<Expr> {
+        let ExprKind::Var(name) = &func.kind else {
+            return None;
+        };
+        let (receiver, rest) = args.split_first()?;
+        if !self.receiver_method_names.contains(name)
+            || self.types.user_functions.contains(name)
+            || self.local_bindings.contains(name)
+            || self.current_rule_scope_methods.contains_key(name)
+            || has_named_args(args)
+        {
+            return None;
+        }
+        Some(Expr::new(
+            ExprKind::App(
+                Box::new(Expr::new(
+                    ExprKind::Field(Box::new(receiver.clone()), name.clone()),
+                    func.span,
+                )),
+                rest.to_vec(),
+            ),
+            span,
+        ))
+    }
+
+    /// A declared function or callable local shadows the builtin of the same
+    /// name. The prelude's own definitions are the builtin's portable form and
+    /// leave the native builtin in place.
     fn builtin_shadowed_by_callable(&self, name: &str) -> bool {
-        self.types.user_functions.contains(name)
+        (self.types.user_functions.contains(name) && !self.prelude_function_names.contains(name))
             || matches!(self.lookup_var_fir_ty(name), Some(FirTy::Arrow(_, _)))
     }
 
@@ -50598,9 +50477,6 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
         }
         match &expr.kind {
             ExprKind::Var(name) => {
-                if self.in_standalone_adt_method && name == "self" {
-                    return "self_".to_string();
-                }
                 // Nullary constructor
                 if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
                     return self
@@ -50690,6 +50566,9 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     } else {
                         "()".to_string()
                     };
+                }
+                if let Some(method_call) = self.free_receiver_method_call(func, args, expr.span) {
+                    return self.emit_expr(&method_call);
                 }
                 if let ExprKind::Field(module, constructor) = &func.as_ref().kind {
                     if let Some(emitted) =
@@ -50991,22 +50870,27 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                         return format!("self.{}({})", sanitize_name(name), method_args.join(", "));
                     }
+                    // A declared function or callable local of a builtin's name
+                    // shadows the builtin.
+                    let builtin_visible = !self.builtin_shadowed_by_callable(name);
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
-                    if builtin_canonical(name) == "show" && args_str.len() == 1 {
+                    if builtin_visible && builtin_canonical(name) == "show" && args_str.len() == 1 {
                         return self.emit_display_value_expr(&args[0], &args_str[0]);
                     }
-                    if builtin_canonical(name) == "length"
+                    if builtin_visible
+                        && builtin_canonical(name) == "length"
                         && args.len() == 1
                         && self.expr_is_known_empty_list_value(&args[0])
                     {
                         return "0".to_string();
                     }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
-                    if name == "not" && args_str.len() == 1 {
+                    if builtin_visible && name == "not" && args_str.len() == 1 {
                         return format!("!({})", args_str[0]);
                     }
-                    if builtin_canonical(name) == "head"
+                    if builtin_visible
+                        && builtin_canonical(name) == "head"
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -51017,7 +50901,8 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     {
                         return "panic!(\"head: empty list\")".to_string();
                     }
-                    if builtin_canonical(name) == "nth"
+                    if builtin_visible
+                        && builtin_canonical(name) == "nth"
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -51033,7 +50918,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         );
                     }
                     // findall(template_var, goal) → iterate fact table, collect matches
-                    if name == "findall" && args.len() == 2 {
+                    if builtin_visible && name == "findall" && args.len() == 2 {
                         return self.emit_findall(&args[0], &args[1]);
                     }
                     // Prolog wildcard calls: fn(x, _) → inline fact table scan
@@ -51075,18 +50960,20 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                     }
                     // Async stream operators: intercept before sync builtin registry
-                    if let Some(async_code) = self.emit_async_stream_op(name, args) {
-                        return async_code;
-                    }
-                    // Pure aggregations over async stream state operate on the current snapshot.
-                    if let Some(snapshot_builtin) =
-                        self.emit_async_stream_snapshot_builtin(name, args)
-                    {
-                        return snapshot_builtin;
-                    }
-                    // Stream fusion: fuse chains of map/filter/take/skip into single iterator
-                    if let Some(fused) = self.try_emit_fused_chain(name, args) {
-                        return fused;
+                    if builtin_visible {
+                        if let Some(async_code) = self.emit_async_stream_op(name, args) {
+                            return async_code;
+                        }
+                        // Pure aggregations over async stream state operate on the current snapshot.
+                        if let Some(snapshot_builtin) =
+                            self.emit_async_stream_snapshot_builtin(name, args)
+                        {
+                            return snapshot_builtin;
+                        }
+                        // Stream fusion: fuse chains of map/filter/take/skip into single iterator
+                        if let Some(fused) = self.try_emit_fused_chain(name, args) {
+                            return fused;
+                        }
                     }
                     if matches!(
                         name.as_str(),
@@ -51624,9 +51511,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                     // Builtin registry lookup — replaces 300+ lines of if-chain
 
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
-                        if args_str.len() == def.arity
-                            && (!def.shadowable || !self.builtin_shadowed_by_callable(name))
-                        {
+                        if args_str.len() == def.arity && !self.builtin_shadowed_by_callable(name) {
                             for &(dep_name, dep_ver) in def.deps {
                                 self.cargo_deps
                                     .entry(dep_name.to_string())
@@ -51636,7 +51521,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         }
                     }
                     // Custom builtins that need runtime state beyond templates
-                    if name == "push" && args_str.len() == 2 {
+                    if builtin_visible && name == "push" && args_str.len() == 2 {
                         let is_mutable_target = if let ExprKind::Var(vn) = &args[0].kind {
                             self.mutable_vars.contains(vn.as_str())
                         } else {
@@ -51650,14 +51535,14 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             args_str[0], args_str[1]
                         );
                     }
-                    if name == "subject" {
+                    if builtin_visible && name == "subject" {
                         if args_str.is_empty() {
                             return "vec![]".to_string();
                         } else {
                             return format!("vec![{}]", args_str[0]);
                         }
                     }
-                    if name == "spawn" && args.len() == 2 {
+                    if builtin_visible && name == "spawn" && args.len() == 2 {
                         let actor_name = if let ExprKind::Var(n) = &args[0].kind {
                             sanitize_name(n)
                         } else {
@@ -51666,7 +51551,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                         let init_val = &args_str[1];
                         return format!("{}_spawn({})", actor_name, init_val);
                     }
-                    if name == "ask" && args.len() == 2 {
+                    if builtin_visible && name == "ask" && args.len() == 2 {
                         let handle_name = if let ExprKind::Var(n) = &args[0].kind {
                             n.clone()
                         } else {
@@ -51687,7 +51572,7 @@ fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option
                             args_str[0], actor_name, args_str[1], await_expr
                         );
                     }
-                    if name == "as_stream" && args_str.len() == 1 {
+                    if builtin_visible && name == "as_stream" && args_str.len() == 1 {
                         if self.has_async {
                             if self.is_async_stream_expr(&args[0]) {
                                 return format!("{}.clone()", args_str[0]);
@@ -62152,7 +62037,10 @@ assert_with_message(true, message())
                 "http_get",
                 FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
             ),
-            ("http_post", FirTy::String),
+            (
+                "http_post",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             (
                 "http_respond",
                 FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
