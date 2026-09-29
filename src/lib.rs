@@ -410,6 +410,27 @@ pub fn keyword_table_dansk() -> KeywordTable {
     t
 }
 
+/// Count block comment delimiters on one line. A delimiter is a maximal run
+/// of four or more dashes, so a banner of any length counts once.
+pub fn block_comment_delimiter_count(line: &str) -> usize {
+    line.split(|c: char| c != '-')
+        .filter(|run| run.len() >= 4)
+        .count()
+}
+
+/// Whether the current source line is an `@ import` directive, whose module
+/// path and content hash are lexed as names rather than number literals.
+fn in_import_directive(tokens: &[Token], line: usize) -> bool {
+    let start = tokens
+        .iter()
+        .rposition(|token| token.line != line || token.kind == TokenKind::Semi)
+        .map_or(0, |index| index + 1);
+    matches!(
+        &tokens[start..],
+        [at, keyword, ..] if at.kind == TokenKind::At && keyword.text == "import"
+    )
+}
+
 /// Detect the initial @ sprog / @ language declaration, allowing whitespace,
 /// comment lines and empty statement separators before it.
 pub fn detect_language(source: &str) -> KeywordTable {
@@ -424,7 +445,7 @@ pub fn detect_language(source: &str) -> KeywordTable {
         }
         if trimmed.starts_with("----") {
             // Block comment might open and close on same line
-            if trimmed.matches("----").count() < 2 {
+            if block_comment_delimiter_count(trimmed) % 2 == 1 {
                 in_block_comment = true;
             }
             continue;
@@ -856,6 +877,17 @@ impl Lexer {
         self.chars.get(self.pos + offset).copied()
     }
 
+    /// A block comment delimiter is a run of four or more dashes.
+    pub fn at_block_comment_delimiter(&self) -> bool {
+        (0..4).all(|offset| self.peek_at(offset) == Some('-'))
+    }
+
+    pub fn consume_dash_run(&mut self) {
+        while self.peek() == Some('-') {
+            self.advance();
+        }
+    }
+
     pub fn advance(&mut self) -> Option<char> {
         let c = self.chars.get(self.pos).copied()?;
         self.pos += 1;
@@ -883,38 +915,21 @@ impl Lexer {
                 }
             };
 
-            // Block comments: ---- ... ----
-            if c == '-'
-                && self.peek2() == Some('-')
-                && self.peek_at(2) == Some('-')
-                && self.peek_at(3) == Some('-')
-            {
-                // Consume the opening ----
-                self.advance();
-                self.advance();
-                self.advance();
-                self.advance();
-                // Scan until closing ----
+            // Block comments: a run of four or more dashes opens the comment and
+            // the next such run closes it. Each run is one delimiter.
+            if self.at_block_comment_delimiter() {
+                self.consume_dash_run();
                 let mut closed = false;
                 loop {
-                    match self.peek() {
-                        None => break, // EOF — unclosed block comment
-                        Some('-')
-                            if self.peek2() == Some('-')
-                                && self.peek_at(2) == Some('-')
-                                && self.peek_at(3) == Some('-') =>
-                        {
-                            self.advance();
-                            self.advance();
-                            self.advance();
-                            self.advance();
-                            closed = true;
-                            break;
-                        }
-                        _ => {
-                            self.advance();
-                        }
+                    if self.peek().is_none() {
+                        break;
                     }
+                    if self.at_block_comment_delimiter() {
+                        self.consume_dash_run();
+                        closed = true;
+                        break;
+                    }
+                    self.advance();
                 }
                 if !closed {
                     tokens.push(
@@ -997,11 +1012,34 @@ impl Lexer {
                 }
                 ('/', Some('*')) => Some(("/*", "block comments use `---- ... ----`")),
                 ('\\', Some('+')) => Some(("\\+", "rule negation uses `not(...)`")),
+                ('=', Some('=')) if self.peek_at(2) == Some('=') => {
+                    Some(("===", "equality is `==`"))
+                }
+                ('!', Some('=')) if self.peek_at(2) == Some('=') => {
+                    Some(("!==", "inequality is `!=`"))
+                }
+                ('+', Some('+')) => Some((
+                    "++",
+                    "there is no increment operator; write `x + 1`, and join lists with `concat(left, right)`",
+                )),
+                ('/', Some('=')) => Some((
+                    "/=",
+                    "inequality is `!=`, and there is no compound assignment",
+                )),
+                ('+' | '-' | '*', Some('=')) => Some((
+                    match c {
+                        '+' => "+=",
+                        '-' => "-=",
+                        _ => "*=",
+                    },
+                    "there is no compound assignment; bind the new value with `= name = expression`",
+                )),
                 _ => None,
             };
             if let Some((spelling, hint)) = foreign {
-                self.advance();
-                self.advance();
+                for _ in spelling.chars() {
+                    self.advance();
+                }
                 tokens.push(
                     Token::new(
                         TokenKind::Invalid,
@@ -1209,31 +1247,17 @@ impl Lexer {
 
             // Numbers
             if c.is_ascii_digit() {
-                let mut s = self.read_number();
-                if self.peek() == Some('_') {
-                    while self
-                        .peek()
-                        .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
-                    {
-                        s.push(self.advance().unwrap());
+                if in_import_directive(&tokens, line) {
+                    // Module paths and content hashes are names, not numbers.
+                    let mut digits = String::new();
+                    while let Some(digit) = self.peek().filter(char::is_ascii_digit) {
+                        digits.push(digit);
+                        self.advance();
                     }
-                    tokens.push(
-                        Token::new(
-                            TokenKind::Invalid,
-                            "digit separators are not supported; write digits without `_`",
-                            line,
-                            col,
-                        )
-                        .with_source_text(s),
-                    );
+                    tokens.push(Token::new(TokenKind::Int_, digits, line, col));
                     continue;
                 }
-                let kind = if s.contains('.') {
-                    TokenKind::Float_
-                } else {
-                    TokenKind::Int_
-                };
-                tokens.push(Token::new(kind, s, line, col));
+                tokens.push(self.read_number_token(line, col));
                 continue;
             }
 
@@ -1625,27 +1649,139 @@ impl Lexer {
         (parts, closed)
     }
 
+    /// Read a number as written. `_` may stand between two digits.
     pub fn read_number(&mut self) -> String {
         let mut s = String::new();
         let mut has_dot = false;
         while let Some(c) = self.peek() {
+            let digit_follows = self.peek2().is_some_and(|next| next.is_ascii_digit());
             if c.is_ascii_digit() {
                 s.push(c);
                 self.advance();
-            } else if c == '.' && !has_dot {
-                // Check it's not a method call like 42.foo
-                if self.peek2().map_or(false, |c2| c2.is_ascii_digit()) {
-                    has_dot = true;
-                    s.push(c);
-                    self.advance();
-                } else {
-                    break;
-                }
+            } else if c == '_' && s.ends_with(|p: char| p.is_ascii_digit()) && digit_follows {
+                s.push(c);
+                self.advance();
+            } else if c == '.' && !has_dot && digit_follows {
+                // `42.foo` is a member access, not a fraction.
+                has_dot = true;
+                s.push(c);
+                self.advance();
             } else {
                 break;
             }
         }
         s
+    }
+
+    /// Length of `YYYY-MM-DD` or `DD-MM-YYYY` text (with `-` or `/`) at the cursor.
+    fn date_shaped_len(&self) -> Option<usize> {
+        let digits_at = |start: usize| {
+            (start..)
+                .take_while(|&i| self.peek_at(i).is_some_and(|c| c.is_ascii_digit()))
+                .count()
+        };
+        let first = digits_at(0);
+        let separator = self.peek_at(first).filter(|c| matches!(c, '-' | '/'))?;
+        let second = digits_at(first + 1);
+        if self.peek_at(first + 1 + second) != Some(separator) {
+            return None;
+        }
+        let third = digits_at(first + second + 2);
+        let end = first + second + third + 2;
+        let shaped = matches!(
+            (first, second, third),
+            (4, 1..=2, 1..=2) | (1..=2, 1..=2, 4)
+        );
+        let continues = self
+            .peek_at(end)
+            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+        (shaped && !continues).then_some(end)
+    }
+
+    /// Lex one number literal, rejecting spellings whose meaning differs from
+    /// the conventional reading: dates, thousands separators and leading zeros.
+    fn read_number_token(&mut self, line: usize, col: usize) -> Token {
+        let invalid = |message: String, written: String| {
+            Token::new(TokenKind::Invalid, message, line, col).with_source_text(written)
+        };
+        if let Some(len) = self.date_shaped_len() {
+            let written: String = self.chars[self.pos..self.pos + len].iter().collect();
+            for _ in 0..len {
+                self.advance();
+            }
+            return invalid(
+                format!(
+                    "`{written}` is arithmetic, not a date: Futuruna has no date literal; \
+                     write date text as a string such as \"{written}\" or use a date record"
+                ),
+                written,
+            );
+        }
+        let mut written = self.read_number();
+        let extra_dot =
+            self.peek() == Some('.') && self.peek2().is_some_and(|c| c.is_ascii_digit());
+        if extra_dot || self.peek() == Some('_') {
+            while let Some(c) = self
+                .peek()
+                .filter(|c| c.is_alphanumeric() || matches!(c, '_' | '.'))
+            {
+                written.push(c);
+                self.advance();
+            }
+            let message = if extra_dot {
+                format!(
+                    "`{written}` has more than one `.`; `.` is the decimal point, so group \
+                     digits with `_`, as in `1_000_000`"
+                )
+            } else {
+                "a digit separator `_` must stand between two digits, as in `1_000_000`".to_string()
+            };
+            return invalid(message, written);
+        }
+        let is_group = |lexer: &Self, at: usize| {
+            lexer.peek_at(at) == Some(',')
+                && (1..=3).all(|i| lexer.peek_at(at + i).is_some_and(|c| c.is_ascii_digit()))
+                && !lexer.peek_at(at + 4).is_some_and(|c| c.is_ascii_digit())
+        };
+        if (1..=3).contains(&written.len())
+            && written.bytes().all(|b| b.is_ascii_digit())
+            && is_group(self, 0)
+        {
+            while is_group(self, 0) {
+                for _ in 0..4 {
+                    written.push(self.advance().unwrap_or(','));
+                }
+            }
+            let grouped = written.replace(',', "_");
+            return invalid(
+                format!(
+                    "`{written}` is several items, because `,` separates items; write \
+                     `{grouped}` for one number, or put a space after each comma for \
+                     separate items"
+                ),
+                written,
+            );
+        }
+        let digits = written.replace('_', "");
+        let whole = digits.split('.').next().unwrap_or_default();
+        if whole.len() > 1 && whole.starts_with('0') {
+            let trimmed = digits.trim_start_matches('0');
+            let canonical = if trimmed.is_empty() || trimmed.starts_with('.') {
+                format!("0{trimmed}")
+            } else {
+                trimmed.to_string()
+            };
+            return invalid(
+                format!("leading zeros are not allowed in numbers; write `{canonical}`"),
+                written,
+            );
+        }
+        let kind = if digits.contains('.') {
+            TokenKind::Float_
+        } else {
+            TokenKind::Int_
+        };
+        Token::new(kind, digits, line, col).with_source_text(written)
     }
 
     pub fn read_string(&mut self) -> String {
@@ -2628,7 +2764,7 @@ fn scan_meta_comment_structure_with_rule_symbols(
             continue;
         }
         if trimmed.starts_with("----") {
-            if trimmed.matches("----").count() < 2 {
+            if block_comment_delimiter_count(trimmed) % 2 == 1 {
                 in_block_comment = true;
             }
             continue;
@@ -4070,7 +4206,7 @@ fn scan_meta_symbols(
             continue;
         }
         if trimmed.starts_with("----") {
-            if trimmed.matches("----").count() < 2 {
+            if block_comment_delimiter_count(trimmed) % 2 == 1 {
                 in_block_comment = true;
             }
             continue;
@@ -9019,7 +9155,7 @@ fn layout_next_continues_statement(token: &Token) -> bool {
         | TokenKind::RBracket => true,
         TokenKind::Op => matches!(
             token.text.as_str(),
-            "&&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "*" | "/" | "%" | "^"
+            "+" | "&&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "*" | "/" | "%" | "^"
         ),
         TokenKind::Ident | TokenKind::KW => {
             matches!(token.text.as_str(), "under" | "else" | "and" | "in")
@@ -9228,6 +9364,8 @@ impl Parser {
                 "\n  Hint: Futuruna uses `->`, not `=>`. Replace `=>` with `->`."
             } else if kind == TokenKind::LBrace && tok.kind == TokenKind::Arrow {
                 "\n  Hint: did you forget `{` before the body?"
+            } else if kind == TokenKind::LBrace && tok.kind == TokenKind::Colon {
+                "\n  Hint: blocks are written in braces, as in `if condition { value } else { value }`; a `:` and indentation do not open a block."
             } else if kind == TokenKind::Comma && tok.kind == TokenKind::Colon {
                 "\n  Hint: this looks like a type annotation. Typed parameters are valid in `>` functions and `|` rule heads, but ordinary call arguments use values, not declarations."
             } else if kind == TokenKind::RParen && tok.kind == TokenKind::Colon {
@@ -9590,13 +9728,19 @@ impl Parser {
         let mut stmts = Vec::new();
         let mut errors: Vec<String> = Vec::new();
         self.skip_semis();
+        let mut previous_col: Option<usize> = None;
         while self.peek_kind() != TokenKind::Eof {
-            match self.parse_statement().and_then(|stmt| {
-                self.expect_statement_boundary(&stmt)?;
-                Ok(stmt)
-            }) {
+            let start_col = self.peek().col;
+            match self
+                .reject_line_leading_operator(previous_col)
+                .and_then(|()| self.parse_statement())
+                .and_then(|stmt| {
+                    self.expect_statement_boundary(&stmt)?;
+                    Ok(stmt)
+                }) {
                 Ok(stmt) => {
                     stmts.push(stmt);
+                    previous_col = Some(start_col);
                 }
                 Err(e) => {
                     errors.push(e);
@@ -10848,7 +10992,7 @@ impl Parser {
             let line = tok.line;
             let col = tok.col;
             match tok.text.as_str() {
-                "fn" | "func" | "def" | "fun" => {
+                "fn" | "func" | "def" | "fun" | "function" => {
                     return Err(format!(
                         "{}:{}: Futuruna uses `>` to define functions, not `{}`.\n  \
                         Try: > {}",
@@ -11340,10 +11484,14 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut body = Vec::new();
+        let mut previous_col: Option<usize> = None;
         while self.peek_kind() != TokenKind::RBrace {
+            let start_col = self.peek().col;
+            self.reject_line_leading_operator(previous_col)?;
             let stmt = self.parse_statement()?;
             self.expect_statement_boundary(&stmt)?;
             body.push(stmt);
+            previous_col = Some(start_col);
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
@@ -13209,6 +13357,7 @@ impl Parser {
                     TokenKind::Eq => "\n  Hint: `=` starts a binding. Did you mean `==` for comparison?",
                     TokenKind::Semi => "\n  Hint: this is a hard statement newline. Continue after `=`, `->`, `,`, or an operator, or place the expression inside `(...)`.",
                     TokenKind::Eof => "\n  Hint: unexpected end of file. Check for unclosed `{`, `(`, or `[`.",
+                    TokenKind::Op if tok.text == "==" => "\n  Hint: `==` compares two values; a binding uses a single `=`, as in `= name = value`.",
                     _ => "",
                 };
                 Err(format!(
@@ -13269,10 +13418,14 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut stmts = Vec::new();
+        let mut previous_col: Option<usize> = None;
         while self.peek_kind() != TokenKind::RBrace {
+            let start_col = self.peek().col;
+            self.reject_line_leading_operator(previous_col)?;
             let stmt = self.parse_block_statement()?;
             self.expect_statement_boundary(&stmt)?;
             stmts.push(stmt);
+            previous_col = Some(start_col);
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
@@ -58684,7 +58837,19 @@ impl TypeChecker {
                     } else {
                         "variable"
                     };
-                    self.error_at_expr(expr, format!("undefined {} `{}`", symbol_kind, name));
+                    let hint = match name.as_str() {
+                        "null" | "nil" | "undefined" => {
+                            "; an absent value is `None`, of type `Option(a)`"
+                        }
+                        "console" | "System" | "fmt" | "println" | "echo" => {
+                            "; output is an effect, as in `@ print(text)`"
+                        }
+                        _ => "",
+                    };
+                    self.error_at_expr(
+                        expr,
+                        format!("undefined {} `{}`{}", symbol_kind, name, hint),
+                    );
                 }
             }
             ExprKind::App(func, args) => {

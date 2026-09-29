@@ -128,6 +128,16 @@ fn quoted_legal_source_preserves_indentation_spaces_and_blank_lines() {
 }
 
 #[test]
+fn dash_banners_quote_their_text_and_leave_following_code_formatted() {
+    for (opening, closing) in [("-----", "---------"), ("------------", "----")] {
+        let quoted = format!("{opening}\n= inside    =   1+2\n{closing}");
+        let source = format!("{quoted}\n= after = 1+2\n");
+        let formatted = format_successfully(&source);
+        assert_eq!(formatted, format!("{quoted}\n= after = 1 + 2\n"));
+    }
+}
+
+#[test]
 fn malformed_programs_are_rejected_without_rewriting_them() {
     for source in ["= x = (\n", "> broken(x: Int) -> Int {\n"] {
         let file = SourceFile::new(source);
@@ -215,9 +225,12 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/expect/check/late_language_directive.runa",
         "tests/expect/check/missing_exception_label.runa",
         "tests/expect/check/single_equals_expression.runa",
+        "tests/expect/diagnostics/date_shaped_number.runa",
         "tests/expect/diagnostics/depend_missing_quotes.runa",
         "tests/expect/diagnostics/depend_missing_version.runa",
+        "tests/expect/diagnostics/indented_operator_line.runa",
         "tests/expect/diagnostics/parse_bad_arrow.runa",
+        "tests/expect/diagnostics/thousands_comma_in_list.runa",
     ];
     fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
         for entry in std::fs::read_dir(directory).unwrap() {

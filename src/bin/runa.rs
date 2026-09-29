@@ -21077,20 +21077,16 @@ fn format_runa_source(source: &str) -> String {
     let mut fragments = Vec::new();
     while let Some(c) = lexer.peek() {
         let start = lexer.pos;
-        let block_comment = (0..4).all(|offset| lexer.peek_at(offset) == Some('-'));
+        let block_comment = lexer.at_block_comment_delimiter();
         if let Some(end) = rust_blocks.get(&start) {
             while lexer.pos < *end {
                 lexer.advance();
             }
         } else if block_comment {
-            for _ in 0..4 {
-                lexer.advance();
-            }
+            lexer.consume_dash_run();
             while lexer.peek().is_some() {
-                if (0..4).all(|offset| lexer.peek_at(offset) == Some('-')) {
-                    for _ in 0..4 {
-                        lexer.advance();
-                    }
+                if lexer.at_block_comment_delimiter() {
+                    lexer.consume_dash_run();
                     break;
                 }
                 lexer.advance();
