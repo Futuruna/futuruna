@@ -9,6 +9,13 @@ feature_stage_surfaces:
 `@ calculate` marks an ordinary typed rule or function as an external
 calculation boundary. It does not change rule evaluation and is not an effect.
 
+A calculation is pure: its entry, and every function and rule it reaches, must
+not perform effects — no `@` effects and no host builtins such as `print`,
+`read_file`, `write_file`, `env_var`, `now`, `http_get` or `process_run`. The
+checker reports the first such call with its location, and `runa call` refuses
+host effects at run time as well (for example in imported helpers). External
+data enters only through the typed input.
+
 ```runa
 # Input(monthly_income: Int, status: FilingStatus)
 # Result(annual_tax: Int)
@@ -461,11 +468,13 @@ not substitute zero or empty values. Known Boolean predicate misses still return
 evaluating a predicate is a diagnostic, not `False`. Required top-level
 initialization is checked too; if it fails, no case receives a result from it.
 An unexpected recoverable runtime panic invalidates that worker, which is
-reinitialized before another case. This boundary is not a sandbox for effects
-or a guarantee of recovery from process termination or resource exhaustion.
+reinitialized before another case. The boundary does not guarantee recovery
+from process termination or resource exhaustion.
 
 Calculation workbooks must be `.xlsx`. VBA projects and formulas in the input
-sheet are rejected. JSON input documents and canonical JSON workbook cells
+sheet are rejected. Before any sheet is read, a workbook may unpack to at most
+256 MiB in at most 10,000 archive entries, and each sheet's used range may span
+at most 4,000,000 cells; larger workbooks are rejected with an error. JSON input documents and canonical JSON workbook cells
 reject duplicate object member names at every depth, including escaped names
 that decode to the same key. This also applies to template hydration: ambiguous
 values are never normalized by choosing the first or last occurrence.

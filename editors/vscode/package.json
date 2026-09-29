@@ -9,6 +9,13 @@
     "vscode": "^1.75.0"
   },
   "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In untrusted workspaces the language server always starts from the machine-level `futuruna.serverPath`; workspace settings cannot choose the executable.",
+      "restrictedConfigurations": ["futuruna.serverPath"]
+    }
+  },
   "categories": ["Programming Languages", "Themes"],
   "contributes": {
     "languages": [
@@ -39,7 +46,8 @@
         "futuruna.serverPath": {
           "type": "string",
           "default": "runa",
-          "description": "Path to the runa compiler binary"
+          "scope": "machine",
+          "description": "Path to the runa compiler binary. Machine setting: a workspace cannot choose the executable."
         }
       }
     }

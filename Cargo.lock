@@ -160,6 +160,7 @@ name = "futuruna"
 version = "0.2.1"
 dependencies = [
  "calamine",
+ "libc",
  "proc-macro2",
  "quote",
  "regex",
