@@ -83,19 +83,19 @@ the string end. `char_at` returns `""` when the index is out of range.
 | `char_at` | `(String, Int) -> String` | Single Unicode scalar value by index |
 | `index_of` | `(String, String) -> Int` | Find substring scalar position (-1 if absent) |
 | `format_float` | `(Float, Int) -> String` | Format float with N decimal places |
-| `parse_int` | `String -> Int` | Parse string to integer (0 on failure) |
-| `parse_float` | `String -> Float` | Parse string to float (0.0 on failure) |
+| `parse_int` | `String -> Result(Int, String)` | Parse an integer; `Err` for invalid text |
+| `parse_float` | `String -> Result(Float, String)` | Parse a finite number; `Err` for invalid text |
 | `string_chars` | `String -> List(String)` | Explode into Unicode scalar values |
 
 `format_float` accepts precision from 0 through 65535 inclusive. Values outside
 this range fail with a diagnostic before formatting; calculations retain their
 case-local error handling. Arguments are evaluated once, in source order.
 
-`parse_int` and `parse_float` do not use the file's language or the computer's
-locale to interpret separators. `parse_float("1,5")` and `parse_int("1.000")`
-return zero, just like other invalid input; a zero result does not establish
-that parsing succeeded. These functions return plain numbers, not `Option` or
-`Result`. Validate external numeric text before using it in a calculation.
+`parse_int` and `parse_float` trim surrounding whitespace and do not use the
+file's language or the computer's locale to interpret separators:
+`parse_float("1,5")` and `parse_int("1.000")` are `Err`, like any other invalid
+input. `parse_float` rejects `inf` and `NaN`. Use `= n <- parse_int(text)` to
+return the error from the enclosing function, or `match` on `Ok`/`Err`.
 
 ```runa
 = parts = split("a,b,c", ",")         -- ["a", "b", "c"]
@@ -107,7 +107,7 @@ that parsing succeeded. These functions return plain numbers, not `Option` or
 = ch = char_at("hello", 0)             -- "h"
 = pos = index_of("hello", "ll")        -- 2
 = fmt = format_float(3.14159, 2)        -- "3.14"
-= n = parse_int("42")                  -- 42
+= n = parse_int("42")                  -- Ok(42)
 = chars = string_chars("abc")           -- ["a", "b", "c"]
 = replaced = replace("foo bar foo", "foo", "baz")  -- "baz bar baz"
 ```
@@ -362,9 +362,9 @@ File operations are invoked with the `@` rune (effect boundary).
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `read_file` | `String -> String` | Read entire file contents |
-| `write_file` | `(String, String) -> ()` | Write/overwrite file |
-| `append_file` | `(String, String) -> ()` | Append to file |
+| `read_file` | `String -> Result(String, String)` | Read entire file contents; `Err` when the file cannot be read |
+| `write_file` | `(String, String) -> ()` | Write/overwrite file; a failed write stops the program with an error |
+| `append_file` | `(String, String) -> ()` | Append to file; a failed write stops the program with an error |
 | `file_exists` | `String -> Bool` | Check if file exists |
 | `read_lines` | `String -> List(String)` | Read file as list of lines |
 | `env_var` | `String -> String` | Read environment variable |
@@ -372,7 +372,7 @@ File operations are invoked with the `@` rune (effect boundary).
 ```runa
 @ write_file("output.txt", "hello world")
 = exists = file_exists("output.txt")       -- true
-= content = read_file("output.txt")        -- "hello world"
+= content = read_file("output.txt")        -- Ok("hello world")
 = lines = read_lines("output.txt")         -- ["hello world"]
 @ append_file("output.txt", "\nline 2")
 = home = env_var("HOME")                   -- "/Users/..."
@@ -405,7 +405,7 @@ JSON values are represented as `String` (serialized JSON text). Auto-adds `serde
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `json_parse` | `String -> String` | Validate and return JSON string |
+| `json_parse` | `String -> Result(String, String)` | Validate JSON; `Ok` returns the text, `Err` describes invalid input |
 | `json_get` | `(String, String) -> String` | Access object field (returns JSON text) |
 | `json_string` | `String -> String` | Extract string value (unquoted) |
 | `json_number` | `String -> Float` | Extract number |
@@ -440,7 +440,7 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `http_get` | `String -> String` | GET request, return response body |
+| `http_get` | `String -> Result(String, String)` | GET request; `Ok` body for a 2xx response, `Err` for other statuses, connection failures and a 30 s timeout |
 | `http_post` | `(String, String) -> String` | POST with body, return response |
 | `http_serve` | `(Int, (String, String, String) -> (Int, String, String)) -> ()` | Start HTTP server |
 | `http_respond` | `(Int, String, String) -> (Int, String, String)` | Build response tuple |

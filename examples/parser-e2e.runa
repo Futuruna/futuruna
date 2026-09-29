@@ -5,7 +5,7 @@
 @ import ./parser
 
 -- Tokenize and parse lexer.runa end-to-end
-= lexer_src = read_file("examples/lexer.runa")
+= lexer_src = read_source("examples/lexer.runa")
 @ print("Read lexer.runa: " + show(string_length(lexer_src)) + " chars")
 
 = lexer_toks = tokenize(lexer_src)

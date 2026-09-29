@@ -21,8 +21,18 @@ small and is increased only after measuring the prior stage.
     indkomst_før_kroner
 )
 
-= personskat_native_probe_start = fortolk_heltal(miljø_var("FUTURUNA_PROBE_START"))
-= personskat_native_probe_slut_eksklusiv = fortolk_heltal(miljø_var("FUTURUNA_PROBE_END"))
+> personskat_native_probe_grænse(navn: Tekst) -> Heltal {
+    match fortolk_heltal(miljø_var(navn)) {
+        | Ok(værdi) -> værdi
+        | Err(fejl) -> {
+            = _ = assert_with_message(false, navn + ": " + fejl)
+            0
+        }
+    }
+}
+
+= personskat_native_probe_start = personskat_native_probe_grænse("FUTURUNA_PROBE_START")
+= personskat_native_probe_slut_eksklusiv = personskat_native_probe_grænse("FUTURUNA_PROBE_END")
 
 @ print("PERSONSKAT_NATIVE_PROBE_BEGIN " + vis(personskat_native_probe_start) + " " + vis(personskat_native_probe_slut_eksklusiv))
 
