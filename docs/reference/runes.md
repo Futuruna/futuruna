@@ -614,6 +614,11 @@ is available only at runtime.
 
 Inline raw Rust code. Handles nested braces, strings, and comments correctly.
 
+Embedded Rust runs only in compiled code (`runa run`, `runa build`). The
+interpreter refuses it: calling a function defined in an `@ rust` block, or
+reaching an `@ rust` block inside a function body, is a runtime error at that
+point.
+
 ---
 
 ## `?` -- Prove it

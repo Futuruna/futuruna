@@ -22,6 +22,7 @@ Supported directives:
 - `-- expect-stderr-not: text that must not appear on stderr`
 - `-- expect-stdout-file: path/to/stdout.golden`
 - `-- expect-stderr-file: path/to/stderr.golden`
+- `-- expect-env: KEY=VALUE` (sets an environment variable for the command; repeatable)
 - `-- expect-skip: reason`
 
 Golden file paths are resolved relative to the `.runa` case. Golden files check

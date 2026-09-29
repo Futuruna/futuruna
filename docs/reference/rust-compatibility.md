@@ -48,8 +48,8 @@ sort_vec(data)
 
 Compiles to `fn sort_vec(xs: &mut Vec<i64>)`. The caller's binding is mutated directly.
 Save this example as `sort.runa` and execute it with `runa run sort.runa`.
-The interpreter does not execute embedded Rust, so this example requires
-native execution.
+The interpreter refuses embedded Rust with a runtime error at the `@ rust`
+block, so this example requires native execution.
 
 ## Rust Escape Hatch
 
@@ -64,6 +64,8 @@ When Futuruna's abstractions don't cover a case, embed raw Rust:
 ```
 
 The block is inserted verbatim into the generated Rust. Handles nested braces, strings, and comments.
+Only compiled code runs it: in the interpreter, calling a function defined in
+an `@ rust` block is a runtime error at the call.
 
 ## Using Rust Crates
 

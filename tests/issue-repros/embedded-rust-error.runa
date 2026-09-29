@@ -9,3 +9,4 @@ fn helper() -> i64 {
 }
 }
 @ print("unreachable")
+-- roundtrip-skip: embedded Rust runs only in compiled code

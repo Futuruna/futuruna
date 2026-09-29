@@ -1,7 +1,7 @@
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: mismatched types
--- expect-stderr: expected `Expected`, found `Actual`
+-- expect-stderr: to `required` expects `Expected`, got `Actual`
+-- expect-stderr: rule_argument_type_mismatch.runa:11
 
 # Expected(amount: Int)
 # Actual(amount: Int)
