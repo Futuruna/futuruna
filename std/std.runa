@@ -35,14 +35,14 @@
     }
 }
 
-> foldl_list(xs: Chain(a), acc: b, f: b -> a -> b) -> b {
+> foldl_list(xs: Chain(a), acc: b, f: (b, a) -> b) -> b {
     match xs {
         | End -> acc
         | Link(h, t) -> foldl_list(t, f(acc, h), f)
     }
 }
 
-> foldr_list(xs: Chain(a), init: b, f: a -> b -> b) -> b {
+> foldr_list(xs: Chain(a), init: b, f: (a, b) -> b) -> b {
     match xs {
         | End -> init
         | Link(h, t) -> f(h, foldr_list(t, init, f))
@@ -85,7 +85,7 @@
     }
 }
 
-> zip_with(xs: Chain(a), ys: Chain(b), f: a -> b -> c) -> Chain(c) {
+> zip_with(xs: Chain(a), ys: Chain(b), f: (a, b) -> c) -> Chain(c) {
     match xs {
         | End -> End
         | Link(x, xt) -> match ys {
@@ -103,7 +103,7 @@
     |x| g(f(x))
 }
 
-> flip(f: a -> b -> c) -> (b -> a -> c) {
+> flip(f: (a, b) -> c) -> ((b, a) -> c) {
     |b, a| f(a, b)
 }
 

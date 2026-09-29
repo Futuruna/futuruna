@@ -116,6 +116,7 @@ the executable amount probes out of the source-law sequence.
 | audit_par4a_pension_rettidig_omgørelse_signal: par4a_pension_audit_signal(RettidigOmgørelseOphæverFradrag) -> par4a_pension_audit_signal(RettidigOmgørelseOphæverFradrag) == Sandt
 
 | audit_par4a_pensionsfradrag_samlet() -> audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner == 80000 && audit_par4a_pension_pbl15a_loftet_resultat.fradrag_i_aktieindkomst_kroner == 20000 && audit_par4a_pension_uden_meddelelse_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_dobbeltfradrag_resultat.dobbeltfradrag_afskåret == Sandt && audit_par4a_pension_negativ_aktieindkomst_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_rettidig_omgørelse_resultat.fradragsvalg_gældende == Falskt
+| audit_par4a_pensionsfradrag_samlet_holder: audit_par4a_pensionsfradrag_samlet() -> audit_par4a_pensionsfradrag_samlet() == Sandt
 
 ? audit_par4a_pension_fradrag_loftes_til_aktieindkomst
 ? audit_par4a_pension_loft_signal
@@ -129,7 +130,7 @@ the executable amount probes out of the source-law sequence.
 ? audit_par4a_pension_positiv_aktieindkomst_signal
 ? audit_par4a_pension_rettidig_omgørelse_ophæver_valg
 ? audit_par4a_pension_rettidig_omgørelse_signal
-? audit_par4a_pensionsfradrag_samlet
+? audit_par4a_pensionsfradrag_samlet_holder
 
 @ print("audit §4a pensionsfradrag loftet til aktieindkomst: " + vis(audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner))
 @ print("audit §4a pensionsfradrag loftet til PBL §15 A-grundlag: " + vis(audit_par4a_pension_pbl15a_loftet_resultat.fradrag_i_aktieindkomst_kroner))

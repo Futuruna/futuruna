@@ -5252,25 +5252,32 @@ pub fn refof_reference_expr(expr: &Expr) -> Option<Expr> {
 }
 
 pub fn reorder_named_args_by_names(param_order: &[String], args: &[Expr]) -> Option<Vec<Expr>> {
-    if !has_named_args(args) || !all_named_args(args) {
+    Some(
+        order_named_args_by_names(param_order, args)?
+            .into_iter()
+            .cloned()
+            .collect(),
+    )
+}
+
+/// The argument expressions of an all-named call, in declared parameter order.
+pub fn order_named_args_by_names<'a>(
+    param_order: &[String],
+    args: &'a [Expr],
+) -> Option<Vec<&'a Expr>> {
+    if args.len() != param_order.len() || !has_named_args(args) || !all_named_args(args) {
         return None;
     }
-    let mut by_name: BTreeMap<String, Expr> = BTreeMap::new();
+    let mut ordered: Vec<Option<&'a Expr>> = vec![None; param_order.len()];
     for arg in args {
         let (name, value) = named_arg_parts(arg)?;
-        if !param_order.iter().any(|known| known == name) || by_name.contains_key(name) {
+        let slot = ordered.get_mut(param_order.iter().position(|known| known == name)?)?;
+        if slot.is_some() {
             return None;
         }
-        by_name.insert(name.to_string(), value.clone());
+        *slot = Some(value);
     }
-    if by_name.len() != param_order.len() {
-        return None;
-    }
-    let mut ordered = Vec::with_capacity(param_order.len());
-    for name in param_order {
-        ordered.push(by_name.get(name)?.clone());
-    }
-    Some(ordered)
+    ordered.into_iter().collect()
 }
 
 /// Allow ExprKind to convert to Expr (with dummy span) during migration.
@@ -12261,11 +12268,13 @@ impl Parser {
                 // Allow dashes in module paths (e.g. kapitel-08)
                 self.advance();
                 path.push('-');
-            } else if self.peek_kind() == TokenKind::Ident
-                || self.peek_kind() == TokenKind::Type
-                || self.peek_kind() == TokenKind::Int_
-            {
-                let seg = self.advance().text.clone();
+            } else if matches!(
+                self.peek_kind(),
+                TokenKind::Ident | TokenKind::Type | TokenKind::Int_ | TokenKind::KW
+            ) {
+                // A path segment is a file name: keep the spelling the author
+                // wrote, even when it is a keyword in the file's language.
+                let seg = self.advance().source_text.clone();
                 path.push_str(&seg);
             } else {
                 break;
@@ -12480,8 +12489,23 @@ impl Parser {
                     Ok(Ty::Unit)
                 } else {
                     let inner = self.parse_type()?;
+                    if self.peek_kind() != TokenKind::Comma {
+                        self.expect(TokenKind::RParen)?;
+                        return Ok(inner);
+                    }
+                    // `(A, B) -> C` is the type of a two-argument function.
+                    let mut parameters = vec![inner];
+                    while self.peek_kind() == TokenKind::Comma {
+                        self.advance();
+                        parameters.push(self.parse_type()?);
+                    }
                     self.expect(TokenKind::RParen)?;
-                    Ok(inner)
+                    self.expect(TokenKind::Arrow)?;
+                    let mut ty = self.parse_type()?;
+                    for parameter in parameters.into_iter().rev() {
+                        ty = Ty::Arrow(Box::new(parameter), Box::new(ty));
+                    }
+                    Ok(ty)
                 }
             }
             TokenKind::Amp => {
@@ -13492,6 +13516,19 @@ impl Parser {
             &start_tok,
         ))
     }
+}
+
+/// Result type of calling a value of function type `ty` with `arity`
+/// arguments: `(A, B) -> C` called with two arguments gives `C`.
+pub(crate) fn function_type_result(ty: Ty, arity: usize) -> Option<Ty> {
+    let mut result = ty;
+    for _ in 0..arity.max(1) {
+        let Ty::Arrow(_, output) = result else {
+            return None;
+        };
+        result = *output;
+    }
+    Some(result)
 }
 
 /// Parse the canonical type spelling carried by an internal rule-head
@@ -14975,11 +15012,45 @@ impl RuntimeDeclarationEnv {
     }
 }
 
+/// Hasher for interpreter binding names. Lookups are the hottest path of the
+/// interpreter and keys are program identifiers, so a multiply-rotate hash
+/// replaces SipHash.
+#[derive(Default, Clone, Copy)]
+pub struct BindingNameHasher(u64);
+
+impl std::hash::Hasher for BindingNameHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        const SEED: u64 = 0x51_7c_c1_b7_27_22_0a_95;
+        let mut chunks = bytes.chunks_exact(8);
+        for chunk in &mut chunks {
+            let word = u64::from_le_bytes(chunk.try_into().expect("chunk of eight bytes"));
+            self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(SEED);
+        }
+        for &byte in chunks.remainder() {
+            self.0 = (self.0.rotate_left(5) ^ u64::from(byte)).wrapping_mul(SEED);
+        }
+    }
+
+    fn write_u8(&mut self, byte: u8) {
+        self.write(&[byte]);
+    }
+
+    fn write_usize(&mut self, value: usize) {
+        self.write(&value.to_le_bytes());
+    }
+}
+
+pub type EnvBindings = HashMap<String, Value, std::hash::BuildHasherDefault<BindingNameHasher>>;
+
 #[derive(Debug, Clone)]
 pub struct Env {
     /// Bindings are immutable snapshots shared by cloned environments. Mutation
     /// uses copy-on-write, so child calls do not recursively clone global values.
-    pub bindings: Rc<HashMap<String, Value>>,
+    pub bindings: Rc<EnvBindings>,
     /// Compiler-only reservations hide inherited/builtin values until a
     /// source binding has a real constant value. Ordinary environments keep
     /// this empty; lexical children can still shadow a reservation normally.
@@ -15000,7 +15071,7 @@ pub struct Env {
 impl Env {
     pub fn new() -> Self {
         Env {
-            bindings: Rc::new(HashMap::new()),
+            bindings: Rc::new(EnvBindings::default()),
             unavailable_constants: Rc::default(),
             parent: None,
             runtime_namespace: None,
@@ -15010,7 +15081,7 @@ impl Env {
 
     pub fn child(&self) -> Self {
         Env {
-            bindings: Rc::new(HashMap::new()),
+            bindings: Rc::new(EnvBindings::default()),
             unavailable_constants: Rc::default(),
             parent: Some(Rc::new(self.clone())),
             runtime_namespace: self.runtime_namespace.clone(),
@@ -15022,7 +15093,7 @@ impl Env {
     /// Use this in hot paths (map/filter/foldl closure application).
     pub fn child_rc(self_rc: &Rc<Env>) -> Self {
         Env {
-            bindings: Rc::new(HashMap::new()),
+            bindings: Rc::new(EnvBindings::default()),
             unavailable_constants: Rc::default(),
             parent: Some(Rc::clone(self_rc)),
             runtime_namespace: self_rc.runtime_namespace.clone(),
@@ -16151,6 +16222,21 @@ impl Interpreter {
         Self::runtime_namespace_find(namespace, |state| {
             state.constructor_signatures.get(name).cloned()
         })
+    }
+
+    /// The namespace that declares constructor `name`, as seen from `namespace`.
+    fn runtime_constructor_owner(
+        &self,
+        namespace: &RuntimeNamespace,
+        name: &str,
+    ) -> Option<RuntimeNamespace> {
+        Self::runtime_namespace_find(namespace, |state| {
+            state
+                .constructor_signatures
+                .contains_key(name)
+                .then_some(())
+        })
+        .map(|(owner, ())| owner)
     }
 
     fn runtime_constructor_layout(
@@ -17694,31 +17780,36 @@ impl Interpreter {
         name: &str,
         args: &[Expr],
     ) -> Option<(RuntimeNamespace, RuntimeConstructorSignature)> {
-        let (owner, signatures) = self.runtime_constructor_signatures(namespace, name)?;
-        let matching = signatures
-            .iter()
-            .filter(|signature| signature.matches_args(args))
-            .collect::<Vec<_>>();
-        if matching.len() == 1 {
-            return matching
-                .first()
-                .map(|signature| (owner, (*signature).clone()));
-        }
-
-        if let Some(first) = matching.first() {
-            let same_runtime_layout = matching.iter().all(|signature| {
+        // Select inside the namespace borrow so the common single-layout case
+        // clones one signature, not the whole overload set.
+        let (owner, selection) = Self::runtime_namespace_find(namespace, |state| {
+            let signatures = state.constructor_signatures.get(name)?;
+            let mut matching = signatures
+                .iter()
+                .filter(|signature| signature.matches_args(args));
+            let Some(first) = matching.next() else {
+                return Some(Err(Vec::new()));
+            };
+            let same_runtime_layout = matching.clone().all(|signature| {
                 signature.positional == first.positional && signature.fields == first.fields
             });
             if same_runtime_layout {
-                return Some((owner, (*first).clone()));
+                return Some(Ok(first.clone()));
             }
-        }
-
+            Some(Err(std::iter::once(first)
+                .chain(matching)
+                .cloned()
+                .collect::<Vec<_>>()))
+        })?;
+        let matching = match selection {
+            Ok(signature) => return Some((owner, signature)),
+            Err(matching) => matching,
+        };
         let (_, (arity, positional)) = self.runtime_constructor_layout(namespace, name)?;
         matching
             .into_iter()
             .find(|signature| signature.arity() == arity && signature.positional == positional)
-            .map(|signature| (owner, signature.clone()))
+            .map(|signature| (owner, signature))
     }
 
     fn constructor_signature_for_args(
@@ -17735,11 +17826,15 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<(RuntimeNamespace, RuntimeConstructorSignature)> {
-        let (owner, signatures) = self.runtime_constructor_signatures(namespace, name)?;
-        signatures
-            .into_iter()
-            .find(|signature| signature.arity() == 0)
-            .map(|signature| (owner, signature))
+        let (owner, signature) = Self::runtime_namespace_find(namespace, |state| {
+            state.constructor_signatures.get(name).map(|signatures| {
+                signatures
+                    .iter()
+                    .find(|signature| signature.arity() == 0)
+                    .cloned()
+            })
+        })?;
+        signature.map(|signature| (owner, signature))
     }
 
     fn nullary_constructor_signature(&self, name: &str) -> Option<RuntimeConstructorSignature> {
@@ -20487,7 +20582,13 @@ impl Interpreter {
                         let _scope_last = self.run_statement_block(body, &mut scope_env);
                         self.live_scope_exit();
                         // Store scope as a value so bindings are accessible via ScopeName.field
-                        let scope_bindings = scope_env.bindings.clone();
+                        let scope_bindings = Rc::new(
+                            scope_env
+                                .bindings
+                                .iter()
+                                .map(|(name, value)| (name.clone(), value.clone()))
+                                .collect(),
+                        );
                         let declaration_env = Rc::new(scope_env.child());
                         env.set(
                             name.clone(),
@@ -21234,15 +21335,16 @@ impl Interpreter {
         let namespace = self.namespace_for_env(env);
         let (owner, signature) =
             self.constructor_signature_for_args_in_namespace(&namespace, ctor_name, args)?;
-        let ordered = if has_named_args(args) {
-            reorder_named_args_by_names(&signature.fields, args)?
+        let values = if has_named_args(args) {
+            order_named_args_by_names(&signature.fields, args)?
+                .into_iter()
+                .map(|argument| self.eval(argument, env))
+                .collect::<Vec<_>>()
         } else {
-            args.to_vec()
+            args.iter()
+                .map(|argument| self.eval(argument, env))
+                .collect::<Vec<_>>()
         };
-        let values = ordered
-            .iter()
-            .map(|argument| self.eval(argument, env))
-            .collect::<Vec<_>>();
         if self
             .runtime_rule_scope(&owner, ctor_name)
             .is_some_and(|(scope_owner, _, _)| scope_owner.same_instance(&owner))
@@ -21274,8 +21376,8 @@ impl Interpreter {
         args: &[Expr],
         env: &Env,
     ) -> Option<Vec<Value>> {
-        let ordered = reorder_named_args_by_names(param_order, args)?;
-        Some(ordered.iter().map(|arg| self.eval(arg, env)).collect())
+        let ordered = order_named_args_by_names(param_order, args)?;
+        Some(ordered.into_iter().map(|arg| self.eval(arg, env)).collect())
     }
 
     fn materialize_call_arguments(
@@ -21443,7 +21545,7 @@ impl Interpreter {
                 }
             }
             if self
-                .runtime_constructor_signatures(&namespace, function_name)
+                .runtime_constructor_owner(&namespace, function_name)
                 .is_some()
             {
                 if let Some(value) = self.eval_constructor_call(function_name, arguments, env) {
@@ -21787,10 +21889,15 @@ impl Interpreter {
                 }
                 // Check local env first (params, local bindings, builtins)
                 if let Some(val) = env.get(name) {
-                    let value_namespace = self.runtime_value_namespace(val);
-                    if let Some((owner, _)) = self
-                        .nullary_constructor_signature_in_namespace(&value_namespace, name)
-                        .filter(|_| Self::value_is_registered_constructor_binding(val, name))
+                    if let Some((owner, _)) =
+                        Self::value_is_registered_constructor_binding(val, name)
+                            .then(|| {
+                                self.nullary_constructor_signature_in_namespace(
+                                    &self.runtime_value_namespace(val),
+                                    name,
+                                )
+                            })
+                            .flatten()
                     {
                         self.runtime_constructor_value(&owner, name.clone(), vec![])
                     } else if let Value::Closure {
@@ -25135,8 +25242,8 @@ impl Interpreter {
     fn pattern_constructor_owner_matches(&self, name: &str, value: &Value, env: &Env) -> bool {
         let value_namespace = self.runtime_value_namespace(value);
         let declaration_namespace = self.namespace_for_env(env);
-        self.runtime_constructor_signatures(&declaration_namespace, name)
-            .map(|(owner, _)| owner.same_constructor_owner(&value_namespace, name))
+        self.runtime_constructor_owner(&declaration_namespace, name)
+            .map(|owner| owner.same_constructor_owner(&value_namespace, name))
             .unwrap_or_else(|| value_namespace.same_instance(&self.runtime_root))
     }
 
@@ -25572,10 +25679,13 @@ impl Interpreter {
             name: name.to_string(),
             arity,
         };
-        let (owner, rules) = self.rules_named(namespace, name)?;
+        let (owner, ()) = Self::runtime_namespace_find(namespace, |state| {
+            state.rules_by_name.contains_key(name).then_some(())
+        })?;
         if let Some(prepared) = owner.state.borrow().exact_prepared_rule_dispatch.get(&key) {
             return Some(prepared.clone());
         }
+        let (_, rules) = self.rules_named(&owner, name)?;
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(rules, arity)?);
         owner
             .state
@@ -25739,22 +25849,10 @@ impl Interpreter {
         else {
             return Value::Unit;
         };
-        let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
-            let Some(prepared) =
-                self.exact_scoped_rule_dispatch(&owner, scope_name, method, args.len())
-            else {
-                return Value::Unit;
-            };
-            (Some(prepared), None)
-        } else {
-            let matching = Self::rule_scope_matching_rules(&definition, method, args.len())
-                .into_iter()
-                .map(|rule| (rule, scope_declaration_env.clone()))
-                .collect::<Vec<_>>();
-            if matching.is_empty() {
-                return Value::Unit;
-            }
-            (None, Some(matching))
+        let Some(prepared) =
+            self.exact_scoped_rule_dispatch(&owner, scope_name, method, args.len())
+        else {
+            return Value::Unit;
         };
         let mut scoped_env = declaration_call_env.child();
         scoped_env.set_runtime_namespace(owner.clone());
@@ -25777,23 +25875,13 @@ impl Interpreter {
             arity: args.len(),
         };
         let materialized_args = self.materialize_call_arguments(args, caller_env, &mut scoped_env);
-        let result = match (prepared, matching) {
-            (Some(prepared), _) => self.try_rule_call_from_prepared(
-                &owner,
-                &materialized_args,
-                &scoped_env,
-                prepared.as_ref(),
-                &family,
-            ),
-            (None, Some(matching)) => self.try_rule_call_from_rules(
-                &owner,
-                &family,
-                &materialized_args,
-                &scoped_env,
-                matching,
-            ),
-            (None, None) => None,
-        };
+        let result = self.try_rule_call_from_prepared(
+            &owner,
+            &materialized_args,
+            &scoped_env,
+            prepared.as_ref(),
+            &family,
+        );
         self.pop_active_rule_scope_frame();
         result.unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family))
     }
@@ -25846,21 +25934,7 @@ impl Interpreter {
             self.runtime_rule_scope(&namespace, &scope_name)?;
         let declaration_call_env =
             self.registered_declaration_env(&scope_declaration_env, "RuleScope", &scope_name)?;
-        let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
-            (
-                Some(self.exact_scoped_rule_dispatch(&owner, &scope_name, fn_name, args.len())?),
-                None,
-            )
-        } else {
-            let matching = Self::rule_scope_matching_rules(&definition, fn_name, args.len())
-                .into_iter()
-                .map(|rule| (rule, scope_declaration_env.clone()))
-                .collect::<Vec<_>>();
-            if matching.is_empty() {
-                return None;
-            }
-            (None, Some(matching))
-        };
+        let prepared = self.exact_scoped_rule_dispatch(&owner, &scope_name, fn_name, args.len())?;
         let family = RuleDispatchKey {
             scope: Some(scope_name.clone()),
             name: fn_name.to_string(),
@@ -25908,24 +25982,15 @@ impl Interpreter {
             ),
         );
         let materialized_args = self.materialize_call_arguments(args, env, &mut scoped_env);
-        let result = match (prepared, matching) {
-            (Some(prepared), _) => self.try_rule_call_from_prepared(
+        let result = self
+            .try_rule_call_from_prepared(
                 &owner,
                 &materialized_args,
                 &scoped_env,
                 prepared.as_ref(),
                 &family,
-            ),
-            (None, Some(matching)) => self.try_rule_call_from_rules(
-                &owner,
-                &family,
-                &materialized_args,
-                &scoped_env,
-                matching,
-            ),
-            (None, None) => None,
-        }
-        .unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family));
+            )
+            .unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family));
         let trace_active = self.checked_mechanism_trace.is_some();
         let selection_memo = (args.is_empty() && trace_active)
             .then(|| self.checked_mechanism_completed_rule_selection_memo(&family))
@@ -25977,7 +26042,9 @@ impl Interpreter {
             name: fn_name.to_string(),
             arity: args.len(),
         };
-        let (owner, matching) = self.rules_named(namespace, fn_name)?;
+        let (owner, ()) = Self::runtime_namespace_find(namespace, |state| {
+            state.rules_by_name.contains_key(fn_name).then_some(())
+        })?;
         // An anonymous argument asks whether a matching tuple exists, including
         // in a single-goal body or a nested call such as not(parent(x, _)).
         // Never evaluate `_` as an ordinary constructor or environment binding.
@@ -26000,13 +26067,10 @@ impl Interpreter {
                 env,
             )));
         }
-        if self.exact_prepared_rule_dispatch_is_active() {
-            let prepared = self.exact_global_rule_dispatch(&owner, fn_name, args.len())?;
-            return self.try_rule_call_from_prepared(&owner, args, env, prepared.as_ref(), &family);
-        }
-
-        // Clone shared rule handles so evaluation can mutably borrow the interpreter.
-        self.try_rule_call_from_rules(&owner, &family, args, env, matching)
+        // The prepared dispatch is cached per declaring namespace; registering
+        // a rule of the same family invalidates it.
+        let prepared = self.exact_global_rule_dispatch(&owner, fn_name, args.len())?;
+        self.try_rule_call_from_prepared(&owner, args, env, prepared.as_ref(), &family)
     }
 
     fn try_rule_call_from_rules(
@@ -26092,12 +26156,15 @@ impl Interpreter {
         // so exception/default/clause matching stays purely positional below.
         let ordered_args = if has_named_args(args) {
             let param_names = dispatch.named_parameter_order.as_ref()?;
-            reorder_named_args_by_names(param_names, args)?
+            order_named_args_by_names(param_names, args)?
         } else {
-            args.to_vec()
+            args.iter().collect()
         };
         let memo_output_len_before_arguments = self.output.len();
-        let arg_vals: Vec<Value> = ordered_args.iter().map(|a| self.eval(a, env)).collect();
+        let arg_vals: Vec<Value> = ordered_args
+            .into_iter()
+            .map(|a| self.eval(a, env))
+            .collect();
         let root_dispatch = namespace.same_instance(&self.runtime_root);
         let mechanism_memo_key = (root_dispatch
             && self.output.len() == memo_output_len_before_arguments)
@@ -26562,23 +26629,28 @@ impl Interpreter {
             "Bool" => matches!(value, Value::Bool(_)),
             "Char" => matches!(value, Value::Char(_)),
             _ => {
-                if let Some((type_owner, variants)) =
-                    self.runtime_type_variants(expected_namespace, type_name)
+                let constructor_name = match value {
+                    Value::Constructor(name, _)
+                    | Value::NamedConstructor(name, _)
+                    | Value::NamespacedConstructor { name, .. }
+                    | Value::NamespacedNamedConstructor { name, .. } => Some(name.as_str()),
+                    _ => None,
+                };
+                if let Some((type_owner, is_variant)) =
+                    Self::runtime_namespace_find(expected_namespace, |state| {
+                        state.type_variants.get(type_name).map(|variants| {
+                            constructor_name
+                                .is_some_and(|name| variants.iter().any(|variant| variant == name))
+                        })
+                    })
                 {
-                    let constructor_name = match value {
-                        Value::Constructor(name, _)
-                        | Value::NamedConstructor(name, _)
-                        | Value::NamespacedConstructor { name, .. }
-                        | Value::NamespacedNamedConstructor { name, .. } => name,
-                        _ => return false,
-                    };
-                    if !variants.contains(constructor_name) {
+                    let Some(constructor_name) = constructor_name.filter(|_| is_variant) else {
                         return false;
-                    }
+                    };
                     let actual_owner = self.runtime_value_namespace(value);
                     return self
-                        .runtime_constructor_signatures(&type_owner, constructor_name)
-                        .is_some_and(|(constructor_owner, _)| {
+                        .runtime_constructor_owner(&type_owner, constructor_name)
+                        .is_some_and(|constructor_owner| {
                             constructor_owner
                                 .same_constructor_owner(&actual_owner, constructor_name)
                         });
@@ -26599,9 +26671,18 @@ impl Interpreter {
                     Value::Constructor(name, _)
                     | Value::NamedConstructor(name, _)
                     | Value::NamespacedConstructor { name, .. }
-                    | Value::NamespacedNamedConstructor { name, .. } => self
-                        .runtime_type_variants(&self.runtime_value_namespace(value), type_name)
-                        .map_or(false, |(_, variants)| variants.contains(name)),
+                    | Value::NamespacedNamedConstructor { name, .. } => {
+                        Self::runtime_namespace_find(
+                            &self.runtime_value_namespace(value),
+                            |state| {
+                                state
+                                    .type_variants
+                                    .get(type_name)
+                                    .map(|variants| variants.contains(name))
+                            },
+                        )
+                        .is_some_and(|(_, contains)| contains)
+                    }
                     _ => false,
                 }
             }
@@ -26830,10 +26911,7 @@ impl Interpreter {
                     self.nullary_constructor_signature_in_namespace(namespace, name)
                 {
                     Some(self.runtime_constructor_value(&owner, name.clone(), vec![]))
-                } else if self
-                    .runtime_constructor_signatures(namespace, name)
-                    .is_none()
-                {
+                } else if self.runtime_constructor_owner(namespace, name).is_none() {
                     Some(Value::Constructor(name.clone(), vec![].into()))
                 } else {
                     None
@@ -50566,8 +50644,8 @@ impl TypeChecker {
                 Some("String".to_string())
             }
             ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
-            ("parse_int", 1) => Some("Result(Int, String)".to_string()),
-            ("parse_float", 1) => Some("Result(Float, String)".to_string()),
+            ("parse_int" | "parse_danish_int", 1) => Some("Result(Int, String)".to_string()),
+            ("parse_float" | "parse_danish_float", 1) => Some("Result(Float, String)".to_string()),
             ("read_file" | "http_get" | "json_parse", 1) | ("http_post", 2) => {
                 Some("Result(String, String)".to_string())
             }
@@ -50882,7 +50960,10 @@ impl TypeChecker {
                         return Some("Int".to_string());
                     }
                     if let Some(local_type) = locals.get(name) {
-                        if let Ok(Ty::Arrow(_, return_type)) = parse_type_annotation(local_type) {
+                        if let Some(return_type) = parse_type_annotation(local_type)
+                            .ok()
+                            .and_then(|ty| function_type_result(ty, args.len()))
+                        {
                             return Self::type_name_from_ty(&return_type);
                         }
                     }
@@ -53284,6 +53365,37 @@ impl TypeChecker {
         }
     }
 
+    /// For each name, the indices of the rule groups whose results mention it
+    /// as a variable, call or field.
+    fn rule_group_dependents<'a>(
+        groups: impl Iterator<Item = &'a [&'a Rule]>,
+    ) -> HashMap<String, Vec<usize>> {
+        let mut dependents: HashMap<String, Vec<usize>> = HashMap::new();
+        for (index, rules) in groups.enumerate() {
+            let mut names = BTreeSet::<&str>::new();
+            for rule in rules {
+                let result = match rule {
+                    Rule::Clause {
+                        body: Some(body), ..
+                    } => body,
+                    Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
+                    Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => continue,
+                };
+                walk_ast_expr(result, &mut |child| {
+                    if let AstChild::Expr(expr) = child {
+                        if let ExprKind::Var(name) | ExprKind::Field(_, name) = &expr.kind {
+                            names.insert(name.as_str());
+                        }
+                    }
+                });
+            }
+            for name in names {
+                dependents.entry(name.to_string()).or_default().push(index);
+            }
+        }
+        dependents
+    }
+
     fn infer_rule_dispatch_return_types(&mut self, stmts: &[Stmt]) {
         type ReturnGroup<'a> = (BTreeMap<String, String>, Vec<&'a Rule>);
 
@@ -53479,10 +53591,37 @@ impl TypeChecker {
         // an initialization cycle (for example a later literal feeding a
         // RuleScope member). Infer both in the same bounded fixed point.
         // The independent canonical pass below still rejects unsafe proofs.
+        //
+        // Only groups whose clauses mention a changed family are re-inferred:
+        // an untouched group would recompute its previous result. Dependents
+        // later in the order are revisited in the same round, earlier ones in
+        // the next, which keeps the visiting order of a full sweep.
+        let group_entries = groups.iter().collect::<Vec<_>>();
+        let dependents = Self::rule_group_dependents(
+            group_entries.iter().map(|(_, (_, rules))| rules.as_slice()),
+        );
+        let mark_dependents = |name: &str, index: usize, now: &mut [bool], next: &mut [bool]| {
+            for &dependent in dependents.get(name).into_iter().flatten() {
+                if dependent > index {
+                    now[dependent] = true;
+                } else {
+                    next[dependent] = true;
+                }
+            }
+        };
+        let mut dirty = vec![true; group_entries.len()];
         for _ in 0..groups.len().saturating_add(stmts.len()).saturating_add(1) {
             self.active_rule_scope_inference = None;
             let mut changed = self.infer_top_level_binding_types(stmts);
-            for (key, (captures, rules)) in &groups {
+            if changed {
+                dirty.fill(true);
+            }
+            let mut next = vec![false; group_entries.len()];
+            for index in 0..group_entries.len() {
+                if !dirty[index] {
+                    continue;
+                }
+                let (key, (captures, rules)) = group_entries[index];
                 self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group_provisionally(self, captures, rules);
                 let known = inferred.iter().flatten().collect::<Vec<_>>();
@@ -53492,19 +53631,24 @@ impl TypeChecker {
                 if self.rule_dispatch_return_types.get(key) != Some(&merged) {
                     self.rule_dispatch_return_types.insert(key.clone(), merged);
                     changed = true;
+                    mark_dependents(&key.name, index, &mut dirty, &mut next);
                 }
             }
             if !changed {
                 break;
             }
+            dirty = next;
         }
 
         // Remove conflicts and unresolved families, then repeat so their
         // callers also fail closed instead of retaining a provisional sort.
+        let mut dirty = vec![true; group_entries.len()];
         loop {
             let mut changed = false;
-            for (key, (captures, rules)) in &groups {
-                if self.rule_dispatch_return_issues.contains_key(key) {
+            let mut next = vec![false; group_entries.len()];
+            for index in 0..group_entries.len() {
+                let (key, (captures, rules)) = group_entries[index];
+                if !dirty[index] || self.rule_dispatch_return_issues.contains_key(key) {
                     continue;
                 }
                 self.active_rule_scope_inference = key.scope.clone();
@@ -53540,11 +53684,13 @@ impl TypeChecker {
                     self.rule_dispatch_return_types.remove(key);
                     self.rule_dispatch_return_issues.insert(key.clone(), issue);
                     changed = true;
+                    mark_dependents(&key.name, index, &mut dirty, &mut next);
                 }
             }
             if !changed {
                 break;
             }
+            dirty = next;
         }
         self.active_rule_scope_inference = previous_active_scope;
         self.rule_dispatch_backend_return_types = self.rule_dispatch_return_types.clone();
