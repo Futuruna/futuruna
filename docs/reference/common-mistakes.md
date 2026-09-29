@@ -86,12 +86,15 @@ Do not assume that another language's `.len()` or `.map(...)` methods exist.
   so the input domain and the intermediate value must fit `Int`.
 - `%` means remainder. A percentage is a numeric value with a model-defined
   unit, such as `25` percent or the fraction `0.25`.
-- There are no date literals: `2024-01-31` is subtraction and gives `1992`.
-  Use date text or a validated record. Write thousands as `1000`; commas
-  separate items and underscores are unsupported.
+- There are no date literals. Date-shaped numbers such as `2024-01-31` or
+  `31/12/2024` are errors, because they would be arithmetic; use date text or
+  a validated record. Group digits with `_`, as in `1_000_000`. Thousands
+  commas (`1,000`), repeated decimal points (`1.000.000`) and leading zeros
+  (`007`) are errors.
 - A newline usually ends a statement. To subtract across lines, put the `-`
-  before the newline or group the whole expression in parentheses. Indentation
-  alone does not continue an expression.
+  before the newline or group the whole expression in parentheses. A line that
+  starts with `-` or `||` begins a new statement, and is an error when it is
+  indented under the previous statement.
 
 ## Check the program and its intended behavior
 

@@ -19,14 +19,29 @@ metadata, and audits an actual same-rule contradiction.
 42          -- Int (i64)
 3.14        -- Float (f64)
 -7          -- negative Int
+1_000_000   -- Int; `_` groups digits
+0.000_25    -- Float
 ```
 
-Write thousands without commas or underscores: `1000`. Digit separators such
-as `1_000` are unsupported. Commas separate arguments and list
-items, so `[1,000, 2]` means `[1, 0, 2]`. Leading zeroes do not change an
-integer's decimal value. There is no date literal: `2024-01-31` is subtraction
-and evaluates to `1992`. Use a string such as `"2024-01-31"` for date text, or
-an explicitly defined date record with the validation your model requires.
+A number literal is a run of decimal digits with at most one `.`, which must be
+followed by a digit. A `_` may stand between two digits to group them and does
+not change the value. The following spellings would silently mean something
+other than their conventional reading, so they are errors:
+
+- a date shape: four digits and two groups of one or two digits joined by the
+  same `-` or `/` (`2024-01-31`, `2024/1/31`), or the reverse order
+  (`31-01-2024`, `31/12/2024`). There is no date literal; use a string such as
+  `"2024-01-31"` for date text, or an explicitly defined date record with the
+  validation your model requires;
+- a comma directly followed by exactly three digits after a number of one to
+  three digits (`1,000`, `[1,500, 2]`), which reads as a thousands separator but
+  would separate items. Write `1_000`, or put a space after the comma;
+- a second decimal point (`1.000.000`);
+- a leading zero before another digit (`007`, `00.5`); write `7` or `0.5`;
+- a `_` that does not stand between two digits (`1__000`, `1000_`).
+
+Digits in `@ import` module paths and content hashes are part of the name, as
+in `@ import ./kapitel-04`.
 
 `%` is a binary remainder operator, not a percentage suffix. Represent a rate
 as `25` percent or `0.25` as a fraction, and keep that unit consistent in the
@@ -110,7 +125,9 @@ grammar makes continuation unambiguous:
 
 - inside parentheses `(...)` or brackets `[...]`;
 - after an incomplete token such as `=`, `->`, `,`, or an operator; or
-- before a continuation token such as `|>`, `.`, `under`, or `else`.
+- before a continuation token such as `|>`, `.`, `under`, `else`, `and`, or a
+  binary operator that cannot begin an expression: `+`, `*`, `/`, `%`, `^`,
+  `==`, `!=`, `<`, `<=`, `>=`, `&&`.
 
 Use a newline or `;` between adjacent expressions. For example, `= x = 5 5`
 is an error; write `= x = 5; 5` if you intend two statements. Explicit rune
@@ -168,12 +185,15 @@ top-level rule:
     )
 ```
 
-Do not rely on continuation inference for a line-leading `+`, `-`, or `||`.
-Put these operators at the end of the preceding line, or wrap the whole
-expression in parentheses, to make the intended continuation explicit.
-For example, `= net = 100` followed by an indented `- 30` keeps `net` at
-`100`: the second line is a separate expression statement whose result is
-discarded. Indentation alone does not join these statements.
+`-` and `||` can begin an expression (negation and a parameterless closure),
+so a line that starts with either one begins a new statement. Such a line is
+an error when it is indented further than the statement before it, because
+the indentation reads as a continuation the grammar does not perform. Put the
+operator at the end of the preceding line, or wrap the whole expression in
+parentheses. For example, `= net = 100` followed by an indented `- 30` is an
+error, while an indented `+ 30` continues the expression. A line-leading `-`
+at the statement's own indentation is ordinary negation, such as a block's
+final `-total`.
 
 ## Types
 
@@ -397,3 +417,18 @@ Block comment
 can span multiple lines
 ----
 ```
+
+`--` starts a line comment that runs to the end of the line, so a line of
+three dashes is a comment. A run of four or more consecutive dashes is one
+block delimiter, whatever its length: the first run opens a block comment and
+the next run closes it. Banners such as `-----` or `------------` therefore
+enclose the text between them:
+
+```runa
+-----
+-- Tax law
+-----
+= x = 5
+```
+
+A delimiter run that opens a block comment and has no closing run is an error.
