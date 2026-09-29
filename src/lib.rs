@@ -40,7 +40,10 @@ mod checked_explore_source_events;
 mod editor_fields;
 pub use editor_fields::EditorField;
 pub mod explore;
+mod host_effects;
+pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
+pub mod manifest;
 mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
@@ -12085,21 +12088,97 @@ impl Parser {
         Ok(path)
     }
 
-    /// Parse: @ depend "crate_name" "version"
+    /// Parse: @ depend "crate_name" "version" ["feature", ...]
+    ///
+    /// A dependency is a crates.io package with a Cargo version requirement
+    /// and optional features. Other Cargo sources (paths, git, inline tables)
+    /// are not expressible, so a model cannot make the compiler build code
+    /// from an arbitrary location.
     pub fn parse_depend_decl(&mut self) -> Result<Stmt, String> {
         let crate_name = if self.peek_kind() == TokenKind::String_ {
-            self.advance().text.clone()
+            let p = self.peek();
+            let (line, col) = (p.line, p.col);
+            let name = self.advance().text.clone();
+            let valid = !name.is_empty()
+                && name.len() <= 64
+                && name.starts_with(|ch: char| ch.is_ascii_alphabetic())
+                && name
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_');
+            if !valid {
+                return Err(format!("{}:{}: invalid crate name `{}` in @ depend; use a crates.io package name such as \"regex\"", line, col, name));
+            }
+            name
         } else {
             let p = self.peek();
             return Err(format!("{}:{}: expected crate name string after @ depend\n  Try: @ depend \"crate_name\" \"version\"", p.line, p.col));
         };
         let version = if self.peek_kind() == TokenKind::String_ {
-            self.advance().text.clone()
+            let p = self.peek();
+            let (line, col) = (p.line, p.col);
+            let version = self.advance().text.clone();
+            // A version such as "1", "0.10" or "1.2.3-beta.1" (Cargo reads it
+            // as a caret requirement).
+            let valid = version.starts_with(|ch: char| ch.is_ascii_digit())
+                && version
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '+'));
+            if !valid {
+                return Err(format!("{}:{}: @ depend \"{}\" needs a crates.io version such as \"1.0\"; path, git and inline-table sources are not supported\n  Features follow the version: @ depend \"{}\" \"1\" [\"feature\"]", line, col, crate_name, crate_name));
+            }
+            version
         } else {
             let p = self.peek();
             return Err(format!("{}:{}: expected version string after crate name in @ depend\n  Try: @ depend \"{}\" \"1.0\"", p.line, p.col, crate_name));
         };
-        Ok(Stmt::Depend(crate_name, version))
+        if self.peek_kind() != TokenKind::LBracket {
+            return Ok(Stmt::Depend(crate_name, version));
+        }
+        self.advance();
+        let mut features = Vec::new();
+        while self.peek_kind() != TokenKind::RBracket {
+            let p = self.peek();
+            let (line, col) = (p.line, p.col);
+            if self.peek_kind() != TokenKind::String_ {
+                return Err(format!(
+                    "{}:{}: @ depend features are a list of strings, such as [\"derive\"]",
+                    line, col
+                ));
+            }
+            let feature = self.advance().text.clone();
+            let valid = !feature.is_empty()
+                && feature.chars().all(|ch| {
+                    ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '/' | '+' | '.')
+                });
+            if !valid {
+                return Err(format!(
+                    "{}:{}: invalid feature `{}` in @ depend",
+                    line, col, feature
+                ));
+            }
+            features.push(format!("\"{feature}\""));
+            if self.peek_kind() == TokenKind::Comma {
+                self.advance();
+            } else if self.peek_kind() != TokenKind::RBracket {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: expected `,` or `]` in @ depend features",
+                    p.line, p.col
+                ));
+            }
+        }
+        self.advance();
+        if features.is_empty() {
+            return Ok(Stmt::Depend(crate_name, version));
+        }
+        Ok(Stmt::Depend(
+            crate_name,
+            format!(
+                "{{ version = \"{}\", features = [{}] }}",
+                version,
+                features.join(", ")
+            ),
+        ))
     }
 
     // --- = Binding ---
@@ -15509,6 +15588,9 @@ pub struct Interpreter {
     /// must never perform observable effects while exhausting assignments.
     exhaustive_preview_forbid_effects: bool,
     exhaustive_preview_error: RefCell<Option<String>>,
+    /// When set, host effects (see `host_effects`) fail with an error naming
+    /// this context instead of running.
+    host_effects_denied: Option<&'static str>,
     /// Constant evaluation must not turn an unavailable runtime
     /// binding into a symbolic logic value and then fold that placeholder.
     evaluating_constant: bool,
@@ -15575,6 +15657,7 @@ impl Interpreter {
             suppress_output: false,
             exhaustive_preview_forbid_effects: false,
             exhaustive_preview_error: RefCell::new(None),
+            host_effects_denied: None,
             evaluating_constant: false,
             ground_collection_limit: None,
             ground_error: RefCell::new(None),
@@ -16160,6 +16243,22 @@ impl Interpreter {
         Value::Unit
     }
 
+    /// Refuse every host effect from now on; `context` names the operation
+    /// in the error, for example "compile-time evaluation".
+    pub fn deny_host_effects(&mut self, context: &'static str) {
+        self.host_effects_denied = Some(context);
+    }
+
+    fn refuse_host_effect(&self, name: &str) -> Option<Value> {
+        let context = self.host_effects_denied?;
+        is_host_effect_builtin(name).then(|| {
+            self.panic_or_ground_fail(format!(
+                "{context} cannot perform the host effect `{}`",
+                builtin_canonical(name)
+            ))
+        })
+    }
+
     pub(crate) fn enable_exact_exploration_effect_guard(&mut self) {
         self.exhaustive_preview_forbid_effects = true;
         self.exhaustive_preview_error.borrow_mut().take();
@@ -16526,16 +16625,19 @@ impl Interpreter {
         })
     }
 
-    /// Evaluate an explicit compile-time request. Effects in the expression
-    /// are intentional, but its dependencies must already have compile-time
-    /// values; unavailable runtime bindings cannot become symbolic constants.
+    /// Evaluate an explicit compile-time request. Compile-time evaluation
+    /// performs no host effects, and its dependencies must already have
+    /// compile-time values; unavailable runtime bindings cannot become
+    /// symbolic constants.
     pub fn eval_explicit_constant(
         &mut self,
         expression: &Expr,
         env: &Env,
     ) -> Result<Value, String> {
         let previous = std::mem::replace(&mut self.evaluating_constant, true);
+        let previous_denial = self.host_effects_denied.replace("compile-time evaluation");
         let result = self.with_calculation_runtime(|interpreter| interpreter.eval(expression, env));
+        self.host_effects_denied = previous_denial;
         self.evaluating_constant = previous;
         result.map_err(|error| error.to_string())
     }
@@ -17316,27 +17418,11 @@ impl Interpreter {
             return Some(file_path);
         }
 
-        // Try manifest-based resolution
-        if let Some(toml_path) = Self::find_manifest(dir) {
-            if let Some((deps, _)) = Self::parse_manifest_deps(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                if let Some(resolved) =
-                    TypeChecker::resolve_dep_module(import_path, &deps, &toml_dir)
-                {
-                    return Some(resolved);
-                }
-            }
+        // Manifest dependency (`dep/module`): local files only, never fetched.
+        if let Some(Ok(resolved)) =
+            manifest::resolve_dependency_import(import_path, std::path::Path::new(dir))
+        {
+            return Some(resolved.to_string_lossy().into_owned());
         }
 
         Some(file_path)
@@ -17864,111 +17950,6 @@ impl Interpreter {
                 env: method_env,
             }
         })
-    }
-
-    /// Find runa.toml by walking up from a directory
-    fn find_manifest(start_dir: &str) -> Option<String> {
-        let mut dir = std::path::PathBuf::from(start_dir);
-        loop {
-            let candidate = dir.join("runa.toml");
-            if candidate.exists() {
-                return Some(candidate.to_string_lossy().to_string());
-            }
-            if !dir.pop() {
-                return None;
-            }
-        }
-    }
-
-    /// Parse [dependencies] from a runa.toml — returns Vec<(name, path)> and package name
-    /// Extract a quoted value for a key from an inline TOML table
-    fn extract_toml_value(raw: &str, key: &str) -> Option<String> {
-        if let Some(k_start) = raw.find(key) {
-            let after = &raw[k_start + key.len()..];
-            if let Some(eq) = after.find('=') {
-                let val = after[eq + 1..]
-                    .trim()
-                    .trim_end_matches('}')
-                    .trim()
-                    .trim_end_matches(',')
-                    .trim()
-                    .trim_matches('"');
-                if !val.is_empty() {
-                    return Some(val.to_string());
-                }
-            }
-        }
-        None
-    }
-
-    /// Hash a git URL to get the cache directory name
-    fn git_cache_key(url: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut h = DefaultHasher::new();
-        url.hash(&mut h);
-        format!("{:016x}", h.finish())
-    }
-
-    fn parse_manifest_deps(toml_path: &str) -> Option<(Vec<(String, String)>, String)> {
-        let content = std::fs::read_to_string(toml_path).ok()?;
-        let mut pkg_name = String::new();
-        let mut deps: Vec<(String, String)> = Vec::new();
-        let mut section = "";
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-            if trimmed == "[package]" {
-                section = "package";
-                continue;
-            }
-            if trimmed == "[dependencies]" {
-                section = "deps";
-                continue;
-            }
-            if trimmed.starts_with('[') {
-                section = "";
-                continue;
-            }
-
-            if let Some(eq_pos) = trimmed.find('=') {
-                let key = trimmed[..eq_pos].trim();
-                let val_raw = trimmed[eq_pos + 1..].trim();
-                let val = val_raw.trim_matches('"');
-                match section {
-                    "package" => {
-                        if key == "name" {
-                            pkg_name = val.to_string();
-                        }
-                    }
-                    "deps" => {
-                        if val_raw.contains("git") {
-                            // Git dependency → resolve to cache path
-                            if let Some(url) = Self::extract_toml_value(val_raw, "git") {
-                                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-                                let cache_path = format!(
-                                    "{}/.cache/futuruna/deps/{}",
-                                    home,
-                                    Self::git_cache_key(&url)
-                                );
-                                deps.push((key.to_string(), cache_path));
-                            }
-                        } else if val_raw.contains("path") {
-                            if let Some(path) = Self::extract_toml_value(val_raw, "path") {
-                                deps.push((key.to_string(), path));
-                            }
-                        } else {
-                            deps.push((key.to_string(), val.to_string()));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        Some((deps, pkg_name))
     }
 
     pub fn default_env(&self) -> Env {
@@ -21949,6 +21930,9 @@ impl Interpreter {
             return self.runtime_constructor_value(namespace, ctor_name.to_string(), args);
         }
 
+        if let Some(refused) = self.refuse_host_effect(name) {
+            return refused;
+        }
         if self.exhaustive_preview_forbid_effects {
             let canonical = builtin_canonical(name);
             let impure = meta_impure_runtime_names();
@@ -24382,6 +24366,9 @@ impl Interpreter {
     }
 
     pub fn eval_effect(&mut self, name: &str, args: Vec<Value>) -> Value {
+        if let Some(refused) = self.refuse_host_effect(name) {
+            return refused;
+        }
         match builtin_canonical(name) {
             "print" => {
                 let text = match args.first() {
@@ -54419,13 +54406,20 @@ impl TypeChecker {
                 if feeds_checked_resolution || self.phase_a_has_exact_source_snapshot(file_path) {
                     self.checked_resolution_source_snapshot_coherent = false;
                 }
-                self.error_at_import_path(
-                    import_path,
-                    format!(
+                let importing_dir = file_path
+                    .strip_suffix(&format!("/{}.runa", import_path.trim_start_matches("./")));
+                let dependency_error = importing_dir.and_then(|dir| {
+                    manifest::resolve_dependency_import(import_path, Path::new(dir))
+                        .and_then(Result::err)
+                });
+                let message = match dependency_error {
+                    Some(reason) => format!("cannot resolve import `{}`: {}", import_path, reason),
+                    None => format!(
                         "cannot resolve import `{}`: {} ({})",
                         import_path, file_path, error
                     ),
-                );
+                };
+                self.error_at_import_path(import_path, message);
                 return None;
             }
         };
@@ -54774,58 +54768,14 @@ impl TypeChecker {
             return Some(file_path);
         }
 
-        // Try manifest-based resolution
-        if let Some(toml_path) = Interpreter::find_manifest(dir) {
-            if let Some((deps, _)) = Interpreter::parse_manifest_deps(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                if let Some(resolved) = Self::resolve_dep_module(import_path, &deps, &toml_dir) {
-                    return Some(resolved);
-                }
-            }
+        // Manifest dependency (`dep/module`): local files only, never fetched.
+        if let Some(Ok(resolved)) =
+            manifest::resolve_dependency_import(import_path, std::path::Path::new(dir))
+        {
+            return Some(resolved.to_string_lossy().into_owned());
         }
 
         Some(file_path)
-    }
-
-    /// Resolve a dependency module path from manifest deps
-    fn resolve_dep_module(
-        import_path: &str,
-        deps: &[(String, String)],
-        toml_dir: &str,
-    ) -> Option<String> {
-        let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-        let dep_name = parts[0];
-        let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-        for (name, dep_path) in deps {
-            if name == dep_name {
-                let abs_dep = if std::path::Path::new(dep_path.as_str()).is_absolute() {
-                    dep_path.clone()
-                } else {
-                    format!("{}/{}", toml_dir, dep_path)
-                };
-                let dep_file = format!("{}/{}.runa", abs_dep, module);
-                let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-
-                if std::path::Path::new(&dep_file).exists() {
-                    return Some(dep_file);
-                } else if std::path::Path::new(&dep_file_src).exists() {
-                    return Some(dep_file_src);
-                }
-            }
-        }
-        None
     }
 
     /// Pass 1: collect all declarations from the program
@@ -59630,6 +59580,8 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        tc.diagnostics
+            .extend(host_effects::comptime_host_effect_diagnostics(stmts));
         let mut calculation_contracts = Vec::new();
         let mut compile_time_metadata_bindings = BTreeSet::new();
         let mut exploration_universes = Vec::new();

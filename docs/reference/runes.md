@@ -491,9 +491,14 @@ Use `@ import` for Futuruna modules.
 
 ### Depend (Cargo dependencies)
 ```runa
-@ depend "serde" "1"
+@ depend "serde" "1" ["derive"]
 @ depend "tokio" "1"
 ```
+
+A dependency is a crates.io package: a name, a version such as `"1"` or
+`"0.10.2"`, and optionally a list of features. Path, git and inline-table
+sources are rejected. `runa build` and `runa run` let Cargo download and build
+these crates; `runa check` does so only with `--build-deps`.
 
 ### Export (visibility)
 ```runa
@@ -532,12 +537,11 @@ file access, output, randomness, or effects reached through callbacks and
 module initializers. A value that requires runtime initialization stays at
 runtime; unavailable values are never substituted with placeholders.
 
-Explicit `@ comptime` requests evaluation at compile time, so any effects in
-that expression occur while compiling. Its dependencies must have compile-time
-values too. If an effectful binding
-is needed by a compile-time expression, mark that binding `@ comptime`
-explicitly; the compiler reports an error when a required value is available
-only at runtime.
+Explicit `@ comptime` evaluation is pure as well: an expression that reaches
+a host effect (output, input, files, the environment, clocks, network or
+processes) is a compile-time error at that call. Its dependencies must have
+compile-time values too; the compiler reports an error when a required value
+is available only at runtime.
 
 ### Rust escape hatch
 ```runa

@@ -107,17 +107,24 @@ and exact Futuruna compiler. An unchanged graph reuses the validated binary
 before type checking or Rust code generation. Any source, import-resolution,
 manifest, prelude-mode, or compiler change causes a miss. Builds on a miss use
 separate, freshly claimed directories for generated source and executables,
-including when projects share a filename such as `src/main.runa`. The old
-stem-only temporary binary cache is no longer used. Cache overrides and cache
-disabling apply to all native executable reuse.
+including when projects share a filename such as `src/main.runa`. Cache
+overrides and cache disabling apply to all native executable reuse.
 
-Successful direct-rustc builds remove their temporary workspace after copying
-or running the executable. Failed compilations retain the generated source at
-the path in the diagnostic. Programs with Cargo dependencies retain each
-generated project under `.runa-build/<stem>/build-<id>/`, with its own target
-directory. This prevents concurrent source or target replacement, including
-when `CARGO_TARGET_DIR` is set. An unchanged validated source graph still uses
-the native artifact cache; a cache miss starts a fresh Cargo build.
+Caches and build directories live below one per-user cache root:
+`FUTURUNA_COMPILER_CACHE_DIR` when set, otherwise `$XDG_CACHE_HOME/futuruna`,
+`~/Library/Caches/futuruna` on macOS, or `~/.cache/futuruna`. The compiler
+restricts that directory to its owner (mode `0700`) and refuses to use it when
+it is a symbolic link or belongs to another user. Each build or validation run
+claims a fresh `builds/build-<id>/` directory below it; nothing is written to
+the current directory except the requested output, and no `.cargo/config.toml`
+from the source tree applies to generated Cargo projects.
+
+Successful builds remove their workspace after copying or running the
+executable. Failed compilations retain the generated source at the path in the
+diagnostic. Programs with Cargo dependencies get their own target directory in
+the workspace, which prevents concurrent source or target replacement,
+including when `CARGO_TARGET_DIR` is set. An unchanged validated source graph
+still uses the native artifact cache; a cache miss starts a fresh Cargo build.
 
 `runa check` uses the same graph validation and caches only successful checks.
 Its Rust metadata lane additionally fingerprints `rustc` and retains the

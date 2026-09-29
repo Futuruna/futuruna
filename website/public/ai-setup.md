@@ -32,24 +32,34 @@ Use the [runtime compatibility check](#tax-audit-runtime-check) on the exact
 binary selected. If it fails, build from this checkout or obtain a newer verified
 release that passes it; do not proceed using an older binary.
 
-## Running shared models
+## Running untrusted models
 
-Treat a `.runa` model and its dependencies as executable code. Review their
-source and `runa.toml` before running a model obtained from someone else.
-The command name alone does not establish that it only inspects source:
+Treat a `.runa` model from someone else like a program. Commands differ in
+whether they execute its code:
 
-- Full `runa check` can evaluate `@ comptime` effects and build declared Rust
-  dependencies, including their build scripts.
-- `runa audit` currently initializes the program by executing top-level code.
-- A calculation rejects direct effects in its entry, but a called helper can
-  still perform effects. `runa call` is not an operating-system sandbox.
-- Resolving project dependencies, including through the editor, can fetch Git
-  repositories declared by the project.
+- **Execute the model:** `runa FILE.runa`, `runa run`, `runa test`,
+  `runa bench`, `runa expect`, `runa stress-gen`. These
+  perform the model's effects (files, network, processes) like any program.
+- **Build Rust crates declared with `@ depend`:** `runa build`, `runa run`,
+  `runa wasm` and `runa check --build-deps`. Cargo downloads those crates and
+  runs their build scripts and procedural macros.
+- **Fetch Git repositories:** `runa add` and `runa fetch` only. They download
+  the dependencies named in `runa.toml`; nothing else, including the editor,
+  touches the network or runs `git`.
+- **Evaluate without effects:** `runa check`, `runa emit`, `runa lib`,
+  `runa audit`, `runa call` and `runa explore` evaluate pure code only.
+  `@ comptime` values, calculations and audited rules and bindings cannot
+  perform host effects (output, input, files, environment, clock, network,
+  processes); reaching one is an error. `runa audit` never runs top-level
+  statements.
+- **No evaluation:** `runa check --frontend`, `fmt`, `meta`, `verify`,
+  `schema`, `template` and the language server (`runa lsp`).
 
-Use a separate environment with restricted file and network access when the
-source is untrusted. Keep private documents and credentials outside that
-environment. A successful check, schema, or audit is not an assurance that
-executing the model is safe.
+On an untrusted model, use only the last two groups, and review the source,
+`runa.toml` and `runa.lock` before running anything in the first three. A
+successful check, schema or audit says nothing about what executing the model
+would do. Keep private documents and credentials away from any environment
+where you run untrusted code.
 
 ## Your task
 

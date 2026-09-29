@@ -26,9 +26,9 @@ Keep source code, legal provenance, research datasets, lockfiles, reviewed
 expectation files, and selected publication artifacts in Git. A file being
 machine-readable or generated originally does not make it disposable.
 
-Build output belongs in ignored directories such as `target/`, `.runa-build/`,
-or `outputs/`. Runtime databases and their sidecars are ignored. Private case
-inputs and results belong outside the checkout.
+Build output belongs in ignored directories such as `target/` or `outputs/`.
+Runtime databases and their sidecars are ignored. Private case inputs and
+results belong outside the checkout.
 
 `runa build` currently places its final executable in the working directory.
 When experimenting locally, build from an ignored working directory:

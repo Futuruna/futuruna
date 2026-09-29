@@ -82,7 +82,11 @@ fn missing_native_tools_report_command_specific_alternatives() {
     for (dependency, tool) in [(false, "rustc"), (true, "cargo")] {
         let fixture = Fixture::new(dependency);
         for operation in ["check", "run", "build"] {
-            let output = fixture.run(&[operation]);
+            let output = if dependency && operation == "check" {
+                fixture.run(&[operation, "--build-deps"])
+            } else {
+                fixture.run(&[operation])
+            };
             assert_eq!(output.status.code(), Some(1), "{output:?}");
             assert!(output.stdout.is_empty(), "{output:?}");
             assert_guidance(&String::from_utf8_lossy(&output.stderr), tool, operation);
@@ -94,7 +98,7 @@ fn missing_native_tools_report_command_specific_alternatives() {
 fn missing_toolchain_check_json_keeps_the_backend_failure_contract() {
     for (dependency, tool) in [(false, "rustc"), (true, "cargo")] {
         let fixture = Fixture::new(dependency);
-        let output = fixture.run(&["check", "--json"]);
+        let output = fixture.run(&["check", "--json", "--build-deps"]);
         assert_eq!(output.status.code(), Some(1), "{output:?}");
         assert!(output.stderr.is_empty(), "{output:?}");
         let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
