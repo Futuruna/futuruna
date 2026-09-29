@@ -29857,6 +29857,9 @@ pub struct TypeChecker {
     function_params_by_arity: BTreeMap<(String, usize), Vec<String>>,
     /// rule name and arity -> declared parameter types, retaining unknowns.
     rule_param_types_by_arity: BTreeMap<(String, usize), Vec<Option<Ty>>>,
+    /// top-level rule name and arity -> the one argument type every call site
+    /// determines for each parameter position.
+    rule_call_site_param_types: BTreeMap<(String, usize), Vec<Option<String>>>,
     /// Callables declared with the rule rune, distinct from ordinary functions.
     rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
@@ -46622,6 +46625,7 @@ impl TypeChecker {
             function_params: BTreeMap::new(),
             function_params_by_arity: BTreeMap::new(),
             rule_param_types_by_arity: BTreeMap::new(),
+            rule_call_site_param_types: BTreeMap::new(),
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
@@ -47508,6 +47512,157 @@ impl TypeChecker {
             }
             _ => {}
         }
+    }
+
+    /// An untyped parameter of a top-level rule takes the one type its call
+    /// sites determine for that position, so its uses are checked like an
+    /// annotated parameter's.
+    fn define_rule_head_call_site_types(&mut self, head: &Expr) {
+        if self.active_rule_scope_inference.is_some() {
+            return;
+        }
+        let ExprKind::App(function, arguments) = &head.kind else {
+            return;
+        };
+        let ExprKind::Var(name) = &function.kind else {
+            return;
+        };
+        let key = (name.clone(), arguments.len());
+        let Some(call_site_types) = self.rule_call_site_param_types.get(&key) else {
+            return;
+        };
+        let declared = self.rule_param_types_by_arity.get(&key);
+        let inferred = arguments
+            .iter()
+            .zip(call_site_types)
+            .enumerate()
+            .filter(|(index, _)| {
+                !declared
+                    .and_then(|types| types.get(*index))
+                    .is_some_and(Option::is_some)
+            })
+            .filter_map(|(_, (argument, ty))| {
+                let ExprKind::Var(parameter) = &argument.kind else {
+                    return None;
+                };
+                rule_dispatch_parameter(argument).name?;
+                Some((parameter.clone(), ty.clone()?))
+            })
+            .collect::<Vec<_>>();
+        for (parameter, ty) in inferred {
+            self.define_inferred_var_type_name(&parameter, &ty);
+        }
+    }
+
+    /// Record, per parameter position of each top-level rule family, the
+    /// argument types its call sites determine. Only arguments typed without
+    /// local bindings contribute; disagreeing call sites leave the position
+    /// unknown.
+    fn infer_rule_call_site_param_types(&mut self, stmts: &[Stmt]) {
+        let mut observed = BTreeMap::new();
+        for stmt in stmts {
+            self.observe_rule_call_sites_in_stmt(stmt, true, &mut observed);
+        }
+        self.rule_call_site_param_types = observed
+            .into_iter()
+            .map(|(key, slots)| {
+                let types = slots
+                    .into_iter()
+                    .map(|types: BTreeSet<String>| {
+                        let [ty] =
+                            <[String; 1]>::try_from(types.into_iter().collect::<Vec<_>>()).ok()?;
+                        parse_type_annotation(&ty)
+                            .ok()
+                            .is_some_and(|parsed| {
+                                self.checked_type_contract_is_closed_monomorphic(&parsed)
+                            })
+                            .then_some(ty)
+                    })
+                    .collect();
+                (key, types)
+            })
+            .collect();
+    }
+
+    fn observe_rule_call_sites_in_stmt(
+        &self,
+        stmt: &Stmt,
+        top_level: bool,
+        observed: &mut BTreeMap<(String, usize), Vec<BTreeSet<String>>>,
+    ) {
+        // Calls inside a RuleScope body address the scope's members.
+        if matches!(stmt, Stmt::TypeDecl(TypeDecl::RuleScope { .. })) {
+            return;
+        }
+        let top_level =
+            top_level && matches!(stmt, Stmt::Expr(_) | Stmt::Bind(..) | Stmt::Annot(..));
+        visit_ast_stmt_children(stmt, &mut |child| match child {
+            AstChild::Expr(expr) => self.observe_rule_call_sites(expr, top_level, observed),
+            AstChild::Stmt(stmt) => self.observe_rule_call_sites_in_stmt(stmt, false, observed),
+        });
+    }
+
+    fn observe_rule_call_sites(
+        &self,
+        expr: &Expr,
+        top_level: bool,
+        observed: &mut BTreeMap<(String, usize), Vec<BTreeSet<String>>>,
+    ) {
+        if let ExprKind::App(function, arguments) = &expr.kind {
+            if let ExprKind::Var(name) = &function.kind {
+                let key = RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity: arguments.len(),
+                };
+                if self.rule_dispatch_keys.contains(&key) && !has_named_args(arguments) {
+                    let slots = observed
+                        .entry((key.name, key.arity))
+                        .or_insert_with(|| vec![BTreeSet::new(); arguments.len()]);
+                    for (slot, argument) in slots.iter_mut().zip(arguments) {
+                        if !self.call_site_argument_is_closed(argument, top_level) {
+                            continue;
+                        }
+                        if let Some(ty) =
+                            self.infer_expr_type_name_with_locals(argument, &BTreeMap::new())
+                        {
+                            slot.insert(ty);
+                        }
+                    }
+                }
+            }
+        }
+        let top_level = top_level
+            && !matches!(
+                expr.kind,
+                ExprKind::Lambda(..) | ExprKind::Match(..) | ExprKind::Block(_)
+            );
+        visit_ast_expr_children(expr, &mut |child| match child {
+            AstChild::Expr(expr) => self.observe_rule_call_sites(expr, top_level, observed),
+            AstChild::Stmt(stmt) => self.observe_rule_call_sites_in_stmt(stmt, false, observed),
+        });
+    }
+
+    /// Whether an argument's type is determined without local bindings: it
+    /// introduces no binders, and outside top-level code it names only
+    /// constructors and declared callables.
+    fn call_site_argument_is_closed(&self, argument: &Expr, top_level: bool) -> bool {
+        let mut closed = true;
+        walk_ast_expr(argument, &mut |child| match child {
+            AstChild::Stmt(_) => closed = false,
+            AstChild::Expr(expr) => match &expr.kind {
+                ExprKind::Lambda(..) | ExprKind::Match(..) | ExprKind::Block(_) => closed = false,
+                ExprKind::Var(name)
+                    if !top_level
+                        && !self.constructors.contains_key(name)
+                        && !self.functions.contains_key(name) =>
+                {
+                    closed = false
+                }
+                _ => {}
+            },
+        });
+        closed
     }
 
     fn typed_rule_arg_parts(arg: &Expr) -> Option<(&Expr, &str)> {
@@ -50681,6 +50836,125 @@ impl TypeChecker {
         )
     }
 
+    /// The result of a call to a generic function, with its type variables
+    /// bound from the argument types. A result variable that no argument
+    /// determines leaves the result unknown.
+    fn instantiate_generic_function_result(
+        &self,
+        name: &str,
+        result: &Ty,
+        args: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_rule_scope: Option<&str>,
+    ) -> Option<String> {
+        let definitions = self
+            .explore_function_definitions_by_arity
+            .get(&(name.to_string(), args.len()))?;
+        let [(parameters, _, _)] = definitions.as_slice() else {
+            return None;
+        };
+        let parameter_names = parameters
+            .iter()
+            .map(|parameter| Some(parameter.name.clone()))
+            .collect::<Vec<_>>();
+        let ordered = Self::canonical_ordered_arguments(args, &parameter_names)?;
+        let mut substitutions = BTreeMap::new();
+        for (argument, parameter) in ordered.into_iter().zip(parameters) {
+            let Some(expected) = parameter
+                .ty
+                .as_ref()
+                .filter(|ty| Self::canonical_type_contains_variable(ty))
+            else {
+                continue;
+            };
+            let Some(actual) =
+                self.infer_expr_type_name_with_locals_in_scope(argument, locals, active_rule_scope)
+            else {
+                continue;
+            };
+            let Ok(actual) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if !Self::bind_schema_type_variables(expected, &actual, &mut substitutions) {
+                return None;
+            }
+        }
+        Self::schema_type_variables_bound(result, &substitutions)
+            .then(|| Self::canonical_substitute_type_parameters(result, &substitutions).to_string())
+    }
+
+    /// Bind the type variables of a parameter schema to the matching parts of
+    /// an argument type. Parts whose shape differs from the schema bind
+    /// nothing; a variable bound to two different types fails.
+    fn bind_schema_type_variables(
+        expected: &Ty,
+        actual: &Ty,
+        substitutions: &mut BTreeMap<String, Ty>,
+    ) -> bool {
+        fn applied(ty: &Ty) -> Option<(&str, &[Ty])> {
+            match ty {
+                Ty::App(constructor, arguments) => match constructor.as_ref() {
+                    Ty::Name(name) => Some((name.as_str(), arguments.as_slice())),
+                    _ => None,
+                },
+                Ty::Optional(inner) => Some(("Option", std::slice::from_ref(inner.as_ref()))),
+                _ => None,
+            }
+        }
+        match (expected, actual) {
+            (_, Ty::Hole) => true,
+            (Ty::Var(name), _) => match substitutions.get(name) {
+                Some(known) => Self::explore_tys_equivalent(known, actual),
+                None => {
+                    substitutions.insert(name.clone(), actual.clone());
+                    true
+                }
+            },
+            (Ty::Arrow(expected_input, expected_output), Ty::Arrow(input, output)) => {
+                Self::bind_schema_type_variables(expected_input, input, substitutions)
+                    && Self::bind_schema_type_variables(expected_output, output, substitutions)
+            }
+            (Ty::Ref(expected), Ty::Ref(actual))
+            | (Ty::MutRef(expected), Ty::MutRef(actual))
+            | (Ty::Shared(expected), Ty::Shared(actual)) => {
+                Self::bind_schema_type_variables(expected, actual, substitutions)
+            }
+            _ => match (applied(expected), applied(actual)) {
+                (Some((expected_owner, expected_arguments)), Some((owner, arguments)))
+                    if expected_owner == owner && expected_arguments.len() == arguments.len() =>
+                {
+                    expected_arguments
+                        .iter()
+                        .zip(arguments)
+                        .all(|(expected, actual)| {
+                            Self::bind_schema_type_variables(expected, actual, substitutions)
+                        })
+                }
+                _ => true,
+            },
+        }
+    }
+
+    fn schema_type_variables_bound(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> bool {
+        match ty {
+            Ty::Var(name) => substitutions.contains_key(name),
+            Ty::App(constructor, arguments) => {
+                Self::schema_type_variables_bound(constructor, substitutions)
+                    && arguments
+                        .iter()
+                        .all(|argument| Self::schema_type_variables_bound(argument, substitutions))
+            }
+            Ty::Arrow(input, output) => {
+                Self::schema_type_variables_bound(input, substitutions)
+                    && Self::schema_type_variables_bound(output, substitutions)
+            }
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                Self::schema_type_variables_bound(inner, substitutions)
+            }
+            Ty::Name(_) | Ty::Unit | Ty::Hole => true,
+        }
+    }
+
     /// Infer an expression while retaining the exact lexical RuleScope.
     ///
     /// The rule-return fixed point historically carried this context in a
@@ -50914,7 +51188,16 @@ impl TypeChecker {
                         .explore_function_return_types_by_arity
                         .get(&(name.clone(), args.len()))
                     {
-                        return Some(ret.to_string());
+                        if !Self::canonical_type_contains_variable(ret) {
+                            return Some(ret.to_string());
+                        }
+                        return self.instantiate_generic_function_result(
+                            name,
+                            ret,
+                            args,
+                            locals,
+                            active_rule_scope,
+                        );
                     }
                     if let Some(ret) = self
                         .explore_rule_return_types_by_arity
@@ -55870,6 +56153,7 @@ impl TypeChecker {
 
     /// Pass 2: check the program for errors
     pub fn check_program(&mut self, stmts: &[Stmt]) {
+        self.infer_rule_call_site_param_types(stmts);
         self.check_rule_result_contracts(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
         self.check_unhandled_effects(stmts);
@@ -58671,6 +58955,7 @@ impl TypeChecker {
                         self.define_rule_head_var_types(arg);
                     }
                 }
+                self.define_rule_head_call_site_types(head);
                 self.check_expr(value, None);
                 if let Some(c) = condition {
                     self.check_rule_guard(c, head);
@@ -58691,6 +58976,7 @@ impl TypeChecker {
                         self.define_rule_head_var_types(arg);
                     }
                 }
+                self.define_rule_head_call_site_types(head);
                 self.check_expr(value, None);
                 if let Some(c) = condition {
                     self.check_rule_guard(c, head);
@@ -58706,6 +58992,7 @@ impl TypeChecker {
                         self.define_rule_head_var_types(arg);
                     }
                 }
+                self.define_rule_head_call_site_types(head);
                 self.check_expr(head, None);
                 if let Some(b) = body {
                     self.check_rule_body_expression(b, false);
