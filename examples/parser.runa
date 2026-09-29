@@ -8,6 +8,41 @@
 @ import ./lexer
 
 -- ============================================================================
+-- # Token text conversion — the lexer only emits well-formed number tokens,
+-- so a conversion failure is a lexer bug and stops the program
+-- ============================================================================
+
+> literal_int(text: String) -> Int {
+    match parse_int(text) {
+        | Ok(n) -> n
+        | Err(e) -> {
+            = _ = assert_with_message(false, "lexer produced an invalid integer token: " + e)
+            0
+        }
+    }
+}
+
+> literal_float(text: String) -> Float {
+    match parse_float(text) {
+        | Ok(x) -> x
+        | Err(e) -> {
+            = _ = assert_with_message(false, "lexer produced an invalid float token: " + e)
+            0.0
+        }
+    }
+}
+
+> read_source(path: String) -> String {
+    match read_file(path) {
+        | Ok(text) -> text
+        | Err(e) -> {
+            = _ = assert_with_message(false, "cannot read " + path + ": " + e)
+            ""
+        }
+    }
+}
+
+-- ============================================================================
 -- # What exists — AST node types
 -- ============================================================================
 
@@ -184,14 +219,14 @@
         }
         else { PPat(st2, PCon(tok.text, [])) }
     }
-    else if tok.kind == TkInt { PPat(advance(st), PLit(LInt(parse_int(tok.text)))) }
-    else if tok.kind == TkFloat { PPat(advance(st), PLit(LFloat(parse_float(tok.text)))) }
+    else if tok.kind == TkInt { PPat(advance(st), PLit(LInt(literal_int(tok.text)))) }
+    else if tok.kind == TkFloat { PPat(advance(st), PLit(LFloat(literal_float(tok.text)))) }
     else if tok.kind == TkString { PPat(advance(st), PLit(LStr(tok.text))) }
     else if tok.kind == TkBool { PPat(advance(st), PLit(LBool(tok.text == "true" || tok.text == "True"))) }
     else if tok.kind == TkOp && tok.text == "-" {
         = inner = peek(advance(st))
-        if inner.kind == TkInt { PPat(advance(advance(st)), PLit(LInt(0 - parse_int(inner.text)))) }
-        else if inner.kind == TkFloat { PPat(advance(advance(st)), PLit(LFloat(0.0 - parse_float(inner.text)))) }
+        if inner.kind == TkInt { PPat(advance(advance(st)), PLit(LInt(0 - literal_int(inner.text)))) }
+        else if inner.kind == TkFloat { PPat(advance(advance(st)), PLit(LFloat(0.0 - literal_float(inner.text)))) }
         else {
             @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected number after '-' in pattern")
             PPat(advance(st), PWild)
@@ -557,8 +592,8 @@
 
 > parse_atom(st: PState) -> PExpr {
     = tok = peek(st)
-    if tok.kind == TkInt { PExpr(advance(st), ELit(LInt(parse_int(tok.text)))) }
-    else if tok.kind == TkFloat { PExpr(advance(st), ELit(LFloat(parse_float(tok.text)))) }
+    if tok.kind == TkInt { PExpr(advance(st), ELit(LInt(literal_int(tok.text)))) }
+    else if tok.kind == TkFloat { PExpr(advance(st), ELit(LFloat(literal_float(tok.text)))) }
     else if tok.kind == TkString { PExpr(advance(st), ELit(LStr(tok.text))) }
     else if tok.kind == TkBool { PExpr(advance(st), ELit(LBool(tok.text == "true" || tok.text == "True"))) }
     else if tok.kind == TkChar { PExpr(advance(st), ELit(LChar(tok.text))) }
@@ -932,7 +967,7 @@ for s in ast4 {
 }
 
 -- S4 end-to-end: parse lexer.runa
-= lexer_src = read_file("examples/lexer.runa")
+= lexer_src = read_source("examples/lexer.runa")
 = lexer_toks = tokenize(lexer_src)
 = lexer_ast = parse_program(make_state(lexer_toks))
 
@@ -942,7 +977,7 @@ for s in lexer_ast {
 }
 
 -- S5: self-parse — parser parses itself
-= parser_src = read_file("examples/parser.runa")
+= parser_src = read_source("examples/parser.runa")
 = parser_toks = tokenize(parser_src)
 = parser_ast = parse_program(make_state(parser_toks))
 

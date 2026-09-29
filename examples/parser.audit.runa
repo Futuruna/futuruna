@@ -9,7 +9,7 @@
 -- = What is — parse lexer.runa (the parser's dependency)
 -- ============================================================================
 
-= lexer_src = read_file("examples/lexer.runa")
+= lexer_src = read_source("examples/lexer.runa")
 = lexer_toks = tokenize(lexer_src)
 = lexer_ast = parse_program(make_state(lexer_toks))
 
@@ -53,7 +53,7 @@
 -- = What is — parse parser.runa (self-parse)
 -- ============================================================================
 
-= parser_src = read_file("examples/parser.runa")
+= parser_src = read_source("examples/parser.runa")
 = parser_toks = tokenize(parser_src)
 = parser_ast = parse_program(make_state(parser_toks))
 

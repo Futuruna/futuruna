@@ -158,14 +158,22 @@ fn main() {
         eprintln!("Fatal: invalid durable Explore supervisor channel: {error}");
         std::process::exit(1);
     }
-    // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
-    let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
-    let handler = match builder.spawn(main_inner) {
-        Ok(h) => h,
-        Err(e) => {
-            eprintln!("Fatal: failed to spawn main thread: {}", e);
-            std::process::exit(1);
+    // Evaluation recursion is limited by this thread's stack; the memory is
+    // reserved lazily, so a large reservation costs only what a program uses.
+    let requested = futuruna::interpreter_stack_bytes();
+    let mut spawned = None;
+    for stack_bytes in [requested, requested.min(1 << 30), 64 * 1024 * 1024] {
+        if let Ok(handle) = std::thread::Builder::new()
+            .stack_size(stack_bytes)
+            .spawn(main_inner)
+        {
+            spawned = Some(handle);
+            break;
         }
+    }
+    let Some(handler) = spawned else {
+        eprintln!("Fatal: failed to spawn main thread");
+        std::process::exit(1);
     };
     if let Err(e) = handler.join() {
         std::panic::resume_unwind(e);
@@ -22354,7 +22362,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)",
+                rust_tpl: "{ let __s: String = {0}.to_string(); match __s.trim().parse::<i64>() { Ok(__n) => Ok::<i64, String>(__n), Err(_) => Err(format!(\"not an integer: `{}`\", __s)) } }",
             },
         ),
         (
@@ -22364,7 +22372,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)",
+                rust_tpl: "{ let __s: String = {0}.to_string(); match __s.trim().parse::<f64>() { Ok(__f) if __f.is_finite() => Ok::<f64, String>(__f), _ => Err(format!(\"not a number: `{}`\", __s)) } }",
             },
         ),
         (
@@ -22435,7 +22443,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()",
+                rust_tpl: "{ let __p: String = {0}.to_string(); std::fs::read_to_string(&__p).map_err(|__e| format!(\"cannot read {}: {}\", __p, __e)) }",
             },
         ),
         (
@@ -22445,7 +22453,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "{ let _ = std::fs::write(&*{0}, &*{1}); }",
+                rust_tpl: "{ let __p: String = {0}.to_string(); if let Err(__e) = std::fs::write(&__p, {1}.as_bytes()) { panic!(\"write_file cannot write {}: {}\", __p, __e) } }",
             },
         ),
         (
@@ -22455,7 +22463,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "{ use std::io::Write; if let Ok(mut __f) = std::fs::OpenOptions::new().append(true).create(true).open(&*{0}) { let _ = __f.write_all({1}.as_bytes()); } }",
+                rust_tpl: "{ use std::io::Write; let __p: String = {0}.to_string(); if let Err(__e) = std::fs::OpenOptions::new().append(true).create(true).open(&__p).and_then(|mut __f| __f.write_all({1}.as_bytes())) { panic!(\"append_file cannot write {}: {}\", __p, __e) } }",
             },
         ),
         (
@@ -22506,7 +22514,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: false,
                 deps: SERDE,
-                rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }",
+                rust_tpl: "{ let __s: String = {0}.to_string(); match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => Ok::<String, String>(__s), Err(__e) => Err(format!(\"invalid JSON: {}\", __e)) } }",
             },
         ),
         (
@@ -22587,7 +22595,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 shadowable: true,
                 impure: true,
                 deps: UREQ,
-                rust_tpl: "ureq::get(&*{0}).call().map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+                rust_tpl: "{ let __url: String = {0}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().get(&__url).call() { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
             },
         ),
         (
@@ -29289,12 +29297,19 @@ fn is_copy_type(ty: &Ty) -> bool {
 /// heuristics like expr_is_float/expr_is_string.
 fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
     match builtin_canonical(name) {
-        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float"
-        | "random_float" | "json_number" => Some(FirTy::Float),
-        "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
-        | "parse_int" | "abs" | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff" => {
-            Some(FirTy::Int)
-        }
+        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "random_float"
+        | "json_number" => Some(FirTy::Float),
+        "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of" | "abs"
+        | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff" => Some(FirTy::Int),
+        "parse_int" => Some(FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String))),
+        "parse_float" => Some(FirTy::Result(
+            Box::new(FirTy::Float),
+            Box::new(FirTy::String),
+        )),
+        "read_file" | "json_parse" | "http_get" => Some(FirTy::Result(
+            Box::new(FirTy::String),
+            Box::new(FirTy::String),
+        )),
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
         | "set_contains" | "file_exists" | "json_bool" | "regex_match" | "is_some" | "is_none"
         | "not" => Some(FirTy::Bool),
@@ -29310,14 +29325,11 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "show_float"
         | "format_float"
         | "rust_debug"
-        | "read_file"
         | "env_var"
-        | "json_parse"
         | "json_get"
         | "json_string"
         | "json_emit"
         | "json_object"
-        | "http_get"
         | "http_post"
         | "http_request_path"
         | "http_request_method"
@@ -54639,7 +54651,7 @@ fn parse_age(s: &str) -> Result<i64, AppError> {
 }
 "#;
         let runa = rust_to_runa_checked(source).expect("parse map_err should be supported");
-        assert!(runa.contains("regex_match(\"^-?[0-9]+$\", s)"));
+        assert!(runa.contains("match parse_int(s) { | Ok(__n) -> Ok(__n) | Err(_) -> Err("));
         assert!(runa.contains("Err(Parse(\"bad\"))"));
     }
 
@@ -54667,7 +54679,7 @@ fn parse_age(s: &str) -> Result<i64, String> {
 }
 "#;
         let runa = rust_to_runa_checked(source).expect("i64 parse map_err should be supported");
-        assert!(runa.contains("regex_match(\"^-?[0-9]+$\", s)"));
+        assert!(runa.contains("match parse_int(s) { | Ok(__n) -> Ok(__n) | Err(_) -> Err("));
         assert!(runa.contains("Err(\"bad\")"));
     }
 
@@ -60084,8 +60096,14 @@ assert_with_message(true, message())
             ("char_at", FirTy::String),
             ("index_of", FirTy::Int),
             ("format_float", FirTy::String),
-            ("parse_int", FirTy::Int),
-            ("parse_float", FirTy::Float),
+            (
+                "parse_int",
+                FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String)),
+            ),
+            (
+                "parse_float",
+                FirTy::Result(Box::new(FirTy::Float), Box::new(FirTy::String)),
+            ),
             ("sum_list", FirTy::Int),
             ("map_contains", FirTy::Bool),
             ("map_len", FirTy::Int),
@@ -60094,14 +60112,20 @@ assert_with_message(true, message())
             ("is_some", FirTy::Bool),
             ("is_none", FirTy::Bool),
             ("not", FirTy::Bool),
-            ("read_file", FirTy::String),
+            (
+                "read_file",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             ("file_exists", FirTy::Bool),
             ("read_lines", FirTy::List(Box::new(FirTy::String))),
             (
                 "process_run",
                 FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
             ),
-            ("json_parse", FirTy::String),
+            (
+                "json_parse",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             ("json_get", FirTy::String),
             ("json_string", FirTy::String),
             ("json_number", FirTy::Float),
@@ -60109,7 +60133,10 @@ assert_with_message(true, message())
             ("json_array", FirTy::List(Box::new(FirTy::String))),
             ("json_emit", FirTy::String),
             ("json_object", FirTy::String),
-            ("http_get", FirTy::String),
+            (
+                "http_get",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             ("http_post", FirTy::String),
             (
                 "http_respond",
@@ -72544,8 +72571,8 @@ impl RustToRunaCtx {
             None => return None,
         };
         Some(format!(
-            "if regex_match(\"^-?[0-9]+$\", {}) {{ Ok(parse_int({})) }} else {{ Err({}) }}",
-            input, input, err_expr
+            "match parse_int({}) {{ | Ok(__n) -> Ok(__n) | Err(_) -> Err({}) }}",
+            input, err_expr
         ))
     }
 

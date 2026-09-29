@@ -371,9 +371,8 @@ mode, and `&&` / `||` remain available for Boolean expressions.
 
 This declaration selects source syntax, not a regional data format. The numeric
 parsers still expect a decimal point and no thousands separators:
-`fortolk_kommatal("1,5")` and `fortolk_heltal("1.000")` return their documented
-zero fallback. They cannot distinguish invalid text from a valid zero; validate
-and convert human-formatted amounts before passing them into a rule model.
+`fortolk_kommatal("1,5")` and `fortolk_heltal("1.000")` return `Err`. Convert
+human-formatted amounts before passing them into a rule model.
 `sorter` does not apply Danish collation, and `vis` uses the same value display
 as English mode, including `true`, `None`, and `Some(...)`.
 
