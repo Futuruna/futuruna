@@ -16,8 +16,9 @@ to change what a program means.
 
 ## Bindings, comparisons, and comments
 
-Bind a value with `= name = value`; compare with `==`, including in `under`
-guards and invariant predicates. Write line comments with `--` and source
+Bind a value with `= name = value`; a bare `x = 6` is a parse error. Compare
+with `==`, including in `under` guards and invariant predicates; `=` inside a
+guard is rejected as a binding separator. Write line comments with `--` and source
 quotation blocks with `---- ... ----`. `#` declares a type: `# TODO` is a valid
 type declaration, so a compiler cannot assume that it was intended as a comment.
 
@@ -41,6 +42,11 @@ domain-specific type, put it in a record and access its field explicitly:
 Use `Int` directly when no wrapper is needed. A field's name does not establish
 its currency, units, or permitted range; document and validate those separately.
 
+The constructors `None`, `Some`, `Ok`, `Err`, `Pair`, `Nil` and `Cons` belong
+to the built-in `Option`, `Result`, `Pair` and list types. An authored type may
+not reuse them: `# Answer = Ok | Rejected` is a type error. Choose a
+domain-specific name such as `Accepted`.
+
 ## Rule coverage and exceptions
 
 Annotate rule inputs where their types are known. If a value rule should return
@@ -52,7 +58,9 @@ the model:
 | exception youth rate(age: Int) -> 10 under age < 18
 ```
 
-The exception needs a label (`youth`) before the rule head. Combine guard
+The exception needs a label (`youth`) before the rule head, and it overrides
+an ordinary rule or default with the same name and arity. An exception without
+that base rule is a type error. Combine guard
 conditions with `and` or `&&`; commas separate goals inside a logic rule body.
 
 Some rules are deliberately partial. Do not invent a fallback merely to make
@@ -74,13 +82,39 @@ or declare an invariant with `| name: subject -> predicate` and invoke it with
 
 Lists use functions such as `length(items)` and `map(items, |x| x + 1)`.
 Do not assume that another language's `.len()` or `.map(...)` methods exist.
+`take(items, n)` returns a list of at most `n` elements, not a single element.
+
+`@ comptime` bindings, `@ calculate` entries, audited rules and the code they
+call are pure: reaching `@ print`, file access, the clock, the network or any
+other host effect there is an error. Keep effects in ordinary top-level code.
+
+## Fallible builtins return `Result`
+
+`parse_int`, `parse_float`, `read_file`, `json_parse`, `http_get` and
+`http_post` return `Result(..., String)`. Their value cannot be used directly
+in arithmetic or as text: `parse_int("42") + 1` is a type error. Match on `Ok`
+and `Err`, or propagate the error from a function returning `Result` with
+`= name <- expression`:
+
+```runa
+> double_text(text: String) -> Result(Int, String) {
+    = n <- parse_int(text)
+    Ok(n * 2)
+}
+@ print(show(double_text("21"))) -- Ok(42)
+@ print(show(double_text("x")))  -- Err(not an integer: `x`)
+```
 
 ## Strings and numbers
 
 - Ordinary strings keep braces literally: `"Hello {name}"`. Interpolation uses
   triple quotes and doubled braces: `"""Hello {{name}}"""`.
-- A string operand makes `+` concatenate text: `"10" + 5` is `"105"`.
-  Parse numeric text explicitly before doing arithmetic.
+- A string operand makes `+` concatenate text with a scalar (`String`, `Int`,
+  `Float`, `Bool` or `Char`): `"10" + 5` is `"105"`. Other values, such as
+  lists and records, are a type error; convert them with `show(...)`. Parse
+  numeric text explicitly before doing arithmetic.
+- `Int` and `Float` are distinct. A parameter declared `Float` does not accept
+  an `Int` argument: write `25.0` or convert with `to_float(n)`.
 - Integer division truncates: `1 / 3 * 100` is `0`, while `1 * 100 / 3` is
   `33`. Choose units and rounding deliberately. Multiplying first can overflow,
   so the input domain and the intermediate value must fit `Int`.
@@ -114,7 +148,5 @@ rule coverage or equivalence for all inputs. Test the applicable boundaries,
 missing cases, and expected failures. Check the [feature stages](../feature-stages.md)
 before relying on a particular execution or verification surface.
 
-Both `model.runa` and `./model.runa` are accepted source paths. An explicit
-relative path can make examples clearer; it is not a workaround required by
-the current import resolver. See [CLI diagnostics](../cli-diagnostics.md) for
+Both `model.runa` and `./model.runa` are accepted source paths. See [CLI diagnostics](../cli-diagnostics.md) for
 structured checks and their limits.

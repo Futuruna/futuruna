@@ -13,7 +13,6 @@ tags:
 - [[repo-docs]]
 - [[wiki/sources/state-and-roadmap|state-and-roadmap]]
 - [[wiki/sources/compatibility-policy|compatibility-policy]]
-- [[compatibility-guides]]
 - [[wiki/sources/feature-stages|feature-stages]]
 - [[wiki/sources/mint-gate|mint-gate]]
 - [[wiki/sources/canary-matrix|canary-matrix]]

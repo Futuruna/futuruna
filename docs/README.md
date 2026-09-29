@@ -8,7 +8,7 @@ and historical material live.
 ## Current contracts
 
 - [Feature stages](feature-stages.md) and [compatibility policy](compatibility-policy.md)
-- [Compatibility guides](compatibility-guides/README.md) and [release runbook](releasing.md)
+- [Release runbook](releasing.md)
 - [First-run contract](first-run-contract.md) and [AI setup](../website/public/ai-setup.md)
 - [Calculation contracts](reference/calculations.md) and [Rust interop](from-rust-contract.md)
 - [Artifact/codegen contracts](artifact-codegen-contracts.md) and [library hygiene](library-hygiene.md)

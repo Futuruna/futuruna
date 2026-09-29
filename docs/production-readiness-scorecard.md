@@ -118,7 +118,7 @@ A surface can move to production-ready only when all of these are true:
    narrowest matching lane: expectation, canary, downstream, or differential.
 6. No open P2/P3 issue describes wrong-code, unsoundness, nondeterminism, or data
    loss for that surface.
-7. Compatibility-guide and feature-stage updates are part of the change when a
+7. Feature-stage and release-notes updates are part of the change when a
    stable surface moves.
 
 ## Current Production Claim

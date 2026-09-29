@@ -9,7 +9,6 @@ tags:
   - compiler
 related:
   - "[[alive2-translation-validation]]"
-  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
   - "[[research-hardening-futuruna-into-a-professional-language]]"
 ---
 
@@ -32,10 +31,9 @@ Translation validation checks that a specific compiler transformation preserves 
 
 ## Futuruna Implication
 
-Futuruna’s proof ambitions become more practical if paired with a translation-validation pilot for one narrow IR or codegen slice. This is a more professional near-term move than claiming whole-compiler proof too early.
+A translation-validation pilot for one narrow IR or codegen slice is a practical way for Futuruna to add formal assurance without claiming whole-compiler proof.
 
 ## Primary Sources
 
 - [[alive2-translation-validation]]
-- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
 

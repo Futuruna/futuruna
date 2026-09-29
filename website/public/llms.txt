@@ -33,6 +33,21 @@ Contact: research@futuruna.com
 - [Futuruna skill](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/SKILL.md): Use the maintained workflow for learning, writing, checking, and explaining Futuruna.
 - [Learning path](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/references/learning-path.md): Learn the seven front runes through one small working program at a time.
 
+## Common Mistakes
+
+- Install the verified v0.2.3 GitHub release binary, or `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`. Use `cargo install futuruna` only when crates.io lists the current version.
+- Bind with `= name = value`; compare with `==`, also in `under` guards. Comments are `--`; `#` declares a type.
+- Print with `@ print(value)`; `@ println` and `@ log` do not exist.
+- `parse_int`, `parse_float`, `read_file`, `json_parse`, `http_get` and `http_post` return `Result`: match on `Ok`/`Err`, or write `= n <- parse_int(text)` inside a function returning `Result`. `parse_int("42") + 1` is a type error.
+- No type aliases: `# Money = Int` is an error; write `# Money(amount: Int)` or use `Int`.
+- `None`, `Some`, `Ok`, `Err`, `Pair`, `Nil` and `Cons` are built-in constructors; authored variants need other names.
+- `Int` and `Float` are distinct: pass `25.0` or `to_float(n)` to a `Float` parameter. Integer `/` truncates: `1 / 3 * 100` is `0`.
+- `String + x` joins only scalars (`String`, `Int`, `Float`, `Bool`, `Char`); use `show(x)` for lists and records. Interpolation is `"""Hello {{name}}"""`; `"Hello {name}"` prints the braces.
+- `| exception label rate(x: Int) -> 10 under x < 18` needs an ordinary `rate` rule with the same arity; give value rules an unguarded default when every input needs a result.
+- `@ comptime`, `@ calculate` and audited code are pure; `@ print` or file, clock and network access there is an error.
+- `take(items, n)` returns a List, not one element.
+- Run `runa check` as well as the program: it also validates the generated Rust, and a successful run covers only the paths it reached.
+
 ## Working Examples
 
 - [Weather demo](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/weather_demo.runa): See all seven front runes working together in one small program.
