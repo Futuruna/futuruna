@@ -15701,7 +15701,8 @@ fn runtime_value_kind(value: &Value) -> &'static str {
         Value::Map(_) => "Map",
         Value::Set(_) => "Set",
         Value::Stream(_) => "Stream",
-        Value::Subject(_) => "Subject",
+        Value::LiveStream(_) => "Stream",
+        Value::Actor(_) => "Actor",
         Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. } => "function",
         _ => "value",
     }
@@ -21881,7 +21882,7 @@ impl Interpreter {
                         }
                     }
                     (list, Value::Int(i))
-                        if matches!(list, Value::Stream(_) | Value::Subject(_))
+                        if matches!(list, Value::Stream(_))
                             || matches!(list, Value::Constructor(name, _) if name == "Cons" || name == "Nil") =>
                     {
                         let elems = list_to_vec(&arr_val);
