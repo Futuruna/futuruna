@@ -21,11 +21,11 @@ small and is increased only after measuring the prior stage.
     indkomst_før_kroner
 )
 
-> personskat_native_probe_grænse(navn: Tekst) -> Heltal {
-    match fortolk_heltal(miljø_var(navn)) {
+> personskat_native_probe_grænse(variabel: Tekst) -> Heltal {
+    skel fortolk_heltal(miljø_var(variabel)) {
         | Ok(værdi) -> værdi
-        | Err(fejl) -> {
-            = _ = assert_with_message(false, navn + ": " + fejl)
+        | Fejl(besked) -> {
+            assert_with_message(Falskt, variabel + ": " + besked)
             0
         }
     }
