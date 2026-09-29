@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par9a - perioder
+@ importer ./ligningsloven-par9a-perioder
 
 | ll9a_periode_scenarie_rejse(identifikation: Tekst, startdato: Dato, arbejdssted_identifikation: Tekst) -> Ligningslov9APerioderejse(
     identifikation = identifikation,

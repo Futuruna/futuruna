@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../../../examples / danish - income - tax / kapitel - 03 - personfradrag
+@ importer ../../../examples/danish-income-tax/kapitel-03-personfradrag
 
 -- Den modtagende ægtefælle skal også kunne bruge den lokale værdi i bundskat.
 > pf_modtagers_samordning(samliv: Boolsk) -> Par10ÆgtefællePersonfradragResultat {

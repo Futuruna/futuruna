@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./pensionsbeskatningsloven - par14b
+@ importer ./pensionsbeskatningsloven-par14b
 
 | pbl14b_scenarieudbetaling(identifikation: Tekst, indkomstår: Heltal, optjeningsgrundlag: Pbl14BOptjeningsgrundlag, oprindelse: Pbl14BOprindelse, feriemidler_kroner: Heltal, regulering_kroner: Heltal) -> Pbl14BUdbetalingsfakta(
     identifikation = identifikation,

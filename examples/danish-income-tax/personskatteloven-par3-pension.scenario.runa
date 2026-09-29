@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
-@ importer ./pbl15a - source - fixtures.scenario
+@ importer ./kapitel-01-indkomst
+@ importer ./pbl15a-source-fixtures.scenario
 
 -- Scenarier for Pensionsbeskatningsloven §§ 16, 18 og 52 samt
 -- Personskatteloven § 3, stk. 2, nr. 3. Lovtekst og kildeankre ligger i

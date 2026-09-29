@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./ejendomsavancebeskatningsloven - par5 - par5a
-@ importer ./ejendomsavancebeskatningsloven - genanbringelse
+@ importer ./ejendomsavancebeskatningsloven-par5-par5a
+@ importer ./ejendomsavancebeskatningsloven-genanbringelse
 
 # EblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

@@ -3,6 +3,7 @@
 //! This binary provides the CLI interface for the Futuruna compiler.
 //! Core language implementation is in the library crate (src/lib.rs).
 
+mod runa_backend_diagnostics;
 mod runa_check_output;
 mod runa_explore_heap;
 mod runa_explore_retry;
@@ -1473,6 +1474,39 @@ fn cache_env_enabled(name: &str) -> bool {
     })
 }
 
+/// The one-sentence guarantee each checking tool states with its success
+/// output. `docs/feature-stages.md` lists the same sentences.
+#[derive(Clone, Copy)]
+enum ToolGuarantee {
+    FrontendCheck,
+    Check,
+    Verify,
+    Audit,
+    Fmt,
+    Test,
+}
+
+impl ToolGuarantee {
+    fn sentence(self) -> &'static str {
+        match self {
+            Self::FrontendCheck => "The program parses, its imports resolve and it type-checks; nothing is executed and no Rust is compiled.",
+            Self::Check => "The frontend check passes, `@ comptime` evaluates without host effects, and the generated Rust compiles; the program is not run.",
+            Self::Verify => "Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail.",
+            Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); no findings does not prove the rules consistent or correct.",
+            Self::Fmt => "Only layout changes; every file's tokens and parsed program are identical before and after formatting.",
+            Self::Test => "Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run.",
+        }
+    }
+
+    fn print(self, to_stderr: bool) {
+        if to_stderr {
+            status_eprintln!("\x1b[2mguarantee: {}\x1b[0m", self.sentence());
+        } else {
+            status_println!("\x1b[2mguarantee: {}\x1b[0m", self.sentence());
+        }
+    }
+}
+
 fn trace_calculation_contract_cache(message: &str) {
     if cache_env_enabled("FUTURUNA_CALCULATION_CACHE_TRACE") {
         eprintln!("calculation contract cache: {message}");
@@ -2303,11 +2337,25 @@ fn read_calculation_template_input(
     }
     let mut errors = Vec::new();
     for case in &mut envelope.cases {
+        // Hydration converts unfinished inputs too: unfilled placeholders are
+        // carried over, and `call` rejects them until they are filled.
+        let placeholders = calculate::template_placeholder_paths(&case.input);
+        let unfilled = |path: &str| {
+            placeholders.iter().any(|placeholder| {
+                path == placeholder
+                    || path
+                        .strip_prefix(placeholder.as_str())
+                        .is_some_and(|rest| rest.starts_with(['.', '[']))
+            })
+        };
         if let Err(diagnostics) = contract.decode_input_diagnostics(&case.input) {
             errors.extend(
-                diagnostics.into_iter().map(|error| {
-                    format!("case `{}` {}: {}", case.case_id, error.path, error.message)
-                }),
+                diagnostics
+                    .into_iter()
+                    .filter(|error| !unfilled(&error.path))
+                    .map(|error| {
+                        format!("case `{}` {}: {}", case.case_id, error.path, error.message)
+                    }),
             );
         }
         case.input_status
@@ -2991,6 +3039,11 @@ fn append_calculation_xlsx_collection_rows(
     rows: &mut BTreeMap<String, Vec<CalculationXlsxCollectionRow>>,
 ) -> Result<(), String> {
     rows.entry(table.path.clone()).or_default();
+    // An unfilled collection has no rows: spreadsheet collections are
+    // reviewed through the case's input_status.
+    if calculate::is_template_placeholder(value) {
+        return Ok(());
+    }
     match table.kind {
         calculate::CalculationCollectionKind::List | calculate::CalculationCollectionKind::Set => {
             let items = value.as_array().ok_or_else(|| {
@@ -3296,7 +3349,8 @@ fn write_calculation_xlsx_value(
     value: &serde_json::Value,
     text_format: &rust_xlsxwriter::Format,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
-    if value.is_null() {
+    // Unfilled template values stay blank; a blank required cell is rejected.
+    if value.is_null() || calculate::is_template_placeholder(value) {
         return Ok(());
     }
     match column.encoding {
@@ -3742,7 +3796,13 @@ fn read_calculation_xlsx(
                 }
                 continue;
             }
-            let value = match calculation_json_from_cell(cell, column, quoted_strings) {
+            // Converting a workbook keeps a blank required cell unfilled.
+            let converted = if hydrate && column.required && matches!(cell, Data::Empty) {
+                Ok(calculate::template_placeholder_for(&column.ty))
+            } else {
+                calculation_json_from_cell(cell, column, quoted_strings)
+            };
+            let value = match converted {
                 Ok(value) => value,
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
@@ -5406,13 +5466,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match rustc {
                     Ok(output) => {
                         if !output.status.success() {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            runa_backend_diagnostics::print_generated_rust_failure(
+                                source,
+                                filename,
+                                &stmts,
+                                &code,
+                                &String::from_utf8_lossy(&output.stderr),
+                                &rs_path,
                             );
-                            eprintln!("  Source: {}", filename);
-                            eprintln!("  Generated: {}", rs_path);
-                            eprintln!();
-                            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                             std::process::exit(1);
                         }
                         if !cg.has_raw_rust_blocks {
@@ -5527,13 +5588,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match cargo {
                     Ok(output) => {
                         if !output.status.success() {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            runa_backend_diagnostics::print_generated_rust_failure(
+                                source,
+                                filename,
+                                &stmts,
+                                &code,
+                                &String::from_utf8_lossy(&output.stderr),
+                                &main_rs,
                             );
-                            eprintln!("  Source: {}", filename);
-                            eprintln!("  Generated: {}/src/main.rs", build_dir);
-                            eprintln!();
-                            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                             std::process::exit(1);
                         }
                         let cargo_bin = format!("{}/target/release/{}", build_dir, artifact_stem);
@@ -6399,7 +6461,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             // Set source directory for @ import resolution
             interp.source_dir = source_dir_for(filename);
             let mut env = interp.default_env();
-            // A program's output is what it prints, as in compiled code.
+            // A program's output is what it prints, in both execution modes.
             if let Err(diagnostic) =
                 interp.run_program_with_diagnostics(&stmts, &mut env, Path::new(filename), source)
             {
@@ -9962,6 +10024,7 @@ enum ExpectCommand {
     Verify,
     LintLibrary,
     LintLibraryImports,
+    Audit,
 }
 
 impl ExpectCommand {
@@ -9978,8 +10041,9 @@ impl ExpectCommand {
             "verify" => Ok(Self::Verify),
             "lint-library" => Ok(Self::LintLibrary),
             "lint-library-imports" => Ok(Self::LintLibraryImports),
+            "audit" => Ok(Self::Audit),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -9998,6 +10062,7 @@ impl ExpectCommand {
             Self::Verify => "verify",
             Self::LintLibrary => "lint-library",
             Self::LintLibraryImports => "lint-library-imports",
+            Self::Audit => "audit",
         }
     }
 
@@ -10035,6 +10100,9 @@ impl ExpectCommand {
             }
             Self::LintLibraryImports => {
                 cmd.arg("lint-library").arg("--imports").arg(file);
+            }
+            Self::Audit => {
+                cmd.arg("audit").arg(file);
             }
         }
     }
@@ -10800,6 +10868,7 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize, kind
             total,
             suite_time
         );
+        ToolGuarantee::Test.print(true);
     } else {
         status_eprintln!(
             "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
@@ -12682,10 +12751,12 @@ fn smt_expr_kind_name(expr: &Expr) -> &'static str {
     }
 }
 
+/// Declarations and claims an imported source contributes to verification;
+/// its program flow (prints, loops, sends) is not part of the claim set.
 fn smt_imported_library_statement(statement: &Stmt) -> bool {
     matches!(
         statement,
-        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..)
+        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..) | Stmt::Invariant { .. }
     )
 }
 
@@ -13847,6 +13918,41 @@ fn rewrite_smt_statement_for_namespace(
         Stmt::Defn(_) | Stmt::Bind(..) if namespace != "root" => Err(format!(
             "qualified SMT namespace `{}` contains a declaration outside the direct scalar function/rule contract; unsupported qualified shapes fail closed",
             symbols.namespace(namespace)?.display_name
+        )),
+        // Program-flow statements exist only in the root namespace. They are
+        // type-checked with the lowered declarations, so qualified calls in
+        // them must resolve to the same namespace symbols as invariants.
+        Stmt::Expr(expression) => Ok(Stmt::Expr(rewrite_smt_expr_for_namespace(
+            expression, namespace, symbols, &empty,
+        )?)),
+        Stmt::Annot(name, arguments) => Ok(Stmt::Annot(
+            name.clone(),
+            arguments
+                .iter()
+                .map(|argument| rewrite_smt_expr_for_namespace(argument, namespace, symbols, &empty))
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        Stmt::MonadicBind(pattern, ty, value) => Ok(Stmt::MonadicBind(
+            pattern.clone(),
+            ty.clone(),
+            rewrite_smt_expr_for_namespace(value, namespace, symbols, &empty)?,
+        )),
+        Stmt::StreamBind(name, value) => Ok(Stmt::StreamBind(
+            name.clone(),
+            rewrite_smt_expr_for_namespace(value, namespace, symbols, &empty)?,
+        )),
+        Stmt::For(variable, iterable, body) => Ok(Stmt::For(
+            variable.clone(),
+            rewrite_smt_expr_for_namespace(iterable, namespace, symbols, &empty)?,
+            body.iter()
+                .map(|statement| rewrite_smt_statement_for_namespace(statement, namespace, symbols))
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        Stmt::While(condition, body) => Ok(Stmt::While(
+            rewrite_smt_expr_for_namespace(condition, namespace, symbols, &empty)?,
+            body.iter()
+                .map(|statement| rewrite_smt_statement_for_namespace(statement, namespace, symbols))
+                .collect::<Result<Vec<_>, _>>()?,
         )),
         _ => Ok(statement.clone()),
     }
@@ -16159,16 +16265,22 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             std::process::exit(1);
         }
     };
+    // Findings describe a program that passes the frontend check. An
+    // unresolved import or ill-typed declaration would otherwise leave rules
+    // unregistered and make an incomplete audit read as a clean one.
+    let frontend = type_check_artifacts(&stmts, source, filename);
+    if print_type_check_diagnostics(&frontend.diagnostics, source, filename) {
+        eprintln!(
+            "runa audit: the program must pass `runa check --frontend` before it can be audited"
+        );
+        std::process::exit(1);
+    }
 
     // An audit inspects the model: it registers declarations and evaluates
     // bindings and rules, but never runs top-level statements (effects,
     // loops, sends, proofs) and never performs host effects.
     let effect_diagnostics = audit_host_effect_diagnostics(&stmts);
     if print_type_check_diagnostics(&effect_diagnostics, source, filename) {
-        std::process::exit(1);
-    }
-    let artifacts = type_check_artifacts(&stmts, source, filename);
-    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         std::process::exit(1);
     }
     let source_dir = source_dir_for(filename);
@@ -17131,6 +17243,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             }
         }
     }
+    ToolGuarantee::Audit.print(false);
 }
 
 /// Collect rule name references from an expression (for invariant coverage analysis)
@@ -17419,8 +17532,12 @@ fn verify_with_z3(source: &str, filename: &str) {
     }
 
     if invariants.is_empty() {
-        println!("runa --verify: no invariants found in {}", filename);
-        std::process::exit(1);
+        // Nothing is claimed, so nothing is reported as proved.
+        println!(
+            "runa verify: no invariants to verify in {}; nothing was proved",
+            filename
+        );
+        return;
     }
 
     let mut proved_count = 0usize;
@@ -17737,6 +17854,7 @@ fn verify_with_z3(source: &str, filename: &str) {
     if proved_count != invariants.len() {
         std::process::exit(1);
     }
+    ToolGuarantee::Verify.print(false);
 }
 
 fn show_hashes(source: &str, filename: &str) {
@@ -18096,8 +18214,13 @@ fn check_source(
                         check_output.success(&summary, None, start.elapsed());
                     }
                     Ok(o) => {
-                        check_output
-                            .failure("backend", String::from_utf8_lossy(&o.stderr).into_owned());
+                        let stderr = String::from_utf8_lossy(&o.stderr);
+                        check_output.backend_errors(
+                            &runa_backend_diagnostics::generated_rust_diagnostics(
+                                source, filename, &stmts, &code, &stderr, "check.rs",
+                            ),
+                            &stderr,
+                        );
                         std::process::exit(1);
                     }
                     Err(e) => {
@@ -18172,8 +18295,13 @@ fn check_source(
                         check_output.success(&summary, None, start.elapsed());
                     }
                     Ok(o) => {
-                        check_output
-                            .failure("backend", String::from_utf8_lossy(&o.stderr).into_owned());
+                        let stderr = String::from_utf8_lossy(&o.stderr);
+                        check_output.backend_errors(
+                            &runa_backend_diagnostics::generated_rust_diagnostics(
+                                source, filename, &stmts, &code, &stderr, "main.rs",
+                            ),
+                            &stderr,
+                        );
                         std::process::exit(1);
                     }
                     Err(e) => {
@@ -18814,6 +18942,7 @@ fn format_directory(dir: &str, check: bool) {
             );
         }
     }
+    ToolGuarantee::Fmt.print(true);
 }
 
 fn collect_runa_files(dir: &str, out: &mut Vec<String>) {
@@ -19486,6 +19615,7 @@ fn format_one_file(source: &str, filename: &str, check: bool) {
             eprintln!("{} unchanged", filename);
         }
     }
+    ToolGuarantee::Fmt.print(true);
 }
 
 /// Compare both lexical content and parsed structure. Newlines may move, but
@@ -19757,8 +19887,14 @@ fn fmt_normalize_line(line: &str) -> String {
     // Step 1: Rune spacing — ensure exactly one space after leading rune
     let normalized = fmt_rune_spacing(code.trim_end());
 
-    // Step 2: Operator spacing — normalize binary operators outside strings
-    let normalized = fmt_operator_spacing(&normalized);
+    // Step 2: Operator spacing — normalize binary operators outside strings.
+    // An import path is one token sequence (`../lib/good`), not division.
+    let trimmed = normalized.trim_start();
+    let normalized = if trimmed.starts_with("@ import ") || trimmed.starts_with("@ importer ") {
+        normalized
+    } else {
+        fmt_operator_spacing(&normalized)
+    };
     let normalized = normalized.trim_end().to_string();
 
     // Reassemble with comment
@@ -21269,18 +21405,24 @@ fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::V
         None => return serde_json::Value::Null,
     };
 
+    let text = source.lines().nth(line as usize).unwrap_or("");
+    let prefix = &text[..lsp_utf16_byte_offset(text, col)];
+    let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
+    if let Some(receiver) = prefix.trim_end_matches(is_identifier).strip_suffix('.') {
+        // `Alias.member` resolves inside the module bound by `@ import Alias
+        // from path`; any other member access is a field, not a definition.
+        let alias_start = receiver
+            .char_indices()
+            .rev()
+            .take_while(|(_, character)| is_identifier(*character))
+            .last()
+            .map_or(receiver.len(), |(index, _)| index);
+        return lsp_qualified_definition(uri, source, &receiver[alias_start..], &word)
+            .unwrap_or(serde_json::Value::Null);
+    }
     if let Some(position) = lsp_find_def_pos(source, &word) {
         return lsp_symbol_location(uri, source, position, &word)
             .unwrap_or(serde_json::Value::Null);
-    }
-    let text = source.lines().nth(line as usize).unwrap_or("");
-    let prefix = &text[..lsp_utf16_byte_offset(text, col)];
-    if prefix
-        .trim_end_matches(|character: char| character.is_alphanumeric() || character == '_')
-        .ends_with('.')
-    {
-        // Do not resolve a qualified/field member to an unrelated plain import.
-        return serde_json::Value::Null;
     }
     let mut documents = Vec::new();
     lsp_collect_path_documents(uri, source, &mut BTreeSet::new(), &mut documents);
@@ -21295,6 +21437,38 @@ fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::V
         }
     }
     serde_json::Value::Null
+}
+
+/// Definition of `alias.member` in the module bound by `@ import alias from
+/// path`, including that module's own plain imports.
+fn lsp_qualified_definition(
+    uri: &str,
+    source: &str,
+    alias: &str,
+    member: &str,
+) -> Option<serde_json::Value> {
+    let statements = Parser::new(Lexer::new(source).tokenize(), source)
+        .parse_program()
+        .ok()?;
+    let import_path = statements.iter().find_map(|statement| match statement {
+        Stmt::QualifiedImport(name, path) if name == alias => Some(path),
+        _ => None,
+    })?;
+    let file_path =
+        Interpreter::resolve_import_path_for_source(import_path, &lsp_source_dir(uri)?)?;
+    let path = std::fs::canonicalize(&file_path).ok()?;
+    let module_source = std::fs::read_to_string(&path).ok()?;
+    let mut documents = Vec::new();
+    lsp_collect_path_documents(
+        &lsp_document_uri(&path),
+        &module_source,
+        &mut BTreeSet::new(),
+        &mut documents,
+    );
+    documents.iter().rev().find_map(|document| {
+        let position = lsp_find_def_pos(&document.source, member)?;
+        lsp_symbol_location(&document.uri, &document.source, position, member)
+    })
 }
 
 // Definition search uses byte offsets for slicing; convert only at the LSP

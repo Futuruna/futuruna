@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / skattekontrolloven
+@ importer ../examples/danish-income-tax/skattekontrolloven
 
 -- Fiktive datofakta; kalender- og klokkeslætsvalidering er ikke en del af denne test.
 | frist_efter_ordinær(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde, dato: Heltal) -> dato > skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(indkomstår, kilde)

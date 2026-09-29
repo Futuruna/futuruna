@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 
 -- Scenarier for Afskrivningsloven §§ 14-20.
 -- Lovtekst og kildeankre ligger i det importerede lovmodul.

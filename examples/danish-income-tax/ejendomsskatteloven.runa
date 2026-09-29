@@ -2,7 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./skatteaar - parametre
+@ importer ./skatteaar-parametre
 
 # EjendomsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

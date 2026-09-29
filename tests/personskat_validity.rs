@@ -4,6 +4,16 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
+
+#[path = "support/calculation_baseline.rs"]
+mod calculation_baseline;
+
+/// A generated template whose cases start from the explicit test baseline.
+fn baseline_template() -> Value {
+    let mut template = run(&["template", MODEL, "--format", "json"]);
+    calculation_baseline::fill_template(&mut template, &run(&["schema", MODEL]));
+    template
+}
 #[path = "support/boligjob.rs"]
 mod boligjob;
 #[path = "support/foreign_employment.rs"]
@@ -72,7 +82,7 @@ fn single_parent(year: i64, quarters: &[i64]) -> Value {
 
 #[test]
 fn commuting_rejects_negative_bridge_counts_and_impossible_calendar_days() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["skatteår"] = json!(2026);
@@ -246,7 +256,7 @@ fn fictional_spouse_rates_input(envelope: &Value) -> Value {
 
 #[test]
 fn public_early_pensions_preserve_old_exemptions_and_separate_atp_bases() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
@@ -489,7 +499,7 @@ fn public_early_pensions_preserve_old_exemptions_and_separate_atp_bases() {
 
 #[test]
 fn folkepension_and_exempt_supplements_preserve_tax_and_pension_deduction_bases() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
@@ -717,7 +727,7 @@ fn folkepension_and_exempt_supplements_preserve_tax_and_pension_deduction_bases(
 
 #[test]
 fn su_grants_and_loans_reach_canonical_tax_without_wage_deductions() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(0);
@@ -902,7 +912,7 @@ fn su_grants_and_loans_reach_canonical_tax_without_wage_deductions() {
 
 #[test]
 fn commuting_income_uses_benefit_sources_and_annual_business_basis() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["skatteår"] = json!(2026);
@@ -1211,7 +1221,7 @@ fn commuting_income_uses_benefit_sources_and_annual_business_basis() {
 
 #[test]
 fn spouse_loss_uses_recipient_rates_from_source_facts() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = fictional_spouse_rates_input(&envelope);
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     baseline["ægtefælle"]["fakta"]["kapitalindkomst"]["renter"]["renteudgifter_kroner"] =
@@ -1271,7 +1281,7 @@ fn spouse_loss_uses_recipient_rates_from_source_facts() {
 
 #[test]
 fn spouse_allowance_uses_recipient_rates_from_source_facts() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let baseline = fictional_spouse_rates_input(&envelope);
     // Observed independently in the anonymous calculator on 2026-09-25.
     // (Recipient church membership, donor church membership, donor wage, tax.)
@@ -1314,7 +1324,7 @@ fn spouse_allowance_uses_recipient_rates_from_source_facts() {
 
 #[test]
 fn union_fee_taxpayer_status_matches_the_individual_assessment() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut baseline = envelope["cases"][0]["input"].clone();
     baseline["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     baseline["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
@@ -1442,7 +1452,7 @@ fn union_fee_taxpayer_status_matches_the_individual_assessment() {
 
 #[test]
 fn unsupported_year_stops_before_tax_evaluation_with_actionable_diagnostic() {
-    let mut template = run(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     template["cases"][0]["input"]["lønmodtager"]["skatteår"] = json!(2027);
     template["cases"][0]["input_status"] = json!("ready");
     let path = std::env::temp_dir().join(format!(
@@ -1479,7 +1489,7 @@ fn unsupported_year_stops_before_tax_evaluation_with_actionable_diagnostic() {
 
 #[test]
 fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
-    let mut envelope = run(&["template", MODEL, "--format", "json"]);
+    let mut envelope = baseline_template();
     let mut input = envelope["cases"][0]["input"].clone();
     input["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     input["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
@@ -1569,7 +1579,7 @@ fn unsupported_year_batch_preserves_supported_totals_and_spouse_boundary() {
 
 #[test]
 fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
-    let mut template = run(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     let mut ordinary = template["cases"][0]["input"].clone();
     ordinary["ægtefælle"] = json!({"$variant":"UdenÆgtefælle"});
     assert_eq!(

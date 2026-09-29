@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - virksomhedskapital - kildefakta
+@ importer ./personskat-virksomhedskapital-kildefakta
 
 = personskat_virksomhedskapital_felt_beskatningsordning = TypetBeregningsfelt(
     path = refof(PersonskatVirksomhedskapitalInput::selvstændig_beskatningsordning::$variant),

@@ -1,9 +1,9 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./source - status
+@ importer ./source-status
 @ importer ./slutopgoerelse
-@ importer ./personskat - skattekreditter - kildekontrol
+@ importer ./personskat-skattekreditter-kildekontrol
 
 -- KSL § 60, stk. 1, litra a-c og e, samt stk. 3. Feltnavnene bevares;
 -- navnlig b_skat_betalt_* og par68_indbetalt_* beskriver ikke et kontantprincip.

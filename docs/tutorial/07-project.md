@@ -51,14 +51,34 @@ entry = "src/main.runa"
 -- src/main.runa
 @ import Math from ./math
 
-@ print(show(Math.square(5)))  -- 25
-@ print(show(Math.cube(3)))    -- 27
+@ print(show(Math.square(5))) -- 25
+@ print(show(Math.cube(3))) -- 27
 ```
 
 `@ export` marks what's public. `@ import Name from ./path` brings it in with qualified access.
 For reusable helper files, mark import-safe libraries with
 `-- library-hygiene: importable` and keep `runa lint-library --imports` green as
 described in [../library-hygiene.md](../library-hygiene.md).
+
+## Tests
+
+`runa test` runs every `.runa` file in `tests/`. `runa init` does not create
+that directory; add it together with a first test:
+
+```bash
+mkdir tests
+```
+
+```runa
+-- tests/math_test.runa
+@ import Math from ../src/math
+
+| square_of_five: Math.square(5) -> Math.square(5) == 25
+? square_of_five
+```
+
+Run `runa test` from the project root. A named invariant checked with `?`
+fails the test when it does not hold.
 
 ## Add dependencies
 

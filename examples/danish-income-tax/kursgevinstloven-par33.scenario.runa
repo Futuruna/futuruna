@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kursgevinstloven - par32
+@ importer ./kursgevinstloven-par32
 
 = kursgevinstloven_par33_scenarier_metadata = Metadata(
     attachments = (

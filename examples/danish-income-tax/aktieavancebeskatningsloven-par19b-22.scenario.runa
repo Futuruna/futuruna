@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
-@ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./kapitel-01-indkomst
+@ importer ./aktieavancebeskatningsloven-par23-27
 
 | abl_inv_par19_resultat(aktivmasse: AktieavanceInvesteringsaktivmasse, meddelelse: AktieavancePar19BMeddelelse, oplysninger: AktieavancePar19BOplysninger) -> aktieavance_par19b_par19c_resultat(AktieavancePar19BPar19CInput(
     indkomstår = 2026,

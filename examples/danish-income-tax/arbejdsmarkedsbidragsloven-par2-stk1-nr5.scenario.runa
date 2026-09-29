@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./arbejdsmarkedsbidragsloven - par2 - stk1 - nr5
+@ importer ./arbejdsmarkedsbidragsloven-par2-stk1-nr5
 
 | ambl_nr5_dokumenteret(reference: Tekst) -> AmblNr5BetingelseDokumenteret(dokumentreference = reference)
 | ambl_nr5_danske_og_udenlandske_lofter(årsramme_identifikation: Tekst, dansk_maksimum_kroner: Heltal, udenlandsk_maksimum_kroner: Heltal) -> AmblPar2Nr5Beløbsrammer(

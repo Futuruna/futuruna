@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./pensionsbeskatningsloven - par20
+@ importer ./pensionsbeskatningsloven-par20
 
 | pbl20_scenarieudbetaling(
     identifikation: Tekst,

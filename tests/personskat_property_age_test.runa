@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - ejendomsskat - alder
+@ importer ../examples/danish-income-tax/personskat-ejendomsskat-alder
 
 = ung = Dato(år = 1990, måned = 1, dag = 1)
 = sidste_dag = Dato(år = 1958, måned = 12, dag = 31)

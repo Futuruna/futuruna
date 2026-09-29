@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kursgevinstloven - ebl - par6d
+@ importer ./kursgevinstloven-ebl-par6d
 
 = kgl_ebl_par6d_scenarier_vejledningsmeta = Guidance(
     value = kgl_ebl_par6d_vejledning_2026

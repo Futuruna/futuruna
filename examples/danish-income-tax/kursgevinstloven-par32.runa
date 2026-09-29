@@ -4,7 +4,7 @@
 @ importer ./pengebeloeb
 @ importer ./kursgevinstloven
 @ importer ./aktieavancebeskatningsloven
-@ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./aktieavancebeskatningsloven-par23-27
 
 # KursgevinstlovPar32KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / kommuneskatteloven
+@ importer ../examples/danish-income-tax/kommuneskatteloven
 
 -- Fiktive kerneinput; valgstatus er allerede afledt af PSL § 14.
 | kommunal_testinput(delår: Boolsk, valg_gyldigt: Boolsk, omregnes: Boolsk, dage: Heltal, helårsskat: Heltal) -> KommunalPar5DelårInput(

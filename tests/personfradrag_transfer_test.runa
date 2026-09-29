@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personfradrag - samordning
+@ importer ../examples/danish-income-tax/personfradrag-samordning
 
 -- Fiktive beløb; de eksterne forventninger står i personfradrag-samordning.md.
 = pf_ballerup = Par12PersonfradragSatser(1201, 0, 0, 2550, 0)

@@ -1,6 +1,6 @@
 @ sprog da
 @ importer ./ligningsloven_fradrag
-@ importer ./ligningsloven - par9j - enlig
+@ importer ./ligningsloven-par9j-enlig
 
 -- Aflæste offentlige, fiktive cases; ikke forventninger afledt af modellen.
 -- Profil, kilder, beregningskonvention og kendte afvigelser: skatdk-fradrag-oere-ekstern.md.

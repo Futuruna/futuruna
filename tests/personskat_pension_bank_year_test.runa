@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / pensionsbeskatningsloven
+@ importer ../examples/danish-income-tax/pensionsbeskatningsloven
 
 | bankgodkendelse(år: Heltal, godkendt_år: Heltal, tilbageholdt: Heltal, godkendt: Heltal, kilde: Tekst) -> Pbl19BankGodkendelse(
     identifikation = "afgørelse-1", kildereference = kilde,

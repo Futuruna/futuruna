@@ -1,6 +1,6 @@
 @ sprog da
-@ importer ./socialpensionsloven - par1a
-@ importer ./skatteaar - parametre
+@ importer ./socialpensionsloven-par1a
+@ importer ./skatteaar-parametre
 @ importer ./metadata
 
 -- Kompensationsloven, ordinære helår 2023–2026. Se groen-check.md for

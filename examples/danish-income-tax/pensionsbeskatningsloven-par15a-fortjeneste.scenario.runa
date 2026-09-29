@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./pensionsbeskatningsloven
-@ importer ./pbl15a - source - fixtures.scenario
+@ importer ./pbl15a-source-fixtures.scenario
 
 -- Fokuserede scenarier for den kildeafledte fortjeneste efter PBL § 15 A.
 -- Lovtekst, vejledning og kildehenvisninger står i det tilhørende lovmodul.
