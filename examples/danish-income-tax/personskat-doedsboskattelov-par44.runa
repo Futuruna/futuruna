@@ -46,6 +46,7 @@ stk. 1, nr. 7.
     |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation == virksomhedsidentifikation
 )
 | personskat_dødsboskattelov44_ingen_levende_ægtefælle(input: PersonskatInput) -> match input.ægtefælle {
+    | ÆgtefællegrundlagUoplyst -> Falskt
     | UdenÆgtefælle -> Sandt
     | MedÆgtefælle(_, _, _) -> Falskt
 }
