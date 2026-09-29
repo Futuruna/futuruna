@@ -38,6 +38,7 @@ pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
 mod danish;
+mod declaration_contracts;
 mod editor_fields;
 mod effect_handling;
 pub use editor_fields::EditorField;
@@ -4346,6 +4347,7 @@ Raw additions
 # impl Meta for BoolMeta {}
 
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 = boolean_meta = BoolMeta(
@@ -9133,6 +9135,7 @@ pub struct Parser {
     type_name_spans: Option<Vec<(String, Span)>>,
     language: SourceLanguage,
     source_path: Option<PathBuf>,
+    declaration_name_spans: Option<Vec<(String, Span)>>,
 }
 
 impl Parser {
@@ -9154,6 +9157,7 @@ impl Parser {
             type_name_spans: None,
             language: detect_source_language(source),
             source_path: None,
+            declaration_name_spans: None,
         }
     }
 
@@ -9198,6 +9202,20 @@ impl Parser {
         let start = self.char_offset(tok.line, tok.col);
         let end = start + tok.source_text.chars().count();
         Span::new(start, end)
+    }
+
+    fn record_declaration_name_span(&mut self, key: String, token_index: usize) {
+        if self.declaration_name_spans.is_none() {
+            return;
+        }
+        let Some(token) = self.tokens.get(token_index) else {
+            return;
+        };
+        let span = self.token_span(token);
+        self.declaration_name_spans
+            .as_mut()
+            .unwrap()
+            .push((key, span));
     }
 
     /// Create a Span from start token to end of most recently consumed token.
@@ -11706,6 +11724,7 @@ impl Parser {
 
     /// Parse: # impl Display for Shape { > fmt(self) -> String { ... } }
     pub fn parse_impl_block(&mut self) -> Result<Stmt, String> {
+        let trait_token = self.pos;
         let trait_name = self.parse_qualified_name()?;
         // expect "for"
         if self.peek_kind() == TokenKind::KW && self.peek().text == "for" {
@@ -11714,6 +11733,7 @@ impl Parser {
             return Err(format!("expected 'for' after trait name in # impl"));
         }
         let for_type = self.parse_qualified_name()?;
+        self.record_declaration_name_span(format!("impl:{trait_name}:{for_type}"), trait_token);
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut methods = Vec::new();
@@ -11722,6 +11742,17 @@ impl Parser {
                 || (self.peek_kind() == TokenKind::Op && self.peek().text == ">");
             if is_gt {
                 self.advance(); // consume >
+                let method_token = self.pos;
+                if let Some(method) = self
+                    .tokens
+                    .get(method_token)
+                    .map(|token| token.text.clone())
+                {
+                    self.record_declaration_name_span(
+                        format!("impl:{trait_name}:{for_type}:{method}"),
+                        method_token,
+                    );
+                }
                 match self.parse_definition() {
                     Ok(Stmt::Defn(defn)) => methods.push(defn),
                     Ok(_) => {}
@@ -11808,6 +11839,7 @@ impl Parser {
         let mut except_from: Option<(String, Vec<String>)> = None;
         loop {
             let name = self.expect_ident()?;
+            self.record_declaration_name_span(format!("variant:{name}"), self.pos - 1);
             // Check for qualified variant: Parent.Variant (subset type syntax)
             if self.peek_kind() == TokenKind::Dot {
                 self.advance(); // consume '.'
@@ -16094,6 +16126,17 @@ impl Interpreter {
                 .map(|(effect, _)| effect.clone())
         })
         .map(|(_, effect)| effect)
+    }
+
+    fn is_runtime_effect_operation_call(&self, expression: &Expr, env: &Env) -> bool {
+        let ExprKind::App(function, _) = &expression.kind else {
+            return false;
+        };
+        let ExprKind::Var(operation) = &function.kind else {
+            return false;
+        };
+        is_builtin_effect(operation)
+            || self.runtime_effect_operation_exists(&self.namespace_for_env(env), operation)
     }
 
     fn runtime_effect_operation_exists(
@@ -20551,10 +20594,17 @@ impl Interpreter {
                         Value::Constructor(name, _) if name == "Err" || name == "None" => {
                             return val; // Early return from enclosing block
                         }
-                        _ => {
-                            // Not a Result/Option — just bind directly
+                        _ if self.is_runtime_effect_operation_call(expr, env) => {
+                            // Effect operations resume with a plain value.
                             self.bind_pattern(pat, &val, env);
                             last = val;
+                        }
+                        _ => {
+                            return self.panic_or_calculation_fail(format!(
+                                "`<-` needs a Result or Option value (or an effect operation), got {}",
+                                self.runtime_type_name(&val)
+                                    .unwrap_or_else(|| val.to_string())
+                            ));
                         }
                     }
                 }
@@ -29549,6 +29599,11 @@ pub struct TypeChecker {
     pub types: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
     annotation_source_spans: Option<(String, BTreeMap<String, Span>)>,
+    declaration_source_spans: Option<(String, BTreeMap<String, Span>)>,
+    /// (scope depth, subject variable, variant) for each enclosing match arm
+    /// whose pattern names a variant of a named subject's sum type.
+    /// The flag marks refinements established by `= name = Variant(...)`.
+    variant_refinements: Vec<(usize, String, String, bool)>,
     /// constructor/variant name -> (parent type, field count)
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -29578,10 +29633,10 @@ pub struct TypeChecker {
     pub trait_methods: BTreeMap<String, Vec<String>>,
     /// (trait_name, for_type) -> provided method names
     pub impl_methods: BTreeMap<(String, String), Vec<String>>,
-    /// (trait_name, method_name) -> receiver semantics required by the trait
-    trait_method_receivers: BTreeMap<(String, String), MethodReceiverShape>,
-    /// (trait_name, for_type, method_name) -> receiver semantics provided by the impl
-    impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
+    /// trait name -> declared method signatures
+    trait_method_signatures: BTreeMap<String, Vec<TraitMethod>>,
+    /// (trait_name, for_type) -> provided (method name, parameters, result type)
+    impl_method_signatures: BTreeMap<(String, String), Vec<(String, Vec<Param>, Option<Ty>)>>,
     /// RuleScope name -> scoped rule name -> arity.
     rule_scope_methods: BTreeMap<String, BTreeMap<String, usize>>,
     /// RuleScope name -> scoped rule name -> declaration-order parameter names.
@@ -46307,6 +46362,8 @@ impl TypeChecker {
             types: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
+            declaration_source_spans: None,
+            variant_refinements: Vec::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
             type_parameters_by_owner: BTreeMap::new(),
@@ -46320,8 +46377,8 @@ impl TypeChecker {
             effect_ops: BTreeMap::new(),
             trait_methods: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
-            trait_method_receivers: BTreeMap::new(),
-            impl_method_receivers: BTreeMap::new(),
+            trait_method_signatures: BTreeMap::new(),
+            impl_method_signatures: BTreeMap::new(),
             rule_scope_methods: BTreeMap::new(),
             rule_scope_method_params: BTreeMap::new(),
             rule_scope_value_methods: BTreeMap::new(),
@@ -46926,6 +46983,9 @@ impl TypeChecker {
         self.rule_scope_vars.pop();
         self.var_types.pop();
         self.actor_handle_scopes.pop();
+        let depth = self.scopes.len();
+        self.variant_refinements
+            .retain(|(scope, _, _, _)| *scope < depth);
     }
 
     pub fn define_var(&mut self, name: &str) {
@@ -53949,7 +54009,7 @@ impl TypeChecker {
     }
 
     fn expr_rule_scope_type(&self, expr: &Expr) -> Option<String> {
-        match &expr.kind {
+        let direct = match &expr.kind {
             ExprKind::Var(name) => self.rule_scope_var_type(name).map(str::to_string),
             ExprKind::App(func, _) => match &func.kind {
                 ExprKind::Var(name) if self.type_has_scoped_members(name) => Some(name.clone()),
@@ -53957,7 +54017,27 @@ impl TypeChecker {
                 _ => None,
             },
             _ => None,
-        }
+        };
+        // Receivers whose type is known from inference (nested fields,
+        // element accessors, typed lambda parameters) resolve the same way.
+        direct.or_else(|| {
+            let type_name = self.ordinary_expression_type(expr)?;
+            let owner = Self::canonical_nominal_owner(&type_name)?;
+            self.type_has_scoped_members(&owner).then_some(owner)
+        })
+    }
+
+    /// A receiver whose type the frontend knows. Unknown receivers (untyped
+    /// lambda parameters, loop variables over untyped lists) are dispatched
+    /// by their runtime value.
+    fn receiver_type_known(&self, expr: &Expr) -> bool {
+        self.ordinary_expression_type(expr)
+            .is_some_and(|type_name| {
+                !matches!(
+                    parse_type_annotation(&type_name),
+                    Err(_) | Ok(Ty::Var(_) | Ty::Hole)
+                )
+            })
     }
 
     fn resolved_rule_scope_return_type(&self, rule_name: &str) -> Option<String> {
@@ -55209,12 +55289,10 @@ impl TypeChecker {
                         );
                         self.register_reference_symbol(&method.name, ProgramSymbolKind::Function);
                         method_names.push(method.name.clone());
-                        self.trait_method_receivers.insert(
-                            (name.clone(), method.name.clone()),
-                            Self::method_receiver_shape(&method.params),
-                        );
                     }
                     self.trait_methods.insert(name.clone(), method_names);
+                    self.trait_method_signatures
+                        .insert(name.clone(), methods.clone());
                 }
                 Stmt::TypeDecl(TypeDecl::ImplBlock {
                     trait_name,
@@ -55222,10 +55300,12 @@ impl TypeChecker {
                     methods,
                 }) => {
                     let mut method_names = Vec::new();
+                    let mut signatures = Vec::new();
                     for defn in methods {
                         if let Defn::Fn {
                             name,
                             params,
+                            ret_ty,
                             effects,
                             body,
                             ..
@@ -55242,14 +55322,13 @@ impl TypeChecker {
                             self.record_function_signature(name, params.len(), Some(param_names));
                             self.register_reference_symbol(name, ProgramSymbolKind::Function);
                             method_names.push(name.clone());
-                            self.impl_method_receivers.insert(
-                                (trait_name.clone(), for_type.clone(), name.clone()),
-                                Self::method_receiver_shape(params),
-                            );
+                            signatures.push((name.clone(), params.clone(), ret_ty.clone()));
                         }
                     }
                     self.impl_methods
                         .insert((trait_name.clone(), for_type.clone()), method_names);
+                    self.impl_method_signatures
+                        .insert((trait_name.clone(), for_type.clone()), signatures);
                 }
                 Stmt::Bind(Pat::Var(name), _, _) => {
                     self.record_explore_non_rule_runtime_name(name);
@@ -55566,73 +55645,6 @@ impl TypeChecker {
             self.check_explore_query(query, selectable);
         } else {
             self.check_stmt(stmt);
-        }
-    }
-
-    /// Verify each `# impl Trait for Type` provides all required methods.
-    fn check_trait_impls(&mut self) {
-        let mut errors = Vec::new();
-        for ((trait_name, for_type, method_name), shape) in &self.impl_method_receivers {
-            if *shape == MethodReceiverShape::Invalid {
-                errors.push(format!(
-                    "`# impl {} for {}` method `{}` uses `self` in an invalid position; `self` must be the first parameter",
-                    trait_name, for_type, method_name
-                ));
-            }
-        }
-        for ((trait_name, for_type), provided) in &self.impl_methods {
-            if let Some(required) = self.trait_methods.get(trait_name) {
-                let missing: Vec<&String> = required
-                    .iter()
-                    .filter(|m| !provided.iter().any(|p| p == *m))
-                    .collect();
-                if !missing.is_empty() {
-                    let missing_names: Vec<&str> = missing.iter().map(|s| s.as_str()).collect();
-                    errors.push(format!(
-                        "`# impl {} for {}` is missing method{}: {}",
-                        trait_name,
-                        for_type,
-                        if missing.len() == 1 { "" } else { "s" },
-                        missing_names.join(", ")
-                    ));
-                }
-                for method_name in required {
-                    if !provided.iter().any(|p| p == method_name) {
-                        continue;
-                    }
-                    let trait_shape = self
-                        .trait_method_receivers
-                        .get(&(trait_name.clone(), method_name.clone()))
-                        .copied()
-                        .unwrap_or(MethodReceiverShape::None);
-                    let impl_shape = self
-                        .impl_method_receivers
-                        .get(&(trait_name.clone(), for_type.clone(), method_name.clone()))
-                        .copied()
-                        .unwrap_or(MethodReceiverShape::None);
-                    if impl_shape == MethodReceiverShape::Invalid || trait_shape == impl_shape {
-                        continue;
-                    }
-                    match (trait_shape, impl_shape) {
-                        (MethodReceiverShape::SelfFirst, MethodReceiverShape::None) => errors.push(
-                            format!(
-                                "`# impl {} for {}` method `{}` must declare `self` as its first parameter to match the trait receiver",
-                                trait_name, for_type, method_name
-                            ),
-                        ),
-                        (MethodReceiverShape::None, MethodReceiverShape::SelfFirst) => errors.push(
-                            format!(
-                                "`# impl {} for {}` method `{}` must not declare `self`; the trait method is not a receiver method",
-                                trait_name, for_type, method_name
-                            ),
-                        ),
-                        _ => {}
-                    }
-                }
-            }
-        }
-        for err in errors {
-            self.error(err);
         }
     }
 
@@ -58175,8 +58187,10 @@ impl TypeChecker {
                 name,
                 params: type_params,
                 methods,
+                variants,
                 ..
             }) => {
+                self.check_variant_names(name, variants);
                 let arguments = type_params
                     .iter()
                     .filter(|param| param.ty.is_none())
@@ -58244,7 +58258,13 @@ impl TypeChecker {
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+            Stmt::TypeDecl(TypeDecl::WhenType {
+                name,
+                condition,
+                variants,
+                ..
+            }) => {
+                self.check_variant_names(name, variants);
                 self.check_expr(condition, None);
             }
             Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
@@ -58283,6 +58303,7 @@ impl TypeChecker {
                 if let Pat::Var(name) = pat {
                     let actor = Self::spawned_actor_name(expr);
                     self.define_actor_handle(name, actor);
+                    self.record_binding_variant_refinement(name, expr);
                 }
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
@@ -58300,9 +58321,12 @@ impl TypeChecker {
             Stmt::MonadicBind(pat, ty, expr) => {
                 self.check_expr(expr, None);
                 self.obvious_expr_ty(expr);
+                let inner = self.check_monadic_bind_operand(expr);
                 self.define_pat_vars(pat);
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
+                } else if let (Pat::Var(name), Some(inner)) = (pat, inner) {
+                    self.define_inferred_var_type_name(name, &inner);
                 }
             }
             Stmt::StreamBind(name, expr) => {
@@ -58428,10 +58452,21 @@ impl TypeChecker {
                             .map(|ty| (name.clone(), ty))
                     })
                     .collect::<Vec<_>>();
+                let subject_variants = subject_names[0]
+                    .iter()
+                    .filter_map(|name| {
+                        self.refined_variant(&Expr::unspanned(ExprKind::Var(name.clone())))
+                            .map(|variant| (name.clone(), variant))
+                    })
+                    .collect::<Vec<_>>();
                 self.push_scope();
                 Self::define_rule_head_vars(subject, &mut self.scopes);
                 for (name, ty) in subject_types {
                     self.define_inferred_var_type_name(&name, &ty);
+                }
+                let depth = self.scopes.len() - 1;
+                for (name, variant) in subject_variants {
+                    self.variant_refinements.push((depth, name, variant, true));
                 }
                 self.define_rule_head_var_types(subject);
                 self.check_expr(subject, None);
@@ -58697,7 +58732,9 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if self.is_rule_scope_member_name(method) {
+                    } else if self.is_rule_scope_member_name(method)
+                        && self.receiver_type_known(base)
+                    {
                         self.error_at_expr(
                             func,
                             format!(
@@ -58777,6 +58814,12 @@ impl TypeChecker {
                         return;
                     }
 
+                    if !lexical_call_checked
+                        && !self.var_defined(name)
+                        && self.constructor_signatures.contains_key(name)
+                    {
+                        self.check_positional_constructor_arguments(name, args);
+                    }
                     if let Some(&expected) = self.functions.get(name) {
                         if !lexical_call_checked
                             && !self.function_has_arity(name, actual_arity)
@@ -58941,6 +58984,14 @@ impl TypeChecker {
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type: Option<String> = None;
+                let refinement_subject = match &scrutinee.kind {
+                    ExprKind::Var(subject) => subject_type
+                        .as_deref()
+                        .and_then(Self::canonical_nominal_owner)
+                        .and_then(|owner| self.type_variants.get(&owner).cloned())
+                        .map(|variants| (subject.clone(), variants)),
+                    _ => None,
+                };
                 for (index, arm) in arms.iter().enumerate() {
                     let pattern_anchor = Expr::new(ExprKind::Unit, arm.pat_span);
                     self.check_pattern_constructor_arity(
@@ -58949,6 +59000,19 @@ impl TypeChecker {
                         subject_type.as_deref(),
                     );
                     self.push_scope();
+                    let refined = refinement_subject.as_ref().and_then(|(subject, variants)| {
+                        Self::pattern_variant_name(&arm.pat)
+                            .filter(|variant| variants.iter().any(|known| known == variant))
+                            .map(|variant| (subject.clone(), variant.to_string()))
+                    });
+                    if let Some((subject, variant)) = &refined {
+                        self.variant_refinements.push((
+                            self.scopes.len() - 1,
+                            subject.clone(),
+                            variant.clone(),
+                            false,
+                        ));
+                    }
                     self.define_pat_vars(&arm.pat);
                     for (name, type_name) in
                         self.pattern_type_bindings(&arm.pat, subject_type.as_deref())
@@ -59161,19 +59225,80 @@ impl TypeChecker {
 
     fn check_rule_result_contracts(&mut self, stmts: &[Stmt]) {
         let dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
-        self.check_rule_result_sequence(stmts, &dir, &mut BTreeMap::new(), &mut BTreeSet::new());
+        let mut bases = BTreeSet::new();
+        self.collect_rule_base_families(stmts, &dir, &mut bases, &mut BTreeSet::new());
+        self.check_rule_result_sequence(
+            stmts,
+            &dir,
+            &bases,
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+        );
+    }
+
+    /// Rule families (name and arity) with at least one clause or default in
+    /// this declaration sequence or its plain imports.
+    fn collect_rule_base_families(
+        &self,
+        stmts: &[Stmt],
+        dir: &str,
+        bases: &mut BTreeSet<(String, usize)>,
+        visited: &mut BTreeSet<PathBuf>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Rule(rule @ (Rule::Clause { .. } | Rule::Default { .. })) => {
+                    if let Some(key) = Self::rule_name_arity(rule) {
+                        bases.insert(key);
+                    }
+                }
+                Stmt::Import(path) => {
+                    let Some((file, module)) = self
+                        .rule_contract_imports
+                        .get(&(dir.to_string(), path.clone()))
+                    else {
+                        continue;
+                    };
+                    if !visited.insert(canonical_parsed_source_path(Path::new(file))) {
+                        continue;
+                    }
+                    let imported_dir = Interpreter::imported_source_dir(file);
+                    self.collect_rule_base_families(
+                        module.statements(),
+                        &imported_dir,
+                        bases,
+                        visited,
+                    );
+                }
+                _ => {}
+            }
+        }
     }
 
     fn check_rule_result_sequence(
         &mut self,
         stmts: &[Stmt],
         dir: &str,
+        bases: &BTreeSet<(String, usize)>,
         known: &mut BTreeMap<(String, usize), Vec<String>>,
         visited: &mut BTreeSet<PathBuf>,
     ) {
         for stmt in stmts {
             match stmt {
                 Stmt::Rule(rule) => {
+                    if let Rule::Exception { label, head, .. } = rule {
+                        if let Some((name, arity)) = Self::rule_name_arity(rule) {
+                            if !bases.contains(&(name.clone(), arity)) {
+                                self.error_at_expr(
+                                    head,
+                                    format!(
+                                        "exception `{label}` overrides rule `{name}` with {arity} argument{}, but no such rule is declared; an exception needs an ordinary rule or default with the same name and arity",
+                                        if arity == 1 { "" } else { "s" }
+                                    ),
+                                );
+                            }
+                        }
+                    }
                     if let Some(message) = self.rule_result_conflict(rule, known) {
                         let head = match rule {
                             Rule::Default { head, .. }
@@ -59208,6 +59333,7 @@ impl TypeChecker {
                     self.check_rule_result_sequence(
                         module.statements(),
                         &imported_dir,
+                        bases,
                         known,
                         visited,
                     );
@@ -64867,6 +64993,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn interpreted_typed_boolean_rule_misses_use_exact_return_metadata() {
         let source = r#"
 | condition(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 | mixed(value: Int) -> True under value > 0
@@ -65022,6 +65149,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 # Case(limit: Int) {
     | allowed(value: Int) -> True under value > 0
+    | exception_allowed(value: Int) -> True under value > 100
     | exception above_limit exception_allowed(value: Int) -> True under value > 0
     | wrapper(value: Int) -> allowed(value)
     | memo_allowed() -> True under False
@@ -65459,6 +65587,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn eval_source_installs_boolean_rule_miss_metadata() {
         let source = r#"
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ print(show(conditional(0)))

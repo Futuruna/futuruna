@@ -33,14 +33,14 @@ inserts `drop` and `dup` operations, then optimizes:
 
 **What Futuruna could steal:** The reuse analysis. When Futuruna sees:
 ```tau
-> map(xs: List(T), f: T -> U) -> List(U) {
+> map(xs: Chain(T), f: T -> U) -> Chain(U) {
     match xs {
-        | Nil -> Nil
-        | Cons(head: h, tail: t) -> Cons(head: f(h), tail: map(t, f))
+        | End -> End
+        | Link(head: h, tail: t) -> Link(head: f(h), tail: map(t, f))
     }
 }
 ```
-If `xs` has refcount 1, reuse the Cons cell in-place. Zero allocation for the
+If `xs` has refcount 1, reuse the Link cell in-place. Zero allocation for the
 common case. This is *better* than hand-written Rust (which would clone or
 require `&mut`).
 

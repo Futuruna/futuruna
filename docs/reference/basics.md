@@ -258,9 +258,11 @@ Lowercase single letters are type variables: `a`, `b`, `c`, etc. They become upp
 
 Arithmetic uses `Int` or `Float` operands. For `+`, `-`, `*`, and `/`, mixing
 `Int` and `Float` converts the integer to `Float` and produces a `Float`.
-Remainder (`%`) requires two `Int` values or two `Float` values. Use `to_float`
-when an explicit conversion is needed. `+` also concatenates when either operand
-is a `String`; use `concat` to combine lists.
+Remainder (`%`) requires two `Int` values or two `Float` values. Outside
+arithmetic an `Int` is not a `Float`: a `Float` parameter, field, binding, or
+result needs a `Float` value such as `25.0` or `to_float(n)`, so `Rates(25)`
+for `# Rates(percent: Float)` is a type error. `+` also concatenates when
+either operand is a `String`; use `concat` to combine lists.
 
 ### Comparison
 | Op | Meaning |
