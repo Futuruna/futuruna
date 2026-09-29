@@ -324,6 +324,19 @@ fn template_placeholder(expected: String) -> JsonValue {
     JsonValue::Object(object)
 }
 
+/// The placeholder for an unfilled value of `ty`, as generated templates
+/// write it; spreadsheet adapters use it for a blank required cell.
+pub fn template_placeholder_for(ty: &CalculationTypeRef) -> JsonValue {
+    template_placeholder(ty.display_name())
+}
+
+/// Input-relative paths (`$.field`) of unfilled placeholders in one case.
+pub fn template_placeholder_paths(input: &JsonValue) -> Vec<String> {
+    let mut found = Vec::new();
+    collect_template_placeholders(input, "$", &mut found);
+    found.into_iter().map(|(path, _)| path).collect()
+}
+
 fn collect_template_placeholders(value: &JsonValue, path: &str, found: &mut Vec<(String, String)>) {
     if is_template_placeholder(value) {
         let expected = value[TEMPLATE_PLACEHOLDER_KEY]

@@ -2240,11 +2240,25 @@ fn read_calculation_template_input(
     }
     let mut errors = Vec::new();
     for case in &mut envelope.cases {
+        // Hydration converts unfinished inputs too: unfilled placeholders are
+        // carried over, and `call` rejects them until they are filled.
+        let placeholders = calculate::template_placeholder_paths(&case.input);
+        let unfilled = |path: &str| {
+            placeholders.iter().any(|placeholder| {
+                path == placeholder
+                    || path
+                        .strip_prefix(placeholder.as_str())
+                        .is_some_and(|rest| rest.starts_with(['.', '[']))
+            })
+        };
         if let Err(diagnostics) = contract.decode_input_diagnostics(&case.input) {
             errors.extend(
-                diagnostics.into_iter().map(|error| {
-                    format!("case `{}` {}: {}", case.case_id, error.path, error.message)
-                }),
+                diagnostics
+                    .into_iter()
+                    .filter(|error| !unfilled(&error.path))
+                    .map(|error| {
+                        format!("case `{}` {}: {}", case.case_id, error.path, error.message)
+                    }),
             );
         }
         case.input_status
@@ -3603,7 +3617,13 @@ fn read_calculation_xlsx(
                 }
                 continue;
             }
-            let value = match calculation_json_from_cell(cell, column, quoted_strings) {
+            // Converting a workbook keeps a blank required cell unfilled.
+            let converted = if hydrate && column.required && matches!(cell, Data::Empty) {
+                Ok(calculate::template_placeholder_for(&column.ty))
+            } else {
+                calculation_json_from_cell(cell, column, quoted_strings)
+            };
+            let value = match converted {
                 Ok(value) => value,
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
@@ -6674,12 +6694,9 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             interp.source_dir = source_dir_for(filename);
             let mut env = interp.default_env();
             // A program's output is what it prints, in both execution modes.
-            if let Err(diagnostic) = interp.run_program_with_diagnostics(
-                &stmts,
-                &mut env,
-                Path::new(filename),
-                source,
-            ) {
+            if let Err(diagnostic) =
+                interp.run_program_with_diagnostics(&stmts, &mut env, Path::new(filename), source)
+            {
                 eprint!(
                     "{}",
                     diagnostic.display(source, filename, should_use_color())
@@ -10247,6 +10264,7 @@ enum ExpectCommand {
     Verify,
     LintLibrary,
     LintLibraryImports,
+    Audit,
 }
 
 impl ExpectCommand {
@@ -10263,8 +10281,9 @@ impl ExpectCommand {
             "verify" => Ok(Self::Verify),
             "lint-library" => Ok(Self::LintLibrary),
             "lint-library-imports" => Ok(Self::LintLibraryImports),
+            "audit" => Ok(Self::Audit),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -10283,6 +10302,7 @@ impl ExpectCommand {
             Self::Verify => "verify",
             Self::LintLibrary => "lint-library",
             Self::LintLibraryImports => "lint-library-imports",
+            Self::Audit => "audit",
         }
     }
 
@@ -10320,6 +10340,9 @@ impl ExpectCommand {
             }
             Self::LintLibraryImports => {
                 cmd.arg("lint-library").arg("--imports").arg(file);
+            }
+            Self::Audit => {
+                cmd.arg("audit").arg(file);
             }
         }
     }
@@ -12957,10 +12980,12 @@ fn smt_expr_kind_name(expr: &Expr) -> &'static str {
     }
 }
 
+/// Declarations and claims an imported source contributes to verification;
+/// its program flow (prints, loops, sends) is not part of the claim set.
 fn smt_imported_library_statement(statement: &Stmt) -> bool {
     matches!(
         statement,
-        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..)
+        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..) | Stmt::Invariant { .. }
     )
 }
 
@@ -16473,7 +16498,9 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     // unregistered and make an incomplete audit read as a clean one.
     let frontend = type_check_artifacts(&stmts, source, filename);
     if print_type_check_diagnostics(&frontend.diagnostics, source, filename) {
-        eprintln!("runa audit: the program must pass `runa check --frontend` before it can be audited");
+        eprintln!(
+            "runa audit: the program must pass `runa check --frontend` before it can be audited"
+        );
         std::process::exit(1);
     }
 
@@ -18864,8 +18891,12 @@ fn verify_with_z3(source: &str, filename: &str) {
     }
 
     if invariants.is_empty() {
-        println!("runa --verify: no invariants found in {}", filename);
-        std::process::exit(1);
+        // Nothing is claimed, so nothing is reported as proved.
+        println!(
+            "runa verify: no invariants to verify in {}; nothing was proved",
+            filename
+        );
+        return;
     }
 
     let function_param_types = collect_function_param_types_from_defs(&functions);

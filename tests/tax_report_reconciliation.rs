@@ -6,6 +6,16 @@ use std::process::Command;
 
 const MODEL: &str = "examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa";
 
+#[path = "support/calculation_baseline.rs"]
+mod calculation_baseline;
+
+/// A generated template whose cases start from the explicit test baseline.
+fn baseline_template() -> Value {
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    calculation_baseline::fill_template(&mut template, &invoke(&["schema", MODEL]));
+    template
+}
+
 fn invoke(args: &[&str]) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_runa"))
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -231,7 +241,7 @@ fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
         },
     );
 
-    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     template["cases"] = json!(cases);
     let path: PathBuf = std::env::temp_dir().join(format!(
         "futuruna-report-reconciliation-{}-{}.json",
@@ -442,7 +452,7 @@ fn recipient_rates_and_combined_local_lines_match_official_synthetic_reports() {
         },
     );
 
-    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     template["cases"] = json!(cases);
     let path = std::env::temp_dir().join(format!(
         "futuruna-recipient-rates-{}-{}.json",
@@ -590,7 +600,7 @@ fn partial_transfers_expose_residual_bounds_without_filling_missing_observations
         false,
     );
 
-    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     template["cases"] = json!(cases);
     let path = std::env::temp_dir().join(format!(
         "futuruna-partial-transfers-{}-{}.json",
@@ -727,7 +737,7 @@ fn confirmed_empty_tax_sections_preserve_zero_unknowns_and_contradictions() {
         v["betaling"]["restskat"]["oplyst_restskat_øre"] = json!(1);
     });
 
-    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     assert_eq!(
         template["cases"][0]["input"]["skat"]["poster_uden_ægtefællenedslag_komplette"],
         false
@@ -881,7 +891,7 @@ fn refund_additions_precede_corrections_and_never_default_unknowns_to_zero() {
         },
     );
 
-    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     assert_eq!(
         template["cases"][0]["input"]["betaling"]["tillæg_til_slutskat_komplette"],
         false
@@ -1056,7 +1066,7 @@ fn tax_owed_reports_reconcile_principal_without_certifying_collection() {
             json!([{"navn": "For stort tillæg", "beløb_øre": i64::MAX}]);
     });
 
-    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    let mut template = baseline_template();
     assert_eq!(
         template["cases"][0]["input"]["betaling"]["restskat"],
         Value::Null

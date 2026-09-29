@@ -345,8 +345,20 @@ acknowledges intentional inputs, including zeros, empty collections and known
 unknowns; it does not authenticate documents, establish completeness or certify
 the model. A ready case can still fail ordinary input or model checks.
 
-Unedited template defaults are examples of value shapes, not statements about
-a person. Changing some values does not automatically mark a case ready. Review
+Every value the user must supply is written as a placeholder object such as
+`{"$fill": "Int"}` or `{"$fill": "FilingStatus: one of Single, Married"}`;
+only structure fixed by the contract (record fields, a sole variant) is spelled
+out. A placeholder is never a valid value, so `runa call` refuses a case that
+still contains one and lists every unfilled path, for example
+`$.cases[0].input.monthly_income`, even when the case is marked `ready`.
+Optional values and collections are placeholders too: write `null`, `[]` or
+`{}` deliberately. `$fill` is reserved and cannot be used as a map key in
+calculation input. XLSX templates leave unfilled cells blank; a blank required
+cell is rejected, and converting a workbook with `template --input` keeps blank
+required cells as placeholders. Spreadsheet collections are supplied as rows, so
+a collection sheet without rows is an empty collection.
+
+Changing some values does not automatically mark a case ready. Review
 the status again after editing facts; offline files cannot detect whether a
 previous review still applies. JSON/TOML carry the status alongside `case_id`,
 outside the model's `input` record.

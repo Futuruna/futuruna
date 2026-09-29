@@ -210,7 +210,10 @@ impl CheckOutput<'_> {
         };
         eprintln!("{red}check failed{reset}: {}", self.filename);
         for diagnostic in diagnostics {
-            eprint!("{}", diagnostic.display(self.source, self.filename, use_color));
+            eprint!(
+                "{}",
+                diagnostic.display(self.source, self.filename, use_color)
+            );
         }
         if runa_backend_diagnostics::show_rustc_output() {
             eprintln!("\n{rustc_output}");
