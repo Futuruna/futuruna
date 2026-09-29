@@ -222,7 +222,7 @@ assert_contains "$roundtrip_case_label" "$roundtrip_case_axes" "$roundtrip_run_o
 run_step "$RUNA_BIN" test --check-codegen "$CASE_DIR"
 roundtrip_output="$("$RUNA_BIN" test --roundtrip "$CASE_DIR" 2>&1)" \
     || fail "roundtrip failed for generated cross-product corpus"
-assert_contains "roundtrip" "generated-cross-product" "$roundtrip_output" "Roundtrip: 1 matched"
+assert_contains "roundtrip" "generated-cross-product" "$roundtrip_output" "Roundtrip: 2 matched, 0 allow-listed"
 
 emit_output="$("$RUNA_BIN" emit "$case_path")" \
     || fail "emit-rust failed for $case_label axes=[$case_axes]"

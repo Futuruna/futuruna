@@ -32,7 +32,10 @@ fn native_untyped_boolean_rules_infer_parameters_from_guards() {
 
 #[test]
 fn boolean_misses_do_not_change_other_arities_or_partial_integer_rules() {
-    let source = "| eligible(age) -> True under age >= 18\n| eligible(age, threshold) -> 7 under age >= threshold\n= predicate_miss = eligible(10)\n= amount_miss = eligible(10, 18)\n= amount_hit = eligible(20, 18)\n";
+    let rules = "| eligible(age) -> True under age >= 18\n| eligible(age, threshold) -> 7 under age >= threshold\n";
+    let source =
+        format!("{rules}= predicate_miss = eligible(10)\n= amount_hit = eligible(20, 18)\n");
+    let source = source.as_str();
     let statements = Parser::new(Lexer::new(source).tokenize(), source)
         .parse_program()
         .unwrap();
@@ -55,9 +58,15 @@ fn boolean_misses_do_not_change_other_arities_or_partial_integer_rules() {
             env.get("predicate_miss"),
             Some(Value::Bool(false))
         ));
-        assert!(matches!(env.get("amount_miss"), Some(Value::Str(value)) if value.is_empty()));
         assert!(matches!(env.get("amount_hit"), Some(Value::Int(7))));
     }
+    let error =
+        eval_source_with_prelude(&format!("{rules}@ print(show(eligible(10, 18)))\n"), false)
+            .expect_err("an Int rule miss has no Boolean answer");
+    assert!(
+        error.contains("no value rule matched `eligible/2`"),
+        "{error}"
+    );
 }
 
 #[test]

@@ -4964,22 +4964,26 @@ mod calculation_execution_tests {
 
     #[test]
     fn calculation_rejects_non_finite_intermediates_even_with_boolean_output() {
-        for (body, bad) in [
+        for (body, bad, expected) in [
             (
                 "input.left / input.right > 0.0",
                 serde_json::json!({"left": 1.0, "right": 0.0}),
+                "division by zero",
             ),
             (
                 "input.left / input.right > 0.0",
                 serde_json::json!({"left": 0.0, "right": 0.0}),
+                "division by zero",
             ),
             (
                 "input.left * input.right > 0.0",
                 serde_json::json!({"left": 1e308, "right": 1e308}),
+                "non-finite",
             ),
             (
                 "sqrt(input.left) > 0.0",
                 serde_json::json!({"left": -1.0, "right": 1.0}),
+                "non-finite",
             ),
         ] {
             let source = format!("# Input(left: Float, right: Float)\n@ calculate\n> calculate(input: Input) -> Bool {{ {body} }}\n");
@@ -5002,7 +5006,11 @@ mod calculation_execution_tests {
                 assert_eq!(output.results.len(), 2, "{body}: {output:?}");
                 assert!(output.results.iter().all(|case| case.result == true));
                 assert_eq!(output.diagnostics.len(), 1);
-                assert!(output.diagnostics[0].message.contains("non-finite"));
+                assert!(
+                    output.diagnostics[0].message.contains(expected),
+                    "{body}: {:?}",
+                    output.diagnostics[0].message
+                );
             }
         }
     }

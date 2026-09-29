@@ -171,7 +171,7 @@ impl SourceLanguage {
         }
     }
 
-    pub fn keyword_table(self) -> KeywordTable {
+    pub fn keyword_table(self) -> &'static KeywordTable {
         match self {
             SourceLanguage::English => keyword_table_english(),
             SourceLanguage::Danish => keyword_table_dansk(),
@@ -179,7 +179,12 @@ impl SourceLanguage {
     }
 }
 
-pub fn keyword_table_english() -> KeywordTable {
+pub fn keyword_table_english() -> &'static KeywordTable {
+    static TABLE: std::sync::OnceLock<KeywordTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(build_keyword_table_english)
+}
+
+fn build_keyword_table_english() -> KeywordTable {
     let kws = [
         "match",
         "if",
@@ -228,7 +233,12 @@ pub fn keyword_table_english() -> KeywordTable {
     t
 }
 
-pub fn keyword_table_dansk() -> KeywordTable {
+pub fn keyword_table_dansk() -> &'static KeywordTable {
+    static TABLE: std::sync::OnceLock<KeywordTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(build_keyword_table_dansk)
+}
+
+fn build_keyword_table_dansk() -> KeywordTable {
     let pairs: &[(&str, &str, TokenKind)] = &[
         // ---- core keywords ----
         ("skel", "match", TokenKind::KW),
@@ -714,7 +724,7 @@ pub struct Lexer {
     pub pos: usize,
     pub line: usize,
     pub col: usize,
-    pub keywords: KeywordTable,
+    pub keywords: &'static KeywordTable,
 }
 
 impl Lexer {
@@ -724,7 +734,7 @@ impl Lexer {
 
     /// A leading byte-order mark is not source text: it is skipped without
     /// occupying a column.
-    pub fn with_keywords(source: &str, keywords: KeywordTable) -> Self {
+    pub fn with_keywords(source: &str, keywords: &'static KeywordTable) -> Self {
         let chars: Vec<char> = source.chars().collect();
         let pos = usize::from(chars.first() == Some(&'\u{feff}'));
         Lexer {
@@ -1194,7 +1204,7 @@ impl Lexer {
                                 tokens.push(Token::new(TokenKind::Ident, "show", line, col));
                                 tokens.push(Token::new(TokenKind::LParen, "(", line, col));
                                 // Lex the interpolated expression (inherit parent's keywords)
-                                let mut sub = Lexer::with_keywords(expr_src, self.keywords.clone());
+                                let mut sub = Lexer::with_keywords(expr_src, self.keywords);
                                 let sub_tokens = sub.tokenize();
                                 for st in &sub_tokens {
                                     if st.kind != TokenKind::Eof {
@@ -13489,6 +13499,27 @@ impl Parser {
 /// backward compatibility, while this helper restores the structured `Ty` used
 /// by type checking, interpretation, and code generation.
 pub fn parse_type_annotation(source: &str) -> Result<Ty, String> {
+    // Checking re-reads the same few type spellings very many times.
+    const CACHE_LIMIT: usize = 1 << 16;
+    thread_local! {
+        static PARSED: RefCell<HashMap<Box<str>, Result<Ty, String>>> =
+            RefCell::new(HashMap::new());
+    }
+    if let Some(parsed) = PARSED.with(|cache| cache.borrow().get(source).cloned()) {
+        return parsed;
+    }
+    let parsed = parse_type_annotation_uncached(source);
+    PARSED.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(source.into(), parsed.clone());
+    });
+    parsed
+}
+
+fn parse_type_annotation_uncached(source: &str) -> Result<Ty, String> {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
@@ -15422,6 +15453,11 @@ struct RuntimeNamespaceState {
     /// Names of receiver methods declared in type bodies and impl blocks; a
     /// free call of one of these names dispatches on its first argument.
     receiver_method_names: BTreeSet<String>,
+    /// Default method bodies declared by each trait, with the trait's
+    /// declaration environment.
+    trait_default_methods: BTreeMap<String, (Vec<(String, FnDef)>, RuntimeDeclarationEnv)>,
+    /// Types with an impl block for each trait in this namespace.
+    trait_impl_types: BTreeMap<String, BTreeSet<String>>,
     rule_scopes: BTreeMap<String, Rc<RuleScopeDef>>,
     rule_scope_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     invariants: BTreeMap<String, (Expr, Expr)>,
@@ -15481,6 +15517,8 @@ impl RuntimeNamespaceState {
             impl_methods: BTreeMap::new(),
             impl_method_declaration_envs: BTreeMap::new(),
             receiver_method_names: BTreeSet::new(),
+            trait_default_methods: BTreeMap::new(),
+            trait_impl_types: BTreeMap::new(),
             rule_scopes: BTreeMap::new(),
             rule_scope_declaration_envs: BTreeMap::new(),
             invariants: BTreeMap::new(),
@@ -18135,6 +18173,14 @@ impl Interpreter {
                                 format!("rulescope:{}/{}", name, scope.params.len()),
                             ),
                         );
+                    } else if state.receiver_method_names.contains(name) {
+                        bindings.insert(
+                            name.clone(),
+                            interpreter.runtime_registry_builtin(
+                                &module_namespace,
+                                format!("method:{name}"),
+                            ),
+                        );
                     }
                 }
             }
@@ -18704,6 +18750,41 @@ impl Interpreter {
         self.register_type_in_namespace(&namespace, decl, declaration_env);
     }
 
+    /// Give `for_type` every default method of `trait_name` that its impl
+    /// does not define itself.
+    fn install_trait_default_methods(
+        &mut self,
+        namespace: &RuntimeNamespace,
+        trait_name: &str,
+        for_type: &str,
+    ) {
+        let Some((_, (defaults, declaration_env))) =
+            Self::runtime_namespace_find(namespace, |state| {
+                state.trait_default_methods.get(trait_name).cloned()
+            })
+        else {
+            return;
+        };
+        for (method_name, definition) in defaults {
+            let key = (for_type.to_string(), method_name);
+            if namespace.state.borrow().impl_methods.contains_key(&key) {
+                continue;
+            }
+            self.register_runtime_callable_declaration(
+                namespace,
+                RuntimeCallableKind::Method,
+                &key.1,
+                Some(for_type),
+            );
+            let mut state = namespace.state.borrow_mut();
+            state.receiver_method_names.insert(key.1.clone());
+            state
+                .impl_method_declaration_envs
+                .insert(key.clone(), declaration_env.clone());
+            state.impl_methods.insert(key, definition);
+        }
+    }
+
     fn register_type_in_namespace(
         &mut self,
         namespace: &RuntimeNamespace,
@@ -18835,9 +18916,39 @@ impl Interpreter {
                     .effect_decls
                     .insert(name.clone(), effect_ops);
             }
-            TypeDecl::TraitDecl { .. } => {} // traits are type-level, no runtime registration
+            TypeDecl::TraitDecl { name, methods, .. } => {
+                let defaults: Vec<(String, FnDef)> = methods
+                    .iter()
+                    .filter_map(|method| {
+                        let body = method.default_body.as_ref()?;
+                        Some((
+                            method.name.clone(),
+                            FnDef {
+                                params: method.params.iter().map(|p| p.name.clone()).collect(),
+                                body: body.clone(),
+                            },
+                        ))
+                    })
+                    .collect();
+                let implementors = {
+                    let mut state = namespace.state.borrow_mut();
+                    state
+                        .trait_default_methods
+                        .insert(name.clone(), (defaults, declaration_env));
+                    state
+                        .trait_impl_types
+                        .get(name)
+                        .cloned()
+                        .unwrap_or_default()
+                };
+                for for_type in implementors {
+                    self.install_trait_default_methods(namespace, name, &for_type);
+                }
+            }
             TypeDecl::ImplBlock {
-                for_type, methods, ..
+                trait_name,
+                for_type,
+                methods,
             } => {
                 // Register impl methods as functions
                 for method in methods {
@@ -18867,6 +18978,14 @@ impl Interpreter {
                         state.receiver_method_names.insert(name.clone());
                     }
                 }
+                namespace
+                    .state
+                    .borrow_mut()
+                    .trait_impl_types
+                    .entry(trait_name.clone())
+                    .or_default()
+                    .insert(for_type.clone());
+                self.install_trait_default_methods(namespace, trait_name, for_type);
             }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
@@ -22206,6 +22325,22 @@ impl Interpreter {
         }
         if let Some(rule_name) = name.strip_prefix("rule:") {
             return self.apply_rule_value_in_namespace(namespace, rule_name, args, env);
+        }
+        if let Some(method) = name.strip_prefix("method:") {
+            // An exported type-body or impl method dispatches on its receiver,
+            // exactly like a free call of the method name.
+            let mut args = args.into_iter();
+            let Some(receiver) = args.next() else {
+                return self
+                    .panic_or_ground_fail(format!("method `{method}` needs a receiver argument"));
+            };
+            let Some(bound) = self.bind_receiver_method(&receiver, method) else {
+                return self.panic_or_ground_fail(format!(
+                    "no method `{method}` for a value of type `{}`",
+                    self.runtime_value_type_label(&receiver)
+                ));
+            };
+            return self.apply(bound, args.collect(), env);
         }
         if name.starts_with("rulescope:") {
             let parts: Vec<&str> = name["rulescope:".len()..].split('/').collect();
@@ -25674,8 +25809,21 @@ impl Interpreter {
         if self.checking_calculation {
             return self.calculation_rule_miss(owner, family);
         }
-        if let Some(value) = self.boolean_rule_miss_value_in_namespace(owner, family) {
-            return value;
+        // Scoped families are absent from the namespace's global dispatch-key
+        // registry, so read the owner's typed Boolean-miss judgment directly.
+        let boolean_family = {
+            let state = owner.state.borrow();
+            state
+                .rule_dispatch_runtime_boolean_miss_keys
+                .contains(family)
+                && !state.rule_dispatch_return_issues.contains_key(family)
+                && state
+                    .rule_dispatch_return_types
+                    .get(family)
+                    .is_some_and(|return_type| return_type == "Bool")
+        };
+        if boolean_family {
+            return Value::Bool(false);
         }
         let value_family = Self::rule_scope_matching_rules(definition, &family.name, family.arity)
             .iter()
@@ -25881,11 +26029,15 @@ impl Interpreter {
         caller_env: &Env,
         dispatch: &PreparedRuntimeRuleDispatch,
     ) -> Option<Env> {
-        let mut base_env = self.registered_declaration_env(
-            declaration_env,
-            family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
-            &family.name,
-        )?;
+        // A child frame keeps the shared declaration snapshot intact: binding
+        // RuleScope captures must not copy every global binding per call.
+        let mut base_env = self
+            .registered_declaration_env(
+                declaration_env,
+                family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
+                &family.name,
+            )?
+            .child();
         base_env.set_runtime_namespace(namespace.clone());
 
         let scoped_binding_names = if let Some(scope_name) = family.scope.as_deref() {
@@ -50967,6 +51119,19 @@ impl TypeChecker {
             ExprKind::Pipe(_, transform) => {
                 self.infer_expr_type_name_with_locals_in_scope(transform, locals, active_rule_scope)
             }
+            // `@ read_file(path)` has the result type of `read_file(path)`.
+            ExprKind::Effect(name, args)
+                if is_builtin_effect(name)
+                    && !locals.contains_key(name)
+                    && !self.explore_contextual_intrinsic_is_shadowed(name, args.len()) =>
+            {
+                self.infer_checked_intrinsic_result_with_locals(
+                    name,
+                    args,
+                    locals,
+                    active_rule_scope,
+                )
+            }
             _ => None,
         }
     }
@@ -58967,6 +59132,12 @@ impl TypeChecker {
                                 ),
                             );
                         }
+                        if matches!(name.as_str(), "filter" | "any" | "all" | "find")
+                            && actual_arity == 2
+                            && !self.var_defined(name)
+                        {
+                            self.check_collection_predicate(name, args);
+                        }
                         if name == "assert_with_message"
                             && actual_arity == 2
                             && !self.var_defined(name)
@@ -61257,16 +61428,30 @@ __FINDS__
 # IdentityState = IdentityState(value: Int) | IdentityOther
 # IdentityContext = IdentityContext(step: Int) | IdentityContextOther
 
+> identity_value(state: IdentityState) -> Int {
+    match state {
+        | IdentityState(value) -> value
+        | _ -> 0
+    }
+}
+
+> identity_step_size(context: IdentityContext) -> Int {
+    match context {
+        | IdentityContext(step) -> step
+        | _ -> 0
+    }
+}
+
 > identity_step(before: IdentityState, context: IdentityContext) -> IdentityState {
-    IdentityState(value = before.value + context.step)
+    IdentityState(value = identity_value(before) + identity_step_size(context))
 }
 
 > identity_observer(state: IdentityState, context: IdentityContext) -> Int {
-    state.value
+    identity_value(state)
 }
 
 > identity_observer_alt(state: IdentityState, context: IdentityContext) -> Int {
-    state.value + context.step
+    identity_value(state) + identity_step_size(context)
 }
 
 ? explore identity_target {
@@ -61419,8 +61604,8 @@ __FINDS__
         assert_ne!(observer_selected_request, baseline_request);
 
         let observer_body_changed = baseline_source.replace(
-            "    state.value\n}\n\n> identity_observer_alt",
-            "    state.value + context.step + 1\n}\n\n> identity_observer_alt",
+            "    identity_value(state)\n}\n\n> identity_observer_alt",
+            "    identity_value(state) + identity_step_size(context) + 1\n}\n\n> identity_observer_alt",
         );
         let (_, observer_identity, observer_request) =
             stable_model_owner_identity_snapshot(&observer_body_changed, "identity_target");
@@ -61428,8 +61613,8 @@ __FINDS__
         assert_ne!(observer_request, baseline_request);
 
         let relation_logic_changed = baseline_source.replace(
-            "before.value + context.step)",
-            "before.value + context.step + 1)",
+            "identity_value(before) + identity_step_size(context))",
+            "identity_value(before) + identity_step_size(context) + 1)",
         );
         let (_, relation_logic_identity, _) =
             stable_model_owner_identity_snapshot(&relation_logic_changed, "identity_target");
@@ -61514,11 +61699,23 @@ __FINDS__
         let model = r#"
 # IdentityState = IdentityState(value: Int) | IdentityOther
 # IdentityContext = IdentityContext(step: Int) | IdentityContextOther
+> identity_value(state: IdentityState) -> Int {
+    match state {
+        | IdentityState(value) -> value
+        | _ -> 0
+    }
+}
+> identity_step_size(context: IdentityContext) -> Int {
+    match context {
+        | IdentityContext(step) -> step
+        | _ -> 0
+    }
+}
 > identity_step(before: IdentityState, context: IdentityContext) -> IdentityState {
-    IdentityState(value = before.value + context.step)
+    IdentityState(value = identity_value(before) + identity_step_size(context))
 }
 > identity_observer(state: IdentityState, context: IdentityContext) -> Int {
-    state.value
+    identity_value(state)
 }
 "#;
         std::fs::write(temp_dir.join("left.runa"), model).expect("write left model");
@@ -62557,7 +62754,10 @@ __FINDS__
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/danish-income-tax");
         let path = directory.join("personskat-income-cliffs.audit.runa");
         let source = std::fs::read_to_string(&path).expect("read Personskat exploration");
-        let statements = parse_test_program(&source).expect("parse Personskat exploration");
+        let statements = prepend_prelude(
+            parse_prelude(),
+            &parse_test_program(&source).expect("parse Personskat exploration"),
+        );
         let artifacts = TypeChecker::check_with_artifacts(
             &statements,
             Some(directory.to_string_lossy().to_string()),
@@ -65126,16 +65326,12 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = mixed_boolean_hit = mixed(1)
 = mixed_boolean_miss = mixed(0)
 = mixed_integer_hit = mixed(1, 2)
-= mixed_integer_miss = mixed(0, 2)
 
 = condition_value = condition
 = value_miss = condition_value(0)
 = pipe_miss = 0 |> condition
-= mixed_integer_pipe_miss = 0 |> mixed(2)
 = simple_pipe_wrapper_hit = simple_pipe_wrapper(1)
-= simple_pipe_wrapper_miss = simple_pipe_wrapper(0)
 = applied_pipe_wrapper_hit = applied_pipe_wrapper(1)
-= applied_pipe_wrapper_miss = applied_pipe_wrapper(0)
 "#;
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -65211,28 +65407,23 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 "{binding} must preserve the Boolean false miss"
             );
         }
-        for binding in [
-            "simple_pipe_wrapper_miss",
-            "applied_pipe_wrapper_miss",
-            // Piping the first argument into mixed(2) selects the Int-valued
-            // arity-two family, not its Bool-valued arity-one sibling.
-            "mixed_integer_pipe_miss",
-        ] {
-            assert_eq!(
-                env.get(binding).map(ToString::to_string),
-                Some(String::new()),
-                "{binding} must retain the legacy miss without a context-closed safety proof"
-            );
-        }
         assert_eq!(
             env.get("mixed_integer_hit").map(ToString::to_string),
             Some("3".to_string())
         );
-        assert_eq!(
-            env.get("mixed_integer_miss").map(ToString::to_string),
-            Some(String::new()),
-            "the non-Boolean overload must retain its legacy direct-call miss"
-        );
+        for call in [
+            "simple_pipe_wrapper(0)",
+            "applied_pipe_wrapper(0)",
+            // Piping the first argument into mixed(2) selects the Int-valued
+            // arity-two family, not its Bool-valued arity-one sibling.
+            "0 |> mixed(2)",
+            "mixed(0, 2)",
+        ] {
+            let error =
+                eval_source_with_prelude(&format!("{source}@ print(show({call}))\n"), false)
+                    .expect_err("a miss without a context-closed Boolean judgment has no value");
+            assert!(error.contains("no value rule matched"), "{call}: {error}");
+        }
 
         let condition_key = RuleDispatchKey {
             scope: None,
@@ -65289,11 +65480,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = zero_arg_memoized_miss = Case(limit = 0).zero_wrapper()
 = scoped_shared_miss = case.shared(0)
 = amount_hit = case.amount(6)
-= amount_miss = case.amount(5)
 = other_shared_hit = OtherCase(limit = 5).shared(6)
-= other_shared_miss = OtherCase(limit = 5).shared(5)
 = global_shared_hit = shared(1)
-= global_shared_miss = shared(0)
 "#;
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -65395,8 +65583,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "sibling_miss",
             "zero_arg_memoized_miss",
             "scoped_shared_miss",
-            "amount_miss",
-            "other_shared_miss",
         ] {
             assert_eq!(
                 env.get(binding).map(ToString::to_string),
@@ -65416,11 +65602,19 @@ starters first from mechanisms paths for node activation "{digest}" using values
             env.get("global_shared_hit").map(ToString::to_string),
             Some("11".to_string())
         );
-        assert_eq!(
-            env.get("global_shared_miss").map(ToString::to_string),
-            Some(String::new()),
-            "the global non-Boolean family must retain its legacy direct miss"
-        );
+        for (call, family) in [
+            ("case.amount(5)", "Case.amount/1"),
+            ("OtherCase(limit = 5).shared(5)", "OtherCase.shared/1"),
+            ("shared(0)", "shared/1"),
+        ] {
+            let error =
+                eval_source_with_prelude(&format!("{source}@ print(show({call}))\n"), false)
+                    .expect_err("an Int rule miss has no value");
+            assert!(
+                error.contains(&format!("no value rule matched `{family}`")),
+                "{call}: {error}"
+            );
+        }
     }
 
     #[test]
@@ -65440,13 +65634,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 }
 
 = closed_miss = closed(0)
-= wrapper_miss = wrapper(0)
 = free_guard_miss = free_guard(0)
 = wildcard_hit = wildcard(True)
-= wildcard_miss = wildcard(0)
-= duplicate_conflict = duplicate(True, 7)
 = duplicate_hit = duplicate(True, True)
-= duplicate_miss = duplicate(0, 0)
 = malformed_case = Case(7)
 = captured_hit = malformed_case.captured(1)
 "#;
@@ -65559,16 +65749,31 @@ starters first from mechanisms paths for node activation "{digest}" using values
             env.get("free_guard_miss"),
             Some(Value::Bool(false))
         ));
-        for binding in [
-            "wrapper_miss",
-            "wildcard_miss",
-            "duplicate_miss",
-            "duplicate_conflict",
+        for call in [
+            "wrapper(0)",
+            "wildcard(0)",
+            "duplicate(0, 0)",
+            "duplicate(True, 7)",
         ] {
-            assert_eq!(
-                env.get(binding).map(ToString::to_string),
-                Some(String::new()),
-                "{binding} must retain the legacy direct-rule miss"
+            let probe = format!("{source}= probe = {call}\n");
+            let probe_statements = parse_test_program(&probe).expect("parse Bool-miss probe");
+            let probe_artifacts =
+                TypeChecker::check_with_artifacts(&probe_statements, None, &probe);
+            let mut probe_interpreter = Interpreter::new();
+            probe_interpreter.install_rule_dispatch_metadata(&probe_artifacts);
+            let mut probe_env = probe_interpreter.default_env();
+            let error = probe_interpreter
+                .run_program_with_diagnostics(
+                    &probe_statements,
+                    &mut probe_env,
+                    Path::new("probe.runa"),
+                    &probe,
+                )
+                .expect_err("a miss without a context-closed Boolean judgment has no value");
+            assert!(
+                error.message.contains("no value rule matched"),
+                "{call}: {}",
+                error.message
             );
         }
         assert_eq!(
@@ -66924,7 +67129,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
 
         let source = format!(
-            "@ import ./middle\n@ import #{} from ./dependency\n\n| collision(value: Int) -> True under value > 10\n| local_condition(value: Int) -> True under value > 0\n\n= collision_hit = collision(1)\n= collision_miss = collision(0)\n",
+            "@ import ./middle\n@ import #{} from ./dependency\n\n| collision(value: Int) -> True under value > 10\n| local_condition(value: Int) -> True under value > 0\n\n= collision_hit = collision(11)\n",
             type_hash
         );
         let mut lexer = Lexer::new(&source);
@@ -66971,22 +67176,46 @@ starters first from mechanisms paths for node activation "{digest}" using values
             );
         }
 
-        let mut baseline = Interpreter::new();
-        baseline.source_dir = Some(temp_dir.to_string_lossy().to_string());
-        let mut baseline_env = baseline.default_env();
-        baseline.run_program(&stmts, &mut baseline_env);
-        let mut canonical = Interpreter::new();
-        canonical.source_dir = Some(temp_dir.to_string_lossy().to_string());
-        canonical.install_rule_dispatch_metadata(&artifacts);
-        let mut canonical_env = canonical.default_env();
-        canonical.run_program(&stmts, &mut canonical_env);
-        for binding in ["collision_hit", "collision_miss"] {
+        let run_both = |statements: &[Stmt], probe_source: &str| {
+            let mut baseline = Interpreter::new();
+            baseline.source_dir = Some(temp_dir.to_string_lossy().to_string());
+            let mut baseline_env = baseline.default_env();
+            let baseline_result = baseline
+                .run_program_with_diagnostics(
+                    statements,
+                    &mut baseline_env,
+                    Path::new("main.runa"),
+                    probe_source,
+                )
+                .map(|_| baseline_env.get("collision_hit").map(ToString::to_string))
+                .map_err(|error| error.message);
+            let mut canonical = Interpreter::new();
+            canonical.source_dir = Some(temp_dir.to_string_lossy().to_string());
+            canonical.install_rule_dispatch_metadata(&artifacts);
+            let mut canonical_env = canonical.default_env();
+            let canonical_result = canonical
+                .run_program_with_diagnostics(
+                    statements,
+                    &mut canonical_env,
+                    Path::new("main.runa"),
+                    probe_source,
+                )
+                .map(|_| canonical_env.get("collision_hit").map(ToString::to_string))
+                .map_err(|error| error.message);
             assert_eq!(
-                canonical_env.get(binding).map(ToString::to_string),
-                baseline_env.get(binding).map(ToString::to_string),
-                "qualified collision must retain legacy runtime behavior"
+                canonical_result, baseline_result,
+                "exact metadata must not change the qualified collision's runtime result"
             );
-        }
+            canonical_result
+        };
+        assert_eq!(run_both(&stmts, &source), Ok(Some("true".to_string())));
+        let miss_source = format!("{source}= collision_miss = collision(0)\n");
+        let miss_stmts = parse_test_program(&miss_source).expect("parse collision miss probe");
+        let miss = run_both(&miss_stmts, &miss_source).expect_err("an unsafe Boolean miss fails");
+        assert!(
+            miss.contains("no value rule matched `collision/1`"),
+            "{miss}"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -67260,8 +67489,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
             ("keys", "[alfa, beta, gamma]"),
             ("values", "[1, 2, 3]"),
             ("pairs", "[(alfa, 1), (beta, 2), (gamma, 3)]"),
-            ("members", "{10, 2, 3}"),
-            ("ordered", "[10, 2, 3]"),
+            ("members", "{2, 3, 10}"),
+            ("ordered", "[2, 3, 10]"),
         ] {
             assert_eq!(env.get(binding).unwrap().to_string(), expected, "{binding}");
         }
