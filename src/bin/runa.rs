@@ -99,9 +99,8 @@ fn compiler_cache_base() -> Result<PathBuf, String> {
 fn claim_build_workspace() -> PathBuf {
     compiler_cache_base()
         .and_then(|base| {
-            create_native_build_workspace(&base.join("builds")).map_err(|error| {
-                format!("cannot create a build directory: {error}")
-            })
+            create_native_build_workspace(&base.join("builds"))
+                .map_err(|error| format!("cannot create a build directory: {error}"))
         })
         .unwrap_or_else(|error| {
             status_eprintln!("\x1b[1;31merror\x1b[0m: {}", error);
@@ -604,7 +603,9 @@ fn main_inner() {
                 eprintln!("Commands:");
                 eprintln!("  (none)        Interpret directly (default)");
                 eprintln!("  init [name]   Create a new project with runa.toml");
-                eprintln!("  add <src>     Add a directory or git repository (fetches it) to runa.toml");
+                eprintln!(
+                    "  add <src>     Add a directory or git repository (fetches it) to runa.toml"
+                );
                 eprintln!("  fetch         Download git dependencies pinned in runa.lock");
                 eprintln!("  emit          Print generated Rust to stdout");
                 eprintln!("  emit --imports  Print normalized public import/export graph");
@@ -1229,16 +1230,14 @@ fn main_inner() {
                 "interface" => print_semantic_interface_graph(&source, path, use_prelude),
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
-                "check" => {
-                    check_source(
-                        &source,
-                        path,
-                        use_prelude,
-                        check_frontend_only,
-                        check_json,
-                        check_build_deps,
-                    )
-                }
+                "check" => check_source(
+                    &source,
+                    path,
+                    use_prelude,
+                    check_frontend_only,
+                    check_json,
+                    check_build_deps,
+                ),
                 "meta" => print_meta_index(
                     &source,
                     path,

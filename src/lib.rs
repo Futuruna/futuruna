@@ -42,8 +42,8 @@ pub use editor_fields::EditorField;
 pub mod explore;
 mod host_effects;
 pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
-pub mod manifest;
 mod function_returns;
+pub mod manifest;
 mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
@@ -12409,7 +12409,10 @@ impl Parser {
             let p = self.peek();
             let (line, col) = (p.line, p.col);
             if self.peek_kind() != TokenKind::String_ {
-                return Err(format!("{}:{}: @ depend features are a list of strings, such as [\"derive\"]", line, col));
+                return Err(format!(
+                    "{}:{}: @ depend features are a list of strings, such as [\"derive\"]",
+                    line, col
+                ));
             }
             let feature = self.advance().text.clone();
             let valid = !feature.is_empty()
@@ -12417,14 +12420,20 @@ impl Parser {
                     ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '/' | '+' | '.')
                 });
             if !valid {
-                return Err(format!("{}:{}: invalid feature `{}` in @ depend", line, col, feature));
+                return Err(format!(
+                    "{}:{}: invalid feature `{}` in @ depend",
+                    line, col, feature
+                ));
             }
             features.push(format!("\"{feature}\""));
             if self.peek_kind() == TokenKind::Comma {
                 self.advance();
             } else if self.peek_kind() != TokenKind::RBracket {
                 let p = self.peek();
-                return Err(format!("{}:{}: expected `,` or `]` in @ depend features", p.line, p.col));
+                return Err(format!(
+                    "{}:{}: expected `,` or `]` in @ depend features",
+                    p.line, p.col
+                ));
             }
         }
         self.advance();
@@ -12433,7 +12442,11 @@ impl Parser {
         }
         Ok(Stmt::Depend(
             crate_name,
-            format!("{{ version = \"{}\", features = [{}] }}", version, features.join(", ")),
+            format!(
+                "{{ version = \"{}\", features = [{}] }}",
+                version,
+                features.join(", ")
+            ),
         ))
     }
 
@@ -16974,9 +16987,7 @@ impl Interpreter {
         env: &Env,
     ) -> Result<Value, String> {
         let previous = std::mem::replace(&mut self.evaluating_constant, true);
-        let previous_denial = self
-            .host_effects_denied
-            .replace("compile-time evaluation");
+        let previous_denial = self.host_effects_denied.replace("compile-time evaluation");
         let result = self.with_calculation_runtime(|interpreter| interpreter.eval(expression, env));
         self.host_effects_denied = previous_denial;
         self.evaluating_constant = previous;

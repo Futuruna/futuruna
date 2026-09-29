@@ -192,12 +192,14 @@ pub fn parse_manifest_source(path: &Path, content: &str) -> Result<Manifest, Str
             section = match line {
                 "[package]" => Section::Package,
                 "[dependencies]" => Section::Dependencies,
-                other => return Err(located(
-                    line_number,
-                    format!(
+                other => {
+                    return Err(located(
+                        line_number,
+                        format!(
                         "unsupported section `{other}`; runa.toml has [package] and [dependencies]"
                     ),
-                )),
+                    ))
+                }
             };
             continue;
         }
