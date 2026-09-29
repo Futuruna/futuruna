@@ -1,5 +1,3 @@
--- roundtrip-skip: stateful async workflows are verified by compiled run,
--- stateful canaries, and async runtime artifact expectations.
 -- Authored adversarial canary: subjects, scoped derived streams, teardown,
 -- effect handlers, and an actor-backed audit ledger in one deterministic flow.
 

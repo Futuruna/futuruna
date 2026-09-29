@@ -1,4 +1,4 @@
--- roundtrip-skip: subject() is intentionally skipped by the generic roundtrip lane
+-- roundtrip-skip: Set values display differently in compiled invariant output
 -- Authored stateful canary: subject-backed rolling windows with deterministic
 -- alert summaries and threshold checks.
 
@@ -22,12 +22,14 @@ readings <- 31
     window_csv(xs) + " => alert(" + show(sum_list(xs)) + ")"
 }
 
-~ windows = readings |> window(3)
+-- `window` and `pairwise` read finite streams: snapshot the subject first.
+= reading_list = collect(readings)
+~ recorded = from_list(reading_list)
+~ windows = recorded |> window(3)
 ~ alert_windows = windows |> filter(is_alert_window)
 ~ alert_summaries = alert_windows |> map(format_alert)
-~ jumps = readings |> pairwise |> map(|pair| snd(pair) - fst(pair))
+~ jumps = recorded |> pairwise |> map(|pair| snd(pair) - fst(pair))
 
-= reading_list = collect(readings)
 = window_sums = collect(windows |> map(|xs| sum_list(xs)))
 = alerts = collect(alert_summaries)
 = jump_list = collect(jumps)

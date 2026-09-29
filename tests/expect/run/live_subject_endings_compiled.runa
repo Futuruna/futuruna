@@ -1,0 +1,32 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout-file: ../golden/run/live_subject_endings.stdout
+-- `error` and `complete` end a subject once: `Err(e)` receives the message,
+-- `Complete` runs once, late subscribers catch up with the kept values and
+-- the ending, and `subject(initial, keep)` keeps only the last `keep` values.
+~ s = subject()
+~ s
+    | x -> { @ print("v " + show(x)) }
+    | Err(e) -> { @ print("err " + e) }
+    | Complete -> { @ print("complete") }
+s <- 1
+error(s, "boom")
+~ s
+    | x -> { @ print("late v " + show(x)) }
+    | Err(e) -> { @ print("late err " + e) }
+
+~ done = subject()
+~ done | x -> { @ print("d " + show(x)) } | Complete -> { @ print("d complete") }
+done <- 5
+complete(done)
+~ done | Complete -> { @ print("late d complete") }
+
+~ recent = subject(0, 2)
+recent <- 1
+recent <- 2
+recent <- 3
+@ print("kept " + show(collect(recent)) + " count " + show(recent.count))
+~ recent | x -> { @ print("replay " + show(x)) }
+
+~ safe = s |> catch(|e| from_list([99]))
+@ print("recovered " + show(collect(safe)))

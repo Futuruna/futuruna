@@ -308,12 +308,12 @@ These operators work on reactive streams (declared with `~`). They complement th
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `tap` | `(Stream(a), a -> ()) -> Stream(a)` | Side-effect observation: calls fn for each element, returns stream unchanged |
-| `catch` | `(Stream(a), Err -> Stream(a)) -> Stream(a)` | Error recovery: in sync mode, pass-through (no errors in Vec) |
+| `catch` | `(Stream(a), String -> Stream(a)) -> Stream(a)` | When the stream ends with an error, continue with the recovery stream |
 | `first` | `Stream(a) -> a` | First element; raises `first: empty list` when empty |
 | `reduce` | `(Stream(a), b, (b, a) -> b) -> b` | Terminal fold: reduce stream to a single value |
 | `start_with` | `(Stream(a), a) -> Stream(a)` | Prepend a value to the front of a stream |
 | `concat` | `(Stream(a), Stream(a)) -> Stream(a)` | Concatenate two streams sequentially |
-| `pairwise` | `Stream(a) -> Stream((a, a))` | Emit consecutive pairs: `[1,2,3]` becomes `[(1,2),(2,3)]` |
+| `pairwise` | `Stream(a) -> Stream((a, a))` | Emit consecutive pairs (finite streams): `[1,2,3]` becomes `[(1,2),(2,3)]` |
 
 ```runa
 ~ nums = from_list([1, 2, 3, 4, 5])
@@ -509,7 +509,7 @@ The handler receives three string arguments: request path, HTTP method, and requ
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `spawn` | `(Actor, a) -> ActorHandle` | Create actor with initial state |
-| `ask` | `(ActorHandle, Msg) -> a` | Send message, get response |
+| `ask` | `(ActorHandle, Msg) -> a` | Handle the message and return the actor's new state |
 | `shared` | `a -> shared(a)` | Wrap value in `Arc` for thread-safe sharing |
 
 Actors are defined with `> actor`, messages sent with `<-`:
