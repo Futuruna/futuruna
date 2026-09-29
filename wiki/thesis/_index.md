@@ -11,4 +11,3 @@ tags:
 # Thesis Index
 
 - [[current-state]]
-- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]

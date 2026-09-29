@@ -304,7 +304,5 @@ dækning af alle afregningsregler og år.
 
 Generér en frisk delårsskabelon fra den valgte modelversion og overfør
 gennemgåede kildefakta; ret ikke `schema_hash` for at omgå en kontraktforskel.
-Genberegn resultaterne uden at ændre kildebeløb for at opnå accept. De aktuelle
-[kompatibilitetsnoter](../../docs/compatibility-guides/0.2.x.md) beskriver
-migration, når en gemt kontrakt ikke længere passer. Et ugyldigt nulbeløb
-bliver ikke et godkendt resultat ved migreringen.
+Genberegn resultaterne uden at ændre kildebeløb for at opnå accept. Et ugyldigt
+nulbeløb bliver ikke et godkendt resultat ved genberegningen.

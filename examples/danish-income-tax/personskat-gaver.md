@@ -74,8 +74,7 @@ Generér skabelonen fra den aktuelle model med den
 [kontrollerede compiler](../../website/public/ai-setup.md#tax-audit-runtime-check),
 og overfør kun gennemgåede kildefakta. Ret ikke blot et gammelt fingeraftryk,
 og udfyld ikke automatisk aftalereferencer eller bekræftelsen med `true`.
-Følg [migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
-ved genbrug af tidligere input og resultater.
+Genberegn tidligere input og resultater fra den friske skabelon.
 
 Permanente kontroller ligger i
 [komponentprøven](../../tests/personskat_recurring_gifts_test.runa) og

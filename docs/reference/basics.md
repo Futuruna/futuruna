@@ -496,11 +496,18 @@ the author declared, in every file:
 
 ```runa
 @ sprog da
-# Kontrol = Godkendt | Fejl          -- a user constructor named Fejl
-> vis(s: Sag) -> Tekst { ... }       -- a user function named vis
-@ print(vis(sag))                     -- calls the user function
-@ print("""Beløb: {{beløb}}""")       -- interpolation always uses the builtin `show`
+# Kontrol = Godkendt | Fejl      -- a user constructor named Fejl
+# Sag(beløb: Heltal)
+> vis(s: Sag) -> Tekst { "sag" } -- a user function named vis
+= sag = Sag(beløb = 5)
+= beløb = sag.beløb
+@ print(vis(sag)) -- sag
+@ print("""Beløb: {{beløb}}""") -- Beløb: 5
+@ print(show(Fejl)) -- Fejl
 ```
+
+`vis(sag)` calls the user function; interpolation always uses the builtin
+`show`.
 
 Here `Fejl` is the declared `Kontrol` constructor, and calculation schemas and
 results publish it as `"Fejl"`. Where no user declaration exists, `Fejl(…)`,

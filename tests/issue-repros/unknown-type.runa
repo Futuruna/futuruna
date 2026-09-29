@@ -1,7 +1,7 @@
 -- expect-command: check
 -- expect-status: fail
 -- expect-stderr: unknown type `Intt`
--- expect-stderr: issue43-unknown-type.runa:6
+-- expect-stderr: unknown-type.runa:6
 -- expect-stderr-not: check.rs
 > f(a: Intt) -> Int { 1 }
 @ print(show(f(1)))

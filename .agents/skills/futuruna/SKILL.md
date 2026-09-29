@@ -67,6 +67,31 @@ a full project test run for the setup workflow.
 When adapting habits or examples from another language, first read
 `../../../docs/reference/common-mistakes.md`. It keeps the concrete syntax,
 rule-coverage cautions, and validation commands in one maintained reference.
+The mistakes that most often produce wrong or rejected programs:
+
+- Bind with `= name = value`; compare with `==`, also in `under` guards.
+  Comments are `--`; `#` declares a type.
+- Print with `@ print(value)`; there is no `@ println` or `@ log`.
+- `parse_int`, `parse_float`, `read_file`, `json_parse`, `http_get` and
+  `http_post` return `Result`; match on `Ok`/`Err` or use `= n <- parse_int(s)`
+  inside a function returning `Result`.
+- There are no type aliases: `# Money = Int` is an error; use
+  `# Money(amount: Int)` or `Int`.
+- `None`, `Some`, `Ok`, `Err`, `Pair`, `Nil` and `Cons` are built-in
+  constructors; authored types must use other names.
+- `Int` and `Float` are distinct: a `Float` parameter needs `25.0` or
+  `to_float(n)`. Integer `/` truncates.
+- `String + x` works only when `x` is a scalar; use `show(x)` for lists and
+  records. Interpolation is `"""Hello {{name}}"""`; `"{name}"` is literal.
+- `| exception label rule(...) -> ... under ...` needs an ordinary base rule
+  with the same name and arity; give value rules an unguarded default when
+  every input needs a result.
+- `@ comptime`, `@ calculate` and audited code are pure; host effects there
+  are errors.
+- `take(items, n)` returns a list; use `head` for one element after checking
+  the list is nonempty.
+- Run `runa check` as well as the program: it also validates the generated
+  Rust, and a successful run covers only the paths it reached.
 
 1. Confirm the syntax and feature stage in the current reference.
 2. Reuse the closest established example and repository naming/style.

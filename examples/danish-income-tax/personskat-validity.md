@@ -362,12 +362,12 @@ merely to pass the check: that year needs its own source-backed model. This is
 a model-coverage limit, not a finding about tax liability.
 
 Other unsupported inputs that fail before a result can be constructed still
-produce CLI diagnostics. Native checks now pass for the state-tax source module
+produce CLI diagnostics. Native checks pass for the state-tax source module
 and the [focused employment-deduction audit](beskaeftigelsesfradrag.md), but this
 does not establish native support for the full Personskat calculation. Remaining
 code-generation limitations mean this boundary is exercised through `runa call`.
-The year guard uses `assert_with_message` and therefore requires a compiler built
-after that builtin was added, not the original 0.2.0 binary.
+The year guard uses `assert_with_message`; the tax-audit runtime check confirms
+that the selected compiler supports it.
 
 Low-level year-parameter tables expose `*_opslag` helpers with `Some(...)` or
 `None`. Their existing value helpers stop when a required parameter is absent;
@@ -719,9 +719,7 @@ reconciles the exclusion before recomputing annual deductions; check its own
 Generate fresh schemas/templates with the current model, transfer reviewed
 source facts and recalculate. Do not edit a saved contract hash or a workbook's
 hidden fingerprint to bypass validation. Changes to types, outputs and metadata
-can all require this step; see the
-[compatibility guide](../../docs/compatibility-guides/0.2.x.md) for migration
-details. Clients must check `vurdering` before comparing any scalar totals.
+can all require this step. Clients must check `vurdering` before comparing any scalar totals.
 
 [Spouse loss-credit transfers](underskud-modtagersats.md) use the recipient's
 rates, including for conversion back to unused losses. Direct `.runa`

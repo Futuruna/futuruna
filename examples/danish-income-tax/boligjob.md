@@ -129,8 +129,7 @@ the uncertainty. The model cannot validate a description it has not received.
 ## Run and read the result
 
 First complete the [tax-audit runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check).
-Keep `RUNA_BIN` set to the exact absolute compiler path that passed it; the
-original v0.2.0 download lacks required calculation-safety fixes. Do not
+Keep `RUNA_BIN` set to the exact absolute compiler path that passed it. Do not
 switch back to a different compiler from your PATH. Keep invoice documents
 and filled templates outside the checkout:
 

@@ -1,7 +1,7 @@
 -- expect-command: check
 -- expect-status: fail
 -- expect-stderr: embedded Rust does not compile: mismatched types
--- expect-stderr: issue43-embedded-rust-error.runa:8
+-- expect-stderr: embedded-rust-error.runa:8
 -- expect-stderr-not: check.rs
 @ rust {
 fn helper() -> i64 {

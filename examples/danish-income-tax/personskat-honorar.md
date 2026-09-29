@@ -239,5 +239,4 @@ ikke uafhængig verifikation af en virkelig årsopgørelse.
 ## Eksisterende input
 
 Generér en frisk skabelon og overfør gennemgåede fakta; redigér ikke et gemt
-`schema_hash` for at omgå kontrollen. Se de konkrete migrationskrav i
-[kompatibilitetsvejledningen](../../docs/compatibility-guides/0.2.x.md#preview-and-experimental-notes).
+`schema_hash` for at omgå kontrollen.

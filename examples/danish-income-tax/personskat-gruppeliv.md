@@ -190,7 +190,6 @@ den gamle kontrakthash. I `.runa`-kald angives bruttofeltet som
 `Some(dokumenteret_brutto)` eller `None`. Ukendt brutto tilbageholder
 sammenligningsskatten, også for samleposten. Løntræk og pensionsbonus skal
 klassificeres ud fra kilderne, ikke automatisk omklassificeres fra gamle input.
-Se den fælles [kompatibilitetsvejledning](../../docs/compatibility-guides/0.2.x.md).
 
 [Regressionen](../../tests/personskat_group_life.test.mjs) bruger faste
 officielle observationer, ikke beløb udledt af modellen. Den kontrollerer

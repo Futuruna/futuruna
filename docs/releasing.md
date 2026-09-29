@@ -30,8 +30,13 @@ generated `SHA256SUMS` file.
 The crates.io package is built from the explicit `Cargo.toml` `include` list. It
 contains the compiler sources, README, license, and compile-time feature-stage
 metadata, rather than the website, wiki, research corpus, examples, or tests.
-Plain `cargo install futuruna --locked` installs only `runa`; developer
-adversarial binaries require the `internal-tools` feature.
+`cargo install` installs only `runa`; developer adversarial binaries require
+the `internal-tools` feature. User-facing installation docs recommend the
+verified GitHub release binary or
+`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`.
+They mention `cargo install futuruna` only for a version confirmed published on
+crates.io, because the crates.io package is not guaranteed to match the current
+release.
 
 ## Optional Publishing Credentials
 
@@ -107,7 +112,9 @@ Review all four build logs. Download the workflow artifacts and verify that:
 ## Create the Release
 
 Confirm that `Cargo.toml`, both the root and website `Cargo.lock` entries for
-`futuruna`, `CITATION.cff`, CodeMeta, the compatibility guide, and release notes
+`futuruna`, `CITATION.cff`, both CodeMeta files (`codemeta.json` and
+`website/public/codemeta.json`), the website JSON-LD in `website/index.html`, and
+release notes
 agree on the version. The website locks its local compiler dependency separately.
 Use an annotated or
 signed tag when the maintainer's signing setup is available:
@@ -138,7 +145,9 @@ From clean Linux x86-64, Linux ARM64, Apple Silicon, and Intel macOS machines:
    establish runtime compatibility. This probe is not tax-law validation.
 4. On macOS, compare the observed Gatekeeper behavior with the signing status
    stated in the release notes. Never disable Gatekeeper globally.
-5. If the crate was published, run
+5. Run `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`
+   in an isolated Cargo home and repeat the smoke checks. If the crate was
+   published, also run
    `cargo install futuruna --version 0.2.3 --locked` in an isolated Cargo home
    and repeat the smoke checks.
 6. Confirm `https://futuruna.com/ai-setup.md` completes successfully from a
