@@ -10138,6 +10138,7 @@ impl ExpectStatus {
 struct ExpectCase {
     command: ExpectCommand,
     args: Vec<String>,
+    env: Vec<(String, String)>,
     status: ExpectStatus,
     stdout: Vec<String>,
     stderr: Vec<String>,
@@ -10189,10 +10190,24 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         .unwrap_or_default();
     let stdout_file = single_expectation_marker(source, "-- expect-stdout-file:", path)?;
     let stderr_file = single_expectation_marker(source, "-- expect-stderr-file:", path)?;
+    let env = collect_expectation_markers(source, "-- expect-env:")
+        .into_iter()
+        .map(|raw| match raw.split_once('=') {
+            Some((key, value)) if !key.trim().is_empty() => {
+                Ok((key.trim().to_string(), value.trim().to_string()))
+            }
+            _ => Err(format!(
+                "{} has `expect-env: {}`; expected KEY=VALUE",
+                path.display(),
+                raw
+            )),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ExpectCase {
         command,
         args,
+        env,
         status,
         stdout: collect_expectation_markers(source, "-- expect-stdout:"),
         stderr: collect_expectation_markers(source, "-- expect-stderr:"),
@@ -10362,6 +10377,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
         let mut cmd = std::process::Command::new(&self_bin);
         case.command.apply_to_command(&mut cmd, &file_str);
         cmd.args(&case.args);
+        cmd.envs(case.env.iter().map(|(key, value)| (key, value)));
         if !use_prelude {
             cmd.arg("--no-prelude");
         }
@@ -10635,6 +10651,14 @@ struct TestFileResult {
     elapsed: std::time::Duration,
 }
 
+fn source_has_embedded_rust(source: &str) -> bool {
+    source.lines().any(|line| {
+        line.trim_start()
+            .strip_prefix("@ rust")
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
+    })
+}
+
 fn run_test_case(
     self_bin: &Path,
     file_path: &Path,
@@ -10657,6 +10681,14 @@ fn run_test_case(
     if compile_mode && !expected_errors.is_empty() {
         return TestFileResult {
             outcome: TestFileOutcome::Skip("negative test"),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+            elapsed: start.elapsed(),
+        };
+    }
+    if !compile_mode && expected_errors.is_empty() && source_has_embedded_rust(&source) {
+        return TestFileResult {
+            outcome: TestFileOutcome::Skip("embedded Rust runs only in compiled code"),
             stdout: Vec::new(),
             stderr: Vec::new(),
             elapsed: start.elapsed(),
@@ -24497,6 +24529,8 @@ struct RustCodegen {
     copy_vars: BTreeSet<String>,
     /// Variables that need `let mut` (rebound inside for loops)
     mutable_vars: BTreeSet<String>,
+    /// Inout parameters of the function being emitted (`&mut` borrows).
+    inout_param_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
     /// Native Explore classifiers must fail the entire batch on an Int
@@ -29455,6 +29489,7 @@ impl RustCodegen {
             var_consuming_counts: BTreeMap::new(),
             copy_vars: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
+            inout_param_vars: BTreeSet::new(),
             lib_mode: false,
             int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
@@ -33327,7 +33362,7 @@ impl<T: __FuturunaShow> __FuturunaShow for Vec<T> { fn __futuruna_fmt(&self, out
 impl<T: __FuturunaShow> __FuturunaShow for Option<T> { fn __futuruna_fmt(&self, out: &mut String) { match self { Some(v) => { out.push_str("Some("); v.__futuruna_fmt(out); out.push(')'); } None => out.push_str("None") } } }
 impl<T: __FuturunaShow, E: __FuturunaShow> __FuturunaShow for Result<T, E> { fn __futuruna_fmt(&self, out: &mut String) { match self { Ok(v) => { out.push_str("Ok("); v.__futuruna_fmt(out); out.push(')'); } Err(e) => { out.push_str("Err("); e.__futuruna_fmt(out); out.push(')'); } } } }
 macro_rules! __futuruna_show_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaShow),+> __FuturunaShow for ($($t,)+) { fn __futuruna_fmt(&self, out: &mut String) { out.push('('); let mut __first = true; $( if !__first { out.push_str(", "); } __first = false; self.$n.__futuruna_fmt(out); )+ out.push(')'); } })* } }
-__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K, 11 L));
 impl<K: __FuturunaShow, V: __FuturunaShow> __FuturunaShow for BTreeMap<K, V> {
     fn __futuruna_fmt(&self, out: &mut String) {
         out.push('{');
@@ -33372,7 +33407,7 @@ impl<T: __FuturunaOrd> __FuturunaOrd for Vec<T> { fn __futuruna_key(&self, out: 
 impl<T: __FuturunaOrd> __FuturunaOrd for Option<T> { fn __futuruna_key(&self, out: &mut String) { match self { None => out.push_str("o0"), Some(v) => { out.push_str("o1"); v.__futuruna_key(out); } } } }
 impl<T: __FuturunaOrd, E: __FuturunaOrd> __FuturunaOrd for Result<T, E> { fn __futuruna_key(&self, out: &mut String) { match self { Err(e) => { out.push_str("r0"); e.__futuruna_key(out); } Ok(v) => { out.push_str("r1"); v.__futuruna_key(out); } } } }
 macro_rules! __futuruna_key_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaOrd),+> __FuturunaOrd for ($($t,)+) { fn __futuruna_key(&self, out: &mut String) { out.push('t'); $( self.$n.__futuruna_key(out); )+ } })* } }
-__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K, 11 L));
 impl<K: __FuturunaOrd, V: __FuturunaOrd> __FuturunaOrd for BTreeMap<K, V> {
     fn __futuruna_key(&self, out: &mut String) {
         let mut entries: Vec<(String, &V)> = self.iter().map(|(k, v)| (__futuruna_key_of(k), v)).collect();
@@ -33402,6 +33437,9 @@ fn __futuruna_install_error_hook() {
             .or_else(|| payload.downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "runtime error".to_string());
         eprintln!("error: {}", message);
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
+        std::process::exit(1);
     }));
 }
 "#,
@@ -42844,6 +42882,7 @@ fn __futuruna_install_error_hook() {
                 let prev_ref_match = std::mem::take(&mut self.ref_match_bindings);
                 let prev_borrow_params = std::mem::take(&mut self.current_borrow_params);
                 let prev_mutable = std::mem::take(&mut self.mutable_vars);
+                let prev_inout_params = std::mem::take(&mut self.inout_param_vars);
                 let prev_aliased = std::mem::take(&mut self.aliased_vars);
                 let prev_local_bindings = std::mem::take(&mut self.local_bindings);
                 let prev_var_types = std::mem::take(&mut self.var_types);
@@ -42868,6 +42907,7 @@ fn __futuruna_install_error_hook() {
                 for p in params {
                     if p.inout {
                         self.mutable_vars.insert(p.name.clone());
+                        self.inout_param_vars.insert(p.name.clone());
                     }
                 }
                 // Track Copy-type parameters and register all param types
@@ -43019,6 +43059,7 @@ fn __futuruna_install_error_hook() {
                 self.ref_match_bindings = prev_ref_match;
                 self.current_borrow_params = prev_borrow_params;
                 self.mutable_vars = prev_mutable;
+                self.inout_param_vars = prev_inout_params;
                 self.aliased_vars = prev_aliased;
                 self.local_bindings = prev_local_bindings;
                 self.var_types = prev_var_types;
@@ -49230,9 +49271,18 @@ fn __futuruna_install_error_hook() {
                     }
                     // Custom builtins that need runtime state beyond templates
                     if builtin_visible && name == "push" && args_str.len() == 2 {
+                        // `push` returns a new list. An inout parameter is a
+                        // `&mut` borrow of the caller's list; copy it instead
+                        // of moving the borrow.
+                        let copy = if matches!(&args[0].kind, ExprKind::Var(list) if self.inout_param_vars.contains(list.as_str()))
+                        {
+                            ".clone()"
+                        } else {
+                            ""
+                        };
                         return format!(
-                            "{{ let mut v = {}; v.push({}); v }}",
-                            args_str[0], args_str[1]
+                            "{{ let mut v = {}{}; v.push({}); v }}",
+                            args_str[0], copy, args_str[1]
                         );
                     }
                     if builtin_visible && name == "subject" {
@@ -50774,7 +50824,29 @@ fn __futuruna_install_error_hook() {
                 );
             }
         }
+        // `head([])` and its relatives fail before producing a value; nothing
+        // constrains the element type, so it is displayed through `()`.
+        if self.expr_is_empty_list_element(expr) {
+            return format!(
+                "{{ let __fut_shown: () = {}; __futuruna_show_any(&__fut_shown) }}",
+                emitted
+            );
+        }
         format!("__futuruna_show_any(&({}))", emitted)
+    }
+
+    fn expr_is_empty_list_element(&self, expr: &Expr) -> bool {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return false;
+        };
+        let ExprKind::Var(name) = &func.kind else {
+            return false;
+        };
+        matches!(name.as_str(), "head" | "first" | "last" | "nth")
+            && !self.builtin_shadowed_by_callable(name)
+            && args
+                .first()
+                .is_some_and(|list| self.expr_is_known_empty_list_value(list))
     }
 
     fn should_clone_literal_element_var(&self, expr: &Expr) -> bool {

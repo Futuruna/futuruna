@@ -15667,6 +15667,18 @@ struct ExplorationRuntimeDemandState {
 /// Call depth limit for platforms that do not expose the thread's stack.
 const RUNTIME_FALLBACK_CALL_DEPTH_LIMIT: usize = 128;
 
+/// Names of the functions an `@ rust` block declares (`fn name(` or `pub fn name(`).
+fn embedded_rust_function_names(code: &str) -> impl Iterator<Item = String> + '_ {
+    code.lines().filter_map(|line| {
+        let trimmed = line.trim();
+        let rest = trimmed
+            .strip_prefix("pub fn ")
+            .or_else(|| trimmed.strip_prefix("fn "))?;
+        let name = rest[..rest.find(['(', '<'])?].trim();
+        (!name.is_empty()).then(|| name.to_string())
+    })
+}
+
 /// Recursion is limited by the evaluating thread's real stack: a nested call
 /// is refused while enough stack remains to report it.
 fn runtime_call_depth_exhausted(depth: usize) -> bool {
@@ -15918,6 +15930,9 @@ pub struct Interpreter {
     /// Result of a handler clause that finished without `resume`; it becomes
     /// the value of its `| handle` expression.
     effect_handler_result: Option<Value>,
+    /// Functions declared in module-level `@ rust` blocks. They exist only in
+    /// compiled code; the interpreter refuses to call them.
+    embedded_rust_functions: BTreeSet<String>,
 }
 
 /// Unwinds from a handler clause that did not `resume` to its `| handle`.
@@ -15976,6 +15991,7 @@ impl Interpreter {
             checked_mechanism_trace: None,
             effect_handler_resumed: Vec::new(),
             effect_handler_result: None,
+            embedded_rust_functions: BTreeSet::new(),
         }
     }
 
@@ -20410,7 +20426,19 @@ impl Interpreter {
                 }
                 Stmt::Annot(_, _) => {}
                 Stmt::PreludeBoundary | Stmt::Use(_) => {}
-                Stmt::RustBlock(_) => {} // @ rust { } blocks are transpile-time only
+                Stmt::RustBlock(code) => {
+                    // Embedded Rust runs only in compiled code. A module-level
+                    // block declares Rust items; calling one is refused. A
+                    // block among executed statements is refused when reached.
+                    if order_value_bindings {
+                        self.embedded_rust_functions
+                            .extend(embedded_rust_function_names(code));
+                    } else {
+                        last = self.panic_or_ground_fail(
+                            "embedded Rust (`@ rust`) runs only in compiled code; run the program with `runa run`",
+                        );
+                    }
+                }
                 Stmt::Import(_) => {
                     unreachable!("plain imports must be normalized before runtime evaluation")
                 }
@@ -21226,6 +21254,11 @@ impl Interpreter {
                 if let Some(effect) = self.runtime_effect_of_operation(&namespace, function_name) {
                     return self
                         .panic_or_ground_fail(unhandled_effect_message(&effect, function_name));
+                }
+                if self.embedded_rust_functions.contains(function_name) {
+                    return self.panic_or_ground_fail(format!(
+                        "`{function_name}` is defined in embedded Rust (`@ rust`), which runs only in compiled code; run the program with `runa run`"
+                    ));
                 }
             }
             if let Some(result) = self.try_active_rule_scope_call(function_name, arguments, env) {
@@ -50419,6 +50452,9 @@ impl TypeChecker {
                 .filter(|ty| ty != "Set")
                 .or_else(|| Some(format!("Set({})", argument_type(1)?))),
             ("map_get_or", 3) => argument_type(2),
+            ("unwrap_or", 2) => argument_type(0)
+                .and_then(|option_type| Self::applied_type_argument(&option_type, "Option", 0))
+                .or_else(|| argument_type(1)),
             ("map_get", 2) => {
                 let map_type = argument_type(0)?;
                 let value_type = Self::applied_type_argument(&map_type, "Map", 1)?;

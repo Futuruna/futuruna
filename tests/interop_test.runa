@@ -1,3 +1,4 @@
+-- roundtrip-skip: embedded Rust runs only in compiled code
 -- Rust interop tests: verify codegen produces valid, idiomatic Rust
 
 -- 1. Struct field access

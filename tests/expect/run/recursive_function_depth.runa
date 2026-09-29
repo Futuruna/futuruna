@@ -1,9 +1,21 @@
 -- expect-command: interp
 -- expect-status: fail
--- expect-stderr: function call `depth_count` exceeded its recursion limit of 128; evaluation is incomplete
+-- expect-env: FUTURUNA_STACK_MB=256
+-- expect-stdout: 2000
+-- expect-stderr: function call `forever` exceeded the recursion limit at depth
+-- expect-stderr: the evaluation stack is exhausted; evaluation is incomplete
+-- expect-stderr-not: panicked
+-- roundtrip-skip: unbounded recursion stops at a stack depth that differs between execution modes
+-- Recursion is bounded by the evaluation stack: deep recursion succeeds and
+-- unbounded recursion stops with a located error.
 
 > depth_count(n: Int) -> Int {
     if n == 0 { 0 } else { 1 + depth_count(n - 1) }
 }
 
-@ print(show(depth_count(3000)))
+> forever(n: Int) -> Int {
+    1 + forever(n + 1)
+}
+
+@ print(show(depth_count(2000)))
+@ print(show(forever(0)))

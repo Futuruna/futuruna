@@ -190,9 +190,60 @@ impl TypeChecker {
                     }
                 }
             }
+            Some(DeclaredCallable::Rule(_)) => self.check_rule_call_argument_types(name, arguments),
             _ => {}
         }
         true
+    }
+
+    /// Every clause of a rule family declares one type per typed parameter
+    /// position, so an argument of another type matches no clause.
+    fn check_rule_call_argument_types(&mut self, name: &str, arguments: &[Expr]) {
+        if has_named_args(arguments)
+            || self
+                .active_rule_scope_inference
+                .as_ref()
+                .is_some_and(|scope| {
+                    self.rule_scope_methods
+                        .get(scope)
+                        .is_some_and(|methods| methods.contains_key(name))
+                })
+        {
+            return;
+        }
+        let key = (name.to_string(), arguments.len());
+        let Some(parameter_types) = self.rule_param_types_by_arity.get(&key).cloned() else {
+            return;
+        };
+        let parameter_names = self.function_params_by_arity.get(&key).cloned();
+        let mut substitutions = BTreeMap::new();
+        for (index, (expected, argument)) in parameter_types.iter().zip(arguments).enumerate() {
+            let Some(expected) = expected else {
+                continue;
+            };
+            let Some(actual) = self.ordinary_expression_type(argument) else {
+                continue;
+            };
+            let Ok(actual_ty) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if Self::ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
+                continue;
+            }
+            let parameter = parameter_names
+                .as_ref()
+                .and_then(|names| names.get(index))
+                .map(|parameter| format!("`{parameter}`"))
+                .unwrap_or_else(|| (index + 1).to_string());
+            self.error_at_expr(
+                argument,
+                format!(
+                    "argument {parameter} to `{name}` expects `{}`, got `{actual}`{}",
+                    Self::canonical_explore_ty_name(expected),
+                    Self::numeric_conversion_hint(&actual_ty, expected)
+                ),
+            );
+        }
     }
 
     /// Positional constructor arguments have the declared field types. An
