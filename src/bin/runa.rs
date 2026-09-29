@@ -50934,29 +50934,7 @@ fn __futuruna_install_error_hook() {
                 );
             }
         }
-        // `head([])` and its relatives fail before producing a value; nothing
-        // constrains the element type, so it is displayed through `()`.
-        if self.expr_is_empty_list_element(expr) {
-            return format!(
-                "{{ let __fut_shown: () = {}; __futuruna_show_any(&__fut_shown) }}",
-                emitted
-            );
-        }
         format!("__futuruna_show_any(&({}))", emitted)
-    }
-
-    fn expr_is_empty_list_element(&self, expr: &Expr) -> bool {
-        let ExprKind::App(func, args) = &expr.kind else {
-            return false;
-        };
-        let ExprKind::Var(name) = &func.kind else {
-            return false;
-        };
-        matches!(name.as_str(), "head" | "first" | "last" | "nth")
-            && !self.builtin_shadowed_by_callable(name)
-            && args
-                .first()
-                .is_some_and(|list| self.expr_is_known_empty_list_value(list))
     }
 
     fn should_clone_literal_element_var(&self, expr: &Expr) -> bool {
@@ -51092,7 +51070,7 @@ fn __futuruna_install_error_hook() {
         let ExprKind::Var(name) = &func.kind else {
             return false;
         };
-        matches!(name.as_str(), "head" | "nth")
+        matches!(name.as_str(), "head" | "first" | "last" | "nth")
             && !self.builtin_shadowed_by_callable(name)
             && matches!(
                 args.first(),

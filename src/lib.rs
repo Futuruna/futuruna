@@ -50604,9 +50604,6 @@ impl TypeChecker {
                 .filter(|ty| ty != "Set")
                 .or_else(|| Some(format!("Set({})", argument_type(1)?))),
             ("map_get_or", 3) => argument_type(2),
-            ("unwrap_or", 2) => argument_type(0)
-                .and_then(|option_type| Self::applied_type_argument(&option_type, "Option", 0))
-                .or_else(|| argument_type(1)),
             ("map_get", 2) => {
                 let map_type = argument_type(0)?;
                 let value_type = Self::applied_type_argument(&map_type, "Map", 1)?;
