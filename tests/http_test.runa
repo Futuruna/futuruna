@@ -11,9 +11,9 @@
 
 -- http_get with a public test endpoint
 @ print("http_get httpbin: " + match http_get("https://httpbin.org/get") {
-    | Ok(body) -> show(contains(body, "httpbin.org"))
-    | Err(e) -> "unavailable (" + e + ")"
-})
+        | Ok(body) -> show(contains(body, "httpbin.org"))
+        | Err(e) -> "unavailable (" + e + ")"
+    })
 
 @ print("")
 @ print("=== HTTP tests passed! ===")

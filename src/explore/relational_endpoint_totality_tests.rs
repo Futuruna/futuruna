@@ -1112,7 +1112,7 @@ fn transitive_declared_effect_is_rejected_by_endpoint_totality() {
 }
 
 > endpoint_test_effect_leaf(value: Int) -> Int with EndpointTestEffect {
-    endpoint_test_emit(value)
+    value
 }
 
 > endpoint_test_effect_observer(state: Int, context: Unit) -> Int {
