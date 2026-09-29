@@ -422,19 +422,49 @@ impl TypeChecker {
         true
     }
 
-    /// The variant a match arm has refined a named subject to, unless the
-    /// name has been rebound inside the arm.
-    fn refined_variant(&self, base: &Expr) -> Option<String> {
+    /// The variant a named value is known to be: refined by an enclosing match
+    /// arm (unless rebound inside the arm) or bound directly to a constructor
+    /// call (`= c = Circle(5.0)`).
+    pub(super) fn refined_variant(&self, base: &Expr) -> Option<String> {
         let ExprKind::Var(name) = &base.kind else {
             return None;
         };
-        let (depth, _, variant) = self
+        let (depth, _, variant, by_binding) = self
             .variant_refinements
             .iter()
             .rev()
-            .find(|(_, subject, _)| subject == name)?;
+            .find(|(_, subject, _, _)| subject == name)?;
         let binder = self.scopes.iter().rposition(|names| names.contains(name))?;
-        (binder < *depth).then(|| variant.clone())
+        let valid = if *by_binding {
+            binder == *depth
+        } else {
+            binder < *depth
+        };
+        valid.then(|| variant.clone())
+    }
+
+    pub(super) fn record_binding_variant_refinement(&mut self, name: &str, value: &Expr) {
+        let depth = self.scopes.len().saturating_sub(1);
+        self.variant_refinements
+            .retain(|(scope, subject, _, _)| !(*scope == depth && subject == name));
+        let variant_parent = match &value.kind {
+            ExprKind::App(function, arguments) => match &function.kind {
+                ExprKind::Var(constructor) if !self.var_defined(constructor) => self
+                    .constructor_parent_for_args(constructor, arguments)
+                    .map(|parent| (constructor.clone(), parent)),
+                _ => None,
+            },
+            ExprKind::Var(constructor) if !self.var_defined(constructor) => self
+                .nullary_constructor_parent(constructor)
+                .map(|parent| (constructor.clone(), parent)),
+            _ => None,
+        };
+        if let Some((variant, parent)) = variant_parent {
+            if self.type_variants.contains_key(&parent) {
+                self.variant_refinements
+                    .push((depth, name.to_string(), variant, true));
+            }
+        }
     }
 
     pub(super) fn pattern_variant_name(pattern: &Pat) -> Option<&str> {
