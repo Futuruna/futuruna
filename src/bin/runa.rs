@@ -19780,6 +19780,9 @@ fn fmt_layout_source(source: &str) -> String {
     let mut continuation_stack: Vec<(char, usize, usize)> = Vec::new();
     let mut previous_line_requires_continuation = false;
     let mut statement_rune_depth: Option<i32> = None;
+    // Depth of a `~ stream` header whose `|` arms follow on their own lines;
+    // the parser requires those arms to sit past the `~`.
+    let mut subscription_depth: Option<i32> = None;
     let mut prev_blank = false;
     let mut i = 0;
 
@@ -19809,6 +19812,13 @@ fn fmt_layout_source(source: &str) -> String {
         // Apply rune spacing and operator normalization
         let trimmed = fmt_normalize_line(trimmed);
         let trimmed = trimmed.as_str();
+
+        if let Some(header_depth) = subscription_depth {
+            if depth == header_depth + 1 && !fmt_line_starts_arm(trimmed) {
+                depth = header_depth;
+                subscription_depth = None;
+            }
+        }
 
         // Decrease depth if line starts with }
         if trimmed.starts_with('}') {
@@ -19854,6 +19864,17 @@ fn fmt_layout_source(source: &str) -> String {
         if let Some('{') = fmt_effective_last_char(trimmed) {
             depth += 1;
             statement_rune_depth = None;
+        }
+
+        if trimmed.starts_with("~ ")
+            && !fmt_split_comment(trimmed).0.contains(" = ")
+            && fmt_effective_last_char(trimmed) != Some('{')
+            && lines
+                .get(i + 1)
+                .is_some_and(|line| fmt_line_starts_arm(line.trim()))
+        {
+            subscription_depth = Some(depth);
+            depth += 1;
         }
 
         i += 1;
@@ -20197,6 +20218,10 @@ fn fmt_indent(depth: i32) -> String {
 fn fmt_line_starts_with_closing_delimiter(line: &str) -> bool {
     let line = line.trim_start();
     matches!(line.chars().next(), Some(')' | ']' | '}')) || line == "|" || line.starts_with("| ")
+}
+
+fn fmt_line_starts_arm(line: &str) -> bool {
+    line == "|" || line.starts_with("| ")
 }
 
 fn fmt_line_starts_rune_statement(line: &str) -> bool {
@@ -24615,9 +24640,10 @@ struct RustCodegen {
     var_types: BTreeMap<String, String>,
     /// Inferred FIR types for bindings in the current emission scope.
     var_fir_types: BTreeMap<String, FirTy>,
-    /// Program uses subjects, actors or http_serve: emits the live runtime and
-    /// a Tokio main.
+    /// Program uses subjects, actors or http_serve: emits the live runtime.
     has_async: bool,
+    /// Program calls `http_serve`: needs the Tokio runtime and an async main.
+    needs_tokio: bool,
     /// Variables bound to subjects.
     subject_vars: BTreeSet<String>,
     /// Rust types of untyped function parameters that receive `<-`, from the
@@ -29515,6 +29541,7 @@ impl RustCodegen {
             var_types: BTreeMap::new(),
             var_fir_types: BTreeMap::new(),
             has_async: false,
+            needs_tokio: false,
             subject_vars: BTreeSet::new(),
             send_target_param_types: BTreeMap::new(),
             async_stream_vars: BTreeSet::new(),
@@ -30627,7 +30654,7 @@ impl RustCodegen {
                 if matches!(stmt, Stmt::Defn(Defn::Actor { .. })) {
                     self.has_async = true;
                 }
-                // http_serve with axum needs async runtime
+                // http_serve with axum needs the Tokio runtime
                 if let Stmt::Expr(Expr {
                     kind: ExprKind::Effect(name, _),
                     ..
@@ -30635,6 +30662,7 @@ impl RustCodegen {
                 {
                     if name == "http_serve" {
                         self.has_async = true;
+                        self.needs_tokio = true;
                     }
                 }
                 // Also detect http_serve in = bindings (e.g. = _ = http_serve(...))
@@ -30650,11 +30678,12 @@ impl RustCodegen {
                     if let ExprKind::Var(name) = &f.as_ref().kind {
                         if name == "http_serve" {
                             self.has_async = true;
+                            self.needs_tokio = true;
                         }
                     }
                 }
             }
-            if self.has_async {
+            if self.needs_tokio {
                 self.cargo_deps.insert(
                     "tokio".to_string(),
                     "{ version = \"1\", features = [\"full\"] }".to_string(),
@@ -33327,7 +33356,7 @@ impl<T: __FuturunaShow> __FuturunaShow for Vec<T> { fn __futuruna_fmt(&self, out
 impl<T: __FuturunaShow> __FuturunaShow for Option<T> { fn __futuruna_fmt(&self, out: &mut String) { match self { Some(v) => { out.push_str("Some("); v.__futuruna_fmt(out); out.push(')'); } None => out.push_str("None") } } }
 impl<T: __FuturunaShow, E: __FuturunaShow> __FuturunaShow for Result<T, E> { fn __futuruna_fmt(&self, out: &mut String) { match self { Ok(v) => { out.push_str("Ok("); v.__futuruna_fmt(out); out.push(')'); } Err(e) => { out.push_str("Err("); e.__futuruna_fmt(out); out.push(')'); } } } }
 macro_rules! __futuruna_show_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaShow),+> __FuturunaShow for ($($t,)+) { fn __futuruna_fmt(&self, out: &mut String) { out.push('('); let mut __first = true; $( if !__first { out.push_str(", "); } __first = false; self.$n.__futuruna_fmt(out); )+ out.push(')'); } })* } }
-__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K, 11 L));
 impl<K: __FuturunaShow, V: __FuturunaShow> __FuturunaShow for BTreeMap<K, V> {
     fn __futuruna_fmt(&self, out: &mut String) {
         out.push('{');
@@ -33372,7 +33401,7 @@ impl<T: __FuturunaOrd> __FuturunaOrd for Vec<T> { fn __futuruna_key(&self, out: 
 impl<T: __FuturunaOrd> __FuturunaOrd for Option<T> { fn __futuruna_key(&self, out: &mut String) { match self { None => out.push_str("o0"), Some(v) => { out.push_str("o1"); v.__futuruna_key(out); } } } }
 impl<T: __FuturunaOrd, E: __FuturunaOrd> __FuturunaOrd for Result<T, E> { fn __futuruna_key(&self, out: &mut String) { match self { Err(e) => { out.push_str("r0"); e.__futuruna_key(out); } Ok(v) => { out.push_str("r1"); v.__futuruna_key(out); } } } }
 macro_rules! __futuruna_key_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaOrd),+> __FuturunaOrd for ($($t,)+) { fn __futuruna_key(&self, out: &mut String) { out.push('t'); $( self.$n.__futuruna_key(out); )+ } })* } }
-__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K, 11 L));
 impl<K: __FuturunaOrd, V: __FuturunaOrd> __FuturunaOrd for BTreeMap<K, V> {
     fn __futuruna_key(&self, out: &mut String) {
         let mut entries: Vec<(String, &V)> = self.iter().map(|(k, v)| (__futuruna_key_of(k), v)).collect();
@@ -34106,11 +34135,9 @@ fn __futuruna_install_error_hook() {
         if !self.lib_mode {
             // Detect if any main statement uses ? operator
             let uses_try = main_stmts.iter().any(|s| stmt_contains_try(s));
-            // M13c: async main when subjects or actors are used
-            if self.has_async {
-                // M15: multi-threaded Tokio — trust the topology.
-                // Independent streams (zero Phi) auto-parallelize across CPU cores.
-                // Synchronization happens at fan-in nodes (zip, merge).
+            // Only `http_serve` needs an async main; subjects, live streams
+            // and actors run on the synchronous live runtime.
+            if self.needs_tokio {
                 if uses_try {
                     out.push_str("#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
                 } else {
@@ -34217,7 +34244,7 @@ fn __futuruna_install_error_hook() {
             self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
             self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
             out.push_str("}\n");
-            if !self.has_async {
+            if !self.needs_tokio {
                 out.push('\n');
                 if uses_try {
                     out.push_str(
@@ -39082,7 +39109,8 @@ fn __futuruna_install_error_hook() {
                         }
                     }
                 }
-                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
+                Stmt::Rule(Rule::ReactiveScope { body, .. })
+                | Stmt::Defn(Defn::Module { body, .. }) => {
                     self.seed_async_stream_bindings_from_stmt_list(body);
                 }
                 Stmt::StreamBind(name, expr) => {
@@ -44934,6 +44962,11 @@ fn __futuruna_install_error_hook() {
                 let inner = &ty[4..ty.len() - 1];
                 FirTy::List(Box::new(Self::rust_type_to_fir(inner)))
             }
+            // FIR models a live stream by its element history.
+            _ if ty.starts_with("__FutStream<") && ty.ends_with('>') => {
+                let inner = &ty["__FutStream<".len()..ty.len() - 1];
+                FirTy::List(Box::new(Self::rust_type_to_fir(inner)))
+            }
             _ if ty.starts_with("Option<") && ty.ends_with('>') => {
                 let inner = &ty[7..ty.len() - 1];
                 FirTy::Option(Box::new(Self::rust_type_to_fir(inner)))
@@ -47023,20 +47056,37 @@ fn __futuruna_install_error_hook() {
             .unwrap_or(false)
     }
 
-    /// A free call `m(x, ...)` of a type-body or impl method that no ordinary
-    /// function, rule, or local owns dispatches on its first argument: it is
-    /// emitted as the method call `x.m(...)`.
+    /// A free call `m(x, ...)` or qualified call `Q.m(x, ...)` of a type-body
+    /// or impl method that no ordinary function, rule, or local owns
+    /// dispatches on its first argument: it is emitted as the method call
+    /// `x.m(...)`.
     fn free_receiver_method_call(&self, func: &Expr, args: &[Expr], span: Span) -> Option<Expr> {
-        let ExprKind::Var(name) = &func.kind else {
-            return None;
+        let name = match &func.kind {
+            ExprKind::Var(name) => {
+                if self.types.user_functions.contains(name)
+                    || self.local_bindings.contains(name)
+                    || self.current_rule_scope_methods.contains_key(name)
+                {
+                    return None;
+                }
+                name
+            }
+            ExprKind::Field(module, name) => {
+                let module_path = self.module_path_key(module)?;
+                let metadata_path = self.canonical_module_metadata_path(&module_path);
+                if self.module_callable_metadata.contains_key(&(
+                    metadata_path,
+                    name.clone(),
+                    args.len(),
+                )) {
+                    return None;
+                }
+                name
+            }
+            _ => return None,
         };
         let (receiver, rest) = args.split_first()?;
-        if !self.receiver_method_names.contains(name)
-            || self.types.user_functions.contains(name)
-            || self.local_bindings.contains(name)
-            || self.current_rule_scope_methods.contains_key(name)
-            || has_named_args(args)
-        {
+        if !self.receiver_method_names.contains(name) || has_named_args(args) {
             return None;
         }
         Some(Expr::new(
@@ -50742,6 +50792,12 @@ fn __futuruna_install_error_hook() {
         if self.expr_is_known_empty_list_value(expr) {
             return "\"[]\".to_string()".to_string();
         }
+        if self.expr_is_empty_list_literal_access(expr) {
+            return format!(
+                "{{ let __fut_shown: () = {}; __futuruna_show_any(&__fut_shown) }}",
+                emitted
+            );
+        }
         if self.expr_is_string(expr) {
             return format!("format!(\"{{}}\", {})", emitted);
         }
@@ -50899,6 +50955,26 @@ fn __futuruna_install_error_hook() {
             }
             _ => false,
         }
+    }
+
+    /// `head([])` and `nth([], i)` are emitted as a bare `panic!`, whose Rust
+    /// type `!` has no display implementation.
+    fn expr_is_empty_list_literal_access(&self, expr: &Expr) -> bool {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return false;
+        };
+        let ExprKind::Var(name) = &func.kind else {
+            return false;
+        };
+        matches!(name.as_str(), "head" | "nth")
+            && !self.builtin_shadowed_by_callable(name)
+            && matches!(
+                args.first(),
+                Some(Expr {
+                    kind: ExprKind::List(elems),
+                    ..
+                }) if elems.is_empty()
+            )
     }
 
     /// Emit handler body, replacing captured variables with self.field references.
@@ -51780,9 +51856,7 @@ fn __futuruna_install_error_hook() {
                     collect_pattern_names(pat, &mut self.local_bindings);
                 }
                 Stmt::Expr(expr) if is_last => {
-                    let rendered = expected_ty
-                        .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
-                        .unwrap_or_else(|| self.emit_expr(expr));
+                    let rendered = self.emit_tail_expr_with_expected_ty(expr, expected_ty);
                     out.push_str(&format!("{}{}\n", self.ind(), rendered));
                 }
                 _ => out.push_str(&self.emit_stmt(stmt)),
@@ -51825,11 +51899,28 @@ fn __futuruna_install_error_hook() {
                 self.emit_block_body_lines_with_expected_ty(stmts, expected_ty)
             }
             _ => {
-                let rendered = expected_ty
-                    .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
-                    .unwrap_or_else(|| self.emit_expr(expr));
+                let rendered = self.emit_tail_expr_with_expected_ty(expr, expected_ty);
                 format!("{}{}\n", self.ind(), rendered)
             }
+        }
+    }
+
+    /// A body declared `-> ()` discards the value of a non-unit tail
+    /// expression, such as `push(values, value)` on an `inout` list.
+    fn emit_tail_expr_with_expected_ty(
+        &mut self,
+        expr: &Expr,
+        expected_ty: Option<&FirTy>,
+    ) -> String {
+        let rendered = expected_ty
+            .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
+            .unwrap_or_else(|| self.emit_expr(expr));
+        if matches!(expected_ty, Some(FirTy::Unit))
+            && !matches!(self.infer_expr_fir_ty(expr), FirTy::Unit)
+        {
+            format!("let _ = {};", rendered)
+        } else {
+            rendered
         }
     }
 
@@ -57004,7 +57095,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "RustCodegen::scan_declarations export pre-scan",
                 source: include_str!("runa.rs"),
                 start_marker: "        // Pre-scan: collect @ export annotations (M3b)",
-                end_marker: "        // M13c: Pre-scan for async mode",
+                end_marker: "        // Subjects and actors use the live runtime",
             },
         ]
     }
@@ -59974,13 +60065,20 @@ assert_with_message(true, message())
         let location = lsp_definition(&uri, &local, 1, 15);
         assert_eq!(location["uri"], uri);
         assert_eq!(location["range"]["start"]["line"], 3);
-        let qualified = format!("{source}@ import Q from ./direct\n@ print(show(Q.helper(2)))\n");
+        std::fs::write(
+            root.join("other.runa"),
+            "> helper(value: Int) -> Int { value + 4 }\n",
+        )
+        .unwrap();
+        let qualified = format!("{source}@ import Q from ./other\n@ print(show(Q.helper(2)))\n");
+        let location = lsp_definition(&uri, &qualified, 4, 17);
         assert_eq!(
-            lsp_definition(&uri, &qualified, 4, 17),
-            serde_json::Value::Null,
-            "qualified members must not borrow a plain import's same-named target"
+            location["uri"],
+            lsp_document_uri(&std::fs::canonicalize(root.join("other.runa")).unwrap()),
+            "qualified members resolve in their own module, not a plain import's same-named target"
         );
-        for name in ["main.runa", "direct.runa", "nested.runa"] {
+        assert_eq!(location["range"]["start"]["line"], 0);
+        for name in ["main.runa", "direct.runa", "nested.runa", "other.runa"] {
             std::fs::remove_file(root.join(name)).unwrap();
         }
         std::fs::remove_dir(root).unwrap();
@@ -63865,27 +63963,19 @@ readings <- "score"
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
         let rust = codegen.emit_program(&stmts);
-        let metadata = codegen
-            .module_callable_metadata
-            .get(&("Q".to_string(), "collide".to_string(), 1))
-            .expect("qualified ADT method metadata");
-        assert!(metadata.rules.is_none(), "method metadata: {metadata:#?}");
-        assert_eq!(
-            metadata.return_type,
-            FirTy::Named("crate::Q::Remote".to_string())
-        );
-        assert_eq!(metadata.borrow_only_params, vec![true]);
+        let private_source = "@ import Q from ./dep\n@ print(show(Q.hidden_amount(Q.Remote(2))))\n";
+        let private_stmts = prepend_prelude(parse_prelude(), &parse_test_program(private_source));
+        let private_diagnostics = TypeChecker::check_with_artifacts(
+            &private_stmts,
+            source_dir_for(main_path.to_str().unwrap()),
+            private_source,
+        )
+        .diagnostics;
         assert!(
-            rust.contains("pub fn collide(self_: &Remote) -> Remote"),
-            "generated Rust: {rust}"
-        );
-        assert!(
-            rust.contains("fn hidden_amount(value: &Remote) -> i64"),
-            "generated Rust: {rust}"
-        );
-        assert!(
-            !rust.contains("pub fn hidden_amount"),
-            "private ADT method leaked from module: {rust}"
+            private_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("no exported member `hidden_amount`")),
+            "{private_diagnostics:?}"
         );
         let compiled = compile_and_capture_generated_test_code(&rust);
         assert!(
@@ -63896,22 +63986,6 @@ readings <- "score"
         );
         assert_eq!(interpreted.trim(), "1\n12");
         assert_eq!(String::from_utf8_lossy(&compiled.stdout).trim(), "1\n12");
-
-        let mut wasm_codegen = RustCodegen::new();
-        wasm_codegen.wasm_mode = true;
-        wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        let wasm_rust = wasm_codegen.emit_program(&stmts);
-        assert_eq!(
-            wasm_codegen
-                .module_callable_metadata
-                .get(&("Q".to_string(), "collide".to_string(), 1))
-                .map(|metadata| metadata.borrow_only_params.as_slice()),
-            Some([false].as_slice())
-        );
-        assert!(
-            wasm_rust.contains("pub fn collide(self_: Remote) -> Remote"),
-            "generated WASM Rust: {wasm_rust}"
-        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
