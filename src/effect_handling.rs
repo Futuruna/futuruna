@@ -178,7 +178,7 @@ impl TypeChecker {
                     // A builtin of the same name (such as actor `ask`) wins
                     // when no handler is active.
                     for (operation, _, _) in ops {
-                        if !self.builtins.contains_key(builtin_canonical(operation)) {
+                        if !self.builtins.contains_key(operation) {
                             program.operations.insert(operation.clone(), name.clone());
                         }
                     }
