@@ -440,10 +440,10 @@ hidden contract metadata remain complete in both modes. This reduces worksheet
 count, not the width of the root input sheet or the size of the contract itself.
 
 New JSON/TOML templates use input envelope v2 and workbooks use input adapter v9.
-Input v1 and complete v6/v7/v8 workbooks remain readable for migration, but
-unmarked cases do not run. Refresh older inputs, review their facts and mark intentional
-cases ready. Older binaries reject the new format identities instead of silently
-ignoring draft status; do not rewrite the version or fingerprint to bypass this.
+Input v1 and complete v6/v7/v8 workbooks are readable, but cases without
+`input_status` do not run: generate a fresh template, review the facts and mark
+intentional cases ready. Do not rewrite the version or fingerprint to bypass
+this.
 
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes

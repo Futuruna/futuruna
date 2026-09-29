@@ -31,8 +31,7 @@ without preventing this conditional review. Do not switch it to
 ## Run the compact review
 
 First run the [tax-audit runtime check](../../website/public/ai-setup.md#tax-audit-runtime-check)
-against the compiler you will use. The original `v0.2.0` download predates
-required calculation-safety fixes; the version string alone is insufficient.
+against the compiler you will use; the version string alone is insufficient.
 Do not continue on a failed check. It uses only synthetic data, not your report.
 
 ### Prøv først med fiktive tal
@@ -491,10 +490,8 @@ interest rates or payment schedules are inferred.
 ### Existing templates
 
 Regenerate the template and transfer reviewed observations; never edit stored
-schema hashes to bypass a mismatch. Use the
-[compatibility guide](../../docs/compatibility-guides/0.2.x.md#preview-and-experimental-notes)
-for field migrations and cases that need recalculation. Saved results are
-not automatically recalculated with the current contract.
+schema hashes to bypass a mismatch. Saved results are not automatically
+recalculated with the current contract; recalculate them from the fresh input.
 
 ### Coverage and regression checks
 

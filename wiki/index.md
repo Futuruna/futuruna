@@ -53,11 +53,9 @@ Wiki workflow instructions live in [[wiki/workflows|Wiki workflows]].
 
 - [[compiler-pipeline]]
 - [[language-surface]]
-- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[test-surface]]
 - [[verification-lanes]]
 - [[differential-testing-flow]]
 - [[mint-ratchet]]
 - [[repo-docs]]
 - [[current-state]]
-- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]

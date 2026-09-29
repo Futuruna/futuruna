@@ -82,7 +82,7 @@ These lanes are the core mint contract because they cover:
 - the blocking codegen regression program
 - database-retirement diagnostics and preserved host-boundary behavior
 - WASM export build canaries, with an explicit skip when `wasm-pack` is unavailable
-- real example programs outside `tests/` that have previously exposed compiler bugs
+- real example programs outside `tests/` that have exposed compiler bugs
 
 Intentionally omitted from the core mint gate:
 

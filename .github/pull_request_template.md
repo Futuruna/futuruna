@@ -7,10 +7,7 @@
 
 Changed contract:
 
-The compatibility-guide CI job reads the next field for stable-surface changes.
-During development toward 0.2.3, identify the current references and repository
-programs updated; a concrete reason is sufficient without a historical guide entry.
-Compatibility guide entry (or reason none was needed):
+References and repository programs updated (or reason none were needed):
 
 Permanent coverage added:
 
@@ -21,7 +18,7 @@ Parked follow-ups (`td-*`):
 - [ ] `./scripts/mint.sh`
 - [ ] Relevant canary lane run and listed below
 - [ ] Relevant differential lane run and listed below
-- [ ] Relevant proof/verify coverage run and listed below
+- [ ] Relevant verify coverage run and listed below
 - [ ] Any skipped lane is explained below
 - [ ] Current references and repository programs reflect the resulting contract
 

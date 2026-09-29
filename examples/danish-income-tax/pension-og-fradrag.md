@@ -8,8 +8,7 @@ Preview.
 
 Før beregningen skal den valgte compiler bestå det lille
 [kompatibilitetstjek](../../website/public/ai-setup.md#tax-audit-runtime-check).
-Den oprindelige `v0.2.0`-download mangler senere sikkerhedsrettelser; samme
-versionsnummer er ikke nok. Tjekket bruger kun fiktive data. Fortsæt ikke med
+Versionsnummeret alene er ikke nok. Tjekket bruger kun fiktive data. Fortsæt ikke med
 personlige beregninger, hvis det fejler.
 
 Bevar den afprøvede binærs absolutte sti i `RUNA_BIN`, som i opsætningsguiden,
@@ -155,9 +154,8 @@ lønnen, så beregnet skat passer.
 [eIndkomstvejledningen 8.2, felt 13](https://info.skat.dk/data.aspx?oid=2233519).
 
 Generér skabelonen fra den aktuelle model og overfør gennemgåede fakta;
-redigér ikke et gammelt fingeraftryk. Følg
-[migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
-ved genbrug af tidligere sager.
+redigér ikke et gammelt fingeraftryk, og genberegn tidligere sager fra den
+friske skabelon.
 
 En almindelig arbejdsgiverbetalt livsvarig livrente indgår **før AM-bidrag**
 i grundlaget for beskæftigelses- og jobfradrag. Det ekstra pensionsfradrag

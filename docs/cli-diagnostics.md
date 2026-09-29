@@ -27,7 +27,7 @@ Full `check`, native `run`, and `build` require a Rust toolchain. If a required
 tool and requested operation. The diagnostic points to Rust installation or
 executable permissions as appropriate.
 
-Discovery checks `PATH`, then `~/.cargo/bin`, and finally the legacy
+Discovery checks `PATH`, then `~/.cargo/bin`, and finally the
 `~/.rustup/toolchains/stable-aarch64-apple-darwin/bin` fallback. An installed
 toolchain can therefore remain available even when it is absent from `PATH`.
 This fallback does not install Rust or change your shell configuration.

@@ -315,8 +315,7 @@ by type and value path. An audit can therefore inspect an `AuditWarning` field o
 a `SourceInfo` URL without parsing Futuruna display text. The additive
 `attachments` index makes nested `MetaRole` variants directly queryable by role
 without parsing the structural tree. It also reports the participating
-`meta_role_types`; legacy `MetaAttachment` values remain readable during
-migration. Expression-level forms such as
+`meta_role_types`; `MetaAttachment` values remain readable. Expression-level forms such as
 `match` arms are not span symbols. `--type` and `--role` apply to JSON output as
 well, so a warning sweep can use `runa meta --json --role warning file.runa`
 without parsing presentation text.
