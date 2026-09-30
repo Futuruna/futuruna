@@ -1,4 +1,4 @@
-@ import ../../../examples / danish - income - tax / personskat - skattekreditter - kildekontrol
+@ import ../../../examples/danish-income-tax/personskat-skattekreditter-kildekontrol
 
 # CreditSignInput(exact: KildeskatPar60KreditterØre, whole: KildeskatPar60Kreditter)
 # CreditSignResult(exact_nonnegative: Bool, whole_nonnegative: Bool)

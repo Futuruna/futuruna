@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - kildeskat25a - kildefakta
+@ importer ./personskat-kildeskat25a-kildefakta
 
 = personskat_ksl25a_felt_virksomhedsidentifikation = TypetBeregningsfelt(
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedsidentifikation),

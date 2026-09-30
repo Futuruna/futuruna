@@ -36,21 +36,21 @@
 
 -- Mistillidsvotum
 # Mistillidsvotum = ModMinister(navn: String) | ModStatsministeren
-# MistillidsResultat = Forbliver | Fratræder | Nyvalg
+# MistillidsResultat = Forbliver | Fratræder | UdskriverValg
 
 -- Ansvar (politisk vs. retligt)
 # Ansvarstype = AnsvarsFri | Ansvarlig
 
 -- Statsråd vs. ministerråd
 # Rådstype = Statsråd | MinisterrådsMøde
-# Rådsbeslutning = Godkendt | ForelæggesStatsråd
+# Rådsbeslutning = Bifaldet | ForelæggesStatsråd
 
 -- Udenrigsanliggender
-# InternationalHandling = Områdeændring | Forpligtelse | StørreBetydning | Opsigelse | Anden
+# InternationalHandling = Områdeændring | Forpligtelse | StørreBetydning | Opsigelse | AndenHandling
 # MilitærMagtbrug = ForsvarModAngreb | AndenMilitærMagt
 
 -- Suverænitetsafgivelse (§ 20 — EU-paragraffen)
-# Flertal = FemSjettedele | Simpelt | Folkeafstemning
+# Flertal = FemSjettedele | Simpelt | VedFolkeafstemning
 
 -- Foreløbige love (nødlove)
 # ProvisoriskLov(indhold: String, strider_mod_grundlov: Bool)
@@ -229,7 +229,7 @@ Stk. 2. Udtaler folketinget sin mistillid til statsministeren, skal denne begær
         | ModMinister(_) -> Fratræder
         -- Statsministeren: valg mellem afgang og nyvalg
         | ModStatsministeren -> {
-            hvis vælger_nyvalg { Nyvalg }
+            hvis vælger_nyvalg { UdskriverValg }
             ellers { Fratræder }
         }
     }
@@ -323,7 +323,7 @@ Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
 ----
 
 > ministerråd_beslutning(kongen_bifalder: Bool) -> Rådsbeslutning {
-    hvis kongen_bifalder { Godkendt }
+    hvis kongen_bifalder { Bifaldet }
     ellers { ForelæggesStatsråd }
 }
 
@@ -367,7 +367,7 @@ Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn, med hvilket 
         | Forpligtelse -> Sandt
         | StørreBetydning -> Sandt
         | Opsigelse -> Sandt
-        | Anden -> Falskt
+        | AndenHandling -> Falskt
     }
 }
 
@@ -385,7 +385,7 @@ Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn, med hvilket 
 
 @ skriv("--- § 19: Udenrigspolitik og militær magt ---")
 @ skriv("Områdeændring kræver samtykke: " + vis(krav_om_samtykke_international(Områdeændring)))
-@ skriv("Almindelig handling kræver samtykke: " + vis(krav_om_samtykke_international(Anden)))
+@ skriv("Almindelig handling kræver samtykke: " + vis(krav_om_samtykke_international(AndenHandling)))
 @ skriv("Forsvar mod angreb uden samtykke: " + vis(militær_magt_tilladt(ForsvarModAngreb, IkkeGivet)))
 @ skriv("Anden militær magt uden samtykke: " + vis(militær_magt_tilladt(AndenMilitærMagt, IkkeGivet)))
 @ skriv("Anden militær magt med samtykke: " + vis(militær_magt_tilladt(AndenMilitærMagt, Givet)))
@@ -415,7 +415,7 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
     skel flertal {
         | FemSjettedele -> "Vedtaget — 5/6 flertal opnået"
         | Simpelt -> "Ikke nok — skal til folkeafstemning per § 42"
-        | Folkeafstemning -> "Afgøres af vælgerne"
+        | VedFolkeafstemning -> "Afgøres af vælgerne"
     }
 }
 

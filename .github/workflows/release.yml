@@ -384,4 +384,4 @@ jobs:
           body: |
             Prebuilt Futuruna binaries are available for Linux and macOS. Every download is covered by `SHA256SUMS`.
 
-            The macOS binaries in this release are not yet signed or notarized by Apple. Gatekeeper may block them when macOS marks the download as quarantined. Do not disable Gatekeeper globally; build Futuruna locally if the download is blocked.
+            The macOS binaries in this release are not signed or notarized by Apple. Gatekeeper may block them when macOS marks the download as quarantined. Download with `curl` to avoid quarantine, or verify the checksum and then run `xattr -d com.apple.quarantine` on that verified binary only. Do not disable Gatekeeper; build Futuruna locally if you prefer.

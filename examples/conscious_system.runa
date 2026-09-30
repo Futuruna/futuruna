@@ -33,7 +33,7 @@
 # Route = Direct(String, String) | Via(String, String, String) | Unavailable(String)
 
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 
 -- ============================================================================
 -- PART 2: The Network — facts about what exists (|)
@@ -159,8 +159,8 @@
 -- PART 5: Network analysis (> with list operations)
 -- ============================================================================
 
-> all_services() -> List(Service) {
-    Cons(api_gateway, Cons(auth_service, Cons(user_db, Cons(cache, Cons(search, Cons(analytics, Cons(cdn, Cons(backup_db, Nil))))))))
+> all_services() -> Chain(Service) {
+    Link(api_gateway, Link(auth_service, Link(user_db, Link(cache, Link(search, Link(analytics, Link(cdn, Link(backup_db, End))))))))
 }
 
 > status_id(s: Status) -> Int {
@@ -171,10 +171,10 @@
     }
 }
 
-> count_by_status(services: List(Service), target: Status) -> Int {
+> count_by_status(services: Chain(Service), target: Status) -> Int {
     match services {
-        | Nil -> 0
-        | Cons(s, rest) -> {
+        | End -> 0
+        | Link(s, rest) -> {
             = same = status_id(status(s)) == status_id(target)
             if same {
                 1 + count_by_status(rest, target)
@@ -185,21 +185,21 @@
     }
 }
 
-> total_health(services: List(Service)) -> Int {
+> total_health(services: Chain(Service)) -> Int {
     match services {
-        | Nil -> 0
-        | Cons(s, rest) -> health_score(s) + total_health(rest)
+        | End -> 0
+        | Link(s, rest) -> health_score(s) + total_health(rest)
     }
 }
 
-> list_length(services: List(Service)) -> Int {
+> list_length(services: Chain(Service)) -> Int {
     match services {
-        | Nil -> 0
-        | Cons(_, rest) -> 1 + list_length(rest)
+        | End -> 0
+        | Link(_, rest) -> 1 + list_length(rest)
     }
 }
 
-> network_health_pct(services: List(Service)) -> Int {
+> network_health_pct(services: Chain(Service)) -> Int {
     = total = total_health(services)
     = count = list_length(services)
     -- Max possible: all Healthy(3) * Critical(4) = 12 per service
@@ -208,10 +208,10 @@
 }
 
 -- Find all services that can reach a target
-> reachable_from(from: Service, services: List(Service)) -> List(String) {
+> reachable_from(from: Service, services: Chain(Service)) -> Chain(String) {
     match services {
-        | Nil -> Nil
-        | Cons(s, rest) -> {
+        | End -> End
+        | Link(s, rest) -> {
             = r = route(from, s)
             = reachable = match r {
                 | Direct(_, _) -> True
@@ -219,7 +219,7 @@
                 | Unavailable(_) -> False
             }
             if reachable {
-                Cons(name(s), reachable_from(from, rest))
+                Link(name(s), reachable_from(from, rest))
             } else {
                 reachable_from(from, rest)
             }
@@ -237,19 +237,19 @@
 }
 
 -- Show a list of strings
-> show_list(xs: List(String)) -> String {
+> show_list(xs: Chain(String)) -> String {
     match xs {
-        | Nil -> "[]"
-        | Cons(h, Nil) -> "[" + h + "]"
-        | Cons(h, t) -> "[" + h + ", " + show_list_inner(t) + "]"
+        | End -> "[]"
+        | Link(h, End) -> "[" + h + "]"
+        | Link(h, t) -> "[" + h + ", " + show_list_inner(t) + "]"
     }
 }
 
-> show_list_inner(xs: List(String)) -> String {
+> show_list_inner(xs: Chain(String)) -> String {
     match xs {
-        | Nil -> ""
-        | Cons(h, Nil) -> h
-        | Cons(h, t) -> h + ", " + show_list_inner(t)
+        | End -> ""
+        | Link(h, End) -> h
+        | Link(h, t) -> h + ", " + show_list_inner(t)
     }
 }
 

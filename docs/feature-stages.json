@@ -71,16 +71,6 @@
       ]
     },
     {
-      "id": "proof-kernel-terms",
-      "kind": "verification",
-      "name": "Explicit kernel proof terms and documented proof-kernel rule forms",
-      "stage": "stable",
-      "docs": [
-        "docs/proof-kernel.md",
-        "docs/verified-bootstrap.md"
-      ]
-    },
-    {
       "id": "pure-core-rust-artifacts",
       "kind": "artifact",
       "name": "Pure/core generated Rust behavior and reviewed artifact fixtures",
@@ -104,12 +94,23 @@
       "id": "reactive-stateful-surfaces",
       "kind": "language",
       "name": "Streams, subjects, actors, and effect-heavy workflows",
-      "stage": "stable",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: syntax and semantics may change, and interpreter and compiled behavior are not guaranteed to match.",
       "docs": [
         "docs/reference/streams.md",
         "docs/stream-lifetimes.md",
         "docs/tutorial/05-streams.md",
         "docs/tutorial/06-effects.md"
+      ]
+    },
+    {
+      "id": "http-builtins",
+      "kind": "runtime",
+      "name": "HTTP client and server builtins",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: builtin signatures and error behavior may change, and interpreter and compiled behavior are not guaranteed to match.",
+      "docs": [
+        "docs/reference/stdlib.md"
       ]
     },
     {
@@ -123,10 +124,23 @@
       ]
     },
     {
+      "id": "rust-escape-hatches",
+      "kind": "integration",
+      "name": "Raw @ rust blocks and @ depend Cargo dependencies",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: the directive forms and the generated Cargo integration may change, and raw Rust code is outside Futuruna's checker.",
+      "docs": [
+        "docs/reference/runes.md",
+        "docs/reference/rust-compatibility.md",
+        "docs/tutorial/06-effects.md"
+      ]
+    },
+    {
       "id": "solver-assisted-verification",
       "kind": "verification",
-      "name": "runa verify theorem elaboration, solver fallback, and broader verification automation",
+      "name": "runa verify SMT checking of invariants",
       "stage": "preview",
+      "notes": "PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.",
       "commands": [
         "verify"
       ],
@@ -139,7 +153,7 @@
       "kind": "verification",
       "name": "Relational bounded ? explore declarations and exact-finite streaming execution",
       "stage": "experimental",
-      "notes": "Nonempty plural question sets share one compact classified pass bound to the full canonical ordered QuestionId set. Packed joint admission/selection decisions are run-length encoded; per-question counts and support projections derive from the shared evidence; selected case rows are materialized once for the any-selected union. Publication v20 case/support schema v4 exposes accepted sparse chunks and regions as discovery-ordered stable-key additions, appends materializations and authorized cases independently, and seals the canonical key-sorted active set at exact closure; prefix promotion remains operational. A FIND-backed choice is an independently journaled ChoiceId relation with an authenticated open frontier and exact ChoiceContentRoot; choice-target mechanisms consume its canonical member ordinals without a display ViewId. Choice-backed displays consume only the closed member relation and never re-run membership policy; aggregate-backed Choice displays currently fail closed. Native v2 and regional-proof accelerators remain exact-one. For unary exact-integer scheduling, candidate discovery can use direct checked affine guards, compiler-minted scalar root-rule source events, and affine candidates lifted through frozen acyclic pure callables. Policy-versioned authenticated nomination roots explain why each candidate chunk received priority. Compiler mining has deterministic work/output limits and records budget exhaustion as a terminal residual. These inputs affect scheduling only: residual exact work remains mandatory for an exact result. A focused audit paused at transition 17, reopened, and completed one shared 300-transition sweep with independent exact selected counts of 20 and 10 and one 20-case any-selected materialization, without either accelerator.",
+      "notes": "No compatibility guarantee: syntax, report and publication formats may change without staged compatibility handling. Nonempty plural question sets share one compact classified pass bound to the full canonical ordered QuestionId set. Packed joint admission/selection decisions are run-length encoded; per-question counts and support projections derive from the shared evidence; selected case rows are materialized once for the any-selected union. Publication v20 case/support schema v4 exposes accepted sparse chunks and regions as discovery-ordered stable-key additions, appends materializations and authorized cases independently, and seals the canonical key-sorted active set at exact closure; prefix promotion remains operational. A FIND-backed choice is an independently journaled ChoiceId relation with an authenticated open frontier and exact ChoiceContentRoot; choice-target mechanisms consume its canonical member ordinals without a display ViewId. Choice-backed displays consume only the closed member relation and never re-run membership policy; aggregate-backed Choice displays currently fail closed. Native v2 and regional-proof accelerators remain exact-one. For unary exact-integer scheduling, candidate discovery can use direct checked affine guards, compiler-minted scalar root-rule source events, and affine candidates lifted through frozen acyclic pure callables. Policy-versioned authenticated nomination roots explain why each candidate chunk received priority. Compiler mining has deterministic work/output limits and records budget exhaustion as a terminal residual. These inputs affect scheduling only: residual exact work remains mandatory for an exact result. A focused audit paused at transition 17, reopened, and completed one shared 300-transition sweep with independent exact selected counts of 20 and 10 and one 20-case any-selected materialization, without either accelerator.",
       "commands": [
         "explore"
       ],
@@ -192,11 +206,23 @@
       "stage": "preview",
       "commands": [
         "add",
-        "wasm",
         "lsp"
       ],
       "docs": [
         "docs/tutorial/07-project.md"
+      ]
+    },
+    {
+      "id": "wasm-target",
+      "kind": "tooling",
+      "name": "WASM package target",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: the generated package layout and JavaScript interface may change.",
+      "commands": [
+        "wasm"
+      ],
+      "docs": [
+        "docs/reference/rust-compatibility.md"
       ]
     },
     {
@@ -347,8 +373,8 @@
     },
     {
       "name": "wasm",
-      "stage": "preview",
-      "surface": "package-and-project-tooling"
+      "stage": "experimental",
+      "surface": "wasm-target"
     },
     {
       "name": "lsp",
@@ -418,8 +444,7 @@
     {
       "name": "registry",
       "stage": "experimental",
-      "surface": "internal-codegen-layout",
-      "hidden": true
+      "surface": "internal-codegen-layout"
     },
     {
       "name": "interface",
@@ -524,26 +549,28 @@
       "stage": "mixed",
       "surfaces": [
         "core-language-syntax",
-        "typed-calculation-contracts"
+        "typed-calculation-contracts",
+        "rust-escape-hatches"
       ]
     },
     {
       "path": "docs/reference/stdlib.md",
-      "stage": "stable",
+      "stage": "mixed",
       "surfaces": [
-        "documented-stdlib"
+        "documented-stdlib",
+        "http-builtins"
       ]
     },
     {
       "path": "docs/reference/streams.md",
-      "stage": "stable",
+      "stage": "experimental",
       "surfaces": [
         "reactive-stateful-surfaces"
       ]
     },
     {
       "path": "docs/stream-lifetimes.md",
-      "stage": "stable",
+      "stage": "experimental",
       "surfaces": [
         "reactive-stateful-surfaces"
       ]
@@ -553,7 +580,9 @@
       "stage": "mixed",
       "surfaces": [
         "pure-core-rust-artifacts",
-        "rust-interop"
+        "rust-interop",
+        "rust-escape-hatches",
+        "wasm-target"
       ]
     },
     {
@@ -607,7 +636,7 @@
     },
     {
       "path": "docs/tutorial/05-streams.md",
-      "stage": "stable",
+      "stage": "experimental",
       "surfaces": [
         "reactive-stateful-surfaces"
       ]
@@ -617,7 +646,8 @@
       "stage": "mixed",
       "surfaces": [
         "reactive-stateful-surfaces",
-        "rust-interop"
+        "rust-interop",
+        "rust-escape-hatches"
       ]
     },
     {

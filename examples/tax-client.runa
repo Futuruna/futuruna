@@ -7,18 +7,32 @@
 
 > query(name: String, income: Int, status: String, children: Int) -> String {
     = body = json_object([["name", name], ["income", show(income)], ["status", status], ["children", show(children)]])
-    http_post("http://localhost:8080/tax", body)
+    match http_post("http://localhost:8080/tax", body) {
+        | Ok(response) -> response
+        | Err(e) -> {
+            = _ = assert_with_message(false, "tax server request failed: " + e)
+            ""
+        }
+    }
 }
 
 > print_result(label: String, raw: String) -> Int {
-    = r = json_parse(raw)
-    = tax = json_get(r, "tax")
-    = rate = json_string(json_get(r, "effective_rate"))
-    = net = json_get(r, "net_income")
     @ print("  " + label)
-    @ print("    tax: " + tax + " kr  |  rate: " + rate + "  |  net: " + net + " kr")
-    @ print("")
-    0
+    match json_parse(raw) {
+        | Ok(r) -> {
+            = tax = json_get(r, "tax")
+            = rate = json_string(json_get(r, "effective_rate"))
+            = net = json_get(r, "net_income")
+            @ print("    tax: " + tax + " kr  |  rate: " + rate + "  |  net: " + net + " kr")
+            @ print("")
+            0
+        }
+        | Err(e) -> {
+            @ print("    server returned invalid JSON: " + e)
+            @ print("")
+            1
+        }
+    }
 }
 
 @ print("=== Tax Client ===")

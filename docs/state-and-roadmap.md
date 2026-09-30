@@ -15,22 +15,16 @@ For the detailed contracts behind each lane, see:
 - [docs/new-user-stability-packet.md](new-user-stability-packet.md)
 - [docs/compatibility-policy.md](compatibility-policy.md)
 - [docs/feature-stages.md](feature-stages.md)
-- [docs/compatibility-guides/](compatibility-guides/README.md)
 - [docs/canary-suite.md](canary-suite.md)
 - [docs/canary-matrix.md](canary-matrix.md)
 - [docs/expectation-suites.md](expectation-suites.md)
 - [docs/library-hygiene.md](library-hygiene.md)
 - [docs/differential-testing.md](differential-testing.md)
-- [docs/verified-bootstrap.md](verified-bootstrap.md)
-- [docs/proof-kernel.md](proof-kernel.md)
-- [docs/proof-backed-checking.md](proof-backed-checking.md)
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ## Current State
 
-Futuruna is no longer in the "add features and hope" phase.
-
-The project now has a real assurance stack:
+The project has a real assurance stack:
 
 - A blocking mint gate in [scripts/mint.sh](../scripts/mint.sh) that checks interpreted execution, compiled execution, Rust codegen validation, roundtrip parity, and real example programs.
 - A compiletest-style expectation lane for narrow diagnostics, run/fail
@@ -55,7 +49,6 @@ The project now has a real assurance stack:
   states production claims, conjectures, trust boundaries, first-hour
   diagnostics, fail-closed unsupported paths, and the formal-strengthening
   ranking in one place.
-- A versioned compatibility-guide discipline in [docs/compatibility-guides/](compatibility-guides/README.md) so stable changes and bug-fix exceptions become release-facing history instead of only PR-local context.
 
 On the language side, the recent focus has been semantic parity and determinism:
 
@@ -63,7 +56,7 @@ On the language side, the recent focus has been semantic parity and determinism:
 - codegen vs declared language contract
 - top-level/module visibility
 - collection ordering and deterministic semantics
-- proof workflows inside ordinary programs
+- invariant checks inside ordinary programs
 - runtime error behavior for partial builtins such as indexing and empty-list access
 - explicit scope-owned lifetime rules for live stream subscriptions, instead of
   detached function-local async work
@@ -71,19 +64,11 @@ On the language side, the recent focus has been semantic parity and determinism:
   values/types/functions, import-hygiene linting, and downstream consumer
   canaries
 
-On the proof side, Futuruna has a real kernel-backed verification story, but only in stage 1 form:
-
-- explicit proof terms are checked by the audited kernel in `src/proof_kernel.rs`
-- `cases`, `induction_on`, `apply`, and `rewrite` are real kernel features
-- Futuruna can already host tiny semantics-preservation proofs for toy compiler slices
-
-That is enough to say "native proof-carrying compiler fragments exist."
-
-It is not enough to say "the Futuruna compiler is verified."
+On the verification side, `runa verify` (Preview) checks `|` invariants with an
+SMT backend (Z3). PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved. The command exits non-zero unless every
+invariant is PROVED.
 
 ## What Is Trusted Today
-
-The trust boundary is deliberately wider than the proof kernel.
 
 ### Trusted conventional compiler/runtime code
 
@@ -97,36 +82,16 @@ These are still ordinary Rust implementation, defended by tests and gates rather
 
 This is why the mint, canary, differential, and snapshot lanes matter so much. They are how we keep the non-proved majority of the system professional.
 
-### Trusted proof core
+### Trusted verification pipeline
 
-The audited trusted proof core is:
+`runa verify` trusts:
 
-- `src/proof_kernel.rs`
-- the primitive hard-coded axiom table recognized by the kernel
+- the translation of each invariant into an SMT query
+- the Z3 solver
 
-That core checks proof terms. Its current trusted boundary is documented in
-[proof-kernel.md](proof-kernel.md): syntax datatypes, `Ctx` metadata,
-primitive axioms, unification/rewrite/synthesis, and the `check`/`apply`/
-`cases`/`induction` judgment code are inside; tests and compiler elaboration are
-outside. It does not inspect arbitrary Futuruna code and infer truth by itself.
-
-### Trusted proof-elaboration pipeline
-
-This is still trusted compiler machinery:
-
-- proof parsing and invariant elaboration
-- theorem construction for `runa verify`
-- computation-lemma generation
-- ADT constructor metadata seeding
-- local lemma registration for explicit proofs
-
-If this surrounding pipeline asks the kernel to prove the wrong theorem, the kernel can still succeed on the wrong theorem. That is the main current limit of the proof story.
-
-### Outside the small trusted proof story
-
-- Z3 fallback is useful automation, not part of the closed kernel trust boundary.
-- proved user lemmas are not primitive trust if they are actually checked by the kernel.
-- the rest of the compiler remains conventional code until modeled, translation-checked, or proved separately.
+If the translation asks the solver the wrong question, a PROVED result does not
+describe the running program. Runtime `?` checks and the test lanes remain the
+evidence for behavior that `runa verify` does not cover.
 
 ## How the Assurance Stack Fits Together
 
@@ -147,8 +112,6 @@ The lanes are meant to complement each other, not compete:
   import-aware codegen/run expectations.
 - FIR snapshots and focused regressions
   Guard compiler-internal invariants and keep every discovered bug permanent.
-- Verified bootstrap work
-  Shrinks the trusted boundary for selected compiler logic instead of relying only on tests.
 
 The professional move is hybrid assurance:
 
@@ -208,28 +171,18 @@ Success looks like:
   scope
 - README, feature stages, CLI help, and roadmap do not contradict each other
 
-### 3. Shrink the proof trust boundary around real compiler slices
-
-This is the serious formal-methods milestone.
+### 3. Keep `runa verify` claims true of the running program
 
 The practical direction is:
 
-1. keep proving small semantics-preserving compiler models in Futuruna
-2. replace trusted compiler-side transformations with proof-producing or translation-checking variants where the payoff is highest
-3. narrow the compiler's ability to silently invent the theorem that the kernel checks
-
-The next proof-backed compiler slice is not whole-codegen proof. It is
-translation-checking generated computation lemmas against the source functions
-they claim to describe, as detailed in
-[docs/proof-backed-checking.md](proof-backed-checking.md). That directly shrinks
-the proof-elaboration trust boundary without broadening Futuruna into a general
-theorem prover.
+1. compare every PROVED claim against the runtime on generated inputs
+2. report every construct the translation cannot model as unsupported
+3. keep `runa verify` Preview until its guarantee is backed by that comparison
 
 Success looks like:
 
-- real compiler passes, not just toy fragments, acquiring proof-backed justification
-- a smaller trusted elaboration boundary
-- a credible path from "kernel-backed proofs exist" to "parts of Futuruna are proved in Futuruna"
+- no invariant is PROVED while the interpreter or compiled program violates it
+- unsupported claims fail the command instead of passing silently
 
 ## Bottom Line
 
@@ -238,8 +191,6 @@ Futuruna is now in a much better place than a few weeks ago:
 - the project has a real mint contract
 - it has curated canaries and a differential lane
 - it has a contributor ratchet
-- it has a real proof kernel
-- it already proves tiny compiler slices natively
 
 The next step is not to relax because of that.
 

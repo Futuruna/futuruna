@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / pensionsbeskatningsloven
+@ importer ../examples/danish-income-tax/pensionsbeskatningsloven
 
 | korrektion(oprindelig: Dato, tilbage: Dato, ny: Dato, oprindeligt_beløb: Heltal, tilbagebetalt_beløb: Heltal, art: Pbl22EOrdningsart, til_indbetaler: Boolsk, kilde: Tekst) -> Pbl22EGenindbetalingsfakta(
     tilbagebetaling = Pbl22ETilbagebetalingsfakta(

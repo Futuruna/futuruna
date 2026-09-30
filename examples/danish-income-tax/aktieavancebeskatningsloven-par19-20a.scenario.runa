@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./aktieavancebeskatningsloven-par23-27
 
 | abl_par19_værdipapirdata(tilbagekøbsordning: AktieavancePar19Tilbagekøbsordning, deltagere: List(AktieavancePar19Deltager), aktivmasse: AktieavancePar19Aktivmasse, datterselskabsvurdering: AktieavancePar19Datterselskabsvurdering, medarbejderselskabsgrundlag: AktieavancePar19Medarbejderselskabsgrundlag) -> AktieavancePar19Værdipapirvirksomhed(
     tilbagekøbsordning = tilbagekøbsordning,

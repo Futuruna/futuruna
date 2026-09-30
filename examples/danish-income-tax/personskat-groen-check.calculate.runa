@@ -1,6 +1,6 @@
 @ sprog da
 @ importer ./personskat.calculate
-@ importer ./groen - check
+@ importer ./groen-check
 
 -- Additiv helårsgrænse: den eksisterende PersonskatInput ændres ikke.
 -- Beløb til grøn check kommer fra Personskat, ikke fra rapportens konklusion.

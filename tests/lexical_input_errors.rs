@@ -104,6 +104,83 @@ fn incomplete_character_literals_are_rejected() {
 }
 
 #[test]
+fn unknown_escapes_report_the_backslash_at_its_source_position() {
+    for (source, position, kind) in [
+        ("= s = \"a\\qb\"\n", "1:9", "string"),
+        ("= prís = \"æ\\q\"\r\n", "1:12", "string"),
+        ("= c = '\\q'\n", "1:8", "character"),
+        ("= s = \"\"\"\n{{ \"a\\q\" }}\n\"\"\"\n", "2:6", "string"),
+    ] {
+        let error = parse(source)
+            .expect_err("unknown escapes cannot silently change or preserve characters");
+        assert!(
+            error.contains(&format!("unknown {kind} escape")),
+            "{source}: {error}"
+        );
+        assert!(error.contains(position), "{source}: {error}");
+        assert!(error.contains("literal backslash"), "{error}");
+    }
+}
+
+#[test]
+fn punctuation_cannot_be_pattern_variables() {
+    for source in ["= = 5\n", "= + = 5\n", "= x = match 1 { | -> 2 }\n"] {
+        let error = parse(source).expect_err("a pattern needs a valid syntactic form");
+        assert!(error.contains("expected a pattern"), "{source}: {error}");
+    }
+}
+
+#[test]
+fn carriage_return_escapes_have_their_character_value() {
+    let tokens = Lexer::new("\"\\r\" '\\r' \"\\\\r\"").tokenize();
+    assert_eq!(tokens[0].text, "\r");
+    assert_eq!(tokens[1].text, "\r");
+    assert_eq!(tokens[2].text, "\\r");
+}
+
+#[test]
+fn invalid_escapes_and_binding_names_fail_before_effects_and_preserve_formatted_source() {
+    for declaration in ["= s = \"a\\q\"", "= c = '\\q'", "= = 5"] {
+        let source = format!("@ print(\"must not run\")\n{declaration}\n");
+        let file = SourceFile::new(&source);
+        for args in [
+            &[][..],
+            &["run"][..],
+            &["check", "--frontend"][..],
+            &["check"][..],
+            &["emit"][..],
+            &["fmt", "--check"][..],
+            &["fmt"][..],
+        ] {
+            let output = file.run(args);
+            assert_eq!(output.status.code(), Some(1), "{args:?}: {output:?}");
+            assert!(output.stdout.is_empty(), "{args:?}: {output:?}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                stderr.contains("escape") || stderr.contains("expected a pattern"),
+                "{stderr}"
+            );
+            assert!(!stderr.contains("error[E"), "{stderr}");
+        }
+        assert_eq!(std::fs::read_to_string(&file.0).unwrap(), source);
+    }
+}
+
+#[test]
+fn explicit_backslashes_raw_quotations_and_character_patterns_keep_their_values() {
+    let source = include_str!("differential/corpus/quoted_literal_controls.runa");
+    let file = SourceFile::new(source);
+    for args in [&[][..], &["run"][..]] {
+        let output = file.run(args);
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout).trim(),
+            "true\ntrue\ntrue\n2\n3\n4\n12345\ntrue\ntrue\n13"
+        );
+    }
+}
+
+#[test]
 fn adjacent_expression_tokens_require_a_statement_separator() {
     for source in [
         "= x = 5 5\n@ print(show(x))\n",
@@ -133,6 +210,7 @@ macro_rules! identity { ($value:expr) => { $value }; }
 fn borrowed<'a>(value: &'a str) -> &'a str { value }
 fn raw() -> &'static str { r##"} " § ---- {{"## }
 fn character() -> char { '\u{007d}' }
+fn rust_escapes() -> &'static str { "\r\0\u{007d}" }
 /* outer } /* nested } */ still outer } */
 // } § ¤ – ” are Rust comment text.
 "###;

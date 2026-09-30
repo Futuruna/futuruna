@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskatteloven - resultatbevaring.audit
+@ importer ./personskatteloven-resultatbevaring.audit
 
 ----
 Scenariet bruger syntetiske input og kontrollerer, at hvert offentligt resultat

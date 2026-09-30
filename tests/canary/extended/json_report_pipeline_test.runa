@@ -6,7 +6,13 @@
 }
 
 > parse_event(raw: String) -> String {
-    json_parse(raw)
+    match json_parse(raw) {
+        | Ok(event) -> event
+        | Err(e) -> {
+            = _ = assert_with_message(false, "canary JSON must be valid: " + e)
+            ""
+        }
+    }
 }
 
 > service_of(event: String) -> String {
@@ -100,7 +106,7 @@
     ["severity", severity_report]
 ])
 
-= report = json_parse(report_json)
+= report = parse_event(report_json)
 = severity_json = json_get(report, "severity")
 = service_items = map(json_array(json_get(report, "services")), json_string)
 = tag_items = map(json_array(json_get(report, "tags")), json_string)

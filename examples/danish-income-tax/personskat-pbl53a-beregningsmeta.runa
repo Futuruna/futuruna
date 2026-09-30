@@ -2,7 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pensionsbeskatningsloven
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./arbejdsmarkedsbidragsloven
 
 = personskat_pbl53a_felt_ordninger = Beregningsfelt(

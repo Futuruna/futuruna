@@ -1,4 +1,3 @@
--- roundtrip-skip: subject() is intentionally skipped by the generic roundtrip lane
 -- Authored canary: subject-backed event funnel with list/map/set projection.
 
 ~ visits = subject()

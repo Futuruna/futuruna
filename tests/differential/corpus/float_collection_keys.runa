@@ -1,0 +1,4 @@
+-- Float values cannot be Map keys or Set elements (check error in both modes).
+-- expect-error: Float values cannot be Map keys or Set elements
+= m = map_insert(map_new(), 1.5, "a")
+@ print(show(map_len(m)))

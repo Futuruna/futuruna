@@ -1908,7 +1908,7 @@ graph fact. Terminal `seal(active_set_root, count)` is legal only after complete
 classified and selected-materialization coverage, and its root is the
 canonical key-sorted fold of active records rather than their discovery order.
 Concrete children retain their classified runs and selected materializations,
-while a certified zero-selected child contributes one proof-backed uniform
+while a certified zero-selected child contributes one certified uniform
 region and no invented `CaseId` or extensional content root.
 
 Target readiness and resolver nodes are operational provenance, not a second
@@ -2216,7 +2216,7 @@ The replacement is accepted when:
   diagnostics after their target replacements land;
 - the RelationId-scoped source and successor coverage components recursively
   report every Context/Before/After field path and reachable immutable producer
-  input as `given`, `vary`, `let`, proof-backed exactly irrelevant or an
+  input as `given`, `vary`, `let`, certified exactly irrelevant or an
   explicit gap, so a broad profile claim cannot hide literals or top-level
   constants inside helpers;
 - admission, each question and every Analyze node retain separately scoped

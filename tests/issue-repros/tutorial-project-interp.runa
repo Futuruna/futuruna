@@ -1,0 +1,7 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout-file: golden/tutorial-project.stdout
+@ import Math from ./tutorial-project-math/math
+
+@ print(show(Math.square(5)))
+@ print(show(Math.cube(3)))

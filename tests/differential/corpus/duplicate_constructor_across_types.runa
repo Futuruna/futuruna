@@ -1,0 +1,7 @@
+-- expect-error: constructor `Shared` is declared in both type `Event` and type `Legacy`
+-- A constructor name belongs to exactly one sum type in scope.
+
+# Event = Shared(value: Int) | EventOnly
+# Legacy = Shared(legacy_value: Int) | LegacyOnly
+
+@ print("unreachable")

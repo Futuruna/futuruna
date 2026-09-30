@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./arbejdsmarkedsbidragsloven
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./metadata
 
 = personskat_ligningslov7n_kildefakta_metadata = Metadata(

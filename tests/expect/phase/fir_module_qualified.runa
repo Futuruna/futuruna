@@ -3,8 +3,9 @@
 -- expect-stdout: show(Config.threshold)
 -- expect-stdout: show(Config.read_threshold())
 -- expect-stdout: mod Config {
--- expect-stdout: pub fn threshold() -> i64 { 11i64 }
--- expect-stdout: pub fn read_threshold() -> i64
+-- expect-stdout: pub fn threshold(__fut_globals: &__FutGlobals) -> i64
+-- expect-stdout: pub fn read_threshold(__fut_globals: &__FutGlobals) -> i64
+-- expect-stdout: let Config = Config::__fut_init();
 @ import Config from ./fir_module_qualified_dep
 
 = direct = Config.threshold

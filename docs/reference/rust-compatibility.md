@@ -3,6 +3,8 @@ feature_stage: mixed
 feature_stage_surfaces:
   - pure-core-rust-artifacts
   - rust-interop
+  - rust-escape-hatches
+  - wasm-target
 ---
 
 # Rust Compatibility
@@ -46,8 +48,8 @@ sort_vec(data)
 
 Compiles to `fn sort_vec(xs: &mut Vec<i64>)`. The caller's binding is mutated directly.
 Save this example as `sort.runa` and execute it with `runa run sort.runa`.
-The interpreter does not execute embedded Rust, so this example requires
-native execution.
+The interpreter refuses embedded Rust with a runtime error at the `@ rust`
+block, so this example requires native execution.
 
 ## Rust Escape Hatch
 
@@ -62,6 +64,8 @@ When Futuruna's abstractions don't cover a case, embed raw Rust:
 ```
 
 The block is inserted verbatim into the generated Rust. Handles nested braces, strings, and comments.
+Only compiled code runs it: in the interpreter, calling a function defined in
+an `@ rust` block is a runtime error at the call.
 
 ## Using Rust Crates
 
@@ -105,17 +109,24 @@ and exact Futuruna compiler. An unchanged graph reuses the validated binary
 before type checking or Rust code generation. Any source, import-resolution,
 manifest, prelude-mode, or compiler change causes a miss. Builds on a miss use
 separate, freshly claimed directories for generated source and executables,
-including when projects share a filename such as `src/main.runa`. The old
-stem-only temporary binary cache is no longer used. Cache overrides and cache
-disabling apply to all native executable reuse.
+including when projects share a filename such as `src/main.runa`. Cache
+overrides and cache disabling apply to all native executable reuse.
 
-Successful direct-rustc builds remove their temporary workspace after copying
-or running the executable. Failed compilations retain the generated source at
-the path in the diagnostic. Programs with Cargo dependencies retain each
-generated project under `.runa-build/<stem>/build-<id>/`, with its own target
-directory. This prevents concurrent source or target replacement, including
-when `CARGO_TARGET_DIR` is set. An unchanged validated source graph still uses
-the native artifact cache; a cache miss starts a fresh Cargo build.
+Caches and build directories live below one per-user cache root:
+`FUTURUNA_COMPILER_CACHE_DIR` when set, otherwise `$XDG_CACHE_HOME/futuruna`,
+`~/Library/Caches/futuruna` on macOS, or `~/.cache/futuruna`. The compiler
+restricts that directory to its owner (mode `0700`) and refuses to use it when
+it is a symbolic link or belongs to another user. Each build or validation run
+claims a fresh `builds/build-<id>/` directory below it; nothing is written to
+the current directory except the requested output, and no `.cargo/config.toml`
+from the source tree applies to generated Cargo projects.
+
+Successful builds remove their workspace after copying or running the
+executable. Failed compilations retain the generated source at the path in the
+diagnostic. Programs with Cargo dependencies get their own target directory in
+the workspace, which prevents concurrent source or target replacement,
+including when `CARGO_TARGET_DIR` is set. An unchanged validated source graph
+still uses the native artifact cache; a cache miss starts a fresh Cargo build.
 
 `runa check` uses the same graph validation and caches only successful checks.
 Its Rust metadata lane additionally fingerprints `rustc` and retains the
@@ -163,6 +174,30 @@ artifact expectation fixture or doc explicitly promises them.
 `runa lib file.runa` emits a Rust source file intended to be compiled into a
 Rust library or included as a Rust module.
 
+Libraries with runtime bindings expose an explicit initializer, `__fut_init()`.
+It returns an owned `__FutGlobals` context. Exported functions that use those
+bindings receive a reference to the context before their ordinary arguments.
+Keep that context to reuse initialized values; each initialization creates an
+independent instance. Emitting the library does not run ordinary initializers.
+
+For example, an exported `answer()` that reads values from an imported module
+is called from Rust as follows:
+
+```rust
+let model = futuruna_lib::__fut_init();
+let answer = futuruna_lib::answer(&model);
+```
+
+The generated signature identifies whether a function needs this context.
+Module callbacks retain the initialized values they capture when they escape
+their declaration scope.
+
+WASM packages expose the same instance boundary to JavaScript. After loading
+the package with its default initializer, call its named `__fut_init()` export
+to obtain a context. Pass it before ordinary arguments where the generated
+TypeScript signature requires `__FutGlobals`, and call `context.free()` when
+finished with the instance.
+
 Stable today:
 
 - exported Futuruna ADTs become public Rust structs/enums
@@ -172,8 +207,11 @@ Stable today:
 - no binary `fn main` is emitted
 - `String`, `List`, `Option`, `Result`, and exported ADTs use the documented
   type mapping below
-- read-only non-copy parameters may be borrowed in Rust signatures, for example
-  `Packet` as `&Packet`, `String` as `&String`, and `List(Int)` as `&Vec<i64>`
+- every `String` parameter of an exported function or rule is `&str` in the
+  Rust signature, whatever the body does with it, so consumers pass `&owned`
+  or a string literal; `inout` parameters stay `&mut String`
+- other read-only non-copy parameters may be borrowed in Rust signatures, for
+  example `Packet` as `&Packet` and `List(Int)` as `&Vec<i64>`
 - Rust consumers can compile `runa lib` output that references external crates
   through `@ depend`, explicit `@ use` declarations, external-crate stdlib
   builtins, or raw `@ rust` blocks, as long as the consuming Cargo project
@@ -321,9 +359,9 @@ Definitions accessed as `Utils.function()`. Only `@ export`-marked definitions a
 
 Import by structural hash. Same hash = same code, regardless of filename. Inspired by Unison.
 
-## Actors (Concurrency)
+## Actors
 
-Actors compile to tokio tasks:
+Actors compile to a message enum and a handler function behind a shared handle:
 
 ```runa
 > actor counter(state: Int) {
@@ -335,5 +373,7 @@ Actors compile to tokio tasks:
 
 Generated Rust:
 - A message enum with variants for each handler pattern
-- An async `_run()` function with a receive loop
-- A `_spawn()` helper that creates an mpsc channel and spawns the task
+- A `_handle(state, message)` function that returns the next state
+- A `_spawn()` helper that returns a clonable handle (`__FutActor`) whose copies share the state
+
+Messages are handled one at a time, before `<-` returns; see [Actors](streams.md#actors).

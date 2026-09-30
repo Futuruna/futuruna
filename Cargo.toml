@@ -1,6 +1,6 @@
 [package]
 name = "futuruna"
-version = "0.2.1"
+version = "0.2.3"
 edition = "2021"
 autobins = false
 rust-version = "1.94"
@@ -39,16 +39,22 @@ syn = { version = "2", features = ["full", "parsing", "visit"] }
 quote = "1"
 proc-macro2 = "1"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 calamine = "0.36"
 rust_xlsxwriter = "0.96"
 toml = "1.1"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 # Calculation contracts can be large. Hashing them is compiler runtime work, so
 # keep SHA-256 optimized without hiding Futuruna stack frames in dev/test builds.
+# Debug information dominates compile and link time for this crate; panics
+# still report file and line without it.
+[profile.dev]
+debug = false
+
 [profile.dev.package.sha2]
 opt-level = 3
 

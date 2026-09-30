@@ -1,0 +1,12 @@
+-- expect-command: check
+-- expect-status: pass
+@ sprog da
+
+> grænse(tekst: Tekst) -> Heltal {
+    skel fortolk_heltal(tekst) {
+        | Ok(værdi) -> værdi
+        | Fejl(_) -> 0
+    }
+}
+
+@ print(vis(grænse("1.000")))

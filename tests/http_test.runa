@@ -10,9 +10,10 @@
 @ print("http_respond: " + show(resp))
 
 -- http_get with a public test endpoint
-= body = http_get("https://httpbin.org/get")
-= has_url = contains(body, "httpbin.org")
-@ print("http_get httpbin: " + show(has_url))
+@ print("http_get httpbin: " + match http_get("https://httpbin.org/get") {
+        | Ok(body) -> show(contains(body, "httpbin.org"))
+        | Err(e) -> "unavailable (" + e + ")"
+    })
 
 @ print("")
 @ print("=== HTTP tests passed! ===")

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - par4 - saerlige - kapitalposter - kildefakta
+@ importer ./personskat-par4-saerlige-kapitalposter-kildefakta
 
 = personskat_par4_særlig_felt_identifikation = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::identifikation), label = "Postens identifikation", question = Some("Hvilken entydig bilags- eller aftalereference har posten?"), help = Some("Brug en stabil reference, så samme retsforhold ikke medregnes to gange."), unit = None)
 = personskat_par4_særlig_felt_indkomstår = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::indkomstår), label = "Postens indkomstår", question = Some("Hvilket indkomstår vedrører posten?"), help = Some("Året skal svare til skatteåret og den delegerede lovberegning."), unit = Some("år"))

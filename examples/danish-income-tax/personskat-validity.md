@@ -267,11 +267,11 @@ checks can both have the path `årsopgørelse`.
 
 The Danish viewer validates this grouping against the flat list and labels both
 groups. It still accepts older saved assessments without groups, without making
-them current or authentic. Fresh schemas/templates are required after this
-output-contract change; transfer the same reviewed facts and recalculate.
+them current or authentic. Saved assessments from other output contracts need
+fresh schemas/templates; transfer the same reviewed facts and recalculate.
 
 For example, a structurally valid date object containing all zeroes is not a
-valid birthday. It now fails the `lønmodtager.pension.fødselsdato` check even if
+valid birthday. It fails the `lønmodtager.pension.fødselsdato` check even if
 the downstream arithmetic happens to produce a plausible tax amount. An invalid
 spouse birthday is reported against
 `ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato`.
@@ -362,12 +362,12 @@ merely to pass the check: that year needs its own source-backed model. This is
 a model-coverage limit, not a finding about tax liability.
 
 Other unsupported inputs that fail before a result can be constructed still
-produce CLI diagnostics. Native checks now pass for the state-tax source module
+produce CLI diagnostics. Native checks pass for the state-tax source module
 and the [focused employment-deduction audit](beskaeftigelsesfradrag.md), but this
 does not establish native support for the full Personskat calculation. Remaining
 code-generation limitations mean this boundary is exercised through `runa call`.
-The year guard uses `assert_with_message` and therefore requires a compiler built
-after that builtin was added, not the original 0.2.0 binary.
+The year guard uses `assert_with_message`; the tax-audit runtime check confirms
+that the selected compiler supports it.
 
 Low-level year-parameter tables expose `*_opslag` helpers with `Some(...)` or
 `None`. Their existing value helpers stop when a required parameter is absent;
@@ -694,7 +694,7 @@ Only the affected employment income is excluded from the basis for ordinary,
 job, senior and single-parent employment deductions. AM, personal income and
 the LL §9 L pension basis are unchanged. The internal all-or-nothing Boolean
 remains `false` because the source-specific exclusion has already been applied;
-it is no longer an assumption that the person's foreign facts are false.
+it does not assert that the person's foreign facts are false.
 See [LBK 1500/2025, §§9 J–9 L](https://www.lovtidende.dk/api/pdf/250970) and
 [L 238, 2017–18, notes to §1 no. 3, pp. 15–16](https://www.ft.dk/ripdf/samling/20171/lovforslag/l238/20171_l238_som_fremsat.pdf).
 
@@ -719,9 +719,7 @@ reconciles the exclusion before recomputing annual deductions; check its own
 Generate fresh schemas/templates with the current model, transfer reviewed
 source facts and recalculate. Do not edit a saved contract hash or a workbook's
 hidden fingerprint to bypass validation. Changes to types, outputs and metadata
-can all require this step; see the
-[compatibility guide](../../docs/compatibility-guides/0.2.x.md) for migration
-details. Clients must check `vurdering` before comparing any scalar totals.
+can all require this step. Clients must check `vurdering` before comparing any scalar totals.
 
 [Spouse loss-credit transfers](underskud-modtagersats.md) use the recipient's
 rates, including for conversion back to unused losses. Direct `.runa`

@@ -1,11 +1,11 @@
 @ sprog da
 
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kapitel-04-omregning-skatteloft
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./kommunale - parametre
-@ importer ./ligningsloven - par9a - perioder
-@ importer ./statsskatteloven - par6 - dobbelt - husfoerelse
+@ importer ./kommunale-parametre
+@ importer ./ligningsloven-par9a-perioder
+@ importer ./statsskatteloven-par6-dobbelt-husfoerelse
 
 # Ligningslov9AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 # Ligningslov9AÅrsfordelingsforudsætning(princip: Tekst, begrundelse: Tekst)

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 = personskat_par3_nr2_felt_fradrag = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2),

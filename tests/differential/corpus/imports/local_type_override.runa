@@ -1,0 +1,18 @@
+-- A type declared in the importing file wins over an imported declaration
+-- of the same name, in both execution modes.
+
+@ import ./local_type_override_lib
+
+# Organ = Konge | Parlament | Domstol
+# Magt = Lovgivende | Udovende | Dommende
+
+> hvem(m: Magt) -> Organ {
+    match m {
+        | Lovgivende -> Parlament
+        | Udovende -> Konge
+        | Dommende -> Domstol
+    }
+}
+
+@ print(show(hvem(Dommende)))
+@ print(show(hvem(Udovende)))

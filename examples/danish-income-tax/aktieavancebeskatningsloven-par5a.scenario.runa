@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./aktieavancebeskatningsloven - par9
+@ importer ./aktieavancebeskatningsloven-par9
 
 # Par5AScenarieInput(bruttotab_ved_afståelse_kroner: Heltal, anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag, skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte), præferenceposition: AktieavancePar5APræferenceposition, koncernbeløb: List(AktieavancePar5AKoncernbeløb))
 
@@ -50,7 +50,7 @@
 = par5a_tilskud_til_kontrolleret_modtager_60000 = AktieavancePar5AKoncernbeløb(
     art = AblPar5ATilskud,
     yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
-    modtagerrelation = AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AModtagerKontrolleretAfAktietabsgivendeKoncernselskab,
     personkontrol = AblPar5APersonkontrolIkkeRelevant,
     beløb_kroner = 60000
 )

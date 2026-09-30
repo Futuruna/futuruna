@@ -1,7 +1,7 @@
 @ sprog da
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./socialpensionsloven - par1a
+@ importer ./socialpensionsloven-par1a
 
 # Ligningslov9JSeniorKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 = ll9j_senior_kilde = Source(value = Ligningslov9JSeniorKilde(

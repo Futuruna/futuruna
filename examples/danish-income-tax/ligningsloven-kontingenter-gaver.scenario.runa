@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - kontingenter - gaver
+@ importer ./ligningsloven-kontingenter-gaver
 
 | ll_scenario_kontingentperiode(fra_måned: Heltal, fra_dag: Heltal, til_måned: Heltal, til_dag: Heltal) -> Ligningslov13Kontingentperiode(
     fra_dato = Dato(år = 2025, måned = fra_måned, dag = fra_dag),

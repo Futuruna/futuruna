@@ -41,10 +41,6 @@ Mark importable library files with:
 -- library-hygiene: importable
 ```
 
-The checker still recognizes the older helper marker
-`-- roundtrip-skip: library file, no expected output`, but new files should use
-the explicit import-hygiene marker.
-
 ## What Is Allowed
 
 Importable library files may define or export:
@@ -68,9 +64,8 @@ Importable library files should not execute top-level script flows such as:
 - top-level `send`
 - top-level stream subscriptions
 - top-level `? name` proof execution
-- top-level `assert`, `retract`, `abort`
 - top-level bindings whose expressions obviously perform import-time side effects
-  such as `read_file`, `write_file`, `http_get`, `db_exec`, `process_run`, or
+  such as `read_file`, `write_file`, `http_get`, `process_run`, or
   similar impure builtins
 - top-level bindings or stream bindings that reach those side effects through
   local helper function call chains

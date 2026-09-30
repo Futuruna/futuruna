@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kommunale - parametre
+@ importer ./kommunale-parametre
 
 # KommunaltBopælsOgEjendomsvalg(bopælskommune: Kommune, ejendomskommune: Kommune)
 

@@ -765,6 +765,18 @@ const RUNES: [RuneInfo; 7] = [
     },
 ];
 
+const RUNES_EXAMPLE: &str = r#"# Applicant(student: Bool, waiver: Bool)
+| fee(a: Applicant) -> 100
+| fee(a: Applicant) -> 40 under a.student
+| exception waived fee(a: Applicant) -> 0 under a.waiver
+> invoice(a: Applicant) -> String {
+    "Fee: " + show(fee(a))
+}
+= applicant = Applicant(true, true)
+@ print(invoice(applicant))"#;
+
+const RUNES_EXAMPLE_OUTPUT: &str = "Fee: 0";
+
 #[component]
 fn RunesShowcase() -> Element {
     rsx! {
@@ -773,6 +785,14 @@ fn RunesShowcase() -> Element {
             p { class: "section-desc",
                 "Each line begins with a semantic fly-in: a compact signal for types, functions, "
                 "rules, values, flows, effects, or verification."
+            }
+            div { class: "code-container",
+                pre { class: "code-block",
+                    code { dangerous_inner_html: highlight_runa(RUNES_EXAMPLE) }
+                }
+                pre { class: "code-output",
+                    code { "{RUNES_EXAMPLE_OUTPUT}" }
+                }
             }
             div { class: "runes-grid",
                 for rune in RUNES.iter() {
@@ -2501,7 +2521,7 @@ const EXAMPLE_BOOT: &str = r##"-- Futuruna Boot Sequence
 -- Build the boot log as a stream of messages
 = modules = ["consciousness", "entropy", "runes", "streams", "rules", "verification", "effects"]
 
-= log = ["FUTURUNA v0.2.1", "================", ""]
+= log = ["FUTURUNA v0.2.3", "================", ""]
 = log = push(log, "[init] Booting language runtime...")
 = log = push(log, "")
 for m in modules {
@@ -3029,7 +3049,7 @@ fn docs_page(active_doc: usize) -> Element {
                 a { class: "docs-sidebar-link", href: "/docs/tutorial", "Tutorial" }
                 hr { class: "docs-sidebar-divider" }
                 h3 { class: "docs-sidebar-title", "Reference" }
-                span { class: "docs-version", "v0.2.1" }
+                span { class: "docs-version", "v0.2.3" }
                 for (i, page) in DOC_PAGES.iter().enumerate() {
                     a {
                         class: if active_doc == i { "docs-sidebar-link active" } else { "docs-sidebar-link" },

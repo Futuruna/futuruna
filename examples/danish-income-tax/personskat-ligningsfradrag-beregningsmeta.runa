@@ -1,9 +1,9 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./ligningsloven - par9 - loenmodtagerudgifter
-@ importer ./ligningsloven - kontingenter - gaver
-@ importer ./pensionsbeskatningsloven - par49 - 49b
+@ importer ./ligningsloven-par9-loenmodtagerudgifter
+@ importer ./ligningsloven-kontingenter-gaver
+@ importer ./pensionsbeskatningsloven-par49-49b
 
 = personskat_ll9_stk1_felt_skatteyderstatus = TypetBeregningsfelt(
     path = refof(Ligningslov9Stk1Årsinput::skatteyderstatus::$variant),

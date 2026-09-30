@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - beregningskontrol
+@ importer ../examples/danish-income-tax/personskat-beregningskontrol
 
 = gyldig = personskat_beregningsvurdering([PersonskatInputkontrol(sti = "syntetisk", gyldig = Sandt, forklaring = "Modelkontrol bestået")], 12345)
 = ugyldig = personskat_beregningsvurdering([PersonskatInputkontrol(sti = "syntetisk.fødselsdato", gyldig = Falskt, forklaring = "Ugyldig dato")], 12345)

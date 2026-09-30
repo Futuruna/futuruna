@@ -3,10 +3,10 @@
 -- Tynd samlet indgang til prøvningen af Grundlovens kildemodel. De konkrete
 -- fortolkningsvalg prøves særskilt i grundlov-fortolkninger.scenario.runa.
 
-@ importer ./grundlov - bestemmelser.audit
-@ importer ./grundlov - procedurer.audit
-@ importer ./grundlov - rettigheder.audit
-@ importer ./grundlov - tvaergaaende.audit
+@ importer ./grundlov-bestemmelser.audit
+@ importer ./grundlov-procedurer.audit
+@ importer ./grundlov-rettigheder.audit
+@ importer ./grundlov-tvaergaaende.audit
 
 | bestemmelser_audit_er_samlet: bestemmelser_audit_består() -> bestemmelser_audit_består() == Sandt
 | procedurer_audit_er_samlet: procedurer_audit_består() -> procedurer_audit_består() == Sandt

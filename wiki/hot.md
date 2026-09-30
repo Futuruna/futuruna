@@ -9,54 +9,26 @@ tags:
 
 # Recent Context
 
-## Last Updated
-
-2026-07-18. Second-wave repo docs are now linked into the vault: [[wiki/sources/differential-testing|differential-testing]], [[wiki/sources/canary-suite|canary-suite]], [[language-reference]], [[milestone-docs]], [[language-surface]], and [[differential-testing-flow]].
-
-2026-07-18. Strategic milestone tracking now lives in [[board]] as an Obsidian Kanban board with Now / Next / Later / Done lanes. Operationally, milestones sit above td epics; the Kanban surfaces what's shipping right now versus queued versus shelved.
-
-2026-07-18. Futuruna now has a first-class compiletest-style expectation lane for narrow compiler diagnostics, run/fail behavior, and phase-specific markers.
-
-## Key Recent Facts
+## Key Facts
 
 - Futuruna has an active mint gate and multiple authored canary tiers.
-- The proof kernel is real and already proving bootstrap slices, but the production compiler is not yet fully verified.
-- Recent work has focused on downstream-user compiler bugs, semantic parity, and more realistic test coverage.
-- The wiki now has dedicated source notes for `state-and-roadmap`, `proof-kernel`, `verified-bootstrap`, `mint-gate`, and `canary-matrix`.
-- New research synthesis: [[research-hardening-futuruna-into-a-professional-language]]
+- The production compiler is tested, not formally verified; there is no proof kernel.
+- Milestones are tracked in [[board]] as an Obsidian Kanban board with Now / Next / Later / Done lanes; milestones sit above td epics.
+- Research synthesis: [[research-hardening-futuruna-into-a-professional-language]]
 - Core external lessons: compatibility discipline, ecosystem canaries, compiler differential testing, and narrow translation validation.
-- Futuruna now has a first-class repo compatibility policy covering stability stages and bug-fix exceptions.
-- Futuruna now also surfaces the current stage matrix in docs and `runa --help` instead of leaving stages implicit.
-- Futuruna now has a versioned compatibility-guide discipline and a rolling 0.1.x guide.
-- Futuruna now has `runa expect` plus `tests/expect/` for exact compiler expectations.
+- The repo compatibility policy covers stability stages and bug-fix exceptions.
+- The stage matrix is surfaced in docs and `runa --help`.
+- `runa expect` plus `tests/expect/` check exact compiler expectations (diagnostics, run/fail behavior, phase markers).
 - The reference docs split core basics/runes/stdlib as stable and streams/Rust compatibility as preview.
-- The differential lane is explicitly a replay/minimize/promote loop, not just random stress.
-- The canary suite now has documented authored, downstream, external, expectation, and WASM lanes.
-
-## Recent Changes
-
-- Created: [[overview]], [[repo-map]], [[current-state]], [[compiler-pipeline]], [[wiki/modules/proof-kernel|proof-kernel]], [[test-surface]], [[verification-lanes]], [[mint-ratchet]], [[repo-docs]], [[vault-conventions]]
-- Created: [[getting-started]], [[dashboard]], [[wiki/comparisons/_index|comparisons/_index]], [[wiki/workflows|Wiki workflows]]
-- Created indexes for modules, decisions, dependencies, flows, concepts, entities, thesis, gaps, questions, sources, and meta
-- Added shared Obsidian config for `bases`, `canvas`, and optional community plugins
-- Added Obsidian CSS snippet `vault-colors`
-- Ingested core repo docs into [[wiki/sources/state-and-roadmap|state-and-roadmap]], [[proof-kernel-spec]], [[verified-bootstrap-doc]], [[wiki/sources/mint-gate|mint-gate]], and [[wiki/sources/canary-matrix|canary-matrix]]
-- Added thesis note [[wiki/thesis/verified-bootstrap|verified-bootstrap]] and expanded the main seed notes around it
-- Added source notes [[kotlin-evolution-and-compatibility]], [[rust-testing-and-stability]], [[swift-source-compatibility-and-governance]], [[alive2-translation-validation]], and [[compiler-fuzzing-csmith-and-csmithedge]]
-- Added concepts [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], and [[translation-validation]]
-- Added entities [[Kotlin]], [[Rust]], and [[Swift]]
-- Added repo policy doc `docs/compatibility-policy.md` and source note [[wiki/sources/compatibility-policy|compatibility-policy]]
-- Added `docs/feature-stages.md`, source note [[wiki/sources/feature-stages|feature-stages]], and a feature-stage block in CLI help
-- Added `docs/compatibility-guides/` and source note [[compatibility-guides]]
-- Ingested second-wave repo docs into [[wiki/sources/differential-testing|differential-testing]], [[wiki/sources/canary-suite|canary-suite]], [[language-reference]], and [[milestone-docs]]
-- Added seed notes [[language-surface]] and [[differential-testing-flow]]
+- The differential lane is a replay/minimize/promote loop, not just random stress.
+- The canary suite has documented authored, downstream, external, expectation, and WASM lanes.
+- Source notes: [[wiki/sources/state-and-roadmap|state-and-roadmap]], [[wiki/sources/mint-gate|mint-gate]], [[wiki/sources/canary-matrix|canary-matrix]], [[wiki/sources/differential-testing|differential-testing]], [[wiki/sources/canary-suite|canary-suite]], [[language-reference]], [[milestone-docs]].
 
 ## Active Threads
 
-- Burn down downstream consumer compiler bugs before they become issue churn
+- Burn down downstream consumer compiler bugs
 - Keep expanding authored canaries and downstream-style validation
-- Shrink the proof trust boundary over time
-- Turn more canonical repo docs into linked wiki notes instead of leaving them as unconnected files
-- Convert the new hardening research into concrete Futuruna roadmap tasks and policy docs
+- Turn more canonical repo docs into linked wiki notes
+- Convert the hardening research into concrete Futuruna roadmap tasks and policy docs
 - Grow expectation suites for diagnostics, phase snapshots, and minimized compiler regressions
 - Keep preview language surfaces moving toward production readiness with explicit contracts and canary-backed coverage

@@ -14,7 +14,7 @@ is expected:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|lint-library|lint-library-imports`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|audit|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
@@ -22,6 +22,7 @@ Supported directives:
 - `-- expect-stderr-not: text that must not appear on stderr`
 - `-- expect-stdout-file: path/to/stdout.golden`
 - `-- expect-stderr-file: path/to/stderr.golden`
+- `-- expect-env: KEY=VALUE` (sets an environment variable for the command; repeatable)
 - `-- expect-skip: reason`
 
 Golden file paths are resolved relative to the `.runa` case. Golden files check
@@ -30,8 +31,9 @@ same. They can be combined with substring assertions when a case needs both a
 stable full snapshot and a few high-signal markers.
 
 Use this suite for minimized compiler-facing contracts: diagnostics,
-pass-specific output, artifact snapshots, and run/fail behavior. Artifact
-contracts live under `artifact/` with golden files under `golden/artifact/`.
+pass-specific output, artifact contracts, and run/fail behavior. Artifact
+contracts live under `artifact/` and assert the emitted declarations they
+promise.
 The `emit-imports` command snapshots the normalized public import/export graph
 for import-boundary translation checks. Use `tests/canary/` for realistic
 multi-subsystem workflows and `tests/downstream/` for library-consumer

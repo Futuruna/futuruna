@@ -65,7 +65,6 @@ pop when leaving. Each Diagnostic inherits current context.
 ### Sub-step 4: Eliminate dangerous unwraps (TODO)
 
 Audit categories:
-- **Historical database builtins** (`db_open().expect(...)`) — retired in the 0.2.3 cleanup; no longer an active error-handling task
 - **File I/O** (`fs::write().unwrap()`) — replace with error message
 - **JSON** (`serde_json::to_string().unwrap()`) — safe (can't fail on valid input)
 - **Parser internals** (`tokens.last().unwrap()`) — safe (EOF always appended)

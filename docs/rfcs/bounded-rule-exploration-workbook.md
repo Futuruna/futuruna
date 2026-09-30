@@ -295,7 +295,7 @@ deliberately FROM-only: it follows the checked `from` producer closure and
 recursively classifies canonical Context and Before field paths, plus every
 reachable immutable producer input. Each path/input is a varied finite
 dimension, a value derived from earlier dimensions, an explicit singleton or
-source restriction, a proof-backed exactly irrelevant input, or a reported
+source restriction, a certified exactly irrelevant input, or a reported
 model-coverage gap. A literal or immutable top-level constant buried inside
 `state_for` is therefore visible conditioning, not an invisible default. An
 unsupported nested composition becomes a gap at the affected path; it never
@@ -1455,7 +1455,7 @@ without inventing a count. A crash after that evidence event but before either
 resolver completion resumes by appending only the missing canonical
 `DirectSupportEvidence` completions. Bare `SupportJournal::EvidenceAccepted`
 frames remain codec-rejected. The public report can consequently expose the
-conditioned audit's proof-backed `cases = Exact(200000)` before concrete
+conditioned audit's certified `cases = Exact(200000)` before concrete
 classification closes, while source, admission and FIND progress remain honest
 lower bounds.
 

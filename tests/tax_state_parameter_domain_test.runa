@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / kapitel - 02 - statsskat
+@ importer ../examples/danish-income-tax/kapitel-02-statsskat
 
 -- Bevar de eksisterende tabeller og beregninger; ikke en uafhængig juridisk oracle.
 -- Den samme native binær bruges til afvisningskanter valgt af Rust-testen.

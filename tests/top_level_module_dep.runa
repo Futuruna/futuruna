@@ -1,5 +1,4 @@
 -- Dependency fixture for top-level/module parity audit
--- roundtrip-skip: dependency-only module fixture
 
 @ export
 = threshold = 7

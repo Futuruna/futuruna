@@ -180,21 +180,126 @@ impl TypeChecker {
                             self.error_at_expr(
                                 argument,
                                 format!(
-                                    "argument `{}` to `{name}` expects `{}`, got `{actual}`",
+                                    "argument `{}` to `{name}` expects `{}`, got `{actual}`{}",
                                     parameter.name,
-                                    Self::canonical_explore_ty_name(expected)
+                                    Self::canonical_explore_ty_name(expected),
+                                    Self::numeric_conversion_hint(&actual_ty, expected)
                                 ),
                             );
                         }
                     }
                 }
             }
+            Some(DeclaredCallable::Rule(_)) => self.check_rule_call_argument_types(name, arguments),
             _ => {}
         }
         true
     }
 
-    pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
+    /// Every clause of a rule family declares one type per typed parameter
+    /// position, so an argument of another type matches no clause.
+    fn check_rule_call_argument_types(&mut self, name: &str, arguments: &[Expr]) {
+        if has_named_args(arguments)
+            || self
+                .active_rule_scope_inference
+                .as_ref()
+                .is_some_and(|scope| {
+                    self.rule_scope_methods
+                        .get(scope)
+                        .is_some_and(|methods| methods.contains_key(name))
+                })
+        {
+            return;
+        }
+        let key = (name.to_string(), arguments.len());
+        let Some(parameter_types) = self.rule_param_types_by_arity.get(&key).cloned() else {
+            return;
+        };
+        let parameter_names = self.function_params_by_arity.get(&key).cloned();
+        let mut substitutions = BTreeMap::new();
+        for (index, (expected, argument)) in parameter_types.iter().zip(arguments).enumerate() {
+            let Some(expected) = expected else {
+                continue;
+            };
+            let Some(actual) = self.ordinary_expression_type(argument) else {
+                continue;
+            };
+            let Ok(actual_ty) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if Self::ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
+                continue;
+            }
+            let parameter = parameter_names
+                .as_ref()
+                .and_then(|names| names.get(index))
+                .map(|parameter| format!("`{parameter}`"))
+                .unwrap_or_else(|| (index + 1).to_string());
+            self.error_at_expr(
+                argument,
+                format!(
+                    "argument {parameter} to `{name}` expects `{}`, got `{actual}`{}",
+                    Self::canonical_explore_ty_name(expected),
+                    Self::numeric_conversion_hint(&actual_ty, expected)
+                ),
+            );
+        }
+    }
+
+    /// Positional constructor arguments have the declared field types. An
+    /// `Int` is not a `Float`: numeric conversion is explicit.
+    pub(super) fn check_positional_constructor_arguments(
+        &mut self,
+        name: &str,
+        arguments: &[Expr],
+    ) {
+        let Some(signature) = self.constructor_signature_for_args(name, arguments) else {
+            return;
+        };
+        let mut substitutions = BTreeMap::new();
+        for ((field, field_ty), argument) in signature
+            .fields
+            .iter()
+            .zip(&signature.field_tys)
+            .zip(arguments)
+        {
+            let Some(expected) = field_ty
+                .as_deref()
+                .and_then(|ty| parse_type_annotation(ty).ok())
+            else {
+                continue;
+            };
+            let Some(actual) = self.ordinary_expression_type(argument) else {
+                continue;
+            };
+            let Ok(actual_ty) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if !Self::ordinary_argument_matches(&actual_ty, &expected, &mut substitutions) {
+                self.error_at_expr(
+                    argument,
+                    format!(
+                        "constructor `{name}` field `{field}` expects `{}`, got `{actual}`{}",
+                        Self::canonical_explore_ty_name(&expected),
+                        Self::numeric_conversion_hint(&actual_ty, &expected)
+                    ),
+                );
+            }
+        }
+    }
+
+    fn numeric_conversion_hint(actual: &Ty, expected: &Ty) -> &'static str {
+        match (actual, expected) {
+            (Ty::Name(actual), Ty::Name(expected)) if actual == "Int" && expected == "Float" => {
+                "; write a Float literal such as `25.0` or convert with `to_float`"
+            }
+            _ => "",
+        }
+    }
+
+    /// Types of the lexical bindings in scope; untyped binders shadow outer
+    /// declarations with an unknown type.
+    fn ordinary_locals(&self) -> BTreeMap<String, String> {
         let mut locals = BTreeMap::new();
         for (names, types) in self.scopes.iter().zip(&self.var_types).skip(1) {
             for name in names {
@@ -207,6 +312,64 @@ impl TypeChecker {
                 );
             }
         }
+        locals
+    }
+
+    /// `filter`, `any`, `all` and `find` test each element with a callback
+    /// that answers `Bool`. A callback whose result type is known to be
+    /// anything else is a type error.
+    pub(super) fn check_collection_predicate(&mut self, name: &str, arguments: &[Expr]) {
+        let [collection, callback] = arguments else {
+            return;
+        };
+        let locals = self.ordinary_locals();
+        let result = match &callback.kind {
+            ExprKind::Lambda(params, body) => {
+                let [param] = params.as_slice() else {
+                    return;
+                };
+                let element = match param.ty.as_ref() {
+                    Some(ty) if !matches!(ty, Ty::Hole) => {
+                        Some(Self::canonical_explore_ty_name(ty))
+                    }
+                    _ => self
+                        .infer_expr_type_name_with_locals(collection, &locals)
+                        .and_then(|ty| Self::applied_type_argument(&ty, "List", 0)),
+                };
+                let mut lambda_locals = locals;
+                lambda_locals.insert(
+                    param.name.clone(),
+                    element.unwrap_or_else(|| CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.into()),
+                );
+                self.infer_expr_type_name_with_locals(body, &lambda_locals)
+            }
+            _ => self.infer_callable_result_type_with_locals(
+                callback,
+                1,
+                &locals,
+                self.active_rule_scope_inference.as_deref(),
+            ),
+        };
+        let Some(result) = result else {
+            return;
+        };
+        let Ok(result_ty) = parse_type_annotation(&result) else {
+            return;
+        };
+        if matches!(&result_ty, Ty::Name(bool) if bool == "Bool")
+            || matches!(result_ty, Ty::Hole)
+            || Self::canonical_type_contains_variable(&result_ty)
+        {
+            return;
+        }
+        self.error_at_expr(
+            callback,
+            format!("`{name}` callback must return `Bool`, but it returns `{result}`"),
+        );
+    }
+
+    pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
+        let locals = self.ordinary_locals();
         self.infer_expr_type_name_with_locals(expression, &locals)
             .or_else(|| Self::is_polymorphic_empty_list_expr(expression).then(|| "List(_)".into()))
     }
@@ -218,6 +381,12 @@ impl TypeChecker {
             return;
         };
         let owner = Self::canonical_nominal_owner(&type_name);
+        if owner
+            .as_deref()
+            .is_some_and(|owner| self.check_sum_type_field(expression, base, owner, field))
+        {
+            return;
+        }
         let tuple_size = parse_type_annotation(&type_name).ok().and_then(|ty| match ty {
             Ty::App(head, arguments) if matches!(head.as_ref(), Ty::Name(name) if name == "Tuple") => {
                 Some(arguments.len())
@@ -287,6 +456,134 @@ impl TypeChecker {
             expression,
             format!("type `{type_name}` has no field `{field}` or method with that name"),
         );
+    }
+
+    /// A field of a sum type is readable when every variant declares it with
+    /// the same type, or when a match arm has refined the value to a variant
+    /// that declares it. Returns true when the field was judged here.
+    fn check_sum_type_field(
+        &mut self,
+        expression: &Expr,
+        base: &Expr,
+        owner: &str,
+        field: &str,
+    ) -> bool {
+        let Some(variants) = self.type_variants.get(owner).cloned() else {
+            return false;
+        };
+        let carriers = variants
+            .iter()
+            .filter_map(|variant| {
+                let signature = self.constructor_signature_for_parent(variant, Some(owner))?;
+                if signature.parent != owner {
+                    return None;
+                }
+                let index = signature.fields.iter().position(|name| name == field)?;
+                Some((
+                    variant.clone(),
+                    signature.field_tys.get(index).cloned().flatten(),
+                ))
+            })
+            .collect::<Vec<_>>();
+        if carriers.is_empty() {
+            return false;
+        }
+        if let Some(variant) = self.refined_variant(base) {
+            if !carriers.iter().any(|(carrier, _)| carrier == &variant) {
+                self.error_at_expr(
+                    expression,
+                    format!(
+                        "variant `{variant}` of `{owner}` has no field `{field}`; this match arm has refined the value to `{variant}`"
+                    ),
+                );
+            }
+            return true;
+        }
+        let uniform = carriers.iter().all(|(_, ty)| ty == &carriers[0].1);
+        if carriers.len() == variants.len() && uniform {
+            return true;
+        }
+        if carriers.len() == variants.len() {
+            let types = carriers
+                .iter()
+                .map(|(variant, ty)| format!("`{}` in `{variant}`", ty.as_deref().unwrap_or("_")))
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.error_at_expr(
+                expression,
+                format!(
+                    "field `{field}` has different types in the variants of `{owner}` ({types}); match on the variant before reading it"
+                ),
+            );
+        } else {
+            let names = carriers
+                .iter()
+                .map(|(variant, _)| format!("`{variant}`"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.error_at_expr(
+                expression,
+                format!(
+                    "field `{field}` exists only on variant{} {names} of `{owner}`; match on the variant first, e.g. `| {} -> ...`",
+                    if carriers.len() == 1 { "" } else { "s" },
+                    carriers[0].0
+                ),
+            );
+        }
+        true
+    }
+
+    /// The variant a named value is known to be: refined by an enclosing match
+    /// arm (unless rebound inside the arm) or bound directly to a constructor
+    /// call (`= c = Circle(5.0)`).
+    pub(super) fn refined_variant(&self, base: &Expr) -> Option<String> {
+        let ExprKind::Var(name) = &base.kind else {
+            return None;
+        };
+        let (depth, _, variant, by_binding) = self
+            .variant_refinements
+            .iter()
+            .rev()
+            .find(|(_, subject, _, _)| subject == name)?;
+        let binder = self.scopes.iter().rposition(|names| names.contains(name))?;
+        let valid = if *by_binding {
+            binder == *depth
+        } else {
+            binder < *depth
+        };
+        valid.then(|| variant.clone())
+    }
+
+    pub(super) fn record_binding_variant_refinement(&mut self, name: &str, value: &Expr) {
+        let depth = self.scopes.len().saturating_sub(1);
+        self.variant_refinements
+            .retain(|(scope, subject, _, _)| !(*scope == depth && subject == name));
+        let variant_parent = match &value.kind {
+            ExprKind::App(function, arguments) => match &function.kind {
+                ExprKind::Var(constructor) if !self.var_defined(constructor) => self
+                    .constructor_parent_for_args(constructor, arguments)
+                    .map(|parent| (constructor.clone(), parent)),
+                _ => None,
+            },
+            ExprKind::Var(constructor) if !self.var_defined(constructor) => self
+                .nullary_constructor_parent(constructor)
+                .map(|parent| (constructor.clone(), parent)),
+            _ => None,
+        };
+        if let Some((variant, parent)) = variant_parent {
+            if self.type_variants.contains_key(&parent) {
+                self.variant_refinements
+                    .push((depth, name.to_string(), variant, true));
+            }
+        }
+    }
+
+    pub(super) fn pattern_variant_name(pattern: &Pat) -> Option<&str> {
+        match pattern {
+            Pat::Con(name, _) | Pat::NamedCon(name, _) => Some(name),
+            Pat::As(inner, _) => Self::pattern_variant_name(inner),
+            Pat::Var(_) | Pat::Wild | Pat::Lit(_) => None,
+        }
     }
 
     fn ordinary_bound_method_available(&self, name: &str) -> bool {
@@ -380,7 +677,6 @@ impl TypeChecker {
             // A nominal result may have unknown generic arguments in ordinary
             // inference. Absence of evidence does not establish a mismatch.
             (Ty::Name(a), Ty::App(e, _)) => matches!(e.as_ref(), Ty::Name(e) if a == e),
-            (Ty::Name(a), Ty::Name(e)) if a == "Int" && e == "Float" => true,
             _ => {
                 Self::canonical_explore_ty_name(actual) == Self::canonical_explore_ty_name(expected)
             }

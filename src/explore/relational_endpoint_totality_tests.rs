@@ -1112,7 +1112,7 @@ fn transitive_declared_effect_is_rejected_by_endpoint_totality() {
 }
 
 > endpoint_test_effect_leaf(value: Int) -> Int with EndpointTestEffect {
-    endpoint_test_emit(value)
+    value
 }
 
 > endpoint_test_effect_observer(state: Int, context: Unit) -> Int {
@@ -1311,34 +1311,6 @@ fn personskat_200k_landscape_endpoint_totality_certifies_without_execution() {
     personskat_endpoint_totality_certifies(
         "personskat-mechanism-landscape-200k.explore.runa",
         "personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026",
-    );
-}
-
-#[test]
-fn admission_enum_comparisons_seal_shared_nullary_constructor_names() {
-    let source = r#"
-# ProducerRelation = ProducerOnly | SharedRelation
-# RecipientRelation = RecipientOnly | SharedRelation
-
-| producer_allowed(relation: ProducerRelation) -> relation == ProducerOnly || relation == SharedRelation
-
-? explore shared_constructor_admission {
-    from {
-        vary before in [0, 1]
-        given context = ()
-    }
-    transition after = before
-    where before producer_allowed(ProducerOnly)
-    find cases = all
-}
-"#;
-    let checked = artifacts(source);
-    assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
-    assert!(
-        checked.checked_exploration_query(0).is_ok(),
-        "typed comparison must seal the constructor's nominal owner: {:?}; unsupported sites: {:?}",
-        checked.checked_exploration_query(0).err(),
-        checked.checked_resolutions.unsupported_sites
     );
 }
 

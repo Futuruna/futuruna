@@ -1,0 +1,11 @@
+# Filing(income: Int, deduction: Int?, note: String?)
+| base(filing: Filing) -> filing.income * 12
+| taxable(filing: Filing) -> base(filing)
+| exception deduction taxable(filing: Filing) -> base(filing) - unwrap_or(filing.deduction, 0) under unwrap_or(filing.deduction, 0) > 0
+| deduction_or(filing: Filing, fallback: Int) -> unwrap_or(filing.deduction, fallback)
+| label(filing: Filing) -> identity(unwrap_or(filing.note, "none"))
+@ print(show(taxable(Filing(100, Some(200), None))))
+@ print(show(taxable(Filing(100, None, Some("x")))))
+@ print(show(deduction_or(Filing(1, None, None), 7) + 1))
+@ print(label(Filing(1, None, Some("noted"))))
+@ print(label(Filing(1, None, None)))

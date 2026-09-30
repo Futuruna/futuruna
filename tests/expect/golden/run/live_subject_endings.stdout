@@ -1,0 +1,11 @@
+v 1
+err boom
+late v 1
+late err boom
+d 5
+d complete
+late d complete
+kept [2, 3] count 4
+replay 2
+replay 3
+recovered [1, 99]

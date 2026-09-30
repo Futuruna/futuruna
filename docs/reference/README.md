@@ -23,6 +23,15 @@ When adapting code from another language, read
 [Common mistakes](common-mistakes.md) for comparisons, rule coverage, comments,
 effects, interpolation, numeric units, and validation commands.
 
+## One meaning
+
+This reference defines what a Futuruna program means. The interpreter
+(`runa file.runa`, `runa call`, `audit`) and compiled code (`runa run`,
+`runa build`) implement it and must give the same output, exit status and
+errors; the differential gate (`scripts/differential.sh`) runs both on the
+differential corpus, generated programs and `examples/` and fails on any
+difference or compiled build failure.
+
 ## Reading Order
 
 | Document | What it covers | Current stage |

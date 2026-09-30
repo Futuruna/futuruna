@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - pbl53a - kildefakta
+@ importer ./personskat-pbl53a-kildefakta
 
 | pbl53a_overgangsvalg_meddelelse(beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato, mål: Pbl53AOvergangsvalgmål, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> Pbl53AOvergangsvalgmeddelelse(
     beslutningsdato = beslutningsdato,

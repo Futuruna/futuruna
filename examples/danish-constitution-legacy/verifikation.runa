@@ -21,13 +21,13 @@
 --  10. NØDRETSTOMRUMMET — grundlovens tavshed om krise
 -- ============================================================================
 
-@ import ./kapitel - 03
-@ import ./kapitel - 04
-@ import ./kapitel - 05
-@ import ./kapitel - 06
-@ import ./kapitel - 07
-@ import ./kapitel - 08
-@ import ./kapitel - 10
+@ import ./kapitel-03
+@ import ./kapitel-04
+@ import ./kapitel-05
+@ import ./kapitel-06
+@ import ./kapitel-07
+@ import ./kapitel-08
+@ import ./kapitel-10
 
 -- ============================================================================
 -- VERIFIKATION 1: § 85 MILITÆRUNDTAGELSEN

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./kalenderdato
-@ importer ./ligningsloven - par10 - par11 - underhold
+@ importer ./ligningsloven-par10-par11-underhold
 @ importer ./metadata
 
 # Børnebidragslov19KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
@@ -57,7 +57,7 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
 # Børnebidragslov19RetligModtager = Moderen | OffentligMyndighedEllerInstitution(identifikation: Tekst)
 # Børnebidragslov19Fastsættelse = FastsatAfFamilieretshuset | DokumenteretBindendeAftale(dokumentreference: Tekst) | Par19UdenDokumenteretFastsættelse
 # Børnebidragslov19Forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen | VedFødslenEfterFastsættelseFørFødslen | AndetTidspunktFastsatIAfgørelsen(dokumentreference: Tekst) | StraksVedAbortbidragetsFastsættelse
-# Børnebidragslov19Skatterolle = Bidragsyder(modtageridentitet_oplyst: Boolsk, betalt_af_bidragsyderen_selv: Boolsk) | MorSomRetligBidragsmodtager | BarnMedSkattemæssigHenføring
+# Børnebidragslov19Skatterolle = BørnebidragsBidragsyder(modtageridentitet_oplyst: Boolsk, betalt_af_bidragsyderen_selv: Boolsk) | MorSomRetligBidragsmodtager | BarnMedSkattemæssigHenføring
 # Børnebidragslov19Navngivningsskattekontekst = UdenNavngivningsskattekontekst | MedNavngivningsskattekontekst(retsgrundlag: Ligningslov10Og11Retsgrundlag, barnets_bopæl: Ligningslov10Og11BarnetsBopæl, forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk)
 # Børnebidragslov19BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Børnebidragslov19Skatterolle, hændelse: Børnebidragslov19Hændelse, bidragsart: Børnebidragslov19Bidragsart, bidragsydergrundlag: Børnebidragslov19Bidragsydergrundlag, retlig_modtager: Børnebidragslov19RetligModtager, fastsættelse: Børnebidragslov19Fastsættelse, ansøgningsgrundlag: Børnebidragslov19Ansøgningsgrundlag, fastsættelsesdato: Dato, forfaldsgrundlag: Børnebidragslov19Forfaldsgrundlag, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, barnets_identifikation: Tekst, navngivningsskattekontekst: Børnebidragslov19Navngivningsskattekontekst)
 # Børnebidragslov19BidragResultat(fakta: Børnebidragslov19BidragFakta, input_gyldigt: Boolsk, hændelse_og_bidragsart_svarer: Boolsk, bidragsydergrundlag_opfyldt: Boolsk, retlig_modtager_gyldig: Boolsk, fastsættelse_dokumenteret: Boolsk, ansøgningsgrundlag_gyldigt: Boolsk, barselsperiode_gyldig: Boolsk, forfaldsgrundlag_opfyldt: Boolsk, satsår_understøttet: Boolsk, officiel_sats_kroner: Heltal, beløb_svarer_til_offentlig_fastsættelse: Boolsk, navngivningsskattekontekst_gyldig: Boolsk, navngivningsskat: Ligningslov10Og11BidragResultat?, modtagerbeskatning_kildeafklaret: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
@@ -154,12 +154,12 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
     | _ -> Falskt
 }
 | børnebidragslov19_rolle_og_modtager_svarer(fakta: Børnebidragslov19BidragFakta) -> match fakta.rolle {
-    | Bidragsyder(_, _) -> Sandt
+    | BørnebidragsBidragsyder(_, _) -> Sandt
     | MorSomRetligBidragsmodtager -> børnebidragslov19_mor_som_retlig_modtager(fakta.retlig_modtager)
     | BarnMedSkattemæssigHenføring -> børnebidragslov19_navngivningsbidrag(fakta.bidragsart) && børnebidragslov19_mor_som_retlig_modtager(fakta.retlig_modtager)
 }
 | børnebidragslov19_navngivningsskattekontekst_krævet(fakta: Børnebidragslov19BidragFakta) -> børnebidragslov19_navngivningsbidrag(fakta.bidragsart) && match fakta.rolle {
-    | Bidragsyder(_, _) -> Sandt
+    | BørnebidragsBidragsyder(_, _) -> Sandt
     | BarnMedSkattemæssigHenføring -> Sandt
     | MorSomRetligBidragsmodtager -> Falskt
 }
@@ -294,7 +294,7 @@ derfor lukket.
 
 --@begin:børnebidragsloven_par19_skat--
 | børnebidragslov19_ll_rolle(rolle: Børnebidragslov19Skatterolle) -> match rolle {
-    | Bidragsyder(modtageridentitet_oplyst, _) -> Bidragsyder(modtageridentitet_oplyst = modtageridentitet_oplyst)
+    | BørnebidragsBidragsyder(modtageridentitet_oplyst, _) -> Bidragsyder(modtageridentitet_oplyst = modtageridentitet_oplyst)
     | BarnMedSkattemæssigHenføring -> Bidragsmodtager
     | MorSomRetligBidragsmodtager -> Bidragsmodtager
 }
@@ -304,7 +304,7 @@ derfor lukket.
     | Par19UdenDokumenteretFastsættelse -> UdenDokumenteretFastsættelse
 }
 | børnebidragslov19_betalt_af_bidragsyderen_selv(rolle: Børnebidragslov19Skatterolle) -> match rolle {
-    | Bidragsyder(_, betalt) -> betalt
+    | BørnebidragsBidragsyder(_, betalt) -> betalt
     | _ -> Falskt
 }
 | børnebidragslov19_fødselsdato(fakta: Børnebidragslov19BidragFakta) -> match fakta.hændelse {
@@ -340,12 +340,12 @@ derfor lukket.
     | Some(navngivningsskat) -> navngivningsskat.input_gyldigt && navngivningsskat.bidragsbetingelser_opfyldt
 }
 | børnebidragslov19_modtagerbeskatning_kildeafklaret(fakta: Børnebidragslov19BidragFakta) -> match fakta.rolle {
-    | Bidragsyder(_, _) -> Sandt
+    | BørnebidragsBidragsyder(_, _) -> Sandt
     | BarnMedSkattemæssigHenføring -> børnebidragslov19_navngivningsbidrag(fakta.bidragsart)
     | MorSomRetligBidragsmodtager -> Falskt
 }
 | børnebidragslov19_ligningsmæssigt_fradrag_kroner(fakta: Børnebidragslov19BidragFakta, navngivningsskat: Ligningslov10Og11BidragResultat?) -> match fakta.rolle {
-    | Bidragsyder(_, _) -> hvis børnebidragslov19_navngivningsbidrag(fakta.bidragsart) {
+    | BørnebidragsBidragsyder(_, _) -> hvis børnebidragslov19_navngivningsbidrag(fakta.bidragsart) {
         match navngivningsskat {
             | None -> 0
             | Some(resultat) -> resultat.ligningsmæssigt_fradrag_kroner

@@ -21,17 +21,32 @@ Contact: research@futuruna.com
 - [Language basics](https://futuruna.com/docs/basics): Learn Futuruna's ordinary programming foundations.
 - [The seven runes](https://futuruna.com/docs): See how front runes give each kind of statement its own space.
 - [Standard library](https://futuruna.com/docs/stdlib): Browse Futuruna's maintained standard-library reference.
-- [Reactive streams](https://futuruna.com/docs/streams): Learn the stream model, operators, subscriptions, and lifetimes.
+- [Reactive streams](https://futuruna.com/docs/streams): Learn the experimental stream model, operators, subscriptions, and lifetimes.
 - [Rust compatibility](https://futuruna.com/docs/rust): Read the maintained Rust interoperability and code-generation contract.
 - [Modeling style](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/style.md): Learn to keep source-backed rules, facts, assumptions, interpretations, and unknowns separate.
 - [Typed calculations](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/calculations.md): Turn a typed rule model into structured inputs, interview questions, workbooks, and deterministic results.
 
 ## For AIs
 
-- [Running shared models](https://futuruna.com/ai-setup.md#running-shared-models): Review source and dependencies before execution; checking, auditing, calculations and editor dependency resolution are not a sandbox.
+- [Running untrusted models](https://futuruna.com/ai-setup.md#running-untrusted-models): `runa FILE.runa`, `run` and `test` execute the model; `build`, `run`, `wasm` and `check --build-deps` build its `@ depend` crates; `add` and `fetch` download Git dependencies. `check`, `emit`, `lib`, `audit`, `call` and `explore` evaluate without effects; `check --frontend`, `fmt`, `meta`, `verify`, `schema`, `template` and `lsp` evaluate nothing.
 - [Common mistakes from other languages](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/common-mistakes.md): Check comparisons, comments, partial rules, exception labels, effects, interpolation, integer units, and validation commands before adapting unfamiliar syntax.
 - [Futuruna skill](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/SKILL.md): Use the maintained workflow for learning, writing, checking, and explaining Futuruna.
 - [Learning path](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/references/learning-path.md): Learn the seven front runes through one small working program at a time.
+
+## Common Mistakes
+
+- Install the verified v0.2.3 GitHub release binary, or `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`. Use `cargo install futuruna` only when crates.io lists the current version.
+- Bind with `= name = value`; compare with `==`, also in `under` guards. Comments are `--`; `#` declares a type.
+- Print with `@ print(value)`; `@ println` and `@ log` do not exist.
+- `parse_int`, `parse_float`, `read_file`, `json_parse`, `http_get` and `http_post` return `Result`: match on `Ok`/`Err`, or write `= n <- parse_int(text)` inside a function returning `Result`. `parse_int("42") + 1` is a type error.
+- No type aliases: `# Money = Int` is an error; write `# Money(amount: Int)` or use `Int`.
+- `None`, `Some`, `Ok`, `Err`, `Pair`, `Nil` and `Cons` are built-in constructors; authored variants need other names.
+- `Int` and `Float` are distinct: pass `25.0` or `to_float(n)` to a `Float` parameter. Integer `/` truncates: `1 / 3 * 100` is `0`.
+- `String + x` joins only scalars (`String`, `Int`, `Float`, `Bool`, `Char`); use `show(x)` for lists and records. Interpolation is `"""Hello {{name}}"""`; `"Hello {name}"` prints the braces.
+- `| exception label rate(x: Int) -> 10 under x < 18` needs an ordinary `rate` rule with the same arity; give value rules an unguarded default when every input needs a result.
+- `@ comptime`, `@ calculate` and audited code are pure; `@ print` or file, clock and network access there is an error.
+- `take(items, n)` returns a List, not one element.
+- Run `runa check` as well as the program: it also validates the generated Rust, and a successful run covers only the paths it reached.
 
 ## Working Examples
 
@@ -39,7 +54,7 @@ Contact: research@futuruna.com
 - [Logic rules](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/cocktails.runa): See facts, rules, queries, and ordinary collection processing work side by side.
 - [Typed calculation](https://raw.githubusercontent.com/Futuruna/futuruna/main/tests/fixtures/calculation/tax.calculate.runa): See a small rule model become a typed, interview-ready calculation.
 - [Law-exploration workbook](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/exploration-workbook.md): Learn how to search a finite rule space, find counterexamples, and select the worst case with ordinary Futuruna.
-- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Full audit of 490 adjacent 2026 tax transitions, requiring 980 complete model evaluations before its report. Read the workbook and plan for a substantial run before launching it; use the weather demo or small typed calculation for a first-run check.
+- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Full audit of 490 adjacent 2026 tax transitions (980 complete model evaluations). Run `runa personskat-income-cliffs.audit.runa` from its directory; each check prints as it completes, the first within about half a minute, and the whole audit takes a few minutes. Use the weather demo or small typed calculation for a first-run check.
 
 ## Law, Rules, and Research
 

@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./metadata
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 = personskat_par4_saerlige_kapitalposter_kildefakta_metadata = Metadata(
     attachments = (

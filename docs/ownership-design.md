@@ -223,7 +223,7 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
 - Trait/impl method bodies emit real compiled code with escape analysis (was `todo!()`)
 - Qualified paths: `fmt::Display`, `std::ops::Add` in `# impl`, types, and annotations
 - Auto-generated `impl fmt::Display` suppressed when user provides explicit impl
-- Fixed `self` sanitization — no longer escaped to invalid `r#self`
+- Fixed `self` sanitization — not escaped to invalid `r#self`
 - **Verification:** `interop.runa` + `# impl fmt::Display` demo — end-to-end Futuruna + Rust interop compiles and runs
 
 ### Phase 1d: Algebraic Effects ✅ DONE
@@ -250,7 +250,7 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
 - `@ comptime` annotation before a binding: evaluates expression at transpile time using interpreter
 - Codegen creates temporary `Interpreter` with `default_env()`, registers all types/functions
 - Scans main body for `@ comptime` + `Bind` pairs, evaluates, stores in `comptime_values` map
-- `value_to_rust_literal()`: converts `Value` to Rust source — Int, Float, Bool, Char, String, List (Cons/Nil → vec![]), Tuple, Ok/Err/Some/None
+- `value_to_rust_literal()`: converts `Value` to Rust source — Int, Float, Bool, Char, String, List (→ `vec![]`), Tuple, Ok/Err/Some/None
 - Copy types (`i64`, `f64`, `bool`, `char`) → `const name: type = literal;`
 - Heap types (String, Vec) → `let name = literal;` with `// @ comptime` comment
 - **4 demos working:** arithmetic (factorial, fibonacci, sum), strings, comptime-vs-runtime contrast, lookup table (vec!)
@@ -318,7 +318,7 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
 ### Phase 2c: Independence Analysis ✅ DONE
 - **Alias-at-binding detection:** `= y = x` now counts as a consuming use of `x`.
   If `x` is used later, the compiler emits `let y = x.clone()`.
-  Bug fix — previously `Stmt::Bind(_, _, Expr::Var(name))` was not counted as consuming.
+  `Stmt::Bind(_, _, Expr::Var(name))` counts as consuming.
 - **Branch-aware counting in all paths:** Main body and function bodies both use
   `count_consuming_uses_branch_aware()` (was only functions before).
 - **Adversarial borrow checker test:** `borrow_checker_test.runa` — 12 patterns that trip up
@@ -349,8 +349,8 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
 - **Double-borrow prevention:** When a function's param is already `&T` (borrowed), and
   it calls another function that also takes `&T`, the call site emits `var` (not `&var`)
   to avoid `&&T` type mismatch.
-- **Safety guard for recursive types:** Types with boxed fields (e.g., `List(a) = Nil | Cons(a, List(a))`)
-  are excluded from ref-match because matching on `&List` gives `&Box<List>` for the tail,
+- **Safety guard for recursive types:** Types with boxed fields (e.g., `Chain(a) = End | Link(a, Chain(a))`)
+  are excluded from ref-match because matching on `&Chain` gives `&Box<Chain>` for the tail,
   and the existing box-deref code (`let t = *t;`) can't move out of a shared reference.
 - **Clone reduction:** T8 (struct field access) now has 0 clones (was 1 clone). The cascade
   gives `pair_sum(p: &Pair)` for free. T1 also benefits from borrow-aware counting at call
@@ -364,7 +364,7 @@ No Arc, no Mutex, no data races. The actor owns its state exclusively. Messages 
   Immutability guarantees no aliasing hazards — sharing and copying are semantically indistinguishable.
   Recursive ADTs are structurally acyclic (always terminate at a base case), so Rc cycle leaks are impossible.
 - **O(1) structural sharing:** `derive(Clone)` on Rc-backed enums produces O(1) refcount bumps
-  instead of O(n) deep copies. `= branch_a = Cons(10, tail); = branch_b = Cons(20, tail)` shares `tail`.
+  instead of O(n) deep copies. `= branch_a = Link(10, tail); = branch_b = Link(20, tail)` shares `tail`.
 - **Detection:** `rc_types: BTreeSet<String>` populated from `variant_boxed_args` — any type with
   boxed recursive fields is Rc-backed. Detection runs after type metadata scan, before codegen.
 - **Sync vs async:** `rc_name()` returns "Rc" or "Arc" based on `has_async` flag.
@@ -427,7 +427,7 @@ The programmer writes at Futuruna's level of abstraction. The compiler handles o
 | T8 | Struct field access | manual `&Pair` + `*a` deref | ref-match `&Pair` + cascade to `pair_sum` | **Futuruna** (zero clones) |
 | T9 | String building | works (concat borrows) | `format!()` | Tie |
 | T10 | Mutual recursion | works (Copy types) | Copy detection | Tie |
-| T11 | Use-after-call | `.clone()` | `.clone()` (List has boxed fields) | Tie |
+| T11 | Use-after-call | `.clone()` | `.clone()` (Chain has boxed fields) | Tie |
 | T12 | Deep pattern match | works | works | Tie |
 
 **Summary:** Futuruna wins on 5/12 patterns (auto-borrow + ref-match eliminates clones). Ties on 7/12. Loses on 0/12.

@@ -26,7 +26,7 @@
 # MonarkStatus = Myndig | Umyndig | Syg | Fraværende
 
 -- Hvem fører regeringen: kongen selv, Statsrådet eller en regent
-# Regeringsfører = MonarkenSelv | Statsrådet | Regent(hjemmel: String)
+# Regeringsfører = MonarkenSelv | StatsrådetRegerer | Regent(hjemmel: String)
 
 -- Den kongelige ed (forsikringsakten)
 # ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger | AfgivetSomKonge
@@ -207,7 +207,7 @@
                 hvis særlov_eksisterer {
                     Regent("Fastsat ved særlov")
                 } ellers {
-                    Statsrådet
+                    StatsrådetRegerer
                 }
             }
         }

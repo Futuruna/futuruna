@@ -7,32 +7,32 @@
 -- Two branches share a common tail — O(1) with Rc, was O(n) with Box
 -- ════════════════════════════════════════════
 
-# IntList = Nil | Cons(Int, IntList)
+# IntList = End | Link(Int, IntList)
 
 > il_sum(xs: IntList) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, t) -> h + il_sum(t)
+        | End -> 0
+        | Link(h, t) -> h + il_sum(t)
     }
 }
 
 > il_len(xs: IntList) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(_, t) -> 1 + il_len(t)
+        | End -> 0
+        | Link(_, t) -> 1 + il_len(t)
     }
 }
 
 > il_show(xs: IntList) -> String {
     match xs {
-        | Nil -> "[]"
-        | Cons(h, t) -> show(h) + "::" + il_show(t)
+        | End -> "[]"
+        | Link(h, t) -> show(h) + "::" + il_show(t)
     }
 }
 
-= tail = Cons(3, Cons(4, Cons(5, Nil)))
-= branch_a = Cons(1, Cons(2, tail))
-= branch_b = Cons(10, Cons(20, tail))
+= tail = Link(3, Link(4, Link(5, End)))
+= branch_a = Link(1, Link(2, tail))
+= branch_b = Link(10, Link(20, tail))
 
 @ print("T1 branch_a: " + il_show(branch_a))
 @ print("T1 branch_b: " + il_show(branch_b))
@@ -45,10 +45,10 @@
 -- One tail shared by three branches
 -- ════════════════════════════════════════════
 
-= common = Cons(100, Cons(200, Nil))
-= x = Cons(1, common)
-= y = Cons(2, common)
-= z = Cons(3, common)
+= common = Link(100, Link(200, End))
+= x = Link(1, common)
+= y = Link(2, common)
+= z = Link(3, common)
 
 @ print("T2 x=" + show(il_sum(x)) + " y=" + show(il_sum(y)) + " z=" + show(il_sum(z)))
 @ print("PASS: T2 — triple fan-out sharing")
@@ -96,24 +96,24 @@
 -- ════════════════════════════════════════════
 
 > il_prepend(x: Int, xs: IntList) -> IntList {
-    Cons(x, xs)
+    Link(x, xs)
 }
 
 > il_map(xs: IntList, f: Int -> Int) -> IntList {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(f(h), il_map(t, f))
+        | End -> End
+        | Link(h, t) -> Link(f(h), il_map(t, f))
     }
 }
 
 > il_filter(xs: IntList, f: Int -> Int) -> IntList {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> if f(h) != 0 { Cons(h, il_filter(t, f)) } else { il_filter(t, f) }
+        | End -> End
+        | Link(h, t) -> if f(h) != 0 { Link(h, il_filter(t, f)) } else { il_filter(t, f) }
     }
 }
 
-= base = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+= base = Link(1, Link(2, Link(3, Link(4, Link(5, End)))))
 = extended = il_prepend(0, base)
 = doubled = il_map(base, |x| x * 2)
 = evens = il_filter(base, |x| if x % 2 == 0 { 1 } else { 0 })
@@ -165,24 +165,24 @@
 -- ════════════════════════════════════════════
 
 > il_range(lo: Int, hi: Int) -> IntList {
-    if lo > hi { Nil } else { Cons(lo, il_range(lo + 1, hi)) }
+    if lo > hi { End } else { Link(lo, il_range(lo + 1, hi)) }
 }
 
 > il_rev_acc(xs: IntList, acc: IntList) -> IntList {
     match xs {
-        | Nil -> acc
-        | Cons(h, t) -> il_rev_acc(t, Cons(h, acc))
+        | End -> acc
+        | Link(h, t) -> il_rev_acc(t, Link(h, acc))
     }
 }
 
 > il_reverse(xs: IntList) -> IntList {
-    il_rev_acc(xs, Nil)
+    il_rev_acc(xs, End)
 }
 
 > il_head(xs: IntList) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, _) -> h
+        | End -> 0
+        | Link(h, _) -> h
     }
 }
 
@@ -225,8 +225,8 @@
 -- Rc PartialEq compares values, not pointer identity
 -- ════════════════════════════════════════════
 
-= list_a = Cons(1, Cons(2, Cons(3, Nil)))
-= list_b = Cons(1, Cons(2, Cons(3, Nil)))
+= list_a = Link(1, Link(2, Link(3, End)))
+= list_b = Link(1, Link(2, Link(3, End)))
 
 @ print("T8 equal=" + show(list_a == list_b))
 @ print("PASS: T8 — equality through Rc (value comparison)")
@@ -236,7 +236,7 @@
 -- Variable used 4 times in consuming positions — all O(1) clones
 -- ════════════════════════════════════════════
 
-= reused = Cons(7, Cons(8, Cons(9, Nil)))
+= reused = Link(7, Link(8, Link(9, End)))
 = r1 = il_sum(reused)
 = r2 = il_len(reused)
 = r3 = il_show(reused)

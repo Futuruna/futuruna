@@ -1,8 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./ligningsloven - par9a - rejser
-@ importer ./personskat - rejsefradrag - beregningsmeta
+@ importer ./ligningsloven-par9a-rejser
+@ importer ./personskat-rejsefradrag-beregningsmeta
 
 # Ligningslov9ABeregningsinput(indkomstår: Heltal, årsinput: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse)
 

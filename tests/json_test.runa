@@ -4,8 +4,18 @@
 @ print("=== M14c: JSON Builtins ===")
 @ print("")
 
+> parse_or_fail(text: String) -> String {
+    match json_parse(text) {
+        | Ok(json) -> json
+        | Err(e) -> {
+            = _ = assert_with_message(false, "json_parse rejected valid JSON: " + e)
+            ""
+        }
+    }
+}
+
 -- Parse JSON
-= data = json_parse("{\"name\": \"Alice\", \"age\": 30, \"active\": true}")
+= data = parse_or_fail("{\"name\": \"Alice\", \"age\": 30, \"active\": true}")
 @ print("parsed: " + data)
 
 -- Get field
@@ -30,16 +40,19 @@
 @ print("missing key: " + missing)
 
 -- Array operations
-= arr = json_parse("[1, 2, 3, 4, 5]")
+= arr = parse_or_fail("[1, 2, 3, 4, 5]")
 = items = json_array(arr)
 @ print("json_array: " + show(items))
 
 -- Nested object
-= nested = json_parse("{\"user\": {\"name\": \"Bob\", \"score\": 95.5}}")
+= nested = parse_or_fail("{\"user\": {\"name\": \"Bob\", \"score\": 95.5}}")
 = user = json_get(nested, "user")
 @ print("nested: " + user)
 = score = json_number(json_get(user, "score"))
 @ print("nested score: " + show(score))
+
+-- Invalid JSON is an Err
+@ print("invalid: " + show(json_parse("{nope")))
 
 -- Emit (identity for JSON strings)
 = emitted = json_emit(data)

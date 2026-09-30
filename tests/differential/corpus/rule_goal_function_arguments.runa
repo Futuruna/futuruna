@@ -1,0 +1,18 @@
+-- A function or rule name inside a rule-body goal is a value, not a logic variable.
+# Event = Buy(amount: Int) | Sell(amount: Int)
+| is_buy(event: Event) -> match event { | Buy(_) -> true | _ -> false }
+> positive(n: Int) -> Bool { n > 0 }
+| any_buy(events: List(Event)) -> false || any(events, is_buy)
+| any_positive(values: List(Int)) -> false || any(values, positive)
+| all_buys(events: List(Event)) -> all(events, is_buy), length(events) > 0
+# Ledger(events: List(Event), opening: Int) {
+    | trades() -> opening > 0 || any(events, is_buy)
+}
+
+@ print(show(any_buy([Sell(1), Buy(2)])))
+@ print(show(any_buy([Sell(1)])))
+@ print(show(any_positive([0, 3])))
+@ print(show(all_buys([Buy(1), Buy(2)])))
+@ print(show(all_buys([Buy(1), Sell(2)])))
+@ print(show(Ledger([Sell(1), Buy(2)], 0).trades()))
+@ print(show(Ledger([Sell(1)], 0).trades()))

@@ -120,7 +120,7 @@
 | exception auth_warn should_alert(entry) -> True under entry.source == Auth && is_actionable(entry.level)
 
 -- Base severity for alerts
-| alert_level(entry) -> entry.level
+| alert_level(entry: LogEntry) -> entry.level
 
 -- Escalate slow DB to Error
 | exception slow_db_escalate alert_level(entry) -> Error under entry.source == Db && entry.latency_ms > 500 && entry.level == Warn
@@ -390,12 +390,13 @@ for entry in logs {
 @ print("  " + report)
 
 -- Round-trip verification
-= parsed = json_parse(report)
-= rt_total = json_get(parsed, "total_entries")
-= rt_p50 = json_get(parsed, "p50_latency_ms")
+= round_trip = match json_parse(report) {
+    | Ok(parsed) -> "total=" + json_get(parsed, "total_entries") + " p50=" + json_get(parsed, "p50_latency_ms") + "ms"
+    | Err(e) -> "FAILED: " + e
+}
 
 @ print("")
-@ print("  Round-trip: total=" + rt_total + " p50=" + rt_p50 + "ms")
+@ print("  Round-trip: " + round_trip)
 
 -- ============================================================================
 -- SUMMARY

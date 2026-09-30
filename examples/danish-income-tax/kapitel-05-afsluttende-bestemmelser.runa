@@ -1,9 +1,9 @@
 @ sprog da
 
 @ importer ./pengebeloeb
-@ importer ./kapitel - 02 - statsskat
-@ importer ./kapitel - 03 - personfradrag
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kapitel-02-statsskat
+@ importer ./kapitel-03-personfradrag
+@ importer ./kapitel-04-omregning-skatteloft
 @ importer ./ligningsloven_fradrag
 
 -- Personskatteloven — fælles bestemmelser, ikrafttræden og afslutning (§§ 21-28).

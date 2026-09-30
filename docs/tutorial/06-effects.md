@@ -3,6 +3,7 @@ feature_stage: mixed
 feature_stage_surfaces:
   - reactive-stateful-surfaces
   - rust-interop
+  - rust-escape-hatches
 ---
 
 # 6. Effects and Actors
@@ -28,8 +29,11 @@ Effects make side effects explicit and composable:
     | log(msg) -> { @ print("[LOG] " + msg); resume(()) }
 } in process("hello")
 
-@ print(result) -- HELLO
+@ print(result)
 ```
+
+The handler prints `[LOG] processing: hello` when `process` calls `log`; the
+last line prints the result, `HELLO`.
 
 Different handlers = different behaviors. Same code, testable in isolation.
 
@@ -50,7 +54,10 @@ c <- Increment
 @ print(show(val))  -- 4
 ```
 
-Actors encapsulate mutable state behind message passing. No `Arc<Mutex<T>>`.
+Actors encapsulate mutable state behind message passing. An actor handles one
+message at a time; `<-` returns after the message is handled, and `ask`
+returns the new state. Every copy of the handle `c` shares the same actor. See
+[Actors](../reference/streams.md#actors).
 
 ## The escape hatch
 

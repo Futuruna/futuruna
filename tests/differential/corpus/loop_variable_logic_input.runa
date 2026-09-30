@@ -1,0 +1,12 @@
+-- A loop variable is bound inside the body, so a query treats it as an input
+-- even when the iterated list's element type is inferred.
+| stocked("lime")
+| needs("daiquiri", "lime")
+| needs("daiquiri", "sugar")
+| needs("gimlet", "lime")
+= drinks = distinct(findall(d, needs(d, _)))
+for d in drinks {
+    = parts = findall(p, needs(d, p))
+    = missing = filter(parts, |p| not(stocked(p)))
+    @ print(d + ": " + show(parts) + " missing " + show(missing))
+}

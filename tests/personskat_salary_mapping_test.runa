@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+@ importer ../examples/danish-income-tax/personskat-aarsopgoerelse-kildemapping
 
 -- En fiktiv etiket og et beløb fastslår ikke indkomstens retlige art.
 = lønlinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "side-1-linje-1", linje_label = "Personlig indkomst", beløb_øre = 60000000)

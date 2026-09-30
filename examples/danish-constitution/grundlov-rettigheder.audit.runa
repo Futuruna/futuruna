@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ./kapitel - 07
-@ importer ./kapitel - 08
-@ importer ./grundlov - proevning - faelles
+@ importer ./kapitel-07
+@ importer ./kapitel-08
+@ importer ./grundlov-proevning-faelles
 
 -- Rettighedsprøvningen prøver ordlydens personkredse, virkninger, indgreb og
 -- udtrykkelige henvisninger uden at udlede rettigheder af tavshed.

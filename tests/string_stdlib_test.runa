@@ -56,6 +56,7 @@
 -- parse_int / parse_float
 @ print("parse_int: " + show(parse_int("42")))
 @ print("parse_float: " + show(parse_float("3.14")))
+@ print("parse_int invalid: " + show(parse_int("abc")))
 
 -- string_chars
 = chars = string_chars("abc")
@@ -73,8 +74,7 @@
 = test_path = trim(snd(tmp_file))
 = missing_path = test_path + ".missing"
 @ write_file(test_path, "Hello from Futuruna!\nLine 2")
-= content = read_file(test_path)
-@ print("read_file: " + content)
+@ print("read_file: " + match read_file(test_path) { | Ok(text) -> text | Err(e) -> "ERROR " + e })
 
 -- file_exists
 @ print("file_exists: " + show(file_exists(test_path)))
@@ -82,8 +82,7 @@
 
 -- append_file
 @ append_file(test_path, "\nLine 3")
-= content2 = read_file(test_path)
-@ print("after append: " + content2)
+@ print("after append: " + match read_file(test_path) { | Ok(text) -> text | Err(e) -> "ERROR " + e })
 
 -- read_lines
 = lines = read_lines(test_path)

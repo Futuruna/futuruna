@@ -1,5 +1,3 @@
--- roundtrip-skip: imported downstream stateful consumers use top-level stream bindings
-
 @ import ./import_stateful_shared
 @ import StatePolicy from ./import_stateful_policy
 

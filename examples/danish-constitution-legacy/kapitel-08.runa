@@ -33,7 +33,7 @@
 # DommerPrøvelse = Inden24Timer | Inden3Dage | StraksTilHøjereRet
 
 -- Ejendom
-# EkspropriationsKrav = AlmenvelKræverDet | VedLov | FuldstændigErstatning
+# EkspropriationsKrav = AlmenvelKræverDet | HjemletVedLov | FuldstændigErstatning
 
 -- Ytring
 # CensurStatus = ForbudtForEvigt
@@ -43,7 +43,7 @@
 # BevæbnelsesStatus = Ubevæbnede | Bevæbnede
 
 -- Modalitet
-# RettighedsModalitet = Ukrænkelig | RetTil | Skal | BørTilstræbes
+# RettighedsModalitet = UkrænkeligRet | RetTil | Skal | BørTilstræbes
 
 -- Militærundtagelse
 # Paragraf = P71 | P72 | P73 | P74 | P77 | P78 | P79

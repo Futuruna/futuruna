@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./doedsboskatteloven - par1 - par30
+@ importer ./doedsboskatteloven-par1-par30
 @ importer ./kalenderdato
 
 = dødsbo_scenarie_positiv_indkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(
@@ -329,10 +329,10 @@
         betalte_årsskatter = [
             dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2023"),
             dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2024"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2023"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2024"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2025, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 3000, dokumentreference = "årsopgørelse-ægtefælle-2025"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2026, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2026"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2023"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2024"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2025, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 3000, dokumentreference = "årsopgørelse-ægtefælle-2025"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2026, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2026"),
         ],
         bofordelingsgrundlag = Dbl31EtSamletDødsbo
     )
@@ -351,9 +351,9 @@
         betalte_årsskatter = [
             dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2023"),
             dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2024"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2023"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2024"),
-            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2025, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2025"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2023"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2024"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælleSomSkatteperson, indkomstår = 2025, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2025"),
         ],
         bofordelingsgrundlag = Dbl31EtSamletDødsbo
     )

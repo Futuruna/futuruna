@@ -1,6 +1,6 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / skatteaar - parametre
-@ importer ../examples / danish - income - tax / personskatteloven - par11 - parametre
+@ importer ../examples/danish-income-tax/skatteaar-parametre
+@ importer ../examples/danish-income-tax/personskatteloven-par11-parametre
 
 -- Kildetabellerne er facit for opslaget, ikke resultatet af et andet opslag.
 > kommunal_tabel_stemmer(år: Heltal, tabel: List(KommunaleParametre)) -> Boolsk {

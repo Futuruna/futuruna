@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: 6:5: an indented line starting with `-` does not continue the previous line
+-- expect-stderr: Put `-` at the end of the previous line
+= net = 100
+    - 30
+@ print(show(net))

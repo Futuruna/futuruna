@@ -21,7 +21,7 @@
 -- TYPES: The shape of a UI world (#)
 -- ============================================================================
 
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 
 # Phase = Idle | Browsing | Editing | Searching | Submitting
 
@@ -58,30 +58,30 @@
 -- LIST UTILITIES (>)
 -- ============================================================================
 
-> len_comp(xs: List(Comp)) -> Int {
-    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_comp(rest) }
+> len_comp(xs: Chain(Comp)) -> Int {
+    match xs { | End -> 0 | Link(_, rest) -> 1 + len_comp(rest) }
 }
 
-> len_event(xs: List(Event)) -> Int {
-    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_event(rest) }
+> len_event(xs: Chain(Event)) -> Int {
+    match xs { | End -> 0 | Link(_, rest) -> 1 + len_event(rest) }
 }
 
-> len_result(xs: List(RenderResult)) -> Int {
-    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_result(rest) }
+> len_result(xs: Chain(RenderResult)) -> Int {
+    match xs { | End -> 0 | Link(_, rest) -> 1 + len_result(rest) }
 }
 
-> len_bucket(xs: List(BayesBucket)) -> Int {
-    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_bucket(rest) }
+> len_bucket(xs: Chain(BayesBucket)) -> Int {
+    match xs { | End -> 0 | Link(_, rest) -> 1 + len_bucket(rest) }
 }
 
 -- ============================================================================
 -- EVENT PROCESSING: How events change component state (>)
 -- ============================================================================
 
-> count_events_for(events: List(Event), comp_id: Int) -> Int {
+> count_events_for(events: Chain(Event), comp_id: Int) -> Int {
     match events {
-        | Nil -> 0
-        | Cons(e, rest) -> {
+        | End -> 0
+        | Link(e, rest) -> {
             = hit = if event_target(e) == comp_id { 1 } else { 0 }
             hit + count_events_for(rest, comp_id)
         }
@@ -89,21 +89,21 @@
 }
 
 -- Update a component's interaction count based on events
-> apply_events(c: Comp, events: List(Event)) -> Comp {
+> apply_events(c: Comp, events: Chain(Event)) -> Comp {
     = id = comp_id(c)
     = new_interactions = comp_interact(c) + count_events_for(events, id)
     MkComp(id, comp_kind(c), new_interactions, comp_cost(c))
 }
 
-> apply_events_all(comps: List(Comp), events: List(Event)) -> List(Comp) {
+> apply_events_all(comps: Chain(Comp), events: Chain(Event)) -> Chain(Comp) {
     match comps {
-        | Nil -> Nil
-        | Cons(c, rest) -> Cons(apply_events(c, events), apply_events_all(rest, events))
+        | End -> End
+        | Link(c, rest) -> Link(apply_events(c, events), apply_events_all(rest, events))
     }
 }
 
 -- Detect phase from event patterns
-> detect_phase(events: List(Event)) -> Phase {
+> detect_phase(events: Chain(Event)) -> Phase {
     = clicks = count_kind(events, 0)
     = inputs = count_kind(events, 2)
     = submits = count_kind(events, 3)
@@ -126,10 +126,10 @@
     }
 }
 
-> count_kind(events: List(Event), kind_id: Int) -> Int {
+> count_kind(events: Chain(Event), kind_id: Int) -> Int {
     match events {
-        | Nil -> 0
-        | Cons(e, rest) -> {
+        | End -> 0
+        | Link(e, rest) -> {
             = hit = if kind_to_int(event_kind(e)) == kind_id { 1 } else { 0 }
             hit + count_kind(rest, kind_id)
         }
@@ -203,13 +203,13 @@
     importance + interaction + phase_boost - cost_penalty
 }
 
-> conscious_render(comps: List(Comp), phase: Phase, threshold: Int) -> List(RenderResult) {
+> conscious_render(comps: Chain(Comp), phase: Phase, threshold: Int) -> Chain(RenderResult) {
     match comps {
-        | Nil -> Nil
-        | Cons(c, rest) -> {
+        | End -> End
+        | Link(c, rest) -> {
             = score = render_score(c, phase)
             = decision = if score > threshold { Rendered(comp_id(c), score) } else { Skipped(comp_id(c), score) }
-            Cons(decision, conscious_render(rest, phase, threshold))
+            Link(decision, conscious_render(rest, phase, threshold))
         }
     }
 }
@@ -226,26 +226,26 @@
     else { 0 }
 }
 
-> update_bucket(buckets: List(BayesBucket), cat: Int, was_rendered: Int) -> List(BayesBucket) {
+> update_bucket(buckets: Chain(BayesBucket), cat: Int, was_rendered: Int) -> Chain(BayesBucket) {
     match buckets {
-        | Nil -> {
+        | End -> {
             if was_rendered == 1 {
-                Cons(MkBucket(cat, 1, 0), Nil)
+                Link(MkBucket(cat, 1, 0), End)
             } else {
-                Cons(MkBucket(cat, 0, 1), Nil)
+                Link(MkBucket(cat, 0, 1), End)
             }
         }
-        | Cons(b, rest) -> {
+        | Link(b, rest) -> {
             match b {
                 | MkBucket(c, r, s) -> {
                     if c == cat {
                         if was_rendered == 1 {
-                            Cons(MkBucket(c, r + 1, s), rest)
+                            Link(MkBucket(c, r + 1, s), rest)
                         } else {
-                            Cons(MkBucket(c, r, s + 1), rest)
+                            Link(MkBucket(c, r, s + 1), rest)
                         }
                     } else {
-                        Cons(b, update_bucket(rest, cat, was_rendered))
+                        Link(b, update_bucket(rest, cat, was_rendered))
                     }
                 }
             }
@@ -253,13 +253,13 @@
     }
 }
 
-> learn_from_results(comps: List(Comp), results: List(RenderResult), buckets: List(BayesBucket)) -> List(BayesBucket) {
+> learn_from_results(comps: Chain(Comp), results: Chain(RenderResult), buckets: Chain(BayesBucket)) -> Chain(BayesBucket) {
     match comps {
-        | Nil -> buckets
-        | Cons(c, rest_comps) -> {
+        | End -> buckets
+        | Link(c, rest_comps) -> {
             match results {
-                | Nil -> buckets
-                | Cons(r, rest_results) -> {
+                | End -> buckets
+                | Link(r, rest_results) -> {
                     = cat = categorize(c)
                     = was_rendered = match r {
                         | Rendered(_, _) -> 1
@@ -273,10 +273,10 @@
     }
 }
 
-> show_buckets(buckets: List(BayesBucket)) -> Int {
+> show_buckets(buckets: Chain(BayesBucket)) -> Int {
     match buckets {
-        | Nil -> 0
-        | Cons(b, rest) -> {
+        | End -> 0
+        | Link(b, rest) -> {
             match b {
                 | MkBucket(cat, renders, skips) -> {
                     = total = renders + skips
@@ -294,23 +294,23 @@
 -- RESULTS DISPLAY (>)
 -- ============================================================================
 
-> count_rendered(results: List(RenderResult)) -> Int {
+> count_rendered(results: Chain(RenderResult)) -> Int {
     match results {
-        | Nil -> 0
-        | Cons(r, rest) -> {
+        | End -> 0
+        | Link(r, rest) -> {
             = is_render = match r { | Rendered(_, _) -> 1 | Skipped(_, _) -> 0 }
             is_render + count_rendered(rest)
         }
     }
 }
 
-> show_results(comps: List(Comp), results: List(RenderResult)) -> Int {
+> show_results(comps: Chain(Comp), results: Chain(RenderResult)) -> Int {
     match comps {
-        | Nil -> 0
-        | Cons(c, rest_c) -> {
+        | End -> 0
+        | Link(c, rest_c) -> {
             match results {
-                | Nil -> 0
-                | Cons(r, rest_r) -> {
+                | End -> 0
+                | Link(r, rest_r) -> {
                     = label = kind_label(comp_kind(c))
                     = line = match r {
                         | Rendered(id, score) -> "    RENDER #" + show(id) + " " + label + " (score=" + show(score) + ")"
@@ -348,7 +348,7 @@
 = chart     = MkComp(10, Canvas("burndown"), 0, 30)
 = status    = MkComp(11, Label("3 tasks remaining"), 0, 1)
 
-= components = Cons(app_shell, Cons(header, Cons(title, Cons(search_in, Cons(task_list, Cons(task1, Cons(task2, Cons(task3, Cons(add_btn, Cons(submit_btn, Cons(chart, Cons(status, Nil))))))))))))
+= components = Link(app_shell, Link(header, Link(title, Link(search_in, Link(task_list, Link(task1, Link(task2, Link(task3, Link(add_btn, Link(submit_btn, Link(chart, Link(status, End))))))))))))
 
 = threshold = 30
 
@@ -359,7 +359,7 @@
 -- SCENARIO 1: User is browsing (scrolling through tasks)
 -- ============================================================================
 
-= browsing_events = Cons(MkEvent(4, Scroll, 1), Cons(MkEvent(4, Scroll, 2), Cons(MkEvent(4, Scroll, 3), Cons(MkEvent(10, Hover, 4), Nil))))
+= browsing_events = Link(MkEvent(4, Scroll, 1), Link(MkEvent(4, Scroll, 2), Link(MkEvent(4, Scroll, 3), Link(MkEvent(10, Hover, 4), End))))
 
 = browsing_phase = detect_phase(browsing_events)
 = browsing_comps = apply_events_all(components, browsing_events)
@@ -375,7 +375,7 @@
 -- SCENARIO 2: User is editing (typing in search field)
 -- ============================================================================
 
-= editing_events = Cons(MkEvent(3, Click, 5), Cons(MkEvent(3, Input, 6), Cons(MkEvent(3, Input, 7), Cons(MkEvent(3, Input, 8), Cons(MkEvent(3, KeyPress, 9), Nil)))))
+= editing_events = Link(MkEvent(3, Click, 5), Link(MkEvent(3, Input, 6), Link(MkEvent(3, Input, 7), Link(MkEvent(3, Input, 8), Link(MkEvent(3, KeyPress, 9), End)))))
 
 = editing_phase = detect_phase(editing_events)
 = editing_comps = apply_events_all(components, editing_events)
@@ -391,7 +391,7 @@
 -- SCENARIO 3: User is submitting (clicked submit)
 -- ============================================================================
 
-= submit_events = Cons(MkEvent(9, Click, 10), Cons(MkEvent(9, Submit, 11), Cons(MkEvent(8, Click, 12), Nil)))
+= submit_events = Link(MkEvent(9, Click, 10), Link(MkEvent(9, Submit, 11), Link(MkEvent(8, Click, 12), End)))
 
 = submit_phase = detect_phase(submit_events)
 = submit_comps = apply_events_all(components, submit_events)
@@ -410,7 +410,7 @@
 @ print("  --- Learning from Experience ---")
 @ print("")
 
-= buckets0 = Nil
+= buckets0 = End
 = buckets1 = learn_from_results(browsing_comps, browsing_results, buckets0)
 = buckets2 = learn_from_results(editing_comps, editing_results, buckets1)
 = buckets3 = learn_from_results(submit_comps, submit_results, buckets2)

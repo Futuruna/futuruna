@@ -1,0 +1,12 @@
+-- expect-command: run
+-- expect-status: fail
+-- expect-stdout-file: ../golden/run/live_subject_send_after_end.stdout
+-- expect-stderr: the subject already ended with error: boom
+-- A subject that has ended accepts no further values: the send is a runtime
+-- error naming the ending, in both execution modes.
+~ s = subject()
+~ s | x -> { @ print("v " + show(x)) } | Err(e) -> { @ print("err " + e) } | Complete -> { @ print("complete") }
+s <- 1
+error(s, "boom")
+s <- 2
+@ print("not reached")

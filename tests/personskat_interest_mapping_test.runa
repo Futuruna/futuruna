@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - aarsopgoerelse - kildemapping
+@ importer ../examples/danish-income-tax/personskat-aarsopgoerelse-kildemapping
 
 -- Fiktiv observation med fradragsfortegn; ikke et negativt råt udgiftsinput.
 = renteudgiftslinje = PersonskatÅrsopgørelseKildelinje(dokument_identifikation = "fiktiv-årsopgørelse", indkomstår = 2025, linje_identifikation = "rubrik-42", linje_label = "Renteudgifter", beløb_øre = -5100100)

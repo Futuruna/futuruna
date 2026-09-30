@@ -1,0 +1,3 @@
+# Reviewed known gaps for `runa test --roundtrip --allow-list`.
+# Format: <path suffix> -- <reason>. A listed file that matches fails the gate
+# (stale entry), so this list only shrinks.
