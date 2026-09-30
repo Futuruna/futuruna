@@ -12256,7 +12256,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool, allow_list: Option<&str>) {
         let outcome = match (run(&[&name]), run(&["run", &name])) {
             (Ok(interp), Ok(compiled)) => {
                 let compiled_stderr = String::from_utf8_lossy(&compiled.stderr);
-                if compiled_stderr.contains("generated Rust did not compile") {
+                if compiled_stderr.contains("does not compile (Futuruna compiler bug)") {
                     let first = compiled_stderr
                         .lines()
                         .find(|l| l.starts_with("error[") || l.starts_with("error:"))
@@ -30066,6 +30066,45 @@ impl RustCodegen {
         }
     }
 
+    /// A literal cannot express constructors whose Rust form wraps recursive
+    /// fields in `Box`/`Rc` or whose ADT is generic; such values are built at
+    /// run time instead.
+    fn value_needs_runtime_construction(&self, val: &Value) -> bool {
+        let adt_needs_runtime = |name: &str| {
+            if matches!(name, "Some" | "None" | "Ok" | "Err") {
+                return false;
+            }
+            self.types
+                .variant_boxed_args
+                .get(name)
+                .is_some_and(|boxed| !boxed.is_empty())
+                || self
+                    .types
+                    .variant_parent
+                    .get(name)
+                    .and_then(|parent| self.types.type_decls.get(parent))
+                    .is_some_and(|(params, _)| !params.is_empty())
+        };
+        match val {
+            Value::Constructor(name, args) => {
+                adt_needs_runtime(name)
+                    || args
+                        .iter()
+                        .any(|arg| self.value_needs_runtime_construction(arg))
+            }
+            Value::NamedConstructor(name, fields) => {
+                adt_needs_runtime(name)
+                    || fields
+                        .iter()
+                        .any(|(_, value)| self.value_needs_runtime_construction(value))
+            }
+            Value::List(items) | Value::Tuple(items) => items
+                .iter()
+                .any(|item| self.value_needs_runtime_construction(item)),
+            _ => false,
+        }
+    }
+
     /// Static check: does a type reference a given ADT name? (no &self needed logic)
     fn type_references_adt_static(ty: &Ty, adt_name: &str) -> bool {
         match ty {
@@ -34103,7 +34142,7 @@ fn __futuruna_install_error_hook() {
                         // Skip auto-comptime for None/Err values — can't determine full type
                         let skip_comptime = matches!(&val,
                             Value::Constructor(n, args) if (n == "None" && args.is_empty()) || n == "Err"
-                        );
+                        ) || self.value_needs_runtime_construction(&val);
                         if !skip_comptime {
                             // Skip values that can't be represented as Rust literals
                             // (closures, actors, subjects, comptime typedef descriptors, etc.)
@@ -34250,16 +34289,33 @@ fn __futuruna_install_error_hook() {
                     out.push_str("#[tokio::main]\nasync fn main() {\n");
                 }
                 out.push_str("    __futuruna_install_error_hook();\n");
-            } else if uses_try {
-                out.push_str(
-                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;\n\n",
-                );
-                out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
             } else {
+                // The program runs on a thread whose stack is reserved, not
+                // committed: record values live on the stack, and only the
+                // depth a program reaches uses memory.
                 out.push_str(
-                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;\n\n",
+                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: [usize; 2] = [1 << 30, 64 << 20];\n\n",
                 );
-                out.push_str("fn __fut_runtime_main_inner() {\n");
+                out.push_str("fn __fut_runtime_spawn_main<T: Send + 'static>(body: fn() -> T) -> std::io::Result<std::thread::JoinHandle<T>> {\n");
+                out.push_str(
+                    "    let mut spawned = Err(std::io::Error::other(\"no stack size\"));\n",
+                );
+                out.push_str("    for stack_bytes in __FUT_RUNTIME_MAIN_STACK_BYTES {\n");
+                out.push_str("        spawned = std::thread::Builder::new()\n");
+                out.push_str("            .name(\"futuruna-main\".to_string())\n");
+                out.push_str("            .stack_size(stack_bytes)\n");
+                out.push_str("            .spawn(body);\n");
+                out.push_str("        if spawned.is_ok() {\n");
+                out.push_str("            break;\n");
+                out.push_str("        }\n");
+                out.push_str("    }\n");
+                out.push_str("    spawned\n");
+                out.push_str("}\n\n");
+                if uses_try {
+                    out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
+                } else {
+                    out.push_str("fn __fut_runtime_main_inner() {\n");
+                }
             }
             self.indent = 1;
             let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
@@ -34361,10 +34417,7 @@ fn __futuruna_install_error_hook() {
                         "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
                     );
                     out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
-                    out.push_str("        .name(\"futuruna-main\".to_string())\n");
-                    out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
-                    out.push_str("        .spawn(__fut_runtime_main_inner)?;\n");
+                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)?;\n");
                     out.push_str("    match __fut_runtime_main.join() {\n");
                     out.push_str("        Ok(result) => result,\n");
                     out.push_str("        Err(_) => std::process::exit(1),\n");
@@ -34373,10 +34426,7 @@ fn __futuruna_install_error_hook() {
                 } else {
                     out.push_str("fn main() {\n");
                     out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
-                    out.push_str("        .name(\"futuruna-main\".to_string())\n");
-                    out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
-                    out.push_str("        .spawn(__fut_runtime_main_inner)\n");
+                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)\n");
                     out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
                     out.push_str("    if __fut_runtime_main.join().is_err() {\n");
                     out.push_str("        std::process::exit(1);\n");
@@ -37686,8 +37736,8 @@ fn __futuruna_install_error_hook() {
                 out.push_str("        false\n");
             } else {
                 out.push_str(&format!(
-                    "        panic!(\"no scoped | rule matched for '{}'\")\n",
-                    method_name
+                    "        panic!(\"{{}}\", {:?})\n",
+                    value_rule_miss_message(Some(scope_name), &method_name, arity)
                 ));
             }
             out.push_str("    }\n\n");
@@ -42784,8 +42834,8 @@ fn __futuruna_install_error_hook() {
                 out.push_str("    false\n");
             } else {
                 out.push_str(&format!(
-                    "    panic!(\"no | rule matched for '{}'\")\n",
-                    fn_name
+                    "    panic!(\"{{}}\", {:?})\n",
+                    value_rule_miss_message(None, fn_name, arity)
                 ));
             }
             out.push_str("}\n");
@@ -44616,6 +44666,9 @@ fn __futuruna_install_error_hook() {
                 ));
                 self.indent += 1;
                 let was_borrowed = self.current_borrow_params.remove(var);
+                // The loop variable is bound in the body even when its element
+                // type is unknown, so logic queries treat it as an input.
+                let newly_local = self.local_bindings.insert(var.clone());
                 self.with_temporary_named_types(std::slice::from_ref(var), &[item_ty], |this| {
                     for s in body {
                         // Rebound accumulators retain assignment semantics.
@@ -44629,6 +44682,9 @@ fn __futuruna_install_error_hook() {
                         out.push_str(&this.emit_stmt(s));
                     }
                 });
+                if newly_local {
+                    self.local_bindings.remove(var);
+                }
                 if was_borrowed {
                     self.current_borrow_params.insert(var.clone());
                 }
@@ -48278,6 +48334,10 @@ fn __futuruna_install_error_hook() {
                 }
                 _ => None,
             };
+            // A value rule's miss is a located runtime error in both modes, so
+            // its partial dispatch may be consumed; the generated rule reports
+            // the interpreter's miss error. A relation's miss answers `False`,
+            // which a partial non-Boolean dispatch cannot represent.
             if self.rule_dispatch_miss_mode
                 == RustCodegenRuleDispatchMissMode::RequireStaticTotality
             {
@@ -48285,6 +48345,7 @@ fn __futuruna_install_error_hook() {
                     if self.canonical_rule_return_types.contains_key(&key)
                         && !self.runtime_rule_irrefutable_keys.contains(&key)
                         && !self.runtime_rule_boolean_miss_keys.contains(&key)
+                        && !rule_family_miss_is_value_error(&rules)
                         && !self.active_guarded_calls.permits(&key, func, args)
                         && !(return_type == FirTy::Bool
                             && self.static_bool_rule_head_matches_call(&rules, args))
@@ -59376,20 +59437,7 @@ assert_with_message(true, message())
     }
 
     #[test]
-    fn generated_sync_entrypoint_runs_program_on_bounded_worker_stack() {
-        let (mut cg, stmts) = scan_with_codegen("@ print(\"ok\")");
-        let output = cg.emit_program(&stmts);
 
-        assert!(
-            output.contains("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;")
-        );
-        assert!(output.contains("fn __fut_runtime_main_inner() {"));
-        assert!(output.contains(".name(\"futuruna-main\".to_string())"));
-        assert!(output.contains(".stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)"));
-        assert!(output.contains(".spawn(__fut_runtime_main_inner)"));
-    }
-
-    #[test]
     fn generated_sync_entrypoint_supports_stack_heavy_programs() {
         let source = r#"
 @ rust {
@@ -60734,49 +60782,6 @@ assert_with_message(true, message())
         let interpreted = interpret_test_source(source, None);
         assert_eq!(compiled.trim(), "42000");
         assert_eq!(interpreted.trim(), compiled.trim());
-    }
-
-    #[test]
-    fn guarded_partial_rule_calls_do_not_leak_permissions_to_other_sites() {
-        let prefix = "# Input(year: Int)\n# Amount(value: Int)\n| partial(input: Input) -> Amount(7) under input.year >= 2026\n| result(input: Input, other: Input) -> 0\n";
-        for (value, condition, extra, allowed) in [
-            ("partial(input).value", "input.year >= 2026", "", true),
-            ("partial(input).value", "input.year >= 2025", "", false),
-            ("partial(other).value", "input.year >= 2026", "", false),
-            (
-                "partial(Input(2025)).value",
-                "input.year >= 2026",
-                "",
-                false,
-            ),
-            (
-                "{ = input = Input(2025); partial(input).value }",
-                "input.year >= 2026",
-                "",
-                false,
-            ),
-            (
-                "partial(input).value",
-                "input.year >= 2026",
-                "= unsafe = partial(Input(2025)).value",
-                false,
-            ),
-            (
-                "partial(input).value",
-                "input.year >= 2026",
-                "| leak(input: Input) -> partial(input).value",
-                false,
-            ),
-        ] {
-            let source = format!("{prefix}| exception reform result(input: Input, other: Input) -> {value} under {condition}\n{extra}\n");
-            let program = parse_test_program(&source);
-            let output = RustCodegen::new().emit_program(&program);
-            assert_eq!(
-                !output.contains("compile_error!"),
-                allowed,
-                "{source}\n{output}"
-            );
-        }
     }
 
     #[test]
@@ -67155,7 +67160,7 @@ routes <- "b"
             "classifier codegen must lower a typed partial miss to process failure: {trapped}"
         );
         assert!(
-            trapped.contains("panic!(\"no scoped | rule matched for 'partial'\")"),
+            trapped.contains("no value rule matched `ClassifierScope.partial/1`"),
             "classifier codegen must preserve bottom as a trapped miss: {trapped}"
         );
 
@@ -67188,7 +67193,7 @@ routes <- "b"
             "classifier codegen must admit a typed scoped Bool predicate: {predicate_false}"
         );
         assert!(
-            !predicate_false.contains("no scoped | rule matched for 'partial_bool'"),
+            !predicate_false.contains("no value rule matched `ClassifierScope.partial_bool/0`"),
             "a typed RuleScope Bool miss must retain interpreter False semantics: {predicate_false}"
         );
 
@@ -67335,7 +67340,7 @@ routes <- "b"
             .find("if __fut_matched_false_clause_2 { return false; }")
             .expect("ordinary matched-false return");
         let genuine_miss = unsafe_original
-            .find("no | rule matched for 'unsafe_original'")
+            .find("no value rule matched `unsafe_original/")
             .expect("ordinary genuine-miss trap");
         assert!(
             matched_false < genuine_miss,

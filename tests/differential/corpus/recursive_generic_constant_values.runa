@@ -1,0 +1,21 @@
+-- Top-level constants computed from recursive or generic constructors compile.
+# Chain(a) = End | Link(a, Chain(a))
+# Tree = Leaf(value: Int) | Node(left: Tree, right: Tree)
+> chain_length(c: Chain(Int)) -> Int {
+    match c {
+        | End -> 0
+        | Link(_, rest) -> 1 + chain_length(rest)
+    }
+}
+> tree_sum(t: Tree) -> Int {
+    match t {
+        | Leaf(v) -> v
+        | Node(l, r) -> tree_sum(l) + tree_sum(r)
+    }
+}
+> build_numbers() -> Chain(Int) { Link(1, Link(2, Link(3, End))) }
+> build_tree() -> Tree { Node(Leaf(1), Node(Leaf(2), Leaf(3))) }
+= numbers = build_numbers()
+= tree = build_tree()
+@ print(show(chain_length(numbers)))
+@ print(show(tree_sum(tree)))

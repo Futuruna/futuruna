@@ -136,7 +136,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
     afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [pbl53a_erhvervelsesår_flere_berettigede_afkastfakta],
     hændelser = pbl53a_erhvervelsesår_midte_hændelser
-)]), 2026)
+    )]), 2026)
 
 = pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [PersonskatPbl53AOrdningFakta(
     identifikation = "afstået-livsforsikring",
