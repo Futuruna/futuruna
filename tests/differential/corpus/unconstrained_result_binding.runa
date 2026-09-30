@@ -1,0 +1,10 @@
+-- Result and Option bindings whose other type parameter nothing constrains.
+
+= e = Err("bad")
+@ print(show(e))
+= o = Ok(1)
+@ print(show(o))
+= s = Some("x")
+@ print(show(s))
+= n = None
+@ print(show(n))

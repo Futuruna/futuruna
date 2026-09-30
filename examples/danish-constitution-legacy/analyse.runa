@@ -17,7 +17,7 @@
 # Regeringsform = IndskraenketMonarkisk
 # Forpligtelse = Understoettelse
 # MonarkStatus = Myndig | Umyndig | Syg | Fravaerende
-# Regeringsforer = MonarkenSelv | Statsraadet | Regent(hjemmel: String)
+# Regeringsforer = MonarkenSelv | StatsraadetRegerer | Regent(hjemmel: String)
 # ForsikringsStatus = IkkeAfgivet | AfgivetSomTroelfoelger | AfgivetSomKonge
 # Samtykke = Givet | IkkeGivet
 # Monark(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
@@ -42,7 +42,7 @@
             if tilstede { MonarkenSelv }
             else {
                 if saerlov_eksisterer { Regent("Fastsat ved saerlov") }
-                else { Statsraadet }
+                else { StatsraadetRegerer }
             }
         }
     }

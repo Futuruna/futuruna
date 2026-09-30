@@ -37,7 +37,7 @@
 | børnebidragslov19_scenarie_barselsbidrag(identifikation: Tekst, periode: Børnebidragslov19Barselsperiode, beløb_kroner: Heltal) -> Børnebidragslov19BidragFakta(
     identifikation = identifikation,
     indkomstår = 2025,
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = Levendefødt),
     bidragsart = Barselsbidrag(periode = periode),
     bidragsydergrundlag = Medmor,
@@ -77,7 +77,7 @@
 | børnebidragslov19_scenarie_abortbidrag_med_ansøgning(ansøgningsgrundlag: Børnebidragslov19Ansøgningsgrundlag, fastsættelsesdato: Dato) -> Børnebidragslov19BidragFakta(
     identifikation = "abortudgiftsbidrag-2025",
     indkomstår = 2025,
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     hændelse = Abort(abortdato = Dato(år = 2025, måned = 3, dag = 4)),
     bidragsart = Abortudgiftsbidrag(dokumenterede_særlige_udgifter_kroner = 2500),
     bidragsydergrundlag = HarEllerKanHaveBesvangretKvinden,
@@ -99,25 +99,25 @@
 
 = børnebidragslov19_fødsel_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
     identifikation = "fødselsbidrag-yder-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 976
 ))
 = børnebidragslov19_dødfødsel_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
     identifikation = "dødfødselsbidrag-yder-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Dødfødt,
     beløb_kroner = 976
 ))
 = børnebidragslov19_fødsel_forkert_sats = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
     identifikation = "fødselsbidrag-forkert-sats-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 975
 ))
 = børnebidragslov19_fødsel_for_sent_ansøgt = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag_med_ansøgning(
     identifikation = "fødselsbidrag-for-sent-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 976,
     fødselsdato = Dato(år = 2025, måned = 1, dag = 10),
@@ -126,7 +126,7 @@
 ))
 = børnebidragslov19_fødsel_ansøgt_på_fristsidste_dag = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag_med_ansøgning(
     identifikation = "fødselsbidrag-fristsidste-dag-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 976,
     fødselsdato = Dato(år = 2025, måned = 1, dag = 10),
@@ -135,7 +135,7 @@
 ))
 = børnebidragslov19_fødsel_faderskabssag_rettidig = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag_med_ansøgning(
     identifikation = "fødselsbidrag-faderskabssag-rettidig-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 976,
     fødselsdato = Dato(år = 2025, måned = 1, dag = 10),
@@ -150,7 +150,7 @@
 ))
 = børnebidragslov19_fødsel_faderskabssag_over_to_år = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag_med_ansøgning(
     identifikation = "fødselsbidrag-faderskabssag-over-to-år-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 976,
     fødselsdato = Dato(år = 2023, måned = 1, dag = 10),
@@ -165,7 +165,7 @@
 ))
 = børnebidragslov19_fødsel_særlig_fristfravigelse = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag_med_ansøgning(
     identifikation = "fødselsbidrag-særlig-fristfravigelse-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     udfald = Levendefødt,
     beløb_kroner = 976,
     fødselsdato = Dato(år = 2025, måned = 1, dag = 10),
@@ -192,7 +192,7 @@
 ))
 = børnebidragslov19_navngivning_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_navngivningsbidrag(
     identifikation = "navngivningsbidrag-yder-2025",
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     fastsættelse = FastsatAfFamilieretshuset,
     beløb_kroner = 1419
 ))
@@ -220,13 +220,13 @@
 = børnebidragslov19_yder_årsresultat = børnebidragslov19_årsresultat(2025, Børnebidragslov19Årsinput(bidrag = [
     børnebidragslov19_scenarie_fødselsbidrag(
         identifikation = "årsresultat-fødselsbidrag-2025",
-        rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+        rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
         udfald = Levendefødt,
         beløb_kroner = 976
     ),
     børnebidragslov19_scenarie_navngivningsbidrag(
         identifikation = "årsresultat-navngivningsbidrag-2025",
-        rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+        rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
         fastsættelse = FastsatAfFamilieretshuset,
         beløb_kroner = 1419
     ),

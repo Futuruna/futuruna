@@ -55285,6 +55285,17 @@ impl TypeChecker {
                     for variant in variants {
                         let field_count = variant.fields.len();
                         self.record_explore_non_rule_runtime_name(&variant.name);
+                        if let Some(other) = self
+                            .constructor_signatures
+                            .get(&variant.name)
+                            .and_then(|known| known.iter().find(|sig| &sig.parent != name))
+                            .map(|sig| sig.parent.clone())
+                        {
+                            self.error(format!(
+                                "constructor `{}` is declared in both type `{}` and type `{}`; constructor names must be unique among the types in scope",
+                                variant.name, other, name
+                            ));
+                        }
                         self.register_constructor_signature(
                             name,
                             &variant.name,

@@ -1,9 +1,4 @@
 # Reviewed known gaps for `runa test --roundtrip --allow-list`.
 # Format: <path suffix> -- <reason>. A listed file that matches fails the gate
 # (stale entry), so this list only shrinks.
-examples/apps/log-analyzer/analyzer.runa -- the checker cannot infer the return type of rule `alert_level` from the untyped `entry.level` clause, so codegen refuses the dispatch; with a typed parameter the actor `ask` counters still differ (interpreter actor state)
-examples/danish-constitution-legacy/analyse.runa -- redeclares `Institution`/`Statsmagt` locally while importing ./grundlov; compiled code uses the imported declaration (local-vs-imported definition rule)
-examples/danish-constitution-legacy/analyse-2.runa -- redeclares `Institution`/`Statsmagt` locally while importing ./grundlov; compiled code uses the imported declaration (local-vs-imported definition rule)
-examples/danish-constitution-legacy/grundlov.audit.runa -- imported chapters declare the same constructor name in two sum types; compiled code resolves `Nyvalg` to the wrong type
-examples/danish-constitution-legacy/verifikation.runa -- imported chapters declare the same constructor name in two sum types; compiled code resolves `Nyvalg` to the wrong type
-examples/danish-constitution-legacy/verify_grundlov.runa -- compiled `? all` reports the intended counterexample differently from the interpreter
+examples/apps/log-analyzer/analyzer.runa -- actor state semantics

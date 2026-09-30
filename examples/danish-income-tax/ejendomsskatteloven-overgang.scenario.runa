@@ -230,7 +230,7 @@
     EjendomsskattelovRabatHændelse(
         dato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
         art = EjskÆgtefælleoverdragelse(
-            grund = EjskOverdragelseMellemÆgtefæller,
+            grund = EjskGrundOverdragelseMellemÆgtefæller,
             retning = EjskAfgiverRabatTilÆgtefælle(ny_ejerandel_basispoint = 5000)
         )
     )
@@ -288,7 +288,7 @@
                 hændelser = [EjendomsskattelovRabatHændelse(
                     dato = EjendomsskattelovDato(år = 2025, måned = 7, dag = 1),
                     art = EjskÆgtefælleoverdragelse(
-                        grund = EjskOverdragelseMellemÆgtefæller,
+                        grund = EjskGrundOverdragelseMellemÆgtefæller,
                         retning = EjskModtagerRabatFraÆgtefælle(
                             ny_ejerandel_basispoint = 5000,
                             overtaget_rabatgrundlag = EjendomsskattelovOvertagetRabatgrundlag(

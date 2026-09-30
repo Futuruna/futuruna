@@ -120,7 +120,7 @@
 | exception auth_warn should_alert(entry) -> True under entry.source == Auth && is_actionable(entry.level)
 
 -- Base severity for alerts
-| alert_level(entry) -> entry.level
+| alert_level(entry: LogEntry) -> entry.level
 
 -- Escalate slow DB to Error
 | exception slow_db_escalate alert_level(entry) -> Error under entry.source == Db && entry.latency_ms > 500 && entry.level == Warn
