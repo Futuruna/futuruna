@@ -1,0 +1,13 @@
+-- expect-command: run
+-- expect-status: fail
+-- expect-stderr: logic query `edge` exceeded its recursion limit of 10000; evaluation is incomplete
+-- expect-stderr-not: panicked
+-- A cyclic relation queried for an unreachable target nests its derived-rule
+-- goals past the logic-query depth limit and stops with a located error.
+
+| edge("a", "b")
+| edge("b", "a")
+| reach(x, y) -> edge(x, y)
+| reach(x, y) -> edge(x, middle), reach(middle, y)
+
+@ print(show(reach("a", "z")))
