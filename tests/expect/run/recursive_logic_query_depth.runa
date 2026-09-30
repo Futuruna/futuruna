@@ -1,12 +1,9 @@
 -- expect-command: interp
 -- expect-status: fail
--- expect-env: FUTURUNA_STACK_MB=256
--- expect-stderr: exceeded the recursion limit at depth
--- expect-stderr: the evaluation stack is exhausted; evaluation is incomplete
+-- expect-stderr: logic query `edge` exceeded its recursion limit of 10000; evaluation is incomplete
 -- expect-stderr-not: panicked
--- roundtrip-skip: unbounded recursion stops at a stack depth that differs between execution modes
--- A cyclic relation queried for an unreachable target recurses without bound
--- and stops with a located error.
+-- A cyclic relation queried for an unreachable target nests its derived-rule
+-- goals past the logic-query depth limit and stops with a located error.
 
 | edge("a", "b")
 | edge("b", "a")

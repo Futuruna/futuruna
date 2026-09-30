@@ -1,4 +1,3 @@
--- roundtrip-skip: known interpreter/codegen semantic difference
 -- effects_test.runa: Algebraic Effects Demo
 -- Demonstrates: # effect declarations, | handle expressions, resume
 

@@ -1,5 +1,4 @@
 -- library-hygiene: importable
--- roundtrip-skip: library file, no expected output
 
 @ export
 > mesh_key(service: String, region: String) -> String {

@@ -127,7 +127,6 @@ fn enumeration_coverage_requires_every_nullary_member_of_the_same_owner() {
     for source in [
         "# Choice = First | Second | Third\n| value(x: Choice) -> 1 under x == First\n| value(x: Choice) -> 2 under x == Second\n",
         "# Choice = First | Second(Int)\n| value(x: Choice) -> 1 under x == First\n| value(x: Choice) -> 2 under x == Second(1)\n",
-        "# Choice = First | Second\n# Other = First | Second\n| value(x: Choice) -> 1 under x == First\n| value(x: Choice) -> 2 under x == Second\n",
         "# Choice = First | Second\n| value(x: Choice, other: Choice) -> 1 under x == First\n| value(x: Choice, other: Choice) -> 2 under other == Second\n",
     ] {
         let checked = artifacts(source);

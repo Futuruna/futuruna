@@ -1,4 +1,3 @@
--- roundtrip-skip: known interpreter/codegen semantic difference
 -- effect_bind_test.runa: Monadic bind (<-) with effects
 -- `= x <- ask("prompt")` suspends to effect handler and binds result.
 

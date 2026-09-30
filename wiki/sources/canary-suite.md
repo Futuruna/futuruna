@@ -42,9 +42,7 @@ CI.
   workflows.
 
 Each selected tier runs format checking, compiled execution, codegen checking,
-and roundtrip comparison. Some stateful cases can roundtrip-skip when the
-generic runner excludes their runtime shape, but they still participate in the
-other lanes.
+and roundtrip comparison.
 
 ## Boundaries
 

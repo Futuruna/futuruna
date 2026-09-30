@@ -207,8 +207,11 @@ Stable today:
 - no binary `fn main` is emitted
 - `String`, `List`, `Option`, `Result`, and exported ADTs use the documented
   type mapping below
-- read-only non-copy parameters may be borrowed in Rust signatures, for example
-  `Packet` as `&Packet`, `String` as `&String`, and `List(Int)` as `&Vec<i64>`
+- every `String` parameter of an exported function or rule is `&str` in the
+  Rust signature, whatever the body does with it, so consumers pass `&owned`
+  or a string literal; `inout` parameters stay `&mut String`
+- other read-only non-copy parameters may be borrowed in Rust signatures, for
+  example `Packet` as `&Packet` and `List(Int)` as `&Vec<i64>`
 - Rust consumers can compile `runa lib` output that references external crates
   through `@ depend`, explicit `@ use` declarations, external-crate stdlib
   builtins, or raw `@ rust` blocks, as long as the consuming Cargo project

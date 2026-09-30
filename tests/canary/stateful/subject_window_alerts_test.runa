@@ -1,4 +1,3 @@
--- roundtrip-skip: Set values display differently in compiled invariant output
 -- Authored stateful canary: subject-backed rolling windows with deterministic
 -- alert summaries and threshold checks.
 

@@ -3,7 +3,24 @@
 //! This module deliberately depends only on `std`: code generation can embed
 //! it in an ordinary Rust executable without linking the compiler or parser.
 
+use std::cell::Cell;
 use std::collections::BTreeMap;
+
+/// Deepest nesting of derived-rule goals within one logic query. The
+/// interpreter applies the same limit.
+pub const LOGIC_QUERY_DEPTH_LIMIT: usize = 10_000;
+
+pub fn logic_query_depth_error(name: &str) -> String {
+    format!(
+        "logic query `{name}` exceeded its recursion limit of {LOGIC_QUERY_DEPTH_LIMIT}; evaluation is incomplete"
+    )
+}
+
+thread_local! {
+    /// Goal depth of the expression a running query is evaluating. A query
+    /// started from that expression continues at this depth.
+    static EVALUATION_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
 
 #[derive(Clone, Debug)]
 pub enum Term {
@@ -328,19 +345,29 @@ where
     pub fn findall(&mut self, goal: &Goal, projection: &Term) -> Result<Vec<Term>, String> {
         self.next_variable = goal.variable_bound().max(projection.variable_bound());
         let mut values: Vec<Term> = Vec::new();
-        self.visit(goal, &Bindings::default(), 0, &mut |_, bindings| {
-            let value = bindings.ground(projection)?;
-            if !values.iter().any(|previous| previous.same_value(&value)) {
-                values.push(value);
-            }
-            Ok(false)
-        })?;
+        self.visit(
+            goal,
+            &Bindings::default(),
+            EVALUATION_DEPTH.get(),
+            &mut |_, bindings| {
+                let value = bindings.ground(projection)?;
+                if !values.iter().any(|previous| previous.same_value(&value)) {
+                    values.push(value);
+                }
+                Ok(false)
+            },
+        )?;
         Ok(values)
     }
 
     pub fn exists(&mut self, goal: &Goal) -> Result<bool, String> {
         self.next_variable = goal.variable_bound();
-        self.visit(goal, &Bindings::default(), 0, &mut |_, _| Ok(true))
+        self.visit(
+            goal,
+            &Bindings::default(),
+            EVALUATION_DEPTH.get(),
+            &mut |_, _| Ok(true),
+        )
     }
 
     fn visit(
@@ -378,7 +405,11 @@ where
                     .iter()
                     .map(|term| bindings.ground(term))
                     .collect::<Result<Vec<_>, _>>()?;
-                let value = (self.evaluate)(*expression, &arguments)?;
+                // A rule called from this expression runs its body one level deeper.
+                let outer = EVALUATION_DEPTH.replace(depth + 1);
+                let value = (self.evaluate)(*expression, &arguments);
+                EVALUATION_DEPTH.set(outer);
+                let value = value?;
                 if value.variable_bound() != 0 {
                     return Err("compiled logic expression returned an unbound value".into());
                 }
@@ -390,8 +421,8 @@ where
                 }
             }
             Goal::Call(name, arguments, binders) => {
-                if depth > 50 {
-                    return Err(format!("logic query `{name}` exceeded its recursion limit of 50; evaluation is incomplete"));
+                if depth > LOGIC_QUERY_DEPTH_LIMIT {
+                    return Err(logic_query_depth_error(name));
                 }
                 let relation = self
                     .program

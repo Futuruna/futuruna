@@ -1,5 +1,4 @@
 -- library-hygiene: importable
--- roundtrip-skip: helper library for local_type_override.runa
 
 # Organ = Konge | Parlament
 # Magt = Lovgivende | Udøvende
