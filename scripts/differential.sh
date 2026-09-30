@@ -23,7 +23,8 @@ GENERATED_IMPORT_DIR="${FUTURUNA_DIFFERENTIAL_GENERATED_IMPORT_DIR:-${OUT_DIR}/g
 ALLOW_LIST="${FUTURUNA_DIFFERENTIAL_ALLOW_LIST:-tests/differential/roundtrip-allowlist.txt}"
 TYPED_SEEDS="${FUTURUNA_DIFFERENTIAL_TYPED_SEEDS:-16}"
 TYPED_DIR="${OUT_DIR}/generated-typed"
-# Set FUTURUNA_DIFFERENTIAL_EXAMPLES=1 (scheduled CI) to also compare examples/.
+# Set FUTURUNA_DIFFERENTIAL_EXAMPLES=1 to also compare examples/ (scheduled CI
+# compares them in shards through FUTURUNA_ROUNDTRIP_SHARD=i/n).
 RUN_EXAMPLES="${FUTURUNA_DIFFERENTIAL_EXAMPLES:-0}"
 
 if [[ ! -x "$RUNA_BIN" ]]; then
