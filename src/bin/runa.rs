@@ -12171,6 +12171,26 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool, allow_list: Option<&str>) {
     let mut files = Vec::new();
     collect(path, &mut files);
     files.sort();
+    // FUTURUNA_ROUNDTRIP_SHARD=i/n compares every n-th file starting at i, so
+    // a large directory can be split across parallel jobs.
+    if let Ok(shard) = std::env::var("FUTURUNA_ROUNDTRIP_SHARD") {
+        let parsed = shard
+            .split_once('/')
+            .and_then(|(i, n)| Some((i.parse::<usize>().ok()?, n.parse::<usize>().ok()?)))
+            .filter(|(i, n)| *n > 0 && i < n);
+        let Some((index, count)) = parsed else {
+            eprintln!(
+                "error: FUTURUNA_ROUNDTRIP_SHARD must be `i/n` with 0 <= i < n, got `{shard}`"
+            );
+            std::process::exit(1);
+        };
+        files = files
+            .into_iter()
+            .enumerate()
+            .filter(|(position, _)| position % count == index)
+            .map(|(_, file)| file)
+            .collect();
+    }
 
     // Allow-list lines: `<path> -- <reason>`; `#` starts a comment.
     let mut allowed: BTreeMap<String, String> = BTreeMap::new();
