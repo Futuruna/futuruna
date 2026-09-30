@@ -26057,7 +26057,7 @@ impl Interpreter {
                     "exact exploration refuses anonymous existential rule queries",
                 ));
             }
-            let unbound = Self::unbound_logic_arguments(args, env);
+            let unbound = self.unbound_logic_arguments(args, env);
             return Some(Value::Bool(self.search_bindings(
                 namespace,
                 fn_name,
@@ -27169,15 +27169,26 @@ pub fn rule_head_numeric_value(expression: &Expr) -> Option<Value> {
 }
 
 impl Interpreter {
+    /// A lowercase name is a free logic variable unless the environment binds
+    /// it or it names a function or rule, which is passed as a value.
+    fn logic_name_is_free(&self, name: &str, env: &Env) -> bool {
+        if !Self::is_rule_variable_name(name) || env.get(name).is_some() {
+            return false;
+        }
+        let namespace = self.namespace_for_env(env);
+        Self::runtime_namespace_find(&namespace, |state| {
+            (state.functions.contains_key(name) || state.rules_by_name.contains_key(name))
+                .then_some(())
+        })
+        .is_none()
+    }
+
     /// Anonymous occurrences are always free, regardless of the environment.
-    fn unbound_logic_arguments(args: &[Expr], env: &Env) -> Vec<(usize, String)> {
+    fn unbound_logic_arguments(&self, args: &[Expr], env: &Env) -> Vec<(usize, String)> {
         args.iter()
             .enumerate()
             .filter_map(|(index, argument)| match &argument.kind {
-                ExprKind::Var(name)
-                    if name == "_"
-                        || (Self::is_rule_variable_name(name) && env.get(name).is_none()) =>
-                {
+                ExprKind::Var(name) if name == "_" || self.logic_name_is_free(name, env) => {
                     Some((index, name.clone()))
                 }
                 _ => None,
@@ -27189,7 +27200,12 @@ impl Interpreter {
         args.iter()
             .map(|argument| match &argument.kind {
                 ExprKind::Var(name) if name == "_" => None,
-                ExprKind::Var(name) if Self::is_rule_variable_name(name) => env.get(name).cloned(),
+                ExprKind::Var(name) if self.logic_name_is_free(name, env) => None,
+                ExprKind::Var(name)
+                    if Self::is_rule_variable_name(name) && env.get(name).is_some() =>
+                {
+                    env.get(name).cloned()
+                }
                 _ => Some(self.eval(argument, env)),
             })
             .collect()
@@ -27209,7 +27225,7 @@ impl Interpreter {
         // (variables not yet in the environment that appear as arguments)
         if let ExprKind::App(func, args) = &goal.kind {
             let fn_name = self.expr_name(func);
-            let unbound = Self::unbound_logic_arguments(args, env);
+            let unbound = self.unbound_logic_arguments(args, env);
 
             if !unbound.is_empty() {
                 // Existential search: find all facts/clauses that can provide bindings
@@ -27288,7 +27304,10 @@ impl Interpreter {
                 .iter()
                 .map(|arg| match &arg.kind {
                     ExprKind::Var(name) if name == "_" || name == &template_name => None,
-                    ExprKind::Var(name) if Self::is_rule_variable_name(name) => {
+                    ExprKind::Var(name) if self.logic_name_is_free(name, env) => None,
+                    ExprKind::Var(name)
+                        if Self::is_rule_variable_name(name) && env.get(name).is_some() =>
+                    {
                         env.get(name).cloned()
                     }
                     _ => Some(self.eval(arg, env)),
@@ -28090,7 +28109,8 @@ impl Interpreter {
             let goal_fn = self.expr_name(func);
             // Anonymous positions constrain existence but introduce no name
             // that a later goal or the result template can read.
-            let free_positions = Self::unbound_logic_arguments(args, env)
+            let free_positions = self
+                .unbound_logic_arguments(args, env)
                 .into_iter()
                 .filter(|(_, name)| name != "_")
                 .collect::<Vec<_>>();
