@@ -41,20 +41,30 @@ fn unbounded_direct_mutual_and_callback_recursion_reports_incomplete_evaluation(
 
 #[test]
 fn ordinary_deep_recursion_keeps_its_values() {
-    let source = "\
-> depth_count(n: Int) -> Int { if n == 0 { 0 } else { 1 + depth_count(n - 1) } }
-> sum_list_r(xs: List(Int)) -> Int {
-    if length(xs) == 0 { 0 } else { head(xs) + sum_list_r(tail(xs)) }
-}
-> polled_value() -> Int { poll_helper(41) }
-> poll_helper(n: Int) -> Int { n + 1 }
-@ print(show(depth_count(100000)))
-@ print(show(sum_list_r(range(0, 10000))))
+    // Unoptimized builds use much larger interpreter frames than the released
+    // optimized `runa`, so they are held to a proportionally smaller depth.
+    let (depth, list_len) = if cfg!(debug_assertions) {
+        (15_000, 5_000)
+    } else {
+        (100_000, 10_000)
+    };
+    let source = format!(
+        "\
+> depth_count(n: Int) -> Int {{ if n == 0 {{ 0 }} else {{ 1 + depth_count(n - 1) }} }}
+> sum_list_r(xs: List(Int)) -> Int {{
+    if length(xs) == 0 {{ 0 }} else {{ head(xs) + sum_list_r(tail(xs)) }}
+}}
+> polled_value() -> Int {{ poll_helper(41) }}
+> poll_helper(n: Int) -> Int {{ n + 1 }}
+@ print(show(depth_count({depth})))
+@ print(show(sum_list_r(range(0, {list_len}))))
 @ print(show(sum_list(map(range(0, 5000), |value| 1))))
 @ print(show(poll(polled_value, 0)))
-";
+"
+    );
+    let list_sum: i64 = (0..list_len).sum();
     assert_eq!(
-        interpret(source).unwrap().trim(),
-        "100000\n49995000\n5000\n42"
+        interpret(&source).unwrap().trim(),
+        format!("{depth}\n{list_sum}\n5000\n42")
     );
 }
