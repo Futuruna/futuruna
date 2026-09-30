@@ -36,7 +36,7 @@ Give the AI this instruction:
 The guide helps your AI install Futuruna locally, verify the download, and run a
 working example. If no verified release binary exists for your computer, the AI
 installs the tagged release with
-`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`
+`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked futuruna`
 or builds Futuruna there instead.
 
 ## The seven runes

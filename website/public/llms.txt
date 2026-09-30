@@ -35,7 +35,7 @@ Contact: research@futuruna.com
 
 ## Common Mistakes
 
-- Install the verified v0.2.3 GitHub release binary, or `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`. Use `cargo install futuruna` only when crates.io lists the current version.
+- Install the verified v0.2.3 GitHub release binary, or `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked futuruna`. Use `cargo install futuruna` only when crates.io lists the current version.
 - Bind with `= name = value`; compare with `==`, also in `under` guards. Comments are `--`; `#` declares a type.
 - Print with `@ print(value)`; `@ println` and `@ log` do not exist.
 - `parse_int`, `parse_float`, `read_file`, `json_parse`, `http_get` and `http_post` return `Result`: match on `Ok`/`Err`, or write `= n <- parse_int(text)` inside a function returning `Result`. `parse_int("42") + 1` is a type error.

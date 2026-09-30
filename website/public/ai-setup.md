@@ -192,7 +192,7 @@ When Cargo is already available and the user approves a user-level Cargo
 installation, install the exact release tag from the canonical repository:
 
 ```
-cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked
+cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked futuruna
 runa --version
 ```
 

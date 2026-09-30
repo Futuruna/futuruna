@@ -33,7 +33,7 @@ metadata, rather than the website, wiki, research corpus, examples, or tests.
 `cargo install` installs only `runa`; developer adversarial binaries require
 the `internal-tools` feature. User-facing installation docs recommend the
 verified GitHub release binary or
-`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`.
+`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked futuruna`.
 They mention `cargo install futuruna` only for a version confirmed published on
 crates.io, because the crates.io package is not guaranteed to match the current
 release.
@@ -145,7 +145,7 @@ From clean Linux x86-64, Linux ARM64, Apple Silicon, and Intel macOS machines:
    establish runtime compatibility. This probe is not tax-law validation.
 4. On macOS, compare the observed Gatekeeper behavior with the signing status
    stated in the release notes. Never disable Gatekeeper globally.
-5. Run `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked`
+5. Run `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.3 --locked futuruna`
    in an isolated Cargo home and repeat the smoke checks. If the crate was
    published, also run
    `cargo install futuruna --version 0.2.3 --locked` in an isolated Cargo home
