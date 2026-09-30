@@ -913,7 +913,7 @@ ved indkomstårets udløb.
 Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 ----
 
-# UdligningsskatPost = Pbl20Udbetaling | Pbl53AUdbetaling | Pbl53BUdbetaling | AfløsningAfPensionstilsagn | DirektørPension | FolkepensionGrundbeløb | AndrePensioner
+# UdligningsskatPost = Pbl20Udbetaling | UdligningPbl53AUdbetaling | Pbl53BUdbetaling | AfløsningAfPensionstilsagn | DirektørPension | UdligningFolkepensionGrundbeløb | AndrePensioner
 # UdligningsskatUndtagelse = Invalidepension | Efterløn | Fleksydelse | Førtidspension | ObligatoriskUdenlandskSikring
 # UdligningsskatPostAfgrænsning = UdligningsskatPostOmfattet | UdligningsskatPostInvalidepension | UdligningsskatPostEfterløn | UdligningsskatPostFleksydelse | UdligningsskatPostFørtidspension | UdligningsskatPostObligatoriskUdenlandskSikring
 # UdligningsskatSatsKilde = PersonskattelovenLbk1284Af2021Par7aStk5
@@ -1059,7 +1059,7 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 ))
 = par7a_postopgørelse_fixture = par7a_udligningsskat_postopgørelse_resultat(Par7aUdligningsskatPostOpgørelseInput(poster = [
     Par7aUdligningsskatPostering(art = Pbl20Udbetaling, beløb_kroner = 300000, afgrænsning = UdligningsskatPostOmfattet),
-    Par7aUdligningsskatPostering(art = FolkepensionGrundbeløb, beløb_kroner = 200000, afgrænsning = UdligningsskatPostOmfattet),
+    Par7aUdligningsskatPostering(art = UdligningFolkepensionGrundbeløb, beløb_kroner = 200000, afgrænsning = UdligningsskatPostOmfattet),
     Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 60000, afgrænsning = UdligningsskatPostInvalidepension),
     Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 50000, afgrænsning = UdligningsskatPostEfterløn)
 ]))
@@ -1067,7 +1067,7 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
     skatteår = 2014,
     poster = [
         Par7aUdligningsskatPostering(art = Pbl20Udbetaling, beløb_kroner = 300000, afgrænsning = UdligningsskatPostOmfattet),
-        Par7aUdligningsskatPostering(art = FolkepensionGrundbeløb, beløb_kroner = 200000, afgrænsning = UdligningsskatPostOmfattet),
+        Par7aUdligningsskatPostering(art = UdligningFolkepensionGrundbeløb, beløb_kroner = 200000, afgrænsning = UdligningsskatPostOmfattet),
         Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 60000, afgrænsning = UdligningsskatPostInvalidepension),
         Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 50000, afgrænsning = UdligningsskatPostEfterløn)
     ],

@@ -32115,20 +32115,27 @@ impl RustCodegen {
             }
         }
 
-        // Deduplicate type declarations from imports: if the same type name is
-        // defined multiple times (e.g. each file redefines # Branch for standalone use),
-        // keep only the first definition. This prevents Rust duplicate type errors.
+        // Deduplicate type declarations: a later declaration replaces an
+        // earlier one with the same name, so the current file's declaration
+        // wins over imported ones (the same rule as for functions).
         {
-            let mut seen_types: BTreeSet<String> = BTreeSet::new();
-            all_stmts.retain(|s| {
-                if let Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+            let type_decl_name = |s: &Stmt| match s {
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. })
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
-                | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) = s
-                {
-                    seen_types.insert(name.clone())
-                } else {
-                    true
+                | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => Some(name.clone()),
+                _ => None,
+            };
+            let mut last_decl: BTreeMap<String, usize> = BTreeMap::new();
+            for (idx, stmt) in all_stmts.iter().enumerate() {
+                if let Some(name) = type_decl_name(stmt) {
+                    last_decl.insert(name, idx);
                 }
+            }
+            let mut idx = 0;
+            all_stmts.retain(|s| {
+                let keep = type_decl_name(s).map_or(true, |name| last_decl[&name] == idx);
+                idx += 1;
+                keep
             });
         }
 
@@ -45848,6 +45855,49 @@ fn __futuruna_install_error_hook() {
                             .empty_list_binding_rust_type(pat, value)
                             .map(|rust_ty| format!(": {}", rust_ty))
                             .unwrap_or_else(|| ": Vec<i64>".to_string()),
+                        ExprKind::App(func, _) if matches!(&func.kind, ExprKind::Var(name) if matches!(name.as_str(), "Ok" | "Err" | "Some")) =>
+                        {
+                            // Type parameters nothing constrains hold no value;
+                            // they are `()` as in `show(Ok(1))`.
+                            fn fill_unknown(ty: &FirTy) -> FirTy {
+                                match ty {
+                                    FirTy::Unknown | FirTy::Var(_) => FirTy::Unit,
+                                    FirTy::Option(inner) => {
+                                        FirTy::Option(Box::new(fill_unknown(inner)))
+                                    }
+                                    FirTy::Result(ok, err) => FirTy::Result(
+                                        Box::new(fill_unknown(ok)),
+                                        Box::new(fill_unknown(err)),
+                                    ),
+                                    other => other.clone(),
+                                }
+                            }
+                            let known = match pat {
+                                Pat::Var(name) => self.var_fir_types.get(name).cloned(),
+                                _ => None,
+                            };
+                            let ty = match known {
+                                Some(ty @ (FirTy::Option(_) | FirTy::Result(_, _))) => ty,
+                                _ => self.infer_expr_fir_ty(value),
+                            };
+                            let unconstrained = match &ty {
+                                FirTy::Option(inner) => {
+                                    matches!(**inner, FirTy::Unknown | FirTy::Var(_))
+                                }
+                                FirTy::Result(ok, err) => {
+                                    matches!(**ok, FirTy::Unknown | FirTy::Var(_))
+                                        || matches!(**err, FirTy::Unknown | FirTy::Var(_))
+                                }
+                                _ => false,
+                            };
+                            match unconstrained
+                                .then(|| Self::fir_type_to_rust(&fill_unknown(&ty)))
+                                .flatten()
+                            {
+                                Some(rust_ty) => format!(": {}", rust_ty),
+                                None => String::new(),
+                            }
+                        }
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                                 match builtin_canonical(fn_name) {
@@ -46882,7 +46932,10 @@ fn __futuruna_install_error_hook() {
                             self.indent -= 1;
                             out.push_str(&format!("{}}} else {{\n", self.ind()));
                             self.indent += 1;
-                            out.push_str(&format!("{}panic!(\"? all FAILED\");\n", self.ind()));
+                            out.push_str(&format!(
+                                "{}println!(\"? all FAILED\"); std::process::exit(1);\n",
+                                self.ind()
+                            ));
                             self.indent -= 1;
                             out.push_str(&format!("{}}}\n", self.ind()));
                         }
@@ -46943,7 +46996,7 @@ fn __futuruna_install_error_hook() {
                             (None, None) => {
                                 // Bare ? name — verify and print result (matches interpreter output)
                                 out.push_str(&format!(
-                                    "{}// ? {}\n{}if {} {{ println!(\"  ✓ |{}| holds (value: {{}})\", {}); }} else {{ panic!(\"? {} FAILED: |{}| VIOLATED (value: {{}})\", {}); }}\n",
+                                    "{}// ? {}\n{}if {} {{ println!(\"  ✓ |{}| holds (value: {{}})\", {}); }} else {{ println!(\"? {} FAILED: |{}| VIOLATED (value: {{}})\", {}); std::process::exit(1); }}\n",
                                     self.ind(), inv_name,
                                     self.ind(), pred_str, inv_name, subj_display, name, inv_name, subj_display
                                 ));
@@ -46965,7 +47018,7 @@ fn __futuruna_install_error_hook() {
                                 out.push_str(&format!("{}}} else {{\n", self.ind()));
                                 self.indent += 1;
                                 out.push_str(&format!(
-                                    "{}panic!(\"? {} FAILED\");\n",
+                                    "{}println!(\"? {} FAILED\"); std::process::exit(1);\n",
                                     self.ind(),
                                     inv_name
                                 ));

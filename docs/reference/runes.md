@@ -463,7 +463,11 @@ shown in the handler example above.
 Top-level plain imports form one merged declaration scope. They are resolved
 in import order before the importing file's declarations, regardless of where
 the directives appear. Imported functions override injected prelude defaults;
-local functions override imported functions. Imported initializers and later
+local functions override imported functions. A local type declaration likewise
+replaces an imported type with the same name, including its constructors. A
+constructor name belongs to one sum type: declaring it in two different types
+visible in one scope is a checker error that names both types.
+Imported initializers and later
 calls use that same final function and rule context. Unique bindings across the
 merged scope follow the dependency order described above. A canonical source
 is imported once per namespace, including when several dependencies import it.

@@ -50,7 +50,7 @@
 = par5a_tilskud_til_kontrolleret_modtager_60000 = AktieavancePar5AKoncernbeløb(
     art = AblPar5ATilskud,
     yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
-    modtagerrelation = AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AModtagerKontrolleretAfAktietabsgivendeKoncernselskab,
     personkontrol = AblPar5APersonkontrolIkkeRelevant,
     beløb_kroner = 60000
 )

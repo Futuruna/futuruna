@@ -31,14 +31,14 @@
     fastsættelsesdato = Dato(år = 2025, måned = 1, dag = 10)
 )
 | personskat_par19_fødselsbidrag_for_sent() -> personskat_par19_fødselsbidrag_med_ansøgning(
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     ansøgningsgrundlag = Myndighedsansøgning(ansøgningsdato = Dato(år = 2025, måned = 3, dag = 11), fristgrundlag = FødslenSomFristgrundlag),
     fastsættelsesdato = Dato(år = 2025, måned = 3, dag = 20)
 )
 | personskat_par19_navngivningsbidrag() -> Børnebidragslov19BidragFakta(
     identifikation = "personskat-navngivningsbidrag-2025",
     indkomstår = 2025,
-    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    rolle = BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
     hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = Levendefødt),
     bidragsart = NavngivningsbidragHerunderDåb,
     bidragsydergrundlag = Far,
@@ -91,7 +91,7 @@
 )
 
 = personskat_par19_baseline = beregn_personskat(personskat_par19_input(børnebidragslov19_tomt_årsinput()))
-= personskat_par19_fødselsbidrag_yder = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))])))
+= personskat_par19_fødselsbidrag_yder = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))])))
 = personskat_par19_navngivningsbidrag_yder = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_navngivningsbidrag()])))
 = personskat_par19_fødselsbidrag_mor = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(MorSomRetligBidragsmodtager)])))
 = personskat_par19_fødselsbidrag_for_sent_resultat = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag_for_sent()])))
@@ -105,7 +105,7 @@
 
 @ calculate("§ 19-bidrag til kanonisk Personskat-arbejdsbog")
 | personskat_par19_kildefakta_til_arbejdsbog(kilde: PersonskatPar19Arbejdsbogskilde) -> match kilde {
-    | FødselsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))]))
+    | FødselsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))]))
     | NavngivningsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_navngivningsbidrag()]))
     | FødselsbidragForSentAnsøgt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag_for_sent()]))
 }

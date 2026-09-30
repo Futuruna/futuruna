@@ -26,7 +26,7 @@
 # ForsikringsStatus = IkkeAfgivet | AfgivetSomTroelfoelger | AfgivetSomKonge
 # Monark(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
 # Troelfoelger(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
-# Regeringsforer = MonarkenSelv | Statsraadet | Regent(hjemmel: String)
+# Regeringsforer = MonarkenSelv | StatsraadetRegerer | Regent(hjemmel: String)
 
 = myndighedsalder = 18
 
