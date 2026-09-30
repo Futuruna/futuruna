@@ -1,4 +1,5 @@
 -- tax-server.runa
+-- roundtrip-skip: compiled code serves HTTP until stopped; the interpreter does not start a server
 --
 -- A progressive tax engine with deductions, served over HTTP.
 -- Pure Futuruna. No Rust escape hatches.

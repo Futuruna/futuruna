@@ -12256,7 +12256,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool, allow_list: Option<&str>) {
         let outcome = match (run(&[&name]), run(&["run", &name])) {
             (Ok(interp), Ok(compiled)) => {
                 let compiled_stderr = String::from_utf8_lossy(&compiled.stderr);
-                if compiled_stderr.contains("generated Rust did not compile") {
+                if compiled_stderr.contains("does not compile (Futuruna compiler bug)") {
                     let first = compiled_stderr
                         .lines()
                         .find(|l| l.starts_with("error[") || l.starts_with("error:"))
@@ -30063,6 +30063,45 @@ impl RustCodegen {
         }
     }
 
+    /// A literal cannot express constructors whose Rust form wraps recursive
+    /// fields in `Box`/`Rc` or whose ADT is generic; such values are built at
+    /// run time instead.
+    fn value_needs_runtime_construction(&self, val: &Value) -> bool {
+        let adt_needs_runtime = |name: &str| {
+            if matches!(name, "Some" | "None" | "Ok" | "Err") {
+                return false;
+            }
+            self.types
+                .variant_boxed_args
+                .get(name)
+                .is_some_and(|boxed| !boxed.is_empty())
+                || self
+                    .types
+                    .variant_parent
+                    .get(name)
+                    .and_then(|parent| self.types.type_decls.get(parent))
+                    .is_some_and(|(params, _)| !params.is_empty())
+        };
+        match val {
+            Value::Constructor(name, args) => {
+                adt_needs_runtime(name)
+                    || args
+                        .iter()
+                        .any(|arg| self.value_needs_runtime_construction(arg))
+            }
+            Value::NamedConstructor(name, fields) => {
+                adt_needs_runtime(name)
+                    || fields
+                        .iter()
+                        .any(|(_, value)| self.value_needs_runtime_construction(value))
+            }
+            Value::List(items) | Value::Tuple(items) => items
+                .iter()
+                .any(|item| self.value_needs_runtime_construction(item)),
+            _ => false,
+        }
+    }
+
     /// Static check: does a type reference a given ADT name? (no &self needed logic)
     fn type_references_adt_static(ty: &Ty, adt_name: &str) -> bool {
         match ty {
@@ -34081,7 +34120,7 @@ fn __futuruna_install_error_hook() {
                         // Skip auto-comptime for None/Err values — can't determine full type
                         let skip_comptime = matches!(&val,
                             Value::Constructor(n, args) if (n == "None" && args.is_empty()) || n == "Err"
-                        );
+                        ) || self.value_needs_runtime_construction(&val);
                         if !skip_comptime {
                             // Skip values that can't be represented as Rust literals
                             // (closures, actors, subjects, comptime typedef descriptors, etc.)
@@ -44574,6 +44613,9 @@ fn __futuruna_install_error_hook() {
                 ));
                 self.indent += 1;
                 let was_borrowed = self.current_borrow_params.remove(var);
+                // The loop variable is bound in the body even when its element
+                // type is unknown, so logic queries treat it as an input.
+                let newly_local = self.local_bindings.insert(var.clone());
                 self.with_temporary_named_types(std::slice::from_ref(var), &[item_ty], |this| {
                     for s in body {
                         // Rebound accumulators retain assignment semantics.
@@ -44587,6 +44629,9 @@ fn __futuruna_install_error_hook() {
                         out.push_str(&this.emit_stmt(s));
                     }
                 });
+                if newly_local {
+                    self.local_bindings.remove(var);
+                }
                 if was_borrowed {
                     self.current_borrow_params.insert(var.clone());
                 }
