@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -65,6 +66,7 @@ test('payment years, deadline assertions and special-plan choices agree in canon
       nogen_udenlandsk_arbejdsgiver: null, kildereference: 'Fiktiv DBO-hjemmehørende DK hele året',
     }),
   });
+  fillFictionalPersonskat(base, { folkepensionsalder: v('EjskFolkepensionsalderIkkeOpnået') });
   const cases = [];
   const add = (case_id, post, expected, spouse = false) => {
     const input = structuredClone(base);

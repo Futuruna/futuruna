@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat-groen-check.calculate.runa';
@@ -79,6 +80,8 @@ function baseline(input) {
     kildereference: 'syntetiske-personfakta',
   };
   input.oplyst_samlet_grøn_check_øre = null;
+  // Born 1 January 1950: folkepensionsalder 65, reached 1 January 2015.
+  fillFictionalPersonskat(p, { folkepensionsalder: variant('EjskFolkepensionsalderOpnået', { opnået_dato: date(2015) }) });
   return input;
 }
 function spouse(input) {
@@ -226,7 +229,7 @@ test('spouse basis reaches the integrated green-check comparison and settlement'
   const directory = mkdtempSync(join(tmpdir(), 'futuruna-green-check-spouse-'));
   console.log(`Fictional spouse-basis wrapper evidence: ${directory}`);
   const envelope = run(['template', model, '--entry', entry, '--format', 'json']);
-  assert.deepEqual(envelope.cases[0].input.personskat.ægtefælle, variant('ÆgtefællegrundlagUoplyst'));
+  assert.match(envelope.cases[0].input.personskat.ægtefælle.$fill, /ÆgtefællegrundlagUoplyst, UdenÆgtefælle, MedÆgtefælle/);
   const base = baseline(envelope.cases[0].input);
   const missing = structuredClone(base); missing.personskat.ægtefælle = variant('ÆgtefællegrundlagUoplyst');
   envelope.cases = [{ case_id: 'known-no-spouse', input_status: 'ready', input: base }, { case_id: 'unknown-spouse-basis', input_status: 'ready', input: missing }];

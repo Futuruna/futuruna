@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
@@ -85,6 +86,7 @@ test('ordinary interest totals keep sign validation and existing netting results
       nogen_udenlandsk_arbejdsgiver: null, kildereference: 'Fiktiv DBO-hjemmehørende DK hele året',
     }),
   });
+  fillFictionalPersonskat(base, { folkepensionsalder: v('EjskFolkepensionsalderIkkeOpnået') });
   const cases = [];
   const add = (case_id, expense, income, expected, spouse = false) => {
     const input = structuredClone(base); let person = input;

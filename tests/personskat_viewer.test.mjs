@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 import { amount, parseReportOutput, readSavedOutput } from '../examples/danish-income-tax/resultat-visning.mjs';
 import { incomeFields, partyearChoiceFields, partyearIncomeFields, partyearResultFields,
   renderPersonskatOutput, resultFields } from '../examples/danish-income-tax/personskat-resultat.mjs';
@@ -427,6 +428,7 @@ test('fresh canonical output retains valid, unknown, spouse and failed-year case
       nogen_udenlandsk_arbejdsgiver: null, kildereference: 'Fiktiv DBO-hjemmehørende DK hele året',
     }),
   });
+  fillFictionalPersonskat(input, { folkepensionsalder: variant('EjskFolkepensionsalderIkkeOpnået') });
   const missing = structuredClone(input); missing.lønmodtager.pension.atp = variant('AtpUoplyst');
   const future = structuredClone(input); future.lønmodtager.skatteår = 2030;
   const married = structuredClone(input);

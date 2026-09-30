@@ -307,6 +307,14 @@ fn assignments(count: usize) -> Vec<Vec<&'static str>> {
 
 #[test]
 fn invariants_proved_by_verify_hold_at_integer_boundaries() {
+    if !std::process::Command::new("z3")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+    {
+        eprintln!("skipping verify oracle: Z3 not found, so verify proves no invariants");
+        return;
+    }
     let mut files = vec![
         root().join("tests/verify_test.runa"),
         root().join("tests/verify_blocks_test.runa"),

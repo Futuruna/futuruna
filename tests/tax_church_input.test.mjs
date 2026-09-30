@@ -64,7 +64,7 @@ test('the four source statuses retain their coverage boundary and diagnostic bri
 test('canonical main and spouse comparisons withhold unknown or part-year church status', enabled, () => {
   const model = 'examples/danish-income-tax/personskat.calculate.runa';
   const envelope = JSON.parse(run(['template', model, '--format', 'json']));
-  assert.deepEqual(envelope.cases[0].input.lønmodtager.kirkeskat, { $variant: 'KirkeskatUoplyst' },
+  assert.match(envelope.cases[0].input.lønmodtager.kirkeskat.$fill, /KirkeskatUoplyst/,
     'generated placeholders must not assert known nonmembership');
   assert.ok(!Object.hasOwn(envelope.cases[0].input.lønmodtager, 'betaler_kirkeskat'));
   const base = buildFictionalCases(envelope).envelope.cases[0].input;

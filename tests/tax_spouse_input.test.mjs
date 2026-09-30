@@ -34,7 +34,7 @@ function missingAssessment(result) {
 
 test('fresh template does not assert an absent spouse', enabled, () => {
   const template = run(['template', model, '--format', 'json']);
-  assert.deepEqual(template.cases[0].input.ægtefælle, unknown);
+  assert.match(template.cases[0].input.ægtefælle.$fill, /ÆgtefællegrundlagUoplyst/);
 });
 
 test('unknown spouse basis withholds comparison while explicit known cases remain usable', enabled, () => {
@@ -102,7 +102,7 @@ test('spouse interview metadata follows annual, part-year and green-check inputs
 test('unresolved spouse basis cannot bypass the period or documented annual assessment', enabled, () => {
   const file = 'examples/danish-income-tax/personskat-par14.calculate.runa', entry = 'beregn_personskat_delår';
   const envelope = run(['template', file, '--entry', entry, '--format', 'json']);
-  assert.deepEqual(envelope.cases[0].input.personskat.ægtefælle, unknown);
+  assert.match(envelope.cases[0].input.personskat.ægtefælle.$fill, /ÆgtefællegrundlagUoplyst/);
   const person = buildFictionalCases({ cases: [{ input: envelope.cases[0].input.personskat }] }).envelope.cases[0].input;
   person.lønmodtager.bruttoløn_kroner = 300000;
   person.lønmodtager.pension.pbl18_indbetalinger = [];
