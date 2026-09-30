@@ -267,11 +267,11 @@ checks can both have the path `årsopgørelse`.
 
 The Danish viewer validates this grouping against the flat list and labels both
 groups. It still accepts older saved assessments without groups, without making
-them current or authentic. Fresh schemas/templates are required after this
-output-contract change; transfer the same reviewed facts and recalculate.
+them current or authentic. Saved assessments from other output contracts need
+fresh schemas/templates; transfer the same reviewed facts and recalculate.
 
 For example, a structurally valid date object containing all zeroes is not a
-valid birthday. It now fails the `lønmodtager.pension.fødselsdato` check even if
+valid birthday. It fails the `lønmodtager.pension.fødselsdato` check even if
 the downstream arithmetic happens to produce a plausible tax amount. An invalid
 spouse birthday is reported against
 `ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato`.
@@ -694,7 +694,7 @@ Only the affected employment income is excluded from the basis for ordinary,
 job, senior and single-parent employment deductions. AM, personal income and
 the LL §9 L pension basis are unchanged. The internal all-or-nothing Boolean
 remains `false` because the source-specific exclusion has already been applied;
-it is no longer an assumption that the person's foreign facts are false.
+it does not assert that the person's foreign facts are false.
 See [LBK 1500/2025, §§9 J–9 L](https://www.lovtidende.dk/api/pdf/250970) and
 [L 238, 2017–18, notes to §1 no. 3, pp. 15–16](https://www.ft.dk/ripdf/samling/20171/lovforslag/l238/20171_l238_som_fremsat.pdf).
 
