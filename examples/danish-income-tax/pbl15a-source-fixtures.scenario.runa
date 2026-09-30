@@ -79,18 +79,18 @@
                             dato = Dato(år = indkomstår, måned = 7, dag = 1),
                             rækkefølge_på_dagen = 1,
                             hændelse = AblOrdinærAfståelse(
-                            kapitalmængde = AblPålydendeAktiekapital(antal_aktier = 100, samlet_pålydende_kroner = 100000),
-                            afståelsessum_kroner = 100000 + fortjeneste_kroner,
-                            vilkår = AktieavanceOrdinærAfståelsesvilkår(
-                                markedsstatus = AblIkkeOptagetTilHandel,
-                                har_tidligere_været_optaget_til_handel = Falskt,
-                                hovedaktionæraktier = Sandt,
-                                afståede_aktiers_handelsværdi_kroner = 0,
-                                beholdte_aktiers_handelsværdi_kroner = 0,
-                                oplysningsstatus = AblOplystRettidigt,
-                                boligret = AblUdenBoligret
-                            ),
-                            par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+                                kapitalmængde = AblPålydendeAktiekapital(antal_aktier = 100, samlet_pålydende_kroner = 100000),
+                                afståelsessum_kroner = 100000 + fortjeneste_kroner,
+                                vilkår = AktieavanceOrdinærAfståelsesvilkår(
+                                    markedsstatus = AblIkkeOptagetTilHandel,
+                                    har_tidligere_været_optaget_til_handel = Falskt,
+                                    hovedaktionæraktier = Sandt,
+                                    afståede_aktiers_handelsværdi_kroner = 0,
+                                    beholdte_aktiers_handelsværdi_kroner = 0,
+                                    oplysningsstatus = AblOplystRettidigt,
+                                    boligret = AblUdenBoligret
+                                ),
+                                par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
                             )
                         )
                     ]

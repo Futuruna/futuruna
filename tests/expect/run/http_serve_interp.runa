@@ -1,0 +1,11 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stdout: before
+-- expect-stdout-not: unreachable
+-- expect-stderr: http_serve runs only in compiled code (`runa run`)
+-- expect-stderr: http_serve_interp.runa:10
+-- roundtrip-skip: http_serve runs only in compiled code (`runa run`)
+
+@ print("before")
+@ http_serve(8080, |path, method, body| http_respond(200, "text/plain", path))
+@ print("unreachable")

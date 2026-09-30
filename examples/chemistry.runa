@@ -173,9 +173,9 @@ for ex in experiments {
 @ print("--- Reaction Timeline ---")
 
 = steps = [
-Step(1, "2H2 + O2 -> 2H2O", combustion_in, combustion_out),
-Step(2, "CH4 + 2O2 -> CO2 + 2H2O", methane_in, methane_out),
-Step(3, "N2 + 3H2 -> 2NH3", haber_in, haber_out)
+    Step(1, "2H2 + O2 -> 2H2O", combustion_in, combustion_out),
+    Step(2, "CH4 + 2O2 -> CO2 + 2H2O", methane_in, methane_out),
+    Step(3, "N2 + 3H2 -> 2NH3", haber_in, haber_out)
 ]
 
 ~ timeline = from_list(steps)

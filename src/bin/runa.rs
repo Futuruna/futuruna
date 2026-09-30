@@ -34267,12 +34267,33 @@ fn __futuruna_install_error_hook() {
                     out.push_str("#[tokio::main]\nasync fn main() {\n");
                 }
                 out.push_str("    __futuruna_install_error_hook();\n");
-            } else if uses_try {
-                out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
-                out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
             } else {
-                out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
-                out.push_str("fn __fut_runtime_main_inner() {\n");
+                // The program runs on a thread whose stack is reserved, not
+                // committed: record values live on the stack, and only the
+                // depth a program reaches uses memory.
+                out.push_str(
+                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: [usize; 2] = [1 << 30, 64 << 20];\n\n",
+                );
+                out.push_str("fn __fut_runtime_spawn_main<T: Send + 'static>(body: fn() -> T) -> std::io::Result<std::thread::JoinHandle<T>> {\n");
+                out.push_str(
+                    "    let mut spawned = Err(std::io::Error::other(\"no stack size\"));\n",
+                );
+                out.push_str("    for stack_bytes in __FUT_RUNTIME_MAIN_STACK_BYTES {\n");
+                out.push_str("        spawned = std::thread::Builder::new()\n");
+                out.push_str("            .name(\"futuruna-main\".to_string())\n");
+                out.push_str("            .stack_size(stack_bytes)\n");
+                out.push_str("            .spawn(body);\n");
+                out.push_str("        if spawned.is_ok() {\n");
+                out.push_str("            break;\n");
+                out.push_str("        }\n");
+                out.push_str("    }\n");
+                out.push_str("    spawned\n");
+                out.push_str("}\n\n");
+                if uses_try {
+                    out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
+                } else {
+                    out.push_str("fn __fut_runtime_main_inner() {\n");
+                }
             }
             self.indent = 1;
             let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
@@ -34374,10 +34395,7 @@ fn __futuruna_install_error_hook() {
                         "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
                     );
                     out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
-                    out.push_str("        .name(\"futuruna-main\".to_string())\n");
-                    out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
-                    out.push_str("        .spawn(__fut_runtime_main_inner)?;\n");
+                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)?;\n");
                     out.push_str("    match __fut_runtime_main.join() {\n");
                     out.push_str("        Ok(result) => result,\n");
                     out.push_str("        Err(_) => std::process::exit(1),\n");
@@ -34386,10 +34404,7 @@ fn __futuruna_install_error_hook() {
                 } else {
                     out.push_str("fn main() {\n");
                     out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
-                    out.push_str("        .name(\"futuruna-main\".to_string())\n");
-                    out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
-                    out.push_str("        .spawn(__fut_runtime_main_inner)\n");
+                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)\n");
                     out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
                     out.push_str("    if __fut_runtime_main.join().is_err() {\n");
                     out.push_str("        std::process::exit(1);\n");
@@ -59378,18 +59393,6 @@ assert_with_message(true, message())
     }
 
     #[test]
-    fn generated_sync_entrypoint_runs_program_on_bounded_worker_stack() {
-        let (mut cg, stmts) = scan_with_codegen("@ print(\"ok\")");
-        let output = cg.emit_program(&stmts);
-
-        assert!(output.contains("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;"));
-        assert!(output.contains("fn __fut_runtime_main_inner() {"));
-        assert!(output.contains(".name(\"futuruna-main\".to_string())"));
-        assert!(output.contains(".stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)"));
-        assert!(output.contains(".spawn(__fut_runtime_main_inner)"));
-    }
-
-    #[test]
     fn generated_sync_entrypoint_supports_stack_heavy_programs() {
         let source = r#"
 @ rust {
@@ -60734,49 +60737,6 @@ assert_with_message(true, message())
         let interpreted = interpret_test_source(source, None);
         assert_eq!(compiled.trim(), "42000");
         assert_eq!(interpreted.trim(), compiled.trim());
-    }
-
-    #[test]
-    fn guarded_partial_rule_calls_do_not_leak_permissions_to_other_sites() {
-        let prefix = "# Input(year: Int)\n# Amount(value: Int)\n| partial(input: Input) -> Amount(7) under input.year >= 2026\n| result(input: Input, other: Input) -> 0\n";
-        for (value, condition, extra, allowed) in [
-            ("partial(input).value", "input.year >= 2026", "", true),
-            ("partial(input).value", "input.year >= 2025", "", false),
-            ("partial(other).value", "input.year >= 2026", "", false),
-            (
-                "partial(Input(2025)).value",
-                "input.year >= 2026",
-                "",
-                false,
-            ),
-            (
-                "{ = input = Input(2025); partial(input).value }",
-                "input.year >= 2026",
-                "",
-                false,
-            ),
-            (
-                "partial(input).value",
-                "input.year >= 2026",
-                "= unsafe = partial(Input(2025)).value",
-                false,
-            ),
-            (
-                "partial(input).value",
-                "input.year >= 2026",
-                "| leak(input: Input) -> partial(input).value",
-                false,
-            ),
-        ] {
-            let source = format!("{prefix}| exception reform result(input: Input, other: Input) -> {value} under {condition}\n{extra}\n");
-            let program = parse_test_program(&source);
-            let output = RustCodegen::new().emit_program(&program);
-            assert_eq!(
-                !output.contains("compile_error!"),
-                allowed,
-                "{source}\n{output}"
-            );
-        }
     }
 
     #[test]

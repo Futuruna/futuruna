@@ -166,10 +166,10 @@ for c in cocktails {
 
 -- Score each ingredient: 99-count for ascending sort → descending by count
 = scored = map(unique_missing, |ing| {
-    = count = length(filter(all_missing, |x| x == ing))
-    = key = show(99 - count)
-    key + "|" + show(count) + "x  " + ing
-})
+        = count = length(filter(all_missing, |x| x == ing))
+        = key = show(99 - count)
+        key + "|" + show(count) + "x  " + ing
+    })
 = top = take(sort(scored), 10)
 
 for entry in top {

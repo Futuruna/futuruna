@@ -1,5 +1,5 @@
 -- shortener.runa — URL Shortener REST API
--- roundtrip-skip: compiled code serves HTTP until stopped; the interpreter does not start a server
+-- roundtrip-skip: http_serve runs only in compiled code (`runa run`)
 --
 -- A complete HTTP microservice with in-memory link storage, click tracking,
 -- actor-based counters, spam detection, and verified URL invariants.

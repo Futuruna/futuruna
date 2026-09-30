@@ -24035,11 +24035,7 @@ impl Interpreter {
                 (other, _) => self.builtin_string_argument_fail(name, other),
             },
             "http_serve" => {
-                println!(
-                    "[runa interpreter] {}: use `runa run` for real HTTP server",
-                    name
-                );
-                Value::Unit
+                self.panic_or_ground_fail("http_serve runs only in compiled code (`runa run`)")
             }
             "http_respond" => {
                 let status = args.get(0).cloned().unwrap_or(Value::Unit);
