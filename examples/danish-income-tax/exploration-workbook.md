@@ -172,7 +172,7 @@ focused fixture
 [personskat-mechanism-landscape-200k.explore.runa](personskat-mechanism-landscape-200k.explore.runa).
 It names `find admitted_cases = all` and explicitly targets that find for
 mechanism replay. This separate file remains useful as a narrow fixture, but it
-is no longer the desired broad-audit topology. The combined audit should name
+is not the broad-audit topology. The combined audit should name
 both `cliff_cases` and `admitted_cases` in one Explore declaration: relation,
 endpoint and admission evidence are then generated once, while each find keeps
 its own `QuestionId`, closure and downstream mechanism target.
@@ -249,7 +249,7 @@ There are therefore two different coarse-grid questions:
 The focused executable landscape fixture still uses a separate
 `find admitted_cases = all` question, where positive membership equals
 admission by definition. That file remains useful as a narrow calibration,
-but separation is no longer an engine requirement: one Explore declaration
+but separation is not an engine requirement: one Explore declaration
 can name both `find cliff_cases = ...` and `find admitted_cases = all`, then
 explicitly explain either relation. Each target receives its own question seal
 and durable materialization over the shared relation and admission journal.
@@ -1234,8 +1234,7 @@ relevant branches or dependencies differ.
 
 ### No probe phase: schedule the open work graph
 
-An earlier design exposed probes as a special initial plan and lifecycle
-milestone. That distinction is no longer useful. Once the run has an
+Probes are not a special initial plan or lifecycle milestone. Once the run has an
 authoritative journal and exact open frontier, every enabled candidate or
 proof producer joins the same dependency-linked work graph. Current scheduler
 policy v3 actively dispatches regional certificates and concrete/classified
@@ -1349,12 +1348,10 @@ policy-versioned reason checkpoint that fingerprints the complete ordered work
 batch. It may survive alone as an attempted dispatch after a crash; it says
 exactly what was selected without claiming that work completed, and resume can
 select the still-open work again. It changes the journal head, not the semantic
-evidence roots or declared answer. The v0
-Cartesian/probe executor and its CLI, codec, snapshot and resource subjects
-have been removed rather than retained as a second lifecycle. Opening its
-`run-opened`/`fence-v1`/`blob-v1`/`event-v1` state namespace now fails closed
-and directs the operator to a fresh run directory; it can never be mistaken
-for an empty relational journal.
+evidence roots or declared answer. There is one lifecycle: the relational
+journal. Opening a `run-opened`/`fence-v1`/`blob-v1`/`event-v1` state
+namespace fails closed and directs the operator to a fresh run directory; such
+a directory is never mistaken for an empty relational journal.
 
 The append-only journal remains authoritative for recovery. Every constructible
 case commits its `CaseId`, canonical Context/Before/After transition and
@@ -2412,23 +2409,21 @@ For an arbitrary black-box resource function over `N` adjacent whole-krone
 coordinates, exact cliff discovery has an adversarial lower bound of
 `Omega(N)` observations: an unevaluated edge may be the only cliff. The
 important first optimization is therefore endpoint reuse, not probing folklore.
-For `after(n) = before(n + 1)`, the checked adjacent-value memo now reduces the
+For `after(n) = before(n + 1)`, the checked adjacent-value memo reduces the
 ordinary scan from four observation calls per edge to exactly `N + 1` distinct
 Personskat evaluations in a warm uninterrupted epoch when all edges pass
 admission. For the current 2,000-edge grid that predicts 2,001 misses and 5,999
-hits; the retired 200,000-edge stress relation predicted 200,001 misses and
+hits; the 200,000-edge 1-DKK stress relation predicts 200,001 misses and
 599,999 hits. Runtime telemetry must confirm that prediction. A cold resume can repeat its boundary
 endpoint, and selected mechanism replay deliberately performs fresh traced
 Before/After evaluations. The memo is dependency-certified, bounded to 2,048
 entries and 16 MiB, and is acceleration only; it is not evidence or resume
 authority.
 
-Mechanism replay has a different sharing problem. Replay ABI v1 copied the
-complete checked call path into every control occurrence, so its retained and
-canonical cost was proportional to the sum of event depths even when thousands
-of events shared one path. Replay ABI v2 introduced a parent-linked activation
-trie, but its occurrence-oriented normalization could still erase eventless
-calls. Replay ABI v3 commits the complete activation trie once—including
+Mechanism replay has a different sharing problem: copying the complete checked
+call path into every control occurrence would make retained and canonical cost
+proportional to the sum of event depths even when thousands of events share one
+path. Replay ABI v3 commits the complete activation trie once—including
 trace-empty and endpoint-only calls—then lets occurrences and dependency edges
 refer to bounded local IDs. Prefix-first canonical ranks retain zero-based
 invocation positions, so an eventless call cannot shift a later Before/After
@@ -2437,14 +2432,14 @@ then belongs to the execution profile rather than the structural mechanism.
 The quotient keeps an invocation-erased activation context for every retained
 event owner: its parent context plus checked call-site/callee frame. This avoids
 merging the same helper event when it occurs beneath two different policy
-roles. Purely eventless side branches no longer manufacture policy mechanisms,
+roles. Purely eventless side branches do not manufacture policy mechanisms,
 but their anchors remain one-for-one members of raw replay evidence and their
 exact counts remain in the execution profile.
 The safety limits bind actual activation nodes, event nodes, dependency edges
 and depth—not repeated presentations of the same prefix. Public projection may
-expand a path on demand, but durable identity stays compact. Retired v1/v2
-terminals belong to their old question identities and are never resumed as v3
-evidence.
+expand a path on demand, but durable identity stays compact. Terminals of
+other replay ABI versions belong to their own question identities and are never
+resumed as v3 evidence.
 
 Structural quotient admission uses three independent fail-closed lanes rather
 than one small byte number for unrelated costs: at most 64 MiB of authenticated
@@ -2910,7 +2905,7 @@ does retain `SourceKey` and `SuccessorKey`: that authenticated route preserves
 which `(Context, Before)` starter and which per-starter After fiber produced a
 case in this relation. It does not redefine the global semantic `TransitionId`,
 which already binds canonical Context/Before/After, or disclose those typed
-values. The previously described `S_C` selected count and this graph's `M_C`
+values. The `S_C` selected count and this graph's `M_C`
 count name the same question-relative population.
 
 This distinction is important for resumability. A fresh small graph request
@@ -3143,10 +3138,10 @@ authorization-gated and structural mechanism/node/edge identities stay
 value-free.
 
 Publication v20 emits one flat observation artifact per mechanism request at
-`mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
+`mechanisms/<request>.support-observations.ndjson`. The structural sidecar
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
-support-closure receipt. It no longer enumerates one factorized
+support-closure receipt. It does not enumerate one factorized
 `structural_subject_support` row per mechanism, node and edge at closure. Its
 first assignment links to the first observation for that assignment's own
 whole-mechanism slice; the observation need not have global ordinal zero. The
@@ -3505,7 +3500,7 @@ calibration quantum. Once its complete TO/admission/FIND batch is appended, the
 coordinator immediately installs that prefix instead of waiting for the normal
 4-MiB segment threshold. Later fused batches target about five seconds, shrink
 immediately when slower, grow at most twofold, remain capped at 256 members and
-will not start after a learned one-member estimate no longer fits the remaining
+will not start after a learned one-member estimate does not fit the remaining
 slice time plus a 250-ms reserve. Warm slices keep that operational estimate;
 cold recovery deliberately recalibrates. None of these timings or batch sizes
 enters a semantic identity or result. Only after the next slice installs such a
@@ -3519,8 +3514,8 @@ a `BTreeMap`, stores one- and two-member provenance sets inline, derives the
 terminal analysis root over borrowed builders and moves those builders into the
 closed snapshot, and publishes grouped views without `choice` by reducing over
 borrowed durable contributions. Fresh expression evaluation and full durable
-record equality checks remain mandatory. In the retired 200,000-edge stress
-relation the last path retained one population-sized vector of references only
+record equality checks remain mandatory. In the 200,000-edge 1-DKK stress
+relation the last path retains one population-sized vector of references only
 on the general extensional fallback. The current conditioned profile summary
 has a narrower exact theorem:
 the source-image certificate proves one Context value crossed with an injective
@@ -3537,8 +3532,8 @@ counts now traverse a borrowed case-root support view instead of cloning the
 support catalog merely to render a report. Exact support closure also validates
 and hashes the borrowed catalog, retaining only key/ID validation sets, and
 advances crash-safely through obligation-frontier seal, catalog seal, then the
-authenticated closed root. This both removes the terminal journal/support copy
-and fixes the formerly unreachable catalog-seal transition. Result publication
+authenticated closed root. This removes the terminal journal/support copy
+and makes the catalog-seal transition reachable. Result publication
 now performs its full reconstruction once, releases the invocation-owned
 projection copy before closure construction, and retains only a compact
 process-local witness for later terminal checks; typed restore remints that
@@ -3550,7 +3545,7 @@ evidence; the first governed slice must still measure the real classifier slope
 before a longer continuation is admitted.
 
 The post-change static memory verdict deliberately separates experiment from
-blind completion. The retired `0..<200_000` 1-DKK relation remains a **no-go**
+blind completion. The `0..<200_000` 1-DKK stress relation is a **no-go**
 for brute-force continuation. The current `0..<2_000` coarse relation is the
 next bounded execution target. Its source-result contribution is
 proof-specialized and constant-size, while its exhaustive residual classifier
@@ -3931,10 +3926,10 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    validate later rows under an older pending checkpoint. Root-prefix promotion
    remains operational and emits no public graph update.
 
-   An earlier focused single-question oracle executed this path. Its sealed
+   A focused single-question oracle executed this path. Its sealed
    journal contains four exact cases, two selected cases, one shared mechanism
    signature and two mechanism incidences. Reopening the unchanged journal
-   appended the previously missing seven-record classification-summary graph:
+   appended the missing seven-record classification-summary graph:
    one root, three exact outcome regions, two authorized case nodes and one
    closure. A second reopen appended zero semantic events, graph lines or
    source ordinals and preserved both graph and mechanism-file digests. This is
@@ -3960,7 +3955,7 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    pause but contains no semantic evidence. Neither may be described as an
    empty or partial audit result.
 
-   Historical evidence from the retired 1-DKK relation remains useful for
+   Evidence from the 1-DKK stress relation is useful for
    performance only; its checked identity cannot resume the coarse-grid run.
    Its first real Personskat stream prefix came from an optimized five-minute
    invocation that reopened the durable journal and paused cleanly at sequence 75,
@@ -3971,7 +3966,7 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    only for salaries 0 through 255 DKK. It is not an exact-empty cliff result:
    relation, FIND and analysis frontiers remain open.
 
-   Publication caught up to that retired prefix. The conditioned-profile view
+   Publication caught up to that 1-DKK prefix. The conditioned-profile view
    contains
    one exact group covering all 200,000 declared income coordinates, and the
    case/support graph contains its root, the first exact 256-case chunk and one
@@ -3980,7 +3975,7 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    entered those layers. The manifest reports seven caught-up artifacts rather
    than confusing an open empty prefix with a closed empty answer.
 
-   That retired prefix is also useful pre-memo performance evidence.
+   That 1-DKK prefix is also pre-memo performance evidence.
    Release-mode preparation fell from roughly 113 seconds to 16 seconds, but the semantic slice classified
    only 256 coordinates in roughly 284 seconds. A linear continuation at that
    rate would take about 61 hours on the current one-worker path, so it must not
@@ -4023,7 +4018,7 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    a bounded cadence. The public CLI now keeps one epoch warm, divides the
    invocation into roughly 15-second `run_slice` micro-slices, and publishes
    newly durable result/graph suffixes plus an atomic manifest after each slice
-   before continuing. Publication no longer waits only for the outer invocation
+   before continuing. Publication does not wait only for the outer invocation
    to return. One indivisible semantic quantum can still exceed the cadence;
    that is a remaining cursor granularity issue, not permission to publish
    uncommitted state. None of this changes a CaseId, support cell, raw signature,
