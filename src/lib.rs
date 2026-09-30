@@ -68686,14 +68686,15 @@ starters first from mechanisms paths for node activation "{digest}" using values
     #[test]
     fn recursive_enumeration_depth_failure_is_a_calculation_error() {
         std::thread::Builder::new()
-            .stack_size(64 * 1024 * 1024)
+            .stack_size(interpreter_stack_bytes())
             .spawn(|| {
                 let mut source = String::new();
                 for node in 0..71 {
                     source.push_str(&format!("| edge({node}, {})\n", node + 1));
                 }
                 source.push_str(
-                    "| reach(a, b) -> edge(a, b)\n\
+                    "| edge(71, 0)\n\
+                     | reach(a, b) -> edge(a, b)\n\
                      | reach(a, b) -> edge(a, m), reach(m, b)\n\
                      = answer = findall(b, reach(0, b))\n",
                 );
