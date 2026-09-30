@@ -76,8 +76,7 @@ compiled, codegen, and roundtrip execution.
 - `tests/canary/stateful/`
 Subjects, actors, lifecycle, and richer effectful workflows. Delivery is
 synchronous in both execution modes, so these canaries compare interpreter and
-compiled output like the core tier; the remaining per-file roundtrip skips name
-their reason. Paired `tests/expect/run/live_subject_*` and
+compiled output like the core tier. Paired `tests/expect/run/live_subject_*` and
 `actor_shared_handles_*` expectations pin the same output in both modes.
 
 - `tests/canary/extended/`

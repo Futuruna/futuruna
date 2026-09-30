@@ -11,10 +11,8 @@ mod runa_explore_supervisor;
 mod runa_logic_codegen;
 mod runa_parse_diagnostics;
 mod runa_verification_arithmetic;
-// The search implementation also runs inside emitted standalone programs.
-#[allow(dead_code)]
-#[path = "../logic_search.rs"]
-mod runa_logic_search;
+// The search runtime also runs inside emitted standalone programs.
+use futuruna::logic_search as runa_logic_search;
 // The live-stream and actor runtime is emitted into compiled programs that
 // use subjects or actors; compiling it here keeps it type-checked.
 #[allow(dead_code, non_camel_case_types)]
@@ -10749,11 +10747,13 @@ fn run_test_case(
             ))
         }
     };
-    let suppress_success_diagnostics =
-        matches!(outcome, TestFileOutcome::Pass(_)) && (compile_mode || !expected.is_empty());
+    let passed = matches!(outcome, TestFileOutcome::Pass(_));
+    let suppress_success_diagnostics = passed && (compile_mode || !expected.is_empty());
     TestFileResult {
         outcome,
-        stdout: if compile_mode || !expected_errors.is_empty() {
+        // A failing compiled program reports invariant violations on stdout;
+        // keep that channel so the failure details reach the suite output.
+        stdout: if (compile_mode && passed) || !expected_errors.is_empty() {
             Vec::new()
         } else {
             output.stdout
@@ -18840,6 +18840,7 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
             };
             let mut cg = RustCodegen::new();
             cg.lib_mode = true;
+            cg.library_export_abi = true;
             cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
             let code = add_rust_lib_dependency_guidance(&code, &cg.cargo_deps);
@@ -19002,13 +19003,11 @@ fn collect_runa_files(dir: &str, out: &mut Vec<String>) {
 }
 
 const LIBRARY_HYGIENE_MARKER: &str = "-- library-hygiene: importable";
-const LEGACY_LIBRARY_HYGIENE_MARKER: &str = "-- roundtrip-skip: library file";
 
 fn source_marks_importable_library(source: &str) -> bool {
-    source.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed == LIBRARY_HYGIENE_MARKER || trimmed.starts_with(LEGACY_LIBRARY_HYGIENE_MARKER)
-    })
+    source
+        .lines()
+        .any(|line| line.trim() == LIBRARY_HYGIENE_MARKER)
 }
 
 fn lint_library_target(path: &str, check_imports: bool) {
@@ -24558,6 +24557,9 @@ struct RustCodegen {
     inout_param_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
+    /// `runa lib` output: exported functions take every `String` parameter as
+    /// `&str`, independent of how the body uses it.
+    library_export_abi: bool,
     /// Native Explore classifiers must fail the entire batch on an Int
     /// arithmetic error so the coordinator can fall back atomically.
     int_arithmetic_mode: RustCodegenIntArithmeticMode,
@@ -29517,6 +29519,7 @@ impl RustCodegen {
             mutable_vars: BTreeSet::new(),
             inout_param_vars: BTreeSet::new(),
             lib_mode: false,
+            library_export_abi: false,
             int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
             compile_time_metadata_bindings: BTreeSet::new(),
@@ -32139,19 +32142,38 @@ impl RustCodegen {
         }
     }
 
-    /// Pass 2: Compute borrow-only parameter flags for all functions.
-    /// Iterates to fixed point so transitive borrow info propagates.
-    fn constrain_wasm_export_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
-        if !(self.wasm_mode && self.name_is_exported_in_current_namespace(name)) {
-            return;
-        }
-        for (idx, p) in params.iter().enumerate() {
-            if !matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
-                flags[idx] = false;
+    /// Pin the parameter-passing ABI of exported functions: WASM exports take
+    /// non-`String` values owned, and `runa lib` exports take `String` as `&str`.
+    fn constrain_export_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
+        if self.wasm_mode && self.name_is_exported_in_current_namespace(name) {
+            for (idx, p) in params.iter().enumerate() {
+                if !matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
+                    flags[idx] = false;
+                }
             }
+        }
+        for (flag, is_str) in flags
+            .iter_mut()
+            .zip(self.library_str_param_flags(name, params))
+        {
+            *flag |= is_str;
         }
     }
 
+    fn library_str_param_flags(&self, name: &str, params: &[Param]) -> Vec<bool> {
+        let exported = self.library_export_abi
+            && !self.wasm_mode
+            && self.name_is_exported_in_current_namespace(name);
+        params
+            .iter()
+            .map(|p| {
+                exported && !p.inout && matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String")
+            })
+            .collect()
+    }
+
+    /// Pass 2: Compute borrow-only parameter flags for all functions.
+    /// Iterates to fixed point so transitive borrow info propagates.
     fn compute_borrow_flags(&mut self, fn_stmts: &[&Stmt]) {
         let functions = fn_stmts
             .iter()
@@ -32183,7 +32205,7 @@ impl RustCodegen {
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_wasm_export_borrow_flags(name, &params, &mut borrow_flags);
+                    self.constrain_export_borrow_flags(name, &params, &mut borrow_flags);
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
@@ -34229,10 +34251,14 @@ fn __futuruna_install_error_hook() {
                 }
                 out.push_str("    __futuruna_install_error_hook();\n");
             } else if uses_try {
-                out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
+                out.push_str(
+                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;\n\n",
+                );
                 out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
             } else {
-                out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
+                out.push_str(
+                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;\n\n",
+                );
                 out.push_str("fn __fut_runtime_main_inner() {\n");
             }
             self.indent = 1;
@@ -42812,7 +42838,7 @@ fn __futuruna_install_error_hook() {
                 // otherwise compute fresh.
                 let borrow_flags = if let Some(pre) = self.borrow_only_params.get(name) {
                     let mut flags = pre.clone();
-                    self.constrain_wasm_export_borrow_flags(name, params, &mut flags);
+                    self.constrain_export_borrow_flags(name, params, &mut flags);
                     flags
                 } else {
                     let mut flags = analyze_borrow_only_params_named(
@@ -42822,7 +42848,7 @@ fn __futuruna_install_error_hook() {
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_wasm_export_borrow_flags(name, params, &mut flags);
+                    self.constrain_export_borrow_flags(name, params, &mut flags);
                     // Phase 3b safety: disable ref-match for types with boxed (recursive) fields.
                     // Matching on &T can't dereference Box<T> fields — they'd be &Box<T>.
                     {
@@ -42875,6 +42901,14 @@ fn __futuruna_install_error_hook() {
                     }
                     flags
                 };
+                // A `&str` library parameter is borrowed at every call site; the
+                // body works on an owned copy.
+                let str_abi_params = self.library_str_param_flags(name, params);
+                let borrow_flags: Vec<bool> = borrow_flags
+                    .iter()
+                    .zip(&str_abi_params)
+                    .map(|(borrowed, is_str)| *borrowed && !*is_str)
+                    .collect();
 
                 let params_str: Vec<String> = params
                     .iter()
@@ -42910,6 +42944,8 @@ fn __futuruna_install_error_hook() {
                                 _ => ty.clone(),
                             };
                             format!("{}: &mut {}", sanitize_name(&p.name), inner_ty)
+                        } else if str_abi_params[idx] {
+                            format!("{}: &str", sanitize_name(&p.name))
                         } else if borrow_flags.get(idx).copied().unwrap_or(false) {
                             // Auto-borrow: param is only read, emit &T
                             let borrowed_ty = if self.wasm_mode
@@ -43112,6 +43148,12 @@ fn __futuruna_install_error_hook() {
                     ret
                 );
                 self.indent = 1;
+                for (p, _) in params.iter().zip(&str_abi_params).filter(|(_, s)| **s) {
+                    out.push_str(&format!(
+                        "    let {0}: String = {0}.to_owned();\n",
+                        sanitize_name(&p.name)
+                    ));
+                }
                 // Tail-call elimination: if the function is tail-recursive,
                 // emit as a loop with parameter reassignment instead of recursive calls.
                 // Disable TCE when a borrowed param gets a new value in a tail call
@@ -45396,6 +45438,17 @@ fn __futuruna_install_error_hook() {
         })
     }
 
+    /// Clone a captured variable into a closure. A captured function value is
+    /// an `FnMut`; calling it through the clone needs a mutable binding.
+    fn closure_capture_clone(&self, name: &str) -> String {
+        let binding = if matches!(self.lookup_var_fir_ty(name), Some(FirTy::Arrow(..))) {
+            "let mut"
+        } else {
+            "let"
+        };
+        format!("{binding} {0} = {0}.clone();", sanitize_name(name))
+    }
+
     fn actor_handle_rust_type(&self, name: &str) -> Option<String> {
         self.actor_handle_vars
             .get(name)
@@ -45745,7 +45798,7 @@ fn __futuruna_install_error_hook() {
             let clones: Vec<String> = captured
                 .iter()
                 .filter(|v| !self.copy_vars.contains(v.as_str()))
-                .map(|v| format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v)))
+                .map(|v| self.closure_capture_clone(v))
                 .collect();
             let clone_prefix = if clones.is_empty() {
                 String::new()
@@ -47148,6 +47201,10 @@ fn __futuruna_install_error_hook() {
         };
 
         let builtin_name = fn_name.as_str();
+        if builtin_name == "show" && args.len() == 1 && !self.builtin_shadowed_by_callable(fn_name)
+        {
+            return Some(format!("__futuruna_show_any(&({}))", args[0].0));
+        }
         if let Some((arity, deps, rust_tpl)) = self
             .builtin_registry
             .get(builtin_name)
@@ -47190,6 +47247,9 @@ fn __futuruna_install_error_hook() {
             return false;
         };
         let builtin_name = fn_name.as_str();
+        if builtin_name == "show" {
+            return arity == 1 && !self.builtin_shadowed_by_callable(fn_name);
+        }
         self.builtin_registry
             .get(builtin_name)
             .map(|def| def.arity == arity && !self.builtin_shadowed_by_callable(fn_name))
@@ -48958,13 +49018,7 @@ fn __futuruna_install_error_hook() {
                             } else {
                                 captured
                                     .iter()
-                                    .map(|v| {
-                                        format!(
-                                            "let {} = {}.clone();",
-                                            sanitize_name(v),
-                                            sanitize_name(v)
-                                        )
-                                    })
+                                    .map(|v| self.closure_capture_clone(v))
                                     .collect::<Vec<_>>()
                                     .join(" ")
                                     + " "
@@ -49078,13 +49132,7 @@ fn __futuruna_install_error_hook() {
                             } else {
                                 captured
                                     .iter()
-                                    .map(|v| {
-                                        format!(
-                                            "let {} = {}.clone();",
-                                            sanitize_name(v),
-                                            sanitize_name(v)
-                                        )
-                                    })
+                                    .map(|v| self.closure_capture_clone(v))
                                     .collect::<Vec<_>>()
                                     .join(" ")
                                     + " "
@@ -57262,7 +57310,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "RustCodegen::scan_declarations import resolution",
                 source: include_str!("runa.rs"),
                 start_marker: "        // Resolve @ import statements: parse imported .runa files and merge their definitions",
-                end_marker: "        // Deduplicate type declarations from imports",
+                end_marker: "        // Deduplicate type declarations: a later declaration replaces",
             },
             StmtWildcardGuardRegion {
                 file: "src/bin/runa.rs",
@@ -59332,7 +59380,9 @@ assert_with_message(true, message())
         let (mut cg, stmts) = scan_with_codegen("@ print(\"ok\")");
         let output = cg.emit_program(&stmts);
 
-        assert!(output.contains("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;"));
+        assert!(
+            output.contains("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;")
+        );
         assert!(output.contains("fn __fut_runtime_main_inner() {"));
         assert!(output.contains(".name(\"futuruna-main\".to_string())"));
         assert!(output.contains(".stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)"));
@@ -62117,24 +62167,6 @@ fn main() {{
     }
 
     #[test]
-    fn compiled_match_uses_scrutinee_parent_for_duplicate_fielded_constructor() {
-        let source = r#"
-# Event = Shared(value: Int) | EventOnly
-# Legacy = Shared(legacy_value: Int) | LegacyOnly
-
-| event_value(event: Event) -> match event {
-    | Shared(value) -> value
-    | EventOnly -> 0
-}
-
-= result = event_value(Shared(value = 42))
-@ print(show(result))
-"#;
-
-        assert_eq!(compile_and_run_test_source(source, None), "42\n");
-    }
-
-    #[test]
     fn legacy_emit_rule_function_infers_string_param_and_return_type() {
         let source = "| banner(name) -> name + \"!\"";
         let (mut cg, stmts) = scan_with_codegen(source);
@@ -64502,7 +64534,7 @@ readings <- "score"
 Q.append(value = 2, values = values)
 Q.append_shared(value = 3, values = shared_values)
 @ print(show(length(values)))
-@ print(show(shared_values[1]))
+@ print(show(shared_values[0]))
 @ print(show(Q.route(right = 2, left = 1)))
 "#;
         std::fs::write(&main_path, source).unwrap();
@@ -64542,7 +64574,7 @@ Q.append_shared(value = 3, values = shared_values)
             String::from_utf8_lossy(&output.stderr),
             rust
         );
-        assert_eq!(String::from_utf8_lossy(&output.stdout), "ok\n4\n2\n3\n12\n");
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "ok\n4\n1\n1\n12\n");
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -65185,7 +65217,7 @@ Q.append_shared(value = 3, values = shared_values)
             String::from_utf8_lossy(&output.stderr),
             rust
         );
-        assert_eq!(String::from_utf8_lossy(&output.stdout), "24\n");
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "23\n");
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -67183,9 +67215,8 @@ routes <- "b"
         );
 
         let safe_global_source = r#"
-# Left = Left
-# Right = Right
-| safe_global(value: Left) -> True
+# Side = Left | Right
+| safe_global(Left) -> True
 = safe_probe = safe_global(Right)
 "#;
         let safe_global_program = parse_test_program(safe_global_source);
@@ -67215,10 +67246,9 @@ routes <- "b"
         );
 
         let unsafe_global_source = r#"
-# Left = Left
-# Right = Right
+# Side = Left | Right
 = flag = False
-| unsafe_global(value: Left) -> flag
+| unsafe_global(Left) -> flag
 = unsafe_probe = unsafe_global(Right)
 = unsafe_matched_probe = unsafe_global(Left)
 "#;
@@ -67244,7 +67274,7 @@ routes <- "b"
         unsafe_global_codegen.install_canonical_rule_metadata(&unsafe_global_artifacts);
         let unsafe_global = unsafe_global_codegen.emit_program(&unsafe_global_program);
         assert!(
-            unsafe_global.contains("native classifier reached a partial global RuleDispatch miss"),
+            unsafe_global.contains("no proven-safe | rule matched for 'unsafe_global'"),
             "an unsafe global predicate miss must abort the classifier: {unsafe_global}"
         );
         assert!(

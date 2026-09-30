@@ -1,6 +1,5 @@
 -- Dependency fixture for regression canary around imported top-level bindings,
 -- computed exports, and free-function visibility.
--- roundtrip-skip: dependency-only module fixture
 
 @ export
 = region_names = ["north", "west", "vip"]

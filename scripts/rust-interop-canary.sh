@@ -108,7 +108,7 @@ mod futuruna_lib;
 use futuruna_lib::{Mode, Packet};
 
 fn main() {
-    let packet = futuruna_lib::make_packet(7, "mint".to_string());
+    let packet = futuruna_lib::make_packet(7, "mint");
     assert_eq!(packet.id, 7);
     assert_eq!(packet.label, "mint");
     assert_eq!(futuruna_lib::packet_label(&packet), "mint".to_string());
@@ -179,7 +179,7 @@ TOML
 mod futuruna_lib;
 
 fn main() {
-    let probe = futuruna_lib::make_pattern_probe("\\d+".to_string(), "A12 B007 C".to_string());
+    let probe = futuruna_lib::make_pattern_probe("\\d+", "A12 B007 C");
     assert_eq!(probe.pattern, "\\d+");
     assert_eq!(probe.text, "A12 B007 C");
 
@@ -189,11 +189,11 @@ fn main() {
         Some("12".to_string())
     );
     assert_eq!(
-        futuruna_lib::external_replace_all(&probe, "#".to_string()),
+        futuruna_lib::external_replace_all(&probe, "#"),
         "A# B# C".to_string()
     );
     assert_eq!(
-        futuruna_lib::external_builtin_matches("AA 12 BB 007".to_string()),
+        futuruna_lib::external_builtin_matches("AA 12 BB 007"),
         vec!["AA".to_string(), "BB".to_string()]
     );
     assert_eq!(
@@ -257,7 +257,7 @@ TOML
 use futuruna_generated::PatternProbe;
 
 fn main() {
-    let probe = futuruna_generated::make_pattern_probe("\\d+".to_string(), "A12 B007 C".to_string());
+    let probe = futuruna_generated::make_pattern_probe("\\d+", "A12 B007 C");
     assert_eq!(futuruna_generated::external_match_count(&probe), 2);
     assert_eq!(
         futuruna_generated::external_first_match(&probe),
@@ -270,7 +270,7 @@ fn main() {
     };
     assert_eq!(futuruna_generated::external_match_count(&direct), 2);
     assert_eq!(
-        futuruna_generated::external_replace_all(&direct, "X".to_string()),
+        futuruna_generated::external_replace_all(&direct, "X"),
         "X bb X".to_string()
     );
     assert_eq!(
@@ -321,7 +321,7 @@ TOML
 mod futuruna_lib;
 
 fn main() {
-    let probe = futuruna_lib::make_pattern_probe("\\d+".to_string(), "A12".to_string());
+    let probe = futuruna_lib::make_pattern_probe("\\d+", "A12");
     let _ = futuruna_lib::external_match_count(&probe);
 }
 RS

@@ -15481,7 +15481,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "art": {
                             "$variant": "EjskÆgtefælleoverdragelse",
                             "grund": {
-                                "$variant": "EjskOverdragelseMellemÆgtefæller"
+                                "$variant": "EjskGrundOverdragelseMellemÆgtefæller"
                             },
                             "retning": {
                                 "$variant": "EjskModtagerRabatFraÆgtefælle",

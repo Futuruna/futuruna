@@ -30,6 +30,10 @@ fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
 fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
     map.get(key)
 }
+fn __futuruna_scan<T, A: Clone, F: FnMut(A, T) -> A>(items: Vec<T>, init: A, mut step: F) -> Vec<A> {
+    let mut acc = init;
+    items.into_iter().map(|item| { acc = step(acc.clone(), item); acc.clone() }).collect()
+}
 fn __futuruna_join(items: &[String], separator: &str) -> String {
     items.join(separator)
 }
@@ -363,7 +367,7 @@ fn add_bias(__fut_globals: &__FutGlobals, x: i64) -> i64 {
     { let __fut_l: i64 = x; let __fut_r: i64 = __fut_globals.doubled.clone().expect("top-level binding `doubled` not initialized"); __fut_l.checked_add(__fut_r).expect("integer addition overflow") }
 }
 
-const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;
+const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;
 
 fn __fut_runtime_main_inner() {
     let mut __fut_globals = __FutGlobals::default();

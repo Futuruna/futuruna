@@ -41,10 +41,6 @@ Mark importable library files with:
 -- library-hygiene: importable
 ```
 
-The checker still recognizes the older helper marker
-`-- roundtrip-skip: library file, no expected output`, but new files should use
-the explicit import-hygiene marker.
-
 ## What Is Allowed
 
 Importable library files may define or export:

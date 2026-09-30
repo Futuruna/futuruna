@@ -11,9 +11,9 @@ The differential lane replays this corpus with:
 
 Import-aware cases live under `imports/`. The consumer entrypoints in that
 directory are ordinary roundtrip programs; helper libraries are marked with
-`-- library-hygiene: importable` and `-- roundtrip-skip:` so the lane compares
-the downstream consumer output while still resolving nested and qualified
-imports through those helpers.
+`-- library-hygiene: importable`. They produce no output, so the lane runs them
+as well and compares the downstream consumer output while resolving nested and
+qualified imports through those helpers.
 
 The roundtrip lane is strict: stdout, exit status and reported `error:` lines
 must match, and a compiled build failure fails the lane. Only a

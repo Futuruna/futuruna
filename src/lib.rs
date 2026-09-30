@@ -52,6 +52,11 @@ mod host_effects;
 pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
 pub mod manifest;
+// The search runtime that compiled programs embed; the interpreter shares its
+// logic-query depth limit, and code generation builds its programs.
+#[doc(hidden)]
+#[allow(dead_code)]
+pub mod logic_search;
 mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
@@ -15926,6 +15931,21 @@ impl Drop for RuntimeCallDepthGuard {
     }
 }
 
+/// Restores the goal depth of the enclosing logic query body.
+struct LogicQueryDepthGuard(Rc<Cell<Option<usize>>>, Option<usize>);
+
+impl LogicQueryDepthGuard {
+    fn enter(depth: &Rc<Cell<Option<usize>>>, value: Option<usize>) -> Self {
+        Self(depth.clone(), depth.replace(value))
+    }
+}
+
+impl Drop for LogicQueryDepthGuard {
+    fn drop(&mut self) {
+        self.0.set(self.1);
+    }
+}
+
 pub struct Interpreter {
     /// Root declaration namespace. Inline modules own child overlays;
     /// plain/hash imports register in the current overlay. Qualified imports
@@ -15993,6 +16013,8 @@ pub struct Interpreter {
     pub budget_exceeded: bool,
     /// Active nested rule calls, independent of total evaluation steps.
     runtime_rule_call_depth: Rc<Cell<usize>>,
+    /// Goal depth inside the active logic query; `None` outside any query.
+    logic_query_depth: Rc<Cell<Option<usize>>>,
     /// Active named-function and anonymous-closure calls.
     runtime_function_call_depth: Rc<Cell<usize>>,
     /// Shared xorshift64 state for random collection builtins
@@ -16081,6 +16103,7 @@ impl Interpreter {
             step_count: 0,
             budget_exceeded: false,
             runtime_rule_call_depth: Rc::new(Cell::new(0)),
+            logic_query_depth: Rc::new(Cell::new(None)),
             runtime_function_call_depth: Rc::new(Cell::new(0)),
             rng_state: 0x12345678_9abcdef0,
             suppress_output: false,
@@ -26150,6 +26173,20 @@ impl Interpreter {
         }
         self.runtime_rule_call_depth.set(depth + 1);
         let _depth_guard = RuntimeCallDepthGuard(self.runtime_rule_call_depth.clone());
+        // Inside a logic query this call is a derived-rule goal at the current
+        // depth; its body goals run one level deeper.
+        let _logic_depth_guard = match self.logic_query_depth.get() {
+            Some(goal_depth) if goal_depth > logic_search::LOGIC_QUERY_DEPTH_LIMIT => {
+                return Some(
+                    self.panic_or_ground_fail(logic_search::logic_query_depth_error(&family.name)),
+                );
+            }
+            Some(goal_depth) => Some(LogicQueryDepthGuard::enter(
+                &self.logic_query_depth,
+                Some(goal_depth + 1),
+            )),
+            None => None,
+        };
 
         // Evaluate arguments once (in caller's env so variables resolve correctly).
         // Named rule calls are normalized to the declaration-order head names here
@@ -27243,13 +27280,17 @@ impl Interpreter {
         env: &Env,
     ) -> bool {
         let bound_values = self.logic_argument_values(goal_args, env);
+        // The goal starts a logic query, or continues the active one; the
+        // remaining goals of this body stay at the same depth.
+        let depth = self.logic_query_depth.get().unwrap_or(0);
+        let _logic_depth_guard = LogicQueryDepthGuard::enter(&self.logic_query_depth, Some(depth));
         self.visit_logic_argument_bindings(
             namespace,
             fn_name,
             &bound_values,
             unbound,
             env,
-            0,
+            depth,
             &mut |interpreter, bindings| interpreter.eval_conjunction(remaining, bindings),
         )
     }
@@ -27312,7 +27353,7 @@ impl Interpreter {
                     }
                     false
                 },
-                0,
+                self.logic_query_depth.get().unwrap_or(0),
             );
             Value::List(results)
         } else {
@@ -27709,10 +27750,8 @@ impl Interpreter {
         visitor: &mut dyn FnMut(&mut Self, &[Value]) -> bool,
         depth: usize,
     ) -> bool {
-        if depth > 50 {
-            self.panic_or_ground_fail(format!(
-                "logic query `{fn_name}` exceeded its recursion limit of 50; evaluation is incomplete"
-            ));
+        if depth > logic_search::LOGIC_QUERY_DEPTH_LIMIT {
+            self.panic_or_ground_fail(logic_search::logic_query_depth_error(fn_name));
             return false;
         }
 
@@ -27756,8 +27795,11 @@ impl Interpreter {
                     .cloned()
                     .collect::<Option<Vec<_>>>()
                 {
-                    let value =
-                        self.apply_rule_value_in_namespace(&owner, fn_name, call_args.clone(), env);
+                    let value = {
+                        let _logic_depth_guard =
+                            LogicQueryDepthGuard::enter(&self.logic_query_depth, Some(depth));
+                        self.apply_rule_value_in_namespace(&owner, fn_name, call_args.clone(), env)
+                    };
                     if self.calculation_failed() || self.ground_error.borrow().is_some() {
                         return false;
                     }
@@ -27848,6 +27890,8 @@ impl Interpreter {
                 .overrides
                 .iter()
                 .position(|index| *index == rule_index);
+            let _logic_depth_guard =
+                LogicQueryDepthGuard::enter(&self.logic_query_depth, Some(depth + 1));
             if self.findall_conjunction(
                 body.map(std::slice::from_ref).unwrap_or(&[]),
                 head_params,
@@ -27899,6 +27943,7 @@ impl Interpreter {
                 names.push(name.clone());
             }
         }
+        let outer_depth = self.logic_query_depth.get();
         let mut seen: Vec<Vec<Value>> = Vec::new();
         let mut enumeration_env = env.child();
         enumeration_env.set_runtime_namespace(namespace.clone());
@@ -27928,9 +27973,12 @@ impl Interpreter {
                     bindings.set(name.clone(), value.clone());
                 }
                 seen.push(row.to_vec());
+                // The remaining goals run at the depth of the body that asked.
+                let _logic_depth_guard =
+                    LogicQueryDepthGuard::enter(&interpreter.logic_query_depth, outer_depth);
                 continuation(interpreter, &bindings)
             },
-            depth + 1,
+            depth,
         )
     }
 
@@ -28105,7 +28153,7 @@ impl Interpreter {
                     &goal_args_vals,
                     &free_positions,
                     env,
-                    depth,
+                    depth + 1,
                     &mut |interpreter, bindings| {
                         interpreter.findall_conjunction(
                             &goals[1..],
@@ -63071,87 +63119,6 @@ __FINDS__
     }
 
     #[test]
-    fn checked_resolution_contextual_nullary_comparisons_preserve_nominal_identity() {
-        let types = "# First = FirstOnly | Shared\n# Second = SecondOnly | Shared\n";
-        for owner in ["First", "Second"] {
-            for comparison in [
-                "value == Shared",
-                "Shared == value",
-                "value != Shared",
-                "Shared != value",
-            ] {
-                let source =
-                    format!("{types}> compare(value: {owner}) -> Bool {{ {comparison} }}\n");
-                let artifacts = explore_artifacts_for_source(&source);
-                assert!(
-                    artifacts.diagnostics.is_empty(),
-                    "{:?}",
-                    artifacts.diagnostics
-                );
-                let declaration = artifacts
-                    .analysis_program
-                    .declarations
-                    .iter()
-                    .find(|declaration| declaration.id.name.as_ref() == "compare")
-                    .unwrap();
-                let path = checked_expression_paths(&declaration.statement)
-                    .into_iter()
-                    .find_map(|(path, expression)| {
-                        matches!(&expression.kind, ExprKind::Var(name) if name == "Shared")
-                            .then_some(path)
-                    })
-                    .unwrap();
-                let site = artifacts
-                    .analysis_program
-                    .expression_site(declaration, path);
-                let resolution = artifacts
-                    .checked_resolutions
-                    .expressions
-                    .get(&site)
-                    .unwrap();
-                assert!(
-                    !artifacts
-                        .checked_resolutions
-                        .unsupported_sites
-                        .contains_key(&site),
-                    "{source}"
-                );
-                assert!(
-                    matches!(&resolution.value_binding,
-                    Some(CheckedValueBinding::Constructor { owner_type, declaration: Some(occurrence), .. })
-                        if owner_type.as_ref() == owner && occurrence.declaration.name.as_ref() == owner),
-                    "{source}: {resolution:?}"
-                );
-                assert!(matches!(&resolution.resolved_type,
-                    CheckedExpressionType::Resolved(Ty::Name(name)) if name == owner));
-                assert!(resolution.exact_constructor.is_some());
-            }
-        }
-
-        for suffix in [
-            "> compare() -> Bool { Shared == Shared }\n",
-            "> compare(value: Int) -> Bool { value == Shared }\n",
-            "> Shared() -> First { FirstOnly }\n> compare(value: First) -> Bool { value == Shared }\n",
-            "| Shared(value: Int) -> True\n> compare(value: First) -> Bool { value == Shared }\n",
-            "# Payload = Shared(value: Int)\n> compare(value: First) -> Bool { value == Shared }\n",
-        ] {
-            let source = format!("{types}{suffix}");
-            let artifacts = explore_artifacts_for_source(&source);
-            let declaration = artifacts.analysis_program.declarations.iter()
-                .find(|declaration| declaration.id.name.as_ref() == "compare").unwrap();
-            for (path, expression) in checked_expression_paths(&declaration.statement) {
-                if !matches!(&expression.kind, ExprKind::Var(name) if name == "Shared") {
-                    continue;
-                }
-                let site = artifacts.analysis_program.expression_site(declaration, path);
-                assert!(artifacts.checked_resolutions.unsupported_sites.contains_key(&site), "{source}");
-                let resolution = artifacts.checked_resolutions.expressions.get(&site).unwrap();
-                assert!(resolution.exact_constructor.is_none(), "{source}: {resolution:?}");
-            }
-        }
-    }
-
-    #[test]
     fn checked_resolution_nested_module_index_matches_canonical_ast_children() {
         let source = r#"
 # Carrier = Carrier(Int) {
@@ -69801,48 +69768,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "same-named fields on different variants must keep their own types, got: {:?}",
             diags
         );
-    }
-
-    #[test]
-    fn typechecker_resolves_duplicate_constructor_by_named_field_shape() {
-        let source = r#"
-# Event = Shared(value: Int) | EventOnly
-# Legacy = Shared(legacy_value: Int) | LegacyOnly
-
-= event = Shared(value = 42)
-"#;
-        let diags = check_source_for_diagnostics(source);
-        assert!(
-            diags.is_empty(),
-            "named fields should select the matching constructor declaration, got: {:?}",
-            diags
-        );
-    }
-
-    #[test]
-    fn typechecker_shared_nullary_names_preserve_nominal_binding_checks() {
-        let types = "# Legacy = Shared | LegacyOnly\n# Current = Shared | CurrentOnly\n# Entry(kind: Legacy)\n";
-        let valid = format!("{types}= entry = Entry(kind = Shared)\n");
-        assert!(check_source_for_diagnostics(&valid).is_empty());
-
-        // Known constructors, values, and local parameters still have nominal
-        // types. Ambiguous constructor lookup must not erase those judgments.
-        for suffix in [
-            "= entry = Entry(kind = CurrentOnly)\n",
-            "= Shared = CurrentOnly\n= entry = Entry(kind = Shared)\n",
-            "> wrap(Shared: Current) -> Entry { Entry(kind = Shared) }\n",
-        ] {
-            let source = format!("{types}{suffix}");
-            let diagnostics = check_source_for_diagnostics(&source);
-            assert!(
-                diagnostics.iter().any(|diagnostic| {
-                    diagnostic.message.contains(
-                    "constructor `Entry` field `kind` expects `Legacy` but expression has `Current`"
-                )
-                }),
-                "{source}: {diagnostics:?}"
-            );
-        }
     }
 
     #[test]

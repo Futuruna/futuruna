@@ -30,6 +30,10 @@ fn __futuruna_abs<T: __FuturunaNumber>(value: T) -> T { value.magnitude() }
 fn __futuruna_map_get<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, key: &K) -> Option<&'a V> {
     map.get(key)
 }
+fn __futuruna_scan<T, A: Clone, F: FnMut(A, T) -> A>(items: Vec<T>, init: A, mut step: F) -> Vec<A> {
+    let mut acc = init;
+    items.into_iter().map(|item| { acc = step(acc.clone(), item); acc.clone() }).collect()
+}
 fn __futuruna_join(items: &[String], separator: &str) -> String {
     items.join(separator)
 }
@@ -353,7 +357,7 @@ fn identity<A: __FuturunaShow + __FuturunaOrd + Clone>(x: A) -> A {
     x
 }
 
-const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;
+const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 1024 * 1024 * 1024;
 
 fn __fut_runtime_main_inner() {
     let predicted = "dense".to_string();

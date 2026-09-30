@@ -227,27 +227,41 @@ fn inline_module_imports_keep_their_local_constructor_scope() {
 }
 
 #[test]
-fn shared_nullary_constructor_names_do_not_inherit_the_last_imported_parent() {
+fn constructor_names_shared_across_imported_types_are_rejected_at_the_later_declaration() {
     let mut fixture = Fixture::new();
     fixture.write(
         "legacy.runa",
-        "# Legacy = Shared | LegacyOnly\n# Entry(kind: Legacy)\n| accepted(kind: Legacy) -> True\n= entry = Entry(kind = Shared)\n= before = accepted(entry.kind)\n",
+        "# Legacy = Shared | LegacyOnly\n# Entry(kind: Legacy)\n= entry = Entry(kind = Shared)\n",
     );
     fixture.write("current.runa", "# Current = Shared | CurrentOnly\n");
-    for imports in [
-        "@ import ./legacy\n@ import ./current\n",
-        "@ import ./current\n@ import ./legacy\n",
+    for (imports, location) in [
+        (
+            "@ import ./legacy\n@ import ./current\n",
+            "current.runa:1:13",
+        ),
+        (
+            "@ import ./current\n@ import ./legacy\n",
+            "legacy.runa:1:12",
+        ),
     ] {
         fixture.write(
             "main.runa",
-            &format!("{imports}@ print(show(before))\n@ print(show(accepted(entry.kind)))\n"),
+            &format!("{imports}@ print(\"must not run\")\n"),
         );
         for args in [&["check", "--frontend"][..], &[][..], &["run"][..]] {
             let output = fixture.run(args);
-            assert!(output.status.success(), "{imports}, {args:?}: {output:?}");
-            if args.first() != Some(&"check") {
-                assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "true\ntrue");
-            }
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{imports}, {args:?}: {output:?}"
+            );
+            assert!(output.stdout.is_empty(), "{imports}, {args:?}: {output:?}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                stderr.contains("constructor `Shared` is declared in both type")
+                    && stderr.contains(location),
+                "{imports}, {args:?}: {stderr}"
+            );
         }
     }
 }
