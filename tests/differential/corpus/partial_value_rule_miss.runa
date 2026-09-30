@@ -1,0 +1,11 @@
+-- A partial value rule answers inside its conditions; outside them the call
+-- is a located error in both execution modes.
+| applies(year: Int) -> year >= 2010
+| amount(year: Int) -> year * 2 under applies(year)
+# Case(year: Int) {
+    | allowance() -> year - 2000 under year >= 2015
+    | total() -> allowance() + amount(year)
+}
+@ print(show(amount(2020)))
+@ print(show(Case(2020).total()))
+@ print(show(Case(2012).total()))

@@ -15332,6 +15332,22 @@ impl RuleMissFallback {
     }
 }
 
+/// Whether a miss of this rule family is a located evaluation error (a value
+/// rule) rather than a `False` answer (a relation).
+pub fn rule_family_miss_is_value_error<'a>(rules: impl IntoIterator<Item = &'a Rule>) -> bool {
+    rules
+        .into_iter()
+        .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue)
+}
+
+/// The error reported when no clause of a value rule applies.
+pub fn value_rule_miss_message(scope: Option<&str>, name: &str, arity: usize) -> String {
+    let scope = scope.map(|name| format!("{name}.")).unwrap_or_default();
+    format!(
+        "no value rule matched `{scope}{name}/{arity}`; input is outside the rule's supported conditions"
+    )
+}
+
 /// One runtime declaration namespace. Registry lookup walks `parent`, while
 /// registration always mutates only this node. This is the semantic boundary
 /// which qualified imports and inline modules were previously missing.
@@ -16402,15 +16418,7 @@ impl Interpreter {
     }
 
     fn value_rule_miss_message(key: &RuleDispatchKey) -> String {
-        let scope = key
-            .scope
-            .as_ref()
-            .map(|name| format!("{name}."))
-            .unwrap_or_default();
-        format!(
-            "no value rule matched `{scope}{}/{}`; input is outside the rule's supported conditions",
-            key.name, key.arity
-        )
+        value_rule_miss_message(key.scope.as_deref(), &key.name, key.arity)
     }
 
     fn runtime_value_namespace(&self, value: &Value) -> RuntimeNamespace {

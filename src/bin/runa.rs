@@ -37699,8 +37699,8 @@ fn __futuruna_install_error_hook() {
                 out.push_str("        false\n");
             } else {
                 out.push_str(&format!(
-                    "        panic!(\"no scoped | rule matched for '{}'\")\n",
-                    method_name
+                    "        panic!(\"{{}}\", {:?})\n",
+                    value_rule_miss_message(Some(scope_name), &method_name, arity)
                 ));
             }
             out.push_str("    }\n\n");
@@ -42797,8 +42797,8 @@ fn __futuruna_install_error_hook() {
                 out.push_str("    false\n");
             } else {
                 out.push_str(&format!(
-                    "    panic!(\"no | rule matched for '{}'\")\n",
-                    fn_name
+                    "    panic!(\"{{}}\", {:?})\n",
+                    value_rule_miss_message(None, fn_name, arity)
                 ));
             }
             out.push_str("}\n");
@@ -48263,6 +48263,10 @@ fn __futuruna_install_error_hook() {
                 }
                 _ => None,
             };
+            // A value rule's miss is a located runtime error in both modes, so
+            // its partial dispatch may be consumed; the generated rule reports
+            // the interpreter's miss error. A relation's miss answers `False`,
+            // which a partial non-Boolean dispatch cannot represent.
             if self.rule_dispatch_miss_mode
                 == RustCodegenRuleDispatchMissMode::RequireStaticTotality
             {
@@ -48270,6 +48274,7 @@ fn __futuruna_install_error_hook() {
                     if self.canonical_rule_return_types.contains_key(&key)
                         && !self.runtime_rule_irrefutable_keys.contains(&key)
                         && !self.runtime_rule_boolean_miss_keys.contains(&key)
+                        && !rule_family_miss_is_value_error(&rules)
                         && !self.active_guarded_calls.permits(&key, func, args)
                         && !(return_type == FirTy::Bool
                             && self.static_bool_rule_head_matches_call(&rules, args))
@@ -67168,7 +67173,7 @@ routes <- "b"
             "classifier codegen must lower a typed partial miss to process failure: {trapped}"
         );
         assert!(
-            trapped.contains("panic!(\"no scoped | rule matched for 'partial'\")"),
+            trapped.contains("no value rule matched `ClassifierScope.partial/1`"),
             "classifier codegen must preserve bottom as a trapped miss: {trapped}"
         );
 
@@ -67201,7 +67206,7 @@ routes <- "b"
             "classifier codegen must admit a typed scoped Bool predicate: {predicate_false}"
         );
         assert!(
-            !predicate_false.contains("no scoped | rule matched for 'partial_bool'"),
+            !predicate_false.contains("no value rule matched `ClassifierScope.partial_bool/0`"),
             "a typed RuleScope Bool miss must retain interpreter False semantics: {predicate_false}"
         );
 
@@ -67350,7 +67355,7 @@ routes <- "b"
             .find("if __fut_matched_false_clause_2 { return false; }")
             .expect("ordinary matched-false return");
         let genuine_miss = unsafe_original
-            .find("no | rule matched for 'unsafe_original'")
+            .find("no value rule matched `unsafe_original/")
             .expect("ordinary genuine-miss trap");
         assert!(
             matched_false < genuine_miss,
