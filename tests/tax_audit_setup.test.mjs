@@ -14,9 +14,9 @@ const guide = readFileSync(join(root, 'website/public/ai-setup.md'), 'utf8');
 const blocks = [...guide.matchAll(/```sh\n([\s\S]*?)\n```/g)];
 const downloads = blocks.filter((match) => match[1].includes('BINARY=DOWNLOAD_NAME'));
 assert.equal(downloads.length, 1, 'exactly one maintained download snippet');
-const snippet = downloads[0][1]
-  .replace('BINARY=DOWNLOAD_NAME', 'BINARY=runa-macos-arm64')
-  .replace('RELEASE_TAG=RELEASE_TAG', 'RELEASE_TAG=v0.2.0');
+const releaseTag = downloads[0][1].match(/^RELEASE_TAG=(v\d+\.\d+\.\d+)$/m)?.[1];
+assert.ok(releaseTag, 'download snippet pins one explicit release tag');
+const snippet = downloads[0][1].replace('BINARY=DOWNLOAD_NAME', 'BINARY=runa-macos-arm64');
 const artifact = 'synthetic download fixture; never executed\n';
 const digest = createHash('sha256').update(artifact).digest('hex');
 
@@ -31,7 +31,7 @@ const { writeFileSync } = require('node:fs');
 const args = process.argv.slice(2);
 const output = args[args.indexOf('--output') + 1];
 const url = args.at(-1);
-if (!url.startsWith('https://github.com/Futuruna/futuruna/releases/download/v0.2.0/')) process.exit(90);
+if (!url.startsWith('https://github.com/Futuruna/futuruna/releases/download/${releaseTag}/')) process.exit(90);
 const mode = process.env.FUTURUNA_SETUP_TEST_MODE;
 if (mode === 'download-failure') process.exit(22);
 let content = ${JSON.stringify(artifact)};

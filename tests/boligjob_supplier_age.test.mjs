@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
@@ -130,6 +131,7 @@ test('canonical supplier-age correction reaches taxpayer and spouse without inva
       nogen_udenlandsk_arbejdsgiver: null, kildereference: 'Fiktiv DBO-hjemmehørende DK hele året',
     }),
   });
+  fillFictionalPersonskat(base, { folkepensionsalder: { $variant: 'EjskFolkepensionsalderIkkeOpnået' } });
   const cases = [];
   const add = (case_id, born, expected, spouse = false) => {
     const input = structuredClone(base); let person = input;

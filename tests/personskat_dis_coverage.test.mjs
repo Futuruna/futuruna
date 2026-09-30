@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
@@ -78,6 +79,7 @@ test('unsupported special DIS positions explain withheld canonical comparisons',
     input.lønmodtager.skatteår = year;
     input.lønmodtager.pension.fødselsdato = { år: birth, måned: 12, dag: 31 };
     input.lønmodtager.personfradrag_alder_status = v(year - birth < 18 ? 'Under18Ugift' : 'Fyldt18EllerGift');
+    fillFictionalPersonskat(input, { folkepensionsalder: { $variant: 'EjskFolkepensionsalderIkkeOpnået' } });
     let person = input;
     if (spouse) {
       const names = ['lønmodtager', 'kapitalindkomst', 'aktieavance', 'udenlandske_sociale_bidrag',

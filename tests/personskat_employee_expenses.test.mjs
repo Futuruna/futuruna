@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -47,6 +48,7 @@ test('employee expense shares distinguish invalid facts from no entitlement for 
       nogen_udenlandsk_arbejdsgiver: null, kildereference: 'Fiktiv DBO-hjemmehørende DK hele året',
     }),
   });
+  fillFictionalPersonskat(base, { folkepensionsalder: { $variant: 'EjskFolkepensionsalderIkkeOpnået' } });
   const cases = [];
   const add = (case_id, share, expected, spouse = false, clothes = false) => {
     const input = structuredClone(base);

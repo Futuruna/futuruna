@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
@@ -59,6 +60,7 @@ test('commuting day groups share one annual calendar, independently for each spo
       nogen_udenlandsk_arbejdsgiver: null, kildereference: 'Fiktivt kun danske forhold hele året',
     }),
   });
+  fillFictionalPersonskat(base, { folkepensionsalder: v('EjskFolkepensionsalderIkkeOpnået') });
   // Year-end boundaries are mechanical consistency probes, not assertions that
   // a real taxpayer travelled every day. Same-day journeys belong in one group.
   const specs = [

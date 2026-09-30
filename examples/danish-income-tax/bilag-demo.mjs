@@ -8,6 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPersonskatOutput } from './personskat-resultat.mjs';
 import { readSavedOutput } from './resultat-visning.mjs';
+import { fillFictionalPersonskat } from './personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -138,6 +139,9 @@ export function buildFictionalCases(template, documents = sources) {
         }), ['T:1', 'T:2', 'T:3', 'F:1'], 'Dokumenteret samlet bidrag og netto; ikke beregnet fra E:3.');
       }
     }
+    // F:4 confirms the remaining profile: no property, capital, business or
+    // special regimes. F:2 (born 1990) places the person below folkepensionsalder.
+    fillFictionalPersonskat(input, { folkepensionsalder: v('EjskFolkepensionsalderIkkeOpnået') });
     cases.push({ case_id, input_status: 'ready', input });
   }
   assert.equal(value('U:2'), null);

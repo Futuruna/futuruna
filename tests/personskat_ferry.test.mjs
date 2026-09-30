@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -59,6 +60,7 @@ test('ferry/flight expense loses only the unused daily threshold, including spou
     }),
     befordring: { forhold: [commute()] },
   });
+  fillFictionalPersonskat(base, { folkepensionsalder: variant('EjskFolkepensionsalderIkkeOpnået') });
   const cases = [];
   const add = (case_id, edit, expected, supplement = 0, spouse = false) => {
     const input = structuredClone(base); edit(input);
