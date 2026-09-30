@@ -14,7 +14,7 @@ is expected:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|lint-library|lint-library-imports`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|audit|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
@@ -22,6 +22,7 @@ Supported directives:
 - `-- expect-stderr-not: text that must not appear on stderr`
 - `-- expect-stdout-file: path/to/stdout.golden`
 - `-- expect-stderr-file: path/to/stderr.golden`
+- `-- expect-env: KEY=VALUE` (sets an environment variable for the command; repeatable)
 - `-- expect-skip: reason`
 
 Golden file paths are resolved relative to the `.runa` case. Golden files check

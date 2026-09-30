@@ -36,6 +36,5 @@ Research data, publication sources, and legal provenance retain their paths.
 
 - [[current-state]]
 - [[compiler-pipeline]]
-- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[verification-lanes]]
 - [[repo-docs]]

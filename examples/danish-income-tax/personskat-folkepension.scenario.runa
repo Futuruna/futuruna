@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - folkepension
+@ importer ./personskat-folkepension
 
 | folkepension_scenarie(art: PersonskatFolkepensionArt, år: Heltal, beløb: Heltal, afklaret: Boolsk, identifikation: Tekst, kilde: Tekst) -> personskat_folkepension_resultat(PersonskatFolkepensionFakta(identifikation = identifikation, indkomstår = år, kildereference = kilde, art = art, beløb_før_skat_kroner = beløb, ordinær_dansk_udbetaling_uden_korrektioner = afklaret))
 = folkepension_skattepligtige = map([FolkepensionGrundbeløb, FolkepensionPensionstillæg, FolkepensionÆldrecheck], |art: PersonskatFolkepensionArt| folkepension_scenarie(art, 2025, 10000, Sandt, "syntetisk", "bilag"))

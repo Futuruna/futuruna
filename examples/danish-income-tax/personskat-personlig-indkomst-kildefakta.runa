@@ -1,22 +1,22 @@
 @ sprog da
 
 @ importer ./arbejdsmarkedsbidragsloven
-@ importer ./boernebidragsloven - par19
-@ importer ./kapitel - 01 - indkomst
-@ importer ./kildeskatteloven - arbejdsudleje
-@ importer ./ligningsloven - kontingenter - gaver
-@ importer ./ligningsloven - par10 - par11 - underhold
+@ importer ./boernebidragsloven-par19
+@ importer ./kapitel-01-indkomst
+@ importer ./kildeskatteloven-arbejdsudleje
+@ importer ./ligningsloven-kontingenter-gaver
+@ importer ./ligningsloven-par10-par11-underhold
 @ importer ./metadata
-@ importer ./pensionsbeskatningsloven - par49 - 49b
-@ importer ./personskat - etableringskonto - kildefakta
-@ importer ./personskat - dagpenge
-@ importer ./personskat - su
-@ importer ./personskat - folkepension
-@ importer ./personskat - socialpension
-@ importer ./personskat - gruppeliv - bonus
-@ importer ./personskat - honorarudgifter
-@ importer ./personskat - par3 - erhvervsposter - kildefakta
-@ importer ./soemandsbeskatningsloven - par5 - par8
+@ importer ./pensionsbeskatningsloven-par49-49b
+@ importer ./personskat-etableringskonto-kildefakta
+@ importer ./personskat-dagpenge
+@ importer ./personskat-su
+@ importer ./personskat-folkepension
+@ importer ./personskat-socialpension
+@ importer ./personskat-gruppeliv-bonus
+@ importer ./personskat-honorarudgifter
+@ importer ./personskat-par3-erhvervsposter-kildefakta
+@ importer ./soemandsbeskatningsloven-par5-par8
 
 # PersonskatPersonligIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

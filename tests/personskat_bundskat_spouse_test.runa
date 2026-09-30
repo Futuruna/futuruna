@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / loenmodtager_beregning
+@ importer ../examples/danish-income-tax/loenmodtager_beregning
 
 -- Kildebestemmelsen er PSL § 6, stk. 3. Dette er kompositionsgrænser,
 -- ikke nye eksterne observationer. Egen kapitalindkomst må ikke omskrives.

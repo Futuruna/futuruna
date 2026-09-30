@@ -1,6 +1,6 @@
 @ sprog da
 @ importer ./metadata
-@ importer ./personskat - beregningskontrol
+@ importer ./personskat-beregningskontrol
 
 # Ll9jUdlandKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 = ll9j_udland_lovkilde = Ll9jUdlandKilde(url = "https://www.lovtidende.dk/api/pdf/250970", identifier = "LL § 9 J, stk. 1, 6.-7. pkt., stk. 3 og 5 samt § 9 K, LBK 1500 af 24. november 2025", hentet_dato = "2026-09-23")

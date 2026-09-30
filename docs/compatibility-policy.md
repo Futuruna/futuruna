@@ -19,8 +19,7 @@ Classify changes so reviewers can assess their consequences:
 - **Source:** syntax, name resolution, imports, types, and accepted programs.
 - **Behavior:** interpretation, native execution, builtins, runtime errors,
   ordering, and equality.
-- **Verification:** proof terms, invariants, kernel rules, and what verification
-  results establish.
+- **Verification:** invariants and what verification results establish.
 - **Artifacts and integration:** generated workbooks, reports, journals, native
   interfaces, and emitted program behavior.
 - **Internals:** compiler representations, helper names, diagnostic wording,
@@ -70,10 +69,9 @@ them directly rather than adding historical sidebars, migration diaries, or
 obsolete alternatives. Review descriptions explain the rationale and affected
 contracts; Git preserves the history.
 
-The existing compatibility-guide CI check accepts a concrete reason for not
-adding a versioned guide entry. For a deliberate redesign, use its PR field to
-identify the current references and repository programs updated with the change.
-No new historical guide entry is required by this policy.
+For a deliberate redesign, the pull request identifies the current references
+and repository programs updated with the change; release notes summarize the
+user-visible changes of each release.
 
 ## Preserve correctness and evidence
 

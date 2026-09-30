@@ -1,8 +1,8 @@
 @ sprog da
 
-@ importer ../kapitel - 02
-@ importer ../kapitel - 07
-@ importer ./grundlov - fortolkning - faelles
+@ importer ../kapitel-02
+@ importer ../kapitel-07
+@ importer ./grundlov-fortolkning-faelles
 
 -- § 6 opstiller et troskrav til kongen. § 70 forbyder trosbaseret berøvelse
 -- af borgerlige og politiske rettigheder. Om adgang til kongeembedet er en

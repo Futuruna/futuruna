@@ -3497,15 +3497,14 @@ fn ground_intrinsic_arity(name: &str) -> Option<usize> {
 
 fn replay_builtin_arity(name: &str) -> Option<usize> {
     static BUILTIN_ARITIES: OnceLock<BTreeMap<String, usize>> = OnceLock::new();
-    let canonical = builtin_canonical(name);
     BUILTIN_ARITIES
         .get_or_init(|| TypeChecker::new().builtins)
-        .get(canonical)
+        .get(name)
         .copied()
         // `format_f` is an interpreter-only compatibility builtin.  Keep it
         // out of the language-wide TypeChecker inventory, but include it when
         // auditing the canonical interpreter's Pipe value lookup.
-        .or_else(|| (canonical == "format_f").then_some(2))
+        .or_else(|| (name == "format_f").then_some(2))
 }
 
 fn collect_ground_rule_pattern_names(expression: &Expr, names: &mut BTreeSet<String>) {

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 @ importer ./ligningsloven_fradrag
 
 -- Focused validation for Personskatteloven § 4, stk. 1, nr. 17.

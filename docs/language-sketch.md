@@ -59,11 +59,11 @@ Every statement begins with an operator rune that declares its nature:
 }
 
 -- | introduces a logic clause (Prolog's soul)
-| member(X, Cons(head: X, tail: _))
-| member(X, Cons(head: _, tail: Tail)) -> member(X, Tail)
+| member(X, Link(head: X, tail: _))
+| member(X, Link(head: _, tail: Tail)) -> member(X, Tail)
 
 -- # introduces a type declaration
-# List(T) = Nil | Cons(T, List(T))
+# Chain(T) = End | Link(T, Chain(T))
 # Tree(T) = Leaf(value: T) | Branch(left: Tree(T), right: Tree(T))
 
 -- @ introduces an annotation or effect
@@ -137,48 +137,48 @@ Blocks nest freely with clear visual boundaries:
 
 # Option(T) = None | Some(value: T)
 
-# List(T) = Nil | Cons(head: T, tail: List(T))
+# Chain(T) = End | Link(head: T, tail: Chain(T))
 
 -- Logic rules for structural properties
-| empty(Nil)
-| nonempty(Cons(_, _))
+| empty(End)
+| nonempty(Link(_, _))
 
 -- Functions on lists
-> head(list: List(T)) -> Option(T) {
+> head(list: Chain(T)) -> Option(T) {
     match list {
-        | Nil -> None
-        | Cons(x, _) -> Some(x)
+        | End -> None
+        | Link(x, _) -> Some(x)
     }
 }
 
-> filter(list: List(T), pred: T -> Bool) -> List(T) {
+> filter(list: Chain(T), pred: T -> Bool) -> Chain(T) {
     match list {
-        | Nil -> Nil
-        | Cons(h, t) -> {
-            = rest: List(T) = filter(t, pred)
-            if pred(h) { Cons(h, rest) } else { rest }
+        | End -> End
+        | Link(h, t) -> {
+            = rest: Chain(T) = filter(t, pred)
+            if pred(h) { Link(h, rest) } else { rest }
         }
     }
 }
 
 -- Higher-order with logic: find all solutions
-> findall(pred: T -> Bool, candidates: List(T)) -> List(T) {
+> findall(pred: T -> Bool, candidates: Chain(T)) -> Chain(T) {
     filter(candidates, pred)
 }
 
 -- Rules can reference functions
-| sorted(Nil)
-| sorted(Cons(_, Nil))
-| sorted(Cons(a, Cons(b, rest))) -> {
+| sorted(End)
+| sorted(Link(_, End))
+| sorted(Link(a, Link(b, rest))) -> {
     a <= b,
-    sorted(Cons(b, rest))
+    sorted(Link(b, rest))
 }
 
 @ test
 > test_filter() {
-    = nums: List(Int) = [1, 2, 3, 4, 5]
-    = evens: List(Int) = filter(nums, |x| x % 2 == 0)
-    assert(evens == [2, 4])
+    = nums: Chain(Int) = Link(1, Link(2, Link(3, Link(4, Link(5, End)))))
+    = evens: Chain(Int) = filter(nums, |x| x % 2 == 0)
+    assert(evens == Link(2, Link(4, End)))
 }
 ```
 
@@ -349,7 +349,7 @@ Leave no one guessing — Kotlin is better for it, and so is Futuruna.
 # Shape = Circle(radius: Float)
        | Rectangle(width: Float, height: Float)
 
-# List(T) = Nil | Cons(head: T, tail: List(T))
+# Chain(T) = End | Link(head: T, tail: Chain(T))
 ```
 
 ### Why This Doesn't Break d_eff=3

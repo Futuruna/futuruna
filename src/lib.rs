@@ -7,7 +7,7 @@
 //! programming in one execution space.
 //!
 //! This crate contains the Futuruna lexer, parser, interpreter, type checker,
-//! compiler, proof kernel, and typed calculation support. The `runa` binary is
+//! compiler, and typed calculation support. The `runa` binary is
 //! the main command-line interface. Start with the
 //! [guided tutorial](https://futuruna.com/docs/tutorial) or the
 //! [language documentation](https://futuruna.com/docs).
@@ -37,23 +37,34 @@ mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod danish;
+mod declaration_contracts;
 mod editor_fields;
+mod effect_handling;
 pub use editor_fields::EditorField;
+mod live_streams;
+pub use live_streams::{
+    finite_only_stream_operator_message, ActorRef, LiveStream, FINITE_ONLY_STREAM_OPERATORS,
+    LIVE_STREAM_OPERATORS, LIVE_STREAM_SNAPSHOT_OPERATORS,
+};
 pub mod explore;
+mod host_effects;
+pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
+pub mod manifest;
 mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
-/// Proof kernel — Curry-Howard verification layer for the `?` rune.
-/// Lives in its own file so it can be audited in isolation.
-/// See `docs/proof-kernel.md` for the design spec.
-pub mod proof_kernel;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
+mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
+pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
+
+pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
 
 // ============================================================================
 // PART 1: TOKENS
@@ -136,11 +147,44 @@ impl Token {
 // ============================================================================
 
 // ---- Language keyword tables for @ sprog / @ language ----
-// Maps localized keyword → (canonical English text, TokenKind)
-// The lexer normalizes all tokens to canonical form so the parser stays untouched.
+// Maps a keyword spelling to its canonical keyword text and token kind. Only
+// keywords, boolean literals and word operators are translated by the lexer;
+// identifiers and type names keep their source spelling. Danish names for
+// builtins are resolved per file by the parser (see `DANISH_BUILTIN_NAMES`).
 type KeywordTable = HashMap<String, (String, TokenKind)>;
 
-pub fn keyword_table_english() -> KeywordTable {
+/// The language a source file is written in, selected by its first
+/// declaration `@ sprog <code>` / `@ language <code>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceLanguage {
+    English,
+    Danish,
+}
+
+impl SourceLanguage {
+    /// Language codes are case-insensitive: `da`/`dansk` and `en`/`english`.
+    pub fn from_code(code: &str) -> Option<Self> {
+        match code.to_lowercase().as_str() {
+            "da" | "dansk" => Some(SourceLanguage::Danish),
+            "en" | "english" => Some(SourceLanguage::English),
+            _ => None,
+        }
+    }
+
+    pub fn keyword_table(self) -> &'static KeywordTable {
+        match self {
+            SourceLanguage::English => keyword_table_english(),
+            SourceLanguage::Danish => keyword_table_dansk(),
+        }
+    }
+}
+
+pub fn keyword_table_english() -> &'static KeywordTable {
+    static TABLE: std::sync::OnceLock<KeywordTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(build_keyword_table_english)
+}
+
+fn build_keyword_table_english() -> KeywordTable {
     let kws = [
         "match",
         "if",
@@ -173,8 +217,6 @@ pub fn keyword_table_english() -> KeywordTable {
         "resume",
         "perform",
         "assert",
-        "retract",
-        "abort",
     ];
     let mut t = HashMap::new();
     for kw in kws {
@@ -191,7 +233,12 @@ pub fn keyword_table_english() -> KeywordTable {
     t
 }
 
-pub fn keyword_table_dansk() -> KeywordTable {
+pub fn keyword_table_dansk() -> &'static KeywordTable {
+    static TABLE: std::sync::OnceLock<KeywordTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(build_keyword_table_dansk)
+}
+
+fn build_keyword_table_dansk() -> KeywordTable {
     let pairs: &[(&str, &str, TokenKind)] = &[
         // ---- core keywords ----
         ("skel", "match", TokenKind::KW),
@@ -229,146 +276,13 @@ pub fn keyword_table_dansk() -> KeywordTable {
         ("håndter", "handle", TokenKind::KW),
         ("genoptag", "resume", TokenKind::KW),
         ("udfør", "perform", TokenKind::KW),
-        // Legacy fact keywords are retained for removal diagnostics.
+        // ---- checks ----
         ("hævd", "assert", TokenKind::KW),
-        ("tilbagetræk", "retract", TokenKind::KW),
-        ("afbryd", "abort", TokenKind::KW),
         // ---- booleans ----
         ("Sandt", "True", TokenKind::Bool_),
         ("Falskt", "False", TokenKind::Bool_),
         ("sandt", "True", TokenKind::Bool_),
         ("falskt", "False", TokenKind::Bool_),
-        // ---- type name aliases ----
-        ("Heltal", "Int", TokenKind::Type),
-        ("Kommatal", "Float", TokenKind::Type),
-        ("Tekst", "String", TokenKind::Type),
-        ("Boolsk", "Bool", TokenKind::Type),
-        ("Tegn", "Char", TokenKind::Type),
-        ("Liste", "List", TokenKind::Type),
-        ("Naturligt", "Nat", TokenKind::Type),
-        // ---- constructor aliases ----
-        ("Intet", "None", TokenKind::Type),
-        ("Noget", "Some", TokenKind::Type),
-        ("Fejl", "Err", TokenKind::Type),
-        // ---- @ directive aliases ----
-        ("eksport", "export", TokenKind::Ident),
-        ("afhæng", "depend", TokenKind::Ident),
-        ("indud", "inout", TokenKind::Ident),
-        // ---- builtin function aliases (normalized at lex time) ----
-        // display & output
-        ("vis", "show", TokenKind::Ident),
-        ("vis_heltal", "show_int", TokenKind::Ident),
-        ("vis_kommatal", "show_float", TokenKind::Ident),
-        ("beskriv", "describe", TokenKind::Ident),
-        // math
-        ("kvrod", "sqrt", TokenKind::Ident),
-        ("potens", "pow", TokenKind::Ident),
-        ("til_kommatal", "to_float", TokenKind::Ident),
-        ("afrund", "round", TokenKind::Ident),
-        ("gulv", "floor", TokenKind::Ident),
-        // string
-        ("længde", "length", TokenKind::Ident),
-        ("tekst_længde", "string_length", TokenKind::Ident),
-        ("opdel", "split", TokenKind::Ident),
-        ("saml", "join", TokenKind::Ident),
-        ("indeholder", "contains", TokenKind::Ident),
-        ("starter_med", "starts_with", TokenKind::Ident),
-        ("ender_med", "ends_with", TokenKind::Ident),
-        ("erstat", "replace", TokenKind::Ident),
-        ("til_store", "to_upper", TokenKind::Ident),
-        ("til_små", "to_lower", TokenKind::Ident),
-        ("deltekst", "substring", TokenKind::Ident),
-        ("tegn_ved", "char_at", TokenKind::Ident),
-        ("indeks_af", "index_of", TokenKind::Ident),
-        ("formater_kommatal", "format_float", TokenKind::Ident),
-        ("fortolk_heltal", "parse_int", TokenKind::Ident),
-        ("fortolk_kommatal", "parse_float", TokenKind::Ident),
-        ("tekst_tegn", "string_chars", TokenKind::Ident),
-        // list
-        ("hoved", "head", TokenKind::Ident),
-        ("hale", "tail", TokenKind::Ident),
-        ("nte", "nth", TokenKind::Ident),
-        ("vend", "reverse", TokenKind::Ident),
-        ("tilføj", "push", TokenKind::Ident),
-        ("område", "range", TokenKind::Ident),
-        ("afbild", "map", TokenKind::Ident),
-        ("filtrer", "filter", TokenKind::Ident),
-        ("fold", "foldl", TokenKind::Ident),
-        ("sorter", "sort", TokenKind::Ident),
-        ("sorter_efter", "sort_by", TokenKind::Ident),
-        ("nogen", "any", TokenKind::Ident),
-        ("alle", "all", TokenKind::Ident),
-        ("flad_afbild", "flat_map", TokenKind::Ident),
-        ("par", "zip", TokenKind::Ident),
-        ("numerer", "enumerate", TokenKind::Ident),
-        ("tag_mens", "take_while", TokenKind::Ident),
-        ("spring_mens", "drop_while", TokenKind::Ident),
-        ("sum_liste", "sum_list", TokenKind::Ident),
-        ("unikke", "distinct", TokenKind::Ident),
-        ("tæl_efter", "count_by", TokenKind::Ident),
-        ("opdel_efter", "partition", TokenKind::Ident),
-        ("stykker", "chunked", TokenKind::Ident),
-        ("abonner", "subscribe", TokenKind::Ident),
-        // file I/O
-        ("læs_fil", "read_file", TokenKind::Ident),
-        ("skriv_fil", "write_file", TokenKind::Ident),
-        ("tilføj_fil", "append_file", TokenKind::Ident),
-        ("fil_eksisterer", "file_exists", TokenKind::Ident),
-        ("læs_linjer", "read_lines", TokenKind::Ident),
-        ("miljø_var", "env_var", TokenKind::Ident),
-        // JSON
-        ("json_fortolk", "json_parse", TokenKind::Ident),
-        ("json_hent", "json_get", TokenKind::Ident),
-        ("json_tekst", "json_string", TokenKind::Ident),
-        ("json_tal", "json_number", TokenKind::Ident),
-        ("json_sand", "json_bool", TokenKind::Ident),
-        ("json_liste", "json_array", TokenKind::Ident),
-        ("json_udsend", "json_emit", TokenKind::Ident),
-        ("json_objekt", "json_object", TokenKind::Ident),
-        // map & set
-        ("kort_nyt", "map_new", TokenKind::Ident),
-        ("kort_indsæt", "map_insert", TokenKind::Ident),
-        ("kort_hent", "map_get", TokenKind::Ident),
-        ("kort_hent_eller", "map_get_or", TokenKind::Ident),
-        ("kort_indeholder", "map_contains", TokenKind::Ident),
-        ("kort_fjern", "map_remove", TokenKind::Ident),
-        ("kort_nøgler", "map_keys", TokenKind::Ident),
-        ("kort_værdier", "map_values", TokenKind::Ident),
-        ("kort_poster", "map_entries", TokenKind::Ident),
-        ("kort_længde", "map_len", TokenKind::Ident),
-        ("kort_flet", "map_merge", TokenKind::Ident),
-        ("kort_fra", "map_from", TokenKind::Ident),
-        ("sæt_nyt", "set_new", TokenKind::Ident),
-        ("sæt_indsæt", "set_insert", TokenKind::Ident),
-        ("sæt_indeholder", "set_contains", TokenKind::Ident),
-        ("sæt_fjern", "set_remove", TokenKind::Ident),
-        ("sæt_længde", "set_len", TokenKind::Ident),
-        ("sæt_til_liste", "set_to_list", TokenKind::Ident),
-        ("sæt_forening", "set_union", TokenKind::Ident),
-        ("sæt_fælles", "set_intersect", TokenKind::Ident),
-        ("sæt_forskel", "set_diff", TokenKind::Ident),
-        ("sæt_fra_liste", "set_from_list", TokenKind::Ident),
-        // streams & reactive
-        ("fra_liste", "from_list", TokenKind::Ident),
-        ("tag", "take", TokenKind::Ident),
-        ("spring", "skip", TokenKind::Ident),
-        ("indsaml", "collect", TokenKind::Ident),
-        ("tæl", "count", TokenKind::Ident),
-        ("vindue", "window", TokenKind::Ident),
-        ("sidste", "last", TokenKind::Ident),
-        ("kombiner_seneste", "combine_latest", TokenKind::Ident),
-        ("flet", "merge", TokenKind::Ident),
-        ("første", "first", TokenKind::Ident),
-        ("reducer", "reduce", TokenKind::Ident),
-        ("start_med", "start_with", TokenKind::Ident),
-        ("sammenkæd", "concat", TokenKind::Ident),
-        ("parvis", "pairwise", TokenKind::Ident),
-        // actor & concurrency
-        ("spørg", "ask", TokenKind::Ident),
-        ("delt", "shared", TokenKind::Ident),
-        // logic
-        ("ikke", "not", TokenKind::Ident),
-        ("find_alle", "findall", TokenKind::Ident),
         // Keep conjunction as an identifier: the rule parser uses it as a
         // goal separator, while ordinary expressions interpret it as &&.
         ("og", "and", TokenKind::Ident),
@@ -410,59 +324,56 @@ pub fn keyword_table_dansk() -> KeywordTable {
     t
 }
 
-/// Detect the initial @ sprog / @ language declaration, allowing whitespace,
-/// comment lines and empty statement separators before it.
-pub fn detect_language(source: &str) -> KeywordTable {
-    let mut in_block_comment = false;
-    for line in source.lines() {
-        let trimmed = line.trim_start_matches(|c: char| c.is_whitespace() || c == ';');
-        if in_block_comment {
-            if trimmed.contains("----") {
-                in_block_comment = false;
-            }
-            continue;
-        }
-        if trimmed.starts_with("----") {
-            // Block comment might open and close on same line
-            if trimmed.matches("----").count() < 2 {
-                in_block_comment = true;
-            }
-            continue;
-        }
-        if trimmed.trim().is_empty() || trimmed.starts_with("--") {
-            continue;
-        }
-        // Token spacing and a trailing comment must not change the selected
-        // language. The parser diagnoses misplaced declarations separately.
-        let mut words = trimmed.strip_prefix('@').unwrap_or("").split_whitespace();
-        if matches!(words.next(), Some("sprog" | "language")) {
-            let code = words.next().unwrap_or("en");
-            let code = code.split(';').next().unwrap_or(code);
-            return match code {
-                "da" | "dansk" => keyword_table_dansk(),
-                "en" | "english" => keyword_table_english(),
-                other => {
-                    eprintln!("runa: unknown language '{}', defaulting to English", other);
-                    keyword_table_english()
-                }
-            };
-        }
-        break; // first non-comment, non-empty line isn't a language declaration
-    }
-    keyword_table_english()
+/// Count block comment delimiters on one line. A delimiter is a maximal run
+/// of four or more dashes, so a banner of any length counts once.
+pub fn block_comment_delimiter_count(line: &str) -> usize {
+    line.split(|c: char| c != '-')
+        .filter(|run| run.len() >= 4)
+        .count()
 }
 
-// ---- Builtin aliases for localized builtins ----
-// Single source of truth: (alias, canonical_english).
-// Adding a new language: just add entries here.
-// All codegen sites use builtin_canonical(); runtime uses builtin_aliases().
-const BUILTIN_ALIASES: &[(&str, &str)] = &[
-    // ---- dansk: display & output ----
+/// Whether the current source line is an `@ import` directive, whose module
+/// path and content hash are lexed as names rather than number literals.
+fn in_import_directive(tokens: &[Token], line: usize) -> bool {
+    let start = tokens
+        .iter()
+        .rposition(|token| token.line != line || token.kind == TokenKind::Semi)
+        .map_or(0, |index| index + 1);
+    matches!(
+        &tokens[start..],
+        [at, keyword, ..] if at.kind == TokenKind::At && keyword.text == "import"
+    )
+}
+
+/// Detect the language declared by the first declaration of a file. The
+/// header is read with the ordinary tokenizer, so comments, blank lines,
+/// statement separators and a leading byte-order mark are ignored. A file
+/// without `@ sprog` / `@ language` as its first declaration is English. An
+/// unknown language code lexes as English; the parser reports it.
+pub fn detect_source_language(source: &str) -> SourceLanguage {
+    let tokens = Lexer::with_keywords(source, keyword_table_english()).tokenize_prefix(3);
+    let mut header = tokens.iter().filter(|token| token.kind != TokenKind::Semi);
+    let (Some(at), Some(directive), Some(code)) = (header.next(), header.next(), header.next())
+    else {
+        return SourceLanguage::English;
+    };
+    if at.kind != TokenKind::At || !matches!(directive.text.as_str(), "sprog" | "language") {
+        return SourceLanguage::English;
+    }
+    SourceLanguage::from_code(&code.source_text).unwrap_or(SourceLanguage::English)
+}
+
+// ---- Danish names for builtins ----
+// A Danish file may call a builtin by its Danish name. The parser resolves
+// these names per file after user declarations: a name declared anywhere in
+// the file or in a plainly imported module is a user name and is never
+// translated. English files never see Danish names.
+pub const DANISH_BUILTIN_NAMES: &[(&str, &str)] = &[
+    // display & output
     ("vis", "show"),
     ("skriv", "print"),
     ("vis_heltal", "show_int"),
     ("vis_kommatal", "show_float"),
-    ("beskriv", "describe"),
     // ---- dansk: math ----
     ("kvrod", "sqrt"),
     ("potens", "pow"),
@@ -484,8 +395,8 @@ const BUILTIN_ALIASES: &[(&str, &str)] = &[
     ("tegn_ved", "char_at"),
     ("indeks_af", "index_of"),
     ("formater_kommatal", "format_float"),
-    ("fortolk_heltal", "parse_int"),
-    ("fortolk_kommatal", "parse_float"),
+    ("fortolk_heltal", "parse_danish_int"),
+    ("fortolk_kommatal", "parse_danish_float"),
     ("tekst_tegn", "string_chars"),
     // ---- dansk: list ----
     ("hoved", "head"),
@@ -572,43 +483,49 @@ const BUILTIN_ALIASES: &[(&str, &str)] = &[
     // ---- dansk: logic ----
     ("ikke", "not"),
     ("find_alle", "findall"),
-    // backward compat: s_ prefix → clean name
-    ("s_map", "map"),
-    ("s_filter", "filter"),
-    ("s_scan", "scan"),
-    ("s_merge", "merge"),
-    ("s_zip", "zip"),
-    ("s_take", "take"),
-    ("s_skip", "skip"),
-    ("s_distinct", "distinct"),
-    ("s_flat_map", "flat_map"),
-    ("s_sum", "sum"),
-    ("s_any", "any"),
-    ("s_all", "all"),
-    ("s_last", "last"),
-    ("s_window", "window"),
-    ("s_enumerate", "enumerate"),
-    ("s_count", "count"),
-    ("s_collect", "collect"),
-    ("s_combine_latest", "combine_latest"),
 ];
 
-/// Returns the canonical (English) builtin name for a possibly-localized name.
-/// If the name is not an alias, returns it unchanged.
-pub fn builtin_canonical(name: &str) -> &str {
-    for &(alias, canonical) in BUILTIN_ALIASES {
-        if alias == name {
-            return canonical;
-        }
-    }
-    name
+/// Danish names for builtin types and the constructors of `Option` and
+/// `Result`. Like builtin function names they apply only when the file and
+/// its plain imports declare no type or constructor with the same name.
+pub const DANISH_TYPE_NAMES: &[(&str, &str)] = &[
+    ("Heltal", "Int"),
+    ("Kommatal", "Float"),
+    ("Tekst", "String"),
+    ("Boolsk", "Bool"),
+    ("Tegn", "Char"),
+    ("Liste", "List"),
+    ("Naturligt", "Nat"),
+    ("Intet", "None"),
+    ("Noget", "Some"),
+    ("Fejl", "Err"),
+];
+
+/// Danish spellings of modifier and directive words that are recognised only
+/// in their syntactic position (`indud` parameters, `delt` types, `@ eksport`,
+/// `@ afhæng`).
+const DANISH_POSITIONAL_WORDS: &[(&str, &str)] = &[
+    ("indud", "inout"),
+    ("delt", "shared"),
+    ("eksport", "export"),
+    ("afhæng", "depend"),
+];
+
+/// The Danish name of a builtin, type or constructor, for diagnostics in
+/// Danish files.
+pub fn danish_name_for(canonical: &str) -> Option<&'static str> {
+    DANISH_BUILTIN_NAMES
+        .iter()
+        .chain(DANISH_TYPE_NAMES)
+        .find(|(_, english)| *english == canonical)
+        .map(|(danish, _)| *danish)
 }
 
 /// Names implemented by the ordinary `@` effect dispatcher. Functions and
 /// declared algebraic operations use normal calls, even when they are impure.
 fn is_builtin_effect(name: &str) -> bool {
     matches!(
-        builtin_canonical(name),
+        name,
         "print"
             | "spawn"
             | "teardown"
@@ -635,38 +552,26 @@ fn is_builtin_effect(name: &str) -> bool {
     )
 }
 
-fn removed_persistence_message(name: &str) -> Option<String> {
-    matches!(name, "store" | "persist" | "migrate").then(|| {
-        format!("database persistence was removed: `@ {name}` is no longer supported; manage storage in the host application and pass typed values to Futuruna")
-    })
-}
-
-fn removed_database_builtin_message(name: &str) -> Option<String> {
+/// Names accepted after `@` as a statement without an argument list:
+/// declaration markers and ordinary effect names.
+fn is_known_annotation(name: &str) -> bool {
     matches!(
         name,
-        "db_open" | "db_exec" | "db_query" | "db_query_row" | "db_insert" | "db_close" | "watch"
-    )
-    .then(|| format!("database builtin `{name}` was removed; manage storage in the host application and pass typed values to Futuruna"))
+        "export" | "comptime" | "calculate" | "sprog" | "language"
+    ) || is_builtin_effect(name)
+}
+
+fn unknown_annotation_message(name: &str) -> String {
+    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime` and `@ calculate`, and effects are called as `@ name(...)`")
 }
 
 fn unknown_effect_message(name: &str) -> String {
-    if let Some(message) = removed_database_builtin_message(name) {
-        return message;
-    }
     let hint = match name {
         "println" | "printf" => "; did you mean `print`?".to_string(),
         "assert" | "assert_with_message" => format!("; call `{name}(...)` without `@`"),
         _ => "; call functions and declared effect operations without `@`".to_string(),
     };
     format!("unknown effect `{name}`{hint}")
-}
-
-/// Returns alias→canonical map for runtime env registration.
-pub fn builtin_aliases() -> Vec<(String, String)> {
-    BUILTIN_ALIASES
-        .iter()
-        .map(|&(a, c)| (a.into(), c.into()))
-        .collect()
 }
 
 // ---- Standard Prelude ----
@@ -819,25 +724,22 @@ pub struct Lexer {
     pub pos: usize,
     pub line: usize,
     pub col: usize,
-    pub keywords: KeywordTable,
+    pub keywords: &'static KeywordTable,
 }
 
 impl Lexer {
     pub fn new(source: &str) -> Self {
-        let keywords = detect_language(source);
-        Lexer {
-            chars: source.chars().collect(),
-            pos: 0,
-            line: 1,
-            col: 1,
-            keywords,
-        }
+        Self::with_keywords(source, detect_source_language(source).keyword_table())
     }
 
-    pub fn with_keywords(source: &str, keywords: KeywordTable) -> Self {
+    /// A leading byte-order mark is not source text: it is skipped without
+    /// occupying a column.
+    pub fn with_keywords(source: &str, keywords: &'static KeywordTable) -> Self {
+        let chars: Vec<char> = source.chars().collect();
+        let pos = usize::from(chars.first() == Some(&'\u{feff}'));
         Lexer {
-            chars: source.chars().collect(),
-            pos: 0,
+            chars,
+            pos,
             line: 1,
             col: 1,
             keywords,
@@ -856,6 +758,17 @@ impl Lexer {
         self.chars.get(self.pos + offset).copied()
     }
 
+    /// A block comment delimiter is a run of four or more dashes.
+    pub fn at_block_comment_delimiter(&self) -> bool {
+        (0..4).all(|offset| self.peek_at(offset) == Some('-'))
+    }
+
+    pub fn consume_dash_run(&mut self) {
+        while self.peek() == Some('-') {
+            self.advance();
+        }
+    }
+
     pub fn advance(&mut self) -> Option<char> {
         let c = self.chars.get(self.pos).copied()?;
         self.pos += 1;
@@ -869,8 +782,30 @@ impl Lexer {
     }
 
     pub fn tokenize(&mut self) -> Vec<Token> {
-        let mut tokens = Vec::new();
+        self.tokenize_until(usize::MAX)
+    }
+
+    /// Tokenize only until `limit` tokens other than statement separators
+    /// exist; used to read a file header without lexing the whole file.
+    pub fn tokenize_prefix(&mut self, limit: usize) -> Vec<Token> {
+        self.tokenize_until(limit)
+    }
+
+    fn tokenize_until(&mut self, limit: usize) -> Vec<Token> {
+        let mut tokens: Vec<Token> = Vec::new();
+        let mut counted = 0usize;
+        let mut significant = 0usize;
         loop {
+            if limit != usize::MAX {
+                significant += tokens[counted..]
+                    .iter()
+                    .filter(|token| token.kind != TokenKind::Semi)
+                    .count();
+                counted = tokens.len();
+                if significant >= limit {
+                    break;
+                }
+            }
             self.skip_whitespace_not_newline();
             let line = self.line;
             let col = self.col;
@@ -883,38 +818,21 @@ impl Lexer {
                 }
             };
 
-            // Block comments: ---- ... ----
-            if c == '-'
-                && self.peek2() == Some('-')
-                && self.peek_at(2) == Some('-')
-                && self.peek_at(3) == Some('-')
-            {
-                // Consume the opening ----
-                self.advance();
-                self.advance();
-                self.advance();
-                self.advance();
-                // Scan until closing ----
+            // Block comments: a run of four or more dashes opens the comment and
+            // the next such run closes it. Each run is one delimiter.
+            if self.at_block_comment_delimiter() {
+                self.consume_dash_run();
                 let mut closed = false;
                 loop {
-                    match self.peek() {
-                        None => break, // EOF — unclosed block comment
-                        Some('-')
-                            if self.peek2() == Some('-')
-                                && self.peek_at(2) == Some('-')
-                                && self.peek_at(3) == Some('-') =>
-                        {
-                            self.advance();
-                            self.advance();
-                            self.advance();
-                            self.advance();
-                            closed = true;
-                            break;
-                        }
-                        _ => {
-                            self.advance();
-                        }
+                    if self.peek().is_none() {
+                        break;
                     }
+                    if self.at_block_comment_delimiter() {
+                        self.consume_dash_run();
+                        closed = true;
+                        break;
+                    }
+                    self.advance();
                 }
                 if !closed {
                     tokens.push(
@@ -997,11 +915,34 @@ impl Lexer {
                 }
                 ('/', Some('*')) => Some(("/*", "block comments use `---- ... ----`")),
                 ('\\', Some('+')) => Some(("\\+", "rule negation uses `not(...)`")),
+                ('=', Some('=')) if self.peek_at(2) == Some('=') => {
+                    Some(("===", "equality is `==`"))
+                }
+                ('!', Some('=')) if self.peek_at(2) == Some('=') => {
+                    Some(("!==", "inequality is `!=`"))
+                }
+                ('+', Some('+')) => Some((
+                    "++",
+                    "there is no increment operator; write `x + 1`, and join lists with `concat(left, right)`",
+                )),
+                ('/', Some('=')) => Some((
+                    "/=",
+                    "inequality is `!=`, and there is no compound assignment",
+                )),
+                ('+' | '-' | '*', Some('=')) => Some((
+                    match c {
+                        '+' => "+=",
+                        '-' => "-=",
+                        _ => "*=",
+                    },
+                    "there is no compound assignment; bind the new value with `= name = expression`",
+                )),
                 _ => None,
             };
             if let Some((spelling, hint)) = foreign {
-                self.advance();
-                self.advance();
+                for _ in spelling.chars() {
+                    self.advance();
+                }
                 tokens.push(
                     Token::new(
                         TokenKind::Invalid,
@@ -1209,31 +1150,17 @@ impl Lexer {
 
             // Numbers
             if c.is_ascii_digit() {
-                let mut s = self.read_number();
-                if self.peek() == Some('_') {
-                    while self
-                        .peek()
-                        .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
-                    {
-                        s.push(self.advance().unwrap());
+                if in_import_directive(&tokens, line) {
+                    // Module paths and content hashes are names, not numbers.
+                    let mut digits = String::new();
+                    while let Some(digit) = self.peek().filter(char::is_ascii_digit) {
+                        digits.push(digit);
+                        self.advance();
                     }
-                    tokens.push(
-                        Token::new(
-                            TokenKind::Invalid,
-                            "digit separators are not supported; write digits without `_`",
-                            line,
-                            col,
-                        )
-                        .with_source_text(s),
-                    );
+                    tokens.push(Token::new(TokenKind::Int_, digits, line, col));
                     continue;
                 }
-                let kind = if s.contains('.') {
-                    TokenKind::Float_
-                } else {
-                    TokenKind::Int_
-                };
-                tokens.push(Token::new(kind, s, line, col));
+                tokens.push(self.read_number_token(line, col));
                 continue;
             }
 
@@ -1277,7 +1204,7 @@ impl Lexer {
                                 tokens.push(Token::new(TokenKind::Ident, "show", line, col));
                                 tokens.push(Token::new(TokenKind::LParen, "(", line, col));
                                 // Lex the interpolated expression (inherit parent's keywords)
-                                let mut sub = Lexer::with_keywords(expr_src, self.keywords.clone());
+                                let mut sub = Lexer::with_keywords(expr_src, self.keywords);
                                 let sub_tokens = sub.tokenize();
                                 for st in &sub_tokens {
                                     if st.kind != TokenKind::Eof {
@@ -1625,27 +1552,139 @@ impl Lexer {
         (parts, closed)
     }
 
+    /// Read a number as written. `_` may stand between two digits.
     pub fn read_number(&mut self) -> String {
         let mut s = String::new();
         let mut has_dot = false;
         while let Some(c) = self.peek() {
+            let digit_follows = self.peek2().is_some_and(|next| next.is_ascii_digit());
             if c.is_ascii_digit() {
                 s.push(c);
                 self.advance();
-            } else if c == '.' && !has_dot {
-                // Check it's not a method call like 42.foo
-                if self.peek2().map_or(false, |c2| c2.is_ascii_digit()) {
-                    has_dot = true;
-                    s.push(c);
-                    self.advance();
-                } else {
-                    break;
-                }
+            } else if c == '_' && s.ends_with(|p: char| p.is_ascii_digit()) && digit_follows {
+                s.push(c);
+                self.advance();
+            } else if c == '.' && !has_dot && digit_follows {
+                // `42.foo` is a member access, not a fraction.
+                has_dot = true;
+                s.push(c);
+                self.advance();
             } else {
                 break;
             }
         }
         s
+    }
+
+    /// Length of `YYYY-MM-DD` or `DD-MM-YYYY` text (with `-` or `/`) at the cursor.
+    fn date_shaped_len(&self) -> Option<usize> {
+        let digits_at = |start: usize| {
+            (start..)
+                .take_while(|&i| self.peek_at(i).is_some_and(|c| c.is_ascii_digit()))
+                .count()
+        };
+        let first = digits_at(0);
+        let separator = self.peek_at(first).filter(|c| matches!(c, '-' | '/'))?;
+        let second = digits_at(first + 1);
+        if self.peek_at(first + 1 + second) != Some(separator) {
+            return None;
+        }
+        let third = digits_at(first + second + 2);
+        let end = first + second + third + 2;
+        let shaped = matches!(
+            (first, second, third),
+            (4, 1..=2, 1..=2) | (1..=2, 1..=2, 4)
+        );
+        let continues = self
+            .peek_at(end)
+            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+        (shaped && !continues).then_some(end)
+    }
+
+    /// Lex one number literal, rejecting spellings whose meaning differs from
+    /// the conventional reading: dates, thousands separators and leading zeros.
+    fn read_number_token(&mut self, line: usize, col: usize) -> Token {
+        let invalid = |message: String, written: String| {
+            Token::new(TokenKind::Invalid, message, line, col).with_source_text(written)
+        };
+        if let Some(len) = self.date_shaped_len() {
+            let written: String = self.chars[self.pos..self.pos + len].iter().collect();
+            for _ in 0..len {
+                self.advance();
+            }
+            return invalid(
+                format!(
+                    "`{written}` is arithmetic, not a date: Futuruna has no date literal; \
+                     write date text as a string such as \"{written}\" or use a date record"
+                ),
+                written,
+            );
+        }
+        let mut written = self.read_number();
+        let extra_dot =
+            self.peek() == Some('.') && self.peek2().is_some_and(|c| c.is_ascii_digit());
+        if extra_dot || self.peek() == Some('_') {
+            while let Some(c) = self
+                .peek()
+                .filter(|c| c.is_alphanumeric() || matches!(c, '_' | '.'))
+            {
+                written.push(c);
+                self.advance();
+            }
+            let message = if extra_dot {
+                format!(
+                    "`{written}` has more than one `.`; `.` is the decimal point, so group \
+                     digits with `_`, as in `1_000_000`"
+                )
+            } else {
+                "a digit separator `_` must stand between two digits, as in `1_000_000`".to_string()
+            };
+            return invalid(message, written);
+        }
+        let is_group = |lexer: &Self, at: usize| {
+            lexer.peek_at(at) == Some(',')
+                && (1..=3).all(|i| lexer.peek_at(at + i).is_some_and(|c| c.is_ascii_digit()))
+                && !lexer.peek_at(at + 4).is_some_and(|c| c.is_ascii_digit())
+        };
+        if (1..=3).contains(&written.len())
+            && written.bytes().all(|b| b.is_ascii_digit())
+            && is_group(self, 0)
+        {
+            while is_group(self, 0) {
+                for _ in 0..4 {
+                    written.push(self.advance().unwrap_or(','));
+                }
+            }
+            let grouped = written.replace(',', "_");
+            return invalid(
+                format!(
+                    "`{written}` is several items, because `,` separates items; write \
+                     `{grouped}` for one number, or put a space after each comma for \
+                     separate items"
+                ),
+                written,
+            );
+        }
+        let digits = written.replace('_', "");
+        let whole = digits.split('.').next().unwrap_or_default();
+        if whole.len() > 1 && whole.starts_with('0') {
+            let trimmed = digits.trim_start_matches('0');
+            let canonical = if trimmed.is_empty() || trimmed.starts_with('.') {
+                format!("0{trimmed}")
+            } else {
+                trimmed.to_string()
+            };
+            return invalid(
+                format!("leading zeros are not allowed in numbers; write `{canonical}`"),
+                written,
+            );
+        }
+        let kind = if digits.contains('.') {
+            TokenKind::Float_
+        } else {
+            TokenKind::Int_
+        };
+        Token::new(kind, digits, line, col).with_source_text(written)
     }
 
     pub fn read_string(&mut self) -> String {
@@ -1798,7 +1837,8 @@ pub fn char_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
         if ch == '\n' {
             line += 1;
             col = 1;
-        } else {
+        } else if !(i == 0 && ch == '\u{feff}') {
+            // A leading byte-order mark occupies no column.
             col += 1;
         }
     }
@@ -2628,7 +2668,7 @@ fn scan_meta_comment_structure_with_rule_symbols(
             continue;
         }
         if trimmed.starts_with("----") {
-            if trimmed.matches("----").count() < 2 {
+            if block_comment_delimiter_count(trimmed) % 2 == 1 {
                 in_block_comment = true;
             }
             continue;
@@ -3013,7 +3053,7 @@ impl MetaGroundEvaluator {
                 | Stmt::Send(..)
                 | Stmt::StreamSub(..)
                 | Stmt::Prove { .. } => safe = false,
-                Stmt::Annot(name, _) if builtin_canonical(name) == "print" => safe = false,
+                Stmt::Annot(name, _) if name == "print" => safe = false,
                 _ => {}
             },
         });
@@ -3025,8 +3065,7 @@ impl MetaGroundEvaluator {
             if bound_names.contains(&name) {
                 continue;
             }
-            let canonical = builtin_canonical(&name);
-            if self.impure_names.contains(&name) || self.impure_names.contains(canonical) {
+            if self.impure_names.contains(&name) {
                 return false;
             }
             if bindings.contains_key(&name) {
@@ -3399,9 +3438,9 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
         Value::Closure { .. }
         | Value::Builtin(_)
         | Value::NamespacedBuiltin { .. }
-        | Value::Actor { .. }
+        | Value::Actor(_)
         | Value::Stream(_)
-        | Value::Subject(_)
+        | Value::LiveStream(_)
         | Value::Map(_)
         | Value::Set(_)
         | Value::Scope { .. }
@@ -4070,7 +4109,7 @@ fn scan_meta_symbols(
             continue;
         }
         if trimmed.starts_with("----") {
-            if trimmed.matches("----").count() < 2 {
+            if block_comment_delimiter_count(trimmed) % 2 == 1 {
                 in_block_comment = true;
             }
             continue;
@@ -4318,6 +4357,7 @@ Raw additions
 # impl Meta for BoolMeta {}
 
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 = boolean_meta = BoolMeta(
@@ -4833,6 +4873,7 @@ impl Diagnostic {
         } else {
             (source, filename, self.span)
         };
+        let message = danish::localize_danish_message(source, diagnostic_span, &self.message);
         let mut out = String::new();
 
         // Colors
@@ -4868,7 +4909,7 @@ impl Diagnostic {
             let (end_line, end_col) = span.end_line_col(source);
 
             // Location header
-            out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
+            out.push_str(&format!("{}: {}{}{}\n", label, bold, message, reset));
             out.push_str(&format!(
                 " {}-->{} {}:{}:{}\n",
                 blue, reset, filename, line, col
@@ -4876,7 +4917,7 @@ impl Diagnostic {
 
             let lines: Vec<&str> = source.lines().collect();
             if line > 0 && line <= lines.len() {
-                let src_line = lines[line - 1];
+                let src_line = lines[line - 1].trim_start_matches('\u{feff}');
                 let line_str = format!("{}", line);
                 let padding = " ".repeat(line_str.len());
 
@@ -4905,7 +4946,7 @@ impl Diagnostic {
                 ));
             }
         } else {
-            out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
+            out.push_str(&format!("{}: {}{}{}\n", label, bold, message, reset));
         }
 
         // Notes
@@ -5211,25 +5252,32 @@ pub fn refof_reference_expr(expr: &Expr) -> Option<Expr> {
 }
 
 pub fn reorder_named_args_by_names(param_order: &[String], args: &[Expr]) -> Option<Vec<Expr>> {
-    if !has_named_args(args) || !all_named_args(args) {
+    Some(
+        order_named_args_by_names(param_order, args)?
+            .into_iter()
+            .cloned()
+            .collect(),
+    )
+}
+
+/// The argument expressions of an all-named call, in declared parameter order.
+pub fn order_named_args_by_names<'a>(
+    param_order: &[String],
+    args: &'a [Expr],
+) -> Option<Vec<&'a Expr>> {
+    if args.len() != param_order.len() || !has_named_args(args) || !all_named_args(args) {
         return None;
     }
-    let mut by_name: BTreeMap<String, Expr> = BTreeMap::new();
+    let mut ordered: Vec<Option<&'a Expr>> = vec![None; param_order.len()];
     for arg in args {
         let (name, value) = named_arg_parts(arg)?;
-        if !param_order.iter().any(|known| known == name) || by_name.contains_key(name) {
+        let slot = ordered.get_mut(param_order.iter().position(|known| known == name)?)?;
+        if slot.is_some() {
             return None;
         }
-        by_name.insert(name.to_string(), value.clone());
+        *slot = Some(value);
     }
-    if by_name.len() != param_order.len() {
-        return None;
-    }
-    let mut ordered = Vec::with_capacity(param_order.len());
-    for name in param_order {
-        ordered.push(by_name.get(name)?.clone());
-    }
-    Some(ordered)
+    ordered.into_iter().collect()
 }
 
 /// Allow ExprKind to convert to Expr (with dummy span) during migration.
@@ -5273,17 +5321,6 @@ impl fmt::Debug for MatchArm {
             .field("body", &self.body)
             .finish()
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct ProofBlock {
-    pub arms: Vec<ProofArm>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ProofArm {
-    pub binders: Vec<String>,
-    pub term: proof_kernel::ProofTerm,
 }
 
 #[derive(Debug, Clone)]
@@ -5967,10 +6004,9 @@ pub enum Stmt {
     /// Optional: `: val` captures subject, `-> { pass }` block, `else { fail }` block
     Prove {
         name: String,
-        proof_block: Option<ProofBlock>, // `by { | ... -> proof }`
-        capture: Option<String>,         // `: val` — bind subject value
-        pass_block: Option<Vec<Stmt>>,   // `-> { ... }` — custom pass handler
-        else_block: Option<Vec<Stmt>>,   // `else { ... }` — custom fail handler (suppresses halt)
+        capture: Option<String>,       // `: val` — bind subject value
+        pass_block: Option<Vec<Stmt>>, // `-> { ... }` — custom pass handler
+        else_block: Option<Vec<Stmt>>, // `else { ... }` — custom fail handler (suppresses halt)
     },
     /// `? explore name { ... }` — finite relational exploration declaration.
     Explore(ExploreQuery),
@@ -7880,9 +7916,10 @@ pub fn parse_source_module_cached(
         }
     }
 
+    register_source_origin(&path, source);
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
-    let mut parser = Parser::new(tokens, source);
+    let mut parser = Parser::new(tokens, source).with_source_path(&path);
     let statements = parser.parse_program()?;
     let module = Arc::new(ParsedSourceModule {
         source: Arc::from(source),
@@ -8766,13 +8803,11 @@ fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
         },
         Stmt::Prove {
             name,
-            proof_block,
             capture,
             pass_block,
             else_block,
         } => Stmt::Prove {
             name: name.clone(),
-            proof_block: proof_block.clone(),
             capture: capture.clone(),
             pass_block: pass_block
                 .as_ref()
@@ -9019,7 +9054,7 @@ fn layout_next_continues_statement(token: &Token) -> bool {
         | TokenKind::RBracket => true,
         TokenKind::Op => matches!(
             token.text.as_str(),
-            "&&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "*" | "/" | "%" | "^"
+            "+" | "&&" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "*" | "/" | "%" | "^"
         ),
         TokenKind::Ident | TokenKind::KW => {
             matches!(token.text.as_str(), "under" | "else" | "and" | "in")
@@ -9115,6 +9150,9 @@ pub struct Parser {
     pub in_rule_body: bool,      // true when parsing | rule body (and = conjunction, not &&)
     // Opt-in diagnostic indexing; excluded from the semantic AST and hashes.
     type_name_spans: Option<Vec<(String, Span)>>,
+    language: SourceLanguage,
+    source_path: Option<PathBuf>,
+    declaration_name_spans: Option<Vec<(String, Span)>>,
 }
 
 impl Parser {
@@ -9134,13 +9172,46 @@ impl Parser {
             line_starts,
             in_rule_body: false,
             type_name_spans: None,
+            language: detect_source_language(source),
+            source_path: None,
+            declaration_name_spans: None,
         }
+    }
+
+    /// The file the source was read from; a Danish file resolves the names
+    /// declared by its plain imports relative to it.
+    pub fn with_source_path(mut self, path: &Path) -> Self {
+        self.source_path = Some(path.to_path_buf());
+        self
+    }
+
+    /// Whether `token` spells `word` in this file's language: `inout`/`indud`,
+    /// `shared`/`delt`, `export`/`eksport`, `depend`/`afhæng`.
+    fn token_spells(&self, token: &Token, word: &str) -> bool {
+        token.text == word
+            || (self.language == SourceLanguage::Danish
+                && DANISH_POSITIONAL_WORDS
+                    .iter()
+                    .any(|(danish, english)| *english == word && token.text == *danish))
+    }
+
+    fn import_dir(&self) -> String {
+        let path = self.source_path.clone().or_else(|| {
+            danish::registered_source_origin(&self.source_chars.iter().collect::<String>())
+        });
+        path.as_deref()
+            .and_then(Path::parent)
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string())
     }
 
     /// Convert token line/col (1-based) to char offset in source_chars.
     pub fn char_offset(&self, line: usize, col: usize) -> usize {
         let line_idx = (line - 1).min(self.line_starts.len() - 1);
-        self.line_starts[line_idx] + (col - 1)
+        // A leading byte-order mark occupies a character but no column.
+        let bom = usize::from(line_idx == 0 && self.source_chars.first() == Some(&'\u{feff}'));
+        self.line_starts[line_idx] + bom + (col - 1)
     }
 
     /// Create a Span from a token's position to the end of its text.
@@ -9148,6 +9219,20 @@ impl Parser {
         let start = self.char_offset(tok.line, tok.col);
         let end = start + tok.source_text.chars().count();
         Span::new(start, end)
+    }
+
+    fn record_declaration_name_span(&mut self, key: String, token_index: usize) {
+        if self.declaration_name_spans.is_none() {
+            return;
+        }
+        let Some(token) = self.tokens.get(token_index) else {
+            return;
+        };
+        let span = self.token_span(token);
+        self.declaration_name_spans
+            .as_mut()
+            .unwrap()
+            .push((key, span));
     }
 
     /// Create a Span from start token to end of most recently consumed token.
@@ -9228,6 +9313,8 @@ impl Parser {
                 "\n  Hint: Futuruna uses `->`, not `=>`. Replace `=>` with `->`."
             } else if kind == TokenKind::LBrace && tok.kind == TokenKind::Arrow {
                 "\n  Hint: did you forget `{` before the body?"
+            } else if kind == TokenKind::LBrace && tok.kind == TokenKind::Colon {
+                "\n  Hint: blocks are written in braces, as in `if condition { value } else { value }`; a `:` and indentation do not open a block."
             } else if kind == TokenKind::Comma && tok.kind == TokenKind::Colon {
                 "\n  Hint: this looks like a type annotation. Typed parameters are valid in `>` functions and `|` rule heads, but ordinary call arguments use values, not declarations."
             } else if kind == TokenKind::RParen && tok.kind == TokenKind::Colon {
@@ -9251,7 +9338,9 @@ impl Parser {
     pub fn expect_ident(&mut self) -> Result<String, String> {
         let tok = self.advance();
         match tok.kind {
-            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => Ok(tok.text),
+            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ => Ok(tok.text),
+            // A keyword used as a name keeps the spelling the author wrote.
+            TokenKind::KW => Ok(tok.source_text),
             _ => Err(format!(
                 "{}:{}: expected an identifier, got `{}`",
                 tok.line, tok.col, tok.source_text
@@ -9297,6 +9386,57 @@ impl Parser {
         while self.peek_kind() == TokenKind::Semi {
             self.advance();
         }
+    }
+
+    /// `| pattern [if guard] -> body` arms of `~ stream | ...`. An arm may
+    /// start on a following line when it is indented past the `~`.
+    fn parse_subscription_arms(&mut self, tilde_col: usize) -> Result<Vec<MatchArm>, String> {
+        let mut arms = Vec::new();
+        loop {
+            let arm_start = self.pos;
+            let mut starts_line = false;
+            while self.peek_kind() == TokenKind::Semi {
+                self.advance();
+                starts_line = true;
+            }
+            if self.peek_kind() != TokenKind::Pipe || (starts_line && self.peek().col <= tilde_col)
+            {
+                self.pos = arm_start;
+                break;
+            }
+            self.advance(); // consume |
+            let pattern_start = self.peek().clone();
+            let pat = self.parse_pattern()?;
+            let pat_span = self.span_since(&pattern_start);
+            let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if" {
+                self.advance();
+                Some(self.parse_expr()?)
+            } else {
+                None
+            };
+            if self.peek_kind() == TokenKind::Arrow
+                || (self.peek_kind() == TokenKind::Op && self.peek().text == "->")
+            {
+                self.advance();
+            } else {
+                return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
+            }
+            let body = self.parse_expr()?;
+            arms.push(MatchArm {
+                pat,
+                pat_span,
+                guard,
+                body,
+            });
+        }
+        if arms.is_empty() {
+            return Err(format!(
+                "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n        | x -> {{ @ print(x) }}\n        | Err(e) -> {{ @ print(\"error\") }}\n        | Complete -> {{ @ print(\"done\") }}\n  Arms on following lines are indented past the `~`.",
+                self.peek().line,
+                self.peek().col
+            ));
+        }
+        Ok(arms)
     }
 
     fn parse_comma_separated<T>(
@@ -9370,211 +9510,47 @@ impl Parser {
         Ok(name)
     }
 
-    fn parse_proof_block(&mut self) -> Result<ProofBlock, String> {
-        self.expect(TokenKind::LBrace)?;
-        self.skip_semis();
-        let mut arms = Vec::new();
-
-        while self.peek_kind() != TokenKind::RBrace {
-            self.expect(TokenKind::Pipe)?;
-            let binders = self.parse_proof_binders()?;
-            self.expect(TokenKind::Arrow)?;
-            let term = self.parse_proof_term()?;
-            arms.push(ProofArm { binders, term });
-            self.skip_semis();
-        }
-
-        self.expect(TokenKind::RBrace)?;
-        if arms.is_empty() {
-            return Err("proof block needs at least one `| ... -> ...` arm".into());
-        }
-        Ok(ProofBlock { arms })
-    }
-
-    fn parse_proof_binders(&mut self) -> Result<Vec<String>, String> {
-        if self.peek_kind() == TokenKind::LParen {
-            self.advance();
-            self.parse_comma_separated(TokenKind::RParen, "proof binder", |parser| {
-                let binder = parser.expect_ident()?;
-                if binder == "_" {
-                    return Err("proof binders cannot use `_` yet".into());
-                }
-                if parser.peek_kind() == TokenKind::Colon {
-                    parser.advance();
-                    let _ = parser.parse_type()?;
-                }
-                Ok(binder)
-            })
-        } else {
-            let binder = self.expect_ident()?;
-            if binder == "_" {
-                return Err("proof binders cannot use `_` yet".into());
-            }
-            if self.peek_kind() == TokenKind::Colon {
-                self.advance();
-                let _ = self.parse_type()?;
-            }
-            Ok(vec![binder])
-        }
-    }
-
-    fn proof_ctor_arm_from_pattern(
-        &self,
-        pat: Pat,
-        arm_kind: &str,
-    ) -> Result<(String, Vec<String>), String> {
-        match pat {
-            Pat::Con(ctor, binders) => {
-                let mut names = Vec::new();
-                for binder in binders {
-                    match binder {
-                        Pat::Var(name) if name != "_" => names.push(name),
-                        Pat::Wild => {
-                            return Err(format!("{} cannot use `_` binders yet", arm_kind));
-                        }
-                        _ => {
-                            return Err(format!(
-                                "{} currently require simple constructor binders",
-                                arm_kind
-                            ));
-                        }
-                    }
-                }
-                Ok((ctor, names))
-            }
-            _ => Err(format!("{} require constructor patterns", arm_kind)),
-        }
-    }
-
-    fn parse_proof_term(&mut self) -> Result<proof_kernel::ProofTerm, String> {
-        if self.peek_kind() == TokenKind::LParen {
-            self.advance();
-            let term = self.parse_proof_term()?;
-            self.expect(TokenKind::RParen)?;
-            return Ok(term);
-        }
-
-        if self.peek_word("refl") {
-            self.advance();
-            return Ok(proof_kernel::ProofTerm::Refl);
-        }
-
-        if self.peek_word("apply") {
-            self.advance();
-            let name = self.parse_dotted_name()?;
-            let args = if self.peek_kind() == TokenKind::LParen {
-                self.advance();
-                self.parse_comma_separated(TokenKind::RParen, "proof argument", |parser| {
-                    parser.parse_proof_term()
-                })?
-            } else {
-                Vec::new()
-            };
-            return Ok(proof_kernel::ProofTerm::Apply(name, args));
-        }
-
-        if self.peek_word("rewrite") {
-            self.advance();
-            let eq_term = self.parse_proof_term()?;
-            if !self.peek_word("in") {
-                return Err("expected `in` after `rewrite <proof>`".into());
-            }
-            self.advance();
-            let body = self.parse_proof_term()?;
-            return Ok(proof_kernel::ProofTerm::Rewrite(
-                Box::new(eq_term),
-                Box::new(body),
-            ));
-        }
-
-        if self.peek_word("induction_on") {
-            self.advance();
-            let scrutinee = self.expect_ident()?;
-            self.expect(TokenKind::LBrace)?;
-            self.skip_semis();
-            let mut arms = Vec::new();
-            while self.peek_kind() != TokenKind::RBrace {
-                self.expect(TokenKind::Pipe)?;
-                let pat = self.parse_pattern()?;
-                let (ctor, binders) = self.proof_ctor_arm_from_pattern(pat, "induction arms")?;
-                self.expect(TokenKind::Arrow)?;
-                let body = self.parse_proof_term()?;
-                arms.push(proof_kernel::IndArm {
-                    ctor,
-                    binders,
-                    body,
-                });
-                self.skip_semis();
-            }
-            self.expect(TokenKind::RBrace)?;
-            return Ok(proof_kernel::ProofTerm::InductionOn(scrutinee, arms));
-        }
-
-        if self.peek_word("cases") {
-            self.advance();
-            let scrutinee_expr = self.parse_expr()?;
-            let scrutinee = lower_expr_to_proof_term(&scrutinee_expr)?;
-            self.expect(TokenKind::LBrace)?;
-            self.skip_semis();
-            let mut arms = Vec::new();
-            while self.peek_kind() != TokenKind::RBrace {
-                self.expect(TokenKind::Pipe)?;
-                let pat = self.parse_pattern()?;
-                let (ctor, binders) = self.proof_ctor_arm_from_pattern(pat, "case arms")?;
-                self.expect(TokenKind::Arrow)?;
-                let body = self.parse_proof_term()?;
-                arms.push(proof_kernel::CaseArm {
-                    ctor,
-                    binders,
-                    body,
-                });
-                self.skip_semis();
-            }
-            self.expect(TokenKind::RBrace)?;
-            return Ok(proof_kernel::ProofTerm::Cases(scrutinee, arms));
-        }
-
-        if self.peek_word("let") {
-            self.advance();
-            let name = self.expect_ident()?;
-            if self.peek_kind() == TokenKind::Eq {
-                self.advance();
-            } else if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
-                self.advance();
-            } else {
-                return Err("expected `=` in proof `let` binding".into());
-            }
-            let bound = self.parse_proof_term()?;
-            if !self.peek_word("in") {
-                return Err("expected `in` after proof `let` binding".into());
-            }
-            self.advance();
-            let body = self.parse_proof_term()?;
-            return Ok(proof_kernel::ProofTerm::Let(
-                name,
-                Box::new(bound),
-                Box::new(body),
-            ));
-        }
-
-        if self.peek_word("assume") {
-            self.advance();
-            let prop_expr = self.parse_expr()?;
-            let prop = lower_expr_to_proof_prop(&prop_expr)?;
-            if !self.peek_word("in") {
-                return Err("expected `in` after `assume <prop>`".into());
-            }
-            self.advance();
-            let body = self.parse_proof_term()?;
-            return Ok(proof_kernel::ProofTerm::Assume(prop, Box::new(body)));
-        }
-
-        Ok(proof_kernel::ProofTerm::Hyp(self.expect_ident()?))
-    }
-
     // --- Top-level parsing ---
 
+    /// Parse a complete file. In a Danish file, Danish builtin names that the
+    /// file and its plain imports do not declare are resolved to the builtins
+    /// they name (see `danish`).
     pub fn parse_program(&mut self) -> Result<Vec<Stmt>, String> {
+        if self.language != SourceLanguage::Danish {
+            return self.parse_program_without_danish_names();
+        }
+        let tokens = self.tokens.clone();
+        let type_name_spans = self.type_name_spans.clone();
+        let stmts = self
+            .parse_program_without_danish_names()
+            .map_err(|errors| {
+                danish::localize_danish_parse_errors(
+                    &self.source_chars.iter().collect::<String>(),
+                    &errors,
+                )
+            })?;
+        let mut globals = BTreeSet::new();
+        danish::collect_top_level_names(&stmts, &mut globals);
+        if stmts.iter().any(|stmt| matches!(stmt, Stmt::Import(_))) {
+            danish::collect_imported_names(&stmts, &self.import_dir(), &mut globals);
+        }
+        let references = danish::danish_builtin_references(&stmts, &globals);
+        let Some(tokens) = danish::translate_danish_builtin_names(
+            &tokens,
+            |token| self.char_offset(token.line, token.col),
+            &references,
+            &globals,
+        ) else {
+            return Ok(stmts);
+        };
+        self.tokens = tokens;
+        self.pos = 0;
+        self.in_rule_body = false;
+        self.type_name_spans = type_name_spans;
+        self.parse_program_without_danish_names()
+    }
+
+    pub(crate) fn parse_program_without_danish_names(&mut self) -> Result<Vec<Stmt>, String> {
         // Lexical failure is independent of parser recovery and specialized
         // declaration loops. Invalid source must never produce an executable AST.
         let lexical_errors: Vec<_> = self
@@ -9590,13 +9566,19 @@ impl Parser {
         let mut stmts = Vec::new();
         let mut errors: Vec<String> = Vec::new();
         self.skip_semis();
+        let mut previous_col: Option<usize> = None;
         while self.peek_kind() != TokenKind::Eof {
-            match self.parse_statement().and_then(|stmt| {
-                self.expect_statement_boundary(&stmt)?;
-                Ok(stmt)
-            }) {
+            let start_col = self.peek().col;
+            match self
+                .reject_line_leading_operator(previous_col)
+                .and_then(|()| self.parse_statement())
+                .and_then(|stmt| {
+                    self.expect_statement_boundary(&stmt)?;
+                    Ok(stmt)
+                }) {
                 Ok(stmt) => {
                     stmts.push(stmt);
+                    previous_col = Some(start_col);
                 }
                 Err(e) => {
                     errors.push(e);
@@ -10824,22 +10806,7 @@ impl Parser {
         }))
     }
 
-    fn reject_removed_fact_statement(&self) -> Result<(), String> {
-        let token = self.peek();
-        if token.kind == TokenKind::KW
-            && (matches!(token.text.as_str(), "retract" | "abort")
-                || (token.text == "assert"
-                    && self.tokens.get(self.pos + 1).is_some_and(|next| {
-                        matches!(next.kind, TokenKind::Ident | TokenKind::Type)
-                    })))
-        {
-            return Err(format!("{}:{}: database persistence was removed: `{}` fact/transaction statements are no longer supported; use ordinary rules and typed values (ordinary `assert(condition)` remains available)", token.line, token.col, token.text));
-        }
-        Ok(())
-    }
-
     pub fn parse_statement(&mut self) -> Result<Stmt, String> {
-        self.reject_removed_fact_statement()?;
         self.skip_semis();
 
         // ── Detect common mistakes from other languages ──
@@ -10848,7 +10815,7 @@ impl Parser {
             let line = tok.line;
             let col = tok.col;
             match tok.text.as_str() {
-                "fn" | "func" | "def" | "fun" => {
+                "fn" | "func" | "def" | "fun" | "function" => {
                     return Err(format!(
                         "{}:{}: Futuruna uses `>` to define functions, not `{}`.\n  \
                         Try: > {}",
@@ -11048,52 +11015,13 @@ impl Parser {
                 } else {
                     // Backtrack and parse as stream expression + match arms
                     self.pos = saved;
-                    self.advance(); // consume ~
+                    let tilde_col = self.advance().col; // consume ~
                     let stream_expr = self.parse_expr()?;
-                    let mut arms = Vec::new();
-
-                    while self.peek_kind() == TokenKind::Pipe {
-                        self.advance(); // consume |
-                        let pattern_start = self.peek().clone();
-                        let pat = self.parse_pattern()?;
-                        let pat_span = self.span_since(&pattern_start);
-                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
-                        {
-                            self.advance();
-                            Some(self.parse_expr()?)
-                        } else {
-                            None
-                        };
-
-                        if self.peek_kind() == TokenKind::Arrow {
-                            self.advance();
-                        } else if self.peek_kind() == TokenKind::Op && self.peek().text == "->" {
-                            self.advance();
-                        } else {
-                            return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
-                        }
-
-                        let body = self.parse_expr()?;
-                        arms.push(MatchArm {
-                            pat,
-                            pat_span,
-                            guard,
-                            body,
-                        });
-                        self.skip_semis();
-                    }
-
-                    if arms.is_empty() {
-                        return Err(format!(
-                            "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n    | x -> {{ @ print(x) }}\n    | Err(e) -> {{ @ print(\"error\") }}\n    | Complete -> {{ @ print(\"done\") }}",
-                            self.peek().line, self.peek().col
-                        ));
-                    }
+                    let arms = self.parse_subscription_arms(tilde_col)?;
                     Ok(Stmt::StreamSub(stream_expr, arms))
                 }
             }
             // ? rune: verify/prove an invariant (or "? all" for all)
-            //        ? name by { | binders -> proof }
             // Forms: ? name
             //        ? name -> { pass }
             //        ? name else { fail }
@@ -11105,32 +11033,6 @@ impl Parser {
                     return self.parse_explore_query(&question_token);
                 }
                 let name = self.expect_ident()?;
-                let proof_block = if self.peek_word("by") {
-                    self.advance();
-                    Some(self.parse_proof_block()?)
-                } else {
-                    None
-                };
-
-                if proof_block.is_some() {
-                    self.skip_semis();
-                    if self.peek_kind() == TokenKind::Colon
-                        || self.peek_kind() == TokenKind::Arrow
-                        || (self.peek_kind() == TokenKind::KW && self.peek().text == "else")
-                    {
-                        return Err(
-                            "`? name by { ... }` cannot be combined with capture/pass/else blocks yet"
-                                .into(),
-                        );
-                    }
-                    return Ok(Stmt::Prove {
-                        name,
-                        proof_block,
-                        capture: None,
-                        pass_block: None,
-                        else_block: None,
-                    });
-                }
                 // Optional `: capture_var`
                 let capture = if self.peek_kind() == TokenKind::Colon {
                     self.advance(); // consume ':'
@@ -11172,7 +11074,6 @@ impl Parser {
                 };
                 Ok(Stmt::Prove {
                     name,
-                    proof_block: None,
                     capture,
                     pass_block,
                     else_block,
@@ -11340,10 +11241,14 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut body = Vec::new();
+        let mut previous_col: Option<usize> = None;
         while self.peek_kind() != TokenKind::RBrace {
+            let start_col = self.peek().col;
+            self.reject_line_leading_operator(previous_col)?;
             let stmt = self.parse_statement()?;
             self.expect_statement_boundary(&stmt)?;
             body.push(stmt);
+            previous_col = Some(start_col);
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
@@ -11358,7 +11263,9 @@ impl Parser {
             let ty = if parser.peek_kind() == TokenKind::Colon {
                 parser.advance();
                 // Check for inout modifier BEFORE parsing type
-                if parser.peek_kind() == TokenKind::Ident && parser.peek().text == "inout" {
+                if parser.peek_kind() == TokenKind::Ident
+                    && parser.token_spells(parser.peek(), "inout")
+                {
                     parser.advance(); // consume 'inout'
                     inout = true;
                 }
@@ -11834,6 +11741,7 @@ impl Parser {
 
     /// Parse: # impl Display for Shape { > fmt(self) -> String { ... } }
     pub fn parse_impl_block(&mut self) -> Result<Stmt, String> {
+        let trait_token = self.pos;
         let trait_name = self.parse_qualified_name()?;
         // expect "for"
         if self.peek_kind() == TokenKind::KW && self.peek().text == "for" {
@@ -11842,6 +11750,7 @@ impl Parser {
             return Err(format!("expected 'for' after trait name in # impl"));
         }
         let for_type = self.parse_qualified_name()?;
+        self.record_declaration_name_span(format!("impl:{trait_name}:{for_type}"), trait_token);
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut methods = Vec::new();
@@ -11850,6 +11759,17 @@ impl Parser {
                 || (self.peek_kind() == TokenKind::Op && self.peek().text == ">");
             if is_gt {
                 self.advance(); // consume >
+                let method_token = self.pos;
+                if let Some(method) = self
+                    .tokens
+                    .get(method_token)
+                    .map(|token| token.text.clone())
+                {
+                    self.record_declaration_name_span(
+                        format!("impl:{trait_name}:{for_type}:{method}"),
+                        method_token,
+                    );
+                }
                 match self.parse_definition() {
                     Ok(Stmt::Defn(defn)) => methods.push(defn),
                     Ok(_) => {}
@@ -11936,6 +11856,7 @@ impl Parser {
         let mut except_from: Option<(String, Vec<String>)> = None;
         loop {
             let name = self.expect_ident()?;
+            self.record_declaration_name_span(format!("variant:{name}"), self.pos - 1);
             // Check for qualified variant: Parent.Variant (subset type syntax)
             if self.peek_kind() == TokenKind::Dot {
                 self.advance(); // consume '.'
@@ -12104,11 +12025,10 @@ impl Parser {
 
     pub fn parse_annotation(&mut self) -> Result<Stmt, String> {
         let tok = self.advance();
-        let name = tok.text.clone();
-        if let Some(message) = removed_persistence_message(&name) {
-            return Err(format!("{}:{}: {message}", tok.line, tok.col));
-        }
-
+        let name = ["export", "depend"]
+            .into_iter()
+            .find(|word| self.token_spells(&tok, word))
+            .map_or_else(|| tok.text.clone(), str::to_string);
         // @ use path::to::thing
         if name == "use" {
             return self.parse_use_decl();
@@ -12141,8 +12061,16 @@ impl Parser {
                     tok.line, tok.col
                 ));
             }
-            if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::KW {
-                self.advance(); // consume the language code (da, en, etc.)
+            let code = self.advance();
+            if !matches!(
+                code.kind,
+                TokenKind::Ident | TokenKind::Type | TokenKind::KW
+            ) || SourceLanguage::from_code(&code.source_text).is_none()
+            {
+                return Err(format!(
+                    "{}:{}: unknown language `{}` in `@ {name}`; write `da` (dansk) or `en` (english)",
+                    code.line, code.col, code.source_text
+                ));
             }
             return Ok(Stmt::Annot(name, Vec::new()));
         }
@@ -12178,9 +12106,15 @@ impl Parser {
                 name,
                 vec![Expr::new(ExprKind::Var(token.text), span)],
             ))
-        } else {
-            // Pure annotation: @ test, @ pure, @ total
+        } else if is_known_annotation(&name) {
             Ok(Stmt::Annot(name, Vec::new()))
+        } else {
+            Err(format!(
+                "{}:{}: {}",
+                tok.line,
+                tok.col,
+                unknown_annotation_message(&name)
+            ))
         }
     }
 
@@ -12334,11 +12268,13 @@ impl Parser {
                 // Allow dashes in module paths (e.g. kapitel-08)
                 self.advance();
                 path.push('-');
-            } else if self.peek_kind() == TokenKind::Ident
-                || self.peek_kind() == TokenKind::Type
-                || self.peek_kind() == TokenKind::Int_
-            {
-                let seg = self.advance().text.clone();
+            } else if matches!(
+                self.peek_kind(),
+                TokenKind::Ident | TokenKind::Type | TokenKind::Int_ | TokenKind::KW
+            ) {
+                // A path segment is a file name: keep the spelling the author
+                // wrote, even when it is a keyword in the file's language.
+                let seg = self.advance().source_text.clone();
                 path.push_str(&seg);
             } else {
                 break;
@@ -12354,21 +12290,97 @@ impl Parser {
         Ok(path)
     }
 
-    /// Parse: @ depend "crate_name" "version"
+    /// Parse: @ depend "crate_name" "version" ["feature", ...]
+    ///
+    /// A dependency is a crates.io package with a Cargo version requirement
+    /// and optional features. Other Cargo sources (paths, git, inline tables)
+    /// are not expressible, so a model cannot make the compiler build code
+    /// from an arbitrary location.
     pub fn parse_depend_decl(&mut self) -> Result<Stmt, String> {
         let crate_name = if self.peek_kind() == TokenKind::String_ {
-            self.advance().text.clone()
+            let p = self.peek();
+            let (line, col) = (p.line, p.col);
+            let name = self.advance().text.clone();
+            let valid = !name.is_empty()
+                && name.len() <= 64
+                && name.starts_with(|ch: char| ch.is_ascii_alphabetic())
+                && name
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_');
+            if !valid {
+                return Err(format!("{}:{}: invalid crate name `{}` in @ depend; use a crates.io package name such as \"regex\"", line, col, name));
+            }
+            name
         } else {
             let p = self.peek();
             return Err(format!("{}:{}: expected crate name string after @ depend\n  Try: @ depend \"crate_name\" \"version\"", p.line, p.col));
         };
         let version = if self.peek_kind() == TokenKind::String_ {
-            self.advance().text.clone()
+            let p = self.peek();
+            let (line, col) = (p.line, p.col);
+            let version = self.advance().text.clone();
+            // A version such as "1", "0.10" or "1.2.3-beta.1" (Cargo reads it
+            // as a caret requirement).
+            let valid = version.starts_with(|ch: char| ch.is_ascii_digit())
+                && version
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '+'));
+            if !valid {
+                return Err(format!("{}:{}: @ depend \"{}\" needs a crates.io version such as \"1.0\"; path, git and inline-table sources are not supported\n  Features follow the version: @ depend \"{}\" \"1\" [\"feature\"]", line, col, crate_name, crate_name));
+            }
+            version
         } else {
             let p = self.peek();
             return Err(format!("{}:{}: expected version string after crate name in @ depend\n  Try: @ depend \"{}\" \"1.0\"", p.line, p.col, crate_name));
         };
-        Ok(Stmt::Depend(crate_name, version))
+        if self.peek_kind() != TokenKind::LBracket {
+            return Ok(Stmt::Depend(crate_name, version));
+        }
+        self.advance();
+        let mut features = Vec::new();
+        while self.peek_kind() != TokenKind::RBracket {
+            let p = self.peek();
+            let (line, col) = (p.line, p.col);
+            if self.peek_kind() != TokenKind::String_ {
+                return Err(format!(
+                    "{}:{}: @ depend features are a list of strings, such as [\"derive\"]",
+                    line, col
+                ));
+            }
+            let feature = self.advance().text.clone();
+            let valid = !feature.is_empty()
+                && feature.chars().all(|ch| {
+                    ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '/' | '+' | '.')
+                });
+            if !valid {
+                return Err(format!(
+                    "{}:{}: invalid feature `{}` in @ depend",
+                    line, col, feature
+                ));
+            }
+            features.push(format!("\"{feature}\""));
+            if self.peek_kind() == TokenKind::Comma {
+                self.advance();
+            } else if self.peek_kind() != TokenKind::RBracket {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: expected `,` or `]` in @ depend features",
+                    p.line, p.col
+                ));
+            }
+        }
+        self.advance();
+        if features.is_empty() {
+            return Ok(Stmt::Depend(crate_name, version));
+        }
+        Ok(Stmt::Depend(
+            crate_name,
+            format!(
+                "{{ version = \"{}\", features = [{}] }}",
+                version,
+                features.join(", ")
+            ),
+        ))
     }
 
     // --- = Binding ---
@@ -12427,7 +12439,7 @@ impl Parser {
 
     pub fn parse_type_atom(&mut self) -> Result<Ty, String> {
         // shared T → Ty::Shared(T)
-        if self.peek_kind() == TokenKind::Ident && self.peek().text == "shared" {
+        if self.peek_kind() == TokenKind::Ident && self.token_spells(self.peek(), "shared") {
             self.advance(); // consume "shared"
             let inner = self.parse_type_atom()?;
             return Ok(Ty::Shared(Box::new(inner)));
@@ -12477,8 +12489,23 @@ impl Parser {
                     Ok(Ty::Unit)
                 } else {
                     let inner = self.parse_type()?;
+                    if self.peek_kind() != TokenKind::Comma {
+                        self.expect(TokenKind::RParen)?;
+                        return Ok(inner);
+                    }
+                    // `(A, B) -> C` is the type of a two-argument function.
+                    let mut parameters = vec![inner];
+                    while self.peek_kind() == TokenKind::Comma {
+                        self.advance();
+                        parameters.push(self.parse_type()?);
+                    }
                     self.expect(TokenKind::RParen)?;
-                    Ok(inner)
+                    self.expect(TokenKind::Arrow)?;
+                    let mut ty = self.parse_type()?;
+                    for parameter in parameters.into_iter().rev() {
+                        ty = Ty::Arrow(Box::new(parameter), Box::new(ty));
+                    }
+                    Ok(ty)
                 }
             }
             TokenKind::Amp => {
@@ -12530,7 +12557,8 @@ impl Parser {
                 if tok.text == "_" {
                     Ok(Pat::Wild)
                 } else {
-                    Ok(Pat::Var(tok.text))
+                    // A keyword used as a name keeps the spelling the author wrote.
+                    Ok(Pat::Var(tok.source_text))
                 }
             }
             TokenKind::Type => {
@@ -13151,9 +13179,6 @@ impl Parser {
             TokenKind::At => {
                 self.advance();
                 let name_tok = self.advance();
-                if let Some(message) = removed_persistence_message(&name_tok.text) {
-                    return Err(format!("{}:{}: {message}", name_tok.line, name_tok.col));
-                }
                 let args = if self.peek_kind() == TokenKind::LParen {
                     self.parse_arg_list()?
                 } else {
@@ -13171,7 +13196,11 @@ impl Parser {
                         Ok(expression)
                     }
                     "if" => self.parse_if_expr(tok),
-                    _ => Ok(ExprKind::Var(tok.text).into()),
+                    // A keyword used as a name keeps the spelling the author wrote.
+                    _ => {
+                        let span = self.token_span(&tok);
+                        Ok(Expr::new(ExprKind::Var(tok.source_text), span))
+                    }
                 }
             }
             // = inside expressions (binding in block)
@@ -13209,6 +13238,7 @@ impl Parser {
                     TokenKind::Eq => "\n  Hint: `=` starts a binding. Did you mean `==` for comparison?",
                     TokenKind::Semi => "\n  Hint: this is a hard statement newline. Continue after `=`, `->`, `,`, or an operator, or place the expression inside `(...)`.",
                     TokenKind::Eof => "\n  Hint: unexpected end of file. Check for unclosed `{`, `(`, or `[`.",
+                    TokenKind::Op if tok.text == "==" => "\n  Hint: `==` compares two values; a binding uses a single `=`, as in `= name = value`.",
                     _ => "",
                 };
                 Err(format!(
@@ -13269,10 +13299,14 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let mut stmts = Vec::new();
+        let mut previous_col: Option<usize> = None;
         while self.peek_kind() != TokenKind::RBrace {
+            let start_col = self.peek().col;
+            self.reject_line_leading_operator(previous_col)?;
             let stmt = self.parse_block_statement()?;
             self.expect_statement_boundary(&stmt)?;
             stmts.push(stmt);
+            previous_col = Some(start_col);
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
@@ -13281,7 +13315,6 @@ impl Parser {
 
     pub fn parse_block_statement(&mut self) -> Result<Stmt, String> {
         self.skip_semis();
-        self.reject_removed_fact_statement()?;
         match self.peek_kind() {
             TokenKind::Eq => {
                 self.advance();
@@ -13335,47 +13368,9 @@ impl Parser {
                 } else {
                     // Backtrack and parse as stream expression + match arms
                     self.pos = saved;
-                    self.advance(); // consume ~
+                    let tilde_col = self.advance().col; // consume ~
                     let stream_expr = self.parse_expr()?;
-                    let mut arms = Vec::new();
-
-                    while self.peek_kind() == TokenKind::Pipe {
-                        self.advance(); // consume |
-                        let pattern_start = self.peek().clone();
-                        let pat = self.parse_pattern()?;
-                        let pat_span = self.span_since(&pattern_start);
-                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
-                        {
-                            self.advance();
-                            Some(self.parse_expr()?)
-                        } else {
-                            None
-                        };
-
-                        if self.peek_kind() == TokenKind::Arrow {
-                            self.advance();
-                        } else if self.peek_kind() == TokenKind::Op && self.peek().text == "->" {
-                            self.advance();
-                        } else {
-                            return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
-                        }
-
-                        let body = self.parse_expr()?;
-                        arms.push(MatchArm {
-                            pat,
-                            pat_span,
-                            guard,
-                            body,
-                        });
-                        self.skip_semis();
-                    }
-
-                    if arms.is_empty() {
-                        return Err(format!(
-                            "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n    | x -> {{ @ print(x) }}\n    | Err(e) -> {{ @ print(\"error\") }}\n    | Complete -> {{ @ print(\"done\") }}",
-                            self.peek().line, self.peek().col
-                        ));
-                    }
+                    let arms = self.parse_subscription_arms(tilde_col)?;
                     Ok(Stmt::StreamSub(stream_expr, arms))
                 }
             }
@@ -13523,11 +13518,45 @@ impl Parser {
     }
 }
 
+/// Result type of calling a value of function type `ty` with `arity`
+/// arguments: `(A, B) -> C` called with two arguments gives `C`.
+pub(crate) fn function_type_result(ty: Ty, arity: usize) -> Option<Ty> {
+    let mut result = ty;
+    for _ in 0..arity.max(1) {
+        let Ty::Arrow(_, output) = result else {
+            return None;
+        };
+        result = *output;
+    }
+    Some(result)
+}
+
 /// Parse the canonical type spelling carried by an internal rule-head
 /// annotation. Rule annotations are represented inside the expression AST for
 /// backward compatibility, while this helper restores the structured `Ty` used
 /// by type checking, interpretation, and code generation.
 pub fn parse_type_annotation(source: &str) -> Result<Ty, String> {
+    // Checking re-reads the same few type spellings very many times.
+    const CACHE_LIMIT: usize = 1 << 16;
+    thread_local! {
+        static PARSED: RefCell<HashMap<Box<str>, Result<Ty, String>>> =
+            RefCell::new(HashMap::new());
+    }
+    if let Some(parsed) = PARSED.with(|cache| cache.borrow().get(source).cloned()) {
+        return parsed;
+    }
+    let parsed = parse_type_annotation_uncached(source);
+    PARSED.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(source.into(), parsed.clone());
+    });
+    parsed
+}
+
+fn parse_type_annotation_uncached(source: &str) -> Result<Ty, String> {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
@@ -13552,97 +13581,6 @@ pub fn op_precedence(op: &str) -> u8 {
         "+" | "-" => 5,
         "*" | "/" | "%" => 6,
         _ => 0,
-    }
-}
-
-pub fn lower_expr_to_proof_term(expr: &Expr) -> Result<proof_kernel::Term, String> {
-    match &expr.kind {
-        ExprKind::Var(name) => Ok(proof_kernel::Term::Var(name.clone())),
-        ExprKind::Lit(Literal::Int(n)) => Ok(proof_kernel::Term::Int(*n)),
-        ExprKind::Lit(Literal::Bool(b)) => Ok(proof_kernel::Term::App(
-            if *b { "True" } else { "False" }.into(),
-            vec![],
-        )),
-        ExprKind::UnOp(op, inner) if op == "-" => Ok(proof_kernel::Term::Op(
-            "-".into(),
-            Box::new(proof_kernel::Term::Int(0)),
-            Box::new(lower_expr_to_proof_term(inner)?),
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if matches!(op.as_str(), "+" | "-" | "*" | "/") => {
-            Ok(proof_kernel::Term::Op(
-                op.clone(),
-                Box::new(lower_expr_to_proof_term(lhs)?),
-                Box::new(lower_expr_to_proof_term(rhs)?),
-            ))
-        }
-        ExprKind::App(func, args) => {
-            let name = match &func.kind {
-                ExprKind::Var(name) => name.clone(),
-                _ => {
-                    return Err(
-                        "proof kernel only supports simple function/constructor calls".into(),
-                    );
-                }
-            };
-            let mut lowered_args = Vec::with_capacity(args.len());
-            for arg in args {
-                lowered_args.push(lower_expr_to_proof_term(arg)?);
-            }
-            Ok(proof_kernel::Term::App(name, lowered_args))
-        }
-        _ => Err(format!(
-            "proof kernel cannot lower term expression: {:?}",
-            expr.kind
-        )),
-    }
-}
-
-pub fn lower_expr_to_proof_prop(expr: &Expr) -> Result<proof_kernel::Prop, String> {
-    let succ = |term: proof_kernel::Term| {
-        proof_kernel::Term::Op(
-            "+".into(),
-            Box::new(term),
-            Box::new(proof_kernel::Term::Int(1)),
-        )
-    };
-
-    match &expr.kind {
-        ExprKind::BinOp(op, lhs, rhs) if op == "==" => Ok(proof_kernel::Prop::Eq(
-            lower_expr_to_proof_term(lhs)?,
-            lower_expr_to_proof_term(rhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == "<=" => Ok(proof_kernel::Prop::Le(
-            lower_expr_to_proof_term(lhs)?,
-            lower_expr_to_proof_term(rhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == ">=" => Ok(proof_kernel::Prop::Le(
-            lower_expr_to_proof_term(rhs)?,
-            lower_expr_to_proof_term(lhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == "<" => Ok(proof_kernel::Prop::Le(
-            succ(lower_expr_to_proof_term(lhs)?),
-            lower_expr_to_proof_term(rhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == ">" => Ok(proof_kernel::Prop::Le(
-            succ(lower_expr_to_proof_term(rhs)?),
-            lower_expr_to_proof_term(lhs)?,
-        )),
-        ExprKind::BinOp(op, lhs, rhs) if op == "&&" => Ok(proof_kernel::Prop::And(
-            Box::new(lower_expr_to_proof_prop(lhs)?),
-            Box::new(lower_expr_to_proof_prop(rhs)?),
-        )),
-        ExprKind::App(func, args)
-            if matches!(&func.kind, ExprKind::Var(name) if name == "not") && args.len() == 1 =>
-        {
-            Ok(proof_kernel::Prop::Not(Box::new(lower_expr_to_proof_prop(
-                &args[0],
-            )?)))
-        }
-        ExprKind::Lit(Literal::Bool(false)) => Ok(proof_kernel::Prop::False),
-        _ => Err(format!(
-            "proof kernel cannot lower proposition expression: {:?}",
-            expr.kind
-        )),
     }
 }
 
@@ -13692,19 +13630,13 @@ pub enum Value {
         name: String,
         declaration_env: Option<Rc<Env>>,
     },
-    /// Actor: name, current state, handler definitions, base env
-    Actor {
-        actor_name: String,
-        state: Box<Value>,
-        state_param: String,
-        handlers: Vec<Handler>,
-        env: Env,
-    },
-    /// Reactive stream: ordered sequence of values (lazy in codegen, eager in interpreter)
+    /// Actor handle; every copy shares the actor's state and mailbox.
+    Actor(ActorRef),
+    /// Finite stream: every value is known.
     Stream(Vec<Value>),
-    /// Subject: a mutable stream you can push into with <-
-    /// (values, initial_value). Subjects ARE streams you can write to.
-    Subject(Vec<Value>),
+    /// Live stream handle: a subject (writable) or a stream derived from a
+    /// live source. Every copy shares the same stream.
+    LiveStream(LiveStream),
     /// Map: key-value dictionary with deterministic key iteration.
     Map(BTreeMap<String, Value>),
     /// Set: unique value collection keyed by canonical runtime value identity.
@@ -14152,9 +14084,9 @@ fn checked_exact_observer_memo_encode_value(value: &Value, output: &mut Vec<u8>)
         Value::Closure { .. }
         | Value::Builtin(_)
         | Value::NamespacedBuiltin { .. }
-        | Value::Actor { .. }
+        | Value::Actor(_)
         | Value::Stream(_)
-        | Value::Subject(_)
+        | Value::LiveStream(_)
         | Value::Scope { .. }
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
@@ -14398,27 +14330,24 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
             }
             runtime_hash_str(hasher, &format!("{body:?}"));
         }
-        Value::Actor {
-            actor_name,
-            state,
-            state_param,
-            env,
-            ..
-        } => {
+        Value::Actor(actor) => {
             hasher.update([17]);
             runtime_hash_str(
                 hasher,
-                env.runtime_namespace
+                actor
+                    .env()
+                    .runtime_namespace
                     .as_ref()
                     .map(RuntimeNamespace::semantic_identity)
                     .unwrap_or("legacy"),
             );
-            runtime_hash_str(hasher, actor_name);
-            runtime_hash_str(hasher, state_param);
-            runtime_hash_value(hasher, state);
+            runtime_hash_str(hasher, actor.actor_name());
+            runtime_hash_str(hasher, actor.state_param());
         }
         Value::Stream(values) => runtime_hash_sequence(hasher, 18, values),
-        Value::Subject(values) => runtime_hash_sequence(hasher, 19, values),
+        // Live streams compare by identity; their changing contents are not
+        // part of the hash.
+        Value::LiveStream(_) => hasher.update([19]),
         Value::Scope {
             namespace, name, ..
         } => {
@@ -14566,14 +14495,15 @@ fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
         (Value::Unit, Value::Unit) => true,
         (Value::List(left), Value::List(right))
         | (Value::Tuple(left), Value::Tuple(right))
-        | (Value::Stream(left), Value::Stream(right))
-        | (Value::Subject(left), Value::Subject(right)) => {
+        | (Value::Stream(left), Value::Stream(right)) => {
             left.len() == right.len()
                 && left
                     .iter()
                     .zip(right)
                     .all(|(left, right)| runtime_values_semantically_equal(left, right))
         }
+        (Value::LiveStream(left), Value::LiveStream(right)) => left.same_stream(right),
+        (Value::Actor(left), Value::Actor(right)) => left.same_actor(right),
         (Value::Map(left), Value::Map(right)) => {
             left.len() == right.len()
                 && left.iter().all(|(stored_key, stored_value)| {
@@ -14995,9 +14925,7 @@ impl fmt::Display for Value {
             }
             Value::Builtin(name) => write!(f, "<builtin:{}>", name),
             Value::NamespacedBuiltin { name, .. } => write!(f, "<builtin:{}>", name),
-            Value::Actor {
-                actor_name, state, ..
-            } => write!(f, "<actor:{}({})>", actor_name, state),
+            Value::Actor(actor) => write!(f, "<actor:{}({})>", actor.actor_name(), actor.state()),
             // A stream displays as the sequence of its values, like a list.
             Value::Stream(items) => {
                 write!(f, "[")?;
@@ -15009,16 +14937,7 @@ impl fmt::Display for Value {
                 }
                 write!(f, "]")
             }
-            Value::Subject(items) => {
-                write!(f, "~subject[")?;
-                for (i, v) in items.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", v)?;
-                }
-                write!(f, "]")
-            }
+            Value::LiveStream(stream) => write!(f, "{}", stream),
             Value::Map(entries) => {
                 write!(f, "{{")?;
                 for (i, (stored_key, stored_value)) in
@@ -15093,11 +15012,45 @@ impl RuntimeDeclarationEnv {
     }
 }
 
+/// Hasher for interpreter binding names. Lookups are the hottest path of the
+/// interpreter and keys are program identifiers, so a multiply-rotate hash
+/// replaces SipHash.
+#[derive(Default, Clone, Copy)]
+pub struct BindingNameHasher(u64);
+
+impl std::hash::Hasher for BindingNameHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        const SEED: u64 = 0x51_7c_c1_b7_27_22_0a_95;
+        let mut chunks = bytes.chunks_exact(8);
+        for chunk in &mut chunks {
+            let word = u64::from_le_bytes(chunk.try_into().expect("chunk of eight bytes"));
+            self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(SEED);
+        }
+        for &byte in chunks.remainder() {
+            self.0 = (self.0.rotate_left(5) ^ u64::from(byte)).wrapping_mul(SEED);
+        }
+    }
+
+    fn write_u8(&mut self, byte: u8) {
+        self.write(&[byte]);
+    }
+
+    fn write_usize(&mut self, value: usize) {
+        self.write(&value.to_le_bytes());
+    }
+}
+
+pub type EnvBindings = HashMap<String, Value, std::hash::BuildHasherDefault<BindingNameHasher>>;
+
 #[derive(Debug, Clone)]
 pub struct Env {
     /// Bindings are immutable snapshots shared by cloned environments. Mutation
     /// uses copy-on-write, so child calls do not recursively clone global values.
-    pub bindings: Rc<HashMap<String, Value>>,
+    pub bindings: Rc<EnvBindings>,
     /// Compiler-only reservations hide inherited/builtin values until a
     /// source binding has a real constant value. Ordinary environments keep
     /// this empty; lexical children can still shadow a reservation normally.
@@ -15118,7 +15071,7 @@ pub struct Env {
 impl Env {
     pub fn new() -> Self {
         Env {
-            bindings: Rc::new(HashMap::new()),
+            bindings: Rc::new(EnvBindings::default()),
             unavailable_constants: Rc::default(),
             parent: None,
             runtime_namespace: None,
@@ -15128,7 +15081,7 @@ impl Env {
 
     pub fn child(&self) -> Self {
         Env {
-            bindings: Rc::new(HashMap::new()),
+            bindings: Rc::new(EnvBindings::default()),
             unavailable_constants: Rc::default(),
             parent: Some(Rc::new(self.clone())),
             runtime_namespace: self.runtime_namespace.clone(),
@@ -15140,7 +15093,7 @@ impl Env {
     /// Use this in hot paths (map/filter/foldl closure application).
     pub fn child_rc(self_rc: &Rc<Env>) -> Self {
         Env {
-            bindings: Rc::new(HashMap::new()),
+            bindings: Rc::new(EnvBindings::default()),
             unavailable_constants: Rc::default(),
             parent: Some(Rc::clone(self_rc)),
             runtime_namespace: self_rc.runtime_namespace.clone(),
@@ -15352,8 +15305,31 @@ struct RuntimeConstructorSignature {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuleMissFallback {
+    /// Relations answer `False` when no clause proves them.
     PredicateFalse,
-    EmptyValue,
+    /// Value rules have no answer when no clause applies; evaluation fails.
+    NoValue,
+}
+
+impl RuleMissFallback {
+    fn of_rule(rule: &Rule) -> Self {
+        match rule {
+            Rule::Default { .. } | Rule::Exception { .. } => Self::NoValue,
+            Rule::Clause {
+                body: Some(body_expr),
+                ..
+            } if matches!(
+                &body_expr.kind,
+                ExprKind::Lit(Literal::Str(_))
+                    | ExprKind::Lit(Literal::Int(_))
+                    | ExprKind::Lit(Literal::Float(_))
+            ) =>
+            {
+                Self::NoValue
+            }
+            _ => Self::PredicateFalse,
+        }
+    }
 }
 
 /// One runtime declaration namespace. Registry lookup walks `parent`, while
@@ -15545,6 +15521,14 @@ struct RuntimeNamespaceState {
     function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     impl_methods: BTreeMap<(String, String), FnDef>,
     impl_method_declaration_envs: BTreeMap<(String, String), RuntimeDeclarationEnv>,
+    /// Names of receiver methods declared in type bodies and impl blocks; a
+    /// free call of one of these names dispatches on its first argument.
+    receiver_method_names: BTreeSet<String>,
+    /// Default method bodies declared by each trait, with the trait's
+    /// declaration environment.
+    trait_default_methods: BTreeMap<String, (Vec<(String, FnDef)>, RuntimeDeclarationEnv)>,
+    /// Types with an impl block for each trait in this namespace.
+    trait_impl_types: BTreeMap<String, BTreeSet<String>>,
     rule_scopes: BTreeMap<String, Rc<RuleScopeDef>>,
     rule_scope_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     invariants: BTreeMap<String, (Expr, Expr)>,
@@ -15603,6 +15587,9 @@ impl RuntimeNamespaceState {
             function_declaration_envs: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
             impl_method_declaration_envs: BTreeMap::new(),
+            receiver_method_names: BTreeSet::new(),
+            trait_default_methods: BTreeMap::new(),
+            trait_impl_types: BTreeMap::new(),
             rule_scopes: BTreeMap::new(),
             rule_scope_declaration_envs: BTreeMap::new(),
             invariants: BTreeMap::new(),
@@ -15786,8 +15773,148 @@ struct ExplorationRuntimeDemandState {
     local_module_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
 }
 
-const RUNTIME_RULE_CALL_DEPTH_LIMIT: usize = 128;
-const RUNTIME_FUNCTION_CALL_DEPTH_LIMIT: usize = 128;
+/// Call depth limit for platforms that do not expose the thread's stack.
+const RUNTIME_FALLBACK_CALL_DEPTH_LIMIT: usize = 128;
+
+/// Names of the functions an `@ rust` block declares (`fn name(` or `pub fn name(`).
+fn embedded_rust_function_names(code: &str) -> impl Iterator<Item = String> + '_ {
+    code.lines().filter_map(|line| {
+        let trimmed = line.trim();
+        let rest = trimmed
+            .strip_prefix("pub fn ")
+            .or_else(|| trimmed.strip_prefix("fn "))?;
+        let name = rest[..rest.find(['(', '<'])?].trim();
+        (!name.is_empty()).then(|| name.to_string())
+    })
+}
+
+/// Recursion is limited by the evaluating thread's real stack: a nested call
+/// is refused while enough stack remains to report it.
+fn runtime_call_depth_exhausted(depth: usize) -> bool {
+    runtime_stack::call_stack_exhausted().unwrap_or(depth >= RUNTIME_FALLBACK_CALL_DEPTH_LIMIT)
+}
+
+fn runtime_recursion_limit_message(kind: &str, name: &str, depth: usize) -> String {
+    format!(
+        "{kind} call `{name}` exceeded the recursion limit at depth {depth}: the evaluation stack is exhausted; evaluation is incomplete (FUTURUNA_STACK_MB sets the stack size of `runa`)"
+    )
+}
+
+fn runtime_ok(value: Value) -> Value {
+    Value::Constructor("Ok".into(), vec![value].into())
+}
+
+fn runtime_err(message: String) -> Value {
+    Value::Constructor("Err".into(), vec![Value::Str(message)].into())
+}
+
+/// The kind of a runtime value without a nominal type, for diagnostics.
+fn runtime_value_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Int(_) => "Int",
+        Value::Float(_) => "Float",
+        Value::Str(_) => "String",
+        Value::Char(_) => "Char",
+        Value::Bool(_) => "Bool",
+        Value::Unit => "()",
+        Value::List(_) => "List",
+        Value::Tuple(_) => "Tuple",
+        Value::Map(_) => "Map",
+        Value::Set(_) => "Set",
+        Value::Stream(_) => "Stream",
+        Value::LiveStream(_) => "Stream",
+        Value::Actor(_) => "Actor",
+        Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. } => "function",
+        _ => "value",
+    }
+}
+
+/// The variant and payload of a `Result`/`Option` value (`Ok`/`Err` with one
+/// payload, `Some` with one, `None` with none).
+fn runtime_result_or_option_parts(value: &Value) -> Option<(&str, &[Value])> {
+    let (name, args) = match value {
+        Value::Constructor(name, args)
+        | Value::NamespacedConstructor {
+            name,
+            arguments: args,
+            ..
+        } => (name.as_str(), args.as_slice()),
+        _ => return None,
+    };
+    match (name, args.len()) {
+        ("Ok" | "Err" | "Some", 1) | ("None", 0) => Some((name, args)),
+        _ => None,
+    }
+}
+
+/// Seconds before a `http_get`/`http_post` request is abandoned, in both
+/// execution modes.
+const HTTP_GET_TIMEOUT_SECONDS: u64 = 30;
+
+/// `http_get` (no body) and `http_post` (with body) in the interpreter. Only a
+/// 2xx response is a success; the request is delegated to `curl` so HTTPS
+/// works without a TLS dependency. A POST body travels over stdin.
+fn runtime_http_request(url: &str, body: Option<&str>) -> Result<String, String> {
+    use std::io::Write;
+    const STATUS_MARKER: &str = "\n__futuruna_http_status:";
+    let mut command = std::process::Command::new("curl");
+    command.args([
+        "--silent",
+        "--show-error",
+        "--location",
+        "--proto",
+        "=http,https",
+        "--max-time",
+        &HTTP_GET_TIMEOUT_SECONDS.to_string(),
+        "--write-out",
+        &format!("{STATUS_MARKER}%{{http_code}}"),
+        "--url",
+        url,
+    ]);
+    if body.is_some() {
+        command.args(["--data-binary", "@-"]);
+    }
+    let needs_curl = |error: std::io::Error| {
+        format!("request to {url} failed: the interpreter needs `curl` for HTTP: {error}")
+    };
+    let mut child = command
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(needs_curl)?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(body.unwrap_or_default().as_bytes())
+            .map_err(|error| format!("request to {url} failed: {error}"))?;
+    }
+    let output = child.wait_with_output().map_err(needs_curl)?;
+    if output.status.code() == Some(28) {
+        return Err(format!(
+            "request to {url} timed out after {HTTP_GET_TIMEOUT_SECONDS} s"
+        ));
+    }
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        let detail = detail.trim().trim_start_matches("curl: ");
+        return Err(format!("request to {url} failed: {detail}"));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some((body, status)) = stdout.rsplit_once(STATUS_MARKER) else {
+        return Err(format!("request to {url} failed: no HTTP status"));
+    };
+    match status.trim().parse::<u16>() {
+        Ok(status) if (200..300).contains(&status) => Ok(body.to_string()),
+        Ok(status) => Err(format!("HTTP {status} from {url}")),
+        Err(_) => Err(format!("request to {url} failed: no HTTP status")),
+    }
+}
+
+fn unhandled_effect_message(effect: &str, operation: &str) -> String {
+    format!(
+        "effect `{effect}` is not handled: `{operation}` must be called inside `| handle {effect} {{ ... }} in ...`"
+    )
+}
 
 /// Own the counter handle so recursive evaluation can still mutably borrow the
 /// interpreter. Unwinding and guarded failures both restore the caller depth.
@@ -15853,8 +15980,11 @@ pub struct Interpreter {
     /// Publicly inserted legacy frames receive `None` and retain operation-site
     /// lookup semantics.
     handler_lexical_env_stack: Vec<Option<Env>>,
-    /// Live actor instances: var_name -> (state, actor_name)
-    pub actor_instances: BTreeMap<String, (Value, String)>,
+    /// Named scopes whose bodies are running; subscriptions created meanwhile
+    /// belong to the innermost one.
+    live_scope_stack: Vec<String>,
+    /// Subscriptions owned by each named scope, cancelled by `@ teardown`.
+    live_scope_subscriptions: BTreeMap<String, Vec<(LiveStream, u64)>>,
     /// Step budget for auto-comptime: 0 = unlimited
     pub step_limit: usize,
     /// Current step count (incremented each eval call)
@@ -15873,6 +16003,9 @@ pub struct Interpreter {
     /// must never perform observable effects while exhausting assignments.
     exhaustive_preview_forbid_effects: bool,
     exhaustive_preview_error: RefCell<Option<String>>,
+    /// When set, host effects (see `host_effects`) fail with an error naming
+    /// this context instead of running.
+    host_effects_denied: Option<&'static str>,
     /// Constant evaluation must not turn an unavailable runtime
     /// binding into a symbolic logic value and then fold that placeholder.
     evaluating_constant: bool,
@@ -15901,6 +16034,19 @@ pub struct Interpreter {
     /// endpoint, so no dynamic activation, visit ordinal, or error can leak
     /// from Before to After (or from one case to another).
     checked_mechanism_trace: Option<CheckedInterpreterMechanismTraceState>,
+    /// One flag per running effect handler clause: whether it called `resume`.
+    effect_handler_resumed: Vec<bool>,
+    /// Result of a handler clause that finished without `resume`; it becomes
+    /// the value of its `| handle` expression.
+    effect_handler_result: Option<Value>,
+    /// Functions declared in module-level `@ rust` blocks. They exist only in
+    /// compiled code; the interpreter refuses to call them.
+    embedded_rust_functions: BTreeSet<String>,
+}
+
+/// Unwinds from a handler clause that did not `resume` to its `| handle`.
+struct EffectHandlerReturn {
+    handler_index: usize,
 }
 
 impl Interpreter {
@@ -15929,7 +16075,8 @@ impl Interpreter {
             source_dir: None,
             handler_stack: Vec::new(),
             handler_lexical_env_stack: Vec::new(),
-            actor_instances: BTreeMap::new(),
+            live_scope_stack: Vec::new(),
+            live_scope_subscriptions: BTreeMap::new(),
             step_limit: 0,
             step_count: 0,
             budget_exceeded: false,
@@ -15939,6 +16086,7 @@ impl Interpreter {
             suppress_output: false,
             exhaustive_preview_forbid_effects: false,
             exhaustive_preview_error: RefCell::new(None),
+            host_effects_denied: None,
             evaluating_constant: false,
             ground_collection_limit: None,
             ground_error: RefCell::new(None),
@@ -15950,6 +16098,9 @@ impl Interpreter {
             exploration_runtime_demand: ExplorationRuntimeDemandState::default(),
             runtime_type_annotations: RefCell::new(HashMap::new()),
             checked_mechanism_trace: None,
+            effect_handler_resumed: Vec::new(),
+            effect_handler_result: None,
+            embedded_rust_functions: BTreeSet::new(),
         }
     }
 
@@ -16024,6 +16175,13 @@ impl Interpreter {
         None
     }
 
+    fn runtime_receiver_method_declared(&self, namespace: &RuntimeNamespace, name: &str) -> bool {
+        Self::runtime_namespace_find(namespace, |state| {
+            state.receiver_method_names.contains(name).then_some(())
+        })
+        .is_some()
+    }
+
     fn runtime_impl_method(
         &self,
         namespace: &RuntimeNamespace,
@@ -16064,6 +16222,21 @@ impl Interpreter {
         Self::runtime_namespace_find(namespace, |state| {
             state.constructor_signatures.get(name).cloned()
         })
+    }
+
+    /// The namespace that declares constructor `name`, as seen from `namespace`.
+    fn runtime_constructor_owner(
+        &self,
+        namespace: &RuntimeNamespace,
+        name: &str,
+    ) -> Option<RuntimeNamespace> {
+        Self::runtime_namespace_find(namespace, |state| {
+            state
+                .constructor_signatures
+                .contains_key(name)
+                .then_some(())
+        })
+        .map(|(owner, ())| owner)
     }
 
     fn runtime_constructor_layout(
@@ -16143,6 +16316,36 @@ impl Interpreter {
         Self::runtime_namespace_find(namespace, |state| state.invariants.get(name).cloned())
     }
 
+    fn runtime_effect_of_operation(
+        &self,
+        namespace: &RuntimeNamespace,
+        operation: &str,
+    ) -> Option<String> {
+        Self::runtime_namespace_find(namespace, |state| {
+            state
+                .effect_decls
+                .iter()
+                .find(|(_, operations)| {
+                    operations
+                        .iter()
+                        .any(|(candidate, _)| candidate == operation)
+                })
+                .map(|(effect, _)| effect.clone())
+        })
+        .map(|(_, effect)| effect)
+    }
+
+    fn is_runtime_effect_operation_call(&self, expression: &Expr, env: &Env) -> bool {
+        let ExprKind::App(function, _) = &expression.kind else {
+            return false;
+        };
+        let ExprKind::Var(operation) = &function.kind else {
+            return false;
+        };
+        is_builtin_effect(operation)
+            || self.runtime_effect_operation_exists(&self.namespace_for_env(env), operation)
+    }
+
     fn runtime_effect_operation_exists(
         &self,
         namespace: &RuntimeNamespace,
@@ -16191,9 +16394,23 @@ impl Interpreter {
             return Some(self.calculation_rule_miss(&owner, key));
         }
         Some(match fallback.unwrap_or(RuleMissFallback::PredicateFalse) {
-            RuleMissFallback::EmptyValue => Value::Str(String::new()),
+            RuleMissFallback::NoValue => {
+                self.panic_or_ground_fail(Self::value_rule_miss_message(key))
+            }
             RuleMissFallback::PredicateFalse => Value::Bool(false),
         })
+    }
+
+    fn value_rule_miss_message(key: &RuleDispatchKey) -> String {
+        let scope = key
+            .scope
+            .as_ref()
+            .map(|name| format!("{name}."))
+            .unwrap_or_default();
+        format!(
+            "no value rule matched `{scope}{}/{}`; input is outside the rule's supported conditions",
+            key.name, key.arity
+        )
     }
 
     fn runtime_value_namespace(&self, value: &Value) -> RuntimeNamespace {
@@ -16203,7 +16420,8 @@ impl Interpreter {
             | Value::NamespacedBuiltin { namespace, .. }
             | Value::Scope { namespace, .. }
             | Value::NamespacedRuleScopeInstance { namespace, .. } => namespace.clone(),
-            Value::Closure { env, .. } | Value::Actor { env, .. } => self.namespace_for_env(env),
+            Value::Closure { env, .. } => self.namespace_for_env(env),
+            Value::Actor(actor) => self.namespace_for_env(actor.env()),
             _ => self.runtime_root.clone(),
         }
     }
@@ -16227,7 +16445,8 @@ impl Interpreter {
             Value::Scope {
                 declaration_env, ..
             } => Some(declaration_env.clone()),
-            Value::Closure { env, .. } | Value::Actor { env, .. } => Some(Rc::new(env.clone())),
+            Value::Closure { env, .. } => Some(Rc::new(env.clone())),
+            Value::Actor(actor) => Some(Rc::new(actor.env().clone())),
             _ => None,
         }
     }
@@ -16412,15 +16631,7 @@ impl Interpreter {
         if is_boolean {
             return Value::Bool(false);
         }
-        let scope = key
-            .scope
-            .as_ref()
-            .map(|name| format!("{name}."))
-            .unwrap_or_default();
-        self.calculation_fail(format!(
-            "no value rule matched `{scope}{}/{}`; input is outside the rule's supported conditions",
-            key.name, key.arity
-        ))
+        self.calculation_fail(Self::value_rule_miss_message(key))
     }
 
     fn calculation_checked_value(&self, value: Value) -> Value {
@@ -16496,6 +16707,34 @@ impl Interpreter {
         }
     }
 
+    fn builtin_string_argument_fail(&self, builtin: &str, argument: Option<&Value>) -> Value {
+        match argument {
+            Some(value) => {
+                self.panic_or_ground_fail(format!("{builtin} expects a String, got {value}"))
+            }
+            None => self.panic_or_ground_fail(format!("{builtin} expects a String argument")),
+        }
+    }
+
+    fn runtime_value_type_label(&self, value: &Value) -> String {
+        self.runtime_type_name(value)
+            .unwrap_or_else(|| runtime_value_kind(value).to_string())
+    }
+
+    /// A collection predicate must answer with a Bool.
+    fn builtin_predicate_holds(&self, builtin: &str, result: Value) -> bool {
+        match result {
+            Value::Bool(holds) => holds,
+            other => {
+                let _ = self.panic_or_ground_fail(format!(
+                    "{builtin} predicate must return Bool, got {}",
+                    self.runtime_value_type_label(&other)
+                ));
+                false
+            }
+        }
+    }
+
     fn report_runtime_import_failure(&self, message: impl Into<String>) {
         let message = message.into();
         if self.checking_calculation {
@@ -16522,6 +16761,22 @@ impl Interpreter {
             });
         }
         Value::Unit
+    }
+
+    /// Refuse every host effect from now on; `context` names the operation
+    /// in the error, for example "compile-time evaluation".
+    pub fn deny_host_effects(&mut self, context: &'static str) {
+        self.host_effects_denied = Some(context);
+    }
+
+    fn refuse_host_effect(&self, name: &str) -> Option<Value> {
+        let context = self.host_effects_denied?;
+        is_host_effect_builtin(name).then(|| {
+            self.panic_or_ground_fail(format!(
+                "{context} cannot perform the host effect `{}`",
+                name
+            ))
+        })
     }
 
     pub(crate) fn enable_exact_exploration_effect_guard(&mut self) {
@@ -16817,7 +17072,8 @@ impl Interpreter {
 
     fn runtime_collection_member_count(value: &Value) -> Option<usize> {
         match value {
-            Value::List(items) | Value::Stream(items) | Value::Subject(items) => Some(items.len()),
+            Value::List(items) | Value::Stream(items) => Some(items.len()),
+            Value::LiveStream(stream) => Some(stream.retained_values().len()),
             Value::Map(items) | Value::Set(items) => Some(items.len()),
             Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => Some(0),
             Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
@@ -16890,16 +17146,19 @@ impl Interpreter {
         })
     }
 
-    /// Evaluate an explicit compile-time request. Effects in the expression
-    /// are intentional, but its dependencies must already have compile-time
-    /// values; unavailable runtime bindings cannot become symbolic constants.
+    /// Evaluate an explicit compile-time request. Compile-time evaluation
+    /// performs no host effects, and its dependencies must already have
+    /// compile-time values; unavailable runtime bindings cannot become
+    /// symbolic constants.
     pub fn eval_explicit_constant(
         &mut self,
         expression: &Expr,
         env: &Env,
     ) -> Result<Value, String> {
         let previous = std::mem::replace(&mut self.evaluating_constant, true);
+        let previous_denial = self.host_effects_denied.replace("compile-time evaluation");
         let result = self.with_calculation_runtime(|interpreter| interpreter.eval(expression, env));
+        self.host_effects_denied = previous_denial;
         self.evaluating_constant = previous;
         result.map_err(|error| error.to_string())
     }
@@ -17409,29 +17668,14 @@ impl Interpreter {
                 name: name.clone(),
                 arity,
             };
-            let fallback = match &rule {
-                Rule::Default { .. } | Rule::Exception { .. } => RuleMissFallback::EmptyValue,
-                Rule::Clause {
-                    body: Some(body_expr),
-                    ..
-                } if matches!(
-                    &body_expr.kind,
-                    ExprKind::Lit(Literal::Str(_))
-                        | ExprKind::Lit(Literal::Int(_))
-                        | ExprKind::Lit(Literal::Float(_))
-                ) =>
-                {
-                    RuleMissFallback::EmptyValue
-                }
-                _ => RuleMissFallback::PredicateFalse,
-            };
+            let fallback = RuleMissFallback::of_rule(&rule);
             state
                 .rule_miss_fallbacks
                 .entry(name.clone())
                 .or_default()
                 .entry(arity)
                 .and_modify(|existing| {
-                    if fallback == RuleMissFallback::EmptyValue {
+                    if fallback == RuleMissFallback::NoValue {
                         *existing = fallback;
                     }
                 })
@@ -17536,31 +17780,36 @@ impl Interpreter {
         name: &str,
         args: &[Expr],
     ) -> Option<(RuntimeNamespace, RuntimeConstructorSignature)> {
-        let (owner, signatures) = self.runtime_constructor_signatures(namespace, name)?;
-        let matching = signatures
-            .iter()
-            .filter(|signature| signature.matches_args(args))
-            .collect::<Vec<_>>();
-        if matching.len() == 1 {
-            return matching
-                .first()
-                .map(|signature| (owner, (*signature).clone()));
-        }
-
-        if let Some(first) = matching.first() {
-            let same_runtime_layout = matching.iter().all(|signature| {
+        // Select inside the namespace borrow so the common single-layout case
+        // clones one signature, not the whole overload set.
+        let (owner, selection) = Self::runtime_namespace_find(namespace, |state| {
+            let signatures = state.constructor_signatures.get(name)?;
+            let mut matching = signatures
+                .iter()
+                .filter(|signature| signature.matches_args(args));
+            let Some(first) = matching.next() else {
+                return Some(Err(Vec::new()));
+            };
+            let same_runtime_layout = matching.clone().all(|signature| {
                 signature.positional == first.positional && signature.fields == first.fields
             });
             if same_runtime_layout {
-                return Some((owner, (*first).clone()));
+                return Some(Ok(first.clone()));
             }
-        }
-
+            Some(Err(std::iter::once(first)
+                .chain(matching)
+                .cloned()
+                .collect::<Vec<_>>()))
+        })?;
+        let matching = match selection {
+            Ok(signature) => return Some((owner, signature)),
+            Err(matching) => matching,
+        };
         let (_, (arity, positional)) = self.runtime_constructor_layout(namespace, name)?;
         matching
             .into_iter()
             .find(|signature| signature.arity() == arity && signature.positional == positional)
-            .map(|signature| (owner, signature.clone()))
+            .map(|signature| (owner, signature))
     }
 
     fn constructor_signature_for_args(
@@ -17577,11 +17826,15 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<(RuntimeNamespace, RuntimeConstructorSignature)> {
-        let (owner, signatures) = self.runtime_constructor_signatures(namespace, name)?;
-        signatures
-            .into_iter()
-            .find(|signature| signature.arity() == 0)
-            .map(|signature| (owner, signature))
+        let (owner, signature) = Self::runtime_namespace_find(namespace, |state| {
+            state.constructor_signatures.get(name).map(|signatures| {
+                signatures
+                    .iter()
+                    .find(|signature| signature.arity() == 0)
+                    .cloned()
+            })
+        })?;
+        signature.map(|signature| (owner, signature))
     }
 
     fn nullary_constructor_signature(&self, name: &str) -> Option<RuntimeConstructorSignature> {
@@ -17680,27 +17933,11 @@ impl Interpreter {
             return Some(file_path);
         }
 
-        // Try manifest-based resolution
-        if let Some(toml_path) = Self::find_manifest(dir) {
-            if let Some((deps, _)) = Self::parse_manifest_deps(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                if let Some(resolved) =
-                    TypeChecker::resolve_dep_module(import_path, &deps, &toml_dir)
-                {
-                    return Some(resolved);
-                }
-            }
+        // Manifest dependency (`dep/module`): local files only, never fetched.
+        if let Some(Ok(resolved)) =
+            manifest::resolve_dependency_import(import_path, std::path::Path::new(dir))
+        {
+            return Some(resolved.to_string_lossy().into_owned());
         }
 
         Some(file_path)
@@ -18031,6 +18268,14 @@ impl Interpreter {
                                 format!("rulescope:{}/{}", name, scope.params.len()),
                             ),
                         );
+                    } else if state.receiver_method_names.contains(name) {
+                        bindings.insert(
+                            name.clone(),
+                            interpreter.runtime_registry_builtin(
+                                &module_namespace,
+                                format!("method:{name}"),
+                            ),
+                        );
                     }
                 }
             }
@@ -18145,36 +18390,49 @@ impl Interpreter {
         result.unwrap_or(Some(Value::Unit))
     }
 
-    fn bind_method_value(&self, obj_val: &Value, field: &str, env: &Env) -> Option<Value> {
+    /// Bind the method `method` declared for the receiver's own type (type
+    /// body or impl block). The first parameter receives the receiver.
+    fn bind_receiver_method(&self, obj_val: &Value, method: &str) -> Option<Value> {
         let object_namespace = self.runtime_value_namespace(obj_val);
-        if let Some(type_name) = self.runtime_type_name(obj_val) {
-            if let Some((owner, func_def, declaration_env)) =
-                self.runtime_impl_method(&object_namespace, &type_name, field)
-            {
-                let declaration_call_env =
-                    self.registered_declaration_env(&declaration_env, "method", field)?;
-                let mut method_env = declaration_call_env.child();
-                method_env.set_runtime_namespace(owner);
-                method_env.set("self".to_string(), obj_val.clone());
-                if let Some((_, _, bindings)) = self.runtime_rule_scope_value_parts(obj_val) {
-                    method_env.set("__rulescope_self".to_string(), obj_val.clone());
-                    for (name, value) in bindings.iter() {
-                        method_env.set(name.clone(), value.clone());
-                    }
-                }
-                let remaining_params: Vec<String> = func_def
-                    .params
-                    .iter()
-                    .filter(|p| p.as_str() != "self")
-                    .cloned()
-                    .collect();
-                return Some(Value::Closure {
-                    name: None,
-                    params: remaining_params,
-                    body: func_def.body.clone(),
-                    env: method_env,
-                });
+        let type_name = self.runtime_type_name(obj_val)?;
+        let (owner, func_def, declaration_env) =
+            self.runtime_impl_method(&object_namespace, &type_name, method)?;
+        let declaration_call_env =
+            self.registered_declaration_env(&declaration_env, "method", method)?;
+        let mut method_env = declaration_call_env.child();
+        method_env.set_runtime_namespace(owner);
+        method_env.set("self".to_string(), obj_val.clone());
+        let rule_scope_parts = self.runtime_rule_scope_value_parts(obj_val);
+        if let Some((_, _, bindings)) = &rule_scope_parts {
+            method_env.set("__rulescope_self".to_string(), obj_val.clone());
+            for (name, value) in bindings.iter() {
+                method_env.set(name.clone(), value.clone());
             }
+        }
+        let mut remaining_params = func_def.params;
+        match remaining_params.first() {
+            Some(first) if first == "self" => {
+                remaining_params.remove(0);
+            }
+            // RuleScope members read the instance through its fields; other
+            // type-body methods name their receiver as the first parameter.
+            Some(first) if rule_scope_parts.is_none() => {
+                method_env.set(first.clone(), obj_val.clone());
+                remaining_params.remove(0);
+            }
+            _ => {}
+        }
+        Some(Value::Closure {
+            name: None,
+            params: remaining_params,
+            body: func_def.body,
+            env: method_env,
+        })
+    }
+
+    fn bind_method_value(&self, obj_val: &Value, field: &str, env: &Env) -> Option<Value> {
+        if let Some(method) = self.bind_receiver_method(obj_val, field) {
+            return Some(method);
         }
 
         let lookup_namespace = self.namespace_for_env(env);
@@ -18228,111 +18486,6 @@ impl Interpreter {
                 env: method_env,
             }
         })
-    }
-
-    /// Find runa.toml by walking up from a directory
-    fn find_manifest(start_dir: &str) -> Option<String> {
-        let mut dir = std::path::PathBuf::from(start_dir);
-        loop {
-            let candidate = dir.join("runa.toml");
-            if candidate.exists() {
-                return Some(candidate.to_string_lossy().to_string());
-            }
-            if !dir.pop() {
-                return None;
-            }
-        }
-    }
-
-    /// Parse [dependencies] from a runa.toml — returns Vec<(name, path)> and package name
-    /// Extract a quoted value for a key from an inline TOML table
-    fn extract_toml_value(raw: &str, key: &str) -> Option<String> {
-        if let Some(k_start) = raw.find(key) {
-            let after = &raw[k_start + key.len()..];
-            if let Some(eq) = after.find('=') {
-                let val = after[eq + 1..]
-                    .trim()
-                    .trim_end_matches('}')
-                    .trim()
-                    .trim_end_matches(',')
-                    .trim()
-                    .trim_matches('"');
-                if !val.is_empty() {
-                    return Some(val.to_string());
-                }
-            }
-        }
-        None
-    }
-
-    /// Hash a git URL to get the cache directory name
-    fn git_cache_key(url: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut h = DefaultHasher::new();
-        url.hash(&mut h);
-        format!("{:016x}", h.finish())
-    }
-
-    fn parse_manifest_deps(toml_path: &str) -> Option<(Vec<(String, String)>, String)> {
-        let content = std::fs::read_to_string(toml_path).ok()?;
-        let mut pkg_name = String::new();
-        let mut deps: Vec<(String, String)> = Vec::new();
-        let mut section = "";
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-            if trimmed == "[package]" {
-                section = "package";
-                continue;
-            }
-            if trimmed == "[dependencies]" {
-                section = "deps";
-                continue;
-            }
-            if trimmed.starts_with('[') {
-                section = "";
-                continue;
-            }
-
-            if let Some(eq_pos) = trimmed.find('=') {
-                let key = trimmed[..eq_pos].trim();
-                let val_raw = trimmed[eq_pos + 1..].trim();
-                let val = val_raw.trim_matches('"');
-                match section {
-                    "package" => {
-                        if key == "name" {
-                            pkg_name = val.to_string();
-                        }
-                    }
-                    "deps" => {
-                        if val_raw.contains("git") {
-                            // Git dependency → resolve to cache path
-                            if let Some(url) = Self::extract_toml_value(val_raw, "git") {
-                                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-                                let cache_path = format!(
-                                    "{}/.cache/futuruna/deps/{}",
-                                    home,
-                                    Self::git_cache_key(&url)
-                                );
-                                deps.push((key.to_string(), cache_path));
-                            }
-                        } else if val_raw.contains("path") {
-                            if let Some(path) = Self::extract_toml_value(val_raw, "path") {
-                                deps.push((key.to_string(), path));
-                            }
-                        } else {
-                            deps.push((key.to_string(), val.to_string()));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        Some((deps, pkg_name))
     }
 
     pub fn default_env(&self) -> Env {
@@ -18465,6 +18618,14 @@ impl Interpreter {
         env.set("format_float".into(), Value::Builtin("format_float".into()));
         env.set("parse_int".into(), Value::Builtin("parse_int".into()));
         env.set("parse_float".into(), Value::Builtin("parse_float".into()));
+        env.set(
+            "parse_danish_int".into(),
+            Value::Builtin("parse_danish_int".into()),
+        );
+        env.set(
+            "parse_danish_float".into(),
+            Value::Builtin("parse_danish_float".into()),
+        );
         env.set("string_chars".into(), Value::Builtin("string_chars".into()));
         // File I/O builtins (M14b)
         env.set("read_file".into(), Value::Builtin("read_file".into()));
@@ -18565,10 +18726,6 @@ impl Interpreter {
         env.set("struct_type".into(), Value::Builtin("struct_type".into()));
         env.set("enum_type".into(), Value::Builtin("enum_type".into()));
         env.set("field".into(), Value::Builtin("field".into()));
-        // Localized builtin aliases (vis→show, skriv→print, længde→length, etc.)
-        for (alias, canonical) in builtin_aliases() {
-            env.set(alias, Value::Builtin(canonical));
-        }
         env
     }
 
@@ -18688,6 +18845,41 @@ impl Interpreter {
         self.register_type_in_namespace(&namespace, decl, declaration_env);
     }
 
+    /// Give `for_type` every default method of `trait_name` that its impl
+    /// does not define itself.
+    fn install_trait_default_methods(
+        &mut self,
+        namespace: &RuntimeNamespace,
+        trait_name: &str,
+        for_type: &str,
+    ) {
+        let Some((_, (defaults, declaration_env))) =
+            Self::runtime_namespace_find(namespace, |state| {
+                state.trait_default_methods.get(trait_name).cloned()
+            })
+        else {
+            return;
+        };
+        for (method_name, definition) in defaults {
+            let key = (for_type.to_string(), method_name);
+            if namespace.state.borrow().impl_methods.contains_key(&key) {
+                continue;
+            }
+            self.register_runtime_callable_declaration(
+                namespace,
+                RuntimeCallableKind::Method,
+                &key.1,
+                Some(for_type),
+            );
+            let mut state = namespace.state.borrow_mut();
+            state.receiver_method_names.insert(key.1.clone());
+            state
+                .impl_method_declaration_envs
+                .insert(key.clone(), declaration_env.clone());
+            state.impl_methods.insert(key, definition);
+        }
+    }
+
     fn register_type_in_namespace(
         &mut self,
         namespace: &RuntimeNamespace,
@@ -18793,16 +18985,13 @@ impl Interpreter {
                             body: body.clone(),
                         };
                         let method_key = (name.clone(), method_name.clone());
-                        state
-                            .impl_methods
-                            .insert(method_key.clone(), definition.clone());
+                        state.impl_methods.insert(method_key.clone(), definition);
                         state
                             .impl_method_declaration_envs
                             .insert(method_key, declaration_env.clone());
-                        state.functions.insert(method_name.clone(), definition);
-                        state
-                            .function_declaration_envs
-                            .insert(method_name.clone(), declaration_env.clone());
+                        if !params.is_empty() {
+                            state.receiver_method_names.insert(method_name.clone());
+                        }
                     }
                 }
             }
@@ -18822,9 +19011,39 @@ impl Interpreter {
                     .effect_decls
                     .insert(name.clone(), effect_ops);
             }
-            TypeDecl::TraitDecl { .. } => {} // traits are type-level, no runtime registration
+            TypeDecl::TraitDecl { name, methods, .. } => {
+                let defaults: Vec<(String, FnDef)> = methods
+                    .iter()
+                    .filter_map(|method| {
+                        let body = method.default_body.as_ref()?;
+                        Some((
+                            method.name.clone(),
+                            FnDef {
+                                params: method.params.iter().map(|p| p.name.clone()).collect(),
+                                body: body.clone(),
+                            },
+                        ))
+                    })
+                    .collect();
+                let implementors = {
+                    let mut state = namespace.state.borrow_mut();
+                    state
+                        .trait_default_methods
+                        .insert(name.clone(), (defaults, declaration_env));
+                    state
+                        .trait_impl_types
+                        .get(name)
+                        .cloned()
+                        .unwrap_or_default()
+                };
+                for for_type in implementors {
+                    self.install_trait_default_methods(namespace, name, &for_type);
+                }
+            }
             TypeDecl::ImplBlock {
-                for_type, methods, ..
+                trait_name,
+                for_type,
+                methods,
             } => {
                 // Register impl methods as functions
                 for method in methods {
@@ -18844,25 +19063,24 @@ impl Interpreter {
                         state.impl_methods.insert(
                             (for_type.clone(), name.clone()),
                             FnDef {
-                                params: param_names.clone(),
+                                params: param_names,
                                 body: body.clone(),
                             },
                         );
                         state
                             .impl_method_declaration_envs
                             .insert((for_type.clone(), name.clone()), declaration_env.clone());
-                        state.functions.insert(
-                            name.clone(),
-                            FnDef {
-                                params: param_names,
-                                body: body.clone(),
-                            },
-                        );
-                        state
-                            .function_declaration_envs
-                            .insert(name.clone(), declaration_env.clone());
+                        state.receiver_method_names.insert(name.clone());
                     }
                 }
+                namespace
+                    .state
+                    .borrow_mut()
+                    .trait_impl_types
+                    .entry(trait_name.clone())
+                    .or_default()
+                    .insert(for_type.clone());
+                self.install_trait_default_methods(namespace, trait_name, for_type);
             }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
@@ -20256,8 +20474,8 @@ impl Interpreter {
 
             match stmt {
                 Stmt::Annot(name, _) => {
-                    if let Some(message) = removed_persistence_message(name) {
-                        return self.panic_or_ground_fail(message);
+                    if !is_known_annotation(name) {
+                        return self.panic_or_ground_fail(unknown_annotation_message(name));
                     }
                     pending_annot = Some(name.clone());
                     continue;
@@ -20358,10 +20576,19 @@ impl Interpreter {
                             continue;
                         }
                         let mut scope_env = env.child();
-                        // Execute all body statements in the child environment
+                        // Subscriptions and derived streams created while the
+                        // body runs belong to the scope until `@ teardown`.
+                        self.live_scope_enter(name);
                         let _scope_last = self.run_statement_block(body, &mut scope_env);
+                        self.live_scope_exit();
                         // Store scope as a value so bindings are accessible via ScopeName.field
-                        let scope_bindings = scope_env.bindings.clone();
+                        let scope_bindings = Rc::new(
+                            scope_env
+                                .bindings
+                                .iter()
+                                .map(|(name, value)| (name.clone(), value.clone()))
+                                .collect(),
+                        );
                         let declaration_env = Rc::new(scope_env.child());
                         env.set(
                             name.clone(),
@@ -20416,19 +20643,22 @@ impl Interpreter {
                         continue;
                     }
                     last = self.eval(expr, env);
-                    // Handle teardown markers from teardown() builtin
-                    if let Value::Constructor(ref name, ref args) = last {
-                        if name == "__Teardown" {
-                            if let Some(Value::Str(scope_name)) = args.first() {
-                                env.remove(scope_name);
-                            }
-                            last = Value::Unit;
-                        }
-                    }
                 }
                 Stmt::Annot(_, _) => {}
                 Stmt::PreludeBoundary | Stmt::Use(_) => {}
-                Stmt::RustBlock(_) => {} // @ rust { } blocks are transpile-time only
+                Stmt::RustBlock(code) => {
+                    // Embedded Rust runs only in compiled code. A module-level
+                    // block declares Rust items; calling one is refused. A
+                    // block among executed statements is refused when reached.
+                    if order_value_bindings {
+                        self.embedded_rust_functions
+                            .extend(embedded_rust_function_names(code));
+                    } else {
+                        last = self.panic_or_ground_fail(
+                            "embedded Rust (`@ rust`) runs only in compiled code; run the program with `runa run`",
+                        );
+                    }
+                }
                 Stmt::Import(_) => {
                     unreachable!("plain imports must be normalized before runtime evaluation")
                 }
@@ -20461,17 +20691,11 @@ impl Interpreter {
                 }
                 Stmt::Prove {
                     name,
-                    proof_block,
                     capture,
                     pass_block,
                     else_block,
                 } => {
                     if prune_top_level_bindings {
-                        last = Value::Unit;
-                        continue;
-                    }
-                    // Explicit proof blocks are checked by `runa verify`, not executed at runtime.
-                    if proof_block.is_some() {
                         last = Value::Unit;
                         continue;
                     }
@@ -20576,139 +20800,40 @@ impl Interpreter {
                         last = Value::Unit;
                         continue;
                     }
-                    // ~ name = expr — evaluate expr and wrap in Stream if needed
-                    // Subjects stay as Subject (not re-wrapped into Stream)
+                    // ~ name = expr: live streams stay shared handles; other
+                    // values become finite streams.
                     let val = self.eval(expr, env);
                     let stream_val = match val {
-                        Value::Stream(_) | Value::Subject(_) => val,
+                        Value::Stream(_) | Value::LiveStream(_) => val,
                         other => Value::Stream(list_to_vec(&other)),
                     };
                     env.set(name.clone(), stream_val);
                 }
                 Stmt::StreamSub(expr, arms) => {
-                    let val = self.eval(expr, env);
-                    let items = match val {
-                        Value::Stream(items) | Value::Subject(items) => items,
-                        other => list_to_vec(&other),
-                    };
-
-                    // Categorize arms
-                    let mut value_arms = Vec::new();
-                    let mut _error_arm = None;
-                    let mut complete_arm = None;
-
-                    for arm in arms {
-                        let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete")
-                            || matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
-                        let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
-
-                        if is_complete {
-                            complete_arm = Some(arm);
-                        } else if is_error {
-                            _error_arm = Some(arm);
-                        } else {
-                            value_arms.push(arm);
-                        }
-                    }
-
-                    // Process values
-                    for item in items {
-                        // Check if it's an error value inserted by `error(subject, msg)`
-                        // In sync interpreter, we might not have a reliable way to distinguish,
-                        // but if we did, we'd route it to error_arm. For now, all are values.
-                        let mut matched = false;
-                        for arm in &value_arms {
-                            let mut local_env = env.child();
-                            if self.match_pattern(&arm.pat, &item, &mut local_env) {
-                                let guard_ok = match &arm.guard {
-                                    Some(g) => {
-                                        matches!(self.eval(g, &mut local_env), Value::Bool(true))
-                                    }
-                                    None => true,
-                                };
-                                if guard_ok {
-                                    self.eval(&arm.body, &mut local_env);
-                                    matched = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if !matched && !value_arms.is_empty() {
-                            eprintln!(
-                                "stream subscription value {:?} did not match any value arms",
-                                item
-                            );
-                        }
-                    }
-
-                    // Process Complete
-                    if let Some(arm) = complete_arm {
-                        let mut local_env = env.child();
-                        if self.match_pattern(
-                            &arm.pat,
-                            &Value::Constructor("Complete".into(), vec![].into()),
-                            &mut local_env,
-                        ) {
-                            let guard_ok = match &arm.guard {
-                                Some(g) => {
-                                    matches!(self.eval(g, &mut local_env), Value::Bool(true))
-                                }
-                                None => true,
-                            };
-                            if guard_ok {
-                                self.eval(&arm.body, &mut local_env);
-                            }
-                        }
-                    }
+                    let source = self.eval(expr, env);
+                    self.with_statement_span(expr.span, |this| {
+                        this.live_subscribe_statement(source, arms, env)
+                    });
                 }
 
                 Stmt::Send(target_expr, msg_expr) => {
-                    // actor <- Message: dispatch message to actor, update its state
                     let target = self.eval(target_expr, env);
                     let msg = self.eval(msg_expr, env);
-                    match target {
-                        Value::Actor {
-                            ref actor_name,
-                            ref state,
-                            ref state_param,
-                            ref handlers,
-                            env: ref actor_env,
-                        } => {
-                            let (new_state, _response) = self.dispatch_actor_message(
-                                actor_name,
-                                state,
-                                state_param,
-                                handlers,
-                                actor_env,
-                                &msg,
-                            );
-                            // Update the actor in the env with new state
-                            if let ExprKind::Var(var_name) = &target_expr.kind {
-                                let updated = Value::Actor {
-                                    actor_name: actor_name.clone(),
-                                    state: Box::new(new_state),
-                                    state_param: state_param.clone(),
-                                    handlers: handlers.clone(),
-                                    env: actor_env.clone(),
-                                };
-                                env.set(var_name.clone(), updated);
-                            }
-                        }
-                        Value::Subject(ref items) => {
-                            // subject <- value: push value into the subject's buffer
-                            if let ExprKind::Var(var_name) = &target_expr.kind {
-                                let mut new_items = items.clone();
-                                new_items.push(msg);
-                                env.set(var_name.clone(), Value::Subject(new_items));
-                            }
-                        }
-                        _ => eprintln!("Send (<-): target is not an actor or subject"),
-                    }
+                    self.with_statement_span(target_expr.span.merge(msg_expr.span), |this| {
+                        this.live_send(target, msg)
+                    });
                 }
                 Stmt::For(var, iter_expr, body_stmts) => {
                     let iter_val = self.eval(iter_expr, env);
+                    if let Value::LiveStream(stream) = &iter_val {
+                        self.with_statement_span(iter_expr.span, |this| {
+                            this.live_for_statement(stream, var, body_stmts, env)
+                        });
+                        last = Value::Unit;
+                        continue;
+                    }
                     let items = match iter_val {
-                        Value::Stream(items) | Value::Subject(items) => items,
+                        Value::Stream(items) => items,
                         Value::List(items) => items,
                         other => {
                             // Cons/Nil linked list
@@ -20795,19 +20920,26 @@ impl Interpreter {
                 }
                 Stmt::MonadicBind(pat, _ty, expr) => {
                     let val = self.eval(expr, env);
-                    match &val {
-                        Value::Constructor(name, args) if name == "Ok" || name == "Some" => {
+                    match runtime_result_or_option_parts(&val) {
+                        Some(("Ok" | "Some", args)) => {
                             let inner = args.first().cloned().unwrap_or(Value::Unit);
                             self.bind_pattern(pat, &inner, env);
                             last = inner;
                         }
-                        Value::Constructor(name, _) if name == "Err" || name == "None" => {
+                        Some(_) => {
                             return val; // Early return from enclosing block
                         }
-                        _ => {
-                            // Not a Result/Option — just bind directly
+                        _ if self.is_runtime_effect_operation_call(expr, env) => {
+                            // Effect operations resume with a plain value.
                             self.bind_pattern(pat, &val, env);
                             last = val;
+                        }
+                        _ => {
+                            return self.panic_or_calculation_fail(format!(
+                                "`<-` needs a Result or Option value (or an effect operation), got {}",
+                                self.runtime_type_name(&val)
+                                    .unwrap_or_else(|| val.to_string())
+                            ));
                         }
                     }
                 }
@@ -21122,12 +21254,6 @@ impl Interpreter {
                     .map(|value| Self::capture_module_value(value, module_env))
                     .collect(),
             ),
-            Value::Subject(values) => Value::Subject(
-                values
-                    .iter()
-                    .map(|value| Self::capture_module_value(value, module_env))
-                    .collect(),
-            ),
             Value::Map(values) => Value::Map(
                 values
                     .iter()
@@ -21150,11 +21276,8 @@ impl Interpreter {
 
     pub fn register_constructors(&self, decl: &TypeDecl, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
-        let declaration_env = env.ensure_runtime_declaration_env();
         match decl {
-            TypeDecl::ADT {
-                variants, methods, ..
-            } => {
+            TypeDecl::ADT { variants, .. } => {
                 for v in variants {
                     if v.fields.is_empty() {
                         // Nullary constructor: just a value
@@ -21186,50 +21309,11 @@ impl Interpreter {
                         );
                     }
                 }
-                // Register methods as functions
-                for method in methods {
-                    if let Defn::Fn {
-                        name, params, body, ..
-                    } = method
-                    {
-                        let param_names: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let closure = Value::Closure {
-                            name: Some(name.clone()),
-                            params: param_names,
-                            body: body.clone(),
-                            env: Env::new()
-                                .with_runtime_namespace(namespace.clone())
-                                .with_runtime_declaration_env(declaration_env.clone()),
-                        };
-                        env.set(name.clone(), closure);
-                    }
-                }
             }
             TypeDecl::EffectDecl { .. } => {}
             TypeDecl::TraitDecl { .. } => {} // no runtime values for traits
             TypeDecl::WhenType { .. } => {}  // handled in run_program
-            TypeDecl::ImplBlock { methods, .. } => {
-                // Register impl methods as callable functions
-                for method in methods {
-                    if let Defn::Fn {
-                        name, params, body, ..
-                    } = method
-                    {
-                        let param_names: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let closure = Value::Closure {
-                            name: Some(name.clone()),
-                            params: param_names,
-                            body: body.clone(),
-                            env: Env::new()
-                                .with_runtime_namespace(namespace.clone())
-                                .with_runtime_declaration_env(declaration_env.clone()),
-                        };
-                        env.set(name.clone(), closure);
-                    }
-                }
-            }
+            TypeDecl::ImplBlock { .. } => {}
             TypeDecl::RuleScope { name, params, .. } => {
                 env.set(
                     name.clone(),
@@ -21251,15 +21335,16 @@ impl Interpreter {
         let namespace = self.namespace_for_env(env);
         let (owner, signature) =
             self.constructor_signature_for_args_in_namespace(&namespace, ctor_name, args)?;
-        let ordered = if has_named_args(args) {
-            reorder_named_args_by_names(&signature.fields, args)?
+        let values = if has_named_args(args) {
+            order_named_args_by_names(&signature.fields, args)?
+                .into_iter()
+                .map(|argument| self.eval(argument, env))
+                .collect::<Vec<_>>()
         } else {
-            args.to_vec()
+            args.iter()
+                .map(|argument| self.eval(argument, env))
+                .collect::<Vec<_>>()
         };
-        let values = ordered
-            .iter()
-            .map(|argument| self.eval(argument, env))
-            .collect::<Vec<_>>();
         if self
             .runtime_rule_scope(&owner, ctor_name)
             .is_some_and(|(scope_owner, _, _)| scope_owner.same_instance(&owner))
@@ -21291,8 +21376,8 @@ impl Interpreter {
         args: &[Expr],
         env: &Env,
     ) -> Option<Vec<Value>> {
-        let ordered = reorder_named_args_by_names(param_order, args)?;
-        Some(ordered.iter().map(|arg| self.eval(arg, env)).collect())
+        let ordered = order_named_args_by_names(param_order, args)?;
+        Some(ordered.into_iter().map(|arg| self.eval(arg, env)).collect())
     }
 
     fn materialize_call_arguments(
@@ -21384,6 +21469,19 @@ impl Interpreter {
             if let Some(result) = self.try_effect_dispatch(function_name, arguments, env) {
                 return result;
             }
+            if env.get(function_name).is_none()
+                && self.runtime_function(&namespace, function_name).is_none()
+            {
+                if let Some(effect) = self.runtime_effect_of_operation(&namespace, function_name) {
+                    return self
+                        .panic_or_ground_fail(unhandled_effect_message(&effect, function_name));
+                }
+                if self.embedded_rust_functions.contains(function_name) {
+                    return self.panic_or_ground_fail(format!(
+                        "`{function_name}` is defined in embedded Rust (`@ rust`), which runs only in compiled code; run the program with `runa run`"
+                    ));
+                }
+            }
             if let Some(result) = self.try_active_rule_scope_call(function_name, arguments, env) {
                 return result;
             }
@@ -21447,11 +21545,36 @@ impl Interpreter {
                 }
             }
             if self
-                .runtime_constructor_signatures(&namespace, function_name)
+                .runtime_constructor_owner(&namespace, function_name)
                 .is_some()
             {
                 if let Some(value) = self.eval_constructor_call(function_name, arguments, env) {
                     return value;
+                }
+            }
+            // A free call of a type-body or impl method dispatches on its first
+            // argument's type unless a global function or rule owns the name.
+            if !arguments.is_empty()
+                && !has_named_args(arguments)
+                && self.runtime_receiver_method_declared(&namespace, function_name)
+                && self.runtime_function(&namespace, function_name).is_none()
+                && self.rules_named(&namespace, function_name).is_none()
+            {
+                let receiver = self.eval(&arguments[0], env);
+                if let Some(method) = self.bind_receiver_method(&receiver, function_name) {
+                    let rest = arguments[1..]
+                        .iter()
+                        .map(|argument| self.eval(argument, env))
+                        .collect();
+                    return self.apply(method, rest, env);
+                }
+                if !matches!(env.get(function_name), Some(Value::Builtin(_))) {
+                    let type_name = self
+                        .runtime_type_name(&receiver)
+                        .unwrap_or_else(|| runtime_value_kind(&receiver).to_string());
+                    return self.panic_or_ground_fail(format!(
+                        "no method `{function_name}` for a value of type `{type_name}`"
+                    ));
                 }
             }
             if has_named_args(arguments) {
@@ -21476,9 +21599,8 @@ impl Interpreter {
             if let Some(result) = self.try_rule_call(function_name, arguments, env) {
                 return result;
             }
-            // A known exact global family preserves the legacy empty value for
-            // non-Boolean partial rules. Canonically typed, context-closed
-            // Boolean families use the same False miss as generated Rust/SMT.
+            // A known global value-rule family fails closed on a miss;
+            // canonically typed Boolean families and relations answer False.
             let dispatch_key = RuleDispatchKey {
                 scope: None,
                 name: function_name.clone(),
@@ -21486,6 +21608,15 @@ impl Interpreter {
             };
             if let Some(value) = self.runtime_rule_miss_value_for_key(&namespace, &dispatch_key) {
                 return value;
+            }
+            // Inside a RuleScope, fields are values read without call syntax;
+            // a call of the same name reaches the ordinary function.
+            if let Some(callable) = self.function_behind_rule_scope_field(function_name, env) {
+                let argument_values = arguments
+                    .iter()
+                    .map(|argument| self.eval(argument, env))
+                    .collect();
+                return self.apply(callable, argument_values, env);
             }
         }
         let function_value = self.eval(function, env);
@@ -21714,6 +21845,11 @@ impl Interpreter {
         if self.calculation_failed() {
             return Value::Unit;
         }
+        if runtime_stack::expression_stack_exhausted() == Some(true) {
+            return self.panic_or_ground_fail(
+                "expression nesting exhausted the evaluation stack; evaluation is incomplete (FUTURUNA_STACK_MB sets the stack size of `runa`)",
+            );
+        }
         // Retain the innermost expression in the active source. A function or
         // rule body may come from another file, so it keeps its caller's site
         // rather than interpreting its offsets against the caller's text.
@@ -21753,10 +21889,15 @@ impl Interpreter {
                 }
                 // Check local env first (params, local bindings, builtins)
                 if let Some(val) = env.get(name) {
-                    let value_namespace = self.runtime_value_namespace(val);
-                    if let Some((owner, _)) = self
-                        .nullary_constructor_signature_in_namespace(&value_namespace, name)
-                        .filter(|_| Self::value_is_registered_constructor_binding(val, name))
+                    if let Some((owner, _)) =
+                        Self::value_is_registered_constructor_binding(val, name)
+                            .then(|| {
+                                self.nullary_constructor_signature_in_namespace(
+                                    &self.runtime_value_namespace(val),
+                                    name,
+                                )
+                            })
+                            .flatten()
                     {
                         self.runtime_constructor_value(&owner, name.clone(), vec![])
                     } else if let Value::Closure {
@@ -21806,12 +21947,6 @@ impl Interpreter {
                         self.runtime_registry_builtin(&owner, format!("nctor:{}/{}", name, arity))
                     }
                 } else {
-                    // Retired builtins must not fall through to symbolic logic
-                    // values in unchecked embeddings. Authored declarations and
-                    // lexical bindings have already been resolved above.
-                    if let Some(message) = removed_database_builtin_message(name) {
-                        return self.panic_or_ground_fail(message);
-                    }
                     if self.evaluating_constant {
                         return self.panic_or_ground_fail(format!(
                             "constant evaluation requires an initialized value for `{name}`"
@@ -21857,7 +21992,10 @@ impl Interpreter {
                     }),
                     ("-", Value::Float(f)) => Value::Float(-f),
                     ("&", v) | ("&mut", v) => v, // References are just values for now
-                    _ => Value::Unit,
+                    (op, v) => self.panic_or_ground_fail(format!(
+                        "unsupported operand for operator `{op}`: `{}`",
+                        self.runtime_value_type_label(&v)
+                    )),
                 }
             }
             ExprKind::If(condition, then_expression, else_expression) => {
@@ -21933,17 +22071,10 @@ impl Interpreter {
                                 .unwrap_or_else(missing)
                         }
                     }
-                    // Subject: .latest returns the most recent value, .count returns length
-                    Value::Subject(items) => match field.as_str() {
-                        "latest" => items.last().cloned().unwrap_or(Value::Unit),
-                        "count" => Value::Int(items.len() as i64),
-                        _ => missing(),
-                    },
-                    // Actor-subject unification: actors expose .state for current state
-                    Value::Actor { state, .. } => match field.as_str() {
-                        "state" => *state.clone(),
-                        _ => missing(),
-                    },
+                    // Live streams: `.count` values emitted, `.latest` most recent value
+                    Value::LiveStream(stream) => {
+                        self.live_field(stream, field).unwrap_or_else(missing)
+                    }
                     Value::RuleScopeInstance { bindings, .. }
                     | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings
                         .get(field)
@@ -22009,8 +22140,10 @@ impl Interpreter {
                             elems[i as usize].clone()
                         }
                     }
-                    (_, Value::Int(i)) => {
-                        // Handle Cons/Nil linked lists and other list-like values
+                    (list, Value::Int(i))
+                        if matches!(list, Value::Stream(_))
+                            || matches!(list, Value::Constructor(name, _) if name == "Cons" || name == "Nil") =>
+                    {
                         let elems = list_to_vec(&arr_val);
                         let i = *i;
                         if i < 0 || i as usize >= elems.len() {
@@ -22023,7 +22156,16 @@ impl Interpreter {
                             elems[i as usize].clone()
                         }
                     }
-                    _ => Value::Unit,
+                    (Value::Map(entries), key) => runtime_map_get_value(entries, key)
+                        .cloned()
+                        .unwrap_or_else(|| {
+                            self.panic_or_calculation_fail(format!("map has no key {key}"))
+                        }),
+                    _ => self.panic_or_ground_fail(format!(
+                        "cannot index a value of type {} with {}",
+                        self.runtime_value_type_label(&arr_val),
+                        self.runtime_value_type_label(&idx_val)
+                    )),
                 }
             }
             ExprKind::List(elems) => {
@@ -22064,15 +22206,28 @@ impl Interpreter {
                     ));
                 }
                 self.synchronize_effect_handler_lexical_env_stack();
+                let handler_index = self.handler_stack.len();
+                let rule_scope_depth = self.active_rule_scopes.len();
+                let resumed_depth = self.effect_handler_resumed.len();
                 self.handler_stack.push((effect.clone(), handlers.clone()));
                 self.handler_lexical_env_stack.push(Some(env.clone()));
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(body, env)));
-                self.handler_lexical_env_stack.pop();
-                self.handler_stack.pop();
+                self.handler_lexical_env_stack.truncate(handler_index);
+                self.handler_stack.truncate(handler_index);
                 match result {
                     Ok(value) => value,
-                    Err(payload) => std::panic::resume_unwind(payload),
+                    Err(payload) => match payload.downcast::<EffectHandlerReturn>() {
+                        Ok(signal) if signal.handler_index == handler_index => {
+                            while self.active_rule_scopes.len() > rule_scope_depth {
+                                self.pop_active_rule_scope_frame();
+                            }
+                            self.effect_handler_resumed.truncate(resumed_depth);
+                            self.effect_handler_result.take().unwrap_or(Value::Unit)
+                        }
+                        Ok(signal) => std::panic::resume_unwind(signal),
+                        Err(payload) => std::panic::resume_unwind(payload),
+                    },
                 }
             }
             ExprKind::Try(inner) => {
@@ -22082,27 +22237,17 @@ impl Interpreter {
                 }
                 // ? operator: unwrap Ok/Some, early-return Err/None (matches compiled ? behavior)
                 let val = self.eval(inner, env);
-                match &val {
-                    Value::Constructor(name, args)
-                    | Value::NamespacedConstructor {
-                        name,
-                        arguments: args,
-                        ..
-                    } if name == "Ok" && args.len() == 1 => args[0].clone(),
-                    Value::Constructor(name, args)
-                    | Value::NamespacedConstructor {
-                        name,
-                        arguments: args,
-                        ..
-                    } if name == "Some" && args.len() == 1 => args[0].clone(),
-                    Value::Constructor(name, _) | Value::NamespacedConstructor { name, .. }
-                        if name == "Err" || name == "None" =>
-                    {
+                match runtime_result_or_option_parts(&val) {
+                    Some(("Ok" | "Some", args)) => args[0].clone(),
+                    Some(_) => {
                         // Early-return the error/none value (same as ? in Rust)
                         eprintln!("Error: ? operator on {}", val);
                         std::process::exit(1);
                     }
-                    _ => val, // pass through non-Result/Option values
+                    None => self.panic_or_ground_fail(format!(
+                        "`?` expects a Result or Option, got {}",
+                        self.runtime_value_type_label(&val)
+                    )),
                 }
             }
             ExprKind::Unit => Value::Unit,
@@ -22163,10 +22308,11 @@ impl Interpreter {
                 ref env,
             } => {
                 let depth = self.runtime_function_call_depth.get();
-                if depth >= RUNTIME_FUNCTION_CALL_DEPTH_LIMIT {
-                    return self.panic_or_ground_fail(format!(
-                        "function call `{}` exceeded its recursion limit of {RUNTIME_FUNCTION_CALL_DEPTH_LIMIT}; evaluation is incomplete",
-                        name.as_deref().unwrap_or("<closure>")
+                if runtime_call_depth_exhausted(depth) {
+                    return self.panic_or_ground_fail(runtime_recursion_limit_message(
+                        "function",
+                        name.as_deref().unwrap_or("<closure>"),
+                        depth,
                     ));
                 }
                 self.runtime_function_call_depth.set(depth + 1);
@@ -22274,18 +22420,34 @@ impl Interpreter {
         args: Vec<Value>,
         env: &Env,
     ) -> Value {
-        if let Some(message) = removed_database_builtin_message(name) {
-            return self.panic_or_ground_fail(message);
-        }
         if self.calculation_failed() {
             return Value::Unit;
         }
         // resume(val) — algebraic effect continuation (identity in tail-resumptive)
         if name == "__resume" {
+            if let Some(resumed) = self.effect_handler_resumed.last_mut() {
+                *resumed = true;
+            }
             return args.into_iter().next().unwrap_or(Value::Unit);
         }
         if let Some(rule_name) = name.strip_prefix("rule:") {
             return self.apply_rule_value_in_namespace(namespace, rule_name, args, env);
+        }
+        if let Some(method) = name.strip_prefix("method:") {
+            // An exported type-body or impl method dispatches on its receiver,
+            // exactly like a free call of the method name.
+            let mut args = args.into_iter();
+            let Some(receiver) = args.next() else {
+                return self
+                    .panic_or_ground_fail(format!("method `{method}` needs a receiver argument"));
+            };
+            let Some(bound) = self.bind_receiver_method(&receiver, method) else {
+                return self.panic_or_ground_fail(format!(
+                    "no method `{method}` for a value of type `{}`",
+                    self.runtime_value_type_label(&receiver)
+                ));
+            };
+            return self.apply(bound, args.collect(), env);
         }
         if name.starts_with("rulescope:") {
             let parts: Vec<&str> = name["rulescope:".len()..].split('/').collect();
@@ -22328,27 +22490,36 @@ impl Interpreter {
             return self.runtime_constructor_value(namespace, ctor_name.to_string(), args);
         }
 
+        if let Some(refused) = self.refuse_host_effect(name) {
+            return refused;
+        }
         if self.exhaustive_preview_forbid_effects {
-            let canonical = builtin_canonical(name);
             let impure = meta_impure_runtime_names();
             let list_shaped = |value: &Value| {
                 matches!(value, Value::List(_))
                     || matches!(value, Value::Constructor(name, _) if name == "Cons" || name == "Nil")
             };
-            let pure_eager_collection_overload = match canonical {
+            let pure_eager_collection_overload = match name {
                 "last" | "take" => args.first().is_some_and(list_shaped),
                 "collect" => args
                     .first()
                     .is_some_and(|value| matches!(value, Value::Stream(_)) || list_shaped(value)),
                 _ => false,
             };
-            if (impure.contains(name) || impure.contains(canonical))
-                && !pure_eager_collection_overload
-            {
+            if impure.contains(name) && !pure_eager_collection_overload {
                 return self.exhaustive_preview_fail(format!(
                     "exact exploration refuses impure runtime operation `{}`",
                     name
                 ));
+            }
+        }
+
+        if args
+            .iter()
+            .any(|argument| matches!(argument, Value::LiveStream(_)))
+        {
+            if let Some(value) = self.eval_live_stream_builtin(namespace, name, &args, env) {
+                return value;
             }
         }
 
@@ -22604,7 +22775,12 @@ impl Interpreter {
             }
             "not" => match args.first() {
                 Some(Value::Bool(b)) => Value::Bool(!b),
-                _ => Value::Bool(false),
+                other => self.panic_or_ground_fail(format!(
+                    "not expects a Bool, got {}",
+                    other.map_or("no argument".to_string(), |value| {
+                        self.runtime_value_type_label(value)
+                    })
+                )),
             },
             "concat" => {
                 match (args.get(0), args.get(1)) {
@@ -22652,7 +22828,7 @@ impl Interpreter {
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let mapped: Vec<Value> = items
@@ -22677,23 +22853,21 @@ impl Interpreter {
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
-                let filtered: Vec<Value> = items
-                    .into_iter()
-                    .filter(|item| {
-                        match self.apply_checked_builtin_callback(
-                            1,
-                            func.clone(),
-                            vec![item.clone()],
-                            env,
-                        ) {
-                            Value::Bool(true) => true,
-                            _ => false,
-                        }
-                    })
-                    .collect();
+                let mut filtered = Vec::new();
+                for item in items {
+                    let result = self.apply_checked_builtin_callback(
+                        1,
+                        func.clone(),
+                        vec![item.clone()],
+                        env,
+                    );
+                    if self.builtin_predicate_holds("filter", result) {
+                        filtered.push(item);
+                    }
+                }
                 if is_stream {
                     Value::Stream(filtered)
                 } else {
@@ -22782,14 +22956,13 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match &input {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 Value::Bool(items.into_iter().any(|item| {
-                    matches!(
-                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env),
-                        Value::Bool(true)
-                    )
+                    let result =
+                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
+                    self.builtin_predicate_holds("any", result)
                 }))
             }
             "all" => {
@@ -22797,29 +22970,26 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match &input {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 Value::Bool(items.into_iter().all(|item| {
-                    matches!(
-                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env),
-                        Value::Bool(true)
-                    )
+                    let result =
+                        self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
+                    self.builtin_predicate_holds("all", result)
                 }))
             }
             "find" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
                     let items = list_to_vec(list);
                     for item in items {
-                        if matches!(
-                            self.apply_checked_builtin_callback(
-                                1,
-                                func.clone(),
-                                vec![item.clone()],
-                                env,
-                            ),
-                            Value::Bool(true)
-                        ) {
+                        let result = self.apply_checked_builtin_callback(
+                            1,
+                            func.clone(),
+                            vec![item.clone()],
+                            env,
+                        );
+                        if self.builtin_predicate_holds("find", result) {
                             return Value::Constructor("Some".into(), vec![item].into());
                         }
                     }
@@ -22835,7 +23005,7 @@ impl Interpreter {
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let mut result = Vec::new();
@@ -22843,7 +23013,7 @@ impl Interpreter {
                     let mapped =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
                     match mapped {
-                        Value::Stream(v) | Value::Subject(v) => {
+                        Value::Stream(v) => {
                             if self.ground_collection_limit.is_some()
                                 && self
                                     .ground_collection_growth_allowed(
@@ -22892,11 +23062,11 @@ impl Interpreter {
                     return Value::Unit;
                 }
                 let (va, is_stream) = match &a {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let vb = match &b {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 let pairs: Vec<Value> = va
@@ -22917,7 +23087,7 @@ impl Interpreter {
                     return Value::Unit;
                 }
                 let (items, is_stream) = match &input {
-                    Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
+                    Value::Stream(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
                 let pairs: Vec<Value> = items
@@ -22993,7 +23163,7 @@ impl Interpreter {
                     return Value::Unit;
                 }
                 match &input {
-                    Value::Stream(v) | Value::Subject(v) => {
+                    Value::Stream(v) => {
                         // Stream: remove consecutive duplicates (Rx distinctUntilChanged)
                         let mut result = Vec::new();
                         for item in v {
@@ -23592,27 +23762,35 @@ impl Interpreter {
             },
             "parse_int" => match args.first() {
                 Some(Value::Str(s)) => match s.trim().parse::<i64>() {
-                    Ok(n) => Value::Int(n),
-                    Err(_) => {
-                        // Silent fallback — use monadic bind (= n <- parse_int(s)) for error handling
-                        Value::Int(0)
-                    }
+                    Ok(n) => runtime_ok(Value::Int(n)),
+                    Err(_) => runtime_err(format!("not an integer: `{s}`")),
                 },
-                Some(Value::Int(n)) => Value::Int(*n),
-                _ => Value::Int(0),
+                other => self.builtin_string_argument_fail(name, other),
             },
             "parse_float" => match args.first() {
                 Some(Value::Str(s)) => match s.trim().parse::<f64>() {
-                    Ok(f) => Value::Float(f),
-                    Err(_) => {
-                        // Silent fallback — use monadic bind (= f <- parse_float(s)) for error handling
-                        Value::Float(0.0)
-                    }
+                    Ok(f) if f.is_finite() => runtime_ok(Value::Float(f)),
+                    _ => runtime_err(format!("not a number: `{s}`")),
                 },
-                Some(Value::Float(f)) => Value::Float(*f),
-                Some(Value::Int(n)) => Value::Float(*n as f64),
-                _ => Value::Float(0.0),
+                other => self.builtin_string_argument_fail(name, other),
             },
+            "parse_danish_int" | "parse_danish_float" => {
+                let parsed = match args.first() {
+                    Some(Value::Str(text)) if name == "parse_danish_int" => {
+                        danish::__futuruna_parse_danish_int(text).map(Value::Int)
+                    }
+                    Some(Value::Str(text)) => {
+                        danish::__futuruna_parse_danish_float(text).map(Value::Float)
+                    }
+                    _ => Err(format!("{name} expects a String")),
+                };
+                match parsed {
+                    Ok(value) => Value::Constructor("Ok".into(), vec![value].into()),
+                    Err(message) => {
+                        Value::Constructor("Err".into(), vec![Value::Str(message)].into())
+                    }
+                }
+            }
             "string_chars" => match args.first() {
                 Some(Value::Str(s)) => {
                     let size = s.chars().count();
@@ -23626,31 +23804,31 @@ impl Interpreter {
             // ---- M14b: File I/O builtins ----
             "read_file" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => Value::Str(content),
-                    Err(_) => Value::Str(String::new()),
+                    Ok(content) => runtime_ok(Value::Str(content)),
+                    Err(error) => runtime_err(format!("cannot read {path}: {error}")),
                 },
-                _ => Value::Str(String::new()),
+                other => self.builtin_string_argument_fail(name, other),
             },
-            "write_file" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(path)), Some(Value::Str(content))) => {
-                    let _ = std::fs::write(path, content);
-                    Value::Unit
-                }
-                _ => Value::Unit,
-            },
-            "append_file" => match (args.get(0), args.get(1)) {
+            "write_file" | "append_file" => match (args.first(), args.get(1)) {
                 (Some(Value::Str(path)), Some(Value::Str(content))) => {
                     use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new()
-                        .append(true)
+                    let append = name == "append_file";
+                    let written = std::fs::OpenOptions::new()
+                        .write(true)
                         .create(true)
+                        .append(append)
+                        .truncate(!append)
                         .open(path)
-                    {
-                        let _ = f.write_all(content.as_bytes());
+                        .and_then(|mut file| file.write_all(content.as_bytes()));
+                    match written {
+                        Ok(()) => Value::Unit,
+                        Err(error) => self
+                            .panic_or_ground_fail(format!("{name} cannot write {path}: {error}")),
                     }
-                    Value::Unit
                 }
-                _ => Value::Unit,
+                _ => self.panic_or_ground_fail(format!(
+                    "{name} expects a String path and String content"
+                )),
             },
             "file_exists" => match args.first() {
                 Some(Value::Str(path)) => Value::Bool(std::path::Path::new(path.as_str()).exists()),
@@ -23718,10 +23896,10 @@ impl Interpreter {
             // ---- M14c: JSON builtins ----
             "json_parse" => match args.first() {
                 Some(Value::Str(s)) => match serde_json::from_str::<serde_json::Value>(s) {
-                    Ok(_) => Value::Str(s.clone()),
-                    Err(_) => Value::Str("null".to_string()),
+                    Ok(_) => runtime_ok(Value::Str(s.clone())),
+                    Err(error) => runtime_err(format!("invalid JSON: {error}")),
                 },
-                _ => Value::Str("null".to_string()),
+                other => self.builtin_string_argument_fail(name, other),
             },
             "json_get" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(json)), Some(Value::Str(key))) => {
@@ -23831,14 +24009,23 @@ impl Interpreter {
             }
 
             // ---- M14d: HTTP builtins ----
-            "http_get" => {
-                println!("[runa interpreter] http_get: use `runa run` for real HTTP requests");
-                Value::Str(String::new())
-            }
-            "http_post" => {
-                println!("[runa interpreter] http_post: use `runa run` for real HTTP requests");
-                Value::Str(String::new())
-            }
+            "http_get" => match args.first() {
+                Some(Value::Str(url)) => match runtime_http_request(url, None) {
+                    Ok(body) => runtime_ok(Value::Str(body)),
+                    Err(message) => runtime_err(message),
+                },
+                other => self.builtin_string_argument_fail(name, other),
+            },
+            "http_post" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(url)), Some(Value::Str(body))) => {
+                    match runtime_http_request(url, Some(body)) {
+                        Ok(response) => runtime_ok(Value::Str(response)),
+                        Err(message) => runtime_err(message),
+                    }
+                }
+                (Some(Value::Str(_)), other) => self.builtin_string_argument_fail(name, other),
+                (other, _) => self.builtin_string_argument_fail(name, other),
+            },
             "http_serve" => {
                 println!(
                     "[runa interpreter] {}: use `runa run` for real HTTP server",
@@ -24008,7 +24195,11 @@ impl Interpreter {
                             .trim_start_matches("ActorDef<")
                             .trim_end_matches('>')
                             .to_string();
-                        let initial_state = args.get(1).cloned().unwrap_or(Value::Int(0));
+                        let Some(initial_state) = args.get(1).cloned() else {
+                            self.ordinary_runtime_fail(format!(
+                                "spawn({actor_name}, ...) needs an initial state"
+                            ))
+                        };
                         let definition_namespace = self.runtime_value_namespace(value);
                         if let Some(Defn::Actor {
                             state_param,
@@ -24023,54 +24214,28 @@ impl Interpreter {
                                 .map(|basis| basis.as_ref().clone())
                                 .unwrap_or_else(|| env.clone());
                             actor_env.set_runtime_namespace(definition_namespace);
-                            Value::Actor {
+                            self.spawn_actor(
                                 actor_name,
-                                state: Box::new(initial_state),
-                                state_param: state_param.name.clone(),
+                                state_param.name.clone(),
                                 handlers,
-                                env: actor_env,
-                            }
+                                actor_env,
+                                initial_state,
+                            )
                         } else {
-                            eprintln!("spawn: no actor definition for '{}'", actor_name);
-                            Value::Unit
+                            self.ordinary_runtime_fail(format!(
+                                "spawn: no actor definition named `{}`",
+                                actor_name
+                            ))
                         }
                     }
-                    _ => {
-                        eprintln!("spawn: expected actor definition as first argument");
-                        Value::Unit
-                    }
+                    Some(other) => self.ordinary_runtime_fail(format!(
+                        "spawn needs an actor definition, found {}",
+                        other
+                    )),
+                    None => self.ordinary_runtime_fail("spawn needs an actor definition".into()),
                 }
             }
-            "ask" => {
-                // ask(actor, message) -> sends message, returns new state
-                match args.get(0) {
-                    Some(Value::Actor {
-                        actor_name,
-                        state,
-                        state_param,
-                        handlers,
-                        env: actor_env,
-                    }) => {
-                        let msg = args.get(1).cloned().unwrap_or(Value::Unit);
-                        let (new_state, _response) = self.dispatch_actor_message(
-                            actor_name,
-                            state,
-                            state_param,
-                            handlers,
-                            actor_env,
-                            &msg,
-                        );
-                        // Update the actor in-place via actor_instances
-                        self.actor_instances
-                            .insert(actor_name.clone(), (new_state.clone(), actor_name.clone()));
-                        new_state
-                    }
-                    _ => {
-                        eprintln!("ask: expected actor as first argument");
-                        Value::Unit
-                    }
-                }
-            }
+            "ask" => self.actor_ask(&args),
             // ── Stream builtins (M12) ──
             "from_list" => {
                 // from_list(list) → Stream — convert a Cons/Nil list to a Stream
@@ -24087,7 +24252,7 @@ impl Interpreter {
                 let init = args.get(1).cloned().unwrap_or(Value::Int(0));
                 let func = args.get(2).cloned().unwrap_or(Value::Unit);
                 let items = match stream {
-                    Value::Stream(items) | Value::Subject(items) => items,
+                    Value::Stream(items) => items,
                     other => list_to_vec(&other),
                 };
                 let mut acc = init;
@@ -24108,11 +24273,11 @@ impl Interpreter {
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
                 let items1 = match s1 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let items2 = match s2 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let mut merged = Vec::new();
@@ -24139,24 +24304,38 @@ impl Interpreter {
                 }
                 Value::Stream(merged)
             }
-            "take" => {
-                // take(stream, n) → Stream — take first n elements
-                let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
+            "take" | "skip" => {
+                // Streams and subjects yield a stream; lists yield a list.
                 let n = match args.get(1) {
-                    Some(Value::Int(n)) if *n > 0 => *n as usize,
-                    _ => 0,
+                    Some(Value::Int(n)) => usize::try_from(*n).unwrap_or(0),
+                    other => {
+                        return self.panic_or_ground_fail(format!(
+                            "{name} expects an Int count, got {}",
+                            other.map(ToString::to_string).unwrap_or_default()
+                        ))
+                    }
                 };
-                let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
-                    other => list_to_vec(&other),
+                let (items, is_stream) = match args.first() {
+                    Some(Value::Stream(items)) => (items.clone(), true),
+                    Some(other) => (list_to_vec(other), false),
+                    None => (Vec::new(), true),
                 };
-                Value::Stream(items.into_iter().take(n).collect())
+                let selected: Vec<Value> = if name == "take" {
+                    items.into_iter().take(n).collect()
+                } else {
+                    items.into_iter().skip(n).collect()
+                };
+                if is_stream {
+                    Value::Stream(selected)
+                } else {
+                    Value::List(selected)
+                }
             }
             "collect" => {
                 // collect(stream) → List — convert stream to list
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 vec_to_list(items)
@@ -24165,24 +24344,12 @@ impl Interpreter {
                 // count(stream) → Int — number of elements
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 Value::Int(items.len() as i64)
             }
-            "skip" => {
-                // skip(stream, n) → Stream — skip first n elements
-                let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let n = match args.get(1) {
-                    Some(Value::Int(n)) if *n > 0 => *n as usize,
-                    _ => 0,
-                };
-                let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
-                    other => list_to_vec(&other),
-                };
-                Value::Stream(items.into_iter().skip(n).collect())
-            }
+
             "window" => {
                 // window(stream, n) → Stream of Stream — sliding window of size n
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
@@ -24191,7 +24358,7 @@ impl Interpreter {
                     _ => 1,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let windows: Vec<Value> = items
@@ -24204,7 +24371,7 @@ impl Interpreter {
                 // sum(stream) → Int or Float — sum all elements
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 if items.iter().any(|item| matches!(item, Value::Float(_))) {
@@ -24230,7 +24397,7 @@ impl Interpreter {
                 // last(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 items
@@ -24244,11 +24411,11 @@ impl Interpreter {
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
                 let items1 = match s1 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let items2 = match s2 {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 if items1.is_empty() || items2.is_empty() {
@@ -24269,7 +24436,7 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match &input {
-                    Value::Stream(v) | Value::Subject(v) => v.clone(),
+                    Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
                 for item in &items {
@@ -24288,7 +24455,7 @@ impl Interpreter {
                 // first(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 items
@@ -24302,7 +24469,7 @@ impl Interpreter {
                 let init = args.get(1).cloned().unwrap_or(Value::Int(0));
                 let func = args.get(2).cloned().unwrap_or(Value::Unit);
                 let items = match stream {
-                    Value::Stream(items) | Value::Subject(items) => items,
+                    Value::Stream(items) => items,
                     other => list_to_vec(&other),
                 };
                 let mut acc = init;
@@ -24321,7 +24488,7 @@ impl Interpreter {
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let value = args.get(1).cloned().unwrap_or(Value::Unit);
                 let mut items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 items.insert(0, value);
@@ -24331,7 +24498,7 @@ impl Interpreter {
                 // pairwise(stream) → Stream of Tuple — consecutive pairs
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let pairs: Vec<Value> = items
@@ -24390,7 +24557,7 @@ impl Interpreter {
                     _ => 0,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 match items.last() {
@@ -24407,7 +24574,7 @@ impl Interpreter {
                     _ => 100,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 if items.is_empty() {
@@ -24427,7 +24594,7 @@ impl Interpreter {
                     _ => 0,
                 };
                 match stream {
-                    Value::Stream(_) | Value::Subject(_) => stream,
+                    Value::Stream(_) => stream,
                     other => Value::Stream(list_to_vec(&other)),
                 }
             }
@@ -24440,7 +24607,7 @@ impl Interpreter {
                     _ => 100,
                 };
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 // Sync mode: one batch of all elements
@@ -24455,7 +24622,7 @@ impl Interpreter {
                     _ => 1000,
                 };
                 match stream {
-                    Value::Stream(_) | Value::Subject(_) => stream,
+                    Value::Stream(_) => stream,
                     other => Value::Stream(list_to_vec(&other)),
                 }
             }
@@ -24465,7 +24632,7 @@ impl Interpreter {
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 // Sync: map each to inner stream, keep only the last inner result set
@@ -24473,7 +24640,7 @@ impl Interpreter {
                 if let Some(last) = items.last() {
                     let inner = self.apply_fn(&func, vec![last.clone()], env);
                     match inner {
-                        Value::Stream(v) | Value::Subject(v) => Value::Stream(v),
+                        Value::Stream(v) => Value::Stream(v),
                         other => Value::Stream(list_to_vec(&other)),
                     }
                 } else {
@@ -24486,11 +24653,11 @@ impl Interpreter {
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let trigger = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let trigger_items = match trigger {
-                    Value::Stream(v) | Value::Subject(v) => v,
+                    Value::Stream(v) => v,
                     other => list_to_vec(&other),
                 };
                 let mut result = Vec::new();
@@ -24507,68 +24674,25 @@ impl Interpreter {
                 Value::Stream(result)
             }
             // ── Subject + lifecycle builtins (M13) ──
-            "subject" => {
-                // subject() → Subject with no initial value
-                // subject(val) → Subject with initial value (BehaviorSubject)
-                // subject(val, n) → ReplaySubject: buffers last n values for late subscribers
-                //   (In sync interpreter, all values are buffered anyway; replay count
-                //    is relevant for async/codegen where late subscribers need history.)
-                let mut it = args.into_iter();
-                match (it.next(), it.next()) {
-                    (Some(val), Some(Value::Int(_replay_n))) => Value::Subject(vec![val]),
-                    (Some(val), _) => Value::Subject(vec![val]),
-                    (None, _) => Value::Subject(vec![]),
-                }
-            }
-
-            "as_stream" => {
-                // as_stream(subject) → Stream — strips write access (Subject→Stream narrowing)
-                // In interpreter: converts Subject(items) to Stream(items)
-                // <-  on a Stream will fail at the Send handler (not a Subject)
-                match args.into_iter().next() {
-                    Some(Value::Subject(items)) => Value::Stream(items),
-                    Some(Value::Stream(items)) => Value::Stream(items), // already a stream, no-op
-                    Some(other) => Value::Stream(list_to_vec(&other)),
-                    None => Value::Stream(vec![]),
-                }
-            }
-            "complete" => {
-                // complete(subject_name) → mark subject as completed (no more pushes)
-                // In sync interpreter: converts Subject→Stream (strips write access)
-                // In async mode: closes the broadcast channel
-                if let Some(Value::Subject(items)) = args.into_iter().next() {
-                    Value::Stream(items)
-                } else {
-                    Value::Unit
-                }
-            }
-            "error" => {
-                // error(subject, msg) → terminate subject with error
-                // In sync interpreter: converts Subject→Stream, prints error
-                let mut it = args.into_iter();
-                if let (Some(Value::Subject(items)), Some(err_val)) = (it.next(), it.next()) {
-                    eprintln!("stream error: {}", err_val);
-                    Value::Stream(items)
-                } else {
-                    Value::Unit
-                }
-            }
+            "subject" => self.live_subject(args),
+            "as_stream" => self.live_as_stream(args),
+            "complete" => self.live_complete(&args),
+            "error" => self.live_error(&args),
             "teardown" => {
-                // teardown("ScopeName") → returns Teardown marker for the caller to handle
-                // The actual env removal happens in run_program where we have &mut Env
-                if let Some(Value::Str(scope_name)) = args.first() {
-                    Value::Constructor(
-                        "__Teardown".into(),
-                        vec![Value::Str(scope_name.clone())].into(),
-                    )
-                } else if let Some(Value::Constructor(scope_name, _)) = args.first() {
-                    Value::Constructor(
-                        "__Teardown".into(),
-                        vec![Value::Str(scope_name.clone())].into(),
-                    )
-                } else {
-                    Value::Unit
+                // teardown("ScopeName") stops the scope's subscriptions; the
+                // scope's bindings stay readable with the values they hold.
+                match args.first() {
+                    Some(Value::Str(scope_name))
+                    | Some(Value::Scope {
+                        name: scope_name, ..
+                    }) => self.live_teardown(scope_name),
+                    Some(other) => self.ordinary_runtime_fail(format!(
+                        "teardown needs a scope name string, found {}",
+                        other
+                    )),
+                    None => self.ordinary_runtime_fail("teardown needs a scope name".into()),
                 }
+                Value::Unit
             }
             // M13c: poll(fn, ms) → in sync interpreter, just call fn once
             "poll" => {
@@ -24757,11 +24881,24 @@ impl Interpreter {
         handler_env.set("resume".into(), Value::Builtin("__resume".into()));
 
         // Evaluate handler body
-        Some(self.eval(&handler.body, &handler_env))
+        // A clause that does not `resume` ends its `| handle` expression with
+        // the clause's value; the handled body does not continue.
+        self.effect_handler_resumed.push(false);
+        let value = self.eval(&handler.body, &handler_env);
+        if self.effect_handler_resumed.pop().unwrap_or(true) {
+            return Some(value);
+        }
+        self.effect_handler_result = Some(value);
+        std::panic::resume_unwind(Box::new(EffectHandlerReturn {
+            handler_index: handler_idx,
+        }))
     }
 
     pub fn eval_effect(&mut self, name: &str, args: Vec<Value>) -> Value {
-        match builtin_canonical(name) {
+        if let Some(refused) = self.refuse_host_effect(name) {
+            return refused;
+        }
+        match name {
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -24778,66 +24915,10 @@ impl Interpreter {
                 // Handled by eval_builtin now
                 Value::Int(0)
             }
-            "teardown" => {
-                // Return teardown marker — caller handles env removal
-                if let Some(Value::Str(scope_name)) = args.first() {
-                    Value::Constructor(
-                        "__Teardown".into(),
-                        vec![Value::Str(scope_name.clone())].into(),
-                    )
-                } else {
-                    Value::Unit
-                }
-            }
-            // I/O builtins: handle directly (eval_effect has no env)
-            "write_file" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(path)), Some(Value::Str(content))) => {
-                    let _ = std::fs::write(path, content);
-                    Value::Unit
-                }
-                _ => Value::Unit,
-            },
-            "append_file" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(path)), Some(Value::Str(content))) => {
-                    use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new()
-                        .append(true)
-                        .create(true)
-                        .open(path)
-                    {
-                        let _ = f.write_all(content.as_bytes());
-                    }
-                    Value::Unit
-                }
-                _ => Value::Unit,
-            },
-            "read_file" => match args.first() {
-                Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => Value::Str(content),
-                    Err(_) => Value::Str(String::new()),
-                },
-                _ => Value::Str(String::new()),
-            },
-            "file_exists" => match args.first() {
-                Some(Value::Str(path)) => Value::Bool(std::path::Path::new(path.as_str()).exists()),
-                _ => Value::Bool(false),
-            },
-            "read_lines" => match args.first() {
-                Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => {
-                        Value::List(content.lines().map(|l| Value::Str(l.to_string())).collect())
-                    }
-                    Err(_) => Value::List(vec![]),
-                },
-                _ => Value::List(vec![]),
-            },
-            "env_var" => match args.first() {
-                Some(Value::Str(name)) => match std::env::var(name) {
-                    Ok(val) => Value::Str(val),
-                    Err(_) => Value::Str(String::new()),
-                },
-                _ => Value::Str(String::new()),
-            },
+            "teardown" => self.eval_builtin("teardown", args, &Env::new()),
+            // I/O effects share the builtin implementations.
+            canonical @ ("write_file" | "append_file" | "read_file" | "file_exists"
+            | "read_lines" | "env_var") => self.eval_builtin(canonical, args, &Env::new()),
             "time" => {
                 // Return current Unix timestamp as Float
                 use std::time::{SystemTime, UNIX_EPOCH};
@@ -24888,7 +24969,8 @@ impl Interpreter {
         }
     }
 
-    /// Dispatch a message to an actor: pattern-match handlers, evaluate body, return (new_state, response).
+    /// Handle one actor message: the first handler whose pattern matches
+    /// computes the actor's next state.
     pub fn dispatch_actor_message(
         &mut self,
         actor_name: &str,
@@ -24897,32 +24979,18 @@ impl Interpreter {
         handlers: &[Handler],
         actor_env: &Env,
         msg: &Value,
-    ) -> (Value, Value) {
+    ) -> Value {
         for handler in handlers {
             let mut handler_env = actor_env.child();
-            // Bind state
             handler_env.set(state_param.to_string(), current_state.clone());
-            // Try to match message against handler pattern
             if self.match_pattern(&handler.msg_pat, msg, &mut handler_env) {
-                let result = self.eval(&handler.body, &handler_env);
-                // Convention: if the handler body calls the actor recursively (e.g. counter(state + 1)),
-                // that becomes the new state. If it returns a tuple, (response, new_state).
-                // For simplicity: if result is a Constructor("Reply", [response, new_state]),
-                // extract both. Otherwise result is the new state, response is Unit.
-                match &result {
-                    Value::Constructor(name, args) if name == "Reply" && args.len() == 2 => {
-                        return (args[1].clone(), args[0].clone());
-                    }
-                    _ => {
-                        // Result is the new state, no response
-                        return (result, Value::Unit);
-                    }
-                }
+                return self.eval(&handler.body, &handler_env);
             }
         }
-        // No handler matched
-        eprintln!("Actor '{}': no handler for message {:?}", actor_name, msg);
-        (current_state.clone(), Value::Unit)
+        self.ordinary_runtime_fail(format!(
+            "actor `{}` has no handler for the message {}",
+            actor_name, msg
+        ))
     }
 
     fn checked_integer_sum(&self, items: &[Value]) -> Value {
@@ -25144,7 +25212,18 @@ impl Interpreter {
                 if let Some(guard) = &arm.guard {
                     match self.eval(guard, &arm_env) {
                         Value::Bool(true) => {}
-                        _ => continue,
+                        Value::Bool(false) => continue,
+                        other => {
+                            if self.calculation_failed() || self.ground_error.borrow().is_some() {
+                                return (Value::Unit, None);
+                            }
+                            return (
+                                self.panic_or_ground_fail(format!(
+                                    "match guard must return Bool, got {other}"
+                                )),
+                                None,
+                            );
+                        }
                     }
                 }
                 return (self.eval(&arm.body, &arm_env), Some(arm_index));
@@ -25163,8 +25242,8 @@ impl Interpreter {
     fn pattern_constructor_owner_matches(&self, name: &str, value: &Value, env: &Env) -> bool {
         let value_namespace = self.runtime_value_namespace(value);
         let declaration_namespace = self.namespace_for_env(env);
-        self.runtime_constructor_signatures(&declaration_namespace, name)
-            .map(|(owner, _)| owner.same_constructor_owner(&value_namespace, name))
+        self.runtime_constructor_owner(&declaration_namespace, name)
+            .map(|owner| owner.same_constructor_owner(&value_namespace, name))
             .unwrap_or_else(|| value_namespace.same_instance(&self.runtime_root))
     }
 
@@ -25600,10 +25679,13 @@ impl Interpreter {
             name: name.to_string(),
             arity,
         };
-        let (owner, rules) = self.rules_named(namespace, name)?;
+        let (owner, ()) = Self::runtime_namespace_find(namespace, |state| {
+            state.rules_by_name.contains_key(name).then_some(())
+        })?;
         if let Some(prepared) = owner.state.borrow().exact_prepared_rule_dispatch.get(&key) {
             return Some(prepared.clone());
         }
+        let (_, rules) = self.rules_named(&owner, name)?;
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(rules, arity)?);
         owner
             .state
@@ -25711,6 +25793,29 @@ impl Interpreter {
         frame
     }
 
+    /// The ordinary function reached by call syntax on a RuleScope field name.
+    /// Function-valued fields stay callable; data fields never are.
+    fn function_behind_rule_scope_field(&self, name: &str, env: &Env) -> Option<Value> {
+        let (_, bindings, _) = self.active_rule_scope_for_env(env)?;
+        let field = bindings.get(name)?;
+        if matches!(
+            field,
+            Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. }
+        ) {
+            return None;
+        }
+        let namespace = self.namespace_for_env(env);
+        let (owner, definition, declaration_env) = self.runtime_function(&namespace, name)?;
+        Some(Value::Closure {
+            name: Some(name.to_string()),
+            params: definition.params,
+            body: definition.body,
+            env: Env::new()
+                .with_runtime_namespace(owner)
+                .with_runtime_declaration_env(declaration_env),
+        })
+    }
+
     fn active_rule_scope_for_env(
         &self,
         env: &Env,
@@ -25744,22 +25849,10 @@ impl Interpreter {
         else {
             return Value::Unit;
         };
-        let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
-            let Some(prepared) =
-                self.exact_scoped_rule_dispatch(&owner, scope_name, method, args.len())
-            else {
-                return Value::Unit;
-            };
-            (Some(prepared), None)
-        } else {
-            let matching = Self::rule_scope_matching_rules(&definition, method, args.len())
-                .into_iter()
-                .map(|rule| (rule, scope_declaration_env.clone()))
-                .collect::<Vec<_>>();
-            if matching.is_empty() {
-                return Value::Unit;
-            }
-            (None, Some(matching))
+        let Some(prepared) =
+            self.exact_scoped_rule_dispatch(&owner, scope_name, method, args.len())
+        else {
+            return Value::Unit;
         };
         let mut scoped_env = declaration_call_env.child();
         scoped_env.set_runtime_namespace(owner.clone());
@@ -25782,38 +25875,52 @@ impl Interpreter {
             arity: args.len(),
         };
         let materialized_args = self.materialize_call_arguments(args, caller_env, &mut scoped_env);
-        let result = match (prepared, matching) {
-            (Some(prepared), _) => self.try_rule_call_from_prepared(
-                &owner,
-                &materialized_args,
-                &scoped_env,
-                prepared.as_ref(),
-                &family,
-            ),
-            (None, Some(matching)) => self.try_rule_call_from_rules(
-                &owner,
-                &family,
-                &materialized_args,
-                &scoped_env,
-                matching,
-            ),
-            (None, None) => None,
-        };
+        let result = self.try_rule_call_from_prepared(
+            &owner,
+            &materialized_args,
+            &scoped_env,
+            prepared.as_ref(),
+            &family,
+        );
         self.pop_active_rule_scope_frame();
-        result.unwrap_or_else(|| {
-            if self.checking_calculation {
-                return self.calculation_rule_miss(&owner, &family);
-            }
-            self.boolean_rule_miss_value_in_namespace(
-                &owner,
-                &RuleDispatchKey {
-                    scope: Some(scope_name.to_string()),
-                    name: method.to_string(),
-                    arity: args.len(),
-                },
-            )
-            .unwrap_or(Value::Bool(false))
-        })
+        result.unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family))
+    }
+
+    /// A RuleScope member that no clause answers: `False` for relations and
+    /// typed Boolean families, an evaluation error for value rules.
+    fn scoped_rule_miss_value(
+        &self,
+        owner: &RuntimeNamespace,
+        definition: &RuleScopeDef,
+        family: &RuleDispatchKey,
+    ) -> Value {
+        if self.checking_calculation {
+            return self.calculation_rule_miss(owner, family);
+        }
+        // Scoped families are absent from the namespace's global dispatch-key
+        // registry, so read the owner's typed Boolean-miss judgment directly.
+        let boolean_family = {
+            let state = owner.state.borrow();
+            state
+                .rule_dispatch_runtime_boolean_miss_keys
+                .contains(family)
+                && !state.rule_dispatch_return_issues.contains_key(family)
+                && state
+                    .rule_dispatch_return_types
+                    .get(family)
+                    .is_some_and(|return_type| return_type == "Bool")
+        };
+        if boolean_family {
+            return Value::Bool(false);
+        }
+        let value_family = Self::rule_scope_matching_rules(definition, &family.name, family.arity)
+            .iter()
+            .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue);
+        if value_family {
+            self.panic_or_ground_fail(Self::value_rule_miss_message(family))
+        } else {
+            Value::Bool(false)
+        }
     }
 
     fn try_active_rule_scope_call(
@@ -25827,21 +25934,7 @@ impl Interpreter {
             self.runtime_rule_scope(&namespace, &scope_name)?;
         let declaration_call_env =
             self.registered_declaration_env(&scope_declaration_env, "RuleScope", &scope_name)?;
-        let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
-            (
-                Some(self.exact_scoped_rule_dispatch(&owner, &scope_name, fn_name, args.len())?),
-                None,
-            )
-        } else {
-            let matching = Self::rule_scope_matching_rules(&definition, fn_name, args.len())
-                .into_iter()
-                .map(|rule| (rule, scope_declaration_env.clone()))
-                .collect::<Vec<_>>();
-            if matching.is_empty() {
-                return None;
-            }
-            (None, Some(matching))
-        };
+        let prepared = self.exact_scoped_rule_dispatch(&owner, &scope_name, fn_name, args.len())?;
         let family = RuleDispatchKey {
             scope: Some(scope_name.clone()),
             name: fn_name.to_string(),
@@ -25889,37 +25982,15 @@ impl Interpreter {
             ),
         );
         let materialized_args = self.materialize_call_arguments(args, env, &mut scoped_env);
-        let result = match (prepared, matching) {
-            (Some(prepared), _) => self.try_rule_call_from_prepared(
+        let result = self
+            .try_rule_call_from_prepared(
                 &owner,
                 &materialized_args,
                 &scoped_env,
                 prepared.as_ref(),
                 &family,
-            ),
-            (None, Some(matching)) => self.try_rule_call_from_rules(
-                &owner,
-                &family,
-                &materialized_args,
-                &scoped_env,
-                matching,
-            ),
-            (None, None) => None,
-        }
-        .unwrap_or_else(|| {
-            if self.checking_calculation {
-                return self.calculation_rule_miss(&owner, &family);
-            }
-            self.boolean_rule_miss_value_in_namespace(
-                &owner,
-                &RuleDispatchKey {
-                    scope: Some(scope_name.clone()),
-                    name: fn_name.to_string(),
-                    arity: args.len(),
-                },
             )
-            .unwrap_or(Value::Bool(false))
-        });
+            .unwrap_or_else(|| self.scoped_rule_miss_value(&owner, &definition, &family));
         let trace_active = self.checked_mechanism_trace.is_some();
         let selection_memo = (args.is_empty() && trace_active)
             .then(|| self.checked_mechanism_completed_rule_selection_memo(&family))
@@ -25971,7 +26042,9 @@ impl Interpreter {
             name: fn_name.to_string(),
             arity: args.len(),
         };
-        let (owner, matching) = self.rules_named(namespace, fn_name)?;
+        let (owner, ()) = Self::runtime_namespace_find(namespace, |state| {
+            state.rules_by_name.contains_key(fn_name).then_some(())
+        })?;
         // An anonymous argument asks whether a matching tuple exists, including
         // in a single-goal body or a nested call such as not(parent(x, _)).
         // Never evaluate `_` as an ordinary constructor or environment binding.
@@ -25994,13 +26067,10 @@ impl Interpreter {
                 env,
             )));
         }
-        if self.exact_prepared_rule_dispatch_is_active() {
-            let prepared = self.exact_global_rule_dispatch(&owner, fn_name, args.len())?;
-            return self.try_rule_call_from_prepared(&owner, args, env, prepared.as_ref(), &family);
-        }
-
-        // Clone shared rule handles so evaluation can mutably borrow the interpreter.
-        self.try_rule_call_from_rules(&owner, &family, args, env, matching)
+        // The prepared dispatch is cached per declaring namespace; registering
+        // a rule of the same family invalidates it.
+        let prepared = self.exact_global_rule_dispatch(&owner, fn_name, args.len())?;
+        self.try_rule_call_from_prepared(&owner, args, env, prepared.as_ref(), &family)
     }
 
     fn try_rule_call_from_rules(
@@ -26023,11 +26093,15 @@ impl Interpreter {
         caller_env: &Env,
         dispatch: &PreparedRuntimeRuleDispatch,
     ) -> Option<Env> {
-        let mut base_env = self.registered_declaration_env(
-            declaration_env,
-            family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
-            &family.name,
-        )?;
+        // A child frame keeps the shared declaration snapshot intact: binding
+        // RuleScope captures must not copy every global binding per call.
+        let mut base_env = self
+            .registered_declaration_env(
+                declaration_env,
+                family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
+                &family.name,
+            )?
+            .child();
         base_env.set_runtime_namespace(namespace.clone());
 
         let scoped_binding_names = if let Some(scope_name) = family.scope.as_deref() {
@@ -26067,10 +26141,11 @@ impl Interpreter {
         family: &RuleDispatchKey,
     ) -> Option<Value> {
         let depth = self.runtime_rule_call_depth.get();
-        if depth >= RUNTIME_RULE_CALL_DEPTH_LIMIT {
-            return Some(self.panic_or_ground_fail(format!(
-                "rule call `{}` exceeded its recursion limit of {RUNTIME_RULE_CALL_DEPTH_LIMIT}; evaluation is incomplete",
-                family.name
+        if runtime_call_depth_exhausted(depth) {
+            return Some(self.panic_or_ground_fail(runtime_recursion_limit_message(
+                "rule",
+                &family.name,
+                depth,
             )));
         }
         self.runtime_rule_call_depth.set(depth + 1);
@@ -26081,12 +26156,15 @@ impl Interpreter {
         // so exception/default/clause matching stays purely positional below.
         let ordered_args = if has_named_args(args) {
             let param_names = dispatch.named_parameter_order.as_ref()?;
-            reorder_named_args_by_names(param_names, args)?
+            order_named_args_by_names(param_names, args)?
         } else {
-            args.to_vec()
+            args.iter().collect()
         };
         let memo_output_len_before_arguments = self.output.len();
-        let arg_vals: Vec<Value> = ordered_args.iter().map(|a| self.eval(a, env)).collect();
+        let arg_vals: Vec<Value> = ordered_args
+            .into_iter()
+            .map(|a| self.eval(a, env))
+            .collect();
         let root_dispatch = namespace.same_instance(&self.runtime_root);
         let mechanism_memo_key = (root_dispatch
             && self.output.len() == memo_output_len_before_arguments)
@@ -26551,23 +26629,28 @@ impl Interpreter {
             "Bool" => matches!(value, Value::Bool(_)),
             "Char" => matches!(value, Value::Char(_)),
             _ => {
-                if let Some((type_owner, variants)) =
-                    self.runtime_type_variants(expected_namespace, type_name)
+                let constructor_name = match value {
+                    Value::Constructor(name, _)
+                    | Value::NamedConstructor(name, _)
+                    | Value::NamespacedConstructor { name, .. }
+                    | Value::NamespacedNamedConstructor { name, .. } => Some(name.as_str()),
+                    _ => None,
+                };
+                if let Some((type_owner, is_variant)) =
+                    Self::runtime_namespace_find(expected_namespace, |state| {
+                        state.type_variants.get(type_name).map(|variants| {
+                            constructor_name
+                                .is_some_and(|name| variants.iter().any(|variant| variant == name))
+                        })
+                    })
                 {
-                    let constructor_name = match value {
-                        Value::Constructor(name, _)
-                        | Value::NamedConstructor(name, _)
-                        | Value::NamespacedConstructor { name, .. }
-                        | Value::NamespacedNamedConstructor { name, .. } => name,
-                        _ => return false,
-                    };
-                    if !variants.contains(constructor_name) {
+                    let Some(constructor_name) = constructor_name.filter(|_| is_variant) else {
                         return false;
-                    }
+                    };
                     let actual_owner = self.runtime_value_namespace(value);
                     return self
-                        .runtime_constructor_signatures(&type_owner, constructor_name)
-                        .is_some_and(|(constructor_owner, _)| {
+                        .runtime_constructor_owner(&type_owner, constructor_name)
+                        .is_some_and(|constructor_owner| {
                             constructor_owner
                                 .same_constructor_owner(&actual_owner, constructor_name)
                         });
@@ -26588,9 +26671,18 @@ impl Interpreter {
                     Value::Constructor(name, _)
                     | Value::NamedConstructor(name, _)
                     | Value::NamespacedConstructor { name, .. }
-                    | Value::NamespacedNamedConstructor { name, .. } => self
-                        .runtime_type_variants(&self.runtime_value_namespace(value), type_name)
-                        .map_or(false, |(_, variants)| variants.contains(name)),
+                    | Value::NamespacedNamedConstructor { name, .. } => {
+                        Self::runtime_namespace_find(
+                            &self.runtime_value_namespace(value),
+                            |state| {
+                                state
+                                    .type_variants
+                                    .get(type_name)
+                                    .map(|variants| variants.contains(name))
+                            },
+                        )
+                        .is_some_and(|(_, contains)| contains)
+                    }
                     _ => false,
                 }
             }
@@ -26819,10 +26911,7 @@ impl Interpreter {
                     self.nullary_constructor_signature_in_namespace(namespace, name)
                 {
                     Some(self.runtime_constructor_value(&owner, name.clone(), vec![]))
-                } else if self
-                    .runtime_constructor_signatures(namespace, name)
-                    .is_none()
-                {
+                } else if self.runtime_constructor_owner(namespace, name).is_none() {
                     Some(Value::Constructor(name.clone(), vec![].into()))
                 } else {
                     None
@@ -28159,10 +28248,9 @@ fn ground_equality_value_within_limit(value: &Value, limit: usize) -> bool {
         }
         remaining -= 1;
         match value {
-            Value::List(values)
-            | Value::Tuple(values)
-            | Value::Stream(values)
-            | Value::Subject(values) => stack.extend(values),
+            Value::List(values) | Value::Tuple(values) | Value::Stream(values) => {
+                stack.extend(values)
+            }
             Value::Constructor(_, values) => stack.extend(values.iter()),
             Value::NamespacedConstructor { arguments, .. } => stack.extend(arguments.iter()),
             Value::NamedConstructor(_, values) => {
@@ -28248,8 +28336,12 @@ pub fn list_to_vec(val: &Value) -> Vec<Value> {
     let mut current = val.clone();
     loop {
         match current {
-            Value::Stream(items) | Value::Subject(items) => {
+            Value::Stream(items) => {
                 result.extend(items);
+                break;
+            }
+            Value::LiveStream(stream) => {
+                result.extend(stream.retained_values());
                 break;
             }
             Value::Constructor(ref name, ref fields) if name == "Cons" => {
@@ -28275,8 +28367,16 @@ fn rust_debug_value(value: &Value) -> String {
     match value {
         Value::Str(s) => format!("{:?}", s),
         Value::Char(c) => format!("{:?}", c),
-        Value::List(items) | Value::Stream(items) | Value::Subject(items) => {
+        Value::List(items) | Value::Stream(items) => {
             let parts: Vec<String> = items.iter().map(rust_debug_value).collect();
+            format!("[{}]", parts.join(", "))
+        }
+        Value::LiveStream(stream) => {
+            let parts: Vec<String> = stream
+                .retained_values()
+                .iter()
+                .map(rust_debug_value)
+                .collect();
             format!("[{}]", parts.join(", "))
         }
         Value::Constructor(name, fields) if name == "Cons" => {
@@ -28486,7 +28586,7 @@ pub fn display_diagnostic(source: &str, diag: &Diagnostic, filename: &str) {
 /// Convert 1-based line:col to a Span (for legacy error format).
 fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
     let mut current_line = 1;
-    let mut line_start = 0;
+    let mut line_start = usize::from(source.starts_with('\u{feff}'));
     for (i, ch) in source.chars().enumerate() {
         if current_line == line {
             let start = line_start + (col - 1);
@@ -29835,12 +29935,20 @@ pub struct TypeChecker {
     function_params_by_arity: BTreeMap<(String, usize), Vec<String>>,
     /// rule name and arity -> declared parameter types, retaining unknowns.
     rule_param_types_by_arity: BTreeMap<(String, usize), Vec<Option<Ty>>>,
+    /// top-level rule name and arity -> the one argument type every call site
+    /// determines for each parameter position.
+    rule_call_site_param_types: BTreeMap<(String, usize), Vec<Option<String>>>,
     /// Callables declared with the rule rune, distinct from ordinary functions.
     rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
     pub types: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
     annotation_source_spans: Option<(String, BTreeMap<String, Span>)>,
+    declaration_source_spans: Option<(String, BTreeMap<String, Span>)>,
+    /// (scope depth, subject variable, variant) for each enclosing match arm
+    /// whose pattern names a variant of a named subject's sum type.
+    /// The flag marks refinements established by `= name = Variant(...)`.
+    variant_refinements: Vec<(usize, String, String, bool)>,
     /// constructor/variant name -> (parent type, field count)
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -29870,10 +29978,10 @@ pub struct TypeChecker {
     pub trait_methods: BTreeMap<String, Vec<String>>,
     /// (trait_name, for_type) -> provided method names
     pub impl_methods: BTreeMap<(String, String), Vec<String>>,
-    /// (trait_name, method_name) -> receiver semantics required by the trait
-    trait_method_receivers: BTreeMap<(String, String), MethodReceiverShape>,
-    /// (trait_name, for_type, method_name) -> receiver semantics provided by the impl
-    impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
+    /// trait name -> declared method signatures
+    trait_method_signatures: BTreeMap<String, Vec<TraitMethod>>,
+    /// (trait_name, for_type) -> provided (method name, parameters, result type)
+    impl_method_signatures: BTreeMap<(String, String), Vec<(String, Vec<Param>, Option<Ty>)>>,
     /// RuleScope name -> scoped rule name -> arity.
     rule_scope_methods: BTreeMap<String, BTreeMap<String, usize>>,
     /// RuleScope name -> scoped rule name -> declaration-order parameter names.
@@ -43853,7 +43961,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         let rule_families = self.effective_rule_value_candidates(name);
         if !rule_families.is_empty()
             && (self.checker.constructor_signatures.contains_key(name)
-                || self.checker.builtins.contains_key(builtin_canonical(name)))
+                || self.checker.builtins.contains_key(name))
         {
             // A bare rule name is materialized only after runtime Env lookup;
             // constructor and builtin values therefore make the first-class
@@ -43953,7 +44061,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         // Callable-position variables are suppressed by their App parent, so
         // reaching this branch means the builtin is genuinely first-class.
         // CheckedValueBinding has no builtin-value identity yet.
-        if self.checker.builtins.contains_key(builtin_canonical(name)) {
+        if self.checker.builtins.contains_key(name) {
             self.issue(
                 &site,
                 CheckedResolutionIssue::UnsupportedExpression(
@@ -44351,7 +44459,6 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 ExactConstructorSignature::NoMatch => {}
             }
 
-            let canonical = builtin_canonical(name);
             if self.checker.functions.contains_key(name) {
                 if let Some(target) =
                     self.exact_callable_target(declaration, path, None, name, effective_arity)
@@ -44376,14 +44483,14 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 );
                 return (None, None);
             }
-            if self.checker.builtins.contains_key(canonical) {
+            if self.checker.builtins.contains_key(name) {
                 if has_named_args(arguments) {
                     self.issue(&site, CheckedResolutionIssue::NamedArgumentOrderNotResolved);
                     return (None, None);
                 }
                 return (
                     Some(CheckedCallTarget::Builtin {
-                        canonical_name: canonical.to_string().into_boxed_str(),
+                        canonical_name: name.to_string().into_boxed_str(),
                         arity: effective_arity,
                     }),
                     None,
@@ -46596,10 +46703,13 @@ impl TypeChecker {
             function_params: BTreeMap::new(),
             function_params_by_arity: BTreeMap::new(),
             rule_param_types_by_arity: BTreeMap::new(),
+            rule_call_site_param_types: BTreeMap::new(),
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
+            declaration_source_spans: None,
+            variant_refinements: Vec::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
             type_parameters_by_owner: BTreeMap::new(),
@@ -46613,8 +46723,8 @@ impl TypeChecker {
             effect_ops: BTreeMap::new(),
             trait_methods: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
-            trait_method_receivers: BTreeMap::new(),
-            impl_method_receivers: BTreeMap::new(),
+            trait_method_signatures: BTreeMap::new(),
+            impl_method_signatures: BTreeMap::new(),
             rule_scope_methods: BTreeMap::new(),
             rule_scope_method_params: BTreeMap::new(),
             rule_scope_value_methods: BTreeMap::new(),
@@ -46733,6 +46843,8 @@ impl TypeChecker {
             ("rust_debug", 1),
             ("parse_int", 1),
             ("parse_float", 1),
+            ("parse_danish_int", 1),
+            ("parse_danish_float", 1),
             ("string_chars", 1),
             ("string_length", 1),
             // File I/O
@@ -47217,6 +47329,9 @@ impl TypeChecker {
         self.rule_scope_vars.pop();
         self.var_types.pop();
         self.actor_handle_scopes.pop();
+        let depth = self.scopes.len();
+        self.variant_refinements
+            .retain(|(scope, _, _, _)| *scope < depth);
     }
 
     pub fn define_var(&mut self, name: &str) {
@@ -47475,6 +47590,157 @@ impl TypeChecker {
             }
             _ => {}
         }
+    }
+
+    /// An untyped parameter of a top-level rule takes the one type its call
+    /// sites determine for that position, so its uses are checked like an
+    /// annotated parameter's.
+    fn define_rule_head_call_site_types(&mut self, head: &Expr) {
+        if self.active_rule_scope_inference.is_some() {
+            return;
+        }
+        let ExprKind::App(function, arguments) = &head.kind else {
+            return;
+        };
+        let ExprKind::Var(name) = &function.kind else {
+            return;
+        };
+        let key = (name.clone(), arguments.len());
+        let Some(call_site_types) = self.rule_call_site_param_types.get(&key) else {
+            return;
+        };
+        let declared = self.rule_param_types_by_arity.get(&key);
+        let inferred = arguments
+            .iter()
+            .zip(call_site_types)
+            .enumerate()
+            .filter(|(index, _)| {
+                !declared
+                    .and_then(|types| types.get(*index))
+                    .is_some_and(Option::is_some)
+            })
+            .filter_map(|(_, (argument, ty))| {
+                let ExprKind::Var(parameter) = &argument.kind else {
+                    return None;
+                };
+                rule_dispatch_parameter(argument).name?;
+                Some((parameter.clone(), ty.clone()?))
+            })
+            .collect::<Vec<_>>();
+        for (parameter, ty) in inferred {
+            self.define_inferred_var_type_name(&parameter, &ty);
+        }
+    }
+
+    /// Record, per parameter position of each top-level rule family, the
+    /// argument types its call sites determine. Only arguments typed without
+    /// local bindings contribute; disagreeing call sites leave the position
+    /// unknown.
+    fn infer_rule_call_site_param_types(&mut self, stmts: &[Stmt]) {
+        let mut observed = BTreeMap::new();
+        for stmt in stmts {
+            self.observe_rule_call_sites_in_stmt(stmt, true, &mut observed);
+        }
+        self.rule_call_site_param_types = observed
+            .into_iter()
+            .map(|(key, slots)| {
+                let types = slots
+                    .into_iter()
+                    .map(|types: BTreeSet<String>| {
+                        let [ty] =
+                            <[String; 1]>::try_from(types.into_iter().collect::<Vec<_>>()).ok()?;
+                        parse_type_annotation(&ty)
+                            .ok()
+                            .is_some_and(|parsed| {
+                                self.checked_type_contract_is_closed_monomorphic(&parsed)
+                            })
+                            .then_some(ty)
+                    })
+                    .collect();
+                (key, types)
+            })
+            .collect();
+    }
+
+    fn observe_rule_call_sites_in_stmt(
+        &self,
+        stmt: &Stmt,
+        top_level: bool,
+        observed: &mut BTreeMap<(String, usize), Vec<BTreeSet<String>>>,
+    ) {
+        // Calls inside a RuleScope body address the scope's members.
+        if matches!(stmt, Stmt::TypeDecl(TypeDecl::RuleScope { .. })) {
+            return;
+        }
+        let top_level =
+            top_level && matches!(stmt, Stmt::Expr(_) | Stmt::Bind(..) | Stmt::Annot(..));
+        visit_ast_stmt_children(stmt, &mut |child| match child {
+            AstChild::Expr(expr) => self.observe_rule_call_sites(expr, top_level, observed),
+            AstChild::Stmt(stmt) => self.observe_rule_call_sites_in_stmt(stmt, false, observed),
+        });
+    }
+
+    fn observe_rule_call_sites(
+        &self,
+        expr: &Expr,
+        top_level: bool,
+        observed: &mut BTreeMap<(String, usize), Vec<BTreeSet<String>>>,
+    ) {
+        if let ExprKind::App(function, arguments) = &expr.kind {
+            if let ExprKind::Var(name) = &function.kind {
+                let key = RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity: arguments.len(),
+                };
+                if self.rule_dispatch_keys.contains(&key) && !has_named_args(arguments) {
+                    let slots = observed
+                        .entry((key.name, key.arity))
+                        .or_insert_with(|| vec![BTreeSet::new(); arguments.len()]);
+                    for (slot, argument) in slots.iter_mut().zip(arguments) {
+                        if !self.call_site_argument_is_closed(argument, top_level) {
+                            continue;
+                        }
+                        if let Some(ty) =
+                            self.infer_expr_type_name_with_locals(argument, &BTreeMap::new())
+                        {
+                            slot.insert(ty);
+                        }
+                    }
+                }
+            }
+        }
+        let top_level = top_level
+            && !matches!(
+                expr.kind,
+                ExprKind::Lambda(..) | ExprKind::Match(..) | ExprKind::Block(_)
+            );
+        visit_ast_expr_children(expr, &mut |child| match child {
+            AstChild::Expr(expr) => self.observe_rule_call_sites(expr, top_level, observed),
+            AstChild::Stmt(stmt) => self.observe_rule_call_sites_in_stmt(stmt, false, observed),
+        });
+    }
+
+    /// Whether an argument's type is determined without local bindings: it
+    /// introduces no binders, and outside top-level code it names only
+    /// constructors and declared callables.
+    fn call_site_argument_is_closed(&self, argument: &Expr, top_level: bool) -> bool {
+        let mut closed = true;
+        walk_ast_expr(argument, &mut |child| match child {
+            AstChild::Stmt(_) => closed = false,
+            AstChild::Expr(expr) => match &expr.kind {
+                ExprKind::Lambda(..) | ExprKind::Match(..) | ExprKind::Block(_) => closed = false,
+                ExprKind::Var(name)
+                    if !top_level
+                        && !self.constructors.contains_key(name)
+                        && !self.functions.contains_key(name) =>
+                {
+                    closed = false
+                }
+                _ => {}
+            },
+        });
+        closed
     }
 
     fn typed_rule_arg_parts(arg: &Expr) -> Option<(&Expr, &str)> {
@@ -50533,6 +50799,11 @@ impl TypeChecker {
                 Some("String".to_string())
             }
             ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
+            ("parse_int" | "parse_danish_int", 1) => Some("Result(Int, String)".to_string()),
+            ("parse_float" | "parse_danish_float", 1) => Some("Result(Float, String)".to_string()),
+            ("read_file" | "http_get" | "json_parse", 1) | ("http_post", 2) => {
+                Some("Result(String, String)".to_string())
+            }
             ("round" | "floor" | "string_length", 1) => Some("Int".to_string()),
             ("contains" | "map_contains" | "set_contains", 2)
             | ("is_some" | "is_none" | "not", 1) => Some("Bool".to_string()),
@@ -50597,15 +50868,14 @@ impl TypeChecker {
                 Some(format!("Option({item_type})"))
             }
             ("take" | "skip", 2) => {
+                // Lists stay lists; streams and subjects stay streams.
                 let collection_type = argument_type(0)?;
-                let item_type =
-                    ["List", "Stream", "Subject"]
-                        .into_iter()
-                        .find_map(|constructor| {
-                            Self::applied_type_argument(&collection_type, constructor, 0)
-                        })?;
-                // Runtime `take`/`skip` are stream-producing even when their
-                // finite input happens to be represented as a list.
+                if let Some(item_type) = Self::applied_type_argument(&collection_type, "List", 0) {
+                    return Some(format!("List({item_type})"));
+                }
+                let item_type = ["Stream", "Subject"].into_iter().find_map(|constructor| {
+                    Self::applied_type_argument(&collection_type, constructor, 0)
+                })?;
                 Some(format!("Stream({item_type})"))
             }
             ("collect", 1) => {
@@ -50642,6 +50912,125 @@ impl TypeChecker {
             locals,
             self.active_rule_scope_inference.as_deref(),
         )
+    }
+
+    /// The result of a call to a generic function, with its type variables
+    /// bound from the argument types. A result variable that no argument
+    /// determines leaves the result unknown.
+    fn instantiate_generic_function_result(
+        &self,
+        name: &str,
+        result: &Ty,
+        args: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_rule_scope: Option<&str>,
+    ) -> Option<String> {
+        let definitions = self
+            .explore_function_definitions_by_arity
+            .get(&(name.to_string(), args.len()))?;
+        let [(parameters, _, _)] = definitions.as_slice() else {
+            return None;
+        };
+        let parameter_names = parameters
+            .iter()
+            .map(|parameter| Some(parameter.name.clone()))
+            .collect::<Vec<_>>();
+        let ordered = Self::canonical_ordered_arguments(args, &parameter_names)?;
+        let mut substitutions = BTreeMap::new();
+        for (argument, parameter) in ordered.into_iter().zip(parameters) {
+            let Some(expected) = parameter
+                .ty
+                .as_ref()
+                .filter(|ty| Self::canonical_type_contains_variable(ty))
+            else {
+                continue;
+            };
+            let Some(actual) =
+                self.infer_expr_type_name_with_locals_in_scope(argument, locals, active_rule_scope)
+            else {
+                continue;
+            };
+            let Ok(actual) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if !Self::bind_schema_type_variables(expected, &actual, &mut substitutions) {
+                return None;
+            }
+        }
+        Self::schema_type_variables_bound(result, &substitutions)
+            .then(|| Self::canonical_substitute_type_parameters(result, &substitutions).to_string())
+    }
+
+    /// Bind the type variables of a parameter schema to the matching parts of
+    /// an argument type. Parts whose shape differs from the schema bind
+    /// nothing; a variable bound to two different types fails.
+    fn bind_schema_type_variables(
+        expected: &Ty,
+        actual: &Ty,
+        substitutions: &mut BTreeMap<String, Ty>,
+    ) -> bool {
+        fn applied(ty: &Ty) -> Option<(&str, &[Ty])> {
+            match ty {
+                Ty::App(constructor, arguments) => match constructor.as_ref() {
+                    Ty::Name(name) => Some((name.as_str(), arguments.as_slice())),
+                    _ => None,
+                },
+                Ty::Optional(inner) => Some(("Option", std::slice::from_ref(inner.as_ref()))),
+                _ => None,
+            }
+        }
+        match (expected, actual) {
+            (_, Ty::Hole) => true,
+            (Ty::Var(name), _) => match substitutions.get(name) {
+                Some(known) => Self::explore_tys_equivalent(known, actual),
+                None => {
+                    substitutions.insert(name.clone(), actual.clone());
+                    true
+                }
+            },
+            (Ty::Arrow(expected_input, expected_output), Ty::Arrow(input, output)) => {
+                Self::bind_schema_type_variables(expected_input, input, substitutions)
+                    && Self::bind_schema_type_variables(expected_output, output, substitutions)
+            }
+            (Ty::Ref(expected), Ty::Ref(actual))
+            | (Ty::MutRef(expected), Ty::MutRef(actual))
+            | (Ty::Shared(expected), Ty::Shared(actual)) => {
+                Self::bind_schema_type_variables(expected, actual, substitutions)
+            }
+            _ => match (applied(expected), applied(actual)) {
+                (Some((expected_owner, expected_arguments)), Some((owner, arguments)))
+                    if expected_owner == owner && expected_arguments.len() == arguments.len() =>
+                {
+                    expected_arguments
+                        .iter()
+                        .zip(arguments)
+                        .all(|(expected, actual)| {
+                            Self::bind_schema_type_variables(expected, actual, substitutions)
+                        })
+                }
+                _ => true,
+            },
+        }
+    }
+
+    fn schema_type_variables_bound(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> bool {
+        match ty {
+            Ty::Var(name) => substitutions.contains_key(name),
+            Ty::App(constructor, arguments) => {
+                Self::schema_type_variables_bound(constructor, substitutions)
+                    && arguments
+                        .iter()
+                        .all(|argument| Self::schema_type_variables_bound(argument, substitutions))
+            }
+            Ty::Arrow(input, output) => {
+                Self::schema_type_variables_bound(input, substitutions)
+                    && Self::schema_type_variables_bound(output, substitutions)
+            }
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                Self::schema_type_variables_bound(inner, substitutions)
+            }
+            Ty::Name(_) | Ty::Unit | Ty::Hole => true,
+        }
     }
 
     /// Infer an expression while retaining the exact lexical RuleScope.
@@ -50720,7 +51109,7 @@ impl TypeChecker {
                         && !self.explore_contextual_intrinsic_is_shadowed(name, args.len())
                     {
                         if let Some(result) = self.infer_checked_intrinsic_result_with_locals(
-                            builtin_canonical(name),
+                            name,
                             args,
                             locals,
                             active_rule_scope,
@@ -50845,7 +51234,10 @@ impl TypeChecker {
                         return Some("Int".to_string());
                     }
                     if let Some(local_type) = locals.get(name) {
-                        if let Ok(Ty::Arrow(_, return_type)) = parse_type_annotation(local_type) {
+                        if let Some(return_type) = parse_type_annotation(local_type)
+                            .ok()
+                            .and_then(|ty| function_type_result(ty, args.len()))
+                        {
                             return Self::type_name_from_ty(&return_type);
                         }
                     }
@@ -50877,7 +51269,16 @@ impl TypeChecker {
                         .explore_function_return_types_by_arity
                         .get(&(name.clone(), args.len()))
                     {
-                        return Some(ret.to_string());
+                        if !Self::canonical_type_contains_variable(ret) {
+                            return Some(ret.to_string());
+                        }
+                        return self.instantiate_generic_function_result(
+                            name,
+                            ret,
+                            args,
+                            locals,
+                            active_rule_scope,
+                        );
                     }
                     if let Some(ret) = self
                         .explore_rule_return_types_by_arity
@@ -51078,6 +51479,19 @@ impl TypeChecker {
             }
             ExprKind::Pipe(_, transform) => {
                 self.infer_expr_type_name_with_locals_in_scope(transform, locals, active_rule_scope)
+            }
+            // `@ read_file(path)` has the result type of `read_file(path)`.
+            ExprKind::Effect(name, args)
+                if is_builtin_effect(name)
+                    && !locals.contains_key(name)
+                    && !self.explore_contextual_intrinsic_is_shadowed(name, args.len()) =>
+            {
+                self.infer_checked_intrinsic_result_with_locals(
+                    name,
+                    args,
+                    locals,
+                    active_rule_scope,
+                )
             }
             _ => None,
         }
@@ -52631,8 +53045,7 @@ impl TypeChecker {
         active_scope: Option<&str>,
         visiting_functions: &mut BTreeSet<RuleDispatchKey>,
     ) -> Option<CanonicalDispatchValue> {
-        let canonical = builtin_canonical(name);
-        if !Self::explore_observation_builtin_is_total(canonical) {
+        if !Self::explore_observation_builtin_is_total(name) {
             return None;
         }
         let mut values = Vec::with_capacity(arguments.len());
@@ -52653,7 +53066,7 @@ impl TypeChecker {
         let exact = |index: usize, expected: &str| {
             value_type(index).is_some_and(|actual| actual == expected)
         };
-        let result = match (canonical, arguments.len()) {
+        let result = match (name, arguments.len()) {
             ("show" | "rust_debug", 1) => {
                 let actual = parse_type_annotation(&values[0].type_name).ok()?;
                 (!matches!(actual, Ty::Arrow(_, _) | Ty::Hole)).then_some("String")
@@ -53235,6 +53648,37 @@ impl TypeChecker {
         }
     }
 
+    /// For each name, the indices of the rule groups whose results mention it
+    /// as a variable, call or field.
+    fn rule_group_dependents<'a>(
+        groups: impl Iterator<Item = &'a [&'a Rule]>,
+    ) -> HashMap<String, Vec<usize>> {
+        let mut dependents: HashMap<String, Vec<usize>> = HashMap::new();
+        for (index, rules) in groups.enumerate() {
+            let mut names = BTreeSet::<&str>::new();
+            for rule in rules {
+                let result = match rule {
+                    Rule::Clause {
+                        body: Some(body), ..
+                    } => body,
+                    Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
+                    Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => continue,
+                };
+                walk_ast_expr(result, &mut |child| {
+                    if let AstChild::Expr(expr) = child {
+                        if let ExprKind::Var(name) | ExprKind::Field(_, name) = &expr.kind {
+                            names.insert(name.as_str());
+                        }
+                    }
+                });
+            }
+            for name in names {
+                dependents.entry(name.to_string()).or_default().push(index);
+            }
+        }
+        dependents
+    }
+
     fn infer_rule_dispatch_return_types(&mut self, stmts: &[Stmt]) {
         type ReturnGroup<'a> = (BTreeMap<String, String>, Vec<&'a Rule>);
 
@@ -53430,10 +53874,37 @@ impl TypeChecker {
         // an initialization cycle (for example a later literal feeding a
         // RuleScope member). Infer both in the same bounded fixed point.
         // The independent canonical pass below still rejects unsafe proofs.
+        //
+        // Only groups whose clauses mention a changed family are re-inferred:
+        // an untouched group would recompute its previous result. Dependents
+        // later in the order are revisited in the same round, earlier ones in
+        // the next, which keeps the visiting order of a full sweep.
+        let group_entries = groups.iter().collect::<Vec<_>>();
+        let dependents = Self::rule_group_dependents(
+            group_entries.iter().map(|(_, (_, rules))| rules.as_slice()),
+        );
+        let mark_dependents = |name: &str, index: usize, now: &mut [bool], next: &mut [bool]| {
+            for &dependent in dependents.get(name).into_iter().flatten() {
+                if dependent > index {
+                    now[dependent] = true;
+                } else {
+                    next[dependent] = true;
+                }
+            }
+        };
+        let mut dirty = vec![true; group_entries.len()];
         for _ in 0..groups.len().saturating_add(stmts.len()).saturating_add(1) {
             self.active_rule_scope_inference = None;
             let mut changed = self.infer_top_level_binding_types(stmts);
-            for (key, (captures, rules)) in &groups {
+            if changed {
+                dirty.fill(true);
+            }
+            let mut next = vec![false; group_entries.len()];
+            for index in 0..group_entries.len() {
+                if !dirty[index] {
+                    continue;
+                }
+                let (key, (captures, rules)) = group_entries[index];
                 self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group_provisionally(self, captures, rules);
                 let known = inferred.iter().flatten().collect::<Vec<_>>();
@@ -53443,19 +53914,24 @@ impl TypeChecker {
                 if self.rule_dispatch_return_types.get(key) != Some(&merged) {
                     self.rule_dispatch_return_types.insert(key.clone(), merged);
                     changed = true;
+                    mark_dependents(&key.name, index, &mut dirty, &mut next);
                 }
             }
             if !changed {
                 break;
             }
+            dirty = next;
         }
 
         // Remove conflicts and unresolved families, then repeat so their
         // callers also fail closed instead of retaining a provisional sort.
+        let mut dirty = vec![true; group_entries.len()];
         loop {
             let mut changed = false;
-            for (key, (captures, rules)) in &groups {
-                if self.rule_dispatch_return_issues.contains_key(key) {
+            let mut next = vec![false; group_entries.len()];
+            for index in 0..group_entries.len() {
+                let (key, (captures, rules)) = group_entries[index];
+                if !dirty[index] || self.rule_dispatch_return_issues.contains_key(key) {
                     continue;
                 }
                 self.active_rule_scope_inference = key.scope.clone();
@@ -53491,11 +53967,13 @@ impl TypeChecker {
                     self.rule_dispatch_return_types.remove(key);
                     self.rule_dispatch_return_issues.insert(key.clone(), issue);
                     changed = true;
+                    mark_dependents(&key.name, index, &mut dirty, &mut next);
                 }
             }
             if !changed {
                 break;
             }
+            dirty = next;
         }
         self.active_rule_scope_inference = previous_active_scope;
         self.rule_dispatch_backend_return_types = self.rule_dispatch_return_types.clone();
@@ -54237,7 +54715,7 @@ impl TypeChecker {
     }
 
     fn expr_rule_scope_type(&self, expr: &Expr) -> Option<String> {
-        match &expr.kind {
+        let direct = match &expr.kind {
             ExprKind::Var(name) => self.rule_scope_var_type(name).map(str::to_string),
             ExprKind::App(func, _) => match &func.kind {
                 ExprKind::Var(name) if self.type_has_scoped_members(name) => Some(name.clone()),
@@ -54245,7 +54723,27 @@ impl TypeChecker {
                 _ => None,
             },
             _ => None,
-        }
+        };
+        // Receivers whose type is known from inference (nested fields,
+        // element accessors, typed lambda parameters) resolve the same way.
+        direct.or_else(|| {
+            let type_name = self.ordinary_expression_type(expr)?;
+            let owner = Self::canonical_nominal_owner(&type_name)?;
+            self.type_has_scoped_members(&owner).then_some(owner)
+        })
+    }
+
+    /// A receiver whose type the frontend knows. Unknown receivers (untyped
+    /// lambda parameters, loop variables over untyped lists) are dispatched
+    /// by their runtime value.
+    fn receiver_type_known(&self, expr: &Expr) -> bool {
+        self.ordinary_expression_type(expr)
+            .is_some_and(|type_name| {
+                !matches!(
+                    parse_type_annotation(&type_name),
+                    Err(_) | Ok(Ty::Var(_) | Ty::Hole)
+                )
+            })
     }
 
     fn resolved_rule_scope_return_type(&self, rule_name: &str) -> Option<String> {
@@ -54798,13 +55296,20 @@ impl TypeChecker {
                 if feeds_checked_resolution || self.phase_a_has_exact_source_snapshot(file_path) {
                     self.checked_resolution_source_snapshot_coherent = false;
                 }
-                self.error_at_import_path(
-                    import_path,
-                    format!(
+                let importing_dir = file_path
+                    .strip_suffix(&format!("/{}.runa", import_path.trim_start_matches("./")));
+                let dependency_error = importing_dir.and_then(|dir| {
+                    manifest::resolve_dependency_import(import_path, Path::new(dir))
+                        .and_then(Result::err)
+                });
+                let message = match dependency_error {
+                    Some(reason) => format!("cannot resolve import `{}`: {}", import_path, reason),
+                    None => format!(
                         "cannot resolve import `{}`: {} ({})",
                         import_path, file_path, error
                     ),
-                );
+                };
+                self.error_at_import_path(import_path, message);
                 return None;
             }
         };
@@ -55153,58 +55658,14 @@ impl TypeChecker {
             return Some(file_path);
         }
 
-        // Try manifest-based resolution
-        if let Some(toml_path) = Interpreter::find_manifest(dir) {
-            if let Some((deps, _)) = Interpreter::parse_manifest_deps(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                if let Some(resolved) = Self::resolve_dep_module(import_path, &deps, &toml_dir) {
-                    return Some(resolved);
-                }
-            }
+        // Manifest dependency (`dep/module`): local files only, never fetched.
+        if let Some(Ok(resolved)) =
+            manifest::resolve_dependency_import(import_path, std::path::Path::new(dir))
+        {
+            return Some(resolved.to_string_lossy().into_owned());
         }
 
         Some(file_path)
-    }
-
-    /// Resolve a dependency module path from manifest deps
-    fn resolve_dep_module(
-        import_path: &str,
-        deps: &[(String, String)],
-        toml_dir: &str,
-    ) -> Option<String> {
-        let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-        let dep_name = parts[0];
-        let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-        for (name, dep_path) in deps {
-            if name == dep_name {
-                let abs_dep = if std::path::Path::new(dep_path.as_str()).is_absolute() {
-                    dep_path.clone()
-                } else {
-                    format!("{}/{}", toml_dir, dep_path)
-                };
-                let dep_file = format!("{}/{}.runa", abs_dep, module);
-                let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-
-                if std::path::Path::new(&dep_file).exists() {
-                    return Some(dep_file);
-                } else if std::path::Path::new(&dep_file_src).exists() {
-                    return Some(dep_file_src);
-                }
-            }
-        }
-        None
     }
 
     /// Pass 1: collect all declarations from the program
@@ -55545,12 +56006,10 @@ impl TypeChecker {
                         );
                         self.register_reference_symbol(&method.name, ProgramSymbolKind::Function);
                         method_names.push(method.name.clone());
-                        self.trait_method_receivers.insert(
-                            (name.clone(), method.name.clone()),
-                            Self::method_receiver_shape(&method.params),
-                        );
                     }
                     self.trait_methods.insert(name.clone(), method_names);
+                    self.trait_method_signatures
+                        .insert(name.clone(), methods.clone());
                 }
                 Stmt::TypeDecl(TypeDecl::ImplBlock {
                     trait_name,
@@ -55558,10 +56017,12 @@ impl TypeChecker {
                     methods,
                 }) => {
                     let mut method_names = Vec::new();
+                    let mut signatures = Vec::new();
                     for defn in methods {
                         if let Defn::Fn {
                             name,
                             params,
+                            ret_ty,
                             effects,
                             body,
                             ..
@@ -55578,14 +56039,13 @@ impl TypeChecker {
                             self.record_function_signature(name, params.len(), Some(param_names));
                             self.register_reference_symbol(name, ProgramSymbolKind::Function);
                             method_names.push(name.clone());
-                            self.impl_method_receivers.insert(
-                                (trait_name.clone(), for_type.clone(), name.clone()),
-                                Self::method_receiver_shape(params),
-                            );
+                            signatures.push((name.clone(), params.clone(), ret_ty.clone()));
                         }
                     }
                     self.impl_methods
                         .insert((trait_name.clone(), for_type.clone()), method_names);
+                    self.impl_method_signatures
+                        .insert((trait_name.clone(), for_type.clone()), signatures);
                 }
                 Stmt::Bind(Pat::Var(name), _, _) => {
                     self.record_explore_non_rule_runtime_name(name);
@@ -55850,8 +56310,10 @@ impl TypeChecker {
 
     /// Pass 2: check the program for errors
     pub fn check_program(&mut self, stmts: &[Stmt]) {
+        self.infer_rule_call_site_param_types(stmts);
         self.check_rule_result_contracts(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
+        self.check_unhandled_effects(stmts);
         self.check_imported_bodies();
         // Check trait impl completeness
         self.check_trait_impls();
@@ -55901,73 +56363,6 @@ impl TypeChecker {
             self.check_explore_query(query, selectable);
         } else {
             self.check_stmt(stmt);
-        }
-    }
-
-    /// Verify each `# impl Trait for Type` provides all required methods.
-    fn check_trait_impls(&mut self) {
-        let mut errors = Vec::new();
-        for ((trait_name, for_type, method_name), shape) in &self.impl_method_receivers {
-            if *shape == MethodReceiverShape::Invalid {
-                errors.push(format!(
-                    "`# impl {} for {}` method `{}` uses `self` in an invalid position; `self` must be the first parameter",
-                    trait_name, for_type, method_name
-                ));
-            }
-        }
-        for ((trait_name, for_type), provided) in &self.impl_methods {
-            if let Some(required) = self.trait_methods.get(trait_name) {
-                let missing: Vec<&String> = required
-                    .iter()
-                    .filter(|m| !provided.iter().any(|p| p == *m))
-                    .collect();
-                if !missing.is_empty() {
-                    let missing_names: Vec<&str> = missing.iter().map(|s| s.as_str()).collect();
-                    errors.push(format!(
-                        "`# impl {} for {}` is missing method{}: {}",
-                        trait_name,
-                        for_type,
-                        if missing.len() == 1 { "" } else { "s" },
-                        missing_names.join(", ")
-                    ));
-                }
-                for method_name in required {
-                    if !provided.iter().any(|p| p == method_name) {
-                        continue;
-                    }
-                    let trait_shape = self
-                        .trait_method_receivers
-                        .get(&(trait_name.clone(), method_name.clone()))
-                        .copied()
-                        .unwrap_or(MethodReceiverShape::None);
-                    let impl_shape = self
-                        .impl_method_receivers
-                        .get(&(trait_name.clone(), for_type.clone(), method_name.clone()))
-                        .copied()
-                        .unwrap_or(MethodReceiverShape::None);
-                    if impl_shape == MethodReceiverShape::Invalid || trait_shape == impl_shape {
-                        continue;
-                    }
-                    match (trait_shape, impl_shape) {
-                        (MethodReceiverShape::SelfFirst, MethodReceiverShape::None) => errors.push(
-                            format!(
-                                "`# impl {} for {}` method `{}` must declare `self` as its first parameter to match the trait receiver",
-                                trait_name, for_type, method_name
-                            ),
-                        ),
-                        (MethodReceiverShape::None, MethodReceiverShape::SelfFirst) => errors.push(
-                            format!(
-                                "`# impl {} for {}` method `{}` must not declare `self`; the trait method is not a receiver method",
-                                trait_name, for_type, method_name
-                            ),
-                        ),
-                        _ => {}
-                    }
-                }
-            }
-        }
-        for err in errors {
-            self.error(err);
         }
     }
 
@@ -56268,11 +56663,10 @@ impl TypeChecker {
                 // authoritative for the concrete closure supplied by a call.
                 continue;
             }
-            let canonical = builtin_canonical(&call.name);
-            if ((impure_names.contains(&call.name) || impure_names.contains(canonical))
-                && !matches!(canonical, "last" | "take" | "collect"))
+            if (impure_names.contains(&call.name)
+                && !matches!(call.name.as_str(), "last" | "take" | "collect"))
                 || effect_operations.contains(&call.name)
-                || matches!(canonical, "findall" | "search")
+                || matches!(call.name.as_str(), "findall" | "search")
             {
                 supported = false;
             }
@@ -56294,10 +56688,9 @@ impl TypeChecker {
         {
             return true;
         }
-        let canonical = builtin_canonical(name);
         if self
             .builtins
-            .get(canonical)
+            .get(name)
             .is_some_and(|expected| expected == arity)
         {
             return true;
@@ -56524,7 +56917,7 @@ impl TypeChecker {
     /// arithmetic-overflow, callback, stream, or external-runtime edge.
     fn explore_observation_builtin_is_total(name: &str) -> bool {
         matches!(
-            builtin_canonical(name),
+            name,
             "show"
                 | "show_int"
                 | "show_float"
@@ -56653,7 +57046,7 @@ impl TypeChecker {
                 }
                 continue;
             }
-            let canonical = builtin_canonical(&call.0);
+            let canonical = call.0.as_str();
             if self
                 .builtins
                 .get(canonical)
@@ -58512,8 +58905,10 @@ impl TypeChecker {
                 name,
                 params: type_params,
                 methods,
+                variants,
                 ..
             }) => {
+                self.check_variant_names(name, variants);
                 let arguments = type_params
                     .iter()
                     .filter(|param| param.ty.is_none())
@@ -58581,7 +58976,13 @@ impl TypeChecker {
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+            Stmt::TypeDecl(TypeDecl::WhenType {
+                name,
+                condition,
+                variants,
+                ..
+            }) => {
+                self.check_variant_names(name, variants);
                 self.check_expr(condition, None);
             }
             Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
@@ -58620,6 +59021,7 @@ impl TypeChecker {
                 if let Pat::Var(name) = pat {
                     let actor = Self::spawned_actor_name(expr);
                     self.define_actor_handle(name, actor);
+                    self.record_binding_variant_refinement(name, expr);
                 }
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
@@ -58637,9 +59039,12 @@ impl TypeChecker {
             Stmt::MonadicBind(pat, ty, expr) => {
                 self.check_expr(expr, None);
                 self.obvious_expr_ty(expr);
+                let inner = self.check_monadic_bind_operand(expr);
                 self.define_pat_vars(pat);
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
+                } else if let (Pat::Var(name), Some(inner)) = (pat, inner) {
+                    self.define_inferred_var_type_name(name, &inner);
                 }
             }
             Stmt::StreamBind(name, expr) => {
@@ -58707,6 +59112,7 @@ impl TypeChecker {
                         self.define_rule_head_var_types(arg);
                     }
                 }
+                self.define_rule_head_call_site_types(head);
                 self.check_expr(value, None);
                 if let Some(c) = condition {
                     self.check_rule_guard(c, head);
@@ -58727,6 +59133,7 @@ impl TypeChecker {
                         self.define_rule_head_var_types(arg);
                     }
                 }
+                self.define_rule_head_call_site_types(head);
                 self.check_expr(value, None);
                 if let Some(c) = condition {
                     self.check_rule_guard(c, head);
@@ -58742,6 +59149,7 @@ impl TypeChecker {
                         self.define_rule_head_var_types(arg);
                     }
                 }
+                self.define_rule_head_call_site_types(head);
                 self.check_expr(head, None);
                 if let Some(b) = body {
                     self.check_rule_body_expression(b, false);
@@ -58765,10 +59173,21 @@ impl TypeChecker {
                             .map(|ty| (name.clone(), ty))
                     })
                     .collect::<Vec<_>>();
+                let subject_variants = subject_names[0]
+                    .iter()
+                    .filter_map(|name| {
+                        self.refined_variant(&Expr::unspanned(ExprKind::Var(name.clone())))
+                            .map(|variant| (name.clone(), variant))
+                    })
+                    .collect::<Vec<_>>();
                 self.push_scope();
                 Self::define_rule_head_vars(subject, &mut self.scopes);
                 for (name, ty) in subject_types {
                     self.define_inferred_var_type_name(&name, &ty);
+                }
+                let depth = self.scopes.len() - 1;
+                for (name, variant) in subject_variants {
+                    self.variant_refinements.push((depth, name, variant, true));
                 }
                 self.define_rule_head_var_types(subject);
                 self.check_expr(subject, None);
@@ -58790,7 +59209,6 @@ impl TypeChecker {
             }
             Stmt::Prove {
                 name,
-                proof_block: _,
                 capture,
                 pass_block,
                 else_block,
@@ -58827,19 +59245,18 @@ impl TypeChecker {
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_) => {}
             Stmt::Annot(name, args) => {
-                if let Some(message) = removed_persistence_message(name) {
-                    self.error(message);
-                } else {
-                    for a in args {
-                        // A posthoc export may name the type itself even when
-                        // none of its value constructors share that name.
-                        if name == "export"
-                            && matches!(&a.kind, ExprKind::Var(symbol) if self.types.contains(symbol))
-                        {
-                            continue;
-                        }
-                        self.check_expr(a, None);
+                if !is_known_annotation(name) {
+                    self.error(unknown_annotation_message(name));
+                }
+                for a in args {
+                    // A posthoc export may name the type itself even when
+                    // none of its value constructors share that name.
+                    if name == "export"
+                        && matches!(&a.kind, ExprKind::Var(symbol) if self.types.contains(symbol))
+                    {
+                        continue;
                     }
+                    self.check_expr(a, None);
                 }
             }
         }
@@ -58855,10 +59272,9 @@ impl TypeChecker {
                 {
                     return;
                 }
-                let canonical = builtin_canonical(name);
                 if !self.var_defined(name)
                     && !self.functions.contains_key(name)
-                    && !self.builtins.contains_key(canonical)
+                    && !self.builtins.contains_key(name)
                     && !self.constructors.contains_key(name)
                     && !name.contains("::")
                     && !name.contains(".")
@@ -58870,7 +59286,19 @@ impl TypeChecker {
                     } else {
                         "variable"
                     };
-                    self.error_at_expr(expr, format!("undefined {} `{}`", symbol_kind, name));
+                    let hint = match name.as_str() {
+                        "null" | "nil" | "undefined" => {
+                            "; an absent value is `None`, of type `Option(a)`"
+                        }
+                        "console" | "System" | "fmt" | "println" | "echo" => {
+                            "; output is an effect, as in `@ print(text)`"
+                        }
+                        _ => "",
+                    };
+                    self.error_at_expr(
+                        expr,
+                        format!("undefined {} `{}`{}", symbol_kind, name, hint),
+                    );
                 }
             }
             ExprKind::App(func, args) => {
@@ -59025,7 +59453,9 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if self.is_rule_scope_member_name(method) {
+                    } else if self.is_rule_scope_member_name(method)
+                        && self.receiver_type_known(base)
+                    {
                         self.error_at_expr(
                             func,
                             format!(
@@ -59045,7 +59475,6 @@ impl TypeChecker {
                     return;
                 }
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
                     let lexical_call_checked = self.check_ordinary_call(expr, name, args);
                     if has_named_args(args) {
@@ -59075,7 +59504,7 @@ impl TypeChecker {
                                     self.check_expr(arg, _in_fn);
                                 }
                             }
-                        } else if self.builtins.contains_key(canonical) {
+                        } else if self.builtins.contains_key(name) {
                             self.error_at_expr(
                                 expr,
                                 format!("named arguments are not supported for builtin `{}`", name),
@@ -59106,6 +59535,12 @@ impl TypeChecker {
                         return;
                     }
 
+                    if !lexical_call_checked
+                        && !self.var_defined(name)
+                        && self.constructor_signatures.contains_key(name)
+                    {
+                        self.check_positional_constructor_arguments(name, args);
+                    }
                     if let Some(&expected) = self.functions.get(name) {
                         if !lexical_call_checked
                             && !self.function_has_arity(name, actual_arity)
@@ -59123,10 +59558,8 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if let Some(&expected) = self
-                        .builtins
-                        .get(canonical)
-                        .filter(|_| !lexical_call_checked)
+                    } else if let Some(&expected) =
+                        self.builtins.get(name).filter(|_| !lexical_call_checked)
                     {
                         if actual_arity != expected {
                             self.error_at_expr(
@@ -59140,7 +59573,13 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                        if canonical == "assert_with_message"
+                        if matches!(name.as_str(), "filter" | "any" | "all" | "find")
+                            && actual_arity == 2
+                            && !self.var_defined(name)
+                        {
+                            self.check_collection_predicate(name, args);
+                        }
+                        if name == "assert_with_message"
                             && actual_arity == 2
                             && !self.var_defined(name)
                         {
@@ -59157,7 +59596,7 @@ impl TypeChecker {
                                 }
                             }
                         }
-                        if canonical == "length" && actual_arity == 1 && !self.var_defined(name) {
+                        if name == "length" && actual_arity == 1 && !self.var_defined(name) {
                             if let Some(actual) = self.infer_expr_type_name(&args[0]) {
                                 if let Ok(ty) = parse_type_annotation(&actual) {
                                     let mut operand = &ty;
@@ -59272,6 +59711,14 @@ impl TypeChecker {
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type: Option<String> = None;
+                let refinement_subject = match &scrutinee.kind {
+                    ExprKind::Var(subject) => subject_type
+                        .as_deref()
+                        .and_then(Self::canonical_nominal_owner)
+                        .and_then(|owner| self.type_variants.get(&owner).cloned())
+                        .map(|variants| (subject.clone(), variants)),
+                    _ => None,
+                };
                 for (index, arm) in arms.iter().enumerate() {
                     let pattern_anchor = Expr::new(ExprKind::Unit, arm.pat_span);
                     self.check_pattern_constructor_arity(
@@ -59280,6 +59727,19 @@ impl TypeChecker {
                         subject_type.as_deref(),
                     );
                     self.push_scope();
+                    let refined = refinement_subject.as_ref().and_then(|(subject, variants)| {
+                        Self::pattern_variant_name(&arm.pat)
+                            .filter(|variant| variants.iter().any(|known| known == variant))
+                            .map(|variant| (subject.clone(), variant.to_string()))
+                    });
+                    if let Some((subject, variant)) = &refined {
+                        self.variant_refinements.push((
+                            self.scopes.len() - 1,
+                            subject.clone(),
+                            variant.clone(),
+                            false,
+                        ));
+                    }
                     self.define_pat_vars(&arm.pat);
                     for (name, type_name) in
                         self.pattern_type_bindings(&arm.pat, subject_type.as_deref())
@@ -59370,10 +59830,9 @@ impl TypeChecker {
                 for a in args {
                     self.check_expr(a, _in_fn);
                 }
-                let canonical = builtin_canonical(name);
-                if !is_builtin_effect(canonical) {
+                if !is_builtin_effect(name) {
                     self.error_at_expr(expr, unknown_effect_message(name));
-                } else if let Some(&expected) = self.builtins.get(canonical) {
+                } else if let Some(&expected) = self.builtins.get(name) {
                     if args.len() != expected {
                         self.error_at_expr(
                             expr,
@@ -59493,19 +59952,80 @@ impl TypeChecker {
 
     fn check_rule_result_contracts(&mut self, stmts: &[Stmt]) {
         let dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
-        self.check_rule_result_sequence(stmts, &dir, &mut BTreeMap::new(), &mut BTreeSet::new());
+        let mut bases = BTreeSet::new();
+        self.collect_rule_base_families(stmts, &dir, &mut bases, &mut BTreeSet::new());
+        self.check_rule_result_sequence(
+            stmts,
+            &dir,
+            &bases,
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+        );
+    }
+
+    /// Rule families (name and arity) with at least one clause or default in
+    /// this declaration sequence or its plain imports.
+    fn collect_rule_base_families(
+        &self,
+        stmts: &[Stmt],
+        dir: &str,
+        bases: &mut BTreeSet<(String, usize)>,
+        visited: &mut BTreeSet<PathBuf>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Rule(rule @ (Rule::Clause { .. } | Rule::Default { .. })) => {
+                    if let Some(key) = Self::rule_name_arity(rule) {
+                        bases.insert(key);
+                    }
+                }
+                Stmt::Import(path) => {
+                    let Some((file, module)) = self
+                        .rule_contract_imports
+                        .get(&(dir.to_string(), path.clone()))
+                    else {
+                        continue;
+                    };
+                    if !visited.insert(canonical_parsed_source_path(Path::new(file))) {
+                        continue;
+                    }
+                    let imported_dir = Interpreter::imported_source_dir(file);
+                    self.collect_rule_base_families(
+                        module.statements(),
+                        &imported_dir,
+                        bases,
+                        visited,
+                    );
+                }
+                _ => {}
+            }
+        }
     }
 
     fn check_rule_result_sequence(
         &mut self,
         stmts: &[Stmt],
         dir: &str,
+        bases: &BTreeSet<(String, usize)>,
         known: &mut BTreeMap<(String, usize), Vec<String>>,
         visited: &mut BTreeSet<PathBuf>,
     ) {
         for stmt in stmts {
             match stmt {
                 Stmt::Rule(rule) => {
+                    if let Rule::Exception { label, head, .. } = rule {
+                        if let Some((name, arity)) = Self::rule_name_arity(rule) {
+                            if !bases.contains(&(name.clone(), arity)) {
+                                self.error_at_expr(
+                                    head,
+                                    format!(
+                                        "exception `{label}` overrides rule `{name}` with {arity} argument{}, but no such rule is declared; an exception needs an ordinary rule or default with the same name and arity",
+                                        if arity == 1 { "" } else { "s" }
+                                    ),
+                                );
+                            }
+                        }
+                    }
                     if let Some(message) = self.rule_result_conflict(rule, known) {
                         let head = match rule {
                             Rule::Default { head, .. }
@@ -59540,6 +60060,7 @@ impl TypeChecker {
                     self.check_rule_result_sequence(
                         module.statements(),
                         &imported_dir,
+                        bases,
                         known,
                         visited,
                     );
@@ -60022,6 +60543,8 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        tc.diagnostics
+            .extend(host_effects::comptime_host_effect_diagnostics(stmts));
         let mut calculation_contracts = Vec::new();
         let mut compile_time_metadata_bindings = BTreeSet::new();
         let mut exploration_universes = Vec::new();
@@ -60238,10 +60761,10 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
                 Value::Unit => {}
                 Value::List(_)
                 | Value::Stream(_)
-                | Value::Subject(_)
+                | Value::LiveStream(_)
                 | Value::Closure { .. }
                 | Value::Builtin(_)
-                | Value::Actor { .. } => {}
+                | Value::Actor(_) => {}
                 _ => {
                     if !output.is_empty() {
                         output.push('\n');
@@ -61346,16 +61869,30 @@ __FINDS__
 # IdentityState = IdentityState(value: Int) | IdentityOther
 # IdentityContext = IdentityContext(step: Int) | IdentityContextOther
 
+> identity_value(state: IdentityState) -> Int {
+    match state {
+        | IdentityState(value) -> value
+        | _ -> 0
+    }
+}
+
+> identity_step_size(context: IdentityContext) -> Int {
+    match context {
+        | IdentityContext(step) -> step
+        | _ -> 0
+    }
+}
+
 > identity_step(before: IdentityState, context: IdentityContext) -> IdentityState {
-    IdentityState(value = before.value + context.step)
+    IdentityState(value = identity_value(before) + identity_step_size(context))
 }
 
 > identity_observer(state: IdentityState, context: IdentityContext) -> Int {
-    state.value
+    identity_value(state)
 }
 
 > identity_observer_alt(state: IdentityState, context: IdentityContext) -> Int {
-    state.value + context.step
+    identity_value(state) + identity_step_size(context)
 }
 
 ? explore identity_target {
@@ -61508,8 +62045,8 @@ __FINDS__
         assert_ne!(observer_selected_request, baseline_request);
 
         let observer_body_changed = baseline_source.replace(
-            "    state.value\n}\n\n> identity_observer_alt",
-            "    state.value + context.step + 1\n}\n\n> identity_observer_alt",
+            "    identity_value(state)\n}\n\n> identity_observer_alt",
+            "    identity_value(state) + identity_step_size(context) + 1\n}\n\n> identity_observer_alt",
         );
         let (_, observer_identity, observer_request) =
             stable_model_owner_identity_snapshot(&observer_body_changed, "identity_target");
@@ -61517,8 +62054,8 @@ __FINDS__
         assert_ne!(observer_request, baseline_request);
 
         let relation_logic_changed = baseline_source.replace(
-            "before.value + context.step)",
-            "before.value + context.step + 1)",
+            "identity_value(before) + identity_step_size(context))",
+            "identity_value(before) + identity_step_size(context) + 1)",
         );
         let (_, relation_logic_identity, _) =
             stable_model_owner_identity_snapshot(&relation_logic_changed, "identity_target");
@@ -61603,11 +62140,23 @@ __FINDS__
         let model = r#"
 # IdentityState = IdentityState(value: Int) | IdentityOther
 # IdentityContext = IdentityContext(step: Int) | IdentityContextOther
+> identity_value(state: IdentityState) -> Int {
+    match state {
+        | IdentityState(value) -> value
+        | _ -> 0
+    }
+}
+> identity_step_size(context: IdentityContext) -> Int {
+    match context {
+        | IdentityContext(step) -> step
+        | _ -> 0
+    }
+}
 > identity_step(before: IdentityState, context: IdentityContext) -> IdentityState {
-    IdentityState(value = before.value + context.step)
+    IdentityState(value = identity_value(before) + identity_step_size(context))
 }
 > identity_observer(state: IdentityState, context: IdentityContext) -> Int {
-    state.value
+    identity_value(state)
 }
 "#;
         std::fs::write(temp_dir.join("left.runa"), model).expect("write left model");
@@ -62646,7 +63195,10 @@ __FINDS__
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/danish-income-tax");
         let path = directory.join("personskat-income-cliffs.audit.runa");
         let source = std::fs::read_to_string(&path).expect("read Personskat exploration");
-        let statements = parse_test_program(&source).expect("parse Personskat exploration");
+        let statements = prepend_prelude(
+            parse_prelude(),
+            &parse_test_program(&source).expect("parse Personskat exploration"),
+        );
         let artifacts = TypeChecker::check_with_artifacts(
             &statements,
             Some(directory.to_string_lossy().to_string()),
@@ -64735,12 +65287,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             .expect("localized keyword token");
         assert_eq!(localized_scope.kind, TokenKind::KW);
         assert_eq!(localized_scope.text, "scope");
-        let localized_fold = tokens
-            .iter()
-            .find(|token| token.source_text == "fold")
-            .expect("localized builtin token");
-        assert_eq!(localized_fold.kind, TokenKind::Ident);
-        assert_eq!(localized_fold.text, "foldl");
 
         let mut parser = Parser::new(tokens, source);
         let statements = parser.parse_program().expect("parse localized field");
@@ -65116,7 +65662,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | known_value(1) -> "one"
 
 = predicate_miss = known_predicate(2)
-= value_miss = known_value(2)
 "#;
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -65138,15 +65683,11 @@ starters first from mechanisms paths for node activation "{digest}" using values
             root.rule_miss_fallbacks
                 .get("known_value")
                 .and_then(|by_arity| by_arity.get(&1)),
-            Some(&RuleMissFallback::EmptyValue)
+            Some(&RuleMissFallback::NoValue)
         );
         assert_eq!(
             env.get("predicate_miss").map(ToString::to_string),
             Some("false".to_string())
-        );
-        assert_eq!(
-            env.get("value_miss").map(ToString::to_string),
-            Some(String::new())
         );
     }
 
@@ -65160,7 +65701,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = predicate_hit = mixed(1)
 = predicate_miss = mixed(0)
 = value_hit = mixed(1, 1)
-= value_miss = mixed(0, 0)
 = builtin_fallthrough = not(False)
 "#;
         let mut lexer = Lexer::new(source);
@@ -65185,7 +65725,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             root.rule_miss_fallbacks
                 .get("mixed")
                 .and_then(|by_arity| by_arity.get(&2)),
-            Some(&RuleMissFallback::EmptyValue)
+            Some(&RuleMissFallback::NoValue)
         );
         assert_eq!(
             env.get("predicate_hit").map(ToString::to_string),
@@ -65200,10 +65740,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             Some("1".to_string())
         );
         assert_eq!(
-            env.get("value_miss").map(ToString::to_string),
-            Some(String::new())
-        );
-        assert_eq!(
             env.get("builtin_fallthrough").map(ToString::to_string),
             Some("true".to_string())
         );
@@ -65213,6 +65749,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn interpreted_typed_boolean_rule_misses_use_exact_return_metadata() {
         let source = r#"
 | condition(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 | mixed(value: Int) -> True under value > 0
@@ -65230,16 +65767,12 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = mixed_boolean_hit = mixed(1)
 = mixed_boolean_miss = mixed(0)
 = mixed_integer_hit = mixed(1, 2)
-= mixed_integer_miss = mixed(0, 2)
 
 = condition_value = condition
 = value_miss = condition_value(0)
 = pipe_miss = 0 |> condition
-= mixed_integer_pipe_miss = 0 |> mixed(2)
 = simple_pipe_wrapper_hit = simple_pipe_wrapper(1)
-= simple_pipe_wrapper_miss = simple_pipe_wrapper(0)
 = applied_pipe_wrapper_hit = applied_pipe_wrapper(1)
-= applied_pipe_wrapper_miss = applied_pipe_wrapper(0)
 "#;
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -65315,28 +65848,23 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 "{binding} must preserve the Boolean false miss"
             );
         }
-        for binding in [
-            "simple_pipe_wrapper_miss",
-            "applied_pipe_wrapper_miss",
-            // Piping the first argument into mixed(2) selects the Int-valued
-            // arity-two family, not its Bool-valued arity-one sibling.
-            "mixed_integer_pipe_miss",
-        ] {
-            assert_eq!(
-                env.get(binding).map(ToString::to_string),
-                Some(String::new()),
-                "{binding} must retain the legacy miss without a context-closed safety proof"
-            );
-        }
         assert_eq!(
             env.get("mixed_integer_hit").map(ToString::to_string),
             Some("3".to_string())
         );
-        assert_eq!(
-            env.get("mixed_integer_miss").map(ToString::to_string),
-            Some(String::new()),
-            "the non-Boolean overload must retain its legacy direct-call miss"
-        );
+        for call in [
+            "simple_pipe_wrapper(0)",
+            "applied_pipe_wrapper(0)",
+            // Piping the first argument into mixed(2) selects the Int-valued
+            // arity-two family, not its Bool-valued arity-one sibling.
+            "0 |> mixed(2)",
+            "mixed(0, 2)",
+        ] {
+            let error =
+                eval_source_with_prelude(&format!("{source}@ print(show({call}))\n"), false)
+                    .expect_err("a miss without a context-closed Boolean judgment has no value");
+            assert!(error.contains("no value rule matched"), "{call}: {error}");
+        }
 
         let condition_key = RuleDispatchKey {
             scope: None,
@@ -65368,6 +65896,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 # Case(limit: Int) {
     | allowed(value: Int) -> True under value > 0
+    | exception_allowed(value: Int) -> True under value > 100
     | exception above_limit exception_allowed(value: Int) -> True under value > 0
     | wrapper(value: Int) -> allowed(value)
     | memo_allowed() -> True under False
@@ -65392,11 +65921,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = zero_arg_memoized_miss = Case(limit = 0).zero_wrapper()
 = scoped_shared_miss = case.shared(0)
 = amount_hit = case.amount(6)
-= amount_miss = case.amount(5)
 = other_shared_hit = OtherCase(limit = 5).shared(6)
-= other_shared_miss = OtherCase(limit = 5).shared(5)
 = global_shared_hit = shared(1)
-= global_shared_miss = shared(0)
 "#;
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -65498,8 +66024,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "sibling_miss",
             "zero_arg_memoized_miss",
             "scoped_shared_miss",
-            "amount_miss",
-            "other_shared_miss",
         ] {
             assert_eq!(
                 env.get(binding).map(ToString::to_string),
@@ -65519,11 +66043,19 @@ starters first from mechanisms paths for node activation "{digest}" using values
             env.get("global_shared_hit").map(ToString::to_string),
             Some("11".to_string())
         );
-        assert_eq!(
-            env.get("global_shared_miss").map(ToString::to_string),
-            Some(String::new()),
-            "the global non-Boolean family must retain its legacy direct miss"
-        );
+        for (call, family) in [
+            ("case.amount(5)", "Case.amount/1"),
+            ("OtherCase(limit = 5).shared(5)", "OtherCase.shared/1"),
+            ("shared(0)", "shared/1"),
+        ] {
+            let error =
+                eval_source_with_prelude(&format!("{source}@ print(show({call}))\n"), false)
+                    .expect_err("an Int rule miss has no value");
+            assert!(
+                error.contains(&format!("no value rule matched `{family}`")),
+                "{call}: {error}"
+            );
+        }
     }
 
     #[test]
@@ -65543,13 +66075,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 }
 
 = closed_miss = closed(0)
-= wrapper_miss = wrapper(0)
 = free_guard_miss = free_guard(0)
 = wildcard_hit = wildcard(True)
-= wildcard_miss = wildcard(0)
-= duplicate_conflict = duplicate(True, 7)
 = duplicate_hit = duplicate(True, True)
-= duplicate_miss = duplicate(0, 0)
 = malformed_case = Case(7)
 = captured_hit = malformed_case.captured(1)
 "#;
@@ -65662,16 +66190,31 @@ starters first from mechanisms paths for node activation "{digest}" using values
             env.get("free_guard_miss"),
             Some(Value::Bool(false))
         ));
-        for binding in [
-            "wrapper_miss",
-            "wildcard_miss",
-            "duplicate_miss",
-            "duplicate_conflict",
+        for call in [
+            "wrapper(0)",
+            "wildcard(0)",
+            "duplicate(0, 0)",
+            "duplicate(True, 7)",
         ] {
-            assert_eq!(
-                env.get(binding).map(ToString::to_string),
-                Some(String::new()),
-                "{binding} must retain the legacy direct-rule miss"
+            let probe = format!("{source}= probe = {call}\n");
+            let probe_statements = parse_test_program(&probe).expect("parse Bool-miss probe");
+            let probe_artifacts =
+                TypeChecker::check_with_artifacts(&probe_statements, None, &probe);
+            let mut probe_interpreter = Interpreter::new();
+            probe_interpreter.install_rule_dispatch_metadata(&probe_artifacts);
+            let mut probe_env = probe_interpreter.default_env();
+            let error = probe_interpreter
+                .run_program_with_diagnostics(
+                    &probe_statements,
+                    &mut probe_env,
+                    Path::new("probe.runa"),
+                    &probe,
+                )
+                .expect_err("a miss without a context-closed Boolean judgment has no value");
+            assert!(
+                error.message.contains("no value rule matched"),
+                "{call}: {}",
+                error.message
             );
         }
         assert_eq!(
@@ -65805,6 +66348,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn eval_source_installs_boolean_rule_miss_metadata() {
         let source = r#"
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ print(show(conditional(0)))
@@ -67026,7 +67570,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
 
         let source = format!(
-            "@ import ./middle\n@ import #{} from ./dependency\n\n| collision(value: Int) -> True under value > 10\n| local_condition(value: Int) -> True under value > 0\n\n= collision_hit = collision(1)\n= collision_miss = collision(0)\n",
+            "@ import ./middle\n@ import #{} from ./dependency\n\n| collision(value: Int) -> True under value > 10\n| local_condition(value: Int) -> True under value > 0\n\n= collision_hit = collision(11)\n",
             type_hash
         );
         let mut lexer = Lexer::new(&source);
@@ -67073,22 +67617,46 @@ starters first from mechanisms paths for node activation "{digest}" using values
             );
         }
 
-        let mut baseline = Interpreter::new();
-        baseline.source_dir = Some(temp_dir.to_string_lossy().to_string());
-        let mut baseline_env = baseline.default_env();
-        baseline.run_program(&stmts, &mut baseline_env);
-        let mut canonical = Interpreter::new();
-        canonical.source_dir = Some(temp_dir.to_string_lossy().to_string());
-        canonical.install_rule_dispatch_metadata(&artifacts);
-        let mut canonical_env = canonical.default_env();
-        canonical.run_program(&stmts, &mut canonical_env);
-        for binding in ["collision_hit", "collision_miss"] {
+        let run_both = |statements: &[Stmt], probe_source: &str| {
+            let mut baseline = Interpreter::new();
+            baseline.source_dir = Some(temp_dir.to_string_lossy().to_string());
+            let mut baseline_env = baseline.default_env();
+            let baseline_result = baseline
+                .run_program_with_diagnostics(
+                    statements,
+                    &mut baseline_env,
+                    Path::new("main.runa"),
+                    probe_source,
+                )
+                .map(|_| baseline_env.get("collision_hit").map(ToString::to_string))
+                .map_err(|error| error.message);
+            let mut canonical = Interpreter::new();
+            canonical.source_dir = Some(temp_dir.to_string_lossy().to_string());
+            canonical.install_rule_dispatch_metadata(&artifacts);
+            let mut canonical_env = canonical.default_env();
+            let canonical_result = canonical
+                .run_program_with_diagnostics(
+                    statements,
+                    &mut canonical_env,
+                    Path::new("main.runa"),
+                    probe_source,
+                )
+                .map(|_| canonical_env.get("collision_hit").map(ToString::to_string))
+                .map_err(|error| error.message);
             assert_eq!(
-                canonical_env.get(binding).map(ToString::to_string),
-                baseline_env.get(binding).map(ToString::to_string),
-                "qualified collision must retain legacy runtime behavior"
+                canonical_result, baseline_result,
+                "exact metadata must not change the qualified collision's runtime result"
             );
-        }
+            canonical_result
+        };
+        assert_eq!(run_both(&stmts, &source), Ok(Some("true".to_string())));
+        let miss_source = format!("{source}= collision_miss = collision(0)\n");
+        let miss_stmts = parse_test_program(&miss_source).expect("parse collision miss probe");
+        let miss = run_both(&miss_stmts, &miss_source).expect_err("an unsafe Boolean miss fails");
+        assert!(
+            miss.contains("no value rule matched `collision/1`"),
+            "{miss}"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -67362,8 +67930,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
             ("keys", "[alfa, beta, gamma]"),
             ("values", "[1, 2, 3]"),
             ("pairs", "[(alfa, 1), (beta, 2), (gamma, 3)]"),
-            ("members", "{10, 2, 3}"),
-            ("ordered", "[10, 2, 3]"),
+            ("members", "{2, 3, 10}"),
+            ("ordered", "[2, 3, 10]"),
         ] {
             assert_eq!(env.get(binding).unwrap().to_string(), expected, "{binding}");
         }
@@ -69097,115 +69665,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn parse_explicit_proof_block_on_prove_stmt() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-"#;
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("parse failed");
-
-        match &stmts[1] {
-            Stmt::Prove {
-                name,
-                proof_block: Some(block),
-                capture,
-                pass_block,
-                else_block,
-            } => {
-                assert_eq!(name, "add_comm");
-                assert!(capture.is_none());
-                assert!(pass_block.is_none());
-                assert!(else_block.is_none());
-                assert_eq!(block.arms.len(), 1);
-                assert_eq!(block.arms[0].binders, vec!["lhs", "rhs"]);
-                match &block.arms[0].term {
-                    proof_kernel::ProofTerm::Apply(name, args) => {
-                        assert_eq!(name, "int_ring.comm_add");
-                        assert!(args.is_empty());
-                    }
-                    other => panic!("unexpected proof term: {:?}", other),
-                }
-            }
-            other => panic!("expected explicit proof stmt, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn lower_expr_to_proof_prop_handles_ge_and_conjunction() {
-        let source = "x >= 0 and y == y";
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let expr = parser.parse_expr().expect("expr parse failed");
-        let prop = lower_expr_to_proof_prop(&expr).expect("lowering failed");
-
-        match prop {
-            proof_kernel::Prop::And(lhs, rhs) => {
-                match *lhs {
-                    proof_kernel::Prop::Le(
-                        proof_kernel::Term::Int(0),
-                        proof_kernel::Term::Var(ref x),
-                    ) if x == "x" => {}
-                    other => panic!("unexpected lhs: {:?}", other),
-                }
-                match *rhs {
-                    proof_kernel::Prop::Eq(
-                        proof_kernel::Term::Var(ref a),
-                        proof_kernel::Term::Var(ref b),
-                    ) if a == "y" && b == "y" => {}
-                    other => panic!("unexpected rhs: {:?}", other),
-                }
-            }
-            other => panic!("unexpected prop: {:?}", other),
-        }
-    }
-
-    #[test]
-    fn lower_expr_to_proof_prop_desugars_strict_order() {
-        let source = "x < x + 1 and x + 1 > x";
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let expr = parser.parse_expr().expect("expr parse failed");
-        let prop = lower_expr_to_proof_prop(&expr).expect("lowering failed");
-
-        match prop {
-            proof_kernel::Prop::And(lhs, rhs) => {
-                match *lhs {
-                    proof_kernel::Prop::Le(
-                        proof_kernel::Term::Op(ref plus, ref l, ref r),
-                        proof_kernel::Term::Op(ref inner_plus, ref il, ref ir),
-                    ) if plus == "+" && inner_plus == "+" => {
-                        assert_eq!(**l, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**r, proof_kernel::Term::Int(1));
-                        assert_eq!(**il, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**ir, proof_kernel::Term::Int(1));
-                    }
-                    other => panic!("unexpected lhs strict-order lowering: {:?}", other),
-                }
-                match *rhs {
-                    proof_kernel::Prop::Le(
-                        proof_kernel::Term::Op(ref plus, ref l, ref r),
-                        proof_kernel::Term::Op(ref inner_plus, ref il, ref ir),
-                    ) if plus == "+" && inner_plus == "+" => {
-                        assert_eq!(**l, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**r, proof_kernel::Term::Int(1));
-                        assert_eq!(**il, proof_kernel::Term::Var("x".into()));
-                        assert_eq!(**ir, proof_kernel::Term::Int(1));
-                    }
-                    other => panic!("unexpected rhs strict-order lowering: {:?}", other),
-                }
-            }
-            other => panic!("unexpected prop: {:?}", other),
-        }
-    }
-
-    #[test]
     fn diagnostic_display_with_context_breadcrumbs() {
         let source = "= x = bad()";
         let d = Diagnostic::error("undefined function `bad`").with_context("in function `main`");
@@ -70106,7 +70565,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 label: "Prove",
                 stmt: Stmt::Prove {
                     name: "prove_visit".to_string(),
-                    proof_block: None,
                     capture: None,
                     pass_block: Some(vec![typechecker_expr_stmt("missing_prove_pass")]),
                     else_block: Some(vec![typechecker_expr_stmt("missing_prove_else")]),
@@ -71963,16 +72421,6 @@ handle <- Left
         message: String,
         level: Int,
     ) -> ()
-}
-
-| proof_target: (left, right) -> left + right == right + left
-? proof_target by {
-    | (
-        left: Int,
-        right: Int,
-    ) -> apply int_ring.comm_add(
-        refl,
-    )
 }
 
 = handled = | handle Console {

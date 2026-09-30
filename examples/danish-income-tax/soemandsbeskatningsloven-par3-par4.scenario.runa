@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./soemandsbeskatningsloven - par3 - par4
+@ importer ./soemandsbeskatningsloven-par3-par4
 
 | søbl3_scenarie_beskæftigelse(indkomstår: Heltal, identifikation: Tekst, bruttotonnage: Heltal, sødage_hundrededele: Heltal) -> Sømandsbeskatningslov3Beskæftigelsesfakta(
     identifikation = identifikation,

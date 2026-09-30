@@ -1,6 +1,6 @@
 @ sprog da
-@ importer ../../../examples / danish - income - tax / aktieindkomst - slutopgoerelse
-@ importer ../../../examples / danish - income - tax / soemandsbeskatningsloven - dis - lempelse
+@ importer ../../../examples/danish-income-tax/aktieindkomst-slutopgoerelse
+@ importer ../../../examples/danish-income-tax/soemandsbeskatningsloven-dis-lempelse
 
 -- Fiktive input: native/interpreter-konformitet, ikke ekstern skattevalidering.
 | årsskifte_input(år: Heltal, løn: Heltal, kapital: Heltal) -> LønmodtagerInput(
@@ -34,7 +34,13 @@
         eksakt_dis[2].samlet_skattegrundlag_kroner,
         eksakt_dis[2].forholdsmæssig_lempelse_øre]
 }
-= valgt_år = parse_int(env_var("FUTURUNA_EXACT_YEAR"))
+= valgt_år = match parse_int(env_var("FUTURUNA_EXACT_YEAR")) {
+    | Ok(år) -> år
+    | Err(fejl) -> {
+        = _ = assert_with_message(false, "FUTURUNA_EXACT_YEAR: " + fejl)
+        0
+    }
+}
 = rækker = hvis valgt_år != 0 { [årsskifte_række(årsskifte_input(valgt_år, 3000000, 110000))] }
 ellers { map([
     årsskifte_input(2023, 3000000, 110000),

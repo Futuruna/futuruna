@@ -12,7 +12,6 @@ tags:
 related:
   - "[[current-state]]"
   - "[[verification-lanes]]"
-  - "[[wiki/thesis/verified-bootstrap|verified-bootstrap]]"
   - "[[repo-docs]]"
 ---
 
@@ -22,20 +21,18 @@ This source note summarizes the contributor-facing map in `docs/state-and-roadma
 
 ## What The Doc Establishes
 
-- Futuruna now has a real assurance stack instead of relying on local confidence.
-- The proof story is real, but still stage-1: a trusted kernel plus a wider trusted elaboration pipeline.
-- The next work is not feature sprawl. It is semantic closure, broader realistic coverage, and a narrower proof trust boundary.
+- Futuruna has a real assurance stack instead of relying on local confidence.
+- Assurance comes from tests, canaries and differential lanes; there is no proof kernel.
+- The next work is not feature sprawl. It is semantic closure and broader realistic coverage.
 
 ## Assurance Stack In One View
 
 - [[verification-lanes]] for the blocking mint gate, authored canaries, differential search, and FIR snapshots.
 - [[mint-ratchet]] for the contributor discipline around semantic changes.
-- [[wiki/modules/proof-kernel|proof-kernel]] for the small trusted checker.
-- [[wiki/thesis/verified-bootstrap|verified-bootstrap]] for the path from tiny proved compiler fragments to larger proof-carrying slices.
 
 ## Trust Boundary Summary
 
-The document is explicit that most of Futuruna is still conventional trusted compiler/runtime code:
+All of Futuruna is conventional trusted compiler/runtime code:
 
 - parser
 - type checker
@@ -43,18 +40,13 @@ The document is explicit that most of Futuruna is still conventional trusted com
 - Rust codegen
 - emitted-Rust integration
 
-The narrow trusted proof core is `src/proof_kernel.rs` plus the primitive kernel axioms. The proof-elaboration machinery around `runa verify` is still trusted compiler code.
-
 ## Milestones It Sets
 
 1. Close remaining semantic contract gaps in compiled/runtime behavior.
 2. Expand realistic authored coverage and internal compiler visibility.
-3. Shrink the proof trust boundary around real compiler slices.
 
 ## Best Companion Notes
 
 - [[current-state]]
 - [[verification-lanes]]
-- [[wiki/modules/proof-kernel|proof-kernel]]
-- [[wiki/thesis/verified-bootstrap|verified-bootstrap]]
 

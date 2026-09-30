@@ -2,8 +2,7 @@
 
 > Historical plan, preserved from `projects/self-hosting/README.md`. Its milestone
 > numbers and completion checklist describe an earlier development stage. For
-> current direction and trust boundaries, see [verified bootstrap](../verified-bootstrap.md)
-> and the [state and roadmap](../state-and-roadmap.md).
+> current direction and trust boundaries, see the [state and roadmap](../state-and-roadmap.md).
 
 
 Goal: Make the Futuruna compiler compile itself.
@@ -28,15 +27,6 @@ Goal: Make the Futuruna compiler compile itself.
 - **Sets**: `Set(T)` type → `HashSet<T>` in Rust codegen
 - **Escape analysis**: TBD — Prolog rules (M23) vs `@ rust {}` escape hatch
 - **Compiler split**: lexer.runa, parser.runa, interpreter.runa, codegen.runa, main.runa
-
-## Verified Bootstrap
-
-Self-hosting and verified bootstrap are related, but they are not the same milestone.
-
-- Self-hosting means Futuruna can compile Futuruna.
-- Verified bootstrap means the compiler stages we rely on are themselves justified by proofs or translation checks.
-
-The current proof-carrying bootstrap plan and trust boundary live in [docs/verified-bootstrap.md](../../docs/verified-bootstrap.md). The short version is that Futuruna can already prove tiny compiler passes inside Futuruna, but the production compiler is not yet verified.
 
 ## Analysis
 

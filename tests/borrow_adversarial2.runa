@@ -7,7 +7,7 @@
 -- ============================================================================
 
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 # Pair(a, b) = MkPair(a, b)
 # Person(name: String, age: Int)
 # Triple(a: Int, b: Int, c: Int)
@@ -59,7 +59,7 @@
 -- This is a classic Rust stumbling block: the loop moves on first iteration.
 -- ============================================================================
 
-> tag_items(items: List(Int), label: String) -> String {
+> tag_items(items: Chain(Int), label: String) -> String {
     = result = ""
     for item in [1, 2, 3] {
         @ print("  " + label + ": " + show(item))
@@ -67,7 +67,7 @@
     "tagged by " + label
 }
 
-@ print("T16: " + tag_items(Nil, "mytag"))
+@ print("T16: " + tag_items(End, "mytag"))
 
 -- ============================================================================
 -- TEST 17: Chained calls consuming same value — f(x) + g(x)
@@ -75,21 +75,21 @@
 -- Futuruna must clone data for the second call.
 -- ============================================================================
 
-> list_sum(xs: List(Int)) -> Int {
+> list_sum(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, t) -> h + list_sum(t)
+        | End -> 0
+        | Link(h, t) -> h + list_sum(t)
     }
 }
 
-> list_len(xs: List(Int)) -> Int {
+> list_len(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(_, t) -> 1 + list_len(t)
+        | End -> 0
+        | Link(_, t) -> 1 + list_len(t)
     }
 }
 
-= nums = Cons(10, Cons(20, Cons(30, Nil)))
+= nums = Link(10, Link(20, Link(30, End)))
 @ print("T17: sum=" + show(list_sum(nums)) + " len=" + show(list_len(nums)))
 
 -- ============================================================================
@@ -98,19 +98,19 @@
 -- the outer match to be matchable again in the inner body.
 -- ============================================================================
 
-> classify_list(xs: List(Int)) -> String {
+> classify_list(xs: Chain(Int)) -> String {
     match xs {
-        | Nil -> "empty"
-        | Cons(h, t) -> match t {
-            | Nil -> "singleton: " + show(h)
-            | Cons(h2, _) -> "multi, first two: " + show(h) + ", " + show(h2)
+        | End -> "empty"
+        | Link(h, t) -> match t {
+            | End -> "singleton: " + show(h)
+            | Link(h2, _) -> "multi, first two: " + show(h) + ", " + show(h2)
         }
     }
 }
 
-@ print("T18a: " + classify_list(Nil))
-@ print("T18b: " + classify_list(Cons(42, Nil)))
-@ print("T18c: " + classify_list(Cons(1, Cons(2, Cons(3, Nil)))))
+@ print("T18a: " + classify_list(End))
+@ print("T18b: " + classify_list(Link(42, End)))
+@ print("T18c: " + classify_list(Link(1, Link(2, Link(3, End)))))
 
 -- ============================================================================
 -- TEST 19: Struct with non-Copy fields through multiple accessors
@@ -179,15 +179,15 @@
 -- The accumulator must be rebound (shadowed), not mutated.
 -- ============================================================================
 
-> join_list(xs: List(String), sep: String) -> String {
+> join_list(xs: Chain(String), sep: String) -> String {
     match xs {
-        | Nil -> ""
-        | Cons(h, Nil) -> h
-        | Cons(h, t) -> h + sep + join_list(t, sep)
+        | End -> ""
+        | Link(h, End) -> h
+        | Link(h, t) -> h + sep + join_list(t, sep)
     }
 }
 
-= words = Cons("one", Cons("two", Cons("three", Nil)))
+= words = Link("one", Link("two", Link("three", End)))
 @ print("T22: " + join_list(words, ", "))
 
 -- ============================================================================

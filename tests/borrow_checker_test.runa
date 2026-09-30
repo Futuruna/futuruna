@@ -6,7 +6,7 @@
 -- ============================================================================
 
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 # Pair(a, b) = MkPair(a, b)
 
 -- ============================================================================
@@ -80,37 +80,37 @@
 
 -- ============================================================================
 -- TEST 6: Recursive function consuming same param multiple times
--- reverse_acc(xs, acc) — xs consumed by match, acc consumed in Cons or returned
+-- reverse_acc(xs, acc) — xs consumed by match, acc consumed in Link or returned
 -- This is the classic recursive ownership pattern
 -- ============================================================================
 
-> my_reverse(xs: List(Int)) -> List(Int) {
-    rev_acc(xs, Nil)
+> my_reverse(xs: Chain(Int)) -> Chain(Int) {
+    rev_acc(xs, End)
 }
 
-> rev_acc(xs: List(Int), acc: List(Int)) -> List(Int) {
+> rev_acc(xs: Chain(Int), acc: Chain(Int)) -> Chain(Int) {
     match xs {
-        | Nil -> acc
-        | Cons(h, t) -> rev_acc(t, Cons(h, acc))
+        | End -> acc
+        | Link(h, t) -> rev_acc(t, Link(h, acc))
     }
 }
 
-> list_show(xs: List(Int)) -> String {
+> list_show(xs: Chain(Int)) -> String {
     match xs {
-        | Nil -> "[]"
-        | Cons(h, Nil) -> "[" + show(h) + "]"
-        | Cons(h, t) -> "[" + show(h) + items_show(t) + "]"
+        | End -> "[]"
+        | Link(h, End) -> "[" + show(h) + "]"
+        | Link(h, t) -> "[" + show(h) + items_show(t) + "]"
     }
 }
 
-> items_show(xs: List(Int)) -> String {
+> items_show(xs: Chain(Int)) -> String {
     match xs {
-        | Nil -> ""
-        | Cons(h, t) -> ", " + show(h) + items_show(t)
+        | End -> ""
+        | Link(h, t) -> ", " + show(h) + items_show(t)
     }
 }
 
-= nums = Cons(1, Cons(2, Cons(3, Nil)))
+= nums = Link(1, Link(2, Link(3, End)))
 @ print("T6a: " + list_show(nums))
 @ print("T6b: " + list_show(my_reverse(nums)))
 
@@ -187,14 +187,14 @@
 -- The trickiest pattern: a value used inside a recursive call AND after it
 -- ============================================================================
 
-> count_list(xs: List(Int)) -> Int {
+> count_list(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(_, t) -> 1 + count_list(t)
+        | End -> 0
+        | Link(_, t) -> 1 + count_list(t)
     }
 }
 
-= data = Cons(10, Cons(20, Cons(30, Nil)))
+= data = Link(10, Link(20, Link(30, End)))
 = len = count_list(data)
 @ print("T11a: length = " + show(len))
 @ print("T11b: list = " + list_show(data))
@@ -203,17 +203,17 @@
 -- TEST 12: Nested pattern match — deep destructuring
 -- ============================================================================
 
-> deep_match(xs: List(Int)) -> String {
+> deep_match(xs: Chain(Int)) -> String {
     match xs {
-        | Nil -> "empty"
-        | Cons(_, Nil) -> "singleton"
-        | Cons(a, _) -> "starts with " + show(a)
+        | End -> "empty"
+        | Link(_, End) -> "singleton"
+        | Link(a, _) -> "starts with " + show(a)
     }
 }
 
-@ print("T12a: " + deep_match(Nil))
-@ print("T12b: " + deep_match(Cons(42, Nil)))
-@ print("T12c: " + deep_match(Cons(1, Cons(2, Cons(3, Nil)))))
+@ print("T12a: " + deep_match(End))
+@ print("T12b: " + deep_match(Link(42, End)))
+@ print("T12c: " + deep_match(Link(1, Link(2, Link(3, End)))))
 
 @ print("")
 @ print("=== All borrow checker tests passed! ===")

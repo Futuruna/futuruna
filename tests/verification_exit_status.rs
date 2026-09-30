@@ -78,8 +78,8 @@ fn assert_failed(output: &Output, expected: &str) {
 fn counterexamples_and_partially_verified_files_fail() {
     for source in [
         "= x = 5\n| small: x -> x < 3\n",
-        "| valid: x -> x == x\n? valid by { | x -> refl }\n= x = 5\n| small: x -> x < 3\n",
-        "= x = 5\n| small: x -> x < 3\n| valid: x -> x == x\n? valid by { | x -> refl }\n",
+        "| valid: x -> x == x\n= x = 5\n| small: x -> x < 3\n",
+        "= x = 5\n| small: x -> x < 3\n| valid: x -> x == x\n",
     ] {
         let output = Fixture::new(source, Some(SAT)).verify();
         assert_failed(&output, "COUNTEREXAMPLE found for |small|");
@@ -106,28 +106,19 @@ fn solver_errors_unknown_results_and_missing_solver_fail() {
 }
 
 #[test]
-fn unsupported_verification_and_empty_claim_sets_fail() {
+fn unsupported_verification_fails_and_an_empty_claim_set_proves_nothing() {
     let output = Fixture::new("| floating: 0.1 -> 0.1 == 0.1\n", Some(UNSAT)).verify();
     assert_failed(&output, "unsupported");
     assert!(!String::from_utf8_lossy(&output.stdout).contains("PROVED"));
     let output = Fixture::new("= value = 1\n", Some(UNSAT)).verify();
-    assert_failed(&output, "no invariants found");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{stdout}");
+    assert!(stdout.contains("no invariants to verify"), "{stdout}");
+    assert!(!stdout.contains("PROVED"), "{stdout}");
 }
 
 #[test]
-fn valid_kernel_and_solver_proofs_succeed() {
-    let kernel = Fixture::new(
-        "| identity: x -> x == x\n? identity by { | x -> refl }\n",
-        None,
-    )
-    .verify();
-    assert!(
-        kernel.status.success(),
-        "{}",
-        String::from_utf8_lossy(&kernel.stdout)
-    );
-    assert!(String::from_utf8_lossy(&kernel.stdout).contains("PROVED by kernel"));
-
+fn valid_solver_proofs_succeed() {
     // Requesting a model after unsat is a solver error, not a valid success
     // protocol. The verifier should request a model only for a counterexample.
     let solver = "#!/bin/sh\nmodel=0\nwhile IFS= read -r line; do\n  if [ \"$line\" = '(get-model)' ]; then model=1; fi\ndone\nif [ \"$model\" = 1 ]; then\n  printf '(error \"model is unavailable\")\\n'\n  exit 1\nfi\nprintf 'unsat\\n'\n";
@@ -141,11 +132,12 @@ fn valid_kernel_and_solver_proofs_succeed() {
 }
 
 #[test]
-fn invalid_explicit_proof_fails_even_if_smt_establishes_the_claim() {
+fn proof_term_blocks_are_rejected_before_solving() {
     let output = Fixture::new(
-        "| identity: x -> x == x\n? identity by { | x -> apply no_such_lemma }\n",
+        "| identity: x -> x == x\n? identity by { | x -> refl }\n",
         Some(UNSAT),
     )
     .verify();
-    assert_failed(&output, "explicit proof failed in kernel");
+    assert_failed(&output, "2:12");
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("PROVED"));
 }

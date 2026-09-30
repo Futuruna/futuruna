@@ -785,6 +785,7 @@ fn query_positive_overrides_can_supply_their_own_finite_candidates() {
         r#"
 | person("ann")
 | person("bob")
+| selected("ann")
 | exception available selected(p) -> True under person(p)
 | has_selected() -> selected(_)
 @ print(show(findall(person, selected(person))))
@@ -850,6 +851,7 @@ fn query_priority_uses_declaration_namespaces_and_constructor_patterns() {
 #[test]
 fn query_unbounded_positive_overrides_report_incomplete_evaluation() {
     let source = r#"
+| selected("zed")
 | exception everyone selected(person) -> True
 @ print(show(findall(person, selected(person))))
 "#;

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - pbl53a - kildefakta
+@ importer ./personskat-pbl53a-kildefakta
 
 | pbl53a_kontraktgrænse_ændring(identifikation: Tekst, kapitalværdi: Pbl53AKapitalværdiVedKontraktændring, art: Pbl53AKontraktændringsart) -> Pbl53AKontraktændring(
     identifikation = identifikation,

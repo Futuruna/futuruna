@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - socialpension
+@ importer ./personskat-socialpension
 
 | socialpension_scenarie(art: PersonskatSocialpensionArt, år: Heltal, beløb: Heltal, afklaret: Boolsk, id: Tekst, kilde: Tekst) -> personskat_socialpension_resultat(PersonskatSocialpensionFakta(identifikation = id, indkomstår = år, kildereference = kilde, art = art, indkomst_før_skat_kroner = beløb, ordinær_dansk_udbetaling_uden_korrektioner = afklaret))
 = sociale_skattepligtige_arter = [SocialFørtidspensionEfterNyeRegler, SocialSeniorpension, SocialTidligPension, GammelFørtidspensionGrundbeløb, GammelFørtidspensionPensionstillæg, GammelFørtidspensionErhvervsudygtighedsbeløb]

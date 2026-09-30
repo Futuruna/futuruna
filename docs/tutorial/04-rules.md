@@ -118,6 +118,11 @@ Three assurance levels from the same `?` line:
 - `runa build` — emits `debug_assert!()` in compiled binary
 - `runa verify` — translates to SMT-LIB2, proves with Z3
 
+`runa verify` is Preview. PROVED means that for every value of the invariant's
+free variables (Int ranges over the 64-bit values) the predicate is true and no
+Int operation it evaluates overflows or divides by zero. Claims involving Float
+are reported as unsupported, never proved.
+
 The verifier understands pure, total, non-recursive rule cascades directly. A
 RuleScope does not need a duplicate helper function for Z3:
 

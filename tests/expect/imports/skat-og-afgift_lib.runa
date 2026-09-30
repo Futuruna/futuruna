@@ -1,0 +1,4 @@
+-- expect-skip: dependency-only fixture for a Danish keyword in an import path
+@ sprog da
+
+| skat_og_afgift_sats() -> 25

@@ -66,7 +66,6 @@ tags:
 
 	**References**
 	- [[wiki/sources/expectation-suites|expectation-suites]]
-	- [[wiki/sources/proof-backed-checking|proof-backed-checking]]
 
 
 - [ ] ### Canary Matrix Tail
@@ -92,7 +91,7 @@ tags:
 	Type-checker and codegen errors today are functional but inconsistent: some have rich span info, some only line numbers, multi-error recovery is partial, and there is no common "did you mean..." or quick-fix surface. M27 unifies the diagnostic shape across all phases and gives the LSP something stable to render.
 
 	**Exit criteria**
-	- All compiler diagnostics carry source spans; line/col is no longer the bottom of the chain
+	- All compiler diagnostics carry source spans; line/col is not the bottom of the chain
 	- Multi-error recovery: a parse error in one function does not hide type errors in others
 	- "Did you mean" suggestions for undefined identifiers and constructors
 	- LSP surfaces all of the above as code actions where applicable
@@ -336,7 +335,7 @@ tags:
 	**Status:** Auto-Rc for structural sharing on recursive ADTs.
 
 - [x] ### M26a — Persist Phase A
-	**Historical status:** shipped as an experiment, then retired in the 0.2.3 database cleanup. See `docs/compatibility-guides/0.2.x.md`; M26b is no longer an active language milestone.
+	**Status:** closed; Futuruna has no persistence or database builtins, and M26b is not a language milestone.
 
 - [x] ### M29 — Intermediate Representation (FIR)
 	**Status:** AST → FIR lowering, FIR → Rust emission, end-to-end pipeline. `runa emit --fir` flag.

@@ -1,0 +1,11 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |square_of_five|
+-- expect-stdout: PROVED: |cube_of_two|
+@ import Math from ./math
+
+= five_squared = Math.square(5)
+| square_of_five: five_squared -> five_squared == 25
+
+@ print(show(Math.square(5))) -- 25
+@ print(show(Math.cube(3))) -- 27

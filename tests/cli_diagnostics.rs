@@ -168,8 +168,8 @@ fn json_distinguishes_backend_and_file_read_failures() {
             .contains("mismatched types"),
         "{report}"
     );
-    assert!(
-        report["diagnostics"][0]["location"]["range"].is_null(),
+    assert_eq!(
+        report["diagnostics"][0]["location"]["range"]["start"]["line"], 1,
         "{report}"
     );
     assert!(output.stderr.is_empty(), "{output:?}");

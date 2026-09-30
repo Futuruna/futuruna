@@ -4,11 +4,11 @@
 @ importer ./pengebeloeb
 @ importer ./ligningsloven_fradrag
 @ importer ./ligningsloven_kapitalindkomst
-@ importer ./ligningsloven - par17c - formueadministration
-@ importer ./personskatteloven - par4b - cfc
+@ importer ./ligningsloven-par17c-formueadministration
+@ importer ./personskatteloven-par4b-cfc
 @ importer ./selskabsskatteloven
 @ importer ./kursgevinstloven
-@ importer ./kursgevinstloven - par32
+@ importer ./kursgevinstloven-par32
 @ importer ./aktieavancebeskatningsloven
 @ importer ./virksomhedsskatteloven
 @ importer ./skattekontrolloven

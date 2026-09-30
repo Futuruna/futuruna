@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - ligningslov7n - kildefakta
+@ importer ./personskat-ligningslov7n-kildefakta
 
 = personskat_ligningslov7n_felt_identifikation = TypetBeregningsfelt(
     path = refof(PersonskatLigningslov7NFakta::identifikation),

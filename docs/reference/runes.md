@@ -3,6 +3,7 @@ feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
   - typed-calculation-contracts
+  - rust-escape-hatches
 ---
 
 # The Seven Runes
@@ -44,8 +45,32 @@ Fields are accessed with dot notation: `w.temp`, `w.condition`.
 # Color = Red | Green | Blue
 # Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(head: a, tail: List(a))
+# Chain(a) = End | Link(head: a, tail: Chain(a))
 ```
+
+`Option(a) = None | Some(a)` and `Result(a, e) = Ok(a) | Err(e)` are part of
+the prelude. Their constructors (`None`, `Some`, `Ok`, `Err`), `Pair`, and the
+built-in list constructors `Nil` and `Cons` belong to those types: another type
+may not declare a variant with one of these names. A variant may also not reuse
+a built-in type name such as `Int` or `String`; Futuruna has no type aliases.
+
+A field of a multi-variant type can be read directly only when every variant
+declares it with the same type. Otherwise, match on the variant first. Inside
+an arm whose pattern names the variant, the matched variable is refined to that
+variant and its fields are readable:
+
+```runa
+# Income = Salary(amount: Int) | Pension(amount: Int, supplement: Int)
+> total(i: Income) -> Int {
+    match i {
+        | Salary -> i.amount
+        | Pension -> i.amount + i.supplement
+    }
+}
+```
+
+Here `i.amount` is also readable outside a match, because both variants declare
+`amount: Int`; `i.supplement` is not.
 
 ### ADT with methods
 ```runa
@@ -60,7 +85,21 @@ Fields are accessed with dot notation: `w.temp`, `w.condition`.
 }
 ```
 
-Methods are standalone functions. The first parameter (without type annotation) receives the ADT type.
+A method belongs to its type, not to the global namespace. The first parameter
+(without type annotation) receives the value the method is called on, so two
+types may each declare a method with the same name.
+
+Methods declared in a type body and in `# impl Trait for Type` blocks are
+called the same way:
+
+- `x.m(args)` calls the method `m` of the type of `x`.
+- A free call `m(x, args)` of a method name dispatches on the type of its first
+  argument, exactly like `x.m(args)`.
+- A declared global function always wins for free calls. With
+  `> fee(x: Int) -> Int` declared, `fee(10)` calls that function even when a
+  type has a `fee` method; `Case(1).fee()` still calls the method of `Case`.
+- A free call whose first argument's type has no such method is a runtime
+  error naming the method and the type.
 
 ### Product types with rule members
 ```runa
@@ -93,6 +132,13 @@ Fields are also available in product methods, so `person.gross_income` works in
 both `|` rule members and `>` methods. A `|` rule member and `>` method cannot
 use the same member name.
 
+A rule member or method is called on any expression whose value is the
+product: a variable, a nested field (`x.p.rate()`), a call result
+(`head(members).rate()`), or a lambda or loop parameter
+(`map(members, |p| p.rate())`). When the receiver's type is known, the checker
+resolves the member before execution; otherwise the call is resolved from the
+runtime value.
+
 RuleScope is different from `| scope Name { ... }`: `| scope` owns reactive
 lifecycle work such as subjects, streams, subscriptions, and teardown. A
 RuleScope has no mutation or lifecycle ownership.
@@ -115,7 +161,7 @@ Defines abstract operations that callers can intercept via `| handle`.
 
 # trait Greetable {
     > greet(self) -> String {
-        "Hello, " + display(self)    -- default implementation
+        "Hello, " + self.display()    -- default implementation
     }
 }
 ```
@@ -132,6 +178,12 @@ Defines abstract operations that callers can intercept via `| handle`.
     }
 }
 ```
+
+An impl names a declared trait and a declared (or built-in) type. It provides
+every trait method that has no default body and no other methods. Each method
+restates its trait signature: the same number of parameters, `self` in the
+same position, and the parameter and result types the trait declares (`Self`
+stands for the implementing type). Any difference is a type error at the impl.
 
 ---
 
@@ -178,10 +230,10 @@ The `with` clause declares which effects the function may perform.
 
 ### Generic function
 ```runa
-> map_list(xs: List(a), f: a -> b) -> List(b) {
+> map_list(xs: Chain(a), f: a -> b) -> Chain(b) {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(f(h), map_list(t, f))
+        | End -> End
+        | Link(h, t) -> Link(f(h), map_list(t, f))
     }
 }
 ```
@@ -197,7 +249,7 @@ Lowercase type variables (`a`, `b`) become Rust generics.
 }
 ```
 
-Actors have a state parameter and message handlers. Each handler returns the new state. Compiles to a tokio task with an mpsc channel.
+Actors have a state parameter and message handlers. Each handler returns the new state. An actor handles one message at a time; see [Actors](streams.md#actors) for sending, `ask`, and sharing handles.
 
 ### Module
 ```runa
@@ -259,7 +311,10 @@ places the rule in the exception tier for the same head. The label (here
 affect priority. Write both the label and the named call:
 `| exception reduced rate(x) -> 10 under x < 10`. For a rule with no arguments,
 use `rate()`. Missing labels, parenthesized heads, and heads that are not named
-rule calls are parsing errors.
+rule calls are parsing errors. An exception overrides an existing rule: the
+same scope (or its plain imports) must declare an ordinary clause or default
+with the same name and arity. An exception whose head names no such rule, for
+example a misspelled rule name, is a type error at that head.
 
 An `under` guard must return `Bool`. A known non-Boolean guard is rejected at
 its declaration, even if the rule is never called. A dynamically supplied
@@ -267,7 +322,7 @@ non-Boolean guard fails evaluation; it is not treated as `False` and cannot
 select a fallback rule. Clauses in one family (same scope, name, and arity)
 must have compatible result types. Known conflicting results are diagnosed
 before execution. Unresolved generic results do not establish compatibility
-or totality. Exception-only families remain supported.
+or totality.
 
 A rule with safely known Boolean results returns `False` when no clause
 applies, including `| eligible(age) -> True under age >= 18` without a
@@ -309,10 +364,10 @@ Intercepts effect operations from the `in` body. `resume(value)` continues execu
 }
 ```
 
-Scopes group statements with lifecycle management. Subjects, streams, and
-live subscriptions within a scope are cleaned up when the scope ends.
-Named scopes are also the explicit owner required for live subscriptions
-started inside ordinary functions. See
+Scopes own the live subscriptions and derived streams created inside them.
+They keep receiving values after the block's statements run, until
+`@ teardown("WeatherStation")`. Named scopes are also the explicit owner
+required for live subscriptions started inside ordinary functions. See
 [docs/stream-lifetimes.md](../stream-lifetimes.md).
 
 ### Match arms
@@ -362,6 +417,10 @@ bindings is rejected with the complete initialization path.
 
 If the expression returns `Ok(v)` or `Some(v)`, binds `v` and continues. If `Err(e)` or `None`, returns immediately (early return). Equivalent to Rust's `?` operator.
 
+The expression must be a `Result` or an `Option`, or a call to an effect
+operation, which resumes with a plain value. `<-` on any other value is a type
+error; bind a plain value with `= name = expression`.
+
 ```runa
 > add_parsed(a_str: String, b_str: String) -> Result(Int, String) {
     = a <- parse_int(a_str)
@@ -409,7 +468,7 @@ The `~` rune has two forms:
     | Err(e) -> { log(e) }
 ```
 
-The `|` arms handle three stream events: values, errors, and completion. This replaces `for` loops on streams. Use `for` for lists/ranges; use `~ + |` for streams.
+The `|` arms handle three stream events: values, errors, and completion. Arms on the lines after `~` are indented past it. Use `for` for lists and ranges; use `~ + |` for streams.
 
 See [streams.md](streams.md) for the full stream API and subscription reference.
 For lifetime ownership rules around function-local subscriptions, see
@@ -417,9 +476,9 @@ For lifetime ownership rules around function-local subscriptions, see
 
 ### Subject creation (push-based streams)
 ```runa
-~ clicks = subject()              -- empty subject
-~ temp = subject(20.0)            -- with initial value
-~ history = subject(0, 10)        -- replay subject (buffer last 10)
+~ clicks = subject()              -- keeps every value
+~ temp = subject(20.0)            -- starts with 20.0, keeps every value
+~ history = subject(0, 10)        -- starts with 0, keeps the last 10 values
 ```
 
 ### Push values into subjects
@@ -429,9 +488,11 @@ clicks <- "click2"
 temp <- 25.0
 ```
 
+`<-` returns after every subscription and derived stream has handled the value.
+
 ### Subject properties
 ```runa
-clicks.count       -- number of values pushed
+clicks.count       -- number of values the subject has emitted
 temp.latest        -- most recent value
 ```
 
@@ -494,9 +555,14 @@ Use `@ import` for Futuruna modules.
 
 ### Depend (Cargo dependencies)
 ```runa
-@ depend "serde" "1"
+@ depend "serde" "1" ["derive"]
 @ depend "tokio" "1"
 ```
+
+A dependency is a crates.io package: a name, a version such as `"1"` or
+`"0.10.2"`, and optionally a list of features. Path, git and inline-table
+sources are rejected. `runa build` and `runa run` let Cargo download and build
+these crates; `runa check` does so only with `--build-deps`.
 
 ### Export (visibility)
 ```runa
@@ -535,12 +601,11 @@ file access, output, randomness, or effects reached through callbacks and
 module initializers. A value that requires runtime initialization stays at
 runtime; unavailable values are never substituted with placeholders.
 
-Explicit `@ comptime` requests evaluation at compile time, so any effects in
-that expression occur while compiling. Its dependencies must have compile-time
-values too. If an effectful binding
-is needed by a compile-time expression, mark that binding `@ comptime`
-explicitly; the compiler reports an error when a required value is available
-only at runtime.
+Explicit `@ comptime` evaluation is pure as well: an expression that reaches
+a host effect (output, input, files, the environment, clocks, network or
+processes) is a compile-time error at that call. Its dependencies must have
+compile-time values too; the compiler reports an error when a required value
+is available only at runtime.
 
 ### Rust escape hatch
 ```runa
@@ -552,6 +617,11 @@ only at runtime.
 ```
 
 Inline raw Rust code. Handles nested braces, strings, and comments correctly.
+
+Embedded Rust runs only in compiled code (`runa run`, `runa build`). The
+interpreter refuses it: calling a function defined in an `@ rust` block, or
+reaching an `@ rust` block inside a function body, is a runtime error at that
+point.
 
 ---
 
@@ -632,20 +702,16 @@ unselected branches do not have to be defined. Unsupported helpers and Float
 claims remain explicitly unverified; exact real arithmetic cannot substitute
 for floating-point evaluation.
 
-An explicit `by` proof checks a mathematical proposition in the proof kernel.
-If its source dependency graph performs arithmetic, `runa verify` additionally
-requires the supported semantic check before reporting a proof. The ordinary
-interpreter and native emitter skip explicit proof blocks; use `runa verify`
-to check them. A plain `?` without `by` retains its runtime assertion behavior.
+`runa verify` is Preview. PROVED means that for every value of the invariant's
+free variables (Int ranges over the 64-bit values) the predicate is true and no
+Int operation it evaluates overflows or divides by zero. Claims involving Float
+are reported as unsupported, never proved.
 
 ### Verifying rule dispatch
 
 For CI, `runa verify` exits 0 only when at least one invariant exists and every
-invariant is proved without an explicit-proof validation failure. A
-counterexample, unsupported claim, unknown result, missing or failed solver,
-or empty invariant set exits 1. If an authored proof fails validation, a
-successful SMT fallback does not turn the command into a successful check.
-Kernel-only proofs do not require Z3.
+invariant is PROVED. A counterexample, unsupported claim, unknown result,
+missing or failed solver, or empty invariant set exits 1.
 
 `runa verify` can translate pure, total, non-recursive `|` rule groups directly,
 including rules inside a product RuleScope. Conditions and exceptions use the

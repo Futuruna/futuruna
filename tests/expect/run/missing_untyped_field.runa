@@ -1,6 +1,7 @@
 -- expect-command: interp
 -- expect-status: fail
--- expect-stderr: no field or method `stauts`
+-- expect-stderr: type `Person` has no field `stauts` or method with that name
+-- expect-stderr: missing_untyped_field.runa:7:21
 -- expect-stderr-not: panicked
 # Person(status: String)
 | fee(p) -> 0 under p.stauts == "student"

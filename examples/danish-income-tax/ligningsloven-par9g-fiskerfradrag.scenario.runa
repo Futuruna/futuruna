@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par9g - fiskerfradrag
+@ importer ./ligningsloven-par9g-fiskerfradrag
 
 | ll9g_scenarie_tidspunkt(år: Heltal, måned: Heltal, dag: Heltal, time: Heltal, minut: Heltal) -> DatoTidspunkt(
     dato = Dato(år = år, måned = måned, dag = dag),

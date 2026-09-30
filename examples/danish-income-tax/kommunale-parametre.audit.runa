@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kommunale - parametre
+@ importer ./kommunale-parametre
 
 = kommunale_parameterår = [2024, 2025, 2026]
 

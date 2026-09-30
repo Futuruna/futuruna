@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./kalenderdato
-@ importer ./ligningsloven - par33
+@ importer ./ligningsloven-par33
 @ importer ./metadata
 @ importer ./pengebeloeb
 

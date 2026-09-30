@@ -1,0 +1,20 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 10
+-- expect-stdout: 5,7,9
+
+# Chain(a) = End | Link(a, Chain(a))
+
+> fold_right(xs: Chain(a), init: b, f: (a, b) -> b) -> b {
+    match xs {
+        | End -> init
+        | Link(h, t) -> f(h, fold_right(t, init, f))
+    }
+}
+
+> zip_sum(xs: List(Int), ys: List(Int), f: (Int, Int) -> Int) -> List(Int) {
+    map(zip(xs, ys), |pair: Pair(Int, Int)| f(fst(pair), snd(pair)))
+}
+
+@ print(show(fold_right(Link(1, Link(2, Link(3, Link(4, End)))), 0, |x: Int, acc: Int| x + acc)))
+@ print(join(map(zip_sum([1, 2, 3], [4, 5, 6], |x: Int, y: Int| x + y), show), ","))

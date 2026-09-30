@@ -12,7 +12,7 @@
 # Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
 
 -- Recursive types — named fields required too
-# List = Nil | Cons(head: Int, tail: List)
+# Chain = End | Link(head: Int, tail: Chain)
 
 -- Construct with named fields
 = c = Circle(5.0)
@@ -54,10 +54,13 @@
 @ print(area(r))
 
 -- Recursive list with named fields
-= xs = Cons(1, Cons(2, Cons(3, Nil)))
+= xs = Link(1, Link(2, Link(3, End)))
 @ print("--- List ---")
 @ print(xs.head)
-@ print(xs.tail.head)
+@ print(match xs.tail {
+        | Link(head: h, tail: _) -> show(h)
+        | End -> "end"
+    })
 
 -- ============================================
 -- Part 2: Sealed Interfaces (method blocks)

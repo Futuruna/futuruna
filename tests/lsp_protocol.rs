@@ -394,3 +394,84 @@ fn record_completion_and_hover_use_the_open_buffer_without_modifying_it() {
     server.exit();
     server.finish(0, false);
 }
+
+fn percent_encoded_file_uri(path: &std::path::Path) -> String {
+    let mut uri = String::from("file://");
+    for byte in path.to_str().unwrap().bytes() {
+        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
+            uri.push(byte as char);
+        } else {
+            uri.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    uri
+}
+
+#[test]
+fn definition_follows_plain_and_qualified_imports_into_the_imported_file() {
+    let root = std::env::temp_dir().join(format!(
+        "futuruna-lsp-imports-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let project = root.join("Lovgivning ø");
+    std::fs::create_dir_all(project.join("lib")).unwrap();
+    std::fs::write(
+        project.join("lib/good.runa"),
+        "> helper3(x: Int) -> Int { x + 3 }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        project.join("math.runa"),
+        "@ export\n> square(x: Int) -> Int { x * x }\n",
+    )
+    .unwrap();
+    let source = "@ import ./lib/good\n@ import Math from ./math\n> square(x: Int) -> Int { 0 }\n@ print(show(helper3(1)))\n@ print(show(Math.square(2)))\n";
+    let main = project.join("main.runa");
+    std::fs::write(&main, source).unwrap();
+    let project = std::fs::canonicalize(&project).unwrap();
+    let uri = percent_encoded_file_uri(&project.join("main.runa"));
+
+    let mut server = Server::new();
+    server.initialize();
+    server.send(
+        json!({"jsonrpc":"2.0", "method":"textDocument/didOpen", "params":{
+        "textDocument":{"uri":uri, "languageId":"futuruna", "version":1, "text":source}}}),
+    );
+    server.receive();
+    let mut definition = |id: i32, line: u32, character: u32| {
+        server.send(
+            json!({"jsonrpc":"2.0", "id":id, "method":"textDocument/definition", "params":{
+            "textDocument":{"uri":uri}, "position":{"line":line,"character":character}}}),
+        );
+        let response = server.receive();
+        assert_eq!(response["id"], id, "{response}");
+        response["result"].clone()
+    };
+    // `helper3` comes from the plain import.
+    let plain = definition(2, 3, 15);
+    assert_eq!(
+        plain["uri"],
+        percent_encoded_file_uri(&project.join("lib/good.runa"))
+    );
+    assert_eq!(plain["range"]["start"], json!({"line":0, "character":2}));
+    // `Math.square` is the module's function, not the local `square`.
+    let qualified = definition(3, 4, 20);
+    assert_eq!(
+        qualified["uri"],
+        percent_encoded_file_uri(&project.join("math.runa"))
+    );
+    assert_eq!(
+        qualified["range"]["start"],
+        json!({"line":1, "character":2})
+    );
+    // The unqualified name still resolves to the local declaration.
+    assert_eq!(definition(4, 2, 3)["uri"], uri);
+    server.shutdown();
+    server.exit();
+    server.finish(0, false);
+    std::fs::remove_dir_all(root).unwrap();
+}

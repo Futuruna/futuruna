@@ -1,0 +1,31 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: [12]
+-- expect-stdout: [12, 40]
+-- A pipeline and subscription owned by a named scope keep following their
+-- source after the scope body runs, until teardown.
+~ readings = subject()
+~ sink = subject()
+
+> is_hot(x: Int) -> Bool {
+    x > 10
+}
+
+| scope Monitor {
+    ~ routed = readings |> filter(is_hot)
+
+    ~ routed | item -> {
+        sink <- item
+    }
+
+    readings <- 4
+    readings <- 12
+
+    = values = collect(routed)
+}
+
+@ print(show(Monitor.values))
+readings <- 40
+@ teardown("Monitor")
+readings <- 50
+@ print(show(collect(sink)))

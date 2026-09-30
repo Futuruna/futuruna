@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `1,000` is several items
+-- expect-stderr: write `1_000` for one number
+= amounts = [1,000, 2]
+@ print(show(amounts))

@@ -51,8 +51,8 @@ entry = "src/main.runa"
 -- src/main.runa
 @ import Math from ./math
 
-@ print(show(Math.square(5)))  -- 25
-@ print(show(Math.cube(3)))    -- 27
+@ print(show(Math.square(5))) -- 25
+@ print(show(Math.cube(3))) -- 27
 ```
 
 `@ export` marks what's public. `@ import Name from ./path` brings it in with qualified access.
@@ -60,14 +60,67 @@ For reusable helper files, mark import-safe libraries with
 `-- library-hygiene: importable` and keep `runa lint-library --imports` green as
 described in [../library-hygiene.md](../library-hygiene.md).
 
+## Tests
+
+`runa test` runs every `.runa` file in `tests/`. `runa init` does not create
+that directory; add it together with a first test:
+
+```bash
+mkdir tests
+```
+
+```runa
+-- tests/math_test.runa
+@ import Math from ../src/math
+
+| square_of_five: Math.square(5) -> Math.square(5) == 25
+? square_of_five
+```
+
+Run `runa test` from the project root. A named invariant checked with `?`
+fails the test when it does not hold.
+
 ## Add dependencies
 
 ```bash
-runa add ../shared-lib          # Local path
-runa add https://github.com/...  # Git repository
+runa add ../shared-lib                              # Local directory
+runa add https://github.com/org/tax-rules           # Git repository (default branch)
+runa add https://github.com/org/tax-rules --rev v1.2  # Branch, tag or commit
 ```
 
-This updates `runa.toml` and generates `runa.lock` for reproducible builds.
+`runa add` records the dependency in `runa.toml`:
+
+```toml
+[dependencies]
+shared-lib = { path = "../shared-lib" }
+tax-rules = { git = "https://github.com/org/tax-rules", rev = "v1.2" }
+```
+
+For a Git repository it downloads that revision (a shallow fetch of one
+commit) into the per-user Futuruna cache and pins the exact commit in
+`runa.lock`. Paths in both files are relative to `runa.toml`; commit both
+files. Git sources are `https://`, `ssh://` or `git@host:path` URLs, or a local
+repository path ending in `.git`.
+
+Import a dependency's modules by its name:
+
+```runa
+@ import shared-lib/rates        -- shared-lib/rates.runa or shared-lib/src/rates.runa
+@ import tax-rules               -- tax-rules/lib.runa (or src/lib.runa)
+```
+
+Only `runa add` and `runa fetch` contact the network. Every other command,
+including the editor, resolves imports from the commit locked in `runa.lock`.
+After cloning a project, or when `runa.lock` names a commit you have not
+downloaded, run:
+
+```bash
+runa fetch            # download the commits pinned in runa.lock
+runa fetch --update   # re-resolve each git `rev` (or default branch) and rewrite runa.lock
+```
+
+If a dependency is missing or its lock entry no longer matches `runa.toml`,
+imports from it report an error that asks you to run `runa fetch`.
 
 ## Build and run
 
@@ -81,14 +134,15 @@ runa test                  # Run all tests/*.runa
 ```
 
 Full `check` validates the generated Rust. When a program declares Rust crates
-with `@ depend`, or uses a feature that adds them, it invokes Cargo and may
-download missing dependencies. To use only cached dependencies, run:
+with `@ depend`, or uses a feature that adds them, validating it needs Cargo to
+download and build those crates, which runs their build scripts. `check` does
+that only when asked:
 
 ```bash
-CARGO_NET_OFFLINE=true runa check src/main.runa
+runa check --build-deps src/main.runa
 ```
 
-Cargo reports an error if the required dependencies are unavailable offline.
+Without the flag such a program fails the check with an error naming the flag.
 `check --frontend` provides frontend feedback without invoking Rust validation;
 it does not establish that the generated program compiles. Source filenames
 such as `2026-policy.runa` are supported: generated Cargo package names are

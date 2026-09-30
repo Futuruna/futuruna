@@ -3,7 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kalenderdato
-@ importer ./ligningsloven - par30 - 31 - ydelsesundtagelser
+@ importer ./ligningsloven-par30-31-ydelsesundtagelser
 
 # LigningslovKontingentGaveKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./pensionsbeskatningsloven - par11a
+@ importer ./pensionsbeskatningsloven-par11a
 
 = pbl11a_scenarie_primofakta = Pbl11ARateEfterPrimoVærdi(
     ordningsværdi_ved_årets_begyndelse_kroner = 900000

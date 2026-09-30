@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / kildeskatteloven - arbejdsudleje
+@ importer ../examples/danish-income-tax/kildeskatteloven-arbejdsudleje
 
 -- Fiktive fødselsdatoer; kontrollen kræver samme person og samme årsaldersbegreb.
 = arbejdsudleje_alder_stemmer = [

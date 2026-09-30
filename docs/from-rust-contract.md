@@ -159,12 +159,10 @@ FRSS-v0 follows the project compatibility policy for a stable surface:
 
 - Expanding FRSS-v0 requires a reviewed fixture or generated lane case before
   the docs claim the new source shape is supported. Stable support expansions
-  should be recorded in the compatibility guide when they change the public
-  contract.
+  are listed in the release notes when they change the public contract.
 - Narrowing or removing a documented FRSS-v0 shape requires either a bug-fix
-  rationale or a new contract version such as FRSS-v1. User-visible preview
-  history stays in the compatibility guide, but stable-contract breaks must be
-  handled under the stable-surface policy.
+  rationale or a new contract version such as FRSS-v1. Stable-contract breaks
+  are handled under the stable-surface policy.
 - Unsupported diagnostic category changes require updating the permanent
   expected-unsupported fixture that proves the boundary and recording the
   compatibility impact when external tooling may key off the category.
@@ -341,10 +339,10 @@ reviewed together:
    I/O, networking, process state, wall-clock time, ambient environment, or
    nondeterministic stdout ordering.
 6. Any promoted Rust shape lands with exact-match evidence and, when it expands
-   the public contract, a compatibility-guide note under the stable-surface
+   the public contract, a release-notes entry under the stable-surface
    policy.
 7. `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the
-   README, the compatibility guide, and the production-readiness scorecard stay
+   README, and the production-readiness scorecard stay
    synchronized when the stable boundary changes.
 
 Stable means "supported for real use inside this documented validation
@@ -368,15 +366,15 @@ contract.
 
 | Checklist item | Current evidence | Audit result |
 |----------------|------------------|--------------|
-| 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, and the feature-stage docs, JSON metadata, README, compatibility guide, contract, and scorecard now describe it as stable for the documented boundary. | Satisfied. Keep future boundary changes synchronized across the same files. |
+| 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, and the feature-stage docs, JSON metadata, README, contract, and scorecard describe it as stable for the documented boundary. | Satisfied. Keep future boundary changes synchronized across the same files. |
 | 2. Fixture evidence for every supported source shape | [from-rust-evidence-manifest.md](from-rust-evidence-manifest.md) maps every current supported source-shape claim to exact-match evidence from the broad example corpus, downstream canary, or generated differential lane. | Satisfied. Keep this manifest in the same reviewed change as any supported-shape expansion. |
 | 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 17 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, unchecked macros, format specs, item fallbacks, and expression fallbacks. | Satisfied. Keep adding expected-unsupported fixtures before documenting new non-goals. |
 | 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied. Keep growing with every promoted shape. |
-| 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied. Keep expanding the manifest as FRSS grows. |
+| 5. Production search or differential checking | `./scripts/from-rust-differential.sh` searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied. Keep expanding the manifest as FRSS grows. |
 | 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises supported success, Rust parse/compile failure, major unsupported categories, help text, and harness-level translated-parse-failed/mismatch translator-bug summaries. | Satisfied. Keep source-level fixtures for real future translator bugs when they appear. |
-| 7. Compatibility guide records the production contract | The 0.1.x compatibility guide records the 2026-07-18 stable FRSS-v0 promotion and says how future source-subset breaks, diagnostic category changes, and fixture removals are handled under the stable-surface policy. | Satisfied. |
-| 8. Feature-stage metadata, README, contract, and scorecard move together | This promotion packet moves `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the README, the compatibility guide, and the production-readiness scorecard together. | Satisfied. |
+| 7. Change handling is defined | This contract states how source-subset breaks, diagnostic category changes, and fixture removals are handled under the stable-surface policy. | Satisfied. |
+| 8. Feature-stage metadata, README, contract, and scorecard move together | This promotion packet moves `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the README, and the production-readiness scorecard together. | Satisfied. |
 
 No current production blockers remain for FRSS-v0. Future support growth should
-prefer a new fixture or generated lane case first, then update the manifest and
-compatibility guide before broadening the stable claim.
+prefer a new fixture or generated lane case first, then update the manifest
+before broadening the stable claim.

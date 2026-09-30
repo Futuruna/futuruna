@@ -2,7 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./ligningsloven - par9a - rejser
+@ importer ./ligningsloven-par9a-rejser
 
 # Ligningslov30Og31KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

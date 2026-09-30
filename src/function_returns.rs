@@ -142,7 +142,7 @@ impl TypeChecker {
         // the interpreter's separate inout support or certifying Explore code.
         if let ExprKind::App(function, arguments) = &expr.kind {
             if matches!(&function.kind, ExprKind::Var(callee)
-                if builtin_canonical(callee) == "push"
+                if callee == "push"
                     && !locals.types.contains_key(callee)
                     && !self.explore_contextual_intrinsic_is_shadowed(callee, arguments.len()))
                 && arguments.len() == 2
@@ -155,10 +155,9 @@ impl TypeChecker {
         if let ExprKind::App(callee, arguments) = &expr.kind {
             if let ExprKind::Var(name) = &callee.kind {
                 if let Some(local) = locals.types.get(name) {
-                    return match parse_type_annotation(local).ok()? {
-                        Ty::Arrow(_, result) => Some(Self::canonical_explore_ty_name(&result)),
-                        _ => None,
-                    };
+                    let result =
+                        function_type_result(parse_type_annotation(local).ok()?, arguments.len())?;
+                    return Some(Self::canonical_explore_ty_name(&result));
                 }
                 if let Some(definitions) = self
                     .explore_function_definitions_by_arity
@@ -339,12 +338,24 @@ impl TypeChecker {
             }
             ExprKind::Lambda(parameters, body) => {
                 if let Ty::Arrow(input, output) = &expected {
+                    let mut output: &Ty = output;
                     let inputs = match input.as_ref() {
                         Ty::Unit if parameters.is_empty() => vec![],
                         Ty::App(c, args) if matches!(c.as_ref(), Ty::Name(n) if n == "Tuple") => {
                             args.iter().collect()
                         }
-                        input => vec![input],
+                        input => {
+                            // `(A, B) -> C` is written as nested arrows.
+                            let mut inputs = vec![input];
+                            while inputs.len() < parameters.len() {
+                                let Ty::Arrow(next_input, next_output) = output else {
+                                    break;
+                                };
+                                inputs.push(next_input);
+                                output = next_output;
+                            }
+                            inputs
+                        }
                     };
                     if inputs.len() == parameters.len() {
                         let mut body_locals = locals.clone();

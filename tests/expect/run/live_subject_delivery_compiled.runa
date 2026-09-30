@@ -1,0 +1,44 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout-file: ../golden/run/live_subject_delivery.stdout
+-- Live subscriptions and derived streams see every value, including values
+-- sent after they were created; `<-` returns after every subscriber has
+-- handled the value, so output order is the same in both execution modes.
+~ s = subject()
+~ s | x -> { @ print("A got " + show(x)) }
+s <- 1
+s <- 2
+~ s
+    | x -> { @ print("B got " + show(x)) }
+    | Complete -> { @ print("B complete") }
+s <- 3
+@ print("count " + show(s.count))
+@ print("latest " + show(s.latest))
+
+~ a = subject()
+~ b = subject()
+~ m = merge(a, b)
+~ t = a |> take(2)
+a <- 1
+b <- 2
+a <- 3
+@ print("merge " + show(collect(m)))
+@ print("take " + show(count(t)))
+
+> push_pair(target) -> () {
+    target <- 10
+    target <- 20
+}
+
+= alias = a
+push_pair(alias)
+@ print("shared " + show(collect(a)))
+
+~ bulk = subject()
+~ seen = bulk |> scan(0, |n, x| n + 1)
+for i in range(0, 3000) {
+    bulk <- i
+}
+@ print("bulk " + show(seen.latest) + " " + show(sum(bulk)))
+complete(s)
+@ print("end")

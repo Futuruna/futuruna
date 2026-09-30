@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / ligningsloven - par9j - udland
+@ importer ../examples/danish-income-tax/ligningsloven-par9j-udland
 
 -- Kun fiktive kilder. Ingen private dokumenter eller resultater.
 > post(id: Tekst, kilde: Tekst, år: Heltal, fra: Heltal, til: Heltal, beløb: Heltal, forhold: Ll9jIndkomstforhold) -> Ll9jGrundlagspost {

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./pensionsbeskatningsloven - par49 - 49b
+@ importer ./pensionsbeskatningsloven-par49-49b
 
 | pbl49_scenario_bidrag_for(indkomstår: Heltal, identifikation: Tekst, beløb_kroner: Heltal, art: Pbl49Til49BBidragsart) -> Pbl49Til49BBidragsfakta(
     identifikation = identifikation,

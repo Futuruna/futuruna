@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 
 -- Scenarier for Afskrivningsloven §§ 38-40 og overgangen fra det tidligere
 -- § 40, stk. 7. Lovtekst og typede kildeankre ligger i det importerede lovmodul.

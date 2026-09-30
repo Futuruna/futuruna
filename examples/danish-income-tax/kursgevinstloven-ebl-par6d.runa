@@ -1,8 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kursgevinstloven - saelgerpantebrev
-@ importer ./ejendomsavancebeskatningsloven - par6d
+@ importer ./kursgevinstloven-saelgerpantebrev
+@ importer ./ejendomsavancebeskatningsloven-par6d
 
 # KglEblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

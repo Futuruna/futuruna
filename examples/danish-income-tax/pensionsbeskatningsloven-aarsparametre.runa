@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kapitel-04-omregning-skatteloft
 
 # PblÅrsparameterKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

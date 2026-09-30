@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / personskat - honorarudgifter
+@ importer ../examples/danish-income-tax/personskat-honorarudgifter
 
 | udgift(id: Tekst, år: Heltal, beløb: Heltal, art: PersonskatHonorarudgiftsart, dokumenteret: Boolsk, tilknytning: Boolsk, ikke_andetsteds: Boolsk) -> PersonskatHonorarudgiftFakta(identifikation = id, indkomstår = år, art = art, egen_udgift_kroner = beløb, dokumenteret = dokumenteret, vedrører_vederlaget = tilknytning, ikke_fratrukket_andetsteds = ikke_andetsteds)
 | almindelig(beløb: Heltal) -> udgift("bilag-1", 2025, beløb, PsHonorarLøbendeUdgift, Sandt, Sandt, Sandt)

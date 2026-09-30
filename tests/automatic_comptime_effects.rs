@@ -118,7 +118,7 @@ fn rejected_initializer_does_not_become_a_symbolic_constant() {
 #[test]
 fn runtime_file_reads_are_not_frozen_by_automatic_folding() {
     let fixture = Fixture::new(
-        "> load() -> String { @ read_file(\"MARKER\") }\n> snapshot() -> String { load() }\n= text = snapshot()\n@ print(text)\n",
+        "> load() -> Result(String, String) { @ read_file(\"MARKER\") }\n> snapshot() -> String {\n    match load() {\n        | Ok(text) -> text\n        | Err(message) -> message\n    }\n}\n= text = snapshot()\n@ print(text)\n",
         None,
     );
     fixture.write("effects.txt", "compile-time contents");
@@ -142,20 +142,48 @@ fn safe_comptime_values_and_types_work_beside_runtime_initializers() {
     fixture.assert_runtime_effect();
 }
 
+/// `@ comptime` is pure in every command: a host effect reached from it,
+/// directly or through local helpers, is a located compile-time error and is
+/// never performed.
 #[test]
-fn explicit_comptime_evaluates_only_the_requested_effect_once() {
-    let fixture = Fixture::new(
-        "> initialize() -> Int { @ append_file(\"MARKER\", \"x\"); 500 }\n@ comptime\n= seed = initialize()\n@ print(show(seed))\n",
-        None,
-    );
-    fixture.run(&["build"]);
-    assert_eq!(
-        std::fs::read_to_string(fixture.0.join("effects.txt")).unwrap(),
-        "x"
-    );
-    // The explicit constant is embedded in the binary; running it must not
-    // repeat the requested compile-time effect.
-    fixture.assert_runtime_effect();
+fn explicit_comptime_rejects_host_effects_without_performing_them() {
+    for (source, effect) in [
+        (
+            "@ comptime\n= r = process_run([\"/usr/bin/touch\", \"MARKER\"])\n@ print(\"hi\")\n",
+            "process_run",
+        ),
+        (
+            "> initialize() -> Int { @ append_file(\"MARKER\", \"x\"); 500 }\n@ comptime\n= seed = initialize()\n@ print(show(seed))\n",
+            "append_file",
+        ),
+        (
+            "> initialize() -> Int { append_file(\"MARKER\", \"x\"); 500 }\n> outer() -> Int { initialize() }\n@ comptime\n= seed = outer()\n= derived = seed + 1\n@ print(show(derived))\n",
+            "append_file",
+        ),
+    ] {
+        let fixture = Fixture::new(source, None);
+        for mode in [&["check", "--frontend"][..], &["check"], &["emit"], &["build"]] {
+            let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+                .args(mode)
+                .arg(fixture.0.join("main.runa"))
+                .current_dir(&fixture.0)
+                .env("FUTURUNA_COMPILER_CACHE_DIR", fixture.0.join("cache"))
+                .output()
+                .unwrap();
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(!output.status.success(), "{mode:?}: {output:?}");
+            assert!(
+                stderr.contains(&format!(
+                    "compile-time evaluation cannot perform the host effect `{effect}`"
+                )) && stderr.contains("main.runa:"),
+                "{mode:?}: {stderr}"
+            );
+            assert!(
+                !fixture.0.join("effects.txt").exists(),
+                "{mode:?} performed a compile-time effect"
+            );
+        }
+    }
 }
 
 #[test]
@@ -180,16 +208,6 @@ fn explicit_comptime_rejects_unavailable_runtime_dependencies() {
         );
         assert!(!fixture.0.join("effects.txt").exists());
     }
-}
-
-#[test]
-fn explicit_comptime_dependencies_can_opt_into_effectful_evaluation() {
-    let fixture = Fixture::new(
-        "> initialize() -> Int { @ append_file(\"MARKER\", \"x\"); 500 }\n@ comptime\n= seed = initialize()\n= derived = seed + 1\n> snapshot() -> String { show(derived - 1) }\n@ comptime\n= text = snapshot()\n@ print(text)\n",
-        None,
-    );
-    fixture.run(&["build"]);
-    fixture.assert_runtime_effect();
 }
 
 #[test]

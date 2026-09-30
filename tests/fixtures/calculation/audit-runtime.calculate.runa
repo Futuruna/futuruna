@@ -12,3 +12,4 @@
         label = label(input.year)
     )
 }
+-- roundtrip-skip: compiled code refuses the partial `label` rule this fixture uses to test the `runa call` miss boundary

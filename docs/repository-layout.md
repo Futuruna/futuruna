@@ -5,7 +5,7 @@ website, and supporting research in one repository.
 
 | Location | Purpose |
 | --- | --- |
-| `src/` | Compiler, runtime, proof system, and command-line implementation |
+| `src/` | Compiler, runtime, verifier, and command-line implementation |
 | `std/` | Futuruna standard-library source |
 | `tests/` | Regression tests, authored canaries, fixtures, and reviewed expectations |
 | `examples/` | Language examples, application demonstrations, and legal corpora; see the [index](../examples/README.md) |
@@ -26,9 +26,9 @@ Keep source code, legal provenance, research datasets, lockfiles, reviewed
 expectation files, and selected publication artifacts in Git. A file being
 machine-readable or generated originally does not make it disposable.
 
-Build output belongs in ignored directories such as `target/`, `.runa-build/`,
-or `outputs/`. Runtime databases and their sidecars are ignored. Private case
-inputs and results belong outside the checkout.
+Build output belongs in ignored directories such as `target/` or `outputs/`.
+Runtime databases and their sidecars are ignored. Private case inputs and
+results belong outside the checkout.
 
 `runa build` currently places its final executable in the working directory.
 When experimenting locally, build from an ignored working directory:

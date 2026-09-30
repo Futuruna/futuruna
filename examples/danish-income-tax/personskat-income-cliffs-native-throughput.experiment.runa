@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - income - cliffs.audit
+@ importer ./personskat-income-cliffs.audit
 
 ----
 Native residual-classification throughput probe.
@@ -21,8 +21,18 @@ small and is increased only after measuring the prior stage.
     indkomst_før_kroner
 )
 
-= personskat_native_probe_start = fortolk_heltal(miljø_var("FUTURUNA_PROBE_START"))
-= personskat_native_probe_slut_eksklusiv = fortolk_heltal(miljø_var("FUTURUNA_PROBE_END"))
+> personskat_native_probe_grænse(variabel: Tekst) -> Heltal {
+    skel fortolk_heltal(miljø_var(variabel)) {
+        | Ok(værdi) -> værdi
+        | Fejl(besked) -> {
+            assert_with_message(Falskt, variabel + ": " + besked)
+            0
+        }
+    }
+}
+
+= personskat_native_probe_start = personskat_native_probe_grænse("FUTURUNA_PROBE_START")
+= personskat_native_probe_slut_eksklusiv = personskat_native_probe_grænse("FUTURUNA_PROBE_END")
 
 @ print("PERSONSKAT_NATIVE_PROBE_BEGIN " + vis(personskat_native_probe_start) + " " + vis(personskat_native_probe_slut_eksklusiv))
 

@@ -48,7 +48,7 @@ transition is rejected, the no-cliff claim covers only the admitted relation
 and the exclusions remain explicit output. It does not prove the absence of a
 narrower cliff inside one of those intervals. A merely paused or
 hint-exhausted frontier is not a result: the coarse relation becomes exact only
-through proof-backed support closure or complete concrete
+through certified support closure or complete concrete
 relation/admission/FIND closure.
 
 A replay-derived mechanism signature is likewise exact for its 100-DKK

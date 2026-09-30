@@ -34,7 +34,7 @@
 
 # RenderDecision = Render(Int, String) | Skip(Int, String)
 
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 
 -- ============================================================================
 -- PART 2: Component introspection (>)
@@ -149,17 +149,17 @@
 -- PART 4: Rendering a component tree (> with list operations)
 -- ============================================================================
 
-> render_all(comps: List(Comp), phase: Phase, threshold: Int) -> List(RenderDecision) {
+> render_all(comps: Chain(Comp), phase: Phase, threshold: Int) -> Chain(RenderDecision) {
     match comps {
-        | Nil -> Nil
-        | Cons(c, rest) -> Cons(decide(c, phase, threshold), render_all(rest, phase, threshold))
+        | End -> End
+        | Link(c, rest) -> Link(decide(c, phase, threshold), render_all(rest, phase, threshold))
     }
 }
 
-> count_renders(decisions: List(RenderDecision)) -> Int {
+> count_renders(decisions: Chain(RenderDecision)) -> Int {
     match decisions {
-        | Nil -> 0
-        | Cons(d, rest) -> {
+        | End -> 0
+        | Link(d, rest) -> {
             = is_render = match d {
                 | Render(_, _) -> 1
                 | Skip(_, _) -> 0
@@ -169,10 +169,10 @@
     }
 }
 
-> count_skips(decisions: List(RenderDecision)) -> Int {
+> count_skips(decisions: Chain(RenderDecision)) -> Int {
     match decisions {
-        | Nil -> 0
-        | Cons(d, rest) -> {
+        | End -> 0
+        | Link(d, rest) -> {
             = is_skip = match d {
                 | Render(_, _) -> 0
                 | Skip(_, _) -> 1
@@ -189,20 +189,20 @@
     }
 }
 
-> show_decisions(ds: List(RenderDecision)) -> Int {
+> show_decisions(ds: Chain(RenderDecision)) -> Int {
     match ds {
-        | Nil -> 0
-        | Cons(d, rest) -> {
+        | End -> 0
+        | Link(d, rest) -> {
             @ print(show_decision(d))
             1 + show_decisions(rest)
         }
     }
 }
 
-> list_len(xs: List(Comp)) -> Int {
+> list_len(xs: Chain(Comp)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(_, rest) -> 1 + list_len(rest)
+        | End -> 0
+        | Link(_, rest) -> 1 + list_len(rest)
     }
 }
 
@@ -234,7 +234,7 @@
 = search    = MkComp(10, InputNode("Search..."), 70, 15, 3)
 = results   = MkComp(11, TextNode("3 results found"), 40, 5, 1)
 
-= all_comps = Cons(dashboard, Cons(sidebar, Cons(nav_btn1, Cons(nav_btn2, Cons(nav_btn3, Cons(main_area, Cons(kpi_text1, Cons(kpi_text2, Cons(chart1, Cons(chart2, Cons(search, Cons(results, Nil))))))))))))
+= all_comps = Link(dashboard, Link(sidebar, Link(nav_btn1, Link(nav_btn2, Link(nav_btn3, Link(main_area, Link(kpi_text1, Link(kpi_text2, Link(chart1, Link(chart2, Link(search, Link(results, End))))))))))))
 
 -- ============================================================================
 -- PART 6: Phase-aware rendering — the conscious decision (@)

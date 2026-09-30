@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
-@ importer ./afskrivningsloven - par41 - par49.scenario
+@ importer ./kapitel-01-indkomst
+@ importer ./afskrivningsloven-par41-par49.scenario
 
 -- Personskatteloven § 3, stk. 2, nr. 10 modtager de typede resultater fra
 -- Afskrivningsloven §§ 42-44 C uden rå beløbsbroer eller nettomodregning.
