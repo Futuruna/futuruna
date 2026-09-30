@@ -1,0 +1,10 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |cube_of_two|
+@ export
+> square(x: Int) -> Int { x * x }
+
+@ export
+> cube(x: Int) -> Int { x * x * x }
+
+| cube_of_two: cube(2) -> cube(2) == 8

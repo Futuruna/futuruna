@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./loenmodtager_beregning
-@ importer ./loenmodtager - eksakt - skat
-@ importer ./soemandsbeskatningsloven - par5 - par8
+@ importer ./loenmodtager-eksakt-skat
+@ importer ./soemandsbeskatningsloven-par5-par8
 
 = søbl5_dis_lempelse_metadata = Metadata(
     attachments = (

@@ -6,7 +6,7 @@
 -- # What exists — token types
 -- ============================================================================
 
-# TokenKind = TkKW | TkIdent | TkOp | TkType | TkLParen | TkRParen | TkLBrace | TkRBrace | TkLBracket | TkRBracket | TkSemi | TkDot | TkArrow | TkFatArrow | TkComma | TkColon | TkPipe | TkHash | TkAt | TkGt | TkEq | TkSend | TkTilde | TkPipeGt | TkSafeCall | TkElvis | TkAmp | TkString | TkChar | TkInt | TkFloat | TkBool | TkEof
+# TokenKind = TkKW | TkIdent | TkOp | TkType | TkLParen | TkRParen | TkLBrace | TkRBrace | TkLBracket | TkRBracket | TkSemi | TkDot | TkArrow | TkFatArrow | TkComma | TkColon | TkPipe | TkHash | TkAt | TkGt | TkEq | TkSend | TkTilde | TkPipeGt | TkSafeCall | TkElvis | TkAmp | TkString | TkChar | TkInt | TkFloat | TkBool | TkError | TkEof
 
 # Token(kind: TokenKind, text: String, line: Int, col: Int)
 
@@ -95,7 +95,7 @@
 > read_span(src: String, start: Int, pos: Int, ln: Int, col: Int, pred: String -> Bool) -> Span {
     = ch = pk(src, pos)
     if ch != "" && pred(ch) { read_span(src, start, pos + 1, ln, col + 1, pred) }
-    else { Span(pos, ln, col, substring(src, start, pos)) }
+    else { Span(pos, ln, col, substring(src, start, pos - start)) }
 }
 
 > read_word(src: String, pos: Int, ln: Int, col: Int) -> Lexed {
@@ -120,7 +120,7 @@
 
 > read_str_inner(src: String, pos: Int, ln: Int, col: Int, acc: String, sl: Int, sc: Int) -> Lexed {
     = ch = pk(src, pos)
-    if ch == "" { Lexed(pos, ln, col, Token(TkString, acc, sl, sc)) }
+    if ch == "" { Lexed(pos, ln, col, Token(TkError, "unterminated string", sl, sc)) }
     else if ch == "\\" {
         = nx = pk2(src, pos)
         = esc = if nx == "n" { "\n" } else if nx == "t" { "\t" } else if nx == "r" { "\r" } else if nx == "\\" { "\\" } else if nx == "\"" { "\"" } else { "\\" + nx }
@@ -323,6 +323,7 @@
         TkInt -> "Int"
         TkFloat -> "Float"
         TkBool -> "Bool"
+        TkError -> "Error"
         TkEof -> "EOF"
     }
 }

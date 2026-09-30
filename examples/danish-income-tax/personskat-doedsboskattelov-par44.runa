@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./doedsboskatteloven - par9 - par22 - par44
+@ importer ./doedsboskatteloven-par9-par22-par44
 @ importer ./personskat.calculate
 
 = personskat_dødsboskattelov_par44_metadata = Metadata(
@@ -46,6 +46,7 @@ stk. 1, nr. 7.
     |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation == virksomhedsidentifikation
 )
 | personskat_dødsboskattelov44_ingen_levende_ægtefælle(input: PersonskatInput) -> match input.ægtefælle {
+    | ÆgtefællegrundlagUoplyst -> Falskt
     | UdenÆgtefælle -> Sandt
     | MedÆgtefælle(_, _, _) -> Falskt
 }

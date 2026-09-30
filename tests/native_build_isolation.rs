@@ -195,13 +195,11 @@ fn cargo_check_and_run_accept_date_and_punctuation_source_names() {
         let path = project.join(name);
         std::fs::write(&path, source).unwrap();
         for mode in ["check", "run"] {
-            let output = finish(
-                fixture
-                    .command_source(&project, mode, "cache", &path)
-                    .env("CARGO_NET_OFFLINE", "true")
-                    .spawn()
-                    .unwrap(),
-            );
+            let mut command = fixture.command_source(&project, mode, "cache", &path);
+            if mode == "check" {
+                command.arg("--build-deps");
+            }
+            let output = finish(command.env("CARGO_NET_OFFLINE", "true").spawn().unwrap());
             assert!(output.status.success(), "{mode} {name}: {output:?}");
             if mode == "run" {
                 assert_eq!(

@@ -95,3 +95,4 @@
 | unresolved_return_dispatch_is_rejected: unresolved_result(value) -> True
 | intentional_wrong_order_claim: ordered_nine -> ordered_nine == 80
 | scoped_intentional_wrong_order_claim: OrderedCase(base = 0).band(amount) -> if amount > 8 { OrderedCase(base = 0).band(amount) == 80 } else { True }
+-- roundtrip-skip: verify fixture; compiled code refuses its intentionally unresolved and partial rule families

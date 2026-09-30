@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ./personskatteloven - par11 - parametre
+@ importer ./personskatteloven-par11-parametre
 
 -- Permanent grænsekontrol af den fælles parameterkilde efter udskillelsen.
 = historiske_par11_satser = map(range(2012, 2019), |år: Heltal| negativ_kapital_nedslag_sats_basispoint(år))

@@ -83,18 +83,18 @@
     if s == "married" { Married } else { Single }
 }
 
-> handle_tax(body: String) -> String {
-    = q = json_parse(body)
+> handle_tax(body: String) -> Result(String, String) {
+    = q <- json_parse(body)
     = name = json_string(json_get(q, "name"))
-    = income = parse_int(json_get(q, "income"))
+    = income <- parse_int(json_get(q, "income"))
     = status = parse_status(json_string(json_get(q, "status")))
-    = children = parse_int(json_get(q, "children"))
+    = children <- parse_int(json_get(q, "children"))
     = d = deductions(status, children)
     = ti = taxable(income, status, children)
     = t = tax(income, status, children)
     = r = format_float(effective_rate(income, status, children), 1)
     = n = net(income, status, children)
-    json_object([["name", name], ["income", show(income)], ["deductions", show(d)], ["taxable_income", show(ti)], ["tax", show(t)], ["effective_rate", r + "%"], ["net_income", show(n)]])
+    Ok(json_object([["name", name], ["income", show(income)], ["deductions", show(d)], ["taxable_income", show(ti)], ["tax", show(t)], ["effective_rate", r + "%"], ["net_income", show(n)]]))
 }
 
 -- @ SERVER
@@ -111,7 +111,10 @@ for r in revenue {
 
 @ http_serve(8080, |path, method, body| {
     if path == "/tax" {
-        http_respond(200, "application/json", handle_tax(body))
+        match handle_tax(body) {
+            | Ok(json) -> http_respond(200, "application/json", json)
+            | Err(e) -> http_respond(400, "text/plain", "invalid request: " + e)
+        }
     } else {
         http_respond(200, "text/plain", "POST /tax with {name, income, status, children}")
     }

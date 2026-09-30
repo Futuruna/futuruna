@@ -221,11 +221,11 @@ edges. Synchronous programs use `Rc`; programs with async features use `Arc`.
 That makes persistent tails and subtrees cheap to share:
 
 ```runa
-# IntList = Nil | Cons(Int, IntList)
+# IntList = End | Link(Int, IntList)
 
-= tail = Cons(30, Cons(40, Nil))
-= branch_a = Cons(10, tail)
-= branch_b = Cons(20, tail)
+= tail = Link(30, Link(40, End))
+= branch_a = Link(10, tail)
+= branch_b = Link(20, tail)
 ```
 
 At the Futuruna level, `branch_a` and `branch_b` are independent immutable

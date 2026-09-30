@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./skatteaar - parametre
-@ importer ./personskatteloven - par11 - parametre
+@ importer ./skatteaar-parametre
+@ importer ./personskatteloven-par11-parametre
 @ importer ./pengebeloeb
 
 -- Rapportkontrol, ikke en alternativ beregning af personskat.

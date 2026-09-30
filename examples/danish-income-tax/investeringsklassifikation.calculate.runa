@@ -1,8 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./aktieavancebeskatningsloven - par19 - 20a
-@ importer ./aktieavancebeskatningsloven - par19b - 22
+@ importer ./aktieavancebeskatningsloven-par19-20a
+@ importer ./aktieavancebeskatningsloven-par19b-22
 
 = abl_investeringsklassifikation_beregning_metadata = Metadata(
     attachments = (

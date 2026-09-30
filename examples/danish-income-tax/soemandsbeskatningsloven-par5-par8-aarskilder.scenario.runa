@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./soemandsbeskatningsloven - par5 - par8
+@ importer ./soemandsbeskatningsloven-par5-par8
 
 | søbl5_til8_årskilde_person() -> Søbl5Til8Personfakta(
     skattepligt = SøblFuldtSkattepligtigEfterKsl1,

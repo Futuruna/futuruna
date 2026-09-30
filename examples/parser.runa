@@ -8,6 +8,31 @@
 @ import ./lexer
 
 -- ============================================================================
+-- # Token text conversion — the lexer only emits well-formed number tokens,
+-- so a conversion failure is a lexer bug and stops the program
+-- ============================================================================
+
+> literal_int(text: String) -> Int {
+    match parse_int(text) {
+        | Ok(n) -> n
+        | Err(e) -> {
+            = _ = assert_with_message(false, "lexer produced an invalid integer token: " + e)
+            0
+        }
+    }
+}
+
+> literal_float(text: String) -> Float {
+    match parse_float(text) {
+        | Ok(x) -> x
+        | Err(e) -> {
+            = _ = assert_with_message(false, "lexer produced an invalid float token: " + e)
+            0.0
+        }
+    }
+}
+
+-- ============================================================================
 -- # What exists — AST node types
 -- ============================================================================
 
@@ -36,7 +61,7 @@
 -- # What exists — parser state and result carriers
 -- ============================================================================
 
-# PState(toks: List(Token), pos: Int)
+# PState(toks: List(Token), pos: Int, errors: List(String))
 # Consumed(st: PState, tok: Token)
 # PExpr(st: PState, node: Expr)
 # PStmt(st: PState, node: Stmt)
@@ -60,11 +85,16 @@
 }
 
 > advance(st: PState) -> PState {
-    PState(st.toks, st.pos + 1)
+    PState(st.toks, st.pos + 1, st.errors)
 }
 
 > consume(st: PState) -> Consumed {
-    Consumed(PState(st.toks, st.pos + 1), nth(st.toks, st.pos))
+    Consumed(PState(st.toks, st.pos + 1, st.errors), nth(st.toks, st.pos))
+}
+
+-- A parse error is recorded in the state; parsing continues after it.
+> report(st: PState, tok: Token, message: String) -> PState {
+    PState(st.toks, st.pos, push(st.errors, "Parse error " + show(tok.line) + ":" + show(tok.col) + ": " + message))
 }
 
 > skip_semis(st: PState) -> PState {
@@ -76,8 +106,7 @@
     = tok = peek(st)
     if tok.kind == kind { consume(st) }
     else {
-        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected " + show_kind(kind) + ", got " + show_kind(tok.kind))
-        consume(st)
+        consume(report(st, tok, "expected " + show_kind(kind) + ", got " + show_kind(tok.kind)))
     }
 }
 
@@ -85,13 +114,12 @@
     = tok = peek(st)
     if tok.kind == TkOp && tok.text == op { advance(st) }
     else {
-        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected '" + op + "'")
-        advance(st)
+        advance(report(st, tok, "expected '" + op + "'"))
     }
 }
 
 > make_state(toks: List(Token)) -> PState {
-    PState(toks, 0)
+    PState(toks, 0, [])
 }
 
 -- ============================================================================
@@ -146,8 +174,7 @@
         else { PTy(advance(st), TyName(tok.text)) }
     }
     else {
-        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected type, got " + show_kind(tok.kind))
-        PTy(advance(st), TyHole)
+        PTy(advance(report(st, tok, "expected type, got " + show_kind(tok.kind))), TyHole)
     }
 }
 
@@ -184,22 +211,20 @@
         }
         else { PPat(st2, PCon(tok.text, [])) }
     }
-    else if tok.kind == TkInt { PPat(advance(st), PLit(LInt(parse_int(tok.text)))) }
-    else if tok.kind == TkFloat { PPat(advance(st), PLit(LFloat(parse_float(tok.text)))) }
+    else if tok.kind == TkInt { PPat(advance(st), PLit(LInt(literal_int(tok.text)))) }
+    else if tok.kind == TkFloat { PPat(advance(st), PLit(LFloat(literal_float(tok.text)))) }
     else if tok.kind == TkString { PPat(advance(st), PLit(LStr(tok.text))) }
     else if tok.kind == TkBool { PPat(advance(st), PLit(LBool(tok.text == "true" || tok.text == "True"))) }
     else if tok.kind == TkOp && tok.text == "-" {
         = inner = peek(advance(st))
-        if inner.kind == TkInt { PPat(advance(advance(st)), PLit(LInt(0 - parse_int(inner.text)))) }
-        else if inner.kind == TkFloat { PPat(advance(advance(st)), PLit(LFloat(0.0 - parse_float(inner.text)))) }
+        if inner.kind == TkInt { PPat(advance(advance(st)), PLit(LInt(0 - literal_int(inner.text)))) }
+        else if inner.kind == TkFloat { PPat(advance(advance(st)), PLit(LFloat(0.0 - literal_float(inner.text)))) }
         else {
-            @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected number after '-' in pattern")
-            PPat(advance(st), PWild)
+            PPat(advance(report(st, tok, "expected number after '-' in pattern")), PWild)
         }
     }
     else {
-        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected pattern, got " + show_kind(tok.kind))
-        PPat(advance(st), PWild)
+        PPat(advance(report(st, tok, "expected pattern, got " + show_kind(tok.kind))), PWild)
     }
 }
 
@@ -474,8 +499,7 @@
         parse_for_body(advance(c.st), c.tok.text)
     }
     else {
-        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected 'in' after 'for " + c.tok.text + "'")
-        parse_for_body(c.st, c.tok.text)
+        parse_for_body(report(c.st, tok, "expected 'in' after 'for " + c.tok.text + "'"), c.tok.text)
     }
 }
 
@@ -557,8 +581,8 @@
 
 > parse_atom(st: PState) -> PExpr {
     = tok = peek(st)
-    if tok.kind == TkInt { PExpr(advance(st), ELit(LInt(parse_int(tok.text)))) }
-    else if tok.kind == TkFloat { PExpr(advance(st), ELit(LFloat(parse_float(tok.text)))) }
+    if tok.kind == TkInt { PExpr(advance(st), ELit(LInt(literal_int(tok.text)))) }
+    else if tok.kind == TkFloat { PExpr(advance(st), ELit(LFloat(literal_float(tok.text)))) }
     else if tok.kind == TkString { PExpr(advance(st), ELit(LStr(tok.text))) }
     else if tok.kind == TkBool { PExpr(advance(st), ELit(LBool(tok.text == "true" || tok.text == "True"))) }
     else if tok.kind == TkChar { PExpr(advance(st), ELit(LChar(tok.text))) }
@@ -592,8 +616,7 @@
         else { PExpr(name_tok.st, EEffect(name_tok.tok.text, [])) }
     }
     else {
-        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": unexpected " + show_kind(tok.kind) + "(" + tok.text + ")")
-        PExpr(advance(st), EUnit)
+        PExpr(advance(report(st, tok, "unexpected " + show_kind(tok.kind) + "(" + tok.text + ")")), EUnit)
     }
 }
 
@@ -680,7 +703,7 @@
 > parse_block_stmts(st: PState, acc: List(Stmt)) -> PBlock {
     = tok = peek(st)
     if tok.kind == TkRBrace { PBlock(advance(st), acc) }
-    else if tok.kind == TkEof { PBlock(st, acc) }
+    else if tok.kind == TkEof { PBlock(report(st, tok, "expected '}' before end of input"), acc) }
     else {
         = parsed = parse_statement(st)
         = st2 = skip_semis(parsed.st)
@@ -747,9 +770,9 @@
 -- > What happens — program parsing
 -- ============================================================================
 
-> parse_program_loop(st: PState, acc: List(Stmt)) -> List(Stmt) {
+> parse_program_loop(st: PState, acc: List(Stmt)) -> PBlock {
     = st2 = skip_semis(st)
-    if peek(st2).kind == TkEof { acc }
+    if peek(st2).kind == TkEof { PBlock(st2, acc) }
     else {
         = parsed = parse_statement(st2)
         parse_program_loop(parsed.st, push(acc, parsed.node))
@@ -757,7 +780,12 @@
 }
 
 > parse_program(st: PState) -> List(Stmt) {
-    parse_program_loop(st, [])
+    parse_program_loop(st, []).items
+}
+
+-- The parse errors of a whole program, in source order.
+> parse_errors(st: PState) -> List(String) {
+    parse_program_loop(st, []).st.errors
 }
 
 -- ============================================================================
@@ -930,36 +958,3 @@ for s in ast3 {
 for s in ast4 {
     @ print("  " + show_stmt(s))
 }
-
--- S4 end-to-end: parse lexer.runa
-= lexer_src = read_file("examples/lexer.runa")
-= lexer_toks = tokenize(lexer_src)
-= lexer_ast = parse_program(make_state(lexer_toks))
-
-@ print("--- S4: lexer.runa (" + show(length(lexer_ast)) + " statements) ---")
-for s in lexer_ast {
-    @ print("  " + show_stmt(s))
-}
-
--- S5: self-parse — parser parses itself
-= parser_src = read_file("examples/parser.runa")
-= parser_toks = tokenize(parser_src)
-= parser_ast = parse_program(make_state(parser_toks))
-
-@ print("--- S5: parser.runa (" + show(length(parser_ast)) + " statements) ---")
-
--- Structural check: count function definitions
-= fn_count = length(filter(parser_ast, |s| match s { SDefn(_) -> true | _ -> false }))
-= type_count = length(filter(parser_ast, |s| match s { SType(_) -> true | _ -> false }))
-= bind_count = length(filter(parser_ast, |s| match s { SBind(_, _, _) -> true | _ -> false }))
-= for_count = length(filter(parser_ast, |s| match s { SFor(_, _, _) -> true | _ -> false }))
-= import_count = length(filter(parser_ast, |s| match s { SImport(_) -> true | _ -> false }))
-
-@ print("  functions: " + show(fn_count))
-@ print("  types:     " + show(type_count))
-@ print("  bindings:  " + show(bind_count))
-@ print("  for loops: " + show(for_count))
-@ print("  imports:   " + show(import_count))
-
-@ print("")
-@ print("Self-hosting step 5: the parser parses itself.")

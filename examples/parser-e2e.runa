@@ -1,11 +1,21 @@
--- parser-e2e.runa — End-to-end test: self-hosting parser parses the lexer
--- Compile and run: runa build examples/parser-e2e.runa && ./parser-e2e
+-- parser-e2e.runa — End-to-end test: the self-hosting parser parses the lexer
+-- and itself. Run from the repository root: runa run examples/parser-e2e.runa
 
 @ import ./lexer
 @ import ./parser
 
+> read_source(path: String) -> String {
+    match read_file(path) {
+        | Ok(text) -> text
+        | Err(e) -> {
+            = _ = assert_with_message(false, "cannot read " + path + ": " + e)
+            ""
+        }
+    }
+}
+
 -- Tokenize and parse lexer.runa end-to-end
-= lexer_src = read_file("examples/lexer.runa")
+= lexer_src = read_source("examples/lexer.runa")
 @ print("Read lexer.runa: " + show(string_length(lexer_src)) + " chars")
 
 = lexer_toks = tokenize(lexer_src)
@@ -21,3 +31,26 @@ for s in lexer_ast {
 
 @ print("")
 @ print("End-to-end: self-hosting parser parses the lexer.")
+
+-- Self-parse: the parser parses itself
+= parser_src = read_source("examples/parser.runa")
+= parser_toks = tokenize(parser_src)
+= parser_ast = parse_program(make_state(parser_toks))
+
+@ print("")
+@ print("--- parser.runa (" + show(length(parser_ast)) + " statements) ---")
+
+= fn_count = length(filter(parser_ast, |s| match s { SDefn(_) -> true | _ -> false }))
+= type_count = length(filter(parser_ast, |s| match s { SType(_) -> true | _ -> false }))
+= bind_count = length(filter(parser_ast, |s| match s { SBind(_, _, _) -> true | _ -> false }))
+= for_count = length(filter(parser_ast, |s| match s { SFor(_, _, _) -> true | _ -> false }))
+= import_count = length(filter(parser_ast, |s| match s { SImport(_) -> true | _ -> false }))
+
+@ print("  functions: " + show(fn_count))
+@ print("  types:     " + show(type_count))
+@ print("  bindings:  " + show(bind_count))
+@ print("  for loops: " + show(for_count))
+@ print("  imports:   " + show(import_count))
+
+@ print("")
+@ print("Self-hosting step 5: the parser parses itself.")

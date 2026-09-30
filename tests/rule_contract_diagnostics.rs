@@ -40,12 +40,13 @@ fn conflicting_rule_results_fail_before_the_family_is_called() {
 }
 
 #[test]
-fn result_contracts_distinguish_arities_scopes_and_supported_exception_only_rules() {
+fn result_contracts_distinguish_arities_scopes_and_exception_rules() {
     let source = r#"
 | answer(value: Int) -> value
 | answer(left: String, right: String) -> left + right
 # Numeric(value: Int) { | result() -> value }
 # Textual(value: String) { | result() -> value }
+| approved(value: Int) -> False
 | exception positive approved(value: Int) -> True under value > 0
 @ print(show(answer(42)))
 @ print(answer("a", "b"))

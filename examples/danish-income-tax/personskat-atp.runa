@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - beregningskontrol
+@ importer ./personskat-beregningskontrol
 
 # PersonskatAtpKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 = personskat_atp_lovkilde = PersonskatAtpKilde(url = "https://www.lovtidende.dk/api/pdf/250970", identifier = "LL §§ 9 J, 9 K og 9 L, LBK 1500 af 24. november 2025", hentet_dato = "2026-09-22")

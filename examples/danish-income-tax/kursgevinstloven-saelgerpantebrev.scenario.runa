@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kursgevinstloven - saelgerpantebrev
+@ importer ./kursgevinstloven-saelgerpantebrev
 
 = kgl_sælgerpantebrev_scenarier_metadata = Metadata(
     attachments = (

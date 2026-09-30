@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par9a - rejser
+@ importer ./ligningsloven-par9a-rejser
 
 # Ll9AScenarieGodtgørelse(kost_kroner: Heltal, logi_kroner: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol)
 # Ll9AÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9ALovversion, satsversion: Ligningslov9ASatsversion, reguleringstalskilde: Par20ReguleringstalKilde, reguleringstal_tiendedele: Heltal, kostsats_kroner: Heltal, logisats_kroner: Heltal, årsloft_kroner: Heltal, rejsefradrag_kroner: Heltal)

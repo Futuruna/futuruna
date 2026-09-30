@@ -9,6 +9,13 @@ feature_stage_surfaces:
 `@ calculate` marks an ordinary typed rule or function as an external
 calculation boundary. It does not change rule evaluation and is not an effect.
 
+A calculation is pure: its entry, and every function and rule it reaches, must
+not perform effects — no `@` effects and no host builtins such as `print`,
+`read_file`, `write_file`, `env_var`, `now`, `http_get` or `process_run`. The
+checker reports the first such call with its location, and `runa call` refuses
+host effects at run time as well (for example in imported helpers). External
+data enters only through the typed input.
+
 ```runa
 # Input(monthly_income: Int, status: FilingStatus)
 # Result(annual_tax: Int)
@@ -345,8 +352,20 @@ acknowledges intentional inputs, including zeros, empty collections and known
 unknowns; it does not authenticate documents, establish completeness or certify
 the model. A ready case can still fail ordinary input or model checks.
 
-Unedited template defaults are examples of value shapes, not statements about
-a person. Changing some values does not automatically mark a case ready. Review
+Every value the user must supply is written as a placeholder object such as
+`{"$fill": "Int"}` or `{"$fill": "FilingStatus: one of Single, Married"}`;
+only structure fixed by the contract (record fields, a sole variant) is spelled
+out. A placeholder is never a valid value, so `runa call` refuses a case that
+still contains one and lists every unfilled path, for example
+`$.cases[0].input.monthly_income`, even when the case is marked `ready`.
+Optional values and collections are placeholders too: write `null`, `[]` or
+`{}` deliberately. `$fill` is reserved and cannot be used as a map key in
+calculation input. XLSX templates leave unfilled cells blank; a blank required
+cell is rejected, and converting a workbook with `template --input` keeps blank
+required cells as placeholders. Spreadsheet collections are supplied as rows, so
+a collection sheet without rows is an empty collection.
+
+Changing some values does not automatically mark a case ready. Review
 the status again after editing facts; offline files cannot detect whether a
 previous review still applies. JSON/TOML carry the status alongside `case_id`,
 outside the model's `input` record.
@@ -421,10 +440,10 @@ hidden contract metadata remain complete in both modes. This reduces worksheet
 count, not the width of the root input sheet or the size of the contract itself.
 
 New JSON/TOML templates use input envelope v2 and workbooks use input adapter v9.
-Input v1 and complete v6/v7/v8 workbooks remain readable for migration, but
-unmarked cases do not run. Refresh older inputs, review their facts and mark intentional
-cases ready. Older binaries reject the new format identities instead of silently
-ignoring draft status; do not rewrite the version or fingerprint to bypass this.
+Input v1 and complete v6/v7/v8 workbooks are readable, but cases without
+`input_status` do not run: generate a fresh template, review the facts and mark
+intentional cases ready. Do not rewrite the version or fingerprint to bypass
+this.
 
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes
@@ -461,11 +480,13 @@ not substitute zero or empty values. Known Boolean predicate misses still return
 evaluating a predicate is a diagnostic, not `False`. Required top-level
 initialization is checked too; if it fails, no case receives a result from it.
 An unexpected recoverable runtime panic invalidates that worker, which is
-reinitialized before another case. This boundary is not a sandbox for effects
-or a guarantee of recovery from process termination or resource exhaustion.
+reinitialized before another case. The boundary does not guarantee recovery
+from process termination or resource exhaustion.
 
 Calculation workbooks must be `.xlsx`. VBA projects and formulas in the input
-sheet are rejected. JSON input documents and canonical JSON workbook cells
+sheet are rejected. Before any sheet is read, a workbook may unpack to at most
+256 MiB in at most 10,000 archive entries, and each sheet's used range may span
+at most 4,000,000 cells; larger workbooks are rejected with an error. JSON input documents and canonical JSON workbook cells
 reject duplicate object member names at every depth, including escaped names
 that decode to the same key. This also applies to template hydration: ambiguous
 values are never normalized by choosing the first or last occurrence.

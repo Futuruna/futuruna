@@ -2,7 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./ejendomsavancebeskatningsloven - genanbringelse
+@ importer ./ejendomsavancebeskatningsloven-genanbringelse
 
 # EblPar11KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

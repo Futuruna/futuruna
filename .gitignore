@@ -3,7 +3,6 @@
 website/target/
 /editors/vscode/node_modules/
 __pycache__/
-.runa-build/
 .playwright-cli/
 /personskat-income-cliffs-native-*.experiment
 

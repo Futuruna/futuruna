@@ -2,8 +2,8 @@
 
 @ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
-@ importer ./aktieavancebeskatningsloven - par23 - 27
-@ importer ./kursgevinstloven - par32
+@ importer ./aktieavancebeskatningsloven-par23-27
+@ importer ./kursgevinstloven-par32
 @ importer ./pengebeloeb
 
 = aktieavancebeskatningsloven_lbk1098_par17_klassifikation = AktieavancebeskatningslovKildeInfo(

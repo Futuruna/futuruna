@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat - dagpenge
+@ importer ./personskat-dagpenge
 
 | dagpenge_scenarie(art: PersonskatDagpengeArt, beløb: Heltal, år: Heltal, kilde: Tekst) -> personskat_dagpenge_resultat(PersonskatDagpengeFakta(identifikation = "syntetisk-dagpenge", indkomstår = år, kildereference = kilde, art = art, indkomst_før_skat_kroner = beløb))
 = dagpenge_omfattede = map([

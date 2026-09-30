@@ -19,14 +19,29 @@ metadata, and audits an actual same-rule contradiction.
 42          -- Int (i64)
 3.14        -- Float (f64)
 -7          -- negative Int
+1_000_000   -- Int; `_` groups digits
+0.000_25    -- Float
 ```
 
-Write thousands without commas or underscores: `1000`. Digit separators such
-as `1_000` are unsupported. Commas separate arguments and list
-items, so `[1,000, 2]` means `[1, 0, 2]`. Leading zeroes do not change an
-integer's decimal value. There is no date literal: `2024-01-31` is subtraction
-and evaluates to `1992`. Use a string such as `"2024-01-31"` for date text, or
-an explicitly defined date record with the validation your model requires.
+A number literal is a run of decimal digits with at most one `.`, which must be
+followed by a digit. A `_` may stand between two digits to group them and does
+not change the value. The following spellings would silently mean something
+other than their conventional reading, so they are errors:
+
+- a date shape: four digits and two groups of one or two digits joined by the
+  same `-` or `/` (`2024-01-31`, `2024/1/31`), or the reverse order
+  (`31-01-2024`, `31/12/2024`). There is no date literal; use a string such as
+  `"2024-01-31"` for date text, or an explicitly defined date record with the
+  validation your model requires;
+- a comma directly followed by exactly three digits after a number of one to
+  three digits (`1,000`, `[1,500, 2]`), which reads as a thousands separator but
+  would separate items. Write `1_000`, or put a space after the comma;
+- a second decimal point (`1.000.000`);
+- a leading zero before another digit (`007`, `00.5`); write `7` or `0.5`;
+- a `_` that does not stand between two digits (`1__000`, `1000_`).
+
+Digits in `@ import` module paths and content hashes are part of the name, as
+in `@ import ./kapitel-04`.
 
 `%` is a binary remainder operator, not a percentage suffix. Represent a rate
 as `25` percent or `0.25` as a fraction, and keep that unit consistent in the
@@ -113,7 +128,9 @@ grammar makes continuation unambiguous:
 
 - inside parentheses `(...)` or brackets `[...]`;
 - after an incomplete token such as `=`, `->`, `,`, or an operator; or
-- before a continuation token such as `|>`, `.`, `under`, or `else`.
+- before a continuation token such as `|>`, `.`, `under`, `else`, `and`, or a
+  binary operator that cannot begin an expression: `+`, `*`, `/`, `%`, `^`,
+  `==`, `!=`, `<`, `<=`, `>=`, `&&`.
 
 Use a newline or `;` between adjacent expressions. For example, `= x = 5 5`
 is an error; write `= x = 5; 5` if you intend two statements. Explicit rune
@@ -171,12 +188,15 @@ top-level rule:
     )
 ```
 
-Do not rely on continuation inference for a line-leading `+`, `-`, or `||`.
-Put these operators at the end of the preceding line, or wrap the whole
-expression in parentheses, to make the intended continuation explicit.
-For example, `= net = 100` followed by an indented `- 30` keeps `net` at
-`100`: the second line is a separate expression statement whose result is
-discarded. Indentation alone does not join these statements.
+`-` and `||` can begin an expression (negation and a parameterless closure),
+so a line that starts with either one begins a new statement. Such a line is
+an error when it is indented further than the statement before it, because
+the indentation reads as a continuation the grammar does not perform. Put the
+operator at the end of the preceding line, or wrap the whole expression in
+parentheses. For example, `= net = 100` followed by an indented `- 30` is an
+error, while an indented `+ 30` continues the expression. A line-leading `-`
+at the statement's own indentation is ordinary negation, such as a block's
+final `-total`.
 
 ## Types
 
@@ -238,9 +258,11 @@ Lowercase single letters are type variables: `a`, `b`, `c`, etc. They become upp
 
 Arithmetic uses `Int` or `Float` operands. For `+`, `-`, `*`, and `/`, mixing
 `Int` and `Float` converts the integer to `Float` and produces a `Float`.
-Remainder (`%`) requires two `Int` values or two `Float` values. Use `to_float`
-when an explicit conversion is needed. `+` also concatenates when either operand
-is a `String`; use `concat` to combine lists.
+Remainder (`%`) requires two `Int` values or two `Float` values. Outside
+arithmetic an `Int` is not a `Float`: a `Float` parameter, field, binding, or
+result needs a `Float` value such as `25.0` or `to_float(n)`, so `Rates(25)`
+for `# Rates(percent: Float)` is a type error. `+` also concatenates when
+either operand is a `String`; use `concat` to combine lists.
 
 ### Comparison
 | Op | Meaning |
@@ -400,3 +422,236 @@ Block comment
 can span multiple lines
 ----
 ```
+
+`--` starts a line comment that runs to the end of the line, so a line of
+three dashes is a comment. A run of four or more consecutive dashes is one
+block delimiter, whatever its length: the first run opens a block comment and
+the next run closes it. Banners such as `-----` or `------------` therefore
+enclose the text between them:
+
+```runa
+-----
+-- Tax law
+-----
+= x = 5
+```
+
+A delimiter run that opens a block comment and has no closing run is an error.
+
+## Danish Source Files
+
+A file whose first declaration is `@ sprog da` is written in Danish. Comments,
+blank lines and a leading byte-order mark may precede the declaration, and a
+comment may follow it on the same line. `@sprog da` and `@ language da` are the
+same declaration. Language codes are case-insensitive: `da` or `dansk` selects
+Danish, `en` or `english` selects English. Any other code, and a language
+declaration after another declaration, is an error. A file without the
+declaration is English.
+
+The language of a file selects its keywords and the Danish names of builtins.
+It never renames what the author declares, and it never changes how values
+behave.
+
+### Keywords
+
+| Danish | English | Danish | English |
+|--------|---------|--------|---------|
+| `skel` | `match` | `hvis` | `if` |
+| `ellers` | `else` | `med` | `with` |
+| `undtagelse` | `exception` | `omfang` | `scope` |
+| `på` | `on` | `aktør` | `actor` |
+| `start` | `spawn` | `effekt` | `effect` |
+| `modul` | `module` | `importer` | `import` |
+| `brug` | `use` | `træk` | `trait` |
+| `hvor` | `where` | `lad` | `let` |
+| `gør` | `do` | `så` | `then` |
+| `returner` | `return` | `håndter` | `handle` |
+| `genoptag` | `resume` | `udfør` | `perform` |
+| `Sandt`, `sandt` | `True` | `Falskt`, `falskt` | `False` |
+| `og` | `and` | `eller` | `or` |
+
+`og` binds more tightly than `eller`; both work in Boolean expressions and
+between rule goals. English keywords, `&&` and `||` remain available. A keyword
+may also be used as a parameter or field name (`start`, `under`); the name keeps
+the Danish spelling. `indud` marks an `inout` parameter, `delt` a `shared` type,
+and `@ eksport` / `@ afhæng` are `@ export` / `@ depend`.
+
+### Danish names for builtins, types and constructors
+
+A Danish file may call a builtin by its Danish name, and write builtin types
+and the constructors of `Option` and `Result` in Danish:
+
+| Danish | English | Danish | English |
+|--------|---------|--------|---------|
+| `Heltal` | `Int` | `Kommatal` | `Float` |
+| `Tekst` | `String` | `Boolsk` | `Bool` |
+| `Tegn` | `Char` | `Liste` | `List` |
+| `Naturligt` | `Nat` | `Intet` | `None` |
+| `Noget` | `Some` | `Fejl` | `Err` |
+
+A Danish name refers to the builtin only when neither the file nor a module it
+imports with a plain `@ importer` declares that name. Declared names — functions,
+rules, bindings, parameters, fields, types and constructors — always mean what
+the author declared, in every file:
+
+```runa
+@ sprog da
+# Kontrol = Godkendt | Fejl      -- a user constructor named Fejl
+# Sag(beløb: Heltal)
+> vis(s: Sag) -> Tekst { "sag" } -- a user function named vis
+= sag = Sag(beløb = 5)
+= beløb = sag.beløb
+@ print(vis(sag)) -- sag
+@ print("""Beløb: {{beløb}}""") -- Beløb: 5
+@ print(show(Fejl)) -- Fejl
+```
+
+`vis(sag)` calls the user function; interpolation always uses the builtin
+`show`.
+
+Here `Fejl` is the declared `Kontrol` constructor, and calculation schemas and
+results publish it as `"Fejl"`. Where no user declaration exists, `Fejl(…)`,
+`Noget(…)` and `Intet` construct the built-in `Result` and `Option` values,
+which are always published and shown under their English names `Err`, `Some`
+and `None`. A name after `.` is always a field or member name, never a builtin.
+
+Names cross language boundaries unchanged: an English file that imports a Danish
+module calls its functions by their declared Danish names (`tæl(1)`), and a
+Danish file that imports an English module calls `tag(…)` or `hale(…)` as
+declared there. English files do not know the Danish names; `hale([1, 2])` in an
+English file is an undefined name unless the program declares it.
+
+Diagnostics in a Danish file name builtins, types and keywords the way the
+source line spells them (`fold`, not `foldl`; `returner`, not `return`).
+
+| Danish | English |
+|--------|---------|
+| `vis` | `show` |
+| `skriv` | `print` |
+| `vis_heltal` | `show_int` |
+| `vis_kommatal` | `show_float` |
+| `kvrod` | `sqrt` |
+| `potens` | `pow` |
+| `til_kommatal` | `to_float` |
+| `afrund` | `round` |
+| `gulv` | `floor` |
+| `længde` | `length` |
+| `tekst_længde` | `string_length` |
+| `opdel` | `split` |
+| `saml` | `join` |
+| `indeholder` | `contains` |
+| `starter_med` | `starts_with` |
+| `ender_med` | `ends_with` |
+| `erstat` | `replace` |
+| `til_store` | `to_upper` |
+| `til_små` | `to_lower` |
+| `deltekst` | `substring` |
+| `tegn_ved` | `char_at` |
+| `indeks_af` | `index_of` |
+| `formater_kommatal` | `format_float` |
+| `fortolk_heltal` | `parse_danish_int` |
+| `fortolk_kommatal` | `parse_danish_float` |
+| `tekst_tegn` | `string_chars` |
+| `hoved` | `head` |
+| `hale` | `tail` |
+| `nte` | `nth` |
+| `vend` | `reverse` |
+| `tilføj` | `push` |
+| `område` | `range` |
+| `afbild` | `map` |
+| `filtrer` | `filter` |
+| `fold` | `foldl` |
+| `sorter` | `sort` |
+| `sorter_efter` | `sort_by` |
+| `nogen` | `any` |
+| `alle` | `all` |
+| `flad_afbild` | `flat_map` |
+| `par` | `zip` |
+| `numerer` | `enumerate` |
+| `tag_mens` | `take_while` |
+| `spring_mens` | `drop_while` |
+| `sum_liste` | `sum_list` |
+| `unikke` | `distinct` |
+| `tæl_efter` | `count_by` |
+| `opdel_efter` | `partition` |
+| `stykker` | `chunked` |
+| `abonner` | `subscribe` |
+| `læs_fil` | `read_file` |
+| `skriv_fil` | `write_file` |
+| `tilføj_fil` | `append_file` |
+| `fil_eksisterer` | `file_exists` |
+| `læs_linjer` | `read_lines` |
+| `miljø_var` | `env_var` |
+| `json_fortolk` | `json_parse` |
+| `json_hent` | `json_get` |
+| `json_tekst` | `json_string` |
+| `json_tal` | `json_number` |
+| `json_sand` | `json_bool` |
+| `json_liste` | `json_array` |
+| `json_udsend` | `json_emit` |
+| `json_objekt` | `json_object` |
+| `kort_nyt` | `map_new` |
+| `kort_indsæt` | `map_insert` |
+| `kort_hent` | `map_get` |
+| `kort_hent_eller` | `map_get_or` |
+| `kort_indeholder` | `map_contains` |
+| `kort_fjern` | `map_remove` |
+| `kort_nøgler` | `map_keys` |
+| `kort_værdier` | `map_values` |
+| `kort_poster` | `map_entries` |
+| `kort_længde` | `map_len` |
+| `kort_flet` | `map_merge` |
+| `kort_fra` | `map_from` |
+| `sæt_nyt` | `set_new` |
+| `sæt_indsæt` | `set_insert` |
+| `sæt_indeholder` | `set_contains` |
+| `sæt_fjern` | `set_remove` |
+| `sæt_længde` | `set_len` |
+| `sæt_til_liste` | `set_to_list` |
+| `sæt_forening` | `set_union` |
+| `sæt_fælles` | `set_intersect` |
+| `sæt_forskel` | `set_diff` |
+| `sæt_fra_liste` | `set_from_list` |
+| `fra_liste` | `from_list` |
+| `tag` | `take` |
+| `spring` | `skip` |
+| `indsaml` | `collect` |
+| `tæl` | `count` |
+| `vindue` | `window` |
+| `sidste` | `last` |
+| `kombiner_seneste` | `combine_latest` |
+| `flet` | `merge` |
+| `første` | `first` |
+| `reducer` | `reduce` |
+| `start_med` | `start_with` |
+| `sammenkæd` | `concat` |
+| `parvis` | `pairwise` |
+| `spørg` | `ask` |
+| `delt` | `shared` |
+| `ikke` | `not` |
+| `find_alle` | `findall` |
+
+### Numbers, sorting and printed values
+
+`fortolk_heltal` and `fortolk_kommatal` (English `parse_danish_int` and
+`parse_danish_float`) read Danish number text and return
+`Result(Int, String)` and `Result(Float, String)`. Surrounding whitespace is
+ignored. The text is an optional sign, an integer part written either as plain
+digits or with `.` between groups of three digits, and — for `fortolk_kommatal`
+only — an optional `,` followed by digits:
+
+```runa
+@ sprog da
+fortolk_heltal("1.250.000")     -- Ok(1250000)
+fortolk_kommatal("1.234,75")    -- Ok(1234.75)
+fortolk_kommatal("1,5")         -- Ok(1.5)
+fortolk_heltal("1,5")           -- Err("`1,5` is not a Danish integer")
+fortolk_kommatal("1.5")         -- Err("`1.5` is not a Danish decimal number")
+```
+
+`parse_int` and `parse_float` read the language-neutral format with a decimal
+point in every file. `sorter` orders strings by Unicode code point, and `vis`
+prints values exactly as `show` does (`true`, `None`, `Some(3)`, `1.5`). Neither
+depends on the language of the file, so a value sorts and prints the same
+wherever it is used. Order Danish text with `sorter_efter` and an explicit key,
+and format amounts for Danish readers with `formater_kommatal` and `erstat`.

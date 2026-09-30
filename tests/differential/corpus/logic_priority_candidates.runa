@@ -33,7 +33,7 @@ assert(findall(person, selected(person)) == ["bob", "dave", "carol"])
 | exception grant duplicated("ann") -> granted("ann") under flagged("ann")
 @ print(show(findall(person, duplicated(person))))
 
-| exception available override_only(p) -> True under person(p)
+| override_only(p) -> True under person(p)
 | has_selected() -> override_only(_)
 assert(findall(person, override_only(person)) == ["ann", "bob"])
 assert(has_selected())

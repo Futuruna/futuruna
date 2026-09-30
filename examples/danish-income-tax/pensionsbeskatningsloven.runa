@@ -2,12 +2,12 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
-@ importer ./kapitel - 04 - omregning - skatteloft
-@ importer ./pensionsbeskatningsloven - aarsparametre
-@ importer ./pensionsbeskatningsloven - par14b
-@ importer ./pensionsbeskatningsloven - par15 - 15a
-@ importer ./pensionsbeskatningsloven - par15b
-@ importer ./pensionsbeskatningsloven - par22e
+@ importer ./kapitel-04-omregning-skatteloft
+@ importer ./pensionsbeskatningsloven-aarsparametre
+@ importer ./pensionsbeskatningsloven-par14b
+@ importer ./pensionsbeskatningsloven-par15-15a
+@ importer ./pensionsbeskatningsloven-par15b
+@ importer ./pensionsbeskatningsloven-par22e
 
 -- Pensionsbeskatningsloven -- Personskatteloven-afhængigheder.
 --

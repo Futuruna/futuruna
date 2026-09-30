@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 
 = personskatteloven_par4_kursgevinst_scenarier_metadata = Metadata(
     attachments = (

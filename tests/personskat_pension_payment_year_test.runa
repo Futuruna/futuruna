@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ../examples / danish - income - tax / pensionsbeskatningsloven
+@ importer ../examples/danish-income-tax/pensionsbeskatningsloven
 
 | tidsbetaling(forfald: Heltal, betaling: Heltal, rettidig: Boolsk) -> Pbl18Årsbetaling(
     beløb_kroner = 40000,

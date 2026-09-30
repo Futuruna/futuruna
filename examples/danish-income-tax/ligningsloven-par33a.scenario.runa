@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par33a
+@ importer ./ligningsloven-par33a
 
 | ll33a_scenarie_danske_dage(første_dato: Dato, antal: Heltal, art: Ligningslov33ADanskOpholdsart) -> map(
     range(0, antal),

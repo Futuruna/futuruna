@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./kalenderdato
-@ importer ./ligningsloven - par10 - par11 - underhold
+@ importer ./ligningsloven-par10-par11-underhold
 @ importer ./metadata
 
 # Børnebidragslov19KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)

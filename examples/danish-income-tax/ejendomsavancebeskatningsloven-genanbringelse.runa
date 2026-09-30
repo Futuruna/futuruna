@@ -3,7 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./afskrivningsloven
-@ importer ./ejendomsavancebeskatningsloven - par5 - par5a
+@ importer ./ejendomsavancebeskatningsloven-par5-par5a
 
 # EblGenanbringelseKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 

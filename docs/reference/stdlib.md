@@ -1,7 +1,8 @@
 ---
-feature_stage: stable
+feature_stage: mixed
 feature_stage_surfaces:
   - documented-stdlib
+  - http-builtins
 ---
 
 # Standard Library
@@ -108,19 +109,19 @@ the string end. `char_at` returns `""` when the index is out of range.
 | `char_at` | `(String, Int) -> String` | Single Unicode scalar value by index |
 | `index_of` | `(String, String) -> Int` | Find substring scalar position (-1 if absent) |
 | `format_float` | `(Float, Int) -> String` | Format float with N decimal places |
-| `parse_int` | `String -> Int` | Parse string to integer (0 on failure) |
-| `parse_float` | `String -> Float` | Parse string to float (0.0 on failure) |
+| `parse_int` | `String -> Result(Int, String)` | Parse an integer; `Err` for invalid text |
+| `parse_float` | `String -> Result(Float, String)` | Parse a finite number; `Err` for invalid text |
 | `string_chars` | `String -> List(String)` | Explode into Unicode scalar values |
 
 `format_float` accepts precision from 0 through 65535 inclusive. Values outside
 this range fail with a diagnostic before formatting; calculations retain their
 case-local error handling. Arguments are evaluated once, in source order.
 
-`parse_int` and `parse_float` do not use the file's language or the computer's
-locale to interpret separators. `parse_float("1,5")` and `parse_int("1.000")`
-return zero, just like other invalid input; a zero result does not establish
-that parsing succeeded. These functions return plain numbers, not `Option` or
-`Result`. Validate external numeric text before using it in a calculation.
+`parse_int` and `parse_float` trim surrounding whitespace and do not use the
+file's language or the computer's locale to interpret separators:
+`parse_float("1,5")` and `parse_int("1.000")` are `Err`, like any other invalid
+input. `parse_float` rejects `inf` and `NaN`. Use `= n <- parse_int(text)` to
+return the error from the enclosing function, or `match` on `Ok`/`Err`.
 
 ```runa
 = parts = split("a,b,c", ",")         -- ["a", "b", "c"]
@@ -132,7 +133,7 @@ that parsing succeeded. These functions return plain numbers, not `Option` or
 = ch = char_at("hello", 0)             -- "h"
 = pos = index_of("hello", "ll")        -- 2
 = fmt = format_float(3.14159, 2)        -- "3.14"
-= n = parse_int("42")                  -- 42
+= n = parse_int("42")                  -- Ok(42)
 = chars = string_chars("abc")           -- ["a", "b", "c"]
 = replaced = replace("foo bar foo", "foo", "baz")  -- "baz bar baz"
 ```
@@ -196,6 +197,11 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 | `partition` | `(List(a), a -> Bool) -> (List(a), List(a))` | Split by predicate |
 | `chunked` | `(List(a), Int) -> List(List(a))` | Split into chunks of size N; a size of 0 or less is an error |
 | `subscribe` | `(List(a), a -> ()) -> ()` | Iterate and apply callback |
+
+The callback of `filter`, `any`, `all` and `find` answers `Bool`. A callback
+whose result type is known to be anything else is a type error; a callback
+whose result type is only known at run time (for example a generic function)
+stops the program with a runtime error when it returns a non-`Bool` value.
 
 Integer `sum_list` and stream `sum` reject an overflowing intermediate total.
 Integer `abs` also fails if its result is outside the signed 64-bit range.
@@ -307,12 +313,12 @@ These operators work on reactive streams (declared with `~`). They complement th
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `tap` | `(Stream(a), a -> ()) -> Stream(a)` | Side-effect observation: calls fn for each element, returns stream unchanged |
-| `catch` | `(Stream(a), Err -> Stream(a)) -> Stream(a)` | Error recovery: in sync mode, pass-through (no errors in Vec) |
+| `catch` | `(Stream(a), String -> Stream(a)) -> Stream(a)` | When the stream ends with an error, continue with the recovery stream |
 | `first` | `Stream(a) -> a` | First element; raises `first: empty list` when empty |
 | `reduce` | `(Stream(a), b, (b, a) -> b) -> b` | Terminal fold: reduce stream to a single value |
 | `start_with` | `(Stream(a), a) -> Stream(a)` | Prepend a value to the front of a stream |
 | `concat` | `(Stream(a), Stream(a)) -> Stream(a)` | Concatenate two streams sequentially |
-| `pairwise` | `Stream(a) -> Stream((a, a))` | Emit consecutive pairs: `[1,2,3]` becomes `[(1,2),(2,3)]` |
+| `pairwise` | `Stream(a) -> Stream((a, a))` | Emit consecutive pairs (finite streams): `[1,2,3]` becomes `[(1,2),(2,3)]` |
 
 ```runa
 ~ nums = from_list([1, 2, 3, 4, 5])
@@ -391,9 +397,9 @@ File operations are invoked with the `@` rune (effect boundary).
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `read_file` | `String -> String` | Read entire file contents |
-| `write_file` | `(String, String) -> ()` | Write/overwrite file |
-| `append_file` | `(String, String) -> ()` | Append to file |
+| `read_file` | `String -> Result(String, String)` | Read entire file contents; `Err` when the file cannot be read |
+| `write_file` | `(String, String) -> ()` | Write/overwrite file; a failed write stops the program with an error |
+| `append_file` | `(String, String) -> ()` | Append to file; a failed write stops the program with an error |
 | `file_exists` | `String -> Bool` | Check if file exists |
 | `read_lines` | `String -> List(String)` | Read file as list of lines |
 | `env_var` | `String -> String` | Read environment variable |
@@ -401,7 +407,7 @@ File operations are invoked with the `@` rune (effect boundary).
 ```runa
 @ write_file("output.txt", "hello world")
 = exists = file_exists("output.txt")       -- true
-= content = read_file("output.txt")        -- "hello world"
+= content = read_file("output.txt")        -- Ok("hello world")
 = lines = read_lines("output.txt")         -- ["hello world"]
 @ append_file("output.txt", "\nline 2")
 = home = env_var("HOME")                   -- "/Users/..."
@@ -434,7 +440,7 @@ JSON values are represented as `String` (serialized JSON text). Auto-adds `serde
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `json_parse` | `String -> String` | Validate and return JSON string |
+| `json_parse` | `String -> Result(String, String)` | Validate JSON; `Ok` returns the text, `Err` describes invalid input |
 | `json_get` | `(String, String) -> String` | Access object field (returns JSON text) |
 | `json_string` | `String -> String` | Extract string value (unquoted) |
 | `json_number` | `String -> Float` | Extract number |
@@ -469,8 +475,8 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `http_get` | `String -> String` | GET request, return response body |
-| `http_post` | `(String, String) -> String` | POST with body, return response |
+| `http_get` | `String -> Result(String, String)` | GET request; `Ok` body for a 2xx response, `Err` for other statuses, connection failures and a 30 s timeout |
+| `http_post` | `(String, String) -> Result(String, String)` | POST with body; non-2xx, connection errors and timeouts are `Err` |
 | `http_serve` | `(Int, (String, String, String) -> (Int, String, String)) -> ()` | Start HTTP server |
 | `http_respond` | `(Int, String, String) -> (Int, String, String)` | Build response tuple |
 | `http_request_path` | `Request -> String` | Extract request URL path |
@@ -481,10 +487,10 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 
 ```runa
 = body = http_get("https://httpbin.org/get")
-@ print(body)
+@ print(match body { | Ok(text) -> text | Err(e) -> "failed: " + e })
 
 = response = http_post("https://httpbin.org/post", "{\"key\": \"value\"}")
-@ print(response)
+@ print(match response { | Ok(text) -> text | Err(e) -> "failed: " + e })
 ```
 
 ### Server
@@ -508,7 +514,7 @@ The handler receives three string arguments: request path, HTTP method, and requ
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `spawn` | `(Actor, a) -> ActorHandle` | Create actor with initial state |
-| `ask` | `(ActorHandle, Msg) -> a` | Send message, get response |
+| `ask` | `(ActorHandle, Msg) -> a` | Handle the message and return the actor's new state |
 | `shared` | `a -> shared(a)` | Wrap value in `Arc` for thread-safe sharing |
 
 Actors are defined with `> actor`, messages sent with `<-`:

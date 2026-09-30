@@ -88,7 +88,7 @@ fn finite_rule_dispatch_domain_matches_interpreter_generated_rust_and_smt() {
             "parity_exception_boolean_miss",
         ] {
             assert!(
-                verified_stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),
+                verified_stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
                 "missing finite-domain proof for {invariant}:\n{verified_stdout}"
             );
         }
@@ -160,7 +160,7 @@ fn qualified_namespace_calls_match_interpreter_generated_rust_and_smt() {
             "qualified_transitive_call_chain_isolated",
         ] {
             assert!(
-                verified_stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),
+                verified_stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
                 "missing qualified namespace proof for {invariant}:\n{verified_stdout}"
             );
         }
@@ -242,7 +242,8 @@ fn unused_qualified_nominal_metadata_does_not_perturb_root_smt() {
     );
     if Command::new("z3").arg("--version").output().is_ok() {
         assert!(
-            stdout.contains("PROVED: |unused_qualified_metadata_is_isolated| holds for all values"),
+            stdout
+                .contains("PROVED: |unused_qualified_metadata_is_isolated| holds for every input"),
             "missing metadata-isolation proof:\n{stdout}"
         );
     }
@@ -323,7 +324,7 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             "total_sequential_rule_block_is_symbolic",
         ] {
             assert!(
-                stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),
+                stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
                 "missing proof for {invariant}:\n{stdout}"
             );
         }

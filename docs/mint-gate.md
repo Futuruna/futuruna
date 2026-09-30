@@ -19,6 +19,8 @@ FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" cargo test --quiet
 ./target/release/runa test
 ./target/release/runa test --run
 ./target/release/runa expect tests/expect
+./target/release/runa expect tests/issue-repros
+./scripts/docs-oracle.sh
 ./target/release/runa test --check-codegen
 ./target/release/runa test --roundtrip tests
 ./target/release/runa run tests/codegen_integration_regression_test.runa
@@ -69,12 +71,18 @@ These lanes are the core mint contract because they cover:
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations
+- the issue reproduction gate in `tests/issue-repros/`, which lists every
+  reproduction whose diagnostics or interpreter/compiled output changed
+- the docs oracle: every documentation example that states its expected
+  output is run and must print exactly that, before and after `runa fmt`
+- the tool oracles in `tests/tool_oracles.rs`: invariants `verify` proves hold
+  at Int boundary inputs, and `fmt` keeps program output and metadata
 - Rust codegen validation across the test corpus
 - interpreter-vs-compiled roundtrip parity across the test corpus
 - the blocking codegen regression program
 - database-retirement diagnostics and preserved host-boundary behavior
 - WASM export build canaries, with an explicit skip when `wasm-pack` is unavailable
-- real example programs outside `tests/` that have previously exposed compiler bugs
+- real example programs outside `tests/` that have exposed compiler bugs
 
 Intentionally omitted from the core mint gate:
 
@@ -109,9 +117,11 @@ gate. It runs `runa test tests/downstream` as well as the native checks, so
 imported subject initialization is exercised by the interpreter even when a
 fixture is excluded from generic roundtrip testing.
 
-Database retirement regressions run in the ordinary Rust test lane. They check
-explicit errors for removed persistence syntax and builtins, plus preserved
-in-memory logic, typed calculations, ordinary assertions, and scope behavior.
+Unknown surface form regressions run in the ordinary Rust test lane
+(`tests/unknown_surface_forms.rs`). They check located errors for unknown
+annotations, undefined functions, `assert`/`retract`/`abort` statements and
+`? name by { ... }` blocks, plus in-memory logic, typed calculations, ordinary
+assertions, and scope behavior.
 
 The WASM canary lane discovers fixtures marked with `-- wasm-build-canary` and
 runs `runa wasm` for each one. By default, a missing `wasm-pack` is reported as

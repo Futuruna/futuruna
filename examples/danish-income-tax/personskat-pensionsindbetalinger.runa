@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./personskat - beregningskontrol
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-beregningskontrol
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 -- Samordning af to kildeveje, ikke konstruerede PBL § 18-betalingsfakta.
 -- PBL §§ 16, 18 og 19: fælles rategrænse og arbejdsgiverprioritet.

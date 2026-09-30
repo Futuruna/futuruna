@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 
 -- Scenarier for Afskrivningsloven §§ 28-37.
 -- Lovtekst og typede kildeankre ligger i det importerede lovmodul.

@@ -40,7 +40,7 @@ Each `.runa` case uses source comments as directives:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|verify|lint-library|lint-library-imports`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|audit|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
@@ -84,21 +84,38 @@ The starter layout is:
 Future subdirectories should be named by behavior, not by bug number. A bug
 number can appear in the file name when that helps traceability.
 
+## Issue Reproductions
+
+`tests/issue-repros/` is a regression gate made of the reproductions from filed
+issues. Each case is one minimal program named `issue<N>-<behavior>.runa` (or
+a directory `issue<N>-<behavior>/` when the reproduction spans files) with the
+same directives as above. Output that the issue is about is pinned with a
+golden file under `tests/issue-repros/golden/`; when both execution modes
+apply, the issue has an `interp` case and a `run` case sharing one golden. A
+changed golden therefore lists every reproduction whose interpreter or compiled
+output moved, and a reviewer decides whether it is a fix or a regression.
+Reproductions that need a CLI protocol `runa expect` does not drive (LSP,
+calculation round trips) live in the matching `tests/*.rs` file instead.
+
+```bash
+./target/release/runa expect tests/issue-repros
+```
+
 ## Lane Mapping
 
 Expectation suites are the narrow compiler-contract lane:
 
-- `mint`: runs `runa expect tests/expect` as a fast blocking check.
+- `mint`: runs `runa expect tests/expect` and `runa expect tests/issue-repros`
+  as fast blocking checks.
 - `canary`: holds authored realistic programs that mix subsystems.
 - `downstream-canary`: models library-consumer import usage.
 - `differential`: searches for unknown semantic divergence.
-- `proof-backed checking`: reduces trust in selected compiler transformations.
 
 When a user reports a compiler bug, choose the smallest permanent lane that
 matches the failure:
 
 - exact diagnostic or pass/fail behavior: add `tests/expect/`
+- reproduction from a filed issue: add `tests/issue-repros/`
 - realistic workflow regression: add `tests/canary/`
 - library-consumer/import regression: add `tests/downstream/`
 - unknown semantic drift: add or minimize into `tests/differential/`
-- proof-elaboration trust issue: add proof-backed validation or a proof snapshot

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./ejendomsavancebeskatningsloven - par6d
+@ importer ./ejendomsavancebeskatningsloven-par6d
 
 = ebl_par6d_scenarier_metadata = Metadata(
     attachments = (

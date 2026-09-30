@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kildeskatteloven - arbejdsudleje
+@ importer ./kildeskatteloven-arbejdsudleje
 
 | arbejdsudleje_scenarie_parter(personstatus: KildeskattelovArbejdsudlejePersonstatus, ansættelsesforhold: KildeskattelovArbejdsudlejeAnsættelsesforhold, udlejerstatus: KildeskattelovArbejdsudlejeUdlejerstatus) -> KildeskattelovArbejdsudlejeParter(
     person_identifikation = "Oliver",

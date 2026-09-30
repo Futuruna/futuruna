@@ -158,8 +158,8 @@ The proof rune `?` fails the run if the expected amount stops being true.
 ## 5. Audit an Actual Contradiction
 
 The reusable tax model is coherent. To exercise the experimental auditor, this
-separate fixture adds two exception branches that answer the same question for
-the same family:
+separate fixture adds a base rule and two exception branches that answer the
+same question for the same family:
 
 ```runa
 @ import ./tutorial_tax
@@ -171,6 +171,7 @@ the same family:
 
 = family_tax = TaxCase(person = parent)
 
+| reduced_rate_applies() -> False
 | exception family_policy reduced_rate_applies() -> family_tax.rate_percent() == 20 under length(parent.children) >= 2
 | exception audit_only_income_exclusion reduced_rate_applies() -> False under parent.annual_income >= 500000
 ```

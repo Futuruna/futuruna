@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ../examples / danish - income - tax / ligningsloven - kontingenter - gaver
+@ importer ../examples/danish-income-tax/ligningsloven-kontingenter-gaver
 
 -- Fiktive betalinger under samme årsforpligtelse. Ingen personlige bilag.
 | prøve_gave_med_fakta(betalings_id: Tekst, aftale_id: Tekst, modtager_id: Tekst, år: Heltal, betalt: Heltal, forfalden: Heltal, ordinært: Boolsk, indberettet: Boolsk) -> LigningslovGaveFakta(

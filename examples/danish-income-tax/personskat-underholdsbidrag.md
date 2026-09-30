@@ -56,9 +56,8 @@ ikke beløb der skal være ens. Beløbene er ikke generelle skattebesparelser.
 ## Skabelon og afgrænsning
 
 Generér skabelonen fra den aktuelle model, gennemgå roller og overfør faktiske
-oplysninger. Kopier ikke blot et nyt fingeraftryk til gamle sager. Følg
-[migrationsvejledningen](../../docs/compatibility-guides/0.2.x.md)
-ved genbrug af tidligere input og resultater.
+oplysninger. Kopier ikke blot et nyt fingeraftryk til gamle sager; genberegn
+tidligere input og resultater fra den friske skabelon.
 
 Brug den [kontrollerede compiler](../../website/public/ai-setup.md#tax-audit-runtime-check)
 og den [danske resultatvisning](personskat-validity.md#læs-dit-gemte-resultat-på-dansk).

@@ -305,15 +305,84 @@ pub enum CalculationInputStatus {
     Ready,
 }
 
+/// Key of an unfilled value in a generated template. No input type accepts
+/// an object with this key, so an unedited template never decodes as a case.
+pub const TEMPLATE_PLACEHOLDER_KEY: &str = "$fill";
+
+pub fn is_template_placeholder(value: &JsonValue) -> bool {
+    value
+        .as_object()
+        .is_some_and(|object| object.contains_key(TEMPLATE_PLACEHOLDER_KEY))
+}
+
+fn template_placeholder(expected: String) -> JsonValue {
+    let mut object = JsonMap::new();
+    object.insert(
+        TEMPLATE_PLACEHOLDER_KEY.to_string(),
+        JsonValue::String(expected),
+    );
+    JsonValue::Object(object)
+}
+
+/// The placeholder for an unfilled value of `ty`, as generated templates
+/// write it; spreadsheet adapters use it for a blank required cell.
+pub fn template_placeholder_for(ty: &CalculationTypeRef) -> JsonValue {
+    template_placeholder(ty.display_name())
+}
+
+/// Input-relative paths (`$.field`) of unfilled placeholders in one case.
+pub fn template_placeholder_paths(input: &JsonValue) -> Vec<String> {
+    let mut found = Vec::new();
+    collect_template_placeholders(input, "$", &mut found);
+    found.into_iter().map(|(path, _)| path).collect()
+}
+
+fn collect_template_placeholders(value: &JsonValue, path: &str, found: &mut Vec<(String, String)>) {
+    if is_template_placeholder(value) {
+        let expected = value[TEMPLATE_PLACEHOLDER_KEY]
+            .as_str()
+            .unwrap_or("value")
+            .to_string();
+        found.push((path.to_string(), expected));
+    } else if let Some(object) = value.as_object() {
+        for (key, item) in object {
+            collect_template_placeholders(item, &format!("{path}.{key}"), found);
+        }
+    } else if let Some(items) = value.as_array() {
+        for (index, item) in items.iter().enumerate() {
+            collect_template_placeholders(item, &format!("{path}[{index}]"), found);
+        }
+    }
+}
+
 impl CalculationInputCase {
-    fn readiness_diagnostic(&self, index: usize) -> Option<CalculationCaseDiagnostic> {
-        (self.input_status != Some(CalculationInputStatus::Ready)).then(|| {
-            CalculationCaseDiagnostic {
+    /// Unfilled placeholders and a missing readiness acknowledgement each
+    /// keep a case from running; every unfilled field is listed.
+    fn unfinished_diagnostics(&self, index: usize) -> Vec<CalculationCaseDiagnostic> {
+        let mut placeholders = Vec::new();
+        collect_template_placeholders(
+            &self.input,
+            &format!("$.cases[{index}].input"),
+            &mut placeholders,
+        );
+        let mut diagnostics: Vec<_> = placeholders
+            .into_iter()
+            .map(|(path, expected)| CalculationCaseDiagnostic {
+                case_id: self.case_id.clone(),
+                path,
+                message: format!(
+                    "template placeholder is not filled; replace it with a `{expected}` value"
+                ),
+            })
+            .collect();
+        if self.input_status != Some(CalculationInputStatus::Ready) {
+            diagnostics.push(CalculationCaseDiagnostic {
                 case_id: self.case_id.clone(),
                 path: format!("$.cases[{index}].input_status"),
                 message: "case inputs are not marked ready; review all supplied values, including zeros, empty collections and optional facts, then set input_status to `ready`. Readiness is not verification of documents or model correctness".to_string(),
-            }
-        })
+            });
+        }
+        diagnostics
     }
 }
 
@@ -1337,6 +1406,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
     let mut candidates = Vec::new();
     let mut diagnostics = Vec::new();
     let mut pending_markers = Vec::new();
+    let callables = host_effects::LocalCallables::new(stmts);
 
     for stmt in stmts {
         if let Stmt::Annot(name, args) = stmt {
@@ -1365,6 +1435,18 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
 
         match endpoint_from_stmt(stmt, stmts, checker) {
             Ok(mut candidate) => {
+                if let Some(effect) =
+                    callables.first_reachable_effect(&[AstChild::Stmt(stmt)], true)
+                {
+                    diagnostics.push(Diagnostic::error_at(
+                        effect.span,
+                        format!(
+                            "calculation `{}` performs the effect {}; calculations must be pure, so pass external data in through the input",
+                            candidate.name,
+                            host_effects::reached_effect_location(&effect)
+                        ),
+                    ));
+                }
                 candidate.label = label;
                 candidates.push(candidate);
             }
@@ -1527,7 +1609,6 @@ fn endpoint_from_stmt(
                     effects.join(", ")
                 ));
             }
-            reject_direct_effects(name, body)?;
             Ok(EndpointCandidate {
                 name: name.clone(),
                 label: None,
@@ -1577,7 +1658,6 @@ fn endpoint_from_stmt(
                 if let Some(output_name) = inferred_rule_output(rule, checker) {
                     output_names.insert(output_name);
                 }
-                reject_rule_direct_effects(&name, rule)?;
             }
             if output_names.is_empty() {
                 return Err(format!(
@@ -1661,45 +1741,6 @@ fn inferred_rule_output(rule: &Rule, checker: &TypeChecker) -> Option<String> {
         }
         Rule::ReactiveScope { .. } => None,
     }
-}
-
-fn reject_direct_effects(name: &str, expr: &Expr) -> Result<(), String> {
-    let mut effects = BTreeSet::new();
-    walk_ast_expr(expr, &mut |child| {
-        if let AstChild::Expr(Expr {
-            kind: ExprKind::Effect(effect, _),
-            ..
-        }) = child
-        {
-            effects.insert(effect.clone());
-        }
-    });
-    if effects.is_empty() {
-        Ok(())
-    } else {
-        Err(format!(
-            "calculation `{}` directly performs effects ({}); move external input outside the calculation boundary",
-            name,
-            effects.into_iter().collect::<Vec<_>>().join(", ")
-        ))
-    }
-}
-
-fn reject_rule_direct_effects(name: &str, rule: &Rule) -> Result<(), String> {
-    let expressions: Vec<&Expr> = match rule {
-        Rule::Clause { body, .. } => body.iter().collect(),
-        Rule::Default {
-            value, condition, ..
-        }
-        | Rule::Exception {
-            value, condition, ..
-        } => std::iter::once(value).chain(condition.iter()).collect(),
-        Rule::ReactiveScope { .. } => Vec::new(),
-    };
-    for expression in expressions {
-        reject_direct_effects(name, expression)?;
-    }
-    Ok(())
 }
 
 fn primitive_name(name: &str) -> Option<&'static str> {
@@ -2869,6 +2910,9 @@ fn substitute_contract_type(
     }
 }
 
+/// Every value the user must supply is a placeholder object; only the
+/// structure fixed by the contract (product fields, a sole variant) is
+/// spelled out. A choice between variants is itself a placeholder.
 fn template_value(
     ty: &CalculationTypeRef,
     contract: &CalculationContract,
@@ -2876,28 +2920,16 @@ fn template_value(
     active: &mut BTreeSet<String>,
 ) -> JsonValue {
     let ty = substitute_contract_type(ty, substitutions);
-    match ty {
-        CalculationTypeRef::Primitive { name } => match name.as_str() {
-            "Int" => JsonValue::Number(0.into()),
-            "Float" => JsonValue::Number(JsonNumber::from_f64(0.0).expect("finite zero")),
-            "Bool" => JsonValue::Bool(false),
-            "Char" => JsonValue::String("x".to_string()),
-            _ => JsonValue::String(String::new()),
-        },
-        CalculationTypeRef::Optional { .. } | CalculationTypeRef::Unit => JsonValue::Null,
-        CalculationTypeRef::List { .. } | CalculationTypeRef::Set { .. } => {
-            JsonValue::Array(Vec::new())
-        }
-        CalculationTypeRef::Map { .. } => JsonValue::Object(JsonMap::new()),
-        CalculationTypeRef::TypeParameter { .. } => JsonValue::Null,
+    match &ty {
+        CalculationTypeRef::Unit => JsonValue::Null,
         CalculationTypeRef::Named { name, arguments } => {
-            let Some(definition) = contract.definition(&name) else {
-                return JsonValue::Null;
+            let Some(definition) = contract.definition(name) else {
+                return template_placeholder(ty.display_name());
             };
             if !active.insert(name.clone()) {
-                return JsonValue::Null;
+                return template_placeholder(ty.display_name());
             }
-            let local = definition_substitutions(definition, &arguments);
+            let local = definition_substitutions(definition, arguments);
             let value = if let Some(variant) = product_variant(definition) {
                 let mut object = JsonMap::new();
                 for field in &variant.fields {
@@ -2907,14 +2939,24 @@ fn template_value(
                     );
                 }
                 JsonValue::Object(object)
-            } else if let Some(variant) = definition.variants.first() {
+            } else if let [variant] = definition.variants.as_slice() {
                 variant_template(variant, contract, &local, active)
             } else {
-                JsonValue::Null
+                template_placeholder(format!(
+                    "{}: one of {}",
+                    ty.display_name(),
+                    definition
+                        .variants
+                        .iter()
+                        .map(|variant| variant.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))
             };
-            active.remove(&name);
+            active.remove(name);
             value
         }
+        _ => template_placeholder(ty.display_name()),
     }
 }
 
@@ -4277,7 +4319,6 @@ struct CalculationWorker<'a> {
     program: CalculationProgram<'a>,
     interpreter: Interpreter,
     base_env: Env,
-    base_actor_instances: BTreeMap<String, (Value, String)>,
     base_rng_state: u64,
     initialization_error: Option<String>,
     needs_reinitialization: bool,
@@ -4305,6 +4346,7 @@ impl<'a> CalculationWorker<'a> {
     fn from_program(program: CalculationProgram<'a>) -> Self {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
+        interpreter.deny_host_effects("a calculation");
         interpreter.source_dir = program.source_dir.clone();
         interpreter.install_rule_dispatch_return_metadata(
             program.rule_dispatch_return_types,
@@ -4323,13 +4365,11 @@ impl<'a> CalculationWorker<'a> {
                     program.entry
                 )
             });
-        let base_actor_instances = interpreter.actor_instances.clone();
         let base_rng_state = interpreter.rng_state;
         Self {
             program,
             interpreter,
             base_env,
-            base_actor_instances,
             base_rng_state,
             initialization_error,
             needs_reinitialization: false,
@@ -4375,7 +4415,6 @@ impl<'a> CalculationWorker<'a> {
         self.interpreter.active_rule_scopes.clear();
         self.interpreter.output.clear();
         self.interpreter.handler_stack.clear();
-        self.interpreter.actor_instances = self.base_actor_instances.clone();
         self.interpreter.step_count = 0;
         self.interpreter.budget_exceeded = false;
         self.interpreter.rng_state = self.base_rng_state;
@@ -4519,27 +4558,28 @@ fn invoke_calculation_cases_with_jobs(
         output.diagnostics = diagnostics;
         return output;
     }
-    // Do not initialize an interpreter for an entirely unfinished batch. A
-    // draft in a mixed batch also never enters a calculation worker.
+    // Do not initialize an interpreter for an entirely unfinished batch. An
+    // unfinished case in a mixed batch also never enters a calculation worker.
     let mut readiness_outcomes = Vec::new();
     let cases: Vec<_> = envelope
         .cases
         .iter()
         .enumerate()
         .filter_map(|(index, case)| {
-            if let Some(diagnostic) = case.readiness_diagnostic(index) {
-                readiness_outcomes.push((index, CalculationCaseOutcome::Diagnostic(diagnostic)));
-                None
-            } else {
+            let diagnostics = case.unfinished_diagnostics(index);
+            if diagnostics.is_empty() {
                 Some((index, case))
+            } else {
+                readiness_outcomes.push((index, CalculationCaseOutcome::Diagnostics(diagnostics)));
+                None
             }
         })
         .collect();
     let worker_count = calculation_worker_count(cases.len(), requested_jobs);
     if worker_count == 0 {
         for (_, outcome) in readiness_outcomes {
-            if let CalculationCaseOutcome::Diagnostic(diagnostic) = outcome {
-                output.diagnostics.push(diagnostic);
+            if let CalculationCaseOutcome::Diagnostics(diagnostics) = outcome {
+                output.diagnostics.extend(diagnostics);
             }
         }
         return output;
@@ -4924,22 +4964,26 @@ mod calculation_execution_tests {
 
     #[test]
     fn calculation_rejects_non_finite_intermediates_even_with_boolean_output() {
-        for (body, bad) in [
+        for (body, bad, expected) in [
             (
                 "input.left / input.right > 0.0",
                 serde_json::json!({"left": 1.0, "right": 0.0}),
+                "division by zero",
             ),
             (
                 "input.left / input.right > 0.0",
                 serde_json::json!({"left": 0.0, "right": 0.0}),
+                "division by zero",
             ),
             (
                 "input.left * input.right > 0.0",
                 serde_json::json!({"left": 1e308, "right": 1e308}),
+                "non-finite",
             ),
             (
                 "sqrt(input.left) > 0.0",
                 serde_json::json!({"left": -1.0, "right": 1.0}),
+                "non-finite",
             ),
         ] {
             let source = format!("# Input(left: Float, right: Float)\n@ calculate\n> calculate(input: Input) -> Bool {{ {body} }}\n");
@@ -4962,7 +5006,11 @@ mod calculation_execution_tests {
                 assert_eq!(output.results.len(), 2, "{body}: {output:?}");
                 assert!(output.results.iter().all(|case| case.result == true));
                 assert_eq!(output.diagnostics.len(), 1);
-                assert!(output.diagnostics[0].message.contains("non-finite"));
+                assert!(
+                    output.diagnostics[0].message.contains(expected),
+                    "{body}: {:?}",
+                    output.diagnostics[0].message
+                );
             }
         }
     }
@@ -5298,14 +5346,14 @@ mod calculation_execution_tests {
     }
 
     #[test]
-    fn generated_calculation_cases_require_explicit_readiness() {
+    fn generated_calculation_cases_require_filled_values_and_explicit_readiness() {
         let source = r#"
-# Intake(amount: Int, items: List(Int), optional: Int?, enabled: Bool)
+# Filing = Single | Joint(partner: Int)
+# Intake(amount: Int, items: List(Int), optional: Int?, enabled: Bool, filing: Filing)
 @ calculate
 > echo(input: Intake) -> Intake { input }
 "#;
-        let facts =
-            serde_json::json!({"amount": 0, "items": [], "optional": null, "enabled": false});
+        let facts = serde_json::json!({"amount": 0, "items": [], "optional": null, "enabled": false, "filing": {"$variant": "Single"}});
         let (stmts, contract, _) = runtime_failure_fixture(source, vec![facts.clone()]);
         let mut template = contract.template_envelope();
         assert_eq!(template.futuruna.schema, "futuruna.calculate.input.v2");
@@ -5313,14 +5361,44 @@ mod calculation_execution_tests {
             template.cases[0].input_status,
             Some(CalculationInputStatus::Draft)
         );
-        assert_eq!(template.cases[0].input, facts);
+
+        // An unedited template, even when marked ready, names every value
+        // still to be supplied and runs nothing.
+        template.cases[0].input_status = Some(CalculationInputStatus::Ready);
+        let unedited =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &template, Some(1));
+        assert!(unedited.results.is_empty());
+        let unfilled: BTreeSet<_> = unedited
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.path.as_str())
+            .collect();
+        assert_eq!(
+            unfilled,
+            BTreeSet::from([
+                "$.cases[0].input.amount",
+                "$.cases[0].input.enabled",
+                "$.cases[0].input.filing",
+                "$.cases[0].input.items",
+                "$.cases[0].input.optional",
+            ])
+        );
+        // A placeholder is never a valid value of its type.
+        for field in ["amount", "enabled", "filing", "items", "optional"] {
+            let mut input = facts.clone();
+            input[field] = template.cases[0].input[field].clone();
+            assert!(
+                contract.decode_input(&input).is_err(),
+                "placeholder for `{field}` decoded as a value"
+            );
+        }
+
+        template.cases[0].input = facts.clone();
+        template.cases[0].input_status = Some(CalculationInputStatus::Draft);
         let draft = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &template, Some(1));
         assert!(draft.results.is_empty());
         assert_eq!(draft.diagnostics.len(), 1);
         assert_eq!(draft.diagnostics[0].path, "$.cases[0].input_status");
-        assert!(draft.diagnostics[0]
-            .message
-            .contains("zeros, empty collections"));
 
         template.cases[0].input_status = Some(CalculationInputStatus::Ready);
         let ready = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &template, Some(1));
@@ -5459,6 +5537,7 @@ mod calculation_execution_tests {
 # BoolResult(conditional: Bool, exception_only: Bool)
 
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ calculate("Boolean miss calculation")

@@ -1,10 +1,10 @@
 @ sprog da
 
-@ importer ./doedsboskatteloven - par1 - par30
+@ importer ./doedsboskatteloven-par1-par30
 @ importer ./kalenderdato
 @ importer ./metadata
-@ importer ./personskat - kildeskat25a - kildefakta
-@ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat-kildeskat25a-kildefakta
+@ importer ./personskat-personlig-indkomst-kildefakta
 
 # DødsboskattelovPar9Par22Par44KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

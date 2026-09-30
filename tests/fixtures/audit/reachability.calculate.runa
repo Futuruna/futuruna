@@ -1,4 +1,4 @@
-@ import ./reachability - helper
+@ import ./reachability-helper
 
 # ReachabilityInput(amount: Int)
 # ReachabilityOutput(total: Int)

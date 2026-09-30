@@ -1,6 +1,6 @@
 -- Reviewer #52: omitted parameter annotations do not turn Bool misses into strings.
 | eligible(age) -> True under age >= 18
-| exception adult exception_only(age) -> True under age >= 18
+| adult_only(age) -> True under age >= 18
 | declined(age) -> False under age >= 18
 | named(name) -> True under name == "Ada"
 # BooleanMissClaim(amount: Int)
@@ -14,8 +14,8 @@
 @ print(show(eligible(10) == False))
 @ print(show(not(eligible(10))))
 @ print(show(eligible(10) && True))
-@ print(show(exception_only(10)))
-@ print(show(exception_only(20)))
+@ print(show(adult_only(10)))
+@ print(show(adult_only(20)))
 @ print(show(declined(20)))
 @ print(show(declined(10)))
 @ print(show(named("Ada")))

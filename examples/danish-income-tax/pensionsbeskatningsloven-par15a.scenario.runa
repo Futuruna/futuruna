@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./pensionsbeskatningsloven
-@ importer ./pbl15a - source - fixtures.scenario
+@ importer ./pbl15a-source-fixtures.scenario
 
 -- Fokuserede scenarier for PBL § 15 A's kildefakta og PBL § 18's
 -- deterministiske årsfordeling. Lovtekst og kilder ligger i

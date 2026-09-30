@@ -390,12 +390,13 @@ for entry in logs {
 @ print("  " + report)
 
 -- Round-trip verification
-= parsed = json_parse(report)
-= rt_total = json_get(parsed, "total_entries")
-= rt_p50 = json_get(parsed, "p50_latency_ms")
+= round_trip = match json_parse(report) {
+    | Ok(parsed) -> "total=" + json_get(parsed, "total_entries") + " p50=" + json_get(parsed, "p50_latency_ms") + "ms"
+    | Err(e) -> "FAILED: " + e
+}
 
 @ print("")
-@ print("  Round-trip: total=" + rt_total + " p50=" + rt_p50 + "ms")
+@ print("  Round-trip: " + round_trip)
 
 -- ============================================================================
 -- SUMMARY

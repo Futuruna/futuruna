@@ -3,7 +3,7 @@
 
 -- Positional fields (tuple-style)
 # Option(a) = None | Some(a)
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 # Either(a, b) = Left(a) | Right(b)
 # Tree(a) = Leaf | Node(Tree(a), a, Tree(a))
 
@@ -22,11 +22,11 @@
 = x = Some(42)
 @ print("Some(42) = " + show(x))
 
-= nums = Cons(1, Cons(2, Cons(3, Nil)))
-> list_sum(xs: List(Int)) -> Int {
+= nums = Link(1, Link(2, Link(3, End)))
+> list_sum(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, t) -> h + list_sum(t)
+        | End -> 0
+        | Link(h, t) -> h + list_sum(t)
     }
 }
 @ print("sum [1,2,3] = " + show(list_sum(nums)))
@@ -92,8 +92,8 @@
 @ print("")
 @ print("=== Nested ===")
 
-= nested = Some(Cons(1, Cons(2, Nil)))
-> sum_option_list(opt: Option(List(Int))) -> Int {
+= nested = Some(Link(1, Link(2, End)))
+> sum_option_list(opt: Option(Chain(Int))) -> Int {
     match opt {
         | None -> 0
         | Some(xs) -> list_sum(xs)
@@ -107,10 +107,10 @@
 @ print("")
 @ print("=== Higher-Order ===")
 
-> map_list(xs: List(a), f: a -> b) -> List(b) {
+> map_list(xs: Chain(a), f: a -> b) -> Chain(b) {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(f(h), map_list(t, f))
+        | End -> End
+        | Link(h, t) -> Link(f(h), map_list(t, f))
     }
 }
 
@@ -127,19 +127,19 @@
 @ print("=== Pattern Edge Cases ===")
 
 -- Wildcard in positional
-> first_or_zero(xs: List(Int)) -> Int {
+> first_or_zero(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, _) -> h
+        | End -> 0
+        | Link(h, _) -> h
     }
 }
 @ print("first [1,2,3] = " + show(first_or_zero(nums)))
-@ print("first [] = " + show(first_or_zero(Nil)))
+@ print("first [] = " + show(first_or_zero(End)))
 
 -- Nested match (without nested box patterns — transpiler limitation)
-> second_or_zero(xs: List(Int)) -> Int {
+> second_or_zero(xs: Chain(Int)) -> Int {
     match xs {
-        | Cons(_, rest) -> first_or_zero(rest)
+        | Link(_, rest) -> first_or_zero(rest)
         | _ -> 0
     }
 }

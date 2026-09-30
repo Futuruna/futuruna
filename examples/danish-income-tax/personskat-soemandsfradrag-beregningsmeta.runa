@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./soemandsbeskatningsloven - par3 - par4
+@ importer ./soemandsbeskatningsloven-par3-par4
 
 = personskat_sømandsfradrag_felt_valg = TypetBeregningsfelt(
     path = refof(Sømandsbeskatningslov3Årsinput::valg::$variant),

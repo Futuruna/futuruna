@@ -3,9 +3,9 @@
 @ importer ./metadata
 @ importer ./kalenderdato
 @ importer ./aktieavancebeskatningsloven
-@ importer ./aktieavancebeskatningsloven - par23 - 27
-@ importer ./aktieavancebeskatningsloven - par37 - 39
-@ importer ./kapitel - 02 - statsskat
+@ importer ./aktieavancebeskatningsloven-par23-27
+@ importer ./aktieavancebeskatningsloven-par37-39
+@ importer ./kapitel-02-statsskat
 
 = aktieavancebeskatningsloven_lbk1098_par39a = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",

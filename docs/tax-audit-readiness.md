@@ -129,9 +129,8 @@ have distinct supported result contracts.
   repetition, not all internal memory or cold-start work. Prefer focused input
   navigation and small question-specific entries; a full workbook can remain
   wide. Use one calculation worker on resource-constrained machines.
-- **Source delivery is not public release.** The original v0.2.0 binary
-  predates required safety fixes. The selected compiler must pass the runtime
-  check, but that alone does not prove tax correctness or complete model
+- **The runtime check is necessary, not sufficient.** The selected compiler
+  must pass the runtime check, but that alone does not prove tax correctness or complete model
   compatibility.
 
 ## Correctness evidence and law navigation
@@ -158,8 +157,7 @@ general certificates for personal returns.
 Regression tests retain expected behavior and counterexamples. Follow
 [CONTRIBUTING.md](../CONTRIBUTING.md) for proportional gates; a skipped test is
 not a pass, and a past compiler gate does not certify a later model revision.
-Change history belongs in Git and task records; required migration guidance
-belongs in the [compatibility guide](compatibility-guides/0.2.x.md).
+Change history belongs in Git and the release notes.
 
 ## Before broader launch
 

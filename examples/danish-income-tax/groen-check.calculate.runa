@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ./groen - check
+@ importer ./groen-check
 
 = grøn_check_beregningsmeta = Beregningsmeta(
     felter = [

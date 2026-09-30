@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ../examples / danish - income - tax / personskat - beregningskontrol
-@ importer ../examples / danish - income - tax / personskat - kirkeskat
+@ importer ../examples/danish-income-tax/personskat-beregningskontrol
+@ importer ../examples/danish-income-tax/personskat-kirkeskat
 
 = kirkeskat_vurdering = personskat_beregningsvurdering([
     PersonskatInputkontrol(sti = "fiktiv_kontrol", gyldig = Sandt, forklaring = "Fiktiv kontrol, ikke kildefakta.")

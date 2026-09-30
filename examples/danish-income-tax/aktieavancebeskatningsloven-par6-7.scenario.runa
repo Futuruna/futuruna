@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./aktieavancebeskatningsloven-par23-27
 
 = par6_par7_intet_stk7_valg = AktieavancePar23Stk7Valg(
     selskabsidentifikation = "",

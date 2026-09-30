@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./loenmodtager_beregning
-@ importer ./personskat - par14.scenario
+@ importer ./personskat-par14.scenario
 
 -- Personskatteloven -- executable "bomb" audit probes.
 --

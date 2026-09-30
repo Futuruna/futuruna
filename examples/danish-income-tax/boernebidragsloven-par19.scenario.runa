@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./boernebidragsloven - par19
+@ importer ./boernebidragsloven-par19
 
 | børnebidragslov19_scenarie_navngivningskontekst() -> MedNavngivningsskattekontekst(
     retsgrundlag = BarnUdenForÆgteskab,

@@ -1,7 +1,7 @@
 @ sprog da
 
-@ importer ./aktieindkomst - slutopgoerelse
-@ importer ./husholdning - scenarier.scenario
+@ importer ./aktieindkomst-slutopgoerelse
+@ importer ./husholdning-scenarier.scenario
 
 -- Aktieindkomst i årsopgørelsen for den fiktive lønmodtager.
 

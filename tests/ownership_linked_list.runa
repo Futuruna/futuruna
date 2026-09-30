@@ -4,30 +4,30 @@
 
 -- PATTERN 1: Functional singly-linked list
 
-# IntList = Nil | Cons(Int, IntList)
+# IntList = End | Link(Int, IntList)
 
 > int_list_sum(xs: IntList) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, t) -> h + int_list_sum(t)
+        | End -> 0
+        | Link(h, t) -> h + int_list_sum(t)
     }
 }
 
 > int_list_len(xs: IntList) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(_, t) -> 1 + int_list_len(t)
+        | End -> 0
+        | Link(_, t) -> 1 + int_list_len(t)
     }
 }
 
 > int_list_show(xs: IntList) -> String {
     match xs {
-        | Nil -> "[]"
-        | Cons(h, t) -> show(h) + " :: " + int_list_show(t)
+        | End -> "[]"
+        | Link(h, t) -> show(h) + " :: " + int_list_show(t)
     }
 }
 
-= mylist = Cons(10, Cons(20, Cons(30, Nil)))
+= mylist = Link(10, Link(20, Link(30, End)))
 @ print("List: " + int_list_show(mylist))
 @ print("Sum: " + show(int_list_sum(mylist)))
 @ print("Len: " + show(int_list_len(mylist)))
@@ -83,9 +83,9 @@
 @ print("PASS: Pattern 3 — intrusive multi-list via index arrays")
 
 -- PATTERN 4: Shared tail (structural sharing)
-= shared_tail = Cons(30, Cons(40, Nil))
-= branch_a = Cons(10, shared_tail)
-= branch_b = Cons(20, shared_tail)
+= shared_tail = Link(30, Link(40, End))
+= branch_a = Link(10, shared_tail)
+= branch_b = Link(20, shared_tail)
 
 @ print("Branch A sum: " + show(int_list_sum(branch_a)))
 @ print("Branch B sum: " + show(int_list_sum(branch_b)))
@@ -93,16 +93,16 @@
 
 -- PATTERN 5: List reversal (ownership transfer through accumulator)
 > int_list_reverse(xs: IntList) -> IntList {
-    int_list_rev_acc(xs, Nil)
+    int_list_rev_acc(xs, End)
 }
 
 > int_list_rev_acc(xs: IntList, acc: IntList) -> IntList {
     match xs {
-        | Nil -> acc
-        | Cons(h, t) -> int_list_rev_acc(t, Cons(h, acc))
+        | End -> acc
+        | Link(h, t) -> int_list_rev_acc(t, Link(h, acc))
     }
 }
 
-= reversed = int_list_reverse(Cons(1, Cons(2, Cons(3, Nil))))
+= reversed = int_list_reverse(Link(1, Link(2, Link(3, End))))
 @ print("Reversed: " + int_list_show(reversed))
 @ print("PASS: Pattern 5 — list reversal (ownership through accumulator)")

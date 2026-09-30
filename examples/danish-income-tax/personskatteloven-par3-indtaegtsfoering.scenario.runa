@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel - 01 - indkomst
+@ importer ./kapitel-01-indkomst
 
 | udligningshenlæggelse_22_pct(ordning: VirksomhedsskattelovUdligningsordning, henlæggelsesår: Heltal, oprindelig_henlæggelse_kroner: Heltal, tidligere_indtægtsført_kroner: Heltal) -> VirksomhedsskattelovUdligningshenlæggelse(
     ordning = ordning,

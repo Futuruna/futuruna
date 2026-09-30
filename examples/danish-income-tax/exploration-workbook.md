@@ -1052,7 +1052,7 @@ is broad. The checked exploration bundle needs `RelationId`-scoped source and
 successor coverage components. Source coverage audits the `from` helper's
 reachable producer closure and recursively names Context and Before field
 paths and every reachable immutable producer input as one of: varied finite
-dimension, derived fact, explicit conditioning, proof-backed exact
+dimension, derived fact, explicit conditioning, certified exact
 irrelevance, or reported coverage gap. A Copenhagen literal or immutable
 top-level constant buried in `personskat_state_2026` therefore appears as
 conditioning even though it was not written as `given`. An
@@ -4011,7 +4011,7 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    query-identity-bound helper, while the coordinator alone materializes cases,
    folds transcripts and writes the journal. Any unavailable helper batch is
    discarded wholesale and evaluated by the checked interpreter. In parallel,
-   proof-backed interval/delta closure can later certify homogeneous regions
+   certified interval/delta closure can later certify homogeneous regions
    without evaluating every krone; source-event hints may propose splits but
    never certify skipped members.
 

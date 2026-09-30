@@ -63,12 +63,10 @@ and attachments.
 - [[dashboard]]
 - [[current-state]]
 - [[compiler-pipeline]]
-- [[wiki/modules/proof-kernel|proof-kernel]]
 - [[verification-lanes]]
 
 ## What This Vault Is Best For
 
 - compiler and runtime design synthesis
-- proof/bootstrap trust-boundary tracking
 - canary and verification coverage mapping
 - downstream bug intake and durable lessons

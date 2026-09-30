@@ -22,8 +22,8 @@ fn lexical_mistakes_explain_comments_strings_numbers_and_negation() {
         ("// note", "comments use `--`"),
         ("/* note */", "block comments use `----"),
         ("= text = 'hello'", "double quotes"),
-        ("= count = 1_000_000", "digit separators"),
-        ("= amount = 1.25_000", "digit separators"),
+        ("= count = 1__000", "between two digits"),
+        ("= amount = 1,000", "write `1_000`"),
         ("| allowed(x) -> \\+ denied(x)", "not(...)"),
         ("= rate = 25%", "remainder"),
     ]);
@@ -53,6 +53,86 @@ fn rule_guards_ranges_and_lambdas_show_the_native_construct() {
         ("= values = map([1], x => x + 1)", "|x| expression"),
         ("= value = (when True { 1 })", "if condition"),
     ]);
+}
+
+#[test]
+fn foreign_keywords_in_bodies_name_the_native_declaration() {
+    assert_hints(&[
+        (
+            "function add(a, b) { a + b }",
+            "Futuruna uses `>` to define functions",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    fn g(y) { y }\n    x\n}",
+            "> name(parameter: Type)",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    def g(y): y\n    x\n}",
+            "> name(parameter: Type)",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    function g(y) { y }\n    x\n}",
+            "> name(parameter: Type)",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    const y = x\n    y\n}",
+            "= name = value",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    var y = x\n    y\n}",
+            "= name = value",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    switch x { 1 }\n}",
+            "match value { pattern -> result }",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    if x > 1:\n        2\n}",
+            "blocks are written in braces",
+        ),
+    ]);
+}
+
+#[test]
+fn foreign_operators_and_templates_name_the_native_form() {
+    assert_hints(&[
+        ("= same = 1 === 1", "equality is `==`"),
+        ("= different = 1 !== 2", "inequality is `!=`"),
+        ("= different = 1 /= 2", "inequality is `!=`"),
+        (
+            "> f(x: Int) -> Int {\n    = y = x\n    y += 1\n    y\n}",
+            "no compound assignment",
+        ),
+        (
+            "> f(x: Int) -> Int {\n    = y = x\n    y -= 1\n    y\n}",
+            "no compound assignment",
+        ),
+        ("> f(x: Int) -> Int {\n    x++\n}", "no increment operator"),
+        ("= x == 5", "a binding uses a single `=`"),
+        (
+            "= x = True ? 1 : 2",
+            "if condition { value } else { value }",
+        ),
+        (
+            "= name = \"Ada\"\n= s = f\"Hello {name}\"",
+            "\"\"\"Hello {{name}}\"\"\"",
+        ),
+    ]);
+}
+
+#[test]
+fn foreign_absence_and_output_names_point_to_none_and_print() {
+    for (source, hint) in [
+        ("= x = null\n", "an absent value is `None`"),
+        ("= x = nil\n", "an absent value is `None`"),
+        (
+            "> f(x: Int) -> Int {\n    console.log(x)\n    x\n}\n",
+            "output is an effect, as in `@ print(text)`",
+        ),
+    ] {
+        let error = eval_source_with_prelude(source, false).expect_err(source);
+        assert!(error.contains(hint), "{source}: {error}");
+    }
 }
 
 #[test]

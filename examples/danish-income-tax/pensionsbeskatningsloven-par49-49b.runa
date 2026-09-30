@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./ligningsloven - par30 - 31 - ydelsesundtagelser
+@ importer ./ligningsloven-par30-31-ydelsesundtagelser
 
 # Pbl49KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

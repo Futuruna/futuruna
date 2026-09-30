@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - udenlandske - sociale - bidrag - kildefakta
+@ importer ./personskat-udenlandske-sociale-bidrag-kildefakta
 
 = personskat_socialbidrag_felt_art = Beregningsfelt(
     path = "udenlandske_sociale_bidrag.$variant",

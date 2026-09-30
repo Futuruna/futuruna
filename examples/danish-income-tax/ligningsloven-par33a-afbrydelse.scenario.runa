@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./ligningsloven - par33a
+@ importer ./ligningsloven-par33a
 
 | ll33a_afbrydelse_scenarie_danske_dage(første_dato: Dato, antal: Heltal) -> map(
     range(0, antal),

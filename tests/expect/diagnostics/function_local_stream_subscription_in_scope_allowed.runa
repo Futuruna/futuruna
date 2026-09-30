@@ -1,5 +1,6 @@
 -- expect-command: check
 -- expect-status: pass
+-- expect-args: --frontend
 ~ clicks = subject()
 
 > install() -> () {

@@ -10,87 +10,87 @@
 -- Math:   max_int, min_int, clamp
 -- Core:   identity
 --
--- Note: # List(a) is NOT in the prelude. Programs that want Cons/Nil
--- define it themselves. Programs using List(Int) in type annotations
+-- Note: # Chain(a) is NOT in the prelude. Programs that want an End/Link
+-- linked list define it themselves. Programs using List(Int) in type annotations
 -- get Vec<i64> (the default mapping).
 -- ============================================================================
 
 -- ============================================================================
--- List Functions (require user-defined # List(a) = Nil | Cons(a, List(a)))
+-- Chain Functions (require user-defined # Chain(a) = End | Link(a, Chain(a)))
 -- ============================================================================
 
-# List(a) = Nil | Cons(a, List(a))
+# Chain(a) = End | Link(a, Chain(a))
 
-> sum(xs: List(Int)) -> Int {
+> sum(xs: Chain(Int)) -> Int {
     match xs {
-        | Nil -> 0
-        | Cons(h, t) -> h + sum(t)
+        | End -> 0
+        | Link(h, t) -> h + sum(t)
     }
 }
 
-> filter_list(xs: List(a), pred: a -> Bool) -> List(a) {
+> filter_list(xs: Chain(a), pred: a -> Bool) -> Chain(a) {
     match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> if pred(h) { Cons(h, filter_list(t, pred)) } else { filter_list(t, pred) }
+        | End -> End
+        | Link(h, t) -> if pred(h) { Link(h, filter_list(t, pred)) } else { filter_list(t, pred) }
     }
 }
 
-> foldl_list(xs: List(a), acc: b, f: b -> a -> b) -> b {
+> foldl_list(xs: Chain(a), acc: b, f: (b, a) -> b) -> b {
     match xs {
-        | Nil -> acc
-        | Cons(h, t) -> foldl_list(t, f(acc, h), f)
+        | End -> acc
+        | Link(h, t) -> foldl_list(t, f(acc, h), f)
     }
 }
 
-> foldr_list(xs: List(a), init: b, f: a -> b -> b) -> b {
+> foldr_list(xs: Chain(a), init: b, f: (a, b) -> b) -> b {
     match xs {
-        | Nil -> init
-        | Cons(h, t) -> f(h, foldr_list(t, init, f))
+        | End -> init
+        | Link(h, t) -> f(h, foldr_list(t, init, f))
     }
 }
 
-> reverse_list(xs: List(a)) -> List(a) {
-    reverse_acc(xs, Nil)
+> reverse_list(xs: Chain(a)) -> Chain(a) {
+    reverse_acc(xs, End)
 }
 
-> reverse_acc(xs: List(a), acc: List(a)) -> List(a) {
+> reverse_acc(xs: Chain(a), acc: Chain(a)) -> Chain(a) {
     match xs {
-        | Nil -> acc
-        | Cons(h, t) -> reverse_acc(t, Cons(h, acc))
+        | End -> acc
+        | Link(h, t) -> reverse_acc(t, Link(h, acc))
     }
 }
 
-> append(xs: List(a), ys: List(a)) -> List(a) {
+> append(xs: Chain(a), ys: Chain(a)) -> Chain(a) {
     match xs {
-        | Nil -> ys
-        | Cons(h, t) -> Cons(h, append(t, ys))
+        | End -> ys
+        | Link(h, t) -> Link(h, append(t, ys))
     }
 }
 
-> take_list(n: Int, xs: List(a)) -> List(a) {
-    if n <= 0 { Nil } else {
+> take_list(n: Int, xs: Chain(a)) -> Chain(a) {
+    if n <= 0 { End } else {
         match xs {
-            | Nil -> Nil
-            | Cons(h, t) -> Cons(h, take_list(n - 1, t))
+            | End -> End
+            | Link(h, t) -> Link(h, take_list(n - 1, t))
         }
     }
 }
 
-> drop_list(n: Int, xs: List(a)) -> List(a) {
+> drop_list(n: Int, xs: Chain(a)) -> Chain(a) {
     if n <= 0 { xs } else {
         match xs {
-            | Nil -> Nil
-            | Cons(_, t) -> drop_list(n - 1, t)
+            | End -> End
+            | Link(_, t) -> drop_list(n - 1, t)
         }
     }
 }
 
-> zip_with(xs: List(a), ys: List(b), f: a -> b -> c) -> List(c) {
+> zip_with(xs: Chain(a), ys: Chain(b), f: (a, b) -> c) -> Chain(c) {
     match xs {
-        | Nil -> Nil
-        | Cons(x, xt) -> match ys {
-            | Nil -> Nil
-            | Cons(y, yt) -> Cons(f(x, y), zip_with(xt, yt, f))
+        | End -> End
+        | Link(x, xt) -> match ys {
+            | End -> End
+            | Link(y, yt) -> Link(f(x, y), zip_with(xt, yt, f))
         }
     }
 }
@@ -103,7 +103,7 @@
     |x| g(f(x))
 }
 
-> flip(f: a -> b -> c) -> (b -> a -> c) {
+> flip(f: (a, b) -> c) -> ((b, a) -> c) {
     |b, a| f(a, b)
 }
 
@@ -115,11 +115,11 @@
     if n <= 0 { "" } else { s + repeat_string(s, n - 1) }
 }
 
-> join(xs: List(String), sep: String) -> String {
+> join(xs: Chain(String), sep: String) -> String {
     match xs {
-        | Nil -> ""
-        | Cons(h, t) -> match t {
-            | Nil -> h
+        | End -> ""
+        | Link(h, t) -> match t {
+            | End -> h
             | _ -> h + sep + join(t, sep)
         }
     }
@@ -133,7 +133,7 @@
 @ print("")
 
 -- List operations
-= nums = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+= nums = Link(1, Link(2, Link(3, Link(4, Link(5, End)))))
 @ print("sum: " + show(sum(nums)))
 
 = total = foldl_list(nums, 0, |acc, x| acc + x)

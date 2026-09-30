@@ -1,8 +1,10 @@
 # CLI diagnostics
 
-`runa check model.runa` validates the frontend and the generated Rust.
-It can evaluate compile-time effects and run dependency build scripts;
-it is not a sandbox for untrusted source.
+`runa check model.runa` validates the frontend and the generated Rust. It
+performs no host effects: `@ comptime` evaluation is pure, and Rust crates
+declared with `@ depend` are downloaded and built (running their build
+scripts) only with `runa check --build-deps model.runa`; without the flag such
+a program fails the check with an error naming the flag.
 `runa check --frontend model.runa` skips Rust generation and validation.
 Both return exit code 0 on success and 1 on a reported check failure.
 
@@ -25,7 +27,7 @@ Full `check`, native `run`, and `build` require a Rust toolchain. If a required
 tool and requested operation. The diagnostic points to Rust installation or
 executable permissions as appropriate.
 
-Discovery checks `PATH`, then `~/.cargo/bin`, and finally the legacy
+Discovery checks `PATH`, then `~/.cargo/bin`, and finally the
 `~/.rustup/toolchains/stable-aarch64-apple-darwin/bin` fallback. An installed
 toolchain can therefore remain available even when it is absent from `PATH`.
 This fallback does not install Rust or change your shell configuration.

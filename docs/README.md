@@ -8,7 +8,7 @@ and historical material live.
 ## Current contracts
 
 - [Feature stages](feature-stages.md) and [compatibility policy](compatibility-policy.md)
-- [Compatibility guides](compatibility-guides/README.md) and [release runbook](releasing.md)
+- [Release runbook](releasing.md)
 - [First-run contract](first-run-contract.md) and [AI setup](../website/public/ai-setup.md)
 - [Calculation contracts](reference/calculations.md) and [Rust interop](from-rust-contract.md)
 - [Artifact/codegen contracts](artifact-codegen-contracts.md) and [library hygiene](library-hygiene.md)
@@ -19,8 +19,7 @@ and historical material live.
 - [Contributing](../CONTRIBUTING.md) and [mint gate](mint-gate.md)
 - [Canary matrix](canary-matrix.md), [canary suite](canary-suite.md),
   [differential testing](differential-testing.md), and [expectation suites](expectation-suites.md)
-- [Compiler pass contracts](compiler-pass-contracts.md), [proof kernel](proof-kernel.md),
-  and [verified bootstrap](verified-bootstrap.md)
+- [Compiler pass contracts](compiler-pass-contracts.md)
 - [State and roadmap](state-and-roadmap.md)
 - [Danish tax-audit readiness](tax-audit-readiness.md): current workflows, correctness evidence, and remaining limits
 

@@ -3,6 +3,7 @@
 //! This binary provides the CLI interface for the Futuruna compiler.
 //! Core language implementation is in the library crate (src/lib.rs).
 
+mod runa_backend_diagnostics;
 mod runa_check_output;
 mod runa_explore_heap;
 mod runa_explore_retry;
@@ -14,13 +15,20 @@ mod runa_verification_arithmetic;
 #[allow(dead_code)]
 #[path = "../logic_search.rs"]
 mod runa_logic_search;
+// The live-stream and actor runtime is emitted into compiled programs that
+// use subjects or actors; compiling it here keeps it type-checked.
+#[allow(dead_code, non_camel_case_types)]
+#[path = "../live_runtime.rs"]
+mod runa_live_runtime;
 
 macro_rules! status_eprintln {
-    ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), true, true) }};
+    ($($argument:tt)*) => {{ crate::runa_check_output::write_status(format_args!($($argument)*), true, true) }};
 }
 macro_rules! status_println {
-    ($($argument:tt)*) => {{ runa_check_output::write_status(format_args!($($argument)*), false, true) }};
+    ($($argument:tt)*) => {{ crate::runa_check_output::write_status(format_args!($($argument)*), false, true) }};
 }
+
+mod runa_packages;
 
 use futuruna::*;
 use quote::ToTokens;
@@ -40,9 +48,70 @@ static TEMP_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
 static COMPILER_EXECUTABLE_HASH: OnceLock<Option<String>> = OnceLock::new();
 static RUSTC_FINGERPRINT: OnceLock<Option<String>> = OnceLock::new();
 
+#[cfg(test)]
 fn unique_temp_workspace(prefix: &str) -> PathBuf {
     let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("{prefix}-{}-{sequence}", std::process::id()))
+}
+
+/// Create `path` if needed and make it private to the current user. An
+/// existing directory must be a real directory (not a symbolic link) owned by
+/// the current user; group and other permissions are removed. Compiler
+/// caches, cached executables and build workspaces live only below such a
+/// directory, so no other account can plant or replace what we compile or run.
+fn ensure_private_directory(path: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(path)
+        .map_err(|error| format!("cannot create {}: {}", path.display(), error))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let metadata = std::fs::symlink_metadata(path)
+            .map_err(|error| format!("cannot inspect {}: {}", path.display(), error))?;
+        if !metadata.file_type().is_dir() {
+            return Err(format!(
+                "{} is not a directory; refusing to cache or build there",
+                path.display()
+            ));
+        }
+        // SAFETY: geteuid has no preconditions and cannot fail.
+        if metadata.uid() != unsafe { libc::geteuid() } {
+            return Err(format!(
+                "{} is owned by another user; refusing to cache or build there",
+                path.display()
+            ));
+        }
+        if metadata.mode() & 0o077 != 0 {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+                .map_err(|error| format!("cannot restrict {}: {}", path.display(), error))?;
+        }
+    }
+    Ok(())
+}
+
+/// The per-user, private root of compiler caches and build workspaces:
+/// `FUTURUNA_COMPILER_CACHE_DIR` when set, otherwise the Futuruna user cache.
+fn compiler_cache_base() -> Result<PathBuf, String> {
+    let base = match std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
+        Some(path) => PathBuf::from(path),
+        None => manifest::user_cache_root()
+            .ok_or("cannot locate a per-user cache directory: HOME is not set")?,
+    };
+    ensure_private_directory(&base)?;
+    Ok(base)
+}
+
+/// Claim a fresh directory for one build or validation run below the
+/// private cache base. Callers remove it when they no longer need it.
+fn claim_build_workspace() -> PathBuf {
+    compiler_cache_base()
+        .and_then(|base| {
+            create_native_build_workspace(&base.join("builds"))
+                .map_err(|error| format!("cannot create a build directory: {error}"))
+        })
+        .unwrap_or_else(|error| {
+            status_eprintln!("\x1b[1;31merror\x1b[0m: {}", error);
+            std::process::exit(1);
+        })
 }
 
 // Claim a new directory atomically. A stale process ID or another compiler
@@ -95,14 +164,22 @@ fn main() {
         eprintln!("Fatal: invalid durable Explore supervisor channel: {error}");
         std::process::exit(1);
     }
-    // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
-    let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
-    let handler = match builder.spawn(main_inner) {
-        Ok(h) => h,
-        Err(e) => {
-            eprintln!("Fatal: failed to spawn main thread: {}", e);
-            std::process::exit(1);
+    // Evaluation recursion is limited by this thread's stack; the memory is
+    // reserved lazily, so a large reservation costs only what a program uses.
+    let requested = futuruna::interpreter_stack_bytes();
+    let mut spawned = None;
+    for stack_bytes in [requested, requested.min(1 << 30), 64 * 1024 * 1024] {
+        if let Ok(handle) = std::thread::Builder::new()
+            .stack_size(stack_bytes)
+            .spawn(main_inner)
+        {
+            spawned = Some(handle);
+            break;
         }
+    }
+    let Some(handler) = spawned else {
+        eprintln!("Fatal: failed to spawn main thread");
+        std::process::exit(1);
     };
     if let Err(e) = handler.join() {
         std::panic::resume_unwind(e);
@@ -145,6 +222,9 @@ fn main_inner() {
     let mut calculation_input = None;
     let mut calculation_output = None;
     let mut calculation_all_tables = false;
+    let mut check_build_deps = false; // --build-deps flag for `runa check`
+    let mut add_rev: Option<String> = None; // --rev flag for `runa add`
+    let mut fetch_update = false; // --update flag for `runa fetch`
 
     let mut i = 1;
     while i < args.len() {
@@ -183,6 +263,22 @@ fn main_inner() {
             }
             "--frontend" if mode == "check" => {
                 check_frontend_only = true;
+                i += 1;
+            }
+            "--build-deps" if mode == "check" => {
+                check_build_deps = true;
+                i += 1;
+            }
+            "--rev" if mode == "add" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --rev requires a branch, tag or commit");
+                    std::process::exit(1);
+                }
+                add_rev = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--update" if mode == "fetch" => {
+                fetch_update = true;
                 i += 1;
             }
             "--fir" if mode == "emit" => {
@@ -530,7 +626,10 @@ fn main_inner() {
                 eprintln!("Commands:");
                 eprintln!("  (none)        Interpret directly (default)");
                 eprintln!("  init [name]   Create a new project with runa.toml");
-                eprintln!("  add <path>    Add a local dependency to runa.toml");
+                eprintln!(
+                    "  add <src>     Add a directory or git repository (fetches it) to runa.toml"
+                );
+                eprintln!("  fetch         Download git dependencies pinned in runa.lock");
                 eprintln!("  emit          Print generated Rust to stdout");
                 eprintln!("  emit --imports  Print normalized public import/export graph");
                 eprintln!("  build         Compile to native binary");
@@ -573,6 +672,8 @@ fn main_inner() {
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
                 eprintln!("  check --frontend  Run frontend validation only");
                 eprintln!("  check --json      Emit one structured diagnostic report");
+                eprintln!("  check --build-deps  Let Cargo download and build @ depend crates");
+                eprintln!("  fetch --update    Re-resolve git dependencies and rewrite runa.lock");
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
@@ -637,12 +738,14 @@ fn main_inner() {
                     "  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,"
                 );
                 eprintln!(
-                    "    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing"
+                    "    importable local libraries, Rust interop, FRSS-v0, differential/generative testing"
                 );
                 eprintln!(
-                    "  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call"
+                    "  Preview: add, lsp, expect, bench, meta, verify, schema, template, call"
                 );
-                eprintln!("  Experimental: audit, explore");
+                eprintln!(
+                    "  Experimental: audit, explore, wasm, streams/subjects/actors, HTTP builtins, @ rust/@ depend"
+                );
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
                 eprintln!();
@@ -698,6 +801,10 @@ fn main_inner() {
             }
             "add" => {
                 mode = "add";
+                i += 1;
+            }
+            "fetch" => {
+                mode = "fetch";
                 i += 1;
             }
             "emit" => {
@@ -838,15 +945,25 @@ fn main_inner() {
         return;
     }
 
-    // ── runa add <path> — add dependency ──
+    // ── runa add <path-or-git-url> [--rev REV] — add dependency ──
     if mode == "add" {
-        if let Some(ref dep_path) = filename {
-            runa_add(dep_path);
+        if let Some(source) = &filename {
+            runa_packages::runa_add(source, add_rev.as_deref());
         } else {
-            eprintln!("Usage: runa add <path>");
-            eprintln!("  Adds a local path dependency to runa.toml");
+            eprintln!("Usage: runa add <path-or-git-url> [--rev <branch|tag|commit>]");
+            eprintln!("  Adds a local directory or a git repository to runa.toml and runa.lock");
             std::process::exit(1);
         }
+        return;
+    }
+
+    // ── runa fetch [--update] — download git dependencies pinned in runa.lock ──
+    if mode == "fetch" {
+        if filename.is_some() {
+            eprintln!("Usage: runa fetch [--update]");
+            std::process::exit(1);
+        }
+        runa_packages::runa_fetch(fetch_update);
         return;
     }
 
@@ -1125,56 +1242,64 @@ fn main_inner() {
             std::process::exit(1);
         }
         match std::fs::read_to_string(path) {
-            Ok(source) => match mode {
-                "emit" if emit_imports => {
-                    emit_import_normalization_source(&source, path, use_prelude)
-                }
-                "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
-                "emit" => emit_rust_source(&source, path, use_prelude),
-                "build" => build_native(&source, path, false, use_prelude),
-                "run" => build_native(&source, path, true, use_prelude),
-                "lib" => emit_rust_lib(&source, path, use_prelude),
-                "hashes" => show_hashes(&source, path),
-                "interface" => print_semantic_interface_graph(&source, path, use_prelude),
-                "registry" => update_registry(&source, path),
-                "wasm" => build_wasm(&source, path, use_prelude),
-                "check" => {
-                    check_source(&source, path, use_prelude, check_frontend_only, check_json)
-                }
-                "meta" => print_meta_index(
-                    &source,
-                    path,
-                    meta_type_filter.as_deref(),
-                    meta_role_filter.as_deref(),
-                    meta_json,
-                ),
-                "audit" if audit_json || calculation_entry.is_some() => {
-                    audit_calculation_reachability_source(
+            Ok(source) => {
+                register_source_origin(std::path::Path::new(path), &source);
+                match mode {
+                    "emit" if emit_imports => {
+                        emit_import_normalization_source(&source, path, use_prelude)
+                    }
+                    "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
+                    "emit" => emit_rust_source(&source, path, use_prelude),
+                    "build" => build_native(&source, path, false, use_prelude),
+                    "run" => build_native(&source, path, true, use_prelude),
+                    "lib" => emit_rust_lib(&source, path, use_prelude),
+                    "hashes" => show_hashes(&source, path),
+                    "interface" => print_semantic_interface_graph(&source, path, use_prelude),
+                    "registry" => update_registry(&source, path),
+                    "wasm" => build_wasm(&source, path, use_prelude),
+                    "check" => check_source(
                         &source,
                         path,
                         use_prelude,
-                        calculation_entry.as_deref(),
-                        audit_json,
-                    )
+                        check_frontend_only,
+                        check_json,
+                        check_build_deps,
+                    ),
+                    "meta" => print_meta_index(
+                        &source,
+                        path,
+                        meta_type_filter.as_deref(),
+                        meta_role_filter.as_deref(),
+                        meta_json,
+                    ),
+                    "audit" if audit_json || calculation_entry.is_some() => {
+                        audit_calculation_reachability_source(
+                            &source,
+                            path,
+                            use_prelude,
+                            calculation_entry.as_deref(),
+                            audit_json,
+                        )
+                    }
+                    "audit" => audit_source(&source, path, use_prelude),
+                    "verify" => verify_with_z3(&source, path),
+                    "explore" => run_relational_explore_stream(
+                        &source,
+                        path,
+                        use_prelude,
+                        explore_query.as_deref(),
+                        explore_json,
+                        explore_run_state
+                            .as_deref()
+                            .expect("stream dispatch requires --run-state"),
+                        explore_output_directory.as_deref(),
+                        explore_max_runtime,
+                        explore_assumed_checkpoint,
+                        explore_assume_verified_result_rows,
+                    ),
+                    _ => run_source(&source, path, use_prelude),
                 }
-                "audit" => audit_source(&source, path, use_prelude),
-                "verify" => verify_with_z3(&source, path),
-                "explore" => run_relational_explore_stream(
-                    &source,
-                    path,
-                    use_prelude,
-                    explore_query.as_deref(),
-                    explore_json,
-                    explore_run_state
-                        .as_deref()
-                        .expect("stream dispatch requires --run-state"),
-                    explore_output_directory.as_deref(),
-                    explore_max_runtime,
-                    explore_assumed_checkpoint,
-                    explore_assume_verified_result_rows,
-                ),
-                _ => run_source(&source, path, use_prelude),
-            },
+            }
             Err(e) => {
                 if mode == "check" && check_json {
                     runa_check_output::CheckOutput {
@@ -1349,6 +1474,39 @@ fn cache_env_enabled(name: &str) -> bool {
     })
 }
 
+/// The one-sentence guarantee each checking tool states with its success
+/// output. `docs/feature-stages.md` lists the same sentences.
+#[derive(Clone, Copy)]
+enum ToolGuarantee {
+    FrontendCheck,
+    Check,
+    Verify,
+    Audit,
+    Fmt,
+    Test,
+}
+
+impl ToolGuarantee {
+    fn sentence(self) -> &'static str {
+        match self {
+            Self::FrontendCheck => "The program parses, its imports resolve and it type-checks; nothing is executed and no Rust is compiled.",
+            Self::Check => "The frontend check passes, `@ comptime` evaluates without host effects, and the generated Rust compiles; the program is not run.",
+            Self::Verify => "Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail.",
+            Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); no findings does not prove the rules consistent or correct.",
+            Self::Fmt => "Only layout changes; every file's tokens and parsed program are identical before and after formatting.",
+            Self::Test => "Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run.",
+        }
+    }
+
+    fn print(self, to_stderr: bool) {
+        if to_stderr {
+            status_eprintln!("\x1b[2mguarantee: {}\x1b[0m", self.sentence());
+        } else {
+            status_println!("\x1b[2mguarantee: {}\x1b[0m", self.sentence());
+        }
+    }
+}
+
 fn trace_calculation_contract_cache(message: &str) {
     if cache_env_enabled("FUTURUNA_CALCULATION_CACHE_TRACE") {
         eprintln!("calculation contract cache: {message}");
@@ -1374,51 +1532,18 @@ fn calculation_contract_cache_dir() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("FUTURUNA_CALCULATION_CACHE_DIR") {
         return Some(PathBuf::from(path).join("contracts-v2"));
     }
-    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/calculation-contracts-v2"));
-    }
-    let home = std::env::var_os("HOME")?;
-    let root = if cfg!(target_os = "macos") {
-        PathBuf::from(home).join("Library/Caches/futuruna")
-    } else {
-        PathBuf::from(home).join(".cache/futuruna")
-    };
-    Some(root.join("calculation-contracts-v2"))
+    Some(manifest::user_cache_root()?.join("calculation-contracts-v2"))
 }
 
 fn compiler_artifact_cache_dir() -> Option<PathBuf> {
     if cache_env_enabled("FUTURUNA_DISABLE_COMPILER_CACHE") {
         return None;
     }
-    if let Some(path) = std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
-        return Some(PathBuf::from(path).join("compiler-artifacts-v1"));
-    }
-    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/compiler-artifacts-v1"));
-    }
-    let home = std::env::var_os("HOME")?;
-    let root = if cfg!(target_os = "macos") {
-        PathBuf::from(home).join("Library/Caches/futuruna")
-    } else {
-        PathBuf::from(home).join(".cache/futuruna")
-    };
-    Some(root.join("compiler-artifacts-v1"))
+    Some(compiler_cache_base().ok()?.join("compiler-artifacts-v1"))
 }
 
 fn compiler_fingerprint_cache_dir() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
-        return Some(PathBuf::from(path).join("compiler-fingerprints-v1"));
-    }
-    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/compiler-fingerprints-v1"));
-    }
-    let home = std::env::var_os("HOME")?;
-    let root = if cfg!(target_os = "macos") {
-        PathBuf::from(home).join("Library/Caches/futuruna")
-    } else {
-        PathBuf::from(home).join(".cache/futuruna")
-    };
-    Some(root.join("compiler-fingerprints-v1"))
+    Some(compiler_cache_base().ok()?.join("compiler-fingerprints-v1"))
 }
 
 fn cache_hash_segment(hasher: &mut Sha256, value: &[u8]) {
@@ -1573,7 +1698,7 @@ fn collect_source_graph_module(
     let source_dir = canonical_cache_path(source_dir);
     let source_dir_text = source_dir.to_string_lossy();
     let manifest_path =
-        find_runa_toml(source_dir_text.as_ref()).map(|path| canonical_cache_path(Path::new(&path)));
+        manifest::find_manifest(&source_dir).map(|path| canonical_cache_path(&path));
     if let Some(manifest_path) = manifest_path.as_ref() {
         let manifest_source = std::fs::read(manifest_path).ok()?;
         record_source_graph_file(manifest_path, &manifest_source, files);
@@ -1709,11 +1834,8 @@ fn source_graph_snapshot_is_current(
     }
 
     for context in &snapshot.resolution_contexts {
-        let current_manifest = find_runa_toml(&context.source_dir).map(|path| {
-            canonical_cache_path(Path::new(&path))
-                .to_string_lossy()
-                .to_string()
-        });
+        let current_manifest = manifest::find_manifest(Path::new(&context.source_dir))
+            .map(|path| canonical_cache_path(&path).to_string_lossy().to_string());
         if current_manifest != context.manifest_path {
             return false;
         }
@@ -2215,11 +2337,25 @@ fn read_calculation_template_input(
     }
     let mut errors = Vec::new();
     for case in &mut envelope.cases {
+        // Hydration converts unfinished inputs too: unfilled placeholders are
+        // carried over, and `call` rejects them until they are filled.
+        let placeholders = calculate::template_placeholder_paths(&case.input);
+        let unfilled = |path: &str| {
+            placeholders.iter().any(|placeholder| {
+                path == placeholder
+                    || path
+                        .strip_prefix(placeholder.as_str())
+                        .is_some_and(|rest| rest.starts_with(['.', '[']))
+            })
+        };
         if let Err(diagnostics) = contract.decode_input_diagnostics(&case.input) {
             errors.extend(
-                diagnostics.into_iter().map(|error| {
-                    format!("case `{}` {}: {}", case.case_id, error.path, error.message)
-                }),
+                diagnostics
+                    .into_iter()
+                    .filter(|error| !unfilled(&error.path))
+                    .map(|error| {
+                        format!("case `{}` {}: {}", case.case_id, error.path, error.message)
+                    }),
             );
         }
         case.input_status
@@ -2903,6 +3039,11 @@ fn append_calculation_xlsx_collection_rows(
     rows: &mut BTreeMap<String, Vec<CalculationXlsxCollectionRow>>,
 ) -> Result<(), String> {
     rows.entry(table.path.clone()).or_default();
+    // An unfilled collection has no rows: spreadsheet collections are
+    // reviewed through the case's input_status.
+    if calculate::is_template_placeholder(value) {
+        return Ok(());
+    }
     match table.kind {
         calculate::CalculationCollectionKind::List | calculate::CalculationCollectionKind::Set => {
             let items = value.as_array().ok_or_else(|| {
@@ -3208,7 +3349,8 @@ fn write_calculation_xlsx_value(
     value: &serde_json::Value,
     text_format: &rust_xlsxwriter::Format,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
-    if value.is_null() {
+    // Unfilled template values stay blank; a blank required cell is rejected.
+    if value.is_null() || calculate::is_template_placeholder(value) {
         return Ok(());
     }
     match column.encoding {
@@ -3270,8 +3412,87 @@ fn write_calculation_xlsx_value(
     Ok(())
 }
 
+/// Calculation workbooks are bounded before any sheet is materialized: the
+/// archive's unpacked size and entry count are measured by streaming, and every
+/// sheet's used rectangle is measured by scanning its cells, because reading a
+/// sheet allocates that whole rectangle.
+const CALCULATION_XLSX_MAX_UNPACKED_BYTES: u64 = 256 * 1024 * 1024;
+const CALCULATION_XLSX_MAX_ENTRIES: usize = 10_000;
+const CALCULATION_XLSX_MAX_SHEET_CELLS: u64 = 4_000_000;
+
+fn check_calculation_xlsx_unpacked_size(path: &str) -> Result<(), String> {
+    use std::io::Read;
+
+    let file = std::fs::File::open(path).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+        .map_err(|error| format!("not a readable .xlsx workbook: {error}"))?;
+    if archive.len() > CALCULATION_XLSX_MAX_ENTRIES {
+        return Err(format!(
+            "workbook has {} archive entries; calculation workbooks are limited to {}",
+            archive.len(),
+            CALCULATION_XLSX_MAX_ENTRIES
+        ));
+    }
+    let too_large = || {
+        format!(
+            "workbook unpacks to more than {} MiB; calculation workbooks are limited to that size",
+            CALCULATION_XLSX_MAX_UNPACKED_BYTES / (1024 * 1024)
+        )
+    };
+    let mut remaining = CALCULATION_XLSX_MAX_UNPACKED_BYTES;
+    for index in 0..archive.len() {
+        let entry = archive
+            .by_index(index)
+            .map_err(|error| format!("not a readable .xlsx workbook: {error}"))?;
+        if entry.size() > remaining {
+            return Err(too_large());
+        }
+        // Declared sizes can lie; count what actually decompresses.
+        let unpacked = std::io::copy(&mut entry.take(remaining + 1), &mut std::io::sink())
+            .map_err(|error| format!("not a readable .xlsx workbook: {error}"))?;
+        if unpacked > remaining {
+            return Err(too_large());
+        }
+        remaining -= unpacked;
+    }
+    Ok(())
+}
+
+fn check_calculation_xlsx_sheet_dimensions(
+    workbook: &mut calamine::Xlsx<std::io::BufReader<std::fs::File>>,
+) -> Result<(), String> {
+    use calamine::Reader;
+
+    for sheet_name in workbook.sheet_names() {
+        let mut cells = workbook
+            .worksheet_cells_reader(&sheet_name)
+            .map_err(|error| error.to_string())?;
+        let mut bounds: Option<((u32, u32), (u32, u32))> = None;
+        while let Some(cell) = cells.next_cell().map_err(|error| error.to_string())? {
+            let (row, column) = cell.get_position();
+            bounds = Some(match bounds {
+                None => ((row, column), (row, column)),
+                Some(((top, left), (bottom, right))) => (
+                    (top.min(row), left.min(column)),
+                    (bottom.max(row), right.max(column)),
+                ),
+            });
+        }
+        if let Some(((top, left), (bottom, right))) = bounds {
+            let rows = u64::from(bottom - top) + 1;
+            let columns = u64::from(right - left) + 1;
+            if rows * columns > CALCULATION_XLSX_MAX_SHEET_CELLS {
+                return Err(format!(
+                    "sheet `{sheet_name}` spans {rows} rows × {columns} columns; calculation workbooks are limited to {CALCULATION_XLSX_MAX_SHEET_CELLS} cells per sheet"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn calculation_xlsx_materialized_sheets(
-    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    workbook: &mut calamine::Xlsx<std::io::BufReader<std::fs::File>>,
     layout: &calculate::CalculationInputLayout,
     legacy: bool,
 ) -> Result<BTreeSet<String>, String> {
@@ -3369,7 +3590,10 @@ fn read_calculation_xlsx(
     {
         return Err("calculation workbooks must use the macro-free .xlsx format".to_string());
     }
-    let mut workbook = calamine::open_workbook_auto(path).map_err(|error| error.to_string())?;
+    check_calculation_xlsx_unpacked_size(path)?;
+    let mut workbook: calamine::Xlsx<_> =
+        calamine::open_workbook(path).map_err(|error: calamine::XlsxError| error.to_string())?;
+    check_calculation_xlsx_sheet_dimensions(&mut workbook)?;
     if workbook
         .vba_project()
         .map_err(|error| error.to_string())?
@@ -3572,7 +3796,13 @@ fn read_calculation_xlsx(
                 }
                 continue;
             }
-            let value = match calculation_json_from_cell(cell, column, quoted_strings) {
+            // Converting a workbook keeps a blank required cell unfilled.
+            let converted = if hydrate && column.required && matches!(cell, Data::Empty) {
+                Ok(calculate::template_placeholder_for(&column.ty))
+            } else {
+                calculation_json_from_cell(cell, column, quoted_strings)
+            };
+            let value = match converted {
                 Ok(value) => value,
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
@@ -4653,171 +4883,8 @@ fn calculation_xlsx_text_chunks(value: &str) -> Vec<String> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ── Package Manager: runa init / runa add / runa.toml ──────────────────
+// ── Project scaffolding (runa add / runa fetch live in runa_packages.rs) ──
 // ══════════════════════════════════════════════════════════════════════════
-
-/// Dependency specification: local path or git remote
-#[derive(Clone, Debug)]
-enum DepSpec {
-    Path(String),
-    Git { url: String, rev: Option<String> },
-}
-
-/// Parsed runa.toml manifest
-struct RunaManifest {
-    name: String,
-    version: String,
-    dependencies: Vec<(String, DepSpec)>,
-}
-
-/// Extract a quoted value for a given key from an inline TOML table
-fn extract_toml_table_value(raw: &str, key: &str) -> Option<String> {
-    if let Some(k_start) = raw.find(key) {
-        let after = &raw[k_start + key.len()..];
-        if let Some(eq) = after.find('=') {
-            let val_part = after[eq + 1..]
-                .trim()
-                .trim_end_matches('}')
-                .trim()
-                .trim_end_matches(',')
-                .trim()
-                .trim_matches('"');
-            if !val_part.is_empty() {
-                return Some(val_part.to_string());
-            }
-        }
-    }
-    None
-}
-
-/// Parse a minimal runa.toml — supports [package] and [dependencies] sections
-fn parse_runa_toml(toml_path: &str) -> Option<RunaManifest> {
-    let content = std::fs::read_to_string(toml_path).ok()?;
-    let mut name = String::new();
-    let mut version = String::from("0.1.0");
-    let mut deps: Vec<(String, DepSpec)> = Vec::new();
-    let mut section = "";
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        if trimmed == "[package]" {
-            section = "package";
-            continue;
-        }
-        if trimmed == "[dependencies]" {
-            section = "deps";
-            continue;
-        }
-        if trimmed.starts_with('[') {
-            section = "";
-            continue;
-        }
-        if let Some(eq_pos) = trimmed.find('=') {
-            let key = trimmed[..eq_pos].trim();
-            let val_raw = trimmed[eq_pos + 1..].trim();
-            let val = val_raw.trim_matches('"');
-            match section {
-                "package" => match key {
-                    "name" => name = val.to_string(),
-                    "version" => version = val.to_string(),
-                    _ => {}
-                },
-                "deps" => {
-                    if val_raw.contains("git") {
-                        // Git dependency: { git = "https://...", rev = "abc" }
-                        if let Some(url) = extract_toml_table_value(val_raw, "git") {
-                            let rev = extract_toml_table_value(val_raw, "rev");
-                            deps.push((key.to_string(), DepSpec::Git { url, rev }));
-                        }
-                    } else if val_raw.contains("path") {
-                        if let Some(path) = extract_toml_table_value(val_raw, "path") {
-                            deps.push((key.to_string(), DepSpec::Path(path)));
-                        }
-                    } else {
-                        // Simple string path
-                        deps.push((key.to_string(), DepSpec::Path(val.to_string())));
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    if name.is_empty() {
-        return None;
-    }
-
-    Some(RunaManifest {
-        name,
-        version,
-        dependencies: deps,
-    })
-}
-
-/// Find runa.toml by walking up from a directory
-fn find_runa_toml(start_dir: &str) -> Option<String> {
-    let mut dir = std::path::PathBuf::from(start_dir);
-    loop {
-        let candidate = dir.join("runa.toml");
-        if candidate.exists() {
-            return Some(candidate.to_string_lossy().to_string());
-        }
-        if !dir.pop() {
-            return None;
-        }
-    }
-}
-
-/// Generate a runa.lock file from resolved dependencies.
-/// Records exact resolved paths for reproducible builds.
-fn write_lock_file(toml_path: &str, manifest: &RunaManifest) {
-    let lock_path = toml_path.replace("runa.toml", "runa.lock");
-    let mut content = String::new();
-    content.push_str("# This file is auto-generated by runa. Do not edit.\n");
-    content.push_str(&format!("# Generated from: {}\n\n", toml_path));
-    content.push_str(&format!(
-        "[package]\nname = \"{}\"\nversion = \"{}\"\n\n",
-        manifest.name, manifest.version
-    ));
-
-    if !manifest.dependencies.is_empty() {
-        content.push_str("[dependencies]\n");
-        for (name, spec) in &manifest.dependencies {
-            match spec {
-                DepSpec::Path(p) => {
-                    // Resolve to absolute path for lock file
-                    let toml_dir = std::path::Path::new(toml_path)
-                        .parent()
-                        .unwrap_or_else(|| std::path::Path::new("."));
-                    let abs = if std::path::Path::new(p).is_absolute() {
-                        p.clone()
-                    } else {
-                        toml_dir.join(p).to_string_lossy().to_string()
-                    };
-                    content.push_str(&format!("{} = {{ path = \"{}\" }}\n", name, abs));
-                }
-                DepSpec::Git { url, rev } => {
-                    if let Some(r) = rev {
-                        content.push_str(&format!(
-                            "{} = {{ git = \"{}\", rev = \"{}\" }}\n",
-                            name, url, r
-                        ));
-                    } else {
-                        content.push_str(&format!("{} = {{ git = \"{}\" }}\n", name, url));
-                    }
-                }
-            }
-        }
-    }
-
-    match std::fs::write(&lock_path, &content) {
-        Ok(_) => eprintln!("  wrote {}", lock_path),
-        Err(e) => eprintln!("  warning: could not write lock file: {}", e),
-    }
-}
 
 /// `runa init [name]` — scaffold a new project
 fn runa_init(name: &str) {
@@ -4875,273 +4942,6 @@ entry = "src/main.runa"
     eprintln!("  {}/src/main.runa", name);
     eprintln!();
     eprintln!("  cd {} && runa run src/main.runa", name);
-}
-
-/// Get the dependency cache directory (~/.cache/futuruna/deps/)
-fn dep_cache_dir() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    std::path::PathBuf::from(home)
-        .join(".cache")
-        .join("futuruna")
-        .join("deps")
-}
-
-/// Check if a string looks like a git URL
-fn is_git_url(s: &str) -> bool {
-    s.starts_with("https://")
-        || s.starts_with("http://")
-        || s.starts_with("git@")
-        || s.ends_with(".git")
-}
-
-/// Extract repo name from a git URL (e.g., "https://github.com/user/mylib" → "mylib")
-fn repo_name_from_url(url: &str) -> String {
-    let clean = url.trim_end_matches(".git").trim_end_matches('/');
-    clean.rsplit('/').next().unwrap_or("dep").to_string()
-}
-
-/// Hash a git URL to create a unique cache directory name
-fn git_cache_key(url: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut h = DefaultHasher::new();
-    url.hash(&mut h);
-    format!("{:016x}", h.finish())
-}
-
-/// Ensure a git dependency is cloned/updated in the cache. Returns the local path.
-fn ensure_git_dep(url: &str, rev: Option<&str>) -> Result<String, String> {
-    let cache = dep_cache_dir();
-    let repo_dir = cache.join(git_cache_key(url));
-
-    if repo_dir.exists() {
-        // Already cloned — fetch latest if no specific rev pinned
-        if rev.is_none() {
-            let status = std::process::Command::new("git")
-                .args(["fetch", "--quiet"])
-                .current_dir(&repo_dir)
-                .status();
-            if let Ok(s) = status {
-                if s.success() {
-                    let _ = std::process::Command::new("git")
-                        .args(["reset", "--hard", "origin/HEAD"])
-                        .current_dir(&repo_dir)
-                        .status();
-                }
-            }
-        }
-    } else {
-        // Clone
-        std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create cache dir: {}", e))?;
-        status_eprintln!("\x1b[1;36mCloning\x1b[0m {} ...", url);
-        let status = std::process::Command::new("git")
-            .args([
-                "clone",
-                "--quiet",
-                "--depth",
-                "1",
-                url,
-                &repo_dir.to_string_lossy(),
-            ])
-            .status()
-            .map_err(|e| format!("git clone failed: {}", e))?;
-        if !status.success() {
-            return Err(format!("git clone failed for {}", url));
-        }
-    }
-
-    // Checkout specific rev if specified
-    if let Some(r) = rev {
-        let status = std::process::Command::new("git")
-            .args(["checkout", "--quiet", r])
-            .current_dir(&repo_dir)
-            .status()
-            .map_err(|e| format!("git checkout failed: {}", e))?;
-        if !status.success() {
-            return Err(format!("git checkout '{}' failed", r));
-        }
-    }
-
-    // Get the current commit hash for pinning
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .current_dir(&repo_dir)
-        .output()
-        .map_err(|e| format!("git rev-parse failed: {}", e))?;
-    let _commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-    Ok(repo_dir.to_string_lossy().to_string())
-}
-
-/// Resolve a DepSpec to a local filesystem path (cloning git deps if needed)
-fn resolve_dep_to_path(spec: &DepSpec, toml_dir: &str) -> Option<String> {
-    match spec {
-        DepSpec::Path(p) => {
-            if std::path::Path::new(p).is_absolute() {
-                Some(p.clone())
-            } else {
-                Some(format!("{}/{}", toml_dir, p))
-            }
-        }
-        DepSpec::Git { url, rev } => match ensure_git_dep(url, rev.as_deref()) {
-            Ok(path) => Some(path),
-            Err(e) => {
-                status_eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
-                None
-            }
-        },
-    }
-}
-
-/// `runa add <path-or-url>` — add a dependency to runa.toml
-fn runa_add(dep_arg: &str) {
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let toml_path = match find_runa_toml(&cwd.to_string_lossy()) {
-        Some(p) => p,
-        None => {
-            status_eprintln!(
-                "\x1b[1;31merror\x1b[0m: no runa.toml found in current or parent directories"
-            );
-            eprintln!("  Run 'runa init <name>' to create a project first");
-            std::process::exit(1);
-        }
-    };
-
-    let (dep_name, dep_line) = if is_git_url(dep_arg) {
-        // Git dependency
-        let name = repo_name_from_url(dep_arg);
-
-        // Verify we can clone it
-        match ensure_git_dep(dep_arg, None) {
-            Ok(_) => {}
-            Err(e) => {
-                status_eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
-                std::process::exit(1);
-            }
-        }
-
-        let line = format!("{} = {{ git = \"{}\" }}\n", name, dep_arg);
-        (name, line)
-    } else {
-        // Local path dependency
-        let abs_dep = if std::path::Path::new(dep_arg).is_absolute() {
-            std::path::PathBuf::from(dep_arg)
-        } else {
-            cwd.join(dep_arg)
-        };
-
-        if !abs_dep.exists() {
-            status_eprintln!("\x1b[1;31merror\x1b[0m: path '{}' does not exist", dep_arg);
-            std::process::exit(1);
-        }
-
-        let name = abs_dep
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "dep".to_string());
-
-        let toml_dir = std::path::Path::new(&toml_path)
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
-        let rel_path = pathdiff_relative(&abs_dep, toml_dir);
-        let line = format!("{} = {{ path = \"{}\" }}\n", name, rel_path);
-        (name, line)
-    };
-
-    // Read existing content
-    let content = match std::fs::read_to_string(&toml_path) {
-        Ok(c) => c,
-        Err(e) => {
-            status_eprintln!("\x1b[1;31merror\x1b[0m: cannot read {}: {}", toml_path, e);
-            std::process::exit(1);
-        }
-    };
-
-    // Check if dependency already exists
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with(&dep_name) && trimmed.contains('=') {
-            status_eprintln!(
-                "\x1b[1;33mwarning\x1b[0m: dependency '{}' already exists in runa.toml",
-                dep_name
-            );
-            return;
-        }
-    }
-
-    // Append to [dependencies] section
-    let new_content = append_dep_to_toml(&content, &dep_line);
-
-    if let Err(e) = std::fs::write(&toml_path, new_content) {
-        status_eprintln!("\x1b[1;31merror\x1b[0m: cannot write {}: {}", toml_path, e);
-        std::process::exit(1);
-    }
-
-    let display = if is_git_url(dep_arg) {
-        dep_arg.to_string()
-    } else {
-        let abs_dep = if std::path::Path::new(dep_arg).is_absolute() {
-            std::path::PathBuf::from(dep_arg)
-        } else {
-            cwd.join(dep_arg)
-        };
-        let toml_dir = std::path::Path::new(&toml_path)
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
-        pathdiff_relative(&abs_dep, toml_dir)
-    };
-    status_eprintln!(
-        "\x1b[1;32mAdded\x1b[0m dependency '{}' → {}",
-        dep_name,
-        display
-    );
-
-    // Regenerate lock file
-    if let Some(manifest) = parse_runa_toml(&toml_path) {
-        write_lock_file(&toml_path, &manifest);
-    }
-}
-
-/// Append a dependency line to TOML content's [dependencies] section
-fn append_dep_to_toml(content: &str, dep_line: &str) -> String {
-    if content.contains("[dependencies]") {
-        let mut result = String::new();
-        let mut in_deps = false;
-        let mut added = false;
-        for line in content.lines() {
-            result.push_str(line);
-            result.push('\n');
-            if line.trim() == "[dependencies]" {
-                in_deps = true;
-            } else if in_deps && !added {
-                if line.trim().starts_with('[') || line.trim().is_empty() {
-                    if line.trim().starts_with('[') {
-                        let len = result.len();
-                        result.truncate(len - line.len() - 1);
-                        result.push_str(dep_line);
-                        result.push_str(line);
-                        result.push('\n');
-                    } else {
-                        result.push_str(dep_line);
-                    }
-                    added = true;
-                    in_deps = false;
-                }
-            }
-        }
-        if !added {
-            result.push_str(dep_line);
-        }
-        result
-    } else {
-        let mut result = content.to_string();
-        if !result.ends_with('\n') {
-            result.push('\n');
-        }
-        result.push_str("\n[dependencies]\n");
-        result.push_str(dep_line);
-        result
-    }
 }
 
 /// Compute a relative path from `base` to `target` (simple implementation)
@@ -5643,12 +5443,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 // Reuse only the compiler/source-graph keyed cache checked at
                 // entry. The former stem-only scratch cache ignored compiler
                 // identity and cache controls, and raced concurrent builds.
-                let workspace =
-                    create_native_build_workspace(&std::env::temp_dir().join("runa-native"))
-                        .unwrap_or_else(|error| {
-                            eprintln!("Error creating native build directory: {error}");
-                            std::process::exit(1);
-                        });
+                let workspace = claim_build_workspace();
                 let built_binary = workspace.join(&artifact_stem);
                 let rs_path = workspace
                     .join(format!("{}.rs", artifact_stem))
@@ -5671,13 +5466,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match rustc {
                     Ok(output) => {
                         if !output.status.success() {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            runa_backend_diagnostics::print_generated_rust_failure(
+                                source,
+                                filename,
+                                &stmts,
+                                &code,
+                                &String::from_utf8_lossy(&output.stderr),
+                                &rs_path,
                             );
-                            eprintln!("  Source: {}", filename);
-                            eprintln!("  Generated: {}", rs_path);
-                            eprintln!();
-                            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                             std::process::exit(1);
                         }
                         if !cg.has_raw_rust_blocks {
@@ -5728,15 +5524,15 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 // Cargo also needs an owned manifest, source and target tree:
                 // Cargo's build lock alone does not protect our source writes
                 // or the interval between compilation and copying/execution.
-                let build_dir =
-                    create_native_build_workspace(&Path::new(".runa-build").join(&artifact_stem))
-                        .and_then(std::fs::canonicalize)
-                        .unwrap_or_else(|error| {
-                            eprintln!("Error creating Cargo build directory: {error}");
-                            std::process::exit(1);
-                        })
-                        .to_string_lossy()
-                        .into_owned();
+                // The workspace lives in the private per-user cache, so no
+                // `.cargo/config.toml` from the source tree applies to it.
+                let build_dir = std::fs::canonicalize(claim_build_workspace())
+                    .unwrap_or_else(|error| {
+                        eprintln!("Error creating Cargo build directory: {error}");
+                        std::process::exit(1);
+                    })
+                    .to_string_lossy()
+                    .into_owned();
                 let src_dir = format!("{}/src", build_dir);
                 std::fs::create_dir_all(&src_dir).unwrap_or_else(|e| {
                     eprintln!("Error creating {}: {}", src_dir, e);
@@ -5792,13 +5588,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match cargo {
                     Ok(output) => {
                         if !output.status.success() {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            runa_backend_diagnostics::print_generated_rust_failure(
+                                source,
+                                filename,
+                                &stmts,
+                                &code,
+                                &String::from_utf8_lossy(&output.stderr),
+                                &main_rs,
                             );
-                            eprintln!("  Source: {}", filename);
-                            eprintln!("  Generated: {}/src/main.rs", build_dir);
-                            eprintln!();
-                            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                             std::process::exit(1);
                         }
                         let cargo_bin = format!("{}/target/release/{}", build_dir, artifact_stem);
@@ -5815,6 +5612,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                                 eprintln!("Error running {}: {}", cargo_bin, e);
                                 std::process::exit(1);
                             });
+                            std::fs::remove_dir_all(&build_dir).ok();
                             std::process::exit(status.code().unwrap_or(1));
                         } else {
                             // Copy binary to current directory
@@ -5822,6 +5620,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                                 eprintln!("Error copying binary: {}", e);
                                 std::process::exit(1);
                             });
+                            std::fs::remove_dir_all(&build_dir).ok();
                             let dep_count = cg.cargo_deps.len();
                             eprintln!(
                                 "runa: {} -> {} ({} lines of Rust, {} dep{})",
@@ -5912,8 +5711,9 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 })
                 .collect();
 
-            // Generate Cargo project in .runa-build/<name>-wasm/
-            let build_dir = format!(".runa-build/{}-wasm", safe_stem);
+            // Generate the Cargo project in a private build workspace; only
+            // the finished package is copied to ./<name>-wasm/.
+            let build_dir = claim_build_workspace().to_string_lossy().into_owned();
             let src_dir = format!("{}/src", build_dir);
             std::fs::create_dir_all(&src_dir).unwrap_or_else(|e| {
                 eprintln!("Error creating {}: {}", src_dir, e);
@@ -5984,7 +5784,28 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             let elapsed = start.elapsed();
             match output {
                 Ok(o) if o.status.success() => {
-                    let pkg_dir = format!("{}/pkg", build_dir);
+                    let pkg_dir = format!("{}-wasm", safe_stem);
+                    let copied = std::fs::create_dir_all(&pkg_dir).and_then(|()| {
+                        for entry in std::fs::read_dir(format!("{}/pkg", build_dir))? {
+                            let entry = entry?;
+                            if entry.file_type()?.is_file() {
+                                std::fs::copy(
+                                    entry.path(),
+                                    Path::new(&pkg_dir).join(entry.file_name()),
+                                )?;
+                            }
+                        }
+                        Ok(())
+                    });
+                    if let Err(error) = copied {
+                        status_eprintln!(
+                            "\x1b[1;31merror\x1b[0m: cannot copy the wasm package to {}: {}",
+                            pkg_dir,
+                            error
+                        );
+                        std::process::exit(1);
+                    }
+                    std::fs::remove_dir_all(&build_dir).ok();
                     status_eprintln!("\x1b[1;32mwasm ok\x1b[0m: {} → {}/", filename, pkg_dir);
                     // List generated files
                     if let Ok(entries) = std::fs::read_dir(&pkg_dir) {
@@ -6640,7 +6461,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             // Set source directory for @ import resolution
             interp.source_dir = source_dir_for(filename);
             let mut env = interp.default_env();
-            // A program's output is what it prints, as in compiled code.
+            // A program's output is what it prints, in both execution modes.
             if let Err(diagnostic) =
                 interp.run_program_with_diagnostics(&stmts, &mut env, Path::new(filename), source)
             {
@@ -9116,19 +8937,9 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
         Stmt::Invariant { name, .. } => {
             names.insert(name.clone());
         }
-        Stmt::Prove {
-            name,
-            proof_block,
-            capture,
-            ..
-        } => {
+        Stmt::Prove { name, capture, .. } => {
             names.insert(name.clone());
             names.extend(capture.iter().cloned());
-            if let Some(proof_block) = proof_block {
-                for arm in &proof_block.arms {
-                    names.extend(arm.binders.iter().cloned());
-                }
-            }
         }
         Stmt::Rule(_)
         | Stmt::PreludeBoundary
@@ -9512,8 +9323,10 @@ fn build_explore_native_classifier_v2_cache_enabled(
             return None;
         }
     };
-    let cache_root = compiler_artifact_cache_dir()
-        .unwrap_or_else(|| std::env::temp_dir().join("futuruna-compiler-artifacts-v1"));
+    let cache_root = match compiler_artifact_cache_dir() {
+        Some(cache_root) => cache_root,
+        None => compiler_cache_base().ok()?.join("compiler-artifacts-v1"),
+    };
     let target = explore_native_classifier_cache_target_v3(&cache_root, &cache_key);
     let resolution = explore_native_classifier_cache_or_build_v3(target, |target| {
         build_explore_native_classifier_v2_cache_miss(plan, target, started)
@@ -10211,6 +10024,7 @@ enum ExpectCommand {
     Verify,
     LintLibrary,
     LintLibraryImports,
+    Audit,
 }
 
 impl ExpectCommand {
@@ -10227,8 +10041,9 @@ impl ExpectCommand {
             "verify" => Ok(Self::Verify),
             "lint-library" => Ok(Self::LintLibrary),
             "lint-library-imports" => Ok(Self::LintLibraryImports),
+            "audit" => Ok(Self::Audit),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -10247,6 +10062,7 @@ impl ExpectCommand {
             Self::Verify => "verify",
             Self::LintLibrary => "lint-library",
             Self::LintLibraryImports => "lint-library-imports",
+            Self::Audit => "audit",
         }
     }
 
@@ -10285,6 +10101,9 @@ impl ExpectCommand {
             Self::LintLibraryImports => {
                 cmd.arg("lint-library").arg("--imports").arg(file);
             }
+            Self::Audit => {
+                cmd.arg("audit").arg(file);
+            }
         }
     }
 }
@@ -10319,6 +10138,7 @@ impl ExpectStatus {
 struct ExpectCase {
     command: ExpectCommand,
     args: Vec<String>,
+    env: Vec<(String, String)>,
     status: ExpectStatus,
     stdout: Vec<String>,
     stderr: Vec<String>,
@@ -10370,10 +10190,24 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         .unwrap_or_default();
     let stdout_file = single_expectation_marker(source, "-- expect-stdout-file:", path)?;
     let stderr_file = single_expectation_marker(source, "-- expect-stderr-file:", path)?;
+    let env = collect_expectation_markers(source, "-- expect-env:")
+        .into_iter()
+        .map(|raw| match raw.split_once('=') {
+            Some((key, value)) if !key.trim().is_empty() => {
+                Ok((key.trim().to_string(), value.trim().to_string()))
+            }
+            _ => Err(format!(
+                "{} has `expect-env: {}`; expected KEY=VALUE",
+                path.display(),
+                raw
+            )),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ExpectCase {
         command,
         args,
+        env,
         status,
         stdout: collect_expectation_markers(source, "-- expect-stdout:"),
         stderr: collect_expectation_markers(source, "-- expect-stderr:"),
@@ -10543,6 +10377,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
         let mut cmd = std::process::Command::new(&self_bin);
         case.command.apply_to_command(&mut cmd, &file_str);
         cmd.args(&case.args);
+        cmd.envs(case.env.iter().map(|(key, value)| (key, value)));
         if !use_prelude {
             cmd.arg("--no-prelude");
         }
@@ -10816,6 +10651,14 @@ struct TestFileResult {
     elapsed: std::time::Duration,
 }
 
+fn source_has_embedded_rust(source: &str) -> bool {
+    source.lines().any(|line| {
+        line.trim_start()
+            .strip_prefix("@ rust")
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
+    })
+}
+
 fn run_test_case(
     self_bin: &Path,
     file_path: &Path,
@@ -10838,6 +10681,14 @@ fn run_test_case(
     if compile_mode && !expected_errors.is_empty() {
         return TestFileResult {
             outcome: TestFileOutcome::Skip("negative test"),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+            elapsed: start.elapsed(),
+        };
+    }
+    if !compile_mode && expected_errors.is_empty() && source_has_embedded_rust(&source) {
+        return TestFileResult {
+            outcome: TestFileOutcome::Skip("embedded Rust runs only in compiled code"),
             stdout: Vec::new(),
             stderr: Vec::new(),
             elapsed: start.elapsed(),
@@ -11049,6 +10900,7 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize, kind
             total,
             suite_time
         );
+        ToolGuarantee::Test.print(true);
     } else {
         status_eprintln!(
             "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
@@ -12628,8 +12480,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
     );
 
     let suite_start = Instant::now();
-    let temp_workspace = unique_temp_workspace("runa-codegen-check");
-    let _ = std::fs::create_dir_all(&temp_workspace);
+    let temp_workspace = claim_build_workspace();
     let tmp_rs = temp_workspace.join("check.rs");
     let tmp_out = temp_workspace.join("check-out");
 
@@ -12932,10 +12783,12 @@ fn smt_expr_kind_name(expr: &Expr) -> &'static str {
     }
 }
 
+/// Declarations and claims an imported source contributes to verification;
+/// its program flow (prints, loops, sends) is not part of the claim set.
 fn smt_imported_library_statement(statement: &Stmt) -> bool {
     matches!(
         statement,
-        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..)
+        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..) | Stmt::Invariant { .. }
     )
 }
 
@@ -14097,6 +13950,41 @@ fn rewrite_smt_statement_for_namespace(
         Stmt::Defn(_) | Stmt::Bind(..) if namespace != "root" => Err(format!(
             "qualified SMT namespace `{}` contains a declaration outside the direct scalar function/rule contract; unsupported qualified shapes fail closed",
             symbols.namespace(namespace)?.display_name
+        )),
+        // Program-flow statements exist only in the root namespace. They are
+        // type-checked with the lowered declarations, so qualified calls in
+        // them must resolve to the same namespace symbols as invariants.
+        Stmt::Expr(expression) => Ok(Stmt::Expr(rewrite_smt_expr_for_namespace(
+            expression, namespace, symbols, &empty,
+        )?)),
+        Stmt::Annot(name, arguments) => Ok(Stmt::Annot(
+            name.clone(),
+            arguments
+                .iter()
+                .map(|argument| rewrite_smt_expr_for_namespace(argument, namespace, symbols, &empty))
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        Stmt::MonadicBind(pattern, ty, value) => Ok(Stmt::MonadicBind(
+            pattern.clone(),
+            ty.clone(),
+            rewrite_smt_expr_for_namespace(value, namespace, symbols, &empty)?,
+        )),
+        Stmt::StreamBind(name, value) => Ok(Stmt::StreamBind(
+            name.clone(),
+            rewrite_smt_expr_for_namespace(value, namespace, symbols, &empty)?,
+        )),
+        Stmt::For(variable, iterable, body) => Ok(Stmt::For(
+            variable.clone(),
+            rewrite_smt_expr_for_namespace(iterable, namespace, symbols, &empty)?,
+            body.iter()
+                .map(|statement| rewrite_smt_statement_for_namespace(statement, namespace, symbols))
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        Stmt::While(condition, body) => Ok(Stmt::While(
+            rewrite_smt_expr_for_namespace(condition, namespace, symbols, &empty)?,
+            body.iter()
+                .map(|statement| rewrite_smt_statement_for_namespace(statement, namespace, symbols))
+                .collect::<Result<Vec<_>, _>>()?,
         )),
         _ => Ok(statement.clone()),
     }
@@ -16295,6 +16183,7 @@ fn audit_calculation_reachability_source(
         .cloned()
         .collect::<Vec<_>>();
     let mut interpreter = Interpreter::new();
+    interpreter.deny_host_effects("`runa audit`");
     interpreter.source_dir = source_dir_for(filename);
     interpreter.install_rule_dispatch_metadata(&artifacts);
     let mut env = interpreter.default_env();
@@ -16408,19 +16297,54 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             std::process::exit(1);
         }
     };
+    // Findings describe a program that passes the frontend check. An
+    // unresolved import or ill-typed declaration would otherwise leave rules
+    // unregistered and make an incomplete audit read as a clean one.
+    let frontend = type_check_artifacts(&stmts, source, filename);
+    if print_type_check_diagnostics(&frontend.diagnostics, source, filename) {
+        eprintln!(
+            "runa audit: the program must pass `runa check --frontend` before it can be audited"
+        );
+        std::process::exit(1);
+    }
 
+    // An audit inspects the model: it registers declarations and evaluates
+    // bindings and rules, but never runs top-level statements (effects,
+    // loops, sends, proofs) and never performs host effects.
+    let effect_diagnostics = audit_host_effect_diagnostics(&stmts);
+    if print_type_check_diagnostics(&effect_diagnostics, source, filename) {
+        std::process::exit(1);
+    }
     let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
+    interp.deny_host_effects("`runa audit`");
     interp.source_dir = source_dir.clone();
     interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
     let mut env = interp.default_env();
 
-    // Filter out Prove statements — we don't want verification output during audit
     let audit_stmts: Vec<Stmt> = stmts
         .into_iter()
-        .filter(|s| !matches!(s, Stmt::Prove { .. }))
+        .filter(|s| {
+            !matches!(
+                s,
+                Stmt::Expr(_)
+                    | Stmt::For(..)
+                    | Stmt::While(..)
+                    | Stmt::Send(..)
+                    | Stmt::StreamSub(..)
+                    | Stmt::Prove { .. }
+            )
+        })
         .collect();
-    let _ = interp.run_program(&audit_stmts, &mut env);
+    if let Err(diagnostic) =
+        interp.run_program_with_diagnostics(&audit_stmts, &mut env, Path::new(filename), source)
+    {
+        eprint!(
+            "{}",
+            diagnostic.display(source, filename, should_use_color())
+        );
+        std::process::exit(1);
+    }
 
     // Phase 2: Evaluate all zero-arg rules, classify by return VALUE TYPE
     struct RuleResult {
@@ -17351,6 +17275,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             }
         }
     }
+    ToolGuarantee::Audit.print(false);
 }
 
 /// Collect rule name references from an expression (for invariant coverage analysis)
@@ -17389,1158 +17314,6 @@ fn collect_rule_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
         }
         _ => {}
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum ExplicitProofStatus {
-    Proved,
-    Unsupported(String),
-    Failed(String),
-}
-
-#[derive(Debug, Clone, Default)]
-struct ProofConstructorTable {
-    family_by_type: BTreeMap<String, Vec<String>>,
-    family_by_ctor: BTreeMap<String, Vec<String>>,
-    arity_by_ctor: BTreeMap<String, usize>,
-    field_families_by_ctor: BTreeMap<String, Vec<Option<Vec<String>>>>,
-    recursive_by_ctor: BTreeMap<String, Vec<usize>>,
-}
-
-impl ProofConstructorTable {
-    fn from_adts(adts: &[(String, Vec<Variant>)]) -> Self {
-        let mut table = Self::default();
-        for (ty_name, variants) in adts {
-            let family: Vec<String> = variants
-                .iter()
-                .map(|variant| variant.name.clone())
-                .collect();
-            table.family_by_type.insert(ty_name.clone(), family.clone());
-        }
-        for (ty_name, variants) in adts {
-            let family = table
-                .family_by_type
-                .get(ty_name)
-                .cloned()
-                .unwrap_or_default();
-            for variant in variants {
-                table
-                    .family_by_ctor
-                    .insert(variant.name.clone(), family.clone());
-                table
-                    .arity_by_ctor
-                    .insert(variant.name.clone(), variant.fields.len());
-                table.field_families_by_ctor.insert(
-                    variant.name.clone(),
-                    variant
-                        .fields
-                        .iter()
-                        .map(|field| constructors_family_for_ty(&table.family_by_type, &field.ty))
-                        .collect(),
-                );
-                table.recursive_by_ctor.insert(
-                    variant.name.clone(),
-                    proof_recursive_field_positions(ty_name, variant),
-                );
-            }
-        }
-        table
-    }
-
-    fn family_for_type(&self, ty: &Ty) -> Option<&Vec<String>> {
-        proof_type_name(ty).and_then(|name| self.family_by_type.get(name))
-    }
-}
-
-fn constructors_family_for_ty(
-    family_by_type: &BTreeMap<String, Vec<String>>,
-    ty: &Ty,
-) -> Option<Vec<String>> {
-    proof_type_name(ty).and_then(|name| family_by_type.get(name).cloned())
-}
-
-fn proof_recursive_field_positions(ty_name: &str, variant: &Variant) -> Vec<usize> {
-    variant
-        .fields
-        .iter()
-        .enumerate()
-        .filter_map(|(index, field)| (proof_type_name(&field.ty) == Some(ty_name)).then_some(index))
-        .collect()
-}
-
-#[cfg(test)]
-fn collect_function_param_types(stmts: &[Stmt]) -> BTreeMap<String, Vec<Option<Ty>>> {
-    stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Defn(Defn::Fn { name, params, .. }) => Some((
-                name.clone(),
-                params.iter().map(|param| param.ty.clone()).collect(),
-            )),
-            _ => None,
-        })
-        .collect()
-}
-
-fn collect_function_param_types_from_defs(
-    functions: &[(String, Vec<Param>, Option<Ty>, Expr)],
-) -> BTreeMap<String, Vec<Option<Ty>>> {
-    functions
-        .iter()
-        .map(|(name, params, _, _)| {
-            (
-                name.clone(),
-                params.iter().map(|param| param.ty.clone()).collect(),
-            )
-        })
-        .collect()
-}
-
-fn note_inferred_family(
-    name: &str,
-    family: Vec<String>,
-    inferred: &mut BTreeMap<String, Vec<String>>,
-    conflicted: &mut BTreeSet<String>,
-) {
-    if conflicted.contains(name) {
-        return;
-    }
-    match inferred.get(name) {
-        None => {
-            inferred.insert(name.into(), family);
-        }
-        Some(existing) if *existing == family => {}
-        Some(_) => {
-            inferred.remove(name);
-            conflicted.insert(name.into());
-        }
-    }
-}
-
-fn infer_expr_var_families(
-    expr: &Expr,
-    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
-    constructors: &ProofConstructorTable,
-    inferred: &mut BTreeMap<String, Vec<String>>,
-    conflicted: &mut BTreeSet<String>,
-) {
-    match &expr.kind {
-        ExprKind::Var(_) | ExprKind::Lit(_) => {}
-        ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = &func.kind {
-                if let Some(param_types) = function_param_types.get(name) {
-                    for (arg, param_ty) in args.iter().zip(param_types.iter()) {
-                        if let Some(family) = param_ty
-                            .as_ref()
-                            .and_then(|ty| constructors.family_for_type(ty))
-                            .cloned()
-                        {
-                            if let ExprKind::Var(var_name) = &arg.kind {
-                                note_inferred_family(var_name, family, inferred, conflicted);
-                            }
-                        }
-                    }
-                }
-            }
-            infer_expr_var_families(
-                func,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-            for arg in args {
-                infer_expr_var_families(
-                    arg,
-                    function_param_types,
-                    constructors,
-                    inferred,
-                    conflicted,
-                );
-            }
-        }
-        ExprKind::BinOp(_, lhs, rhs) => {
-            infer_expr_var_families(
-                lhs,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-            infer_expr_var_families(
-                rhs,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-        }
-        ExprKind::UnOp(_, inner) => {
-            infer_expr_var_families(
-                inner,
-                function_param_types,
-                constructors,
-                inferred,
-                conflicted,
-            );
-        }
-        ExprKind::Tuple(elems) => {
-            for elem in elems {
-                infer_expr_var_families(
-                    elem,
-                    function_param_types,
-                    constructors,
-                    inferred,
-                    conflicted,
-                );
-            }
-        }
-        _ => {}
-    }
-}
-
-fn infer_explicit_proof_var_families(
-    subject_expr: &Expr,
-    pred_expr: &Expr,
-    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
-    constructors: &ProofConstructorTable,
-) -> BTreeMap<String, Vec<String>> {
-    let mut inferred = BTreeMap::new();
-    let mut conflicted = BTreeSet::new();
-    infer_expr_var_families(
-        subject_expr,
-        function_param_types,
-        constructors,
-        &mut inferred,
-        &mut conflicted,
-    );
-    infer_expr_var_families(
-        pred_expr,
-        function_param_types,
-        constructors,
-        &mut inferred,
-        &mut conflicted,
-    );
-    inferred
-}
-
-fn proof_type_name(ty: &Ty) -> Option<&str> {
-    match ty {
-        Ty::Name(name) => Some(name),
-        Ty::App(base, _) => proof_type_name(base),
-        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
-            proof_type_name(inner)
-        }
-        Ty::Arrow(_, _) | Ty::Var(_) | Ty::Unit | Ty::Hole => None,
-    }
-}
-
-fn proof_schema_vars(prop: &proof_kernel::Prop) -> Vec<String> {
-    let mut vars = BTreeSet::new();
-    collect_proof_prop_vars(prop, &mut vars);
-    vars.into_iter().collect()
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProofExprContext {
-    Term,
-    Prop,
-}
-
-fn proof_expr_is_lowerable(expr: &Expr, context: ProofExprContext) -> bool {
-    match context {
-        ProofExprContext::Term => lower_expr_to_proof_term(expr).is_ok(),
-        ProofExprContext::Prop => lower_expr_to_proof_prop(expr).is_ok(),
-    }
-}
-
-fn substitute_expr_bindings_for_proof(
-    expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-    active: &mut BTreeSet<String>,
-    context: ProofExprContext,
-) -> Expr {
-    match &expr.kind {
-        ExprKind::Var(name) => {
-            if let Some(bound_expr) = bindings.get(name) {
-                if active.insert(name.clone()) {
-                    let expanded =
-                        substitute_expr_bindings_for_proof(bound_expr, bindings, active, context);
-                    active.remove(name);
-                    if proof_expr_is_lowerable(&expanded, context) {
-                        expanded
-                    } else {
-                        expr.clone()
-                    }
-                } else {
-                    expr.clone()
-                }
-            } else {
-                expr.clone()
-            }
-        }
-        ExprKind::App(func, args) => Expr::new(
-            ExprKind::App(
-                func.clone(),
-                args.iter()
-                    .map(|arg| {
-                        substitute_expr_bindings_for_proof(
-                            arg,
-                            bindings,
-                            active,
-                            ProofExprContext::Term,
-                        )
-                    })
-                    .collect(),
-            ),
-            expr.span,
-        ),
-        ExprKind::BinOp(op, lhs, rhs) => {
-            let child_context = if op == "&&" {
-                ProofExprContext::Prop
-            } else {
-                ProofExprContext::Term
-            };
-            Expr::new(
-                ExprKind::BinOp(
-                    op.clone(),
-                    Box::new(substitute_expr_bindings_for_proof(
-                        lhs,
-                        bindings,
-                        active,
-                        child_context,
-                    )),
-                    Box::new(substitute_expr_bindings_for_proof(
-                        rhs,
-                        bindings,
-                        active,
-                        child_context,
-                    )),
-                ),
-                expr.span,
-            )
-        }
-        ExprKind::UnOp(op, inner) => Expr::new(
-            ExprKind::UnOp(
-                op.clone(),
-                Box::new(substitute_expr_bindings_for_proof(
-                    inner,
-                    bindings,
-                    active,
-                    ProofExprContext::Term,
-                )),
-            ),
-            expr.span,
-        ),
-        ExprKind::Tuple(elems) => Expr::new(
-            ExprKind::Tuple(
-                elems
-                    .iter()
-                    .map(|elem| {
-                        substitute_expr_bindings_for_proof(
-                            elem,
-                            bindings,
-                            active,
-                            ProofExprContext::Term,
-                        )
-                    })
-                    .collect(),
-            ),
-            expr.span,
-        ),
-        _ => expr.clone(),
-    }
-}
-
-fn invariant_proof_schema(
-    pred_expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Schema, String> {
-    let expanded_pred = substitute_expr_bindings_for_proof(
-        pred_expr,
-        bindings,
-        &mut BTreeSet::new(),
-        ProofExprContext::Prop,
-    );
-    let conclusion = lower_expr_to_proof_prop(&expanded_pred)?;
-    Ok(proof_kernel::Schema {
-        vars: proof_schema_vars(&conclusion),
-        premises: vec![],
-        conclusion,
-    })
-}
-
-fn pattern_to_proof_term(pat: &Pat) -> Result<proof_kernel::Term, String> {
-    match pat {
-        Pat::Wild => Err("computation lemmas do not support wildcard patterns yet".into()),
-        Pat::Var(name) => Ok(proof_kernel::Term::Var(name.clone())),
-        Pat::Lit(Literal::Int(n)) => Ok(proof_kernel::Term::Int(*n)),
-        Pat::Lit(Literal::Bool(b)) => Ok(proof_kernel::Term::App(
-            if *b { "True" } else { "False" }.into(),
-            vec![],
-        )),
-        Pat::Lit(Literal::Float(_)) => {
-            Err("computation lemmas do not support float literal patterns".into())
-        }
-        Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
-            Err("computation lemmas only support integer, boolean, and constructor patterns".into())
-        }
-        Pat::Con(name, args) if args.is_empty() => Ok(proof_kernel::Term::Var(name.clone())),
-        Pat::Con(name, args) => Ok(proof_kernel::Term::App(
-            name.clone(),
-            args.iter()
-                .map(pattern_to_proof_term)
-                .collect::<Result<Vec<_>, _>>()?,
-        )),
-        Pat::NamedCon(_, _) => {
-            Err("computation lemmas do not support named-constructor patterns yet".into())
-        }
-        Pat::As(_, _) => Err("computation lemmas do not support alias patterns yet".into()),
-    }
-}
-
-fn computation_lemma_case_suffix(pat: &Pat) -> Result<String, String> {
-    match pat {
-        Pat::Con(name, _) | Pat::NamedCon(name, _) => Ok(name.to_ascii_lowercase()),
-        Pat::Lit(Literal::Bool(true)) => Ok("true".into()),
-        Pat::Lit(Literal::Bool(false)) => Ok("false".into()),
-        Pat::Lit(Literal::Int(n)) if *n >= 0 => Ok(format!("int_{}", n)),
-        Pat::Lit(Literal::Int(n)) => Ok(format!("int_neg_{}", n.abs())),
-        Pat::Wild | Pat::Var(_) | Pat::As(_, _) => {
-            Err("computation lemmas require constructor or literal match arms".into())
-        }
-        Pat::Lit(Literal::Float(_)) | Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
-            Err("computation lemmas only name integer, boolean, and constructor arms".into())
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ComputationLemmaSourceArm {
-    lemma_name: String,
-    function_name: String,
-    param_names: Vec<String>,
-    pattern: Pat,
-    body: Expr,
-}
-
-fn computation_lemma_match_body(body: &Expr) -> Option<(&Expr, &Vec<MatchArm>)> {
-    match &body.kind {
-        ExprKind::Match(scrutinee, arms) => Some((scrutinee, arms)),
-        ExprKind::Block(stmts) if stmts.len() == 1 => match &stmts[0] {
-            Stmt::Expr(expr) => computation_lemma_match_body(expr),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn computation_lemma_source_arms_for_function(
-    name: &str,
-    params: &[Param],
-    body: &Expr,
-) -> Option<Vec<ComputationLemmaSourceArm>> {
-    if params.is_empty() {
-        return None;
-    }
-
-    let (scrutinee, arms) = computation_lemma_match_body(body)?;
-    let ExprKind::Var(scrut_name) = &scrutinee.kind else {
-        return None;
-    };
-    if scrut_name != &params[0].name || arms.is_empty() {
-        return None;
-    }
-
-    let param_names: Vec<String> = params.iter().map(|param| param.name.clone()).collect();
-    let mut source_arms = Vec::new();
-    for arm in arms {
-        if arm.guard.is_some() {
-            return None;
-        }
-        let suffix = computation_lemma_case_suffix(&arm.pat).ok()?;
-        source_arms.push(ComputationLemmaSourceArm {
-            lemma_name: format!("{}.{}", name, suffix),
-            function_name: name.to_string(),
-            param_names: param_names.clone(),
-            pattern: arm.pat.clone(),
-            body: arm.body.clone(),
-        });
-    }
-
-    Some(source_arms)
-}
-
-fn collect_computation_lemma_source_arms(stmts: &[Stmt]) -> Vec<ComputationLemmaSourceArm> {
-    let mut source_arms = Vec::new();
-    for stmt in stmts {
-        if let Stmt::Defn(Defn::Fn {
-            name, params, body, ..
-        }) = stmt
-        {
-            if let Some(mut arms) = computation_lemma_source_arms_for_function(name, params, body) {
-                source_arms.append(&mut arms);
-            }
-        }
-    }
-    source_arms
-}
-
-fn lower_computation_lemma_source_body(
-    source_arm: &ComputationLemmaSourceArm,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Term, String> {
-    let mut active: BTreeSet<String> = source_arm.param_names.iter().cloned().collect();
-    collect_pattern_binding_names(&source_arm.pattern, &mut active);
-    let expanded_body = substitute_expr_bindings_for_proof(
-        &source_arm.body,
-        bindings,
-        &mut active,
-        ProofExprContext::Term,
-    );
-    lower_expr_to_proof_term(&expanded_body)
-}
-
-fn lower_computation_lemma_source_lhs_args(
-    source_arm: &ComputationLemmaSourceArm,
-) -> Result<Vec<proof_kernel::Term>, String> {
-    let first_arg = pattern_to_proof_term(&source_arm.pattern)?;
-    let mut lhs_args = vec![first_arg];
-    lhs_args.extend(
-        source_arm
-            .param_names
-            .iter()
-            .skip(1)
-            .map(|name| proof_kernel::Term::Var(name.clone())),
-    );
-    Ok(lhs_args)
-}
-
-fn generated_computation_lemma_schema_from_source_arm(
-    source_arm: &ComputationLemmaSourceArm,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Schema, String> {
-    let lhs_args = lower_computation_lemma_source_lhs_args(source_arm)?;
-    let rhs = lower_computation_lemma_source_body(source_arm, bindings)?;
-    let conclusion = proof_kernel::Prop::Eq(
-        proof_kernel::Term::App(source_arm.function_name.clone(), lhs_args),
-        rhs,
-    );
-    Ok(proof_kernel::Schema {
-        vars: proof_schema_vars(&conclusion),
-        premises: vec![],
-        conclusion,
-    })
-}
-
-fn expected_computation_lemma_schema_from_source_arm(
-    source_arm: &ComputationLemmaSourceArm,
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<proof_kernel::Schema, String> {
-    let lhs_args = lower_computation_lemma_source_lhs_args(source_arm)?;
-    let rhs = lower_computation_lemma_source_body(source_arm, bindings)?;
-    let conclusion = proof_kernel::Prop::Eq(
-        proof_kernel::Term::App(source_arm.function_name.clone(), lhs_args),
-        rhs,
-    );
-    Ok(proof_kernel::Schema {
-        vars: proof_schema_vars(&conclusion),
-        premises: vec![],
-        conclusion,
-    })
-}
-
-fn computation_lemmas_for_function(
-    name: &str,
-    params: &[Param],
-    body: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-) -> Option<Vec<(String, proof_kernel::Schema)>> {
-    let source_arms = computation_lemma_source_arms_for_function(name, params, body)?;
-    let mut lemmas = Vec::new();
-    for source_arm in source_arms {
-        let schema =
-            generated_computation_lemma_schema_from_source_arm(&source_arm, bindings).ok()?;
-        lemmas.push((source_arm.lemma_name, schema));
-    }
-
-    Some(lemmas)
-}
-
-fn collect_computation_lemmas(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-) -> Vec<(String, proof_kernel::Schema)> {
-    let mut lemmas = Vec::new();
-    for stmt in stmts {
-        if let Stmt::Defn(Defn::Fn {
-            name, params, body, ..
-        }) = stmt
-        {
-            if let Some(mut generated) =
-                computation_lemmas_for_function(name, params, body, bindings)
-            {
-                lemmas.append(&mut generated);
-            }
-        }
-    }
-    lemmas
-}
-
-fn computation_lemma_schema_matches(
-    actual: &proof_kernel::Schema,
-    expected: &proof_kernel::Schema,
-) -> bool {
-    actual.vars == expected.vars
-        && actual.premises == expected.premises
-        && actual.conclusion == expected.conclusion
-}
-
-fn expected_computation_lemma_map(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<BTreeMap<String, proof_kernel::Schema>, String> {
-    let mut expected = BTreeMap::new();
-    let mut by_function: BTreeMap<String, Vec<ComputationLemmaSourceArm>> = BTreeMap::new();
-    for source_arm in collect_computation_lemma_source_arms(stmts) {
-        by_function
-            .entry(source_arm.function_name.clone())
-            .or_default()
-            .push(source_arm);
-    }
-
-    for (_, source_arms) in by_function {
-        let mut derived = Vec::new();
-        let mut all_arms_lowerable = true;
-        for source_arm in &source_arms {
-            match expected_computation_lemma_schema_from_source_arm(source_arm, bindings) {
-                Ok(schema) => derived.push((source_arm.lemma_name.clone(), schema)),
-                Err(_) => {
-                    all_arms_lowerable = false;
-                    break;
-                }
-            }
-        }
-
-        if !all_arms_lowerable {
-            continue;
-        }
-
-        for (lemma_name, schema) in derived {
-            if expected.insert(lemma_name.clone(), schema).is_some() {
-                return Err(format!(
-                    "duplicate eligible source computation lemma `{}`",
-                    lemma_name
-                ));
-            }
-        }
-    }
-    Ok(expected)
-}
-
-fn validate_computation_lemmas_against_sources(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-    generated: &[(String, proof_kernel::Schema)],
-) -> Result<(), String> {
-    let expected = expected_computation_lemma_map(stmts, bindings)?;
-    let mut seen = BTreeSet::new();
-
-    for (name, schema) in generated {
-        if !seen.insert(name.clone()) {
-            return Err(format!("duplicate generated computation lemma `{}`", name));
-        }
-        let Some(expected_schema) = expected.get(name) else {
-            return Err(format!(
-                "generated computation lemma `{}` has no eligible source arm",
-                name
-            ));
-        };
-        if !computation_lemma_schema_matches(schema, expected_schema) {
-            return Err(format!(
-                "generated computation lemma `{}` does not match its source arm: expected `{}`, got `{}`",
-                name, expected_schema.conclusion, schema.conclusion
-            ));
-        }
-    }
-
-    for expected_name in expected.keys() {
-        if !seen.contains(expected_name) {
-            return Err(format!(
-                "missing generated computation lemma `{}` for eligible source arm",
-                expected_name
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-fn collect_computation_lemmas_checked(
-    stmts: &[Stmt],
-    bindings: &BTreeMap<String, Expr>,
-) -> Result<Vec<(String, proof_kernel::Schema)>, String> {
-    let generated = collect_computation_lemmas(stmts, bindings);
-    validate_computation_lemmas_against_sources(stmts, bindings, &generated)?;
-    Ok(generated)
-}
-
-fn build_explicit_proof_registry(
-    computation_lemmas: &[(String, proof_kernel::Schema)],
-    proved_invariants: &BTreeMap<String, proof_kernel::Schema>,
-) -> Result<proof_kernel::Registry, String> {
-    let mut reg = proof_kernel::Registry::with_builtins();
-
-    for (name, schema) in computation_lemmas {
-        reg.register(name.clone(), schema.clone())
-            .map_err(|err| err.to_string())?;
-    }
-    for (name, schema) in proved_invariants {
-        reg.register(name.clone(), schema.clone())
-            .map_err(|err| err.to_string())?;
-    }
-
-    Ok(reg)
-}
-
-fn substitute_proof_term_vars(
-    term: &proof_kernel::Term,
-    substitutions: &BTreeMap<String, proof_kernel::Term>,
-) -> proof_kernel::Term {
-    match term {
-        proof_kernel::Term::Int(n) => proof_kernel::Term::Int(*n),
-        proof_kernel::Term::Var(name) => substitutions
-            .get(name)
-            .cloned()
-            .unwrap_or_else(|| proof_kernel::Term::Var(name.clone())),
-        proof_kernel::Term::Op(op, lhs, rhs) => proof_kernel::Term::Op(
-            op.clone(),
-            Box::new(substitute_proof_term_vars(lhs, substitutions)),
-            Box::new(substitute_proof_term_vars(rhs, substitutions)),
-        ),
-        proof_kernel::Term::App(name, args) => proof_kernel::Term::App(
-            name.clone(),
-            args.iter()
-                .map(|arg| substitute_proof_term_vars(arg, substitutions))
-                .collect(),
-        ),
-    }
-}
-
-fn substitute_proof_prop_vars(
-    prop: &proof_kernel::Prop,
-    substitutions: &BTreeMap<String, proof_kernel::Term>,
-) -> proof_kernel::Prop {
-    match prop {
-        proof_kernel::Prop::Eq(lhs, rhs) => proof_kernel::Prop::Eq(
-            substitute_proof_term_vars(lhs, substitutions),
-            substitute_proof_term_vars(rhs, substitutions),
-        ),
-        proof_kernel::Prop::Le(lhs, rhs) => proof_kernel::Prop::Le(
-            substitute_proof_term_vars(lhs, substitutions),
-            substitute_proof_term_vars(rhs, substitutions),
-        ),
-        proof_kernel::Prop::And(lhs, rhs) => proof_kernel::Prop::And(
-            Box::new(substitute_proof_prop_vars(lhs, substitutions)),
-            Box::new(substitute_proof_prop_vars(rhs, substitutions)),
-        ),
-        proof_kernel::Prop::Not(inner) => {
-            proof_kernel::Prop::Not(Box::new(substitute_proof_prop_vars(inner, substitutions)))
-        }
-        proof_kernel::Prop::Imply(lhs, rhs) => proof_kernel::Prop::Imply(
-            Box::new(substitute_proof_prop_vars(lhs, substitutions)),
-            Box::new(substitute_proof_prop_vars(rhs, substitutions)),
-        ),
-        proof_kernel::Prop::False => proof_kernel::Prop::False,
-    }
-}
-
-fn collect_proof_term_vars(term: &proof_kernel::Term, vars: &mut BTreeSet<String>) {
-    match term {
-        proof_kernel::Term::Int(_) => {}
-        proof_kernel::Term::Var(name) => {
-            vars.insert(name.clone());
-        }
-        proof_kernel::Term::Op(_, lhs, rhs) => {
-            collect_proof_term_vars(lhs, vars);
-            collect_proof_term_vars(rhs, vars);
-        }
-        proof_kernel::Term::App(_, args) => {
-            for arg in args {
-                collect_proof_term_vars(arg, vars);
-            }
-        }
-    }
-}
-
-fn collect_proof_prop_vars(prop: &proof_kernel::Prop, vars: &mut BTreeSet<String>) {
-    match prop {
-        proof_kernel::Prop::Eq(lhs, rhs) | proof_kernel::Prop::Le(lhs, rhs) => {
-            collect_proof_term_vars(lhs, vars);
-            collect_proof_term_vars(rhs, vars);
-        }
-        proof_kernel::Prop::And(lhs, rhs) | proof_kernel::Prop::Imply(lhs, rhs) => {
-            collect_proof_prop_vars(lhs, vars);
-            collect_proof_prop_vars(rhs, vars);
-        }
-        proof_kernel::Prop::Not(inner) => collect_proof_prop_vars(inner, vars),
-        proof_kernel::Prop::False => {}
-    }
-}
-
-fn collect_proof_term_term_vars(term: &proof_kernel::ProofTerm, vars: &mut BTreeSet<String>) {
-    match term {
-        proof_kernel::ProofTerm::Refl | proof_kernel::ProofTerm::Hyp(_) => {}
-        proof_kernel::ProofTerm::Apply(_, args) => {
-            for arg in args {
-                collect_proof_term_term_vars(arg, vars);
-            }
-        }
-        proof_kernel::ProofTerm::Rewrite(lhs, rhs) => {
-            collect_proof_term_term_vars(lhs, vars);
-            collect_proof_term_term_vars(rhs, vars);
-        }
-        proof_kernel::ProofTerm::InductionOn(name, arms) => {
-            vars.insert(name.clone());
-            for arm in arms {
-                collect_proof_term_term_vars(&arm.body, vars);
-            }
-        }
-        proof_kernel::ProofTerm::Cases(scrut, arms) => {
-            collect_proof_term_vars(scrut, vars);
-            for arm in arms {
-                collect_proof_term_term_vars(&arm.body, vars);
-            }
-        }
-        proof_kernel::ProofTerm::Contra(body) => collect_proof_term_term_vars(body, vars),
-        proof_kernel::ProofTerm::Let(_, bound, body) => {
-            collect_proof_term_term_vars(bound, vars);
-            collect_proof_term_term_vars(body, vars);
-        }
-        proof_kernel::ProofTerm::Assume(prop, body) => {
-            collect_proof_prop_vars(prop, vars);
-            collect_proof_term_term_vars(body, vars);
-        }
-    }
-}
-
-fn substitute_proof_term_binders(
-    term: &proof_kernel::ProofTerm,
-    substitutions: &BTreeMap<String, proof_kernel::Term>,
-) -> proof_kernel::ProofTerm {
-    match term {
-        proof_kernel::ProofTerm::Refl => proof_kernel::ProofTerm::Refl,
-        proof_kernel::ProofTerm::Apply(name, args) => proof_kernel::ProofTerm::Apply(
-            name.clone(),
-            args.iter()
-                .map(|arg| substitute_proof_term_binders(arg, substitutions))
-                .collect(),
-        ),
-        proof_kernel::ProofTerm::Rewrite(eq_term, body_term) => proof_kernel::ProofTerm::Rewrite(
-            Box::new(substitute_proof_term_binders(eq_term, substitutions)),
-            Box::new(substitute_proof_term_binders(body_term, substitutions)),
-        ),
-        proof_kernel::ProofTerm::InductionOn(name, arms) => {
-            let induction_name = match substitutions.get(name) {
-                Some(proof_kernel::Term::Var(var)) => var.clone(),
-                _ => name.clone(),
-            };
-            proof_kernel::ProofTerm::InductionOn(
-                induction_name,
-                arms.iter()
-                    .map(|arm| proof_kernel::IndArm {
-                        ctor: arm.ctor.clone(),
-                        binders: arm.binders.clone(),
-                        body: substitute_proof_term_binders(&arm.body, substitutions),
-                    })
-                    .collect(),
-            )
-        }
-        proof_kernel::ProofTerm::Cases(scrut, arms) => proof_kernel::ProofTerm::Cases(
-            substitute_proof_term_vars(scrut, substitutions),
-            arms.iter()
-                .map(|arm| proof_kernel::CaseArm {
-                    ctor: arm.ctor.clone(),
-                    binders: arm.binders.clone(),
-                    body: substitute_proof_term_binders(&arm.body, substitutions),
-                })
-                .collect(),
-        ),
-        proof_kernel::ProofTerm::Contra(body) => proof_kernel::ProofTerm::Contra(Box::new(
-            substitute_proof_term_binders(body, substitutions),
-        )),
-        proof_kernel::ProofTerm::Let(name, bound, body) => proof_kernel::ProofTerm::Let(
-            name.clone(),
-            Box::new(substitute_proof_term_binders(bound, substitutions)),
-            Box::new(substitute_proof_term_binders(body, substitutions)),
-        ),
-        proof_kernel::ProofTerm::Assume(prop, body) => proof_kernel::ProofTerm::Assume(
-            substitute_proof_prop_vars(prop, substitutions),
-            Box::new(substitute_proof_term_binders(body, substitutions)),
-        ),
-        proof_kernel::ProofTerm::Hyp(name) => proof_kernel::ProofTerm::Hyp(name.clone()),
-    }
-}
-
-fn proof_binder_substitutions(
-    subject_expr: &Expr,
-    binders: &[String],
-) -> Result<BTreeMap<String, proof_kernel::Term>, String> {
-    let mut substitutions = BTreeMap::new();
-    match &subject_expr.kind {
-        ExprKind::Var(name) if binders.len() == 1 => {
-            substitutions.insert(binders[0].clone(), proof_kernel::Term::Var(name.clone()));
-            Ok(substitutions)
-        }
-        ExprKind::Tuple(elems) if elems.len() == binders.len() => {
-            for (elem, binder) in elems.iter().zip(binders) {
-                substitutions.insert(binder.clone(), lower_expr_to_proof_term(elem)?);
-            }
-            Ok(substitutions)
-        }
-        _ if binders.len() == 1 => {
-            substitutions.insert(binders[0].clone(), lower_expr_to_proof_term(subject_expr)?);
-            Ok(substitutions)
-        }
-        _ => Err("proof binder count does not match invariant subject".into()),
-    }
-}
-
-fn explicit_proof_ctx(
-    goal: &proof_kernel::Prop,
-    proof: &proof_kernel::ProofTerm,
-    binding_types: &BTreeMap<String, Option<Ty>>,
-    inferred_var_families: &BTreeMap<String, Vec<String>>,
-    constructors: &ProofConstructorTable,
-) -> proof_kernel::Ctx {
-    let mut ctx = proof_kernel::Ctx::new();
-    for (ctor, family) in &constructors.family_by_ctor {
-        let arity = constructors
-            .arity_by_ctor
-            .get(ctor)
-            .copied()
-            .unwrap_or_default();
-        let recursive_fields = constructors
-            .recursive_by_ctor
-            .get(ctor)
-            .cloned()
-            .unwrap_or_default();
-        let field_families = constructors
-            .field_families_by_ctor
-            .get(ctor)
-            .cloned()
-            .unwrap_or_default();
-        ctx = ctx
-            .with_constructor(ctor.clone(), family.clone(), arity)
-            .with_constructor_field_families(ctor.clone(), field_families)
-            .with_constructor_recursive_fields(ctor.clone(), recursive_fields);
-    }
-
-    let mut vars = BTreeSet::new();
-    collect_proof_prop_vars(goal, &mut vars);
-    collect_proof_term_term_vars(proof, &mut vars);
-    for var in vars {
-        let family = binding_types
-            .get(&var)
-            .and_then(|ty| ty.as_ref())
-            .and_then(|ty| constructors.family_for_type(ty))
-            .cloned()
-            .or_else(|| inferred_var_families.get(&var).cloned());
-        ctx = match family {
-            Some(family) => ctx.with_var_family(var, family),
-            None => ctx.with_var(var),
-        };
-    }
-
-    ctx
-}
-
-// This checks the mathematical proposition only. The public verifier must
-// also discharge source arithmetic obligations before reporting a runtime
-// guarantee or registering this result as an available local lemma.
-fn evaluate_explicit_proof(
-    subject_expr: &Expr,
-    pred_expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-    binding_types: &BTreeMap<String, Option<Ty>>,
-    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
-    constructors: &ProofConstructorTable,
-    proof_block: &ProofBlock,
-    reg: &proof_kernel::Registry,
-) -> ExplicitProofStatus {
-    if proof_block.arms.len() != 1 {
-        return ExplicitProofStatus::Unsupported(
-            "proof blocks currently require exactly one arm".into(),
-        );
-    }
-
-    let arm = &proof_block.arms[0];
-    let expanded_subject = substitute_expr_bindings_for_proof(
-        subject_expr,
-        bindings,
-        &mut BTreeSet::new(),
-        ProofExprContext::Term,
-    );
-    let expanded_pred = substitute_expr_bindings_for_proof(
-        pred_expr,
-        bindings,
-        &mut BTreeSet::new(),
-        ProofExprContext::Prop,
-    );
-    let substitutions = match proof_binder_substitutions(&expanded_subject, &arm.binders) {
-        Ok(substitutions) => substitutions,
-        Err(err) => return ExplicitProofStatus::Unsupported(err),
-    };
-
-    let goal = match lower_expr_to_proof_prop(&expanded_pred) {
-        Ok(prop) => prop,
-        Err(err) => return ExplicitProofStatus::Unsupported(err),
-    };
-    let proof = substitute_proof_term_binders(&arm.term, &substitutions);
-    let inferred_var_families = infer_explicit_proof_var_families(
-        &expanded_subject,
-        &expanded_pred,
-        function_param_types,
-        constructors,
-    );
-    let ctx = explicit_proof_ctx(
-        &goal,
-        &proof,
-        binding_types,
-        &inferred_var_families,
-        constructors,
-    );
-
-    match proof_kernel::check(&proof, &goal, &ctx, reg) {
-        Ok(()) => ExplicitProofStatus::Proved,
-        Err(err) => ExplicitProofStatus::Failed(err.to_string()),
-    }
-}
-
-#[cfg(test)]
-fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, ExplicitProofStatus> {
-    let adts: Vec<(String, Vec<Variant>)> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
-                Some((name.clone(), variants.clone()))
-            }
-            _ => None,
-        })
-        .collect();
-    let bindings: BTreeMap<String, Expr> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-            _ => None,
-        })
-        .collect();
-    let binding_types: BTreeMap<String, Option<Ty>> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Bind(Pat::Var(name), ty, _) => Some((name.clone(), ty.clone())),
-            _ => None,
-        })
-        .collect();
-
-    let invariants: Vec<(String, Expr, Expr)> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Invariant {
-                name,
-                subject,
-                predicate,
-            } => Some((name.clone(), subject.clone(), predicate.clone())),
-            _ => None,
-        })
-        .collect();
-    let constructors = ProofConstructorTable::from_adts(&adts);
-    let function_param_types = collect_function_param_types(stmts);
-    let computation_lemmas = match collect_computation_lemmas_checked(stmts, &bindings) {
-        Ok(lemmas) => lemmas,
-        Err(err) => {
-            return invariants
-                .into_iter()
-                .map(|(name, _, _)| {
-                    (
-                        name,
-                        ExplicitProofStatus::Failed(format!(
-                            "computation lemma validation failed: {}",
-                            err
-                        )),
-                    )
-                })
-                .collect();
-        }
-    };
-    let proof_blocks: BTreeMap<String, ProofBlock> = stmts
-        .iter()
-        .filter_map(|stmt| match stmt {
-            Stmt::Prove {
-                name,
-                proof_block: Some(block),
-                ..
-            } => Some((name.clone(), block.clone())),
-            _ => None,
-        })
-        .collect();
-
-    let mut statuses = BTreeMap::new();
-    let mut proved_invariants = BTreeMap::new();
-
-    for (name, subject, predicate) in invariants {
-        let Some(block) = proof_blocks.get(&name) else {
-            continue;
-        };
-
-        let reg = match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
-            Ok(reg) => reg,
-            Err(err) => {
-                statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
-                continue;
-            }
-        };
-
-        let status = evaluate_explicit_proof(
-            &subject,
-            &predicate,
-            &bindings,
-            &binding_types,
-            &function_param_types,
-            &constructors,
-            block,
-            &reg,
-        );
-        if matches!(status, ExplicitProofStatus::Proved) {
-            match invariant_proof_schema(&predicate, &bindings) {
-                Ok(schema) => {
-                    let mut next_reg = match build_explicit_proof_registry(
-                        &computation_lemmas,
-                        &proved_invariants,
-                    ) {
-                        Ok(reg) => reg,
-                        Err(err) => {
-                            statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
-                            continue;
-                        }
-                    };
-                    if let Err(err) = next_reg.register(name.clone(), schema.clone()) {
-                        statuses.insert(name.clone(), ExplicitProofStatus::Failed(err.to_string()));
-                        continue;
-                    }
-                    proved_invariants.insert(name.clone(), schema);
-                }
-                Err(err) => {
-                    statuses.insert(name.clone(), ExplicitProofStatus::Unsupported(err));
-                    continue;
-                }
-            }
-        }
-
-        statuses.insert(name, status);
-    }
-
-    statuses
 }
 
 /// Run one complete solver request. Drain output while supplying input, and
@@ -18584,9 +17357,13 @@ fn run_z3_script(script: &str) -> Result<String, String> {
     Ok(stdout)
 }
 
+/// What a PROVED result from `runa verify` guarantees. Printed with every run
+/// and repeated in the reference documentation.
+const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
+
 /// Generate SMT-LIB2 for all invariants and verify with Z3.
-/// Successful exit requires every claim and any authored explicit proof to
-/// pass. Unsupported claims and unavailable solvers are incomplete checks.
+/// Successful exit requires every claim to be proved. Unsupported claims and
+/// unavailable solvers are incomplete checks.
 fn verify_with_z3(source: &str, filename: &str) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
@@ -18640,7 +17417,6 @@ fn verify_with_z3(source: &str, filename: &str) {
     let mut adt_indexes: BTreeMap<String, usize> = BTreeMap::new();
     let mut ctor_to_type: BTreeMap<String, String> = BTreeMap::new();
     let mut invariants: Vec<(String, Expr, Expr)> = Vec::new();
-    let mut proof_blocks: BTreeMap<String, ProofBlock> = BTreeMap::new();
     let mut bindings: BTreeMap<String, Expr> = BTreeMap::new();
     let mut binding_types: BTreeMap<String, Option<Ty>> = BTreeMap::new();
     let mut functions: Vec<(String, Vec<Param>, Option<Ty>, Expr)> = Vec::new();
@@ -18683,13 +17459,6 @@ fn verify_with_z3(source: &str, filename: &str) {
                 predicate,
             } => {
                 invariants.push((name.clone(), subject.clone(), predicate.clone()));
-            }
-            Stmt::Prove {
-                name,
-                proof_block: Some(block),
-                ..
-            } => {
-                proof_blocks.insert(name.clone(), block.clone());
             }
             Stmt::Bind(Pat::Var(name), ty, expr) => {
                 bindings.insert(name.clone(), expr.clone());
@@ -18795,20 +17564,15 @@ fn verify_with_z3(source: &str, filename: &str) {
     }
 
     if invariants.is_empty() {
-        println!("runa --verify: no invariants found in {}", filename);
-        std::process::exit(1);
+        // Nothing is claimed, so nothing is reported as proved.
+        println!(
+            "runa verify: no invariants to verify in {}; nothing was proved",
+            filename
+        );
+        return;
     }
 
-    let function_param_types = collect_function_param_types_from_defs(&functions);
-    let (computation_lemmas, computation_lemma_error) =
-        match collect_computation_lemmas_checked(&all_stmts, &bindings) {
-            Ok(lemmas) => (lemmas, None),
-            Err(err) => (Vec::new(), Some(err)),
-        };
-    let constructors = ProofConstructorTable::from_adts(&adts);
-    let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
     let mut proved_count = 0usize;
-    let mut explicit_proof_failed = false;
     let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
     let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
     let function_map: BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)> = functions
@@ -18824,6 +17588,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         adts.len(),
         filename
     );
+    println!("{VERIFY_GUARANTEE}");
     println!();
 
     // For each invariant, generate SMT-LIB2 and run Z3
@@ -18896,88 +17661,6 @@ fn verify_with_z3(source: &str, filename: &str) {
             println!();
             continue;
         }
-        let known_calls = fn_names.union(&ctor_names).cloned().collect();
-        let needs_arithmetic_check = arithmetic_expressions
-            .iter()
-            .any(|expr| runa_verification_arithmetic::needs_arithmetic_check(expr, &known_calls));
-        let mut pending_kernel_schema = None;
-
-        if let Some(proof_block) = proof_blocks.get(inv_name) {
-            if let Some(err) = &computation_lemma_error {
-                explicit_proof_failed = true;
-                println!(
-                    "  ✗ explicit proof failed in kernel: computation lemma validation failed: {}",
-                    err
-                );
-                println!("  falling back to Z3 for semantic verification\n");
-            } else {
-                match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
-                    Ok(reg) => match evaluate_explicit_proof(
-                        subject_expr,
-                        pred_expr,
-                        &bindings,
-                        &binding_types,
-                        &function_param_types,
-                        &constructors,
-                        proof_block,
-                        &reg,
-                    ) {
-                        ExplicitProofStatus::Proved if needs_arithmetic_check => {
-                            println!("  explicit mathematical proof checked; verifying runtime arithmetic with Z3");
-                            pending_kernel_schema =
-                                invariant_proof_schema(pred_expr, &bindings).ok();
-                        }
-                        ExplicitProofStatus::Proved => {
-                            match invariant_proof_schema(pred_expr, &bindings) {
-                                Ok(schema) => {
-                                    let mut next_reg = reg;
-                                    if let Err(err) =
-                                        next_reg.register(inv_name.clone(), schema.clone())
-                                    {
-                                        explicit_proof_failed = true;
-                                        println!("  ✗ explicit proof failed in kernel: {}", err);
-                                        println!(
-                                            "  falling back to Z3 for semantic verification\n"
-                                        );
-                                    } else {
-                                        proved_invariants.insert(inv_name.clone(), schema);
-                                        proved_count += 1;
-                                        println!(
-                                            "  ✓ PROVED by kernel: |{}| closed explicit proof",
-                                            inv_name
-                                        );
-                                        println!();
-                                        continue;
-                                    }
-                                }
-                                Err(err) => {
-                                    println!(
-                                        "  ? explicit proof unsupported in kernel path: {}",
-                                        err
-                                    );
-                                    println!("  falling back to Z3\n");
-                                }
-                            }
-                        }
-                        ExplicitProofStatus::Failed(err) => {
-                            explicit_proof_failed = true;
-                            println!("  ✗ explicit proof failed in kernel: {}", err);
-                            println!("  falling back to Z3 for semantic verification\n");
-                        }
-                        ExplicitProofStatus::Unsupported(reason) => {
-                            println!("  ? explicit proof unsupported in kernel path: {}", reason);
-                            println!("  falling back to Z3\n");
-                        }
-                    },
-                    Err(err) => {
-                        explicit_proof_failed = true;
-                        println!("  ✗ explicit proof failed in kernel: {}", err);
-                        println!("  falling back to Z3 for semantic verification\n");
-                    }
-                }
-            }
-        }
-
         let mut smt = String::new();
         smt.push_str("; Auto-generated by runa --verify\n");
         smt.push_str(&format!("; Invariant: | {}\n", inv_name));
@@ -19165,26 +17848,10 @@ fn verify_with_z3(source: &str, filename: &str) {
             Ok(stdout) => match stdout.trim() {
                 "unsat" => {
                     proved_count += 1;
-                    println!("  ✓ PROVED: |{}| holds for all values", inv_name);
-                    // Only a theorem already checked mathematically may become
-                    // a kernel lemma; a bounded SMT proof is not an axiom over
-                    // the unbounded mathematical integer domain.
-                    if let Some(schema) = pending_kernel_schema {
-                        match build_explicit_proof_registry(&computation_lemmas, &proved_invariants)
-                            .and_then(|mut registry| {
-                                registry
-                                    .register(inv_name.clone(), schema.clone())
-                                    .map_err(|error| error.to_string())
-                            }) {
-                            Ok(()) => {
-                                proved_invariants.insert(inv_name.clone(), schema);
-                            }
-                            Err(reason) => {
-                                explicit_proof_failed = true;
-                                println!("  local kernel lemma unavailable: {}", reason);
-                            }
-                        }
-                    }
+                    println!(
+                        "  ✓ PROVED: |{}| holds for every input, and no Int overflow or division by zero is reachable",
+                        inv_name
+                    );
                 }
                 "sat" => {
                     println!("  ✗ COUNTEREXAMPLE found for |{}|:", inv_name);
@@ -19216,12 +17883,10 @@ fn verify_with_z3(source: &str, filename: &str) {
         proved_count,
         invariants.len()
     );
-    if explicit_proof_failed {
-        eprintln!("Verification failed: explicit proof validation failed.");
-    }
-    if proved_count != invariants.len() || explicit_proof_failed {
+    if proved_count != invariants.len() {
         std::process::exit(1);
     }
+    ToolGuarantee::Verify.print(false);
 }
 
 fn show_hashes(source: &str, filename: &str) {
@@ -19400,7 +18065,14 @@ fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<St
 }
 
 /// Parse and type-check without running, optionally skipping Rust backend validation.
-fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: bool, json: bool) {
+fn check_source(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    frontend_only: bool,
+    json: bool,
+    build_deps: bool,
+) {
     use std::process::Command;
     use std::time::Instant;
 
@@ -19521,7 +18193,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 let persistent_workspace = rustc_incremental_check_workspace(filename, use_prelude);
                 let check_workspace = persistent_workspace
                     .clone()
-                    .unwrap_or_else(|| unique_temp_workspace("runa-check"));
+                    .unwrap_or_else(claim_build_workspace);
                 std::fs::create_dir_all(&check_workspace).ok();
                 let rs_path = check_workspace.join("check.rs");
                 write_file_if_changed(&rs_path, code.as_bytes()).ok();
@@ -19574,8 +18246,13 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                         check_output.success(&summary, None, start.elapsed());
                     }
                     Ok(o) => {
-                        check_output
-                            .failure("backend", String::from_utf8_lossy(&o.stderr).into_owned());
+                        let stderr = String::from_utf8_lossy(&o.stderr);
+                        check_output.backend_errors(
+                            &runa_backend_diagnostics::generated_rust_diagnostics(
+                                source, filename, &stmts, &code, &stderr, "check.rs",
+                            ),
+                            &stderr,
+                        );
                         std::process::exit(1);
                     }
                     Err(e) => {
@@ -19585,16 +18262,28 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                     }
                 }
             } else {
-                // Has deps — use cargo check in .runa-build/
-                let stem = std::path::Path::new(filename)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("tau_out");
-                let build_dir = format!(".runa-build/{}", stem);
-                let src_dir = format!("{}/src", build_dir);
+                // Cargo downloads crates and runs their build scripts and
+                // procedural macros; checking never does that implicitly.
+                if !build_deps {
+                    let crates = cg
+                        .cargo_deps
+                        .keys()
+                        .map(|name| format!("`{name}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    check_output.failure(
+                        "backend",
+                        format!(
+                            "validating the generated Rust needs Cargo to download and build the crates {crates}, which runs their build scripts; rerun with `runa check --build-deps` to allow it, or use `runa check --frontend`"
+                        ),
+                    );
+                    std::process::exit(1);
+                }
+                let build_dir = claim_build_workspace();
+                let src_dir = build_dir.join("src");
                 std::fs::create_dir_all(&src_dir).ok();
-                let main_rs = format!("{}/main.rs", src_dir);
-                write_file_if_changed(Path::new(&main_rs), code.as_bytes()).ok();
+                let main_rs = src_dir.join("main.rs");
+                write_file_if_changed(&main_rs, code.as_bytes()).ok();
                 // Generate Cargo.toml
                 let package_name = rust_artifact_stem_for_source(filename, "tau_out");
                 let mut cargo_toml = format!(
@@ -19616,17 +18305,14 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                         cargo_toml.push_str(&format!("{} = \"{}\"\n", safe_name, safe_version));
                     }
                 }
-                write_file_if_changed(
-                    Path::new(&format!("{}/Cargo.toml", build_dir)),
-                    cargo_toml.as_bytes(),
-                )
-                .ok();
+                write_file_if_changed(&build_dir.join("Cargo.toml"), cargo_toml.as_bytes()).ok();
                 let cargo_bin = find_rust_tool("cargo");
                 let cargo_start = Instant::now();
                 let output = Command::new(&cargo_bin)
                     .args(["check", "--color", "never"])
                     .current_dir(&build_dir)
                     .output();
+                std::fs::remove_dir_all(&build_dir).ok();
                 trace_compiler_timing("cargo validation", cargo_start.elapsed());
                 match output {
                     Ok(o) if o.status.success() => {
@@ -19641,8 +18327,13 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                         check_output.success(&summary, None, start.elapsed());
                     }
                     Ok(o) => {
-                        check_output
-                            .failure("backend", String::from_utf8_lossy(&o.stderr).into_owned());
+                        let stderr = String::from_utf8_lossy(&o.stderr);
+                        check_output.backend_errors(
+                            &runa_backend_diagnostics::generated_rust_diagnostics(
+                                source, filename, &stmts, &code, &stderr, "main.rs",
+                            ),
+                            &stderr,
+                        );
                         std::process::exit(1);
                     }
                     Err(e) => {
@@ -20283,6 +18974,7 @@ fn format_directory(dir: &str, check: bool) {
             );
         }
     }
+    ToolGuarantee::Fmt.print(true);
 }
 
 fn collect_runa_files(dir: &str, out: &mut Vec<String>) {
@@ -20560,51 +19252,8 @@ fn collect_library_import_graph_issues(
 }
 
 fn resolve_library_hygiene_import_path(import_path: &str, dir: &str) -> String {
-    let rel = import_path.trim_start_matches("./");
-    let file_path = format!("{}/{}.runa", dir, rel);
-
-    if import_path.starts_with("./")
-        || import_path.starts_with("../")
-        || std::path::Path::new(&file_path).exists()
-    {
-        return file_path;
-    }
-
-    if let Some(toml_path) = find_runa_toml(dir) {
-        if let Some(manifest) = parse_runa_toml(&toml_path) {
-            let toml_dir = std::path::Path::new(&toml_path)
-                .parent()
-                .map(|p| {
-                    let s = p.to_string_lossy().to_string();
-                    if s.is_empty() {
-                        ".".to_string()
-                    } else {
-                        s
-                    }
-                })
-                .unwrap_or_else(|| ".".to_string());
-            let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-            let dep_name = parts[0];
-            let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-            for (name, dep_spec) in &manifest.dependencies {
-                if name == dep_name {
-                    if let Some(abs_dep) = resolve_dep_to_path(dep_spec, &toml_dir) {
-                        let dep_file = format!("{}/{}.runa", abs_dep, module);
-                        if std::path::Path::new(&dep_file).exists() {
-                            return dep_file;
-                        }
-                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-                        if std::path::Path::new(&dep_file_src).exists() {
-                            return dep_file_src;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    file_path
+    Interpreter::resolve_import_path_for_source(import_path, dir)
+        .unwrap_or_else(|| format!("{}/{}.runa", dir, import_path.trim_start_matches("./")))
 }
 
 fn import_time_impure_builtin_names() -> BTreeSet<String> {
@@ -20824,7 +19473,7 @@ fn top_level_expr_issue_with_helpers(
     if matches!(
         expr.kind,
         ExprKind::App(ref func, _)
-            if matches!(func.as_ref().kind, ExprKind::Var(ref name) if builtin_canonical(name) == "print")
+            if matches!(func.as_ref().kind, ExprKind::Var(ref name) if name == "print")
     ) {
         "top-level `@ print` is script-only; move it into an entrypoint function"
     } else if expr_is_impure_for_library(expr, impure_builtins, impure_helpers) {
@@ -20858,9 +19507,7 @@ fn expr_is_impure_for_library(
                 }
             }
             if let ExprKind::Var(name) = &func.as_ref().kind {
-                if impure_builtins.contains(builtin_canonical(name))
-                    || impure_builtins.contains(name)
-                {
+                if impure_builtins.contains(name) {
                     return true;
                 }
             }
@@ -21000,6 +19647,7 @@ fn format_one_file(source: &str, filename: &str, check: bool) {
             eprintln!("{} unchanged", filename);
         }
     }
+    ToolGuarantee::Fmt.print(true);
 }
 
 /// Compare both lexical content and parsed structure. Newlines may move, but
@@ -21088,20 +19736,16 @@ fn format_runa_source(source: &str) -> String {
     let mut fragments = Vec::new();
     while let Some(c) = lexer.peek() {
         let start = lexer.pos;
-        let block_comment = (0..4).all(|offset| lexer.peek_at(offset) == Some('-'));
+        let block_comment = lexer.at_block_comment_delimiter();
         if let Some(end) = rust_blocks.get(&start) {
             while lexer.pos < *end {
                 lexer.advance();
             }
         } else if block_comment {
-            for _ in 0..4 {
-                lexer.advance();
-            }
+            lexer.consume_dash_run();
             while lexer.peek().is_some() {
-                if (0..4).all(|offset| lexer.peek_at(offset) == Some('-')) {
-                    for _ in 0..4 {
-                        lexer.advance();
-                    }
+                if lexer.at_block_comment_delimiter() {
+                    lexer.consume_dash_run();
                     break;
                 }
                 lexer.advance();
@@ -21168,6 +19812,9 @@ fn fmt_layout_source(source: &str) -> String {
     let mut continuation_stack: Vec<(char, usize, usize)> = Vec::new();
     let mut previous_line_requires_continuation = false;
     let mut statement_rune_depth: Option<i32> = None;
+    // Depth of a `~ stream` header whose `|` arms follow on their own lines;
+    // the parser requires those arms to sit past the `~`.
+    let mut subscription_depth: Option<i32> = None;
     let mut prev_blank = false;
     let mut i = 0;
 
@@ -21197,6 +19844,13 @@ fn fmt_layout_source(source: &str) -> String {
         // Apply rune spacing and operator normalization
         let trimmed = fmt_normalize_line(trimmed);
         let trimmed = trimmed.as_str();
+
+        if let Some(header_depth) = subscription_depth {
+            if depth == header_depth + 1 && !fmt_line_starts_arm(trimmed) {
+                depth = header_depth;
+                subscription_depth = None;
+            }
+        }
 
         // Decrease depth if line starts with }
         if trimmed.starts_with('}') {
@@ -21244,6 +19898,17 @@ fn fmt_layout_source(source: &str) -> String {
             statement_rune_depth = None;
         }
 
+        if trimmed.starts_with("~ ")
+            && !fmt_split_comment(trimmed).0.contains(" = ")
+            && fmt_effective_last_char(trimmed) != Some('{')
+            && lines
+                .get(i + 1)
+                .is_some_and(|line| fmt_line_starts_arm(line.trim()))
+        {
+            subscription_depth = Some(depth);
+            depth += 1;
+        }
+
         i += 1;
     }
 
@@ -21275,8 +19940,14 @@ fn fmt_normalize_line(line: &str) -> String {
     // Step 1: Rune spacing — ensure exactly one space after leading rune
     let normalized = fmt_rune_spacing(code.trim_end());
 
-    // Step 2: Operator spacing — normalize binary operators outside strings
-    let normalized = fmt_operator_spacing(&normalized);
+    // Step 2: Operator spacing — normalize binary operators outside strings.
+    // An import path is one token sequence (`../lib/good`), not division.
+    let trimmed = normalized.trim_start();
+    let normalized = if trimmed.starts_with("@ import ") || trimmed.starts_with("@ importer ") {
+        normalized
+    } else {
+        fmt_operator_spacing(&normalized)
+    };
     let normalized = normalized.trim_end().to_string();
 
     // Reassemble with comment
@@ -21579,6 +20250,10 @@ fn fmt_indent(depth: i32) -> String {
 fn fmt_line_starts_with_closing_delimiter(line: &str) -> bool {
     let line = line.trim_start();
     matches!(line.chars().next(), Some(')' | ']' | '}')) || line == "|" || line.starts_with("| ")
+}
+
+fn fmt_line_starts_arm(line: &str) -> bool {
+    line == "|" || line.starts_with("| ")
 }
 
 fn fmt_line_starts_rune_statement(line: &str) -> bool {
@@ -22787,18 +21462,24 @@ fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::V
         None => return serde_json::Value::Null,
     };
 
+    let text = source.lines().nth(line as usize).unwrap_or("");
+    let prefix = &text[..lsp_utf16_byte_offset(text, col)];
+    let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
+    if let Some(receiver) = prefix.trim_end_matches(is_identifier).strip_suffix('.') {
+        // `Alias.member` resolves inside the module bound by `@ import Alias
+        // from path`; any other member access is a field, not a definition.
+        let alias_start = receiver
+            .char_indices()
+            .rev()
+            .take_while(|(_, character)| is_identifier(*character))
+            .last()
+            .map_or(receiver.len(), |(index, _)| index);
+        return lsp_qualified_definition(uri, source, &receiver[alias_start..], &word)
+            .unwrap_or(serde_json::Value::Null);
+    }
     if let Some(position) = lsp_find_def_pos(source, &word) {
         return lsp_symbol_location(uri, source, position, &word)
             .unwrap_or(serde_json::Value::Null);
-    }
-    let text = source.lines().nth(line as usize).unwrap_or("");
-    let prefix = &text[..lsp_utf16_byte_offset(text, col)];
-    if prefix
-        .trim_end_matches(|character: char| character.is_alphanumeric() || character == '_')
-        .ends_with('.')
-    {
-        // Do not resolve a qualified/field member to an unrelated plain import.
-        return serde_json::Value::Null;
     }
     let mut documents = Vec::new();
     lsp_collect_path_documents(uri, source, &mut BTreeSet::new(), &mut documents);
@@ -22813,6 +21494,38 @@ fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::V
         }
     }
     serde_json::Value::Null
+}
+
+/// Definition of `alias.member` in the module bound by `@ import alias from
+/// path`, including that module's own plain imports.
+fn lsp_qualified_definition(
+    uri: &str,
+    source: &str,
+    alias: &str,
+    member: &str,
+) -> Option<serde_json::Value> {
+    let statements = Parser::new(Lexer::new(source).tokenize(), source)
+        .parse_program()
+        .ok()?;
+    let import_path = statements.iter().find_map(|statement| match statement {
+        Stmt::QualifiedImport(name, path) if name == alias => Some(path),
+        _ => None,
+    })?;
+    let file_path =
+        Interpreter::resolve_import_path_for_source(import_path, &lsp_source_dir(uri)?)?;
+    let path = std::fs::canonicalize(&file_path).ok()?;
+    let module_source = std::fs::read_to_string(&path).ok()?;
+    let mut documents = Vec::new();
+    lsp_collect_path_documents(
+        &lsp_document_uri(&path),
+        &module_source,
+        &mut BTreeSet::new(),
+        &mut documents,
+    );
+    documents.iter().rev().find_map(|document| {
+        let position = lsp_find_def_pos(&document.source, member)?;
+        lsp_symbol_location(&document.uri, &document.source, position, member)
+    })
 }
 
 // Definition search uses byte offsets for slicing; convert only at the LSP
@@ -23436,6 +22149,8 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("index_of", 2),
     ("parse_int", 1),
     ("parse_float", 1),
+    ("parse_danish_int", 1),
+    ("parse_danish_float", 1),
     ("string_chars", 1),
     ("format_float", 2),
     ("rust_debug", 1),
@@ -23590,7 +22305,6 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
 #[derive(Clone, Copy)]
 struct BuiltinDef {
     arity: usize,
-    shadowable: bool,
     impure: bool,
     deps: &'static [(&'static str, &'static str)],
     rust_tpl: &'static str,
@@ -23637,12 +22351,11 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
     ];
 
     let entries: Vec<(&str, BuiltinDef)> = vec![
-        // ---- Math (not shadowable, pure) ----
+        // ---- Math (pure) ----
         (
             "exp",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).exp()",
@@ -23652,7 +22365,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "ln",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).ln()",
@@ -23662,7 +22374,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sqrt",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).sqrt()",
@@ -23672,7 +22383,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "pow",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).powf({1} as f64)",
@@ -23682,7 +22392,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "abs",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_abs({0})",
@@ -23692,7 +22401,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "to_float",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64)",
@@ -23702,7 +22410,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "round",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "(({0} as f64).round() as i64)",
@@ -23712,7 +22419,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "floor",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "(({0} as f64).floor() as i64)",
@@ -23722,7 +22428,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "max_f",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).max({1} as f64)",
@@ -23732,18 +22437,16 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "min_f",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as f64).min({1} as f64)",
             },
         ),
-        // ---- String (shadowable, pure) ----
+        // ---- String (pure) ----
         (
             "split",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()",
@@ -23753,7 +22456,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "join",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_join(&({0}), &({1}))",
@@ -23763,7 +22465,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "trim",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.trim().to_string()",
@@ -23773,7 +22474,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "contains",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_contains(&{0}, &{1})",
@@ -23783,7 +22483,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "starts_with",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.starts_with(&*{1})",
@@ -23793,7 +22492,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "ends_with",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.ends_with(&*{1})",
@@ -23803,7 +22501,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "replace",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.replace(&*{1}, &*{2})",
@@ -23813,7 +22510,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "to_upper",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.to_uppercase()",
@@ -23823,7 +22519,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "to_lower",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.to_lowercase()",
@@ -23833,7 +22528,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "substring",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }",
@@ -23843,7 +22537,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "char_at",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }",
@@ -23853,7 +22546,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "index_of",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }",
@@ -23863,7 +22555,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "format_float",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __number = ({0}) as f64; let __precision: i64 = {1}; assert!((0..=65535).contains(&__precision), \"format_float precision must be between 0 and 65535, got {}\", __precision); format!(\"{:.prec$}\", __number, prec = __precision as usize) }",
@@ -23873,7 +22564,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "rust_debug",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "format!(\"{:?}\", {0})",
@@ -23883,27 +22573,42 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "parse_int",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)",
+                rust_tpl: "{ let __s: String = {0}.to_string(); match __s.trim().parse::<i64>() { Ok(__n) => Ok::<i64, String>(__n), Err(_) => Err(format!(\"not an integer: `{}`\", __s)) } }",
             },
         ),
         (
             "parse_float",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)",
+                rust_tpl: "{ let __s: String = {0}.to_string(); match __s.trim().parse::<f64>() { Ok(__f) if __f.is_finite() => Ok::<f64, String>(__f), _ => Err(format!(\"not a number: `{}`\", __s)) } }",
+            },
+        ),
+        (
+            "parse_danish_int",
+            BuiltinDef {
+                arity: 1,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_parse_danish_int(&{0})",
+            },
+        ),
+        (
+            "parse_danish_float",
+            BuiltinDef {
+                arity: 1,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_parse_danish_float(&{0})",
             },
         ),
         (
             "string_chars",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()",
@@ -23913,7 +22618,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "string_length",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.chars().count() as i64)",
@@ -23923,7 +22627,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "length",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_len(&{0})",
@@ -23933,7 +22636,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "head",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }",
@@ -23943,7 +22645,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "tail",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }",
@@ -23953,48 +22654,43 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "nth",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }",
             },
         ),
-        // ---- File I/O (not shadowable, impure) ----
+        // ---- File I/O (impure) ----
         (
             "read_file",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()",
+                rust_tpl: "{ let __p: String = {0}.to_string(); std::fs::read_to_string(&__p).map_err(|__e| format!(\"cannot read {}: {}\", __p, __e)) }",
             },
         ),
         (
             "write_file",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "{ let _ = std::fs::write(&*{0}, &*{1}); }",
+                rust_tpl: "{ let __p: String = {0}.to_string(); if let Err(__e) = std::fs::write(&__p, {1}.as_bytes()) { panic!(\"write_file cannot write {}: {}\", __p, __e) } }",
             },
         ),
         (
             "append_file",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "{ use std::io::Write; if let Ok(mut __f) = std::fs::OpenOptions::new().append(true).create(true).open(&*{0}) { let _ = __f.write_all({1}.as_bytes()); } }",
+                rust_tpl: "{ use std::io::Write; let __p: String = {0}.to_string(); if let Err(__e) = std::fs::OpenOptions::new().append(true).create(true).open(&__p).and_then(|mut __f| __f.write_all({1}.as_bytes())) { panic!(\"append_file cannot write {}: {}\", __p, __e) } }",
             },
         ),
         (
             "file_exists",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::path::Path::new(&*{0}).exists()",
@@ -24004,7 +22700,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "read_lines",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()",
@@ -24014,7 +22709,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "env_var",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::env::var(&*{0}).unwrap_or_default()",
@@ -24024,28 +22718,25 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "process_run",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }",
             },
         ),
-        // ---- JSON (shadowable, pure, deps: serde_json) ----
+        // ---- JSON (pure, deps: serde_json) ----
         (
             "json_parse",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
-                rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }",
+                rust_tpl: "{ let __s: String = {0}.to_string(); match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => Ok::<String, String>(__s), Err(__e) => Err(format!(\"invalid JSON: {}\", __e)) } }",
             },
         ),
         (
             "json_get",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }",
@@ -24055,7 +22746,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_string",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }",
@@ -24065,7 +22755,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_number",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }",
@@ -24075,7 +22764,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_bool",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }",
@@ -24085,7 +22773,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_array",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }",
@@ -24095,7 +22782,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_emit",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{0}.clone()",
@@ -24105,38 +22791,34 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "json_object",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __pairs = &{0}; let mut __obj = serde_json::Map::new(); for __p in __pairs.iter() { if __p.len() >= 2 { let __k = __p[0].clone(); let __v: serde_json::Value = serde_json::from_str(&__p[1]).unwrap_or(serde_json::Value::String(__p[1].clone())); __obj.insert(__k, __v); } } serde_json::Value::Object(__obj).to_string() }",
             },
         ),
-        // ---- HTTP (shadowable, impure for I/O ones) ----
+        // ---- HTTP (impure for I/O ones) ----
         (
             "http_get",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: true,
                 deps: UREQ,
-                rust_tpl: "ureq::get(&*{0}).call().map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+                rust_tpl: "{ let __url: String = {0}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().get(&__url).call() { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
             },
         ),
         (
             "http_post",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: UREQ,
-                rust_tpl: "ureq::post(&*{0}).send_string(&*{1}).map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+                rust_tpl: "{ let __url: String = {0}.to_string(); let __body: String = {1}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().post(&__url).send_string(&__body) { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
             },
         ),
         (
             "http_serve",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: AXUM,
                 rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }",
@@ -24146,7 +22828,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_respond",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} as i64, {1}.to_string(), {2}.to_string())",
@@ -24156,7 +22837,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_request_path",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.0.clone()",
@@ -24166,7 +22846,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_request_method",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.1.clone()",
@@ -24176,7 +22855,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "http_request_body",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.2.clone()",
@@ -24187,7 +22865,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "assert",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: true,
                 deps: D,
                 rust_tpl: "assert!({0}, \"Assertion failed!\")",
@@ -24197,7 +22874,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "assert_with_message",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: D,
                 // Ordinary eager argument evaluation, even on success. The
@@ -24209,7 +22885,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "shared",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "std::sync::Arc::new({0})",
@@ -24219,19 +22894,17 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "range",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}..{1}).collect::<Vec<i64>>()",
             },
         ),
-        // ---- Functional / Collection (shadowable, pure) ----
+        // ---- Functional / Collection (pure) ----
         // Unified: list and stream ops share names. Templates use .clone() for pipe safety.
         (
             "map",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().map({1}).collect::<Vec<_>>()",
@@ -24241,17 +22914,15 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "filter",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()",
+                rust_tpl: "{0}.clone().into_iter().filter(|x| __futuruna_predicate(\"filter\", ({1})( x.clone()))).collect::<Vec<_>>()",
             },
         ),
         (
             "foldl",
             BuiltinDef {
                 arity: 3,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().fold({1}, {2})",
@@ -24261,7 +22932,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sort",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_sorted({0}.clone())",
@@ -24271,7 +22941,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sort_by",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| __futuruna_key_of(&__key(__item))); __v }",
@@ -24281,7 +22950,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "list_min",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().min_by(|a, b| __futuruna_cmp(a, b))",
@@ -24291,7 +22959,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "list_max",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().max_by(|a, b| __futuruna_cmp(a, b))",
@@ -24301,7 +22968,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "reverse",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }",
@@ -24311,7 +22977,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "is_some",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.is_some()",
@@ -24321,7 +22986,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "is_none",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.is_none()",
@@ -24331,37 +22995,33 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "any",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))",
+                rust_tpl: "{0}.clone().into_iter().any(|x| __futuruna_predicate(\"any\", ({1})( x.clone())))",
             },
         ),
         (
             "all",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))",
+                rust_tpl: "{0}.clone().into_iter().all(|x| __futuruna_predicate(\"all\", ({1})( x.clone())))",
             },
         ),
         (
             "find",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()",
+                rust_tpl: "{0}.iter().find(|x| __futuruna_predicate(\"find\", ({1})((*x).clone()))).cloned()",
             },
         ),
         (
             "flat_map",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()",
@@ -24371,7 +23031,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "zip",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().zip({1}.clone().into_iter()).collect::<Vec<_>>()",
@@ -24381,7 +23040,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "enumerate",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().enumerate().map(|(i, v)| (i as i64, v)).collect::<Vec<_>>()",
@@ -24391,7 +23049,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "take_while",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().take_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
@@ -24401,7 +23058,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "drop_while",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().skip_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
@@ -24411,7 +23067,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sum_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_sum::<i64, _>(({0}).iter().copied())",
@@ -24421,7 +23076,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "distinct",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 // Compare values, never their display text. Autoref dispatch keeps
@@ -24455,7 +23109,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "count_by",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.iter().filter(|x| ({1})((*x).clone())).count() as i64)",
@@ -24465,7 +23118,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "partition",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let (__yes, __no): (Vec<_>, Vec<_>) = {0}.clone().into_iter().partition(|x| ({1})(x.clone())); (__yes, __no) }",
@@ -24475,7 +23127,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "chunked",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v = {0}.clone(); let __n: i64 = {1}; if __n <= 0 { panic!(\"chunked size must be greater than 0, got {}\", __n); } __v.chunks(__n as usize).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }",
@@ -24485,7 +23136,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "subscribe",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }",
@@ -24496,7 +23146,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_new",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "BTreeMap::new()",
@@ -24506,7 +23155,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_insert",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }",
@@ -24516,7 +23164,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_get",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_map_get(&({0}), &({1})).cloned()",
@@ -24526,7 +23173,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_get_or",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_map_get(&({0}), &({1})).cloned().unwrap_or_else(|| {2}.clone())",
@@ -24536,7 +23182,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_contains",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_map_get(&({0}), &({1})).is_some()",
@@ -24546,7 +23191,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_remove",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __m = {0}.clone(); __futuruna_map_remove(&mut __m, &({1})); __m }",
@@ -24556,7 +23200,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_keys",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()",
@@ -24566,7 +23209,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_values",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
@@ -24576,7 +23218,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_entries",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()",
@@ -24586,7 +23227,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_len",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.len() as i64)",
@@ -24596,7 +23236,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_merge",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }",
@@ -24606,7 +23245,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "map_from",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()",
@@ -24617,7 +23255,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_new",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__FutSet::new()",
@@ -24627,7 +23264,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_insert",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }",
@@ -24637,7 +23273,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_contains",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))",
@@ -24647,7 +23282,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_remove",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }",
@@ -24657,7 +23291,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_len",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.len() as i64)",
@@ -24667,7 +23300,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_to_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
@@ -24677,7 +23309,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_union",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }",
@@ -24687,7 +23318,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_intersect",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = __FutSet::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
@@ -24697,7 +23327,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_diff",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = __FutSet::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
@@ -24707,7 +23336,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "set_from_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __s = __FutSet::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
@@ -24718,7 +23346,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "from_list",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24728,7 +23355,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "scan",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_scan({0}.clone(), {1}, {2})",
@@ -24738,7 +23364,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "merge",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut m = Vec::new(); let (mut a, mut b) = ({0}.clone().into_iter(), {1}.clone().into_iter()); loop { match (a.next(), b.next()) { (Some(x), Some(y)) => { m.push(x); m.push(y); }, (Some(x), None) => { m.push(x); m.extend(a); break; }, (None, Some(y)) => { m.push(y); m.extend(b); break; }, _ => break } }; m }",
@@ -24748,7 +23373,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "take",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().take(({1}).max(0) as usize).collect::<Vec<_>>()",
@@ -24758,7 +23382,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "collect",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24768,7 +23391,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "count",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0}.len() as i64)",
@@ -24778,7 +23400,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "skip",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()",
@@ -24788,7 +23409,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "window",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }",
@@ -24798,7 +23418,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sum",
             BuiltinDef {
                 arity: 1,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "__futuruna_sum(({0}).clone().into_iter())",
@@ -24808,7 +23427,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "last",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))",
@@ -24818,38 +23436,34 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "combine_latest",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }",
             },
         ),
-        // ---- Stream lifecycle (sync mode) ----
+        // ---- Subject lifecycle ----
         (
             "complete",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
-                impure: false,
+                impure: true,
                 deps: D,
-                rust_tpl: "{0}",
+                rust_tpl: "{0}.complete()",
             },
         ),
         (
             "error",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
-                rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }",
+                rust_tpl: "{0}.error(({1}).to_string())",
             },
         ),
         (
             "take_until",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}",
@@ -24859,7 +23473,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "poll",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "({0})()",
@@ -24870,7 +23483,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "tap",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }",
@@ -24880,7 +23492,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "catch",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -24890,7 +23501,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "first",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))",
@@ -24900,7 +23510,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "reduce",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().into_iter().fold({1}, {2})",
@@ -24910,7 +23519,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "start_with",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }",
@@ -24920,7 +23528,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "concat",
             BuiltinDef {
                 arity: 2,
-                shadowable: true,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }",
@@ -24930,7 +23537,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "pairwise",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()",
@@ -24940,7 +23546,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "fst",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.0",
@@ -24950,7 +23555,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "snd",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.1",
@@ -24960,7 +23564,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "trd",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.2",
@@ -24971,7 +23574,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "debounce",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }",
@@ -24981,7 +23583,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "throttle",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v: Vec<_> = {0}.clone(); let __step = if {1} > 0 {{ (__v.len() / 10).max(1) }} else {{ 1 }}; __v.iter().step_by(__step).cloned().collect::<Vec<_>>() }",
@@ -24991,7 +23592,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "delay",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -25001,7 +23601,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "buffer",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "vec![{0}.clone()]",
@@ -25011,7 +23610,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "timeout",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{0}.clone()",
@@ -25021,7 +23619,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "switch_map",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }",
@@ -25031,7 +23628,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sample",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }",
@@ -25042,7 +23638,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "random_float",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }",
@@ -25052,7 +23647,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "random_choice",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }",
@@ -25062,7 +23656,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "shuffle",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }",
@@ -25072,7 +23665,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "sleep",
             BuiltinDef {
                 arity: 1,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))",
@@ -25082,7 +23674,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "now",
             BuiltinDef {
                 arity: 0,
-                shadowable: false,
                 impure: true,
                 deps: D,
                 rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)",
@@ -25092,7 +23683,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "time_diff",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: D,
                 rust_tpl: "({0} - {1})",
@@ -25103,7 +23693,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_match",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)",
@@ -25113,7 +23702,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_find",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))",
@@ -25123,7 +23711,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_find_all",
             BuiltinDef {
                 arity: 2,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()",
@@ -25133,7 +23720,6 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
             "regex_replace",
             BuiltinDef {
                 arity: 3,
-                shadowable: false,
                 impure: false,
                 deps: &[("regex", "1")],
                 rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }",
@@ -25968,6 +24554,8 @@ struct RustCodegen {
     copy_vars: BTreeSet<String>,
     /// Variables that need `let mut` (rebound inside for loops)
     mutable_vars: BTreeSet<String>,
+    /// Inout parameters of the function being emitted (`&mut` borrows).
+    inout_param_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
     /// Native Explore classifiers must fail the entire batch on an Int
@@ -26070,9 +24658,12 @@ struct RustCodegen {
     fn_once_mode: bool,
     /// True when emitting a method body where self is &self — skip boxed unboxing
     in_self_method: bool,
-    /// ADT-block methods are emitted as free functions, so their source `self`
-    /// parameter must use the non-keyword Rust identifier `self_` in the body.
-    in_standalone_adt_method: bool,
+    /// Names of receiver methods declared in type bodies and impl blocks. A
+    /// free call `m(x, ...)` of one of these names that no ordinary callable
+    /// owns is emitted as the method call `x.m(...)`.
+    receiver_method_names: BTreeSet<String>,
+    /// Functions supplied by the prelude rather than by the program.
+    prelude_function_names: BTreeSet<String>,
     /// Effects of the function currently being emitted (for routing op calls to handler params)
     current_effects: Vec<String>,
     /// Effects provided by `| handle` blocks (concrete struct types, need `&mut`)
@@ -26083,20 +24674,19 @@ struct RustCodegen {
     var_types: BTreeMap<String, String>,
     /// Inferred FIR types for bindings in the current emission scope.
     var_fir_types: BTreeMap<String, FirTy>,
-    /// M13c: program needs async tokio runtime (subjects or actors detected)
+    /// Program uses subjects, actors or http_serve: emits the live runtime.
     has_async: bool,
-    /// Current Rust emission is inside an async fn/block where `.await` is legal.
-    async_context_depth: usize,
-    /// M13c: variables that are subjects (broadcast::Sender) — for codegen routing
+    /// Program calls `http_serve`: needs the Tokio runtime and an async main.
+    needs_tokio: bool,
+    /// Variables bound to subjects.
     subject_vars: BTreeSet<String>,
-    /// M13c: variables that evaluate to async streams (subjects or derived stream ops)
+    /// Rust types of untyped function parameters that receive `<-`, from the
+    /// subjects and actor handles passed at call sites: (function, index).
+    send_target_param_types: BTreeMap<(String, usize), String>,
+    /// Variables bound to live streams (subjects or live derived streams).
     async_stream_vars: BTreeSet<String>,
-    /// M13c: scope name -> list of subscription JoinHandle variable names
-    scope_handles: BTreeMap<String, Vec<String>>,
-    /// M13c: current scope being emitted (for registering subscription handles)
+    /// Named scope being emitted.
     current_scope: Option<String>,
-    /// M13c: counter for generating unique subscription handle names
-    sub_counter: usize,
     /// M13c: scope name -> list of binding names (for qualified access ScopeName.field → field)
     scope_bindings: BTreeMap<String, Vec<String>>,
     /// M13c: scope name -> list of stream binding names for qualified stream accessors.
@@ -26124,14 +24714,10 @@ struct RustCodegen {
     /// Actor message payload hints from call sites:
     /// actor_name -> variant_name -> payload field types.
     actor_message_site_tys: BTreeMap<String, BTreeMap<String, Vec<FirTy>>>,
-    /// Sync subject variables: subject vars in non-async mode (Vec-based)
-    sync_subject_vars: BTreeSet<String>,
     /// Inferred element types for broadcast subjects: name -> Rust type string
     subject_elem_type: BTreeMap<String, String>,
     /// Builtin registry: name -> definition (template, arity, deps, purity)
     builtin_registry: &'static BTreeMap<String, BuiltinDef>,
-    /// Counter for generating unique async stream operator variable names
-    async_stream_counter: usize,
     /// Inferred map variable value types: var_name -> "String" or "i64" etc.
     /// Populated by pre-scanning for map_insert calls.
     map_var_value_types: BTreeMap<String, String>,
@@ -26695,7 +25281,6 @@ enum FirStmt {
     },
     Prove {
         name: String,
-        proof_block: Option<ProofBlock>,
         capture: Option<String>,
         pass_block: Option<Vec<FirStmt>>,
         else_block: Option<Vec<FirStmt>>,
@@ -28631,13 +27216,11 @@ impl<'a> LoweringCtx<'a> {
             },
             Stmt::Prove {
                 name,
-                proof_block,
                 capture,
                 pass_block,
                 else_block,
             } => FirStmt::Prove {
                 name: name.clone(),
-                proof_block: proof_block.clone(),
                 capture: capture.clone(),
                 pass_block: pass_block
                     .as_ref()
@@ -29058,7 +27641,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
     match &expr.kind {
         ExprKind::App(func, args) => {
             count_consuming_uses(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(n.as_str(), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
                     // Non-borrow function call: Var args are consuming
@@ -29162,14 +27745,13 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
 }
 
 fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
-    match builtin_canonical(name) {
+    match name {
         "show" | "rust_debug" | "length" | "head" | "tail" | "string_length" | "trim"
-        | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float" | "map_len"
-        | "map_keys" | "map_values" | "map_entries" | "set_len" | "set_to_list" | "is_some"
-        | "is_none" | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list"
-        | "collect" | "count" | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => {
-            arg_index == 0
-        }
+        | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float"
+        | "parse_danish_int" | "parse_danish_float" | "map_len" | "map_keys" | "map_values"
+        | "map_entries" | "set_len" | "set_to_list" | "is_some" | "is_none" | "sort"
+        | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list" | "collect" | "count"
+        | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => arg_index == 0,
 
         "nth" | "contains" | "starts_with" | "ends_with" | "char_at" | "index_of" | "split"
         | "join" | "format_float" | "map_get" | "map_contains" | "map_remove" | "set_contains"
@@ -30823,13 +29405,22 @@ fn is_copy_type(ty: &Ty) -> bool {
 /// argument types. Used by lowering, top-level getter inference, and codegen
 /// heuristics like expr_is_float/expr_is_string.
 fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
-    match builtin_canonical(name) {
-        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float"
-        | "random_float" | "json_number" => Some(FirTy::Float),
-        "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
-        | "parse_int" | "abs" | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff" => {
-            Some(FirTy::Int)
+    match name {
+        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "random_float"
+        | "json_number" => Some(FirTy::Float),
+        "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of" | "abs"
+        | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff" => Some(FirTy::Int),
+        "parse_int" | "parse_danish_int" => {
+            Some(FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String)))
         }
+        "parse_float" | "parse_danish_float" => Some(FirTy::Result(
+            Box::new(FirTy::Float),
+            Box::new(FirTy::String),
+        )),
+        "read_file" | "json_parse" | "http_get" | "http_post" => Some(FirTy::Result(
+            Box::new(FirTy::String),
+            Box::new(FirTy::String),
+        )),
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
         | "set_contains" | "file_exists" | "json_bool" | "regex_match" | "is_some" | "is_none"
         | "not" => Some(FirTy::Bool),
@@ -30845,15 +29436,11 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "show_float"
         | "format_float"
         | "rust_debug"
-        | "read_file"
         | "env_var"
-        | "json_parse"
         | "json_get"
         | "json_string"
         | "json_emit"
         | "json_object"
-        | "http_get"
-        | "http_post"
         | "http_request_path"
         | "http_request_method"
         | "http_request_body"
@@ -30877,26 +29464,16 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
     }
 }
 
-fn builtin_fixed_return_can_be_shadowed(name: &str) -> bool {
-    let canonical = builtin_canonical(name);
-    if let Some(def) = rust_builtin_registry().get(canonical) {
-        return def.shadowable;
-    }
-    matches!(
-        canonical,
-        "show" | "show_int" | "show_float" | "print" | "not" | "assert"
-    )
-}
-
+/// A declared function shadows the builtin of the same name, so its declared
+/// signature, not the builtin's, types the call.
 fn builtin_fixed_return_fir_ty_for_call(
     name: &str,
     user_functions: &BTreeSet<String>,
 ) -> Option<FirTy> {
-    let canonical = builtin_canonical(name);
-    if user_functions.contains(name) && builtin_fixed_return_can_be_shadowed(canonical) {
+    if user_functions.contains(name) {
         None
     } else {
-        builtin_fixed_return_fir_ty(canonical)
+        builtin_fixed_return_fir_ty(name)
     }
 }
 
@@ -30938,6 +29515,7 @@ impl RustCodegen {
             var_consuming_counts: BTreeMap::new(),
             copy_vars: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
+            inout_param_vars: BTreeSet::new(),
             lib_mode: false,
             int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
@@ -30991,18 +29569,18 @@ impl RustCodegen {
             string_returning_fns: BTreeSet::new(),
             fn_once_mode: false,
             in_self_method: false,
-            in_standalone_adt_method: false,
+            receiver_method_names: BTreeSet::new(),
+            prelude_function_names: BTreeSet::new(),
             current_effects: Vec::new(),
             handle_scope_effects: BTreeSet::new(),
             var_types: BTreeMap::new(),
             var_fir_types: BTreeMap::new(),
             has_async: false,
-            async_context_depth: 0,
+            needs_tokio: false,
             subject_vars: BTreeSet::new(),
+            send_target_param_types: BTreeMap::new(),
             async_stream_vars: BTreeSet::new(),
-            scope_handles: BTreeMap::new(),
             current_scope: None,
-            sub_counter: 0,
             scope_bindings: BTreeMap::new(),
             scope_stream_bindings: BTreeMap::new(),
             current_rule_scope_methods: BTreeMap::new(),
@@ -31016,10 +29594,8 @@ impl RustCodegen {
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
             actor_message_site_tys: BTreeMap::new(),
-            sync_subject_vars: BTreeSet::new(),
             subject_elem_type: BTreeMap::new(),
             builtin_registry: rust_builtin_registry(),
-            async_stream_counter: 0,
             map_var_value_types: BTreeMap::new(),
             empty_list_bindings: BTreeSet::new(),
             empty_list_var_types: BTreeMap::new(),
@@ -31083,90 +29659,9 @@ impl RustCodegen {
     /// Returns the parsed statements plus the imported file's directory so nested
     /// imports resolve relative to the file they appear in.
     fn resolve_import_from_dir(&mut self, import_path: &str, dir: &str) -> (Vec<Stmt>, String) {
-        // Try relative path first (existing behavior)
-        let rel = import_path.trim_start_matches("./");
-        let file_path = format!("{}/{}.runa", dir, rel);
-
-        // If file exists OR path starts with ./ or ../, use it directly
-        if import_path.starts_with("./")
-            || import_path.starts_with("../")
-            || std::path::Path::new(&file_path).exists()
-        {
-            let canon = std::fs::canonicalize(&file_path)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or(file_path.clone());
-            if self.imported.contains(&canon) {
-                return (Vec::new(), dir.to_string());
-            }
-            self.imported.insert(canon);
-            let resolved_dir = std::path::Path::new(&file_path)
-                .parent()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| dir.to_string());
-            return (Self::parse_tau_file(&file_path), resolved_dir);
-        }
-
-        // Try manifest-based resolution: `dep_name/module` → dependency path
-        if let Some(toml_path) = find_runa_toml(&dir) {
-            if let Some(manifest) = parse_runa_toml(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                // Split import path: first component is dep name, rest is module path
-                let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-                let dep_name = parts[0];
-                let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-                for (name, dep_spec) in &manifest.dependencies {
-                    if name == dep_name {
-                        let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
-                            Some(p) => p,
-                            None => return (Vec::new(), dir.to_string()),
-                        };
-                        let dep_file = format!("{}/{}.runa", abs_dep, module);
-                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-
-                        let resolved = if std::path::Path::new(&dep_file).exists() {
-                            dep_file
-                        } else if std::path::Path::new(&dep_file_src).exists() {
-                            dep_file_src
-                        } else {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
-                                module, dep_name
-                            );
-                            eprintln!("  Searched: {}", dep_file);
-                            eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string());
-                        };
-
-                        let canon = std::fs::canonicalize(&resolved)
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or(resolved.clone());
-                        if self.imported.contains(&canon) {
-                            return (Vec::new(), dir.to_string());
-                        }
-                        self.imported.insert(canon);
-                        let resolved_dir = std::path::Path::new(&resolved)
-                            .parent()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or_else(|| dir.to_string());
-                        return (Self::parse_tau_file(&resolved), resolved_dir);
-                    }
-                }
-            }
-        }
-
-        // Fallback: try the original relative path anyway (gives a proper error)
+        // Relative files first, then manifest dependencies (local files only).
+        let file_path = Interpreter::resolve_import_path_for_source(import_path, dir)
+            .unwrap_or_else(|| format!("{}/{}.runa", dir, import_path.trim_start_matches("./")));
         let canon = std::fs::canonicalize(&file_path)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
@@ -31190,93 +29685,8 @@ impl RustCodegen {
         dir: &str,
         seen: &mut BTreeSet<String>,
     ) -> (Vec<Stmt>, String, Option<String>, bool) {
-        let rel = import_path.trim_start_matches("./");
-        let file_path = format!("{}/{}.runa", dir, rel);
-
-        if import_path.starts_with("./")
-            || import_path.starts_with("../")
-            || std::path::Path::new(&file_path).exists()
-        {
-            let canon = std::fs::canonicalize(&file_path)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or(file_path.clone());
-            if !seen.insert(canon.clone()) {
-                return (Vec::new(), dir.to_string(), Some(canon), false);
-            }
-            let resolved_dir = std::path::Path::new(&file_path)
-                .parent()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| dir.to_string());
-            return (
-                Self::parse_tau_file(&file_path),
-                resolved_dir,
-                Some(canon),
-                true,
-            );
-        }
-
-        if let Some(toml_path) = find_runa_toml(&dir) {
-            if let Some(manifest) = parse_runa_toml(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                let parts: Vec<&str> = import_path.splitn(2, '/').collect();
-                let dep_name = parts[0];
-                let module = if parts.len() > 1 { parts[1] } else { "lib" };
-
-                for (name, dep_spec) in &manifest.dependencies {
-                    if name == dep_name {
-                        let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
-                            Some(p) => p,
-                            None => return (Vec::new(), dir.to_string(), None, false),
-                        };
-                        let dep_file = format!("{}/{}.runa", abs_dep, module);
-                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
-
-                        let resolved = if std::path::Path::new(&dep_file).exists() {
-                            dep_file
-                        } else if std::path::Path::new(&dep_file_src).exists() {
-                            dep_file_src
-                        } else {
-                            status_eprintln!(
-                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
-                                module, dep_name
-                            );
-                            eprintln!("  Searched: {}", dep_file);
-                            eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string(), None, false);
-                        };
-
-                        let canon = std::fs::canonicalize(&resolved)
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or(resolved.clone());
-                        if !seen.insert(canon.clone()) {
-                            return (Vec::new(), dir.to_string(), Some(canon), false);
-                        }
-                        let resolved_dir = std::path::Path::new(&resolved)
-                            .parent()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or_else(|| dir.to_string());
-                        return (
-                            Self::parse_tau_file(&resolved),
-                            resolved_dir,
-                            Some(canon),
-                            true,
-                        );
-                    }
-                }
-            }
-        }
-
+        let file_path = Interpreter::resolve_import_path_for_source(import_path, dir)
+            .unwrap_or_else(|| format!("{}/{}.runa", dir, import_path.trim_start_matches("./")));
         let canon = std::fs::canonicalize(&file_path)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
@@ -32178,6 +30588,19 @@ impl RustCodegen {
         self.collect_module_value_bindings(&all_stmts, &mut module_path);
 
         let stmts = &all_stmts;
+        self.receiver_method_names.clear();
+        Self::collect_receiver_method_names(stmts, &mut self.receiver_method_names);
+        let prelude_len = stmts
+            .iter()
+            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+            .map_or(0, |index| index + 1);
+        self.prelude_function_names = stmts[..prelude_len]
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::Defn(Defn::Fn { name, .. }) => Some(name.clone()),
+                _ => None,
+            })
+            .collect();
 
         // Pre-scan: collect @ export annotations (M3b)
         // Two forms: `@ export` (prefix, next stmt is exported) or `@ export name` (post-hoc)
@@ -32265,85 +30688,31 @@ impl RustCodegen {
                 }
             }
         }
-        // M13c: Pre-scan for async mode — only async when subjects have for-loop subscribers
+        // Subjects and actors use the live runtime: every handle shares one
+        // stream or actor cell.
         {
-            // Pass 1: collect subject variable names
-            fn collect_subject_names(stmts: &[Stmt], names: &mut BTreeSet<String>) {
-                for s in stmts {
-                    match s {
-                        Stmt::StreamBind(name, expr) => {
-                            if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"))
-                            {
-                                names.insert(name.clone());
-                            }
+            let mut creates_subject = false;
+            for stmt in stmts {
+                walk_ast_stmt(stmt, &mut |child| {
+                    if let AstChild::Expr(Expr {
+                        kind: ExprKind::App(func, _),
+                        ..
+                    }) = child
+                    {
+                        if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "subject") {
+                            creates_subject = true;
                         }
-                        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                            collect_subject_names(body, names)
-                        }
-                        _ => {}
                     }
-                }
+                });
             }
-            // Pass 2: check if any for-loop iterates a subject (= async subscription)
-            fn has_for_on_subject(stmts: &[Stmt], subjects: &BTreeSet<String>) -> bool {
-                for s in stmts {
-                    match s {
-                        Stmt::For(
-                            _,
-                            Expr {
-                                kind: ExprKind::Var(name),
-                                ..
-                            },
-                            _,
-                        ) if subjects.contains(name) => return true,
-                        Stmt::StreamSub(
-                            Expr {
-                                kind: ExprKind::Var(name),
-                                ..
-                            },
-                            _,
-                        ) if subjects.contains(name) => return true,
-                        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                            if has_for_on_subject(body, subjects) {
-                                return true;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                false
-            }
-            let mut subject_names = BTreeSet::new();
-            collect_subject_names(stmts, &mut subject_names);
-            if !subject_names.is_empty() && has_for_on_subject(stmts, &subject_names) {
+            if creates_subject {
                 self.has_async = true;
-            }
-            // Also enable async if subjects exist and ANY StreamSub is present
-            // (the subscription might be on a derived stream like map(subject, f))
-            if !subject_names.is_empty() && !self.has_async {
-                fn has_any_stream_sub(stmts: &[Stmt]) -> bool {
-                    for s in stmts {
-                        match s {
-                            Stmt::StreamSub(_, _) => return true,
-                            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                                if has_any_stream_sub(body) {
-                                    return true;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    false
-                }
-                if has_any_stream_sub(stmts) {
-                    self.has_async = true;
-                }
             }
             for stmt in stmts {
                 if matches!(stmt, Stmt::Defn(Defn::Actor { .. })) {
                     self.has_async = true;
                 }
-                // http_serve with axum needs async runtime
+                // http_serve with axum needs the Tokio runtime
                 if let Stmt::Expr(Expr {
                     kind: ExprKind::Effect(name, _),
                     ..
@@ -32351,6 +30720,7 @@ impl RustCodegen {
                 {
                     if name == "http_serve" {
                         self.has_async = true;
+                        self.needs_tokio = true;
                     }
                 }
                 // Also detect http_serve in = bindings (e.g. = _ = http_serve(...))
@@ -32366,11 +30736,12 @@ impl RustCodegen {
                     if let ExprKind::Var(name) = &f.as_ref().kind {
                         if name == "http_serve" {
                             self.has_async = true;
+                            self.needs_tokio = true;
                         }
                     }
                 }
             }
-            if self.has_async {
+            if self.needs_tokio {
                 self.cargo_deps.insert(
                     "tokio".to_string(),
                     "{ version = \"1\", features = [\"full\"] }".to_string(),
@@ -32667,7 +31038,7 @@ impl RustCodegen {
                                     );
                                 }
                             }
-                            Stmt::For(_, iter, body) => {
+                            Stmt::For(var, iter, body) => {
                                 scan_expr_for_subject_sends(
                                     iter,
                                     subject_names,
@@ -32676,12 +31047,17 @@ impl RustCodegen {
                                     local_tys,
                                     stream_bind_exprs,
                                 );
+                                let mut body_tys = local_tys.clone();
+                                if matches!(&iter.kind, ExprKind::App(func, _) if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "range"))
+                                {
+                                    body_tys.insert(var.clone(), "i64".to_string());
+                                }
                                 scan_stmts_for_subject_sends(
                                     body,
                                     subject_names,
                                     fn_types,
                                     types,
-                                    local_tys,
+                                    &body_tys,
                                     stream_bind_exprs,
                                 );
                             }
@@ -33780,22 +32156,18 @@ impl RustCodegen {
         let functions = fn_stmts
             .iter()
             .filter_map(|stmt| match stmt {
-                Stmt::Defn(defn @ Defn::Fn { .. }) => Some((defn, None)),
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some(defn),
                 _ => None,
             })
             .collect::<Vec<_>>();
         self.compute_namespace_borrow_flags(&functions, false);
     }
 
-    fn compute_namespace_borrow_flags(
-        &mut self,
-        functions: &[(&Defn, Option<&str>)],
-        require_stable_flags: bool,
-    ) {
+    fn compute_namespace_borrow_flags(&mut self, functions: &[&Defn], require_stable_flags: bool) {
         for _round in 0..8 {
             let previous = self.borrow_only_params.clone();
             let previous_count = previous.len();
-            for (defn, adt_owner) in functions {
+            for defn in functions {
                 if let Defn::Fn {
                     name,
                     params,
@@ -33804,24 +32176,19 @@ impl RustCodegen {
                     ..
                 } = defn
                 {
-                    let effective_params = Self::namespace_function_params(params, *adt_owner);
                     let mut borrow_flags = analyze_borrow_only_params_named(
-                        &effective_params,
+                        &params,
                         body,
                         ret_ty.as_ref(),
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_wasm_export_borrow_flags(
-                        name,
-                        &effective_params,
-                        &mut borrow_flags,
-                    );
+                    self.constrain_wasm_export_borrow_flags(name, &params, &mut borrow_flags);
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
                         collect_matched_vars(body, &mut matched_vars);
-                        for (idx, p) in effective_params.iter().enumerate() {
+                        for (idx, p) in params.iter().enumerate() {
                             if borrow_flags[idx] && matched_vars.contains(&p.name) {
                                 if let Some(ty) = &p.ty {
                                     let type_name = match ty {
@@ -33869,7 +32236,7 @@ impl RustCodegen {
                         self.borrow_only_params.remove(name);
                     }
                     // Also pre-register inout params
-                    let inout_flags: Vec<bool> = effective_params.iter().map(|p| p.inout).collect();
+                    let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
                     if inout_flags.iter().any(|f| *f) {
                         self.types.inout_params.insert(name.clone(), inout_flags);
                     }
@@ -34463,7 +32830,7 @@ impl RustCodegen {
         if self.types.user_functions.contains(op_name.as_str()) {
             return;
         }
-        let op = builtin_canonical(op_name);
+        let op = op_name.as_str();
         match op {
             "map" | "filter" | "sort_by" | "any" | "all" | "find" | "flat_map" | "take_while"
             | "drop_while" | "count_by" | "partition" | "tap" | "switch_map" | "subscribe"
@@ -34779,7 +33146,7 @@ impl RustCodegen {
             return;
         };
         // `push(xs, item)` fixes the element type of an empty `xs`.
-        if builtin_canonical(&fn_name) == "push" && args.len() == 2 {
+        if fn_name.as_str() == "push" && args.len() == 2 {
             if let ExprKind::Var(var_name) = &args[0].kind {
                 if self.empty_list_bindings.contains(var_name.as_str())
                     && !self.empty_list_var_types.contains_key(var_name)
@@ -34943,6 +33310,10 @@ impl RustCodegen {
         self.prescan_actor_message_site_types(&all_stmts);
         self.prescan_map_types(&all_stmts);
         self.prescan_hof_named_callback_param_types(&all_stmts);
+        if self.has_async {
+            self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
+            self.prescan_send_target_param_types(&all_stmts);
+        }
         let stmts = &all_stmts;
         self.codegen_invariants.clear();
         for stmt in stmts {
@@ -35010,6 +33381,8 @@ fn __futuruna_map_remove<K: Ord, V>(map: &mut BTreeMap<K, V>, key: &K) {
 }
 "#,
         );
+        out.push_str(DANISH_NUMBER_PARSERS_RUST);
+        out.push('\n');
         for collision in Self::prolog_ordinary_name_collisions(stmts) {
             out.push_str(&format!(
                 "compile_error!({:?});\n",
@@ -35045,7 +33418,7 @@ impl<T: __FuturunaShow> __FuturunaShow for Vec<T> { fn __futuruna_fmt(&self, out
 impl<T: __FuturunaShow> __FuturunaShow for Option<T> { fn __futuruna_fmt(&self, out: &mut String) { match self { Some(v) => { out.push_str("Some("); v.__futuruna_fmt(out); out.push(')'); } None => out.push_str("None") } } }
 impl<T: __FuturunaShow, E: __FuturunaShow> __FuturunaShow for Result<T, E> { fn __futuruna_fmt(&self, out: &mut String) { match self { Ok(v) => { out.push_str("Ok("); v.__futuruna_fmt(out); out.push(')'); } Err(e) => { out.push_str("Err("); e.__futuruna_fmt(out); out.push(')'); } } } }
 macro_rules! __futuruna_show_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaShow),+> __FuturunaShow for ($($t,)+) { fn __futuruna_fmt(&self, out: &mut String) { out.push('('); let mut __first = true; $( if !__first { out.push_str(", "); } __first = false; self.$n.__futuruna_fmt(out); )+ out.push(')'); } })* } }
-__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+__futuruna_show_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K, 11 L));
 impl<K: __FuturunaShow, V: __FuturunaShow> __FuturunaShow for BTreeMap<K, V> {
     fn __futuruna_fmt(&self, out: &mut String) {
         out.push('{');
@@ -35090,7 +33463,7 @@ impl<T: __FuturunaOrd> __FuturunaOrd for Vec<T> { fn __futuruna_key(&self, out: 
 impl<T: __FuturunaOrd> __FuturunaOrd for Option<T> { fn __futuruna_key(&self, out: &mut String) { match self { None => out.push_str("o0"), Some(v) => { out.push_str("o1"); v.__futuruna_key(out); } } } }
 impl<T: __FuturunaOrd, E: __FuturunaOrd> __FuturunaOrd for Result<T, E> { fn __futuruna_key(&self, out: &mut String) { match self { Err(e) => { out.push_str("r0"); e.__futuruna_key(out); } Ok(v) => { out.push_str("r1"); v.__futuruna_key(out); } } } }
 macro_rules! __futuruna_key_tuple { ($(($($n:tt $t:ident),+)),*) => { $(impl<$($t: __FuturunaOrd),+> __FuturunaOrd for ($($t,)+) { fn __futuruna_key(&self, out: &mut String) { out.push('t'); $( self.$n.__futuruna_key(out); )+ } })* } }
-__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H));
+__futuruna_key_tuple!((0 A), (0 A, 1 B), (0 A, 1 B, 2 C), (0 A, 1 B, 2 C, 3 D), (0 A, 1 B, 2 C, 3 D, 4 E), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K), (0 A, 1 B, 2 C, 3 D, 4 E, 5 F, 6 G, 7 H, 8 I, 9 J, 10 K, 11 L));
 impl<K: __FuturunaOrd, V: __FuturunaOrd> __FuturunaOrd for BTreeMap<K, V> {
     fn __futuruna_key(&self, out: &mut String) {
         let mut entries: Vec<(String, &V)> = self.iter().map(|(k, v)| (__futuruna_key_of(k), v)).collect();
@@ -35111,6 +33484,25 @@ impl<T> std::ops::Deref for __FutSet<T> { type Target = BTreeMap<String, T>; fn 
 impl<T> std::ops::DerefMut for __FutSet<T> { fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 } }
 impl<T> IntoIterator for __FutSet<T> { type Item = T; type IntoIter = std::collections::btree_map::IntoValues<String, T>; fn into_iter(self) -> Self::IntoIter { self.0.into_values() } }
 fn __futuruna_set_key<T: __FuturunaOrd + ?Sized>(v: &T) -> String { __futuruna_key_of(v) }
+// A collection predicate answers Bool. A callback whose result type the
+// compiler could not fix is checked here, so any other result is a runtime
+// error, as in the interpreter.
+fn __futuruna_predicate<T: 'static>(builtin: &str, value: T) -> bool {
+    match (&value as &dyn std::any::Any).downcast_ref::<bool>() {
+        Some(holds) => *holds,
+        None => {
+            let name = std::any::type_name::<T>();
+            let label = match name {
+                "i64" => "Int",
+                "f64" => "Float",
+                "alloc::string::String" => "String",
+                "char" => "Char",
+                other => other.rsplit("::").next().unwrap_or(other),
+            };
+            panic!("{} predicate must return Bool, got {}", builtin, label)
+        }
+    }
+}
 // A runtime error reports `error: <message>` on stderr and exits with status 1,
 // like the interpreter.
 fn __futuruna_install_error_hook() {
@@ -35120,6 +33512,9 @@ fn __futuruna_install_error_hook() {
             .or_else(|| payload.downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "runtime error".to_string());
         eprintln!("error: {}", message);
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
+        std::process::exit(1);
     }));
 }
 "#,
@@ -35147,183 +33542,13 @@ fn __futuruna_install_error_hook() {
             }
         }
 
-        // M13c: emit ScopeGuard struct when async mode is active
+        // Subjects, live streams and actors share one synchronous runtime.
         if self.has_async {
-            out.push_str("use tokio::sync::broadcast;\n");
-            out.push_str("static __FUT_BARRIER_IDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);\n");
             out.push_str(
-                "\n/// Scope lifecycle guard: Drop aborts all subscription tasks (M13c)\n",
+                "\n#[allow(dead_code, non_camel_case_types, unused_imports)]\nmod __fut_live {\n",
             );
-            out.push_str("struct _ScopeGuard {\n");
-            out.push_str("    name: &'static str,\n");
-            out.push_str("    handles: Vec<tokio::task::JoinHandle<()>>,\n");
-            out.push_str("}\n");
-            out.push_str("impl Drop for _ScopeGuard {\n");
-            out.push_str("    fn drop(&mut self) {\n");
-            out.push_str("        for h in &self.handles {\n");
-            out.push_str("            h.abort();\n");
-            out.push_str("        }\n");
-            out.push_str("        __fut_abort_scope(self.name);\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
-            out.push_str("static __FUT_SCOPE_HANDLES: std::sync::OnceLock<std::sync::Mutex<BTreeMap<&'static str, Vec<tokio::task::JoinHandle<()>>>>> = std::sync::OnceLock::new();\n");
-            out.push_str("static __FUT_SCOPE_CLEANUPS: std::sync::OnceLock<std::sync::Mutex<BTreeMap<&'static str, Vec<Box<dyn Fn() + Send>>>>> = std::sync::OnceLock::new();\n");
-            out.push_str("fn __fut_scope_handles() -> &'static std::sync::Mutex<BTreeMap<&'static str, Vec<tokio::task::JoinHandle<()>>>> {\n");
-            out.push_str(
-                "    __FUT_SCOPE_HANDLES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))\n",
-            );
-            out.push_str("}\n");
-            out.push_str("fn __fut_scope_cleanups() -> &'static std::sync::Mutex<BTreeMap<&'static str, Vec<Box<dyn Fn() + Send>>>> {\n");
-            out.push_str(
-                "    __FUT_SCOPE_CLEANUPS.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))\n",
-            );
-            out.push_str("}\n");
-            out.push_str("fn __fut_register_scope_handle(scope: &'static str, handle: tokio::task::JoinHandle<()>) {\n");
-            out.push_str("    __fut_scope_handles().lock().unwrap().entry(scope).or_default().push(handle);\n");
-            out.push_str("}\n");
-            out.push_str("fn __fut_register_scope_stream<T: Clone + Send + 'static>(scope: &'static str, stream: &__FutStream<T>) {\n");
-            out.push_str("    let stream = stream.clone();\n");
-            out.push_str("    __fut_scope_cleanups().lock().unwrap().entry(scope).or_default().push(Box::new(move || stream.disable_barriers()));\n");
-            out.push_str("}\n");
-            out.push_str("fn __fut_register_scope_barrier_chain<T: Clone + Send + 'static, U: Clone + Send + 'static>(scope: &'static str, target: &__FutStream<T>, upstream: &__FutStream<U>) {\n");
-            out.push_str("    let target = target.clone();\n");
-            out.push_str("    let expected = upstream.barrier_expected();\n");
-            out.push_str("    __fut_scope_cleanups().lock().unwrap().entry(scope).or_default().push(Box::new(move || target.remove_barrier_expectations(expected)));\n");
-            out.push_str("}\n");
-            out.push_str("fn __fut_abort_scope(scope: &'static str) {\n");
-            out.push_str("    let cleanups = __fut_scope_cleanups().lock().unwrap().remove(scope).unwrap_or_default();\n");
-            out.push_str("    for cleanup in cleanups { cleanup(); }\n");
-            out.push_str("    let handles = __fut_scope_handles().lock().unwrap().remove(scope).unwrap_or_default();\n");
-            out.push_str("    for h in handles { h.abort(); }\n");
-            out.push_str("}\n");
-            out.push_str("\n#[derive(Clone)]\nenum __FutEvent<T: Clone + Send + 'static> {\n");
-            out.push_str("    Data(u64, T),\n");
-            out.push_str("    Barrier(u64),\n");
-            out.push_str("}\n");
-            out.push_str("\n#[derive(Clone)]\nstruct __FutStream<T: Clone + Send + 'static> {\n");
-            out.push_str("    tx: tokio::sync::broadcast::Sender<__FutEvent<T>>,\n");
-            out.push_str("    history: std::sync::Arc<std::sync::Mutex<Vec<(u64, T)>>>,\n");
-            out.push_str("    next_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,\n");
-            out.push_str("    barrier_expected: std::sync::Arc<std::sync::atomic::AtomicUsize>,\n");
-            out.push_str(
-                "    inject_barrier: std::sync::Arc<std::sync::Mutex<std::sync::Arc<dyn Fn(u64) + Send + Sync>>>,\n",
-            );
-            out.push_str("}\n");
-            out.push_str("impl<T: Clone + Send + 'static> __FutStream<T> {\n");
-            out.push_str("    fn new() -> Self {\n");
-            out.push_str("        let (tx, _) = broadcast::channel::<__FutEvent<T>>(256);\n");
-            out.push_str("        let barrier_tx = tx.clone();\n");
-            out.push_str("        Self {\n");
-            out.push_str("            tx,\n");
-            out.push_str(
-                "            history: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),\n",
-            );
-            out.push_str(
-                "            next_seq: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),\n",
-            );
-            out.push_str(
-                "            barrier_expected: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(1)),\n",
-            );
-            out.push_str(
-                "            inject_barrier: std::sync::Arc::new(std::sync::Mutex::new(std::sync::Arc::new(move |id| {\n",
-            );
-            out.push_str("                let _ = barrier_tx.send(__FutEvent::Barrier(id));\n");
-            out.push_str("            }))),\n");
-            out.push_str("        }\n");
-            out.push_str("    }\n");
-            out.push_str("    fn send(&self, value: T) {\n");
-            out.push_str("        let seq = self.next_seq.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
-            out.push_str("        self.history.lock().unwrap().push((seq, value.clone()));\n");
-            out.push_str("        let _ = self.tx.send(__FutEvent::Data(seq, value));\n");
-            out.push_str("    }\n");
-            out.push_str("    fn emit_barrier(&self, id: u64) {\n");
-            out.push_str("        let _ = self.tx.send(__FutEvent::Barrier(id));\n");
-            out.push_str("    }\n");
-            out.push_str(
-                "    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<__FutEvent<T>> {\n",
-            );
-            out.push_str("        self.tx.subscribe()\n");
-            out.push_str("    }\n");
-            out.push_str("    fn inject_barrier(&self, id: u64) {\n");
-            out.push_str("        let inject = self.inject_barrier.lock().unwrap().clone();\n");
-            out.push_str("        inject(id);\n");
-            out.push_str("    }\n");
-            out.push_str("    fn disable_barriers(&self) {\n");
-            out.push_str(
-                "        self.barrier_expected.store(0, std::sync::atomic::Ordering::SeqCst);\n",
-            );
-            out.push_str(
-                "        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(|_| {});\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn remove_barrier_expectations(&self, count: usize) {\n");
-            out.push_str("        let _ = self.barrier_expected.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |cur| Some(cur.saturating_sub(count)));\n");
-            out.push_str("    }\n");
-            out.push_str("    fn barrier_expected(&self) -> usize {\n");
-            out.push_str(
-                "        self.barrier_expected.load(std::sync::atomic::Ordering::SeqCst)\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn set_barrier_passthrough<U: Clone + Send + 'static>(&self, upstream: &__FutStream<U>) {\n");
-            out.push_str("        let upstream = upstream.clone();\n");
-            out.push_str("        self.barrier_expected.store(upstream.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
-            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| upstream.inject_barrier(id));\n");
-            out.push_str("    }\n");
-            out.push_str("    fn set_barrier_merge<U: Clone + Send + 'static, V: Clone + Send + 'static>(&self, left: &__FutStream<U>, right: &__FutStream<V>) {\n");
-            out.push_str("        let left = left.clone();\n");
-            out.push_str("        let right = right.clone();\n");
-            out.push_str("        self.barrier_expected.store(left.barrier_expected() + right.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
-            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| { left.inject_barrier(id); right.inject_barrier(id); });\n");
-            out.push_str("    }\n");
-            out.push_str("    fn chain_barrier_from<U: Clone + Send + 'static>(&self, upstream: &__FutStream<U>) {\n");
-            out.push_str("        let prev = self.inject_barrier.lock().unwrap().clone();\n");
-            out.push_str("        let upstream = upstream.clone();\n");
-            out.push_str("        self.barrier_expected.fetch_add(upstream.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
-            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| { prev(id); upstream.inject_barrier(id); });\n");
-            out.push_str("    }\n");
-            out.push_str("    fn watermark(&self) -> u64 {\n");
-            out.push_str("        self.next_seq.load(std::sync::atomic::Ordering::SeqCst)\n");
-            out.push_str("    }\n");
-            out.push_str("    fn snapshot(&self) -> Vec<T> {\n");
-            out.push_str(
-                "        self.history.lock().unwrap().iter().map(|(_, v)| v.clone()).collect()\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("    fn snapshot_until(&self, watermark: u64) -> Vec<T> {\n");
-            out.push_str("        self.history.lock().unwrap().iter().filter(|(seq, _)| *seq <= watermark).map(|(_, v)| v.clone()).collect()\n");
-            out.push_str("    }\n");
-            out.push_str("    fn count(&self) -> i64 {\n");
-            out.push_str("        self.history.lock().unwrap().len() as i64\n");
-            out.push_str("    }\n");
-            out.push_str("    fn latest(&self) -> T {\n");
-            out.push_str(
-                "        self.history.lock().unwrap().last().map(|(_, v)| v.clone()).unwrap()\n",
-            );
-            out.push_str("    }\n");
-            out.push_str("}\n");
-            out.push_str(
-                "async fn __fut_settle<T: Clone + Send + 'static>(stream: &__FutStream<T>) {\n",
-            );
-            out.push_str("    let barrier_id = __FUT_BARRIER_IDS.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
-            out.push_str("    let mut rx = stream.subscribe();\n");
-            out.push_str("    let mut seen = 0usize;\n");
-            out.push_str("    let expected = stream.barrier_expected();\n");
-            out.push_str("    stream.inject_barrier(barrier_id);\n");
-            out.push_str("    while seen < expected {\n");
-            out.push_str("        match rx.recv().await {\n");
-            out.push_str(
-                "            Ok(__FutEvent::Barrier(id)) if id == barrier_id => seen += 1,\n",
-            );
-            out.push_str("            Ok(_) => {}\n");
-            out.push_str(
-                "            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}\n",
-            );
-            out.push_str(
-                "            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,\n",
-            );
-            out.push_str("        }\n");
-            out.push_str("    }\n");
-            out.push_str("}\n");
+            out.push_str(include_str!("../live_runtime.rs"));
+            out.push_str("\n}\n#[allow(unused_imports)]\nuse __fut_live::*;\n");
         }
         out.push('\n');
 
@@ -35994,11 +34219,9 @@ fn __futuruna_install_error_hook() {
         if !self.lib_mode {
             // Detect if any main statement uses ? operator
             let uses_try = main_stmts.iter().any(|s| stmt_contains_try(s));
-            // M13c: async main when subjects or actors are used
-            if self.has_async {
-                // M15: multi-threaded Tokio — trust the topology.
-                // Independent streams (zero Phi) auto-parallelize across CPU cores.
-                // Synchronization happens at fan-in nodes (zip, merge).
+            // Only `http_serve` needs an async main; subjects, live streams
+            // and actors run on the synchronous live runtime.
+            if self.needs_tokio {
                 if uses_try {
                     out.push_str("#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
                 } else {
@@ -36097,11 +34320,7 @@ fn __futuruna_install_error_hook() {
                     }
                 }
             };
-            if self.has_async {
-                self.with_async_context(&mut emit_main_stmts);
-            } else {
-                emit_main_stmts(self);
-            }
+            emit_main_stmts(self);
             if uses_try {
                 out.push_str("    Ok(())\n");
             }
@@ -36109,7 +34328,7 @@ fn __futuruna_install_error_hook() {
             self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
             self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
             out.push_str("}\n");
-            if !self.has_async {
+            if !self.needs_tokio {
                 out.push('\n');
                 if uses_try {
                     out.push_str(
@@ -36238,10 +34457,18 @@ fn __futuruna_install_error_hook() {
     }
 
     fn infer_stream_binding_getter_type(&self, name: &str) -> String {
-        self.subject_elem_type
+        let elem_ty = self
+            .subject_elem_type
             .get(name)
-            .map(|elem_ty| format!("Vec<{}>", elem_ty))
-            .unwrap_or_else(|| "Vec<i64>".to_string())
+            .cloned()
+            .unwrap_or_else(|| "i64".to_string());
+        if self.has_async
+            && (self.subject_vars.contains(name) || self.async_stream_vars.contains(name))
+        {
+            format!("__FutStream<{}>", elem_ty)
+        } else {
+            format!("Vec<{}>", elem_ty)
+        }
     }
 
     fn uses_binary_global_env(&self) -> bool {
@@ -36291,42 +34518,58 @@ fn __futuruna_install_error_hook() {
     /// Direct ordinary functions owned by one generated Rust namespace.
     /// ADT-block methods are runtime namespace functions, not inherent methods,
     /// so qualified modules must retain their callable ABI alongside `>` defs.
-    fn namespace_function_defns<'a>(stmts: &'a [Stmt]) -> Vec<(&'a Defn, Option<&'a str>)> {
-        let mut functions = Vec::new();
+    /// Ordinary functions declared directly in a namespace. Type-body and
+    /// impl methods belong to their type, not to the namespace.
+    fn namespace_function_defns(stmts: &[Stmt]) -> Vec<&Defn> {
+        stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some(defn),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Receiver methods (type-body methods with a first parameter, impl and
+    /// trait methods taking `self`) declared anywhere in the program.
+    fn collect_receiver_method_names(stmts: &[Stmt], names: &mut BTreeSet<String>) {
         for stmt in stmts {
             match stmt {
-                Stmt::Defn(defn @ Defn::Fn { .. }) => functions.push((defn, None)),
-                Stmt::TypeDecl(TypeDecl::ADT { name, methods, .. }) => {
-                    functions.extend(
-                        methods
-                            .iter()
-                            .filter(|method| matches!(method, Defn::Fn { .. }))
-                            .map(|method| (method, Some(name.as_str()))),
-                    );
+                Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn { name, params, .. } = method {
+                            if !params.is_empty() {
+                                names.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn { name, params, .. } = method {
+                            if params.first().is_some_and(|param| param.name == "self") {
+                                names.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+                    for method in methods {
+                        if method
+                            .params
+                            .first()
+                            .is_some_and(|param| param.name == "self")
+                        {
+                            names.insert(method.name.clone());
+                        }
+                    }
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    Self::collect_receiver_method_names(body, names);
                 }
                 _ => {}
             }
         }
-        functions
-    }
-
-    fn namespace_function_params(params: &[Param], adt_owner: Option<&str>) -> Vec<Param> {
-        params
-            .iter()
-            .enumerate()
-            .map(|(index, param)| {
-                if index == 0 && param.ty.is_none() {
-                    if let Some(adt_owner) = adt_owner {
-                        return Param {
-                            name: param.name.clone(),
-                            ty: Some(Ty::Name(adt_owner.to_string())),
-                            inout: param.inout,
-                        };
-                    }
-                }
-                param.clone()
-            })
-            .collect()
     }
 
     /// The current Prolog/value registries are keyed by bare name. Until
@@ -36336,7 +34579,7 @@ fn __futuruna_install_error_hook() {
         fn collect(stmts: &[Stmt], owner: &[String], collisions: &mut BTreeSet<String>) {
             let ordinary_names = RustCodegen::namespace_function_defns(stmts)
                 .into_iter()
-                .filter_map(|(defn, _)| match defn {
+                .filter_map(|defn| match defn {
                     Defn::Fn { name, .. } => Some(name.clone()),
                     _ => None,
                 })
@@ -37302,7 +35545,7 @@ fn __futuruna_install_error_hook() {
         let ExprKind::Var(fn_name) = &func.as_ref().kind else {
             return None;
         };
-        if !matches!(builtin_canonical(fn_name), "map_new" | "map_insert") {
+        if !matches!(fn_name.as_str(), "map_new" | "map_insert") {
             return None;
         }
         let val_type = self
@@ -39957,10 +38200,26 @@ fn __futuruna_install_error_hook() {
                     ));
                 }
 
-                // Emit methods as standalone functions (not in impl block)
-                // In Futuruna, methods defined in ADT blocks are callable by name: name(Red)
-                // First param without type annotation gets the parent ADT type
+                // Type-body methods are inherent methods of the emitted type, so
+                // `x.m()` and a free call `m(x)` (emitted as `x.m()`) reach the
+                // receiver's own method. The first parameter is the receiver.
                 if !methods.is_empty() {
+                    let generic_impl = if param_rust_names.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "<{}>",
+                            param_rust_names
+                                .iter()
+                                .map(|param| format!("{param}: fmt::Display + Clone"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    };
+                    out.push_str(&format!(
+                        "impl{} {}{} {{\n",
+                        generic_impl, rust_name, type_params
+                    ));
                     for method in methods {
                         if let Defn::Fn {
                             name: mname,
@@ -39970,8 +38229,8 @@ fn __futuruna_install_error_hook() {
                             ..
                         } = method
                         {
-                            let self_type = format!("{}{}", rust_name, type_params);
-                            // Fill in missing type for first param (the ADT type) so borrow analysis works
+                            let receiver = mparams.first();
+                            // Fill in missing type for the receiver so borrow analysis works
                             let augmented_params: Vec<Param> = mparams
                                 .iter()
                                 .enumerate()
@@ -39987,76 +38246,63 @@ fn __futuruna_install_error_hook() {
                                     }
                                 })
                                 .collect();
-                            // Borrow inference: analyze if params are read-only
-                            let mut borrow_flags = analyze_borrow_only_params(
+                            let receiver_is_borrowed = analyze_borrow_only_params(
                                 &augmented_params,
                                 body,
                                 ret_ty.as_ref(),
                                 &self.borrow_only_params,
-                            );
-                            self.constrain_wasm_export_borrow_flags(
-                                mname,
-                                &augmented_params,
-                                &mut borrow_flags,
-                            );
-                            if borrow_flags.iter().any(|f| *f) {
-                                self.borrow_only_params
-                                    .insert(mname.clone(), borrow_flags.clone());
-                            }
-                            let rust_params: Vec<String> = mparams
-                                .iter()
-                                .enumerate()
-                                .map(|(i, p)| {
-                                    let param_name = if p.name == "self" {
-                                        "self_".to_string()
+                            )
+                            .first()
+                            .copied()
+                            .unwrap_or(false);
+                            let mut rust_params: Vec<String> = Vec::new();
+                            if receiver.is_some() {
+                                rust_params.push(
+                                    if receiver_is_borrowed {
+                                        "&self"
                                     } else {
-                                        sanitize_name(&p.name)
-                                    };
-                                    let ty = if p.name == "self" || (i == 0 && p.ty.is_none()) {
-                                        self_type.clone()
-                                    } else {
-                                        p.ty.as_ref()
-                                            .map(|ty| self.emit_type(ty))
-                                            .unwrap_or_else(|| "String".to_string())
-                                    };
-                                    if p.inout {
-                                        let inner_ty = match p.ty.as_ref() {
-                                            Some(Ty::Shared(inner)) => self.emit_type(inner),
-                                            _ => ty,
-                                        };
-                                        format!("{}: &mut {}", param_name, inner_ty)
-                                    } else if borrow_flags.get(i).copied().unwrap_or(false) {
-                                        let borrowed_ty = if self.wasm_mode
-                                            && matches!(p.ty.as_ref(), Some(Ty::Name(name)) if name == "String")
-                                        {
-                                            "str".to_string()
-                                        } else {
-                                            ty
-                                        };
-                                        format!("{}: &{}", param_name, borrowed_ty)
-                                    } else {
-                                        format!("{}: {}", param_name, ty)
+                                        "self"
                                     }
-                                })
-                                .collect();
+                                    .to_string(),
+                                );
+                            }
+                            for p in mparams.iter().skip(1) {
+                                let ty =
+                                    p.ty.as_ref()
+                                        .map(|ty| self.emit_type(ty))
+                                        .unwrap_or_else(|| "String".to_string());
+                                if p.inout {
+                                    let inner_ty = match p.ty.as_ref() {
+                                        Some(Ty::Shared(inner)) => self.emit_type(inner),
+                                        _ => ty,
+                                    };
+                                    rust_params.push(format!(
+                                        "{}: &mut {}",
+                                        sanitize_name(&p.name),
+                                        inner_ty
+                                    ));
+                                } else {
+                                    rust_params.push(format!("{}: {}", sanitize_name(&p.name), ty));
+                                }
+                            }
                             let ret = ret_ty
                                 .as_ref()
                                 .map(|t| format!(" -> {}", self.emit_type(t)))
                                 .unwrap_or_default();
                             let expected_ret_fir_ty =
                                 ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
-                            let pub_prefix = if self.name_is_exported_in_current_namespace(mname) {
-                                "pub "
-                            } else {
-                                ""
-                            };
                             out.push_str(&format!(
-                                "{}fn {}({}){} {{\n",
-                                pub_prefix,
+                                "    pub fn {}({}){} {{\n",
                                 sanitize_name(mname),
                                 rust_params.join(", "),
                                 ret
                             ));
+                            if let Some(receiver) = receiver.filter(|p| p.name != "self") {
+                                out.push_str(&format!(
+                                    "        let {} = self;\n",
+                                    sanitize_name(&receiver.name)
+                                ));
+                            }
                             // Emit actual method body (escape analysis for methods)
                             let prev_counts = std::mem::take(&mut self.var_use_counts);
                             let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
@@ -40065,22 +38311,19 @@ fn __futuruna_install_error_hook() {
                             self.var_use_counts = ownership.var_uses;
                             self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
-                            let saved_in_standalone_adt_method = self.in_standalone_adt_method;
-                            self.in_standalone_adt_method =
-                                mparams.iter().any(|param| param.name == "self");
-                            self.indent = 1;
+                            self.indent = 2;
                             out.push_str(&self.emit_expr_as_return_with_expected_ty(
                                 body,
                                 expected_ret_fir_ty.as_ref(),
                             ));
                             self.indent = saved_indent;
-                            self.in_standalone_adt_method = saved_in_standalone_adt_method;
                             self.var_use_counts = prev_counts;
                             self.var_consuming_counts = prev_consuming;
                             self.copy_vars = prev_copy;
-                            out.push_str("}\n\n");
+                            out.push_str("    }\n\n");
                         }
                     }
+                    out.push_str("}\n\n");
                 }
 
                 out
@@ -40280,10 +38523,23 @@ fn __futuruna_install_error_hook() {
                             self.indent = 2;
                             let prev_in_self = self.in_self_method;
                             self.in_self_method = true;
-                            out.push_str(&self.emit_expr_as_return_with_expected_ty(
-                                body,
-                                expected_ret_fir_ty.as_ref(),
-                            ));
+                            // `self` is a `&Self` receiver of the impl's type.
+                            let self_was_borrowed =
+                                !self.current_borrow_params.insert("self".to_string());
+                            let body_code = self.with_temporary_named_types(
+                                &["self".to_string()],
+                                &[FirTy::Named(for_type.clone())],
+                                |cg| {
+                                    cg.emit_expr_as_return_with_expected_ty(
+                                        body,
+                                        expected_ret_fir_ty.as_ref(),
+                                    )
+                                },
+                            );
+                            if !self_was_borrowed {
+                                self.current_borrow_params.remove("self");
+                            }
+                            out.push_str(&body_code);
                             self.in_self_method = prev_in_self;
                             self.indent = saved_indent;
                             self.var_use_counts = prev_counts;
@@ -40950,7 +39206,8 @@ fn __futuruna_install_error_hook() {
                         }
                     }
                 }
-                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
+                Stmt::Rule(Rule::ReactiveScope { body, .. })
+                | Stmt::Defn(Defn::Module { body, .. }) => {
                     self.seed_async_stream_bindings_from_stmt_list(body);
                 }
                 Stmt::StreamBind(name, expr) => {
@@ -41129,7 +39386,7 @@ fn __futuruna_install_error_hook() {
                 {
                     let mut diag = Diagnostic::error_at(
                         iter_expr.span,
-                        "live async stream for-loops require a named scope",
+                        "live stream for-loops require a named scope",
                     )
                     .with_note("wrap this subscription in `| scope Name { ... }` so its lifetime is owned explicitly")
                     .with_note("see docs/stream-lifetimes.md");
@@ -41147,7 +39404,7 @@ fn __futuruna_install_error_hook() {
                         expr.span,
                         "live stream subscriptions require a named scope",
                     )
-                    .with_note("ordinary functions must not spawn detached subscription tasks; use `| scope Name { ... }` instead")
+                    .with_note("ordinary functions must not start subscriptions that no scope owns; use `| scope Name { ... }` instead")
                     .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
@@ -41172,9 +39429,9 @@ fn __futuruna_install_error_hook() {
                 {
                     let mut diag = Diagnostic::error_at(
                         expr.span,
-                        "derived async stream operators require a named scope",
+                        "derived live streams require a named scope",
                     )
-                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` start background forwarder tasks; wrap them in `| scope Name { ... }` or return the stream expression directly")
+                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` keep following their source; wrap them in `| scope Name { ... }` or return the stream expression directly")
                     .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
@@ -41316,9 +39573,12 @@ fn __futuruna_install_error_hook() {
         match &expr.kind {
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let async_ops = ["map", "filter", "scan", "take", "skip", "tap", "merge"];
-                    if async_ops.contains(&name.as_str()) && !args.is_empty() {
-                        return self.is_live_stream_expr_for_validation(&args[0]);
+                    if LIVE_STREAM_OPERATORS.contains(&name.as_str()) && !args.is_empty() {
+                        return self.is_live_stream_expr_for_validation(&args[0])
+                            || (matches!(name.as_str(), "merge" | "concat")
+                                && args.get(1).is_some_and(|arg| {
+                                    self.is_live_stream_expr_for_validation(arg)
+                                }));
                     }
                 }
                 false
@@ -41342,6 +39602,29 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// A finite-only stream operator (`window`, `zip`, ...) applied to a live
+    /// stream, in call or pipe form.
+    fn finite_only_operator_on_live_stream(&self, expr: &Expr) -> Option<String> {
+        let (name, source) = match &expr.kind {
+            ExprKind::App(func, args) => match (&func.as_ref().kind, args.first()) {
+                (ExprKind::Var(name), Some(source)) => (name, source),
+                _ => return None,
+            },
+            ExprKind::Pipe(input, transform) => match &transform.as_ref().kind {
+                ExprKind::Var(name) => (name, input.as_ref()),
+                ExprKind::App(func, _) => match &func.as_ref().kind {
+                    ExprKind::Var(name) => (name, input.as_ref()),
+                    _ => return None,
+                },
+                _ => return None,
+            },
+            _ => return None,
+        };
+        (FINITE_ONLY_STREAM_OPERATORS.contains(&name.as_str())
+            && self.is_live_stream_expr_for_validation(source))
+        .then(|| name.clone())
+    }
+
     fn collect_scope_lifetime_expr(
         &mut self,
         expr: &Expr,
@@ -41349,6 +39632,12 @@ fn __futuruna_install_error_hook() {
         in_scope: bool,
         diags: &mut Vec<Diagnostic>,
     ) {
+        if let Some(operator) = self.finite_only_operator_on_live_stream(expr) {
+            diags.push(
+                Diagnostic::error_at(expr.span, finite_only_stream_operator_message(&operator))
+                    .with_note("see docs/reference/streams.md"),
+            );
+        }
         match &expr.kind {
             ExprKind::App(func, args) => {
                 self.collect_scope_lifetime_expr(func, fn_name, in_scope, diags);
@@ -44604,6 +42893,11 @@ fn __futuruna_install_error_hook() {
                             p.ty.as_ref()
                                 .map(|t| self.emit_type(t))
                                 .or_else(|| {
+                                    self.send_target_param_types
+                                        .get(&(name.clone(), idx))
+                                        .cloned()
+                                })
+                                .or_else(|| {
                                     self.function_param_fir_ty(name, idx)
                                         .and_then(|ty| Self::fir_type_to_rust(&ty))
                                 })
@@ -44675,6 +42969,7 @@ fn __futuruna_install_error_hook() {
                 let prev_ref_match = std::mem::take(&mut self.ref_match_bindings);
                 let prev_borrow_params = std::mem::take(&mut self.current_borrow_params);
                 let prev_mutable = std::mem::take(&mut self.mutable_vars);
+                let prev_inout_params = std::mem::take(&mut self.inout_param_vars);
                 let prev_aliased = std::mem::take(&mut self.aliased_vars);
                 let prev_local_bindings = std::mem::take(&mut self.local_bindings);
                 let prev_var_types = std::mem::take(&mut self.var_types);
@@ -44699,6 +42994,7 @@ fn __futuruna_install_error_hook() {
                 for p in params {
                     if p.inout {
                         self.mutable_vars.insert(p.name.clone());
+                        self.inout_param_vars.insert(p.name.clone());
                     }
                 }
                 // Track Copy-type parameters and register all param types
@@ -44850,6 +43146,7 @@ fn __futuruna_install_error_hook() {
                 self.ref_match_bindings = prev_ref_match;
                 self.current_borrow_params = prev_borrow_params;
                 self.mutable_vars = prev_mutable;
+                self.inout_param_vars = prev_inout_params;
                 self.aliased_vars = prev_aliased;
                 self.local_bindings = prev_local_bindings;
                 self.var_types = prev_var_types;
@@ -44891,70 +43188,40 @@ fn __futuruna_install_error_hook() {
                     let variant = self.emit_pattern_as_enum_variant(&h.msg_pat, &actor_msg_tys);
                     out.push_str(&format!("    {},\n", variant));
                 }
-                out.push_str(&format!(
-                    "    __Ask(Box<{}Msg>, tokio::sync::oneshot::Sender<{}>),\n",
-                    sname, state_type
-                ));
                 out.push_str("}\n\n");
 
-                // Actor loop
-                out.push_str(&format!(
-                    "async fn {}_run(mut rx: tokio::sync::mpsc::UnboundedReceiver<{}Msg>, mut {}: {}) {{\n",
-                    sname, sname, sanitize_name(&state_param.name), state_type
-                ));
+                // One message at a time: the handler maps (state, message) to
+                // the next state.
                 let state_name = sanitize_name(&state_param.name);
-                let actor_loop = self.with_async_context(|cg| {
-                    let mut loop_out = String::new();
-                    loop_out.push_str("    while let Some(msg) = rx.recv().await {\n");
-                    loop_out.push_str("        match msg {\n");
-                    for h in handlers {
-                        let pat = cg.emit_pattern_as_match_arm(&h.msg_pat, &sname);
-                        let body = cg.emit_expr(&h.body);
-                        loop_out.push_str(&format!(
-                            "            {} => {{ {} = {}; }}\n",
-                            pat,
-                            sanitize_name(&state_param.name),
-                            body
-                        ));
-                    }
-                    // __Ask: process the inner message first, then reply with updated state
-                    loop_out.push_str(&format!(
-                        "            {}Msg::__Ask(inner, reply) => {{\n",
-                        sname
-                    ));
-                    loop_out.push_str("                match *inner {\n");
-                    for h in handlers {
-                        let pat = cg.emit_pattern_as_match_arm(&h.msg_pat, &sname);
-                        let body = cg.emit_expr(&h.body);
-                        loop_out.push_str(&format!(
-                            "                    {} => {{ {} = {}; }}\n",
-                            pat, state_name, body
-                        ));
-                    }
-                    loop_out.push_str(&format!(
-                        "                    {}Msg::__Ask(_, _) => {{}}\n",
-                        sname
-                    ));
-                    loop_out.push_str("                }\n");
-                    loop_out.push_str(&format!(
-                        "                let _ = reply.send({}.clone());\n",
-                        state_name
-                    ));
-                    loop_out.push_str("            }\n");
-                    loop_out.push_str("        }\n    }\n");
-                    loop_out
-                });
-                out.push_str(&actor_loop);
-                out.push_str("}\n\n");
-
-                // Spawn helper
+                out.push_str("#[allow(unused_mut, unused_variables)]\n");
                 out.push_str(&format!(
-                    "fn {}_spawn(initial: {}) -> tokio::sync::mpsc::UnboundedSender<{}Msg> {{\n",
+                    "fn {}_handle(mut {}: {}, __message: {}Msg) -> {} {{\n",
+                    sname, state_name, state_type, sname, state_type
+                ));
+                out.push_str("    match __message {\n");
+                for h in handlers {
+                    let pat = self.emit_pattern_as_match_arm(&h.msg_pat, &sname);
+                    let body = self.emit_expr(&h.body);
+                    out.push_str(&format!("        {} => {{ {} }}\n", pat, body));
+                }
+                out.push_str("        #[allow(unreachable_patterns)]\n");
+                out.push_str(&format!(
+                    "        __other => panic!(\"actor `{}` has no handler for the message {{:?}}\", __other),\n",
+                    name
+                ));
+                out.push_str("    }\n}\n\n");
+                out.push_str(&format!(
+                    "type {}ActorHandle = __FutActor<{}, {}Msg>;\n",
                     sname, state_type, sname
                 ));
-                out.push_str("    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();\n");
-                out.push_str(&format!("    tokio::spawn({}_run(rx, initial));\n", sname));
-                out.push_str("    tx\n}\n");
+                out.push_str(&format!(
+                    "fn {}_spawn(initial: {}) -> {}ActorHandle {{\n",
+                    sname, state_type, sname
+                ));
+                out.push_str(&format!(
+                    "    __FutActor::spawn({:?}, {}_handle, initial)\n}}\n",
+                    name, sname
+                ));
                 // Bring message variants into scope so bare names work: c <- Increment
                 out.push_str(&format!("#[allow(unused_imports)]\nuse {}Msg::*;\n", sname));
                 out
@@ -45066,17 +43333,16 @@ fn __futuruna_install_error_hook() {
                     self.rule_inference_environment_revision;
                 let saved_lib_static_names = self.lib_static_names.clone();
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
-                let saved_sync_subject_vars = self.sync_subject_vars.clone();
                 self.types.exported_names.clear();
                 let rule_groups = Self::collect_rule_groups_from_stmts(body);
                 let namespace_functions = Self::namespace_function_defns(body);
                 let mut local_owned_names = rule_groups.keys().cloned().collect::<BTreeSet<_>>();
-                local_owned_names.extend(namespace_functions.iter().filter_map(|(defn, _)| {
-                    match defn {
+                local_owned_names.extend(namespace_functions.iter().filter_map(
+                    |defn| match defn {
                         Defn::Fn { name, .. } => Some(name.clone()),
                         _ => None,
-                    }
-                }));
+                    },
+                ));
                 for stmt in body {
                     if let Stmt::Defn(Defn::Actor { name, .. })
                     | Stmt::Defn(Defn::Module { name, .. }) = stmt
@@ -45314,7 +43580,7 @@ fn __futuruna_install_error_hook() {
 
                 // Overlay direct module callables before inferring rules so private
                 // helpers and same-named root functions cannot supply their signatures.
-                for (defn, adt_owner) in &namespace_functions {
+                for defn in &namespace_functions {
                     if let Defn::Fn {
                         name,
                         params,
@@ -45323,22 +43589,18 @@ fn __futuruna_install_error_hook() {
                         ..
                     } = defn
                     {
-                        let effective_params = Self::namespace_function_params(params, *adt_owner);
                         self.ordinary_function_arities
-                            .insert((name.clone(), effective_params.len()));
+                            .insert((name.clone(), params.len()));
                         self.types.user_functions.insert(name.clone());
                         self.types.call_params.insert(
                             name.clone(),
-                            effective_params
-                                .iter()
-                                .map(|param| param.name.clone())
-                                .collect(),
+                            params.iter().map(|param| param.name.clone()).collect(),
                         );
                         let mut fn_ty = ret_ty
                             .as_ref()
                             .map(|ty| self.source_ty_to_fir(ty))
                             .unwrap_or(FirTy::Unknown);
-                        for param in effective_params.iter().rev() {
+                        for param in params.iter().rev() {
                             let param_ty = param
                                 .ty
                                 .as_ref()
@@ -45349,11 +43611,11 @@ fn __futuruna_install_error_hook() {
                         self.types.fn_types.insert(name.clone(), fn_ty.clone());
                         self.types
                             .fn_types_by_arity
-                            .insert((name.clone(), effective_params.len()), fn_ty);
+                            .insert((name.clone(), params.len()), fn_ty);
                         if !effects.is_empty() {
                             self.types.fn_effects.insert(name.clone(), effects.clone());
                         }
-                        let cow_flags = effective_params
+                        let cow_flags = params
                             .iter()
                             .map(|param| {
                                 param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
@@ -45482,24 +43744,19 @@ fn __futuruna_install_error_hook() {
                     .is_some_and(|paths| !paths.is_empty())
                 {
                     self.binary_global_env_fns
-                        .extend(
-                            namespace_functions
-                                .iter()
-                                .filter_map(|(defn, _)| match defn {
-                                    Defn::Fn { name, .. } => Some(name.clone()),
-                                    _ => None,
-                                }),
-                        );
+                        .extend(namespace_functions.iter().filter_map(|defn| match defn {
+                            Defn::Fn { name, .. } => Some(name.clone()),
+                            _ => None,
+                        }));
                     self.binary_global_env_fns
                         .extend(rule_groups.keys().cloned());
                 }
                 let module_path = self.current_module_path.join("::");
-                for (defn, adt_owner) in &namespace_functions {
+                for defn in &namespace_functions {
                     let Defn::Fn { name, params, .. } = defn else {
                         continue;
                     };
-                    let effective_params = Self::namespace_function_params(params, *adt_owner);
-                    let arity = effective_params.len();
+                    let arity = params.len();
                     let return_type = self
                         .types
                         .fn_types_by_arity
@@ -45517,20 +43774,14 @@ fn __futuruna_install_error_hook() {
                                 .get(&module_path)
                                 .cloned()
                                 .unwrap_or_default(),
-                            param_names: effective_params
-                                .iter()
-                                .map(|param| param.name.clone())
-                                .collect(),
+                            param_names: params.iter().map(|param| param.name.clone()).collect(),
                             borrow_only_params: self
                                 .borrow_only_params
                                 .get(name)
                                 .cloned()
                                 .unwrap_or_else(|| vec![false; arity]),
-                            inout_params: effective_params
-                                .iter()
-                                .map(|param| param.inout)
-                                .collect(),
-                            cow_params: effective_params
+                            inout_params: params.iter().map(|param| param.inout).collect(),
+                            cow_params: params
                                 .iter()
                                 .map(|param| {
                                     param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
@@ -45605,11 +43856,6 @@ fn __futuruna_install_error_hook() {
                     }
                 }
                 self.indent = 1;
-                for stmt in body {
-                    if let Stmt::StreamBind(name, _) = stmt {
-                        self.sync_subject_vars.insert(name.clone());
-                    }
-                }
                 self.allow_global_getter_refs = true;
                 for stmt in body {
                     if matches!(stmt, Stmt::Defn(Defn::Module { .. })) {
@@ -45677,7 +43923,6 @@ fn __futuruna_install_error_hook() {
                 out.push_str("}\n");
                 self.lib_static_names = saved_lib_static_names;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
-                self.sync_subject_vars = saved_sync_subject_vars;
                 let module_rule_scopes = self.types.module_rule_scopes.clone();
                 self.types = saved_types;
                 self.types.module_rule_scopes = module_rule_scopes;
@@ -45900,7 +44145,7 @@ fn __futuruna_install_error_hook() {
                         }
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                                match builtin_canonical(fn_name) {
+                                match fn_name.as_str() {
                                     "map_new" => {
                                         // Use pre-scanned value type if available
                                         let var_name = if let Pat::Var(n) = pat {
@@ -45933,7 +44178,7 @@ fn __futuruna_install_error_hook() {
                                             let inferred = self.infer_expr_fir_ty(value);
                                             match Self::fir_type_to_rust(&inferred) {
                                                 Some(rust_ty) => format!(": {}", rust_ty),
-                                                None if builtin_canonical(fn_name) == "tail" => {
+                                                None if fn_name == "tail" => {
                                                     ": Vec<i64>".to_string()
                                                 }
                                                 None => ": i64".to_string(),
@@ -45963,64 +44208,19 @@ fn __futuruna_install_error_hook() {
             Stmt::Expr(Expr {
                 kind: ExprKind::Effect(name, args),
                 ..
-            }) if builtin_canonical(name) == "print" => self.emit_print(args, &self.ind()),
-            // M13c: @ teardown("ScopeName") → drop scope guard + yield for cleanup
-            Stmt::Expr(Expr {
-                kind: ExprKind::Effect(name, args),
-                ..
-            }) if name == "teardown" && self.has_async => {
-                if let Some(Expr {
-                    kind: ExprKind::Lit(Literal::Str(scope_name)),
-                    ..
-                }) = args.first()
-                {
-                    let mut out = String::new();
-                    out.push_str(&format!("{}// teardown scope {}\n", self.ind(), scope_name));
-                    out.push_str(&format!("{}drop(_scope_{});\n", self.ind(), scope_name));
-                    out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-                    out
+            }) if name == "print" => self.emit_print(args, &self.ind()),
+            // @ teardown("ScopeName"): the scope's subscriptions stop.
+            Stmt::Expr(teardown) if Self::teardown_scope_name(teardown).is_some() => {
+                let scope_name = Self::teardown_scope_name(teardown).unwrap_or_default();
+                if self.has_async {
+                    format!("{}__fut_teardown({:?});\n", self.ind(), scope_name)
                 } else {
-                    format!("{}// teardown (unknown scope)\n", self.ind())
-                }
-            }
-            // Sync teardown: no guard to drop, just emit a comment
-            Stmt::Expr(Expr {
-                kind: ExprKind::Effect(name, args),
-                ..
-            }) if name == "teardown" && !self.has_async => {
-                if let Some(Expr {
-                    kind: ExprKind::Lit(Literal::Str(scope_name)),
-                    ..
-                }) = args.first()
-                {
                     format!(
-                        "{}// teardown scope {} (sync — no guard)\n",
+                        "{}// teardown {} (no live subscriptions)\n",
                         self.ind(),
                         scope_name
                     )
-                } else {
-                    format!("{}// teardown (unknown scope)\n", self.ind())
                 }
-            }
-            // M13c: @ complete(subject) → drop sender to close channel
-            Stmt::Expr(Expr {
-                kind: ExprKind::Effect(name, args),
-                ..
-            }) if name == "complete" && self.has_async => {
-                if let Some(Expr {
-                    kind: ExprKind::Var(subj),
-                    ..
-                }) = args.first()
-                {
-                    if self.subject_vars.contains(subj.as_str()) {
-                        return format!("{}drop({});\n", self.ind(), subj);
-                    }
-                }
-                format!(
-                    "{}{};\n",
-                    self.ind(),
-                    self.emit_expr(&ExprKind::Effect(name.clone(), args.clone()).into())
-                )
             }
             Stmt::Expr(expr) => {
                 if self.expr_needs_empty_list_fallback(expr) {
@@ -46062,26 +44262,17 @@ fn __futuruna_install_error_hook() {
                     }
 
                     if self.has_async {
-                        // Set current scope for handle registration
+                        // Subscriptions and derived streams created in the body
+                        // belong to the scope until `@ teardown("Name")`.
                         let prev_scope = self.current_scope.clone();
                         self.current_scope = Some(name.clone());
-                        self.scope_handles.insert(name.clone(), Vec::new());
-                        // Emit all body statements (including subject/subscription handling)
+                        out.push_str(&format!("{}__fut_scope_enter({:?});\n", self.ind(), name));
                         for s in body {
                             out.push_str(&self.emit_stmt(s));
                         }
-                        // Always emit scope guard so @ teardown("Name") can drop it
-                        let handles = self.scope_handles.get(name).cloned().unwrap_or_default();
-                        out.push_str(&format!(
-                            "{}let _scope_{} = _ScopeGuard {{ name: {:?}, handles: vec![{}] }};\n",
-                            self.ind(),
-                            name,
-                            name,
-                            handles.join(", ")
-                        ));
+                        out.push_str(&format!("{}__fut_scope_exit();\n", self.ind()));
                         self.current_scope = prev_scope;
                     } else {
-                        // Sync mode: emit scope body inline
                         for s in body {
                             out.push_str(&self.emit_stmt(s));
                         }
@@ -46157,21 +44348,13 @@ fn __futuruna_install_error_hook() {
             }
 
             Stmt::StreamSub(expr, arms) => {
-                let mut iter_name = self.emit_expr(expr);
-                if let ExprKind::Var(name) = &expr.kind {
-                    let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-                    if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                        iter_name = format!("{}.clone()", iter_name);
-                    }
-                }
-
                 // Classify arms
                 let mut value_arms = Vec::new();
                 let mut error_arm = None;
                 let mut complete_arm = None;
                 for arm in arms {
-                    let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete")
-                        || matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
+                    let is_complete =
+                        matches!(&arm.pat, Pat::Var(n) | Pat::Con(n, _) if n == "Complete");
                     let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
                     if is_complete {
                         complete_arm = Some(arm);
@@ -46182,89 +44365,14 @@ fn __futuruna_install_error_hook() {
                     }
                 }
 
-                if self.has_async && self.is_async_stream_expr(expr) {
-                    self.sub_counter += 1;
-                    let handle_name = format!("_sub_{}", self.sub_counter);
-                    let async_captures = self.stream_sub_runtime_captures(arms);
-                    let barrier_targets = self.stream_sub_barrier_targets(arms);
-                    let mut out = String::new();
-                    out.push_str(&format!(
-                        "{}let __stream_{} = {};\n",
-                        self.ind(),
-                        self.sub_counter,
-                        iter_name
-                    ));
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.chain_barrier_from(&__stream_{});\n",
-                            self.ind(),
-                            sanitize_name(target),
-                            self.sub_counter
-                        ));
-                        if let Some(scope) = &self.current_scope {
-                            out.push_str(&format!(
-                                "{}__fut_register_scope_barrier_chain({:?}, &{}, &__stream_{});\n",
-                                self.ind(),
-                                scope,
-                                sanitize_name(target),
-                                self.sub_counter
-                            ));
-                        }
-                    }
-                    out.push_str(&format!(
-                        "{}let mut _rx_{} = __stream_{}.subscribe();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}let __cutoff_{} = __stream_{}.watermark();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}for __seed_{} in __stream_{}.snapshot_until(__cutoff_{}).into_iter() {{\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
+                if self.has_async {
+                    // Live and finite streams share the runtime: retained
+                    // values first, then the end, then later values.
+                    let stream = self.emit_live_stream_operand(expr);
+                    let captures = self.stream_sub_runtime_captures(arms);
+                    let mut out = format!("{}{}.subscribe({{\n", self.ind(), stream);
                     self.indent += 1;
-                    out.push_str(&format!(
-                        "{}match __seed_{} {{\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-                    for arm in &value_arms {
-                        let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str));
-                        self.indent += 1;
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{\n",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
-                            self.indent += 1;
-                        }
-                        out.push_str(&format!("{};\n", self.emit_expr(&arm.body)));
-                        if arm.guard.is_some() {
-                            self.indent -= 1;
-                            out.push_str(&format!("{}}}\n", self.ind()));
-                        }
-                        self.indent -= 1;
-                        out.push_str(&format!("{}}}\n", self.ind()));
-                    }
-                    out.push_str(&format!("{}_ => {{}}\n", self.ind()));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!("{}let {} = {{\n", self.ind(), handle_name));
-                    self.indent += 1;
-                    for name in async_captures
+                    for name in captures
                         .iter()
                         .filter(|name| !self.copy_vars.contains(name.as_str()))
                     {
@@ -46276,407 +44384,151 @@ fn __futuruna_install_error_hook() {
                             rust_name
                         ));
                     }
-                    out.push_str(&format!("{}tokio::spawn(async move {{\n", self.ind(),));
+                    out.push_str(&format!("{}move |__event| match __event {{\n", self.ind()));
                     self.indent += 1;
-                    out.push_str(&format!("{}loop {{\n", self.ind()));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}match _rx_{}.recv().await {{\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-
-                    out.push_str(&format!(
-                        "{}Ok(__FutEvent::Data(__seq, _)) if __seq <= __cutoff_{} => {{}}\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-
-                    // Values
-                    for arm in &value_arms {
-                        let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!(
-                            "{}Ok(__FutEvent::Data(_, {})) => {{\n",
-                            self.ind(),
-                            pat_str
-                        ));
+                    if value_arms.is_empty() {
+                        out.push_str(&format!("{}__FutEvent::Value(_) => {{}}\n", self.ind()));
+                    } else {
+                        out.push_str(&format!("{}__FutEvent::Value(__item) => {{\n", self.ind()));
                         self.indent += 1;
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{
-",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
-                            self.indent += 1;
-                        }
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
+                        out.push_str(&self.emit_subscription_value_match(
+                            "std::clone::Clone::clone(__item)",
+                            &value_arms,
                         ));
-                        if arm.guard.is_some() {
-                            self.indent -= 1;
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}}\n", self.ind()));
+                    }
+                    match error_arm {
+                        Some(arm) => {
                             out.push_str(&format!(
-                                "{}}}
-",
+                                "{}__FutEvent::Error(__message) => {{\n",
                                 self.ind()
                             ));
-                        }
-                        self.indent -= 1;
-                        out.push_str(&format!(
-                            "{}}}
-",
-                            self.ind()
-                        ));
-                    }
-                    if !value_arms.is_empty() {
-                        // Fallback for Ok(_) if patterns don't cover everything
-                        out.push_str(&format!(
-                            "{}Ok(__FutEvent::Data(_, _)) => {{}}
-",
-                            self.ind()
-                        ));
-                    }
-                    out.push_str(&format!(
-                        "{}Ok(__FutEvent::Barrier(__barrier)) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.emit_barrier(__barrier);\n",
-                            self.ind(),
-                            sanitize_name(target)
-                        ));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-
-                    // Error
-                    out.push_str(&format!(
-                        "{}Err(tokio::sync::broadcast::error::RecvError::Lagged(_n)) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    if let Some(arm) = error_arm {
-                        if let Pat::Con(_, args) = &arm.pat {
-                            if let Some(inner) = args.first() {
-                                out.push_str(&format!(
-                                    "{}let {} = _n.to_string();
-",
-                                    self.ind(),
-                                    self.emit_pattern_match(inner)
-                                ));
+                            self.indent += 1;
+                            if let Pat::Con(_, args) = &arm.pat {
+                                if let Some(inner) = args.first() {
+                                    out.push_str(&format!(
+                                        "{}let {} = __message.clone();\n",
+                                        self.ind(),
+                                        self.emit_pattern_match(inner)
+                                    ));
+                                }
                             }
-                        }
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{
-",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
-                            self.indent += 1;
-                        }
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        if arm.guard.is_some() {
+                            out.push_str(&self.emit_subscription_arm_body(arm));
                             self.indent -= 1;
-                            out.push_str(&format!(
-                                "{}}}
-",
-                                self.ind()
-                            ));
+                            out.push_str(&format!("{}}}\n", self.ind()));
                         }
+                        None => out.push_str(&format!(
+                            "{}__FutEvent::Error(__message) => panic!(\"unhandled stream error: {{}}; add an `| Err(e) -> ...` arm to handle it\", __message),\n",
+                            self.ind()
+                        )),
                     }
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-
-                    // Complete
-                    out.push_str(&format!(
-                        "{}Err(tokio::sync::broadcast::error::RecvError::Closed) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    if let Some(arm) = complete_arm {
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}if {} {{
-",
-                                self.ind(),
-                                self.emit_expr(guard)
-                            ));
+                    match complete_arm {
+                        Some(arm) => {
+                            out.push_str(&format!("{}__FutEvent::Complete => {{\n", self.ind()));
                             self.indent += 1;
-                        }
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        if arm.guard.is_some() {
+                            out.push_str(&self.emit_subscription_arm_body(arm));
                             self.indent -= 1;
-                            out.push_str(&format!(
-                                "{}}}
-",
-                                self.ind()
-                            ));
+                            out.push_str(&format!("{}}}\n", self.ind()));
+                        }
+                        None => {
+                            out.push_str(&format!("{}__FutEvent::Complete => {{}}\n", self.ind()))
                         }
                     }
-                    out.push_str(&format!(
-                        "{}break;
-",
-                        self.ind()
-                    ));
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    )); // end match
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    )); // end loop
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}})
-",
-                        self.ind()
-                    )); // end spawn
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}};\n", self.ind())); // end capture block
-
-                    if let Some(scope) = &self.current_scope.clone() {
-                        self.scope_handles
-                            .entry(scope.clone())
-                            .or_default()
-                            .push(handle_name);
-                    }
-                    return out;
-                } else {
-                    // Sync mode execution for StreamSub
-                    let mut out = String::new();
-                    out.push_str(&format!(
-                        "{}for _item in {}.into_iter() {{
-",
-                        self.ind(),
-                        iter_name
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}match _item {{
-",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    for arm in &value_arms {
-                        let pat_str = self.emit_pattern_match(&arm.pat);
-                        if let Some(guard) = &arm.guard {
-                            out.push_str(&format!(
-                                "{}{} if {} => {{
-",
-                                self.ind(),
-                                pat_str,
-                                self.emit_expr(guard)
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "{}{} => {{
-",
-                                self.ind(),
-                                pat_str
-                            ));
-                        }
-                        self.indent += 1;
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        self.indent -= 1;
-                        out.push_str(&format!(
-                            "{}}}
-",
-                            self.ind()
-                        ));
-                    }
-                    out.push_str(&format!(
-                        "{}_ => {{}}
-",
-                        self.ind()
-                    ));
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-                    self.indent -= 1;
-                    out.push_str(&format!(
-                        "{}}}
-",
-                        self.ind()
-                    ));
-
-                    if let Some(arm) = complete_arm {
-                        out.push_str(&format!(
-                            "{{
-"
-                        ));
-                        self.indent += 1;
-                        out.push_str(&format!(
-                            "{};
-",
-                            self.emit_expr(&arm.body)
-                        ));
-                        self.indent -= 1;
-                        out.push_str(&format!(
-                            "{}}}
-",
-                            self.ind()
-                        ));
-                    }
-                    return out;
-                }
-            }
-
-            Stmt::For(var, iter_expr, body) => {
-                // M13c: async subscription — for x in subject spawns a subscriber task
-                if self.has_async && self.is_async_stream_expr(iter_expr) {
-                    let mut iter_name = self.emit_expr(iter_expr);
-                    if let ExprKind::Var(name) = &iter_expr.kind {
-                        let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-                        if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                            iter_name = format!("{}.clone()", iter_name);
-                        }
-                    }
-                    self.sub_counter += 1;
-                    let handle_name = format!("_sub_{}", self.sub_counter);
-                    let barrier_targets = self.stmt_barrier_targets(body);
-                    let mut out = String::new();
-                    out.push_str(&format!(
-                        "{}let __stream_{} = {};\n",
-                        self.ind(),
-                        self.sub_counter,
-                        iter_name
-                    ));
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.chain_barrier_from(&__stream_{});\n",
-                            self.ind(),
-                            sanitize_name(target),
-                            self.sub_counter
-                        ));
-                        if let Some(scope) = &self.current_scope {
-                            out.push_str(&format!(
-                                "{}__fut_register_scope_barrier_chain({:?}, &{}, &__stream_{});\n",
-                                self.ind(),
-                                scope,
-                                sanitize_name(target),
-                                self.sub_counter
-                            ));
-                        }
-                    }
-                    out.push_str(&format!(
-                        "{}let mut _rx_{} = __stream_{}.subscribe();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}let __cutoff_{} = __stream_{}.watermark();\n",
-                        self.ind(),
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    out.push_str(&format!(
-                        "{}for {} in __stream_{}.snapshot_until(__cutoff_{}).into_iter() {{\n",
-                        self.ind(),
-                        var,
-                        self.sub_counter,
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-                    for s in body {
-                        out.push_str(&self.emit_stmt(s));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!(
-                        "{}let {} = tokio::spawn(async move {{\n",
-                        self.ind(),
-                        handle_name
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}while let Ok(__evt) = _rx_{}.recv().await {{\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!("{}match __evt {{\n", self.ind()));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}__FutEvent::Data(__seq, {}) => {{\n",
-                        self.ind(),
-                        var
-                    ));
-                    self.indent += 1;
-                    out.push_str(&format!(
-                        "{}if __seq <= __cutoff_{} {{ continue; }}\n",
-                        self.ind(),
-                        self.sub_counter
-                    ));
-                    for s in body {
-                        out.push_str(&self.emit_stmt(s));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!(
-                        "{}__FutEvent::Barrier(__barrier) => {{\n",
-                        self.ind()
-                    ));
-                    self.indent += 1;
-                    for target in &barrier_targets {
-                        out.push_str(&format!(
-                            "{}{}.emit_barrier(__barrier);\n",
-                            self.ind(),
-                            sanitize_name(target)
-                        ));
-                    }
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
-                    self.indent -= 1;
-                    out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
                     out.push_str(&format!("{}}});\n", self.ind()));
-                    // Register handle with current scope if inside one
-                    if let Some(scope) = &self.current_scope.clone() {
-                        self.scope_handles
-                            .entry(scope.clone())
-                            .or_default()
-                            .push(handle_name);
+                    return out;
+                }
+
+                // Finite stream without the live runtime: values in order,
+                // then completion.
+                let mut iter_name = self.emit_expr(expr);
+                if let ExprKind::Var(name) = &expr.kind {
+                    if !self.copy_vars.contains(name.as_str()) {
+                        iter_name = format!("{}.clone()", iter_name);
                     }
+                }
+                let mut out = String::new();
+                if !value_arms.is_empty() {
+                    out.push_str(&format!(
+                        "{}for __item in {}.into_iter() {{\n",
+                        self.ind(),
+                        iter_name
+                    ));
+                    self.indent += 1;
+                    out.push_str(&self.emit_subscription_value_match("__item", &value_arms));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                }
+                if let Some(arm) = complete_arm {
+                    out.push_str(&format!("{}{{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&self.emit_subscription_arm_body(arm));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                }
+                out
+            }
+
+            Stmt::For(var, iter_expr, body) => {
+                // `for x in live_stream { ... }` subscribes; the body runs for
+                // each retained and each later value.
+                if self.has_async && self.is_async_stream_expr(iter_expr) {
+                    let stream = self.emit_live_stream_operand(iter_expr);
+                    let item_ty = self.iter_item_ty(iter_expr);
+                    let capture_arm = MatchArm {
+                        pat: Pat::Var(var.clone()),
+                        pat_span: Span::dummy(),
+                        guard: None,
+                        body: ExprKind::Block(body.clone()).into(),
+                    };
+                    let captures =
+                        self.stream_sub_runtime_captures(std::slice::from_ref(&capture_arm));
+                    let mut out = format!("{}{}.subscribe({{\n", self.ind(), stream);
+                    self.indent += 1;
+                    for name in captures
+                        .iter()
+                        .filter(|name| !self.copy_vars.contains(name.as_str()))
+                    {
+                        let rust_name = sanitize_name(name);
+                        out.push_str(&format!(
+                            "{}let {} = {}.clone();\n",
+                            self.ind(),
+                            rust_name,
+                            rust_name
+                        ));
+                    }
+                    out.push_str(&format!("{}move |__event| match __event {{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&format!("{}__FutEvent::Value(__item) => {{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&format!(
+                        "{}let {} = std::clone::Clone::clone(__item);\n",
+                        self.ind(),
+                        sanitize_name(var)
+                    ));
+                    self.with_temporary_named_types(
+                        std::slice::from_ref(var),
+                        &[item_ty],
+                        |this| {
+                            for s in body {
+                                out.push_str(&this.emit_stmt(s));
+                            }
+                        },
+                    );
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    out.push_str(&format!(
+                        "{}__FutEvent::Error(__message) => panic!(\"unhandled stream error in `for` loop: {{}}\", __message),\n",
+                        self.ind()
+                    ));
+                    out.push_str(&format!("{}__FutEvent::Complete => {{}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}});\n", self.ind()));
                     return out;
                 }
 
@@ -46772,96 +44624,36 @@ fn __futuruna_install_error_hook() {
                 out
             }
             Stmt::Send(target, msg) => {
+                // Subjects and actors are shared handles: sending through any
+                // copy reaches the same stream or actor.
                 let t = self.emit_expr(target);
                 let m = self.emit_expr(msg);
-                let target_place = if let ExprKind::Var(name) = &target.kind {
-                    sanitize_name(name)
-                } else {
-                    t.clone()
-                };
-                // M13c: subject send emits broadcast send + yield for deterministic ordering
-                if self.has_async {
-                    let var_name = if let ExprKind::Var(n) = &target.kind {
-                        n.clone()
-                    } else {
-                        t.clone()
-                    };
-                    if self.subject_vars.contains(&var_name) {
-                        let mut out = format!("{}{}.send({});\n", self.ind(), target_place, m);
-                        out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-                        return out;
-                    }
-                    // Actor send: yield after send for deterministic message processing
-                    if self.actor_handle_vars.contains_key(&var_name) {
-                        let mut out =
-                            format!("{}{}.send({}).unwrap();\n", self.ind(), target_place, m);
-                        out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
-                        return out;
-                    }
-                }
-                // Sync subject: push to Vec
-                let var_name = if let ExprKind::Var(n) = &target.kind {
-                    n.clone()
-                } else {
-                    t.clone()
-                };
-                if self.sync_subject_vars.contains(&var_name) {
-                    return format!("{}{}.push({});\n", self.ind(), target_place, m);
-                }
-                format!("{}{}.send({}).unwrap();\n", self.ind(), target_place, m)
+                format!("{}{}.send({});\n", self.ind(), t, m)
             }
             Stmt::StreamBind(name, expr) => {
-                // M13c: detect subject() calls → emit broadcast channel
+                let is_subject = matches!(&expr.kind, ExprKind::App(f, _) if matches!(&f.as_ref().kind, ExprKind::Var(n) if n == "subject"));
                 if self.has_async {
-                    let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
                     if is_subject {
                         self.subject_vars.insert(name.clone());
                         self.async_stream_vars.insert(name.clone());
-                        let mut out = String::new();
-                        // Extract initial value if provided: subject(val) or subject()
-                        // subject() → no initial, subject(val) → initial, subject(val, n) → initial + replay
-                        let initial_val = if let ExprKind::App(_, args) = &expr.kind {
-                            if !args.is_empty() {
-                                Some(self.emit_expr(&args[0]))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-                        if let Some(elem_type) = self.subject_elem_type.get(name) {
-                            out.push_str(&format!(
-                                "{}let {}: __FutStream<{}> = __FutStream::new();\n",
+                        let value = self.emit_expr(expr);
+                        return match self.subject_elem_type.get(name) {
+                            Some(elem_type) => format!(
+                                "{}let {}: __FutStream<{}> = {};\n",
                                 self.ind(),
                                 name,
-                                elem_type
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "{}let {} = __FutStream::new();\n",
-                                self.ind(),
-                                name
-                            ));
-                        }
-                        if let Some(init) = initial_val {
-                            out.push_str(&format!("{}{}.send({});\n", self.ind(), name, init));
-                        }
-                        return out;
+                                elem_type,
+                                value
+                            ),
+                            None => format!("{}let {} = {};\n", self.ind(), name, value),
+                        };
                     }
-
                     if self.is_async_stream_expr(expr) {
                         self.async_stream_vars.insert(name.clone());
                     }
                 }
-                // Sync mode: Vec-based stream binding
-                // Track sync subjects for Send (push) and field access (.count, .latest)
-                let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
-                if is_subject {
-                    self.sync_subject_vars.insert(name.clone());
-                }
                 let val = self.emit_expr(expr);
-                let mutability = if is_subject { "mut " } else { "" };
-                format!("{}let {}{} = {};\n", self.ind(), mutability, name, val)
+                format!("{}let {} = {};\n", self.ind(), name, val)
             }
             Stmt::Invariant {
                 name,
@@ -46880,19 +44672,10 @@ fn __futuruna_install_error_hook() {
             }
             Stmt::Prove {
                 name,
-                proof_block,
                 capture,
                 pass_block,
                 else_block,
             } => {
-                if proof_block.is_some() {
-                    return format!(
-                        "{}// ? {} by {{ ... }} checked by runa verify; no runtime proof emission\n",
-                        self.ind(),
-                        name
-                    );
-                }
-
                 // ? name → runtime verification with inlined predicate
                 let mut out = String::new();
 
@@ -47325,6 +45108,11 @@ fn __futuruna_install_error_hook() {
                 let inner = &ty[4..ty.len() - 1];
                 FirTy::List(Box::new(Self::rust_type_to_fir(inner)))
             }
+            // FIR models a live stream by its element history.
+            _ if ty.starts_with("__FutStream<") && ty.ends_with('>') => {
+                let inner = &ty["__FutStream<".len()..ty.len() - 1];
+                FirTy::List(Box::new(Self::rust_type_to_fir(inner)))
+            }
             _ if ty.starts_with("Option<") && ty.ends_with('>') => {
                 let inner = &ty[7..ty.len() - 1];
                 FirTy::Option(Box::new(Self::rust_type_to_fir(inner)))
@@ -47609,37 +45397,15 @@ fn __futuruna_install_error_hook() {
     }
 
     fn actor_handle_rust_type(&self, name: &str) -> Option<String> {
-        self.actor_handle_vars.get(name).map(|actor_name| {
-            format!(
-                "tokio::sync::mpsc::UnboundedSender<{}Msg>",
-                sanitize_name(actor_name)
-            )
-        })
+        self.actor_handle_vars
+            .get(name)
+            .map(|actor_name| format!("{}ActorHandle", sanitize_name(actor_name)))
     }
 
     fn lookup_var_rust_type(&self, name: &str) -> Option<String> {
         self.lookup_var_fir_ty(name)
             .and_then(|ty| Self::fir_type_to_rust(&ty))
             .or_else(|| self.actor_handle_rust_type(name))
-    }
-
-    fn in_async_context(&self) -> bool {
-        self.async_context_depth > 0
-    }
-
-    fn with_async_context<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
-        self.async_context_depth += 1;
-        let result = f(self);
-        self.async_context_depth -= 1;
-        result
-    }
-
-    fn with_sync_context<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
-        let saved = self.async_context_depth;
-        self.async_context_depth = 0;
-        let result = f(self);
-        self.async_context_depth = saved;
-        result
     }
 
     fn infer_expr_fir_ty_with_env(&self, expr: &Expr, type_env: BTreeMap<String, FirTy>) -> FirTy {
@@ -48057,7 +45823,7 @@ fn __futuruna_install_error_hook() {
                 self.types.comptime_types.get(name).map(String::as_str),
                 Some("i64" | "f64" | "bool" | "char" | "u64" | "()")
             );
-        let lowered_builtin = matches!(builtin_canonical(name), "push");
+        let lowered_builtin = matches!(name, "push");
         !self.types.user_functions.contains(name)
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
@@ -48066,134 +45832,166 @@ fn __futuruna_install_error_hook() {
             && (locally_bound || !lowered_builtin)
     }
 
-    fn collect_subject_send_targets_from_expr(&self, expr: &Expr, targets: &mut BTreeSet<String>) {
-        match &expr.kind {
-            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
-            ExprKind::App(func, args) => {
-                self.collect_subject_send_targets_from_expr(func, targets);
-                for arg in args {
-                    self.collect_subject_send_targets_from_expr(arg, targets);
-                }
-            }
-            ExprKind::UnOp(_, body) | ExprKind::Field(body, _) | ExprKind::Try(body) => {
-                self.collect_subject_send_targets_from_expr(body, targets);
-            }
-            ExprKind::Lambda(_, _) => {}
-            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
-                self.collect_subject_send_targets_from_expr(lhs, targets);
-                self.collect_subject_send_targets_from_expr(rhs, targets);
-            }
-            ExprKind::If(cond, then_, else_) => {
-                self.collect_subject_send_targets_from_expr(cond, targets);
-                self.collect_subject_send_targets_from_expr(then_, targets);
-                self.collect_subject_send_targets_from_expr(else_, targets);
-            }
-            ExprKind::Match(scrutinee, arms) => {
-                self.collect_subject_send_targets_from_expr(scrutinee, targets);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        self.collect_subject_send_targets_from_expr(guard, targets);
-                    }
-                    self.collect_subject_send_targets_from_expr(&arm.body, targets);
-                }
-            }
-            ExprKind::Block(body) => self.collect_subject_send_targets_from_stmts(body, targets),
-            ExprKind::List(items)
-            | ExprKind::Tuple(items)
-            | ExprKind::Effect(_, items)
-            | ExprKind::Conjunction(items)
-            | ExprKind::Disjunction(items) => {
-                for item in items {
-                    self.collect_subject_send_targets_from_expr(item, targets);
-                }
-            }
-            ExprKind::Handle { body, handlers, .. } => {
-                self.collect_subject_send_targets_from_expr(body, targets);
-                for handler in handlers {
-                    self.collect_subject_send_targets_from_expr(&handler.body, targets);
-                }
-            }
-        }
-    }
-
-    fn collect_subject_send_targets_from_stmts(
-        &self,
-        stmts: &[Stmt],
-        targets: &mut BTreeSet<String>,
-    ) {
+    /// Untyped parameters that receive `<-` take the type of the subject or
+    /// actor handle passed at the call sites.
+    fn prescan_send_target_param_types(&mut self, stmts: &[Stmt]) {
+        let mut send_params: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        let mut actor_handles: BTreeMap<String, String> = BTreeMap::new();
+        let mut subject_aliases: BTreeMap<String, String> = self
+            .subject_vars
+            .iter()
+            .map(|name| (name.clone(), name.clone()))
+            .collect();
         for stmt in stmts {
-            match stmt {
-                Stmt::Send(target, msg) => {
-                    if let ExprKind::Var(name) = &target.kind {
-                        if self.subject_vars.contains(name) {
-                            targets.insert(name.clone());
+            walk_ast_stmt(stmt, &mut |child| {
+                let AstChild::Stmt(stmt) = child else {
+                    return;
+                };
+                match stmt {
+                    Stmt::Defn(Defn::Fn {
+                        name, params, body, ..
+                    }) => {
+                        let mut targets = BTreeSet::new();
+                        walk_ast_expr(body, &mut |inner| {
+                            if let AstChild::Stmt(Stmt::Send(target, _)) = inner {
+                                if let ExprKind::Var(target) = &target.kind {
+                                    targets.insert(target.clone());
+                                }
+                            }
+                        });
+                        let indexes = params
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, param)| {
+                                param.ty.is_none() && targets.contains(&param.name)
+                            })
+                            .map(|(index, _)| index)
+                            .collect::<Vec<_>>();
+                        if !indexes.is_empty() {
+                            send_params.insert(name.clone(), indexes);
                         }
                     }
-                    self.collect_subject_send_targets_from_expr(msg, targets);
+                    Stmt::Bind(Pat::Var(var), _, value) => match &value.kind {
+                        ExprKind::App(func, args) if matches!(&func.as_ref().kind, ExprKind::Var(n) if n == "spawn") => {
+                            if let Some(ExprKind::Var(actor)) = args.first().map(|arg| &arg.kind) {
+                                actor_handles.insert(var.clone(), actor.clone());
+                            }
+                        }
+                        ExprKind::Var(source) => {
+                            if let Some(actor) = actor_handles.get(source).cloned() {
+                                actor_handles.insert(var.clone(), actor);
+                            }
+                            if let Some(subject) = subject_aliases.get(source).cloned() {
+                                subject_aliases.insert(var.clone(), subject);
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {}
                 }
-                Stmt::Bind(_, _, expr)
-                | Stmt::MonadicBind(_, _, expr)
-                | Stmt::Expr(expr)
-                | Stmt::StreamBind(_, expr) => {
-                    self.collect_subject_send_targets_from_expr(expr, targets);
-                }
-                Stmt::Annot(_, args) => {
-                    for arg in args {
-                        self.collect_subject_send_targets_from_expr(arg, targets);
-                    }
-                }
-                Stmt::For(_, iter, body) => {
-                    self.collect_subject_send_targets_from_expr(iter, targets);
-                    self.collect_subject_send_targets_from_stmts(body, targets);
-                }
-                Stmt::While(cond, body) => {
-                    self.collect_subject_send_targets_from_expr(cond, targets);
-                    self.collect_subject_send_targets_from_stmts(body, targets);
-                }
-                Stmt::StreamSub(expr, _) => {
-                    self.collect_subject_send_targets_from_expr(expr, targets);
-                }
-                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                    self.collect_subject_send_targets_from_stmts(body, targets);
-                }
-                Stmt::Invariant {
-                    subject, predicate, ..
-                } => {
-                    self.collect_subject_send_targets_from_expr(subject, targets);
-                    self.collect_subject_send_targets_from_expr(predicate, targets);
-                }
-                Stmt::Prove {
-                    pass_block,
-                    else_block,
+            });
+        }
+        if send_params.is_empty() {
+            return;
+        }
+        let mut resolved = BTreeMap::new();
+        for stmt in stmts {
+            walk_ast_stmt(stmt, &mut |child| {
+                let AstChild::Expr(Expr {
+                    kind: ExprKind::App(func, args),
                     ..
-                } => {
-                    if let Some(pass_block) = pass_block {
-                        self.collect_subject_send_targets_from_stmts(pass_block, targets);
-                    }
-                    if let Some(else_block) = else_block {
-                        self.collect_subject_send_targets_from_stmts(else_block, targets);
-                    }
+                }) = child
+                else {
+                    return;
+                };
+                let ExprKind::Var(function) = &func.as_ref().kind else {
+                    return;
+                };
+                let Some(indexes) = send_params.get(function) else {
+                    return;
+                };
+                for &index in indexes {
+                    let Some(ExprKind::Var(arg)) = args.get(index).map(|arg| &arg.kind) else {
+                        continue;
+                    };
+                    let rust_ty = if let Some(actor) = actor_handles.get(arg) {
+                        format!("{}ActorHandle", sanitize_name(actor))
+                    } else if let Some(subject) = subject_aliases.get(arg) {
+                        format!(
+                            "__FutStream<{}>",
+                            self.subject_elem_type
+                                .get(subject)
+                                .cloned()
+                                .unwrap_or_else(|| "i64".to_string())
+                        )
+                    } else {
+                        continue;
+                    };
+                    resolved.insert((function.clone(), index), rust_ty);
                 }
-                _ => {}
+            });
+        }
+        self.send_target_param_types = resolved;
+    }
+
+    /// The scope named by `@ teardown("Scope")` or `teardown("Scope")`.
+    fn teardown_scope_name(expr: &Expr) -> Option<String> {
+        let args = match &expr.kind {
+            ExprKind::Effect(name, args) if name == "teardown" => args,
+            ExprKind::App(func, args) if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "teardown") => {
+                args
             }
+            _ => return None,
+        };
+        match args.first().map(|arg| &arg.kind) {
+            Some(ExprKind::Lit(Literal::Str(scope))) => Some(scope.clone()),
+            _ => None,
         }
     }
 
-    fn stream_sub_barrier_targets(&self, arms: &[MatchArm]) -> Vec<String> {
-        let mut targets = BTreeSet::new();
-        for arm in arms {
-            if let Some(guard) = &arm.guard {
-                self.collect_subject_send_targets_from_expr(guard, &mut targets);
+    /// `match value { arms }` for subscription value arms; a value no arm
+    /// accepts is a runtime error.
+    fn emit_subscription_value_match(&mut self, value: &str, value_arms: &[&MatchArm]) -> String {
+        let mut out = format!("{}match {} {{\n", self.ind(), value);
+        self.indent += 1;
+        for arm in value_arms {
+            let pat_str = self.emit_pattern_match(&arm.pat);
+            match &arm.guard {
+                Some(guard) => {
+                    let guard_str = self.emit_expr(guard);
+                    out.push_str(&format!(
+                        "{}{} if {} => {{\n",
+                        self.ind(),
+                        pat_str,
+                        guard_str
+                    ));
+                }
+                None => out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str)),
             }
-            self.collect_subject_send_targets_from_expr(&arm.body, &mut targets);
+            self.indent += 1;
+            out.push_str(&format!("{}{};\n", self.ind(), self.emit_expr(&arm.body)));
+            self.indent -= 1;
+            out.push_str(&format!("{}}}\n", self.ind()));
         }
-        targets.into_iter().collect()
+        out.push_str(&format!(
+            "{}#[allow(unreachable_patterns)]\n{}__other => panic!(\"no subscription arm matches the value {{:?}}\", __other),\n",
+            self.ind(),
+            self.ind()
+        ));
+        self.indent -= 1;
+        out.push_str(&format!("{}}}\n", self.ind()));
+        out
     }
 
-    fn stmt_barrier_targets(&self, stmts: &[Stmt]) -> Vec<String> {
-        let mut targets = BTreeSet::new();
-        self.collect_subject_send_targets_from_stmts(stmts, &mut targets);
-        targets.into_iter().collect()
+    fn emit_subscription_arm_body(&mut self, arm: &MatchArm) -> String {
+        let body = self.emit_expr(&arm.body);
+        match &arm.guard {
+            Some(guard) => {
+                let guard_str = self.emit_expr(guard);
+                format!("{}if {} {{ {}; }}\n", self.ind(), guard_str, body)
+            }
+            None => format!("{}{};\n", self.ind(), body),
+        }
     }
 
     fn stream_sub_runtime_captures(&self, arms: &[MatchArm]) -> Vec<String> {
@@ -48454,7 +46252,7 @@ fn __futuruna_install_error_hook() {
     /// Assign a rebound loop accumulator. `= xs = push(xs, v)` appends in place.
     fn emit_rebind_assignment(&mut self, name: &str, value: &Expr) -> String {
         if let ExprKind::App(func, args) = &value.kind {
-            if matches!(&func.kind, ExprKind::Var(f) if builtin_canonical(f) == "push" && !self.builtin_shadowed_by_callable(f))
+            if matches!(&func.kind, ExprKind::Var(f) if f == "push" && !self.builtin_shadowed_by_callable(f))
                 && args.len() == 2
                 && matches!(&args[0].kind, ExprKind::Var(target) if target == name)
             {
@@ -49157,7 +46955,7 @@ fn __futuruna_install_error_hook() {
     }
 
     /// Check if an expression evaluates to an async broadcast stream.
-    /// Returns true for: subject variables, and stream ops applied to async streams.
+    /// Returns true for: subject variables, and live operators applied to live streams.
     fn is_async_stream_expr(&self, expr: &Expr) -> bool {
         if !self.has_async {
             return false;
@@ -49213,23 +47011,16 @@ fn __futuruna_install_error_hook() {
             }
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let stream_ops = [
-                        "map",
-                        "filter",
-                        "scan",
-                        "take",
-                        "skip",
-                        "tap",
-                        "merge",
-                        "start_with",
-                        "concat",
-                    ];
-
                     if name == "as_stream" && !args.is_empty() {
                         return self.is_live_stream_expr_for_validation(&args[0]);
                     }
-                    if stream_ops.contains(&name.as_str()) && !args.is_empty() {
-                        return self.is_live_stream_expr_for_validation(&args[0]);
+                    if LIVE_STREAM_OPERATORS.contains(&name.as_str()) && !args.is_empty() {
+                        let two_sources = matches!(name.as_str(), "merge" | "concat");
+                        return self.is_live_stream_expr_for_validation(&args[0])
+                            || (two_sources
+                                && args.get(1).is_some_and(|arg| {
+                                    self.is_live_stream_expr_for_validation(arg)
+                                }));
                     }
                 }
                 false
@@ -49260,23 +47051,9 @@ fn __futuruna_install_error_hook() {
         }
     }
 
-    fn emit_async_stream_settled_read(&self, emitted: &str, settled_read: &str) -> String {
-        if self.in_async_context() {
-            format!(
-                "{{ let __stream = ({}).clone(); __fut_settle(&__stream).await; {} }}",
-                emitted, settled_read
-            )
-        } else {
-            format!(
-                "tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async move {{ let __stream = ({}).clone(); __fut_settle(&__stream).await; {} }}))",
-                emitted, settled_read
-            )
-        }
-    }
-
     fn emit_async_stream_snapshot(&mut self, expr: &Expr) -> String {
         let emitted = self.emit_expr(expr);
-        self.emit_async_stream_settled_read(&emitted, "__stream.snapshot()")
+        format!("({}).snapshot()", emitted)
     }
 
     fn emit_async_stream_snapshot_builtin(&mut self, name: &str, args: &[Expr]) -> Option<String> {
@@ -49301,6 +47078,23 @@ fn __futuruna_install_error_hook() {
                 let f = self.emit_expr(&args[2]);
                 Some(format!("{}.into_iter().fold({}, {})", snapshot, init, f))
             }
+            "any" | "all" if args.len() == 2 => {
+                let mut seeded_param_tys = BTreeMap::new();
+                if let ExprKind::Lambda(params, _) = &args[1].kind {
+                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
+                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(param.name.clone(), ty);
+                        }
+                    }
+                }
+                let call = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    &[String::from("__x")],
+                    &seeded_param_tys,
+                );
+                let call = self.collection_predicate_code(name, &args[1], call);
+                Some(format!("{}.into_iter().{}(|__x| {})", snapshot, name, call))
+            }
             _ => None,
         }
     }
@@ -49314,6 +47108,16 @@ fn __futuruna_install_error_hook() {
                 .unwrap_or(false);
         }
         false
+    }
+
+    /// The Rust test of a collection predicate call. A callback not known to
+    /// answer `bool` is checked at run time by `__futuruna_predicate`.
+    fn collection_predicate_code(&self, builtin: &str, callback: &Expr, code: String) -> String {
+        if self.callable_return_fir_ty(callback, 1) == FirTy::Bool {
+            code
+        } else {
+            format!("__futuruna_predicate({builtin:?}, {code})")
+        }
     }
 
     fn callable_return_fir_ty(&self, callable: &Expr, arity: usize) -> FirTy {
@@ -49343,13 +47147,13 @@ fn __futuruna_install_error_hook() {
             return None;
         };
 
-        let builtin_name = builtin_canonical(fn_name);
-        if let Some((arity, shadowable, deps, rust_tpl)) = self
+        let builtin_name = fn_name.as_str();
+        if let Some((arity, deps, rust_tpl)) = self
             .builtin_registry
             .get(builtin_name)
-            .map(|def| (def.arity, def.shadowable, def.deps, def.rust_tpl))
+            .map(|def| (def.arity, def.deps, def.rust_tpl))
         {
-            if arity == args.len() && (!shadowable || !self.builtin_shadowed_by_callable(fn_name)) {
+            if arity == args.len() && !self.builtin_shadowed_by_callable(fn_name) {
                 for &(dep_name, dep_ver) in deps {
                     self.cargo_deps
                         .entry(dep_name.to_string())
@@ -49385,13 +47189,10 @@ fn __futuruna_install_error_hook() {
         let ExprKind::Var(fn_name) = &callable.kind else {
             return false;
         };
-        let builtin_name = builtin_canonical(fn_name);
+        let builtin_name = fn_name.as_str();
         self.builtin_registry
             .get(builtin_name)
-            .map(|def| {
-                def.arity == arity
-                    && (!def.shadowable || !self.builtin_shadowed_by_callable(fn_name))
-            })
+            .map(|def| def.arity == arity && !self.builtin_shadowed_by_callable(fn_name))
             .unwrap_or(false)
     }
 
@@ -49409,8 +47210,56 @@ fn __futuruna_install_error_hook() {
             .unwrap_or(false)
     }
 
+    /// A free call `m(x, ...)` or qualified call `Q.m(x, ...)` of a type-body
+    /// or impl method that no ordinary function, rule, or local owns
+    /// dispatches on its first argument: it is emitted as the method call
+    /// `x.m(...)`.
+    fn free_receiver_method_call(&self, func: &Expr, args: &[Expr], span: Span) -> Option<Expr> {
+        let name = match &func.kind {
+            ExprKind::Var(name) => {
+                if self.types.user_functions.contains(name)
+                    || self.local_bindings.contains(name)
+                    || self.current_rule_scope_methods.contains_key(name)
+                {
+                    return None;
+                }
+                name
+            }
+            ExprKind::Field(module, name) => {
+                let module_path = self.module_path_key(module)?;
+                let metadata_path = self.canonical_module_metadata_path(&module_path);
+                if self.module_callable_metadata.contains_key(&(
+                    metadata_path,
+                    name.clone(),
+                    args.len(),
+                )) {
+                    return None;
+                }
+                name
+            }
+            _ => return None,
+        };
+        let (receiver, rest) = args.split_first()?;
+        if !self.receiver_method_names.contains(name) || has_named_args(args) {
+            return None;
+        }
+        Some(Expr::new(
+            ExprKind::App(
+                Box::new(Expr::new(
+                    ExprKind::Field(Box::new(receiver.clone()), name.clone()),
+                    func.span,
+                )),
+                rest.to_vec(),
+            ),
+            span,
+        ))
+    }
+
+    /// A declared function or callable local shadows the builtin of the same
+    /// name. The prelude's own definitions are the builtin's portable form and
+    /// leave the native builtin in place.
     fn builtin_shadowed_by_callable(&self, name: &str) -> bool {
-        self.types.user_functions.contains(name)
+        (self.types.user_functions.contains(name) && !self.prelude_function_names.contains(name))
             || matches!(self.lookup_var_fir_ty(name), Some(FirTy::Arrow(_, _)))
     }
 
@@ -49475,137 +47324,60 @@ fn __futuruna_install_error_hook() {
         format!("({})({})", callable_str, rendered_args.join(", "))
     }
 
-    fn async_stream_spawn_parts(&self, handle_name: &str, stream_name: &str) -> (String, String) {
-        if let Some(scope) = &self.current_scope {
-            (
-                format!("let {handle_name} = tokio::spawn(async move {{ "),
-                format!(
-                    "}}); __fut_register_scope_handle({scope:?}, {handle_name}); __fut_register_scope_stream({scope:?}, &{stream_name});"
-                ),
-            )
-        } else {
-            (
-                String::from("tokio::spawn(async move { "),
-                String::from("});"),
-            )
-        }
+    fn emit_live_stream_operand(&mut self, expr: &Expr) -> String {
+        let emitted = self.emit_expr(expr);
+        let emitted = match &expr.kind {
+            ExprKind::Var(name) if !self.copy_vars.contains(name.as_str()) => {
+                format!("{}.clone()", emitted)
+            }
+            _ => emitted,
+        };
+        format!("__FutSource::into_live({})", emitted)
     }
 
-    /// Emit an async stream operator as a Rust block expression.
-    /// Creates a history-preserving async stream wrapper and forwards live updates.
+    fn live_callable_seed(&self, callable: &Expr, item_source: &Expr) -> BTreeMap<String, FirTy> {
+        let mut seeded_param_tys = BTreeMap::new();
+        if let ExprKind::Lambda(params, _) = &callable.kind {
+            if let (Some(param), ty) = (params.first(), self.iter_item_ty(item_source)) {
+                if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                    seeded_param_tys.insert(param.name.clone(), ty);
+                }
+            }
+        }
+        seeded_param_tys
+    }
+
+    /// Emit a live stream operator. The runtime links the derived stream to
+    /// its source; values are delivered synchronously (see
+    /// src/live_runtime.rs).
     fn emit_async_stream_op(&mut self, name: &str, args: &[Expr]) -> Option<String> {
-        if !self.has_async || args.is_empty() || !self.is_async_stream_expr(&args[0]) {
+        if !self.has_async || args.is_empty() || !LIVE_STREAM_OPERATORS.contains(&name) {
             return None;
         }
-        self.async_stream_counter += 1;
-        let n = self.async_stream_counter;
-        let mut source = self.emit_expr(&args[0]);
-        if let ExprKind::Var(name) = &args[0].kind {
-            let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-            if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                source = format!("{}.clone()", source);
-            }
+        let two_sources = matches!(name, "merge" | "concat");
+        let live_source = self.is_async_stream_expr(&args[0])
+            || (two_sources
+                && args
+                    .get(1)
+                    .is_some_and(|arg| self.is_async_stream_expr(arg)));
+        if !live_source {
+            return None;
         }
-
+        let source = self.emit_live_stream_operand(&args[0]);
         match name {
-            "map" if args.len() == 2 => {
-                let mut seeded_param_tys = BTreeMap::new();
-                if let ExprKind::Lambda(params, _) = &args[1].kind {
-                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
-                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
-                            seeded_param_tys.insert(param.name.clone(), ty);
-                        }
-                    }
-                }
-                let seed_call = self.emit_async_callable_invocation_seeded(
+            "map" | "filter" | "tap" if args.len() == 2 => {
+                let seeded_param_tys = self.live_callable_seed(&args[1], &args[0]);
+                let call = self.emit_async_callable_invocation_seeded(
                     &args[1],
                     &[String::from("__v")],
                     &seeded_param_tys,
                 );
-                let live_call = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    &[String::from("__v")],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        __out_{n}.send({seed_call}); \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    __sfwd_{n}.send({live_call}); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
-            }
-            "filter" if args.len() == 2 => {
-                let mut seeded_param_tys = BTreeMap::new();
-                if let ExprKind::Lambda(params, _) = &args[1].kind {
-                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
-                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
-                            seeded_param_tys.insert(param.name.clone(), ty);
-                        }
-                    }
-                }
-                let filter_arg = if self.async_callable_borrows_arg(&args[1], 0) {
-                    String::from("__v")
+                let body = if name == "tap" {
+                    format!("{{ {}; }}", call)
                 } else {
-                    String::from("__v.clone()")
+                    call
                 };
-                let seed_pred = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    std::slice::from_ref(&filter_arg),
-                    &seeded_param_tys,
-                );
-                let live_pred = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    &[filter_arg],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if {seed_pred} {{ __out_{n}.send(__v); }} \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    if {live_pred} {{ __sfwd_{n}.send(__v); }} \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
+                Some(format!("{}.{}(move |__v| {})", source, name, body))
             }
             "scan" if args.len() == 3 => {
                 let init = self.emit_expr(&args[1]);
@@ -49624,250 +47396,41 @@ fn __futuruna_install_error_hook() {
                         }
                     }
                 }
-                let scan_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
-                    format!("__acc_seed_{n}")
-                } else {
-                    format!("__acc_seed_{n}.clone()")
-                };
-                let scan_live_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
-                    String::from("__acc")
-                } else {
-                    String::from("__acc.clone()")
-                };
-                let scan_seed_call = self.emit_async_callable_invocation_seeded(
+                let call = self.emit_async_callable_invocation_seeded(
                     &args[2],
-                    &[scan_acc_arg, String::from("__v")],
+                    &[String::from("__acc"), String::from("__v")],
                     &seeded_param_tys,
                 );
-                let scan_live_call = self.emit_async_callable_invocation_seeded(
-                    &args[2],
-                    &[scan_live_acc_arg, String::from("__v")],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
                 Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let mut __acc_seed_{n} = {init}; \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        __acc_seed_{n} = {scan_seed_call}; \
-                        __out_{n}.send(__acc_seed_{n}.clone()); \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __seed_acc_{n} = __acc_seed_{n}.clone(); \
-                    {spawn_start} \
-                        let mut __acc = __seed_acc_{n}; \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    __acc = {scan_live_call}; \
-                                    __sfwd_{n}.send(__acc.clone()); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
+                    "{}.scan({}, move |__acc, __v| {})",
+                    source, init, call
                 ))
             }
-            "take" if args.len() == 2 => {
+            "take" | "skip" if args.len() == 2 => {
                 let count = self.emit_expr(&args[1]);
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let mut __seen_seed_{n} = 0i64; \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if __seen_seed_{n} >= {count} {{ break; }} \
-                        __out_{n}.send(__v); \
-                        __seen_seed_{n} += 1; \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __seed_seen_{n} = __seen_seed_{n}; \
-                    {spawn_start} \
-                        let mut __c = __seed_seen_{n}; \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    if __c >= {count} {{ continue; }} \
-                                    __sfwd_{n}.send(__v); \
-                                    __c += 1; \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
+                Some(format!("{}.{}(({}) as i64)", source, name, count))
             }
-            "skip" if args.len() == 2 => {
-                let count = self.emit_expr(&args[1]);
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let mut __seen_seed_{n} = 0i64; \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if __seen_seed_{n} >= {count} {{ __out_{n}.send(__v); }} \
-                        else {{ __seen_seed_{n} += 1; }} \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __seed_seen_{n} = __seen_seed_{n}; \
-                    {spawn_start} \
-                        let mut __c = __seed_seen_{n}; \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    if __c >= {count} {{ __sfwd_{n}.send(__v); }} \
-                                    else {{ __c += 1; }} \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
+            "start_with" if args.len() == 2 => {
+                let first = self.emit_expr(&args[1]);
+                Some(format!("{}.start_with({})", source, first))
             }
-            "tap" if args.len() == 2 => {
+            "merge" | "concat" if args.len() == 2 => {
+                let other = self.emit_live_stream_operand(&args[1]);
+                Some(format!("{}.{}({})", source, name, other))
+            }
+            "catch" if args.len() == 2 => {
                 let mut seeded_param_tys = BTreeMap::new();
                 if let ExprKind::Lambda(params, _) = &args[1].kind {
-                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
-                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
-                            seeded_param_tys.insert(param.name.clone(), ty);
-                        }
+                    if let Some(param) = params.first() {
+                        seeded_param_tys.insert(param.name.clone(), FirTy::String);
                     }
                 }
-                let tap_arg = if self.async_callable_borrows_arg(&args[1], 0) {
-                    String::from("__v")
-                } else {
-                    String::from("__v.clone()")
-                };
-                let seed_tap = self.emit_async_callable_invocation_seeded(
+                let call = self.emit_async_callable_invocation_seeded(
                     &args[1],
-                    std::slice::from_ref(&tap_arg),
+                    &[String::from("__e")],
                     &seeded_param_tys,
                 );
-                let live_tap = self.emit_async_callable_invocation_seeded(
-                    &args[1],
-                    &[tap_arg],
-                    &seeded_param_tys,
-                );
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        {seed_tap}; \
-                        __out_{n}.send(__v); \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    {live_tap}; \
-                                    __sfwd_{n}.send(__v); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    __out_{n} }}"
-                ))
-            }
-            "merge" if args.len() == 2 => {
-                self.async_stream_counter += 1; // need two rx counters
-                let n2 = self.async_stream_counter;
-                let mut source2 = self.emit_expr(&args[1]);
-                if let ExprKind::Var(name) = &args[1].kind {
-                    let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
-                    if uses > 1 && !self.copy_vars.contains(name.as_str()) {
-                        source2 = format!("{}.clone()", source2);
-                    }
-                }
-                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n),
-                    &format!("__out_{}", n),
-                );
-                let (spawn_start2, spawn_end2) = self.async_stream_spawn_parts(
-                    &format!("__stream_op_{}", n2),
-                    &format!("__out_{}", n),
-                );
-                Some(format!(
-                    "{{ let __src_{n} = {source}; \
-                    let __src_{n2} = {source2}; \
-                    let mut __out_{n} = __FutStream::new(); \
-                    __out_{n}.set_barrier_merge(&__src_{n}, &__src_{n2}); \
-                    let mut __srx_{n} = __src_{n}.subscribe(); \
-                    let mut __srx_{n2} = __src_{n2}.subscribe(); \
-                    let __cutoff_{n} = __src_{n}.watermark(); \
-                    let __cutoff_{n2} = __src_{n2}.watermark(); \
-                    let __seed_a_{n} = __src_{n}.snapshot_until(__cutoff_{n}); \
-                    let __seed_b_{n} = __src_{n2}.snapshot_until(__cutoff_{n2}); \
-                    let mut __ait_{n} = __seed_a_{n}.into_iter(); \
-                    let mut __bit_{n} = __seed_b_{n}.into_iter(); \
-                    loop {{ \
-                        match (__ait_{n}.next(), __bit_{n}.next()) {{ \
-                            (Some(x), Some(y)) => {{ __out_{n}.send(x); __out_{n}.send(y); }} \
-                            (Some(x), None) => {{ __out_{n}.send(x); for rest in __ait_{n}.by_ref() {{ __out_{n}.send(rest); }} break; }} \
-                            (None, Some(y)) => {{ __out_{n}.send(y); for rest in __bit_{n}.by_ref() {{ __out_{n}.send(rest); }} break; }} \
-                            _ => break, \
-                        }} \
-                    }} \
-                    let __sfwd_{n} = __out_{n}.clone(); \
-                    let __sfwd_{n2} = __out_{n}.clone(); \
-                    {spawn_start} \
-                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n} {{ continue; }} \
-                                    __sfwd_{n}.send(__v); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end} \
-                    {spawn_start2} \
-                        while let Ok(__evt) = __srx_{n2}.recv().await {{ \
-                            match __evt {{ \
-                                __FutEvent::Data(__seq, __v) => {{ \
-                                    if __seq <= __cutoff_{n2} {{ continue; }} \
-                                    __sfwd_{n2}.send(__v); \
-                                }} \
-                                __FutEvent::Barrier(__barrier) => __sfwd_{n2}.emit_barrier(__barrier), \
-                            }} \
-                        }} \
-                    {spawn_end2} \
-                    __out_{n} }}"
-                ))
+                Some(format!("{}.catch(move |__e: String| {})", source, call))
             }
             _ => None,
         }
@@ -49911,7 +47474,7 @@ fn __futuruna_install_error_hook() {
         if !Self::is_fusible_vec_op(&args[0]) {
             return None;
         }
-        // Don't fuse async stream expressions
+        // Don't fuse live stream expressions
         if self.is_async_stream_expr(&args[0]) {
             return None;
         }
@@ -50825,9 +48388,6 @@ fn __futuruna_install_error_hook() {
         }
         match &expr.kind {
             ExprKind::Var(name) => {
-                if self.in_standalone_adt_method && name == "self" {
-                    return "self_".to_string();
-                }
                 // Nullary constructor
                 if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
                     return self
@@ -50918,6 +48478,9 @@ fn __futuruna_install_error_hook() {
                         "()".to_string()
                     };
                 }
+                if let Some(method_call) = self.free_receiver_method_call(func, args, expr.span) {
+                    return self.emit_expr(&method_call);
+                }
                 if let ExprKind::Field(module, constructor) = &func.as_ref().kind {
                     if let Some(emitted) =
                         self.emit_qualified_module_constructor_app(module, constructor, args)
@@ -50950,7 +48513,8 @@ fn __futuruna_install_error_hook() {
                     }
                 }
                 // Phase 1b: Check if this is a borrow-builtin BEFORE processing args
-                let is_borrow_call = matches!(func.as_ref().kind, ExprKind::Var(ref n) if builtin_canonical(n) == "show");
+                let is_borrow_call =
+                    matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == "show");
                 let qualified_module_callable_key =
                     self.qualified_module_callable_key(func, args.len());
                 let is_qualified_module_call = qualified_module_callable_key.is_some();
@@ -51218,22 +48782,27 @@ fn __futuruna_install_error_hook() {
                         }
                         return format!("self.{}({})", sanitize_name(name), method_args.join(", "));
                     }
+                    // A declared function or callable local of a builtin's name
+                    // shadows the builtin.
+                    let builtin_visible = !self.builtin_shadowed_by_callable(name);
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
-                    if builtin_canonical(name) == "show" && args_str.len() == 1 {
+                    if builtin_visible && name == "show" && args_str.len() == 1 {
                         return self.emit_display_value_expr(&args[0], &args_str[0]);
                     }
-                    if builtin_canonical(name) == "length"
+                    if builtin_visible
+                        && name == "length"
                         && args.len() == 1
                         && self.expr_is_known_empty_list_value(&args[0])
                     {
                         return "0".to_string();
                     }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
-                    if name == "not" && args_str.len() == 1 {
+                    if builtin_visible && name == "not" && args_str.len() == 1 {
                         return format!("!({})", args_str[0]);
                     }
-                    if builtin_canonical(name) == "head"
+                    if builtin_visible
+                        && name == "head"
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -51244,7 +48813,8 @@ fn __futuruna_install_error_hook() {
                     {
                         return "panic!(\"head: empty list\")".to_string();
                     }
-                    if builtin_canonical(name) == "nth"
+                    if builtin_visible
+                        && name == "nth"
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -51260,7 +48830,7 @@ fn __futuruna_install_error_hook() {
                         );
                     }
                     // findall(template_var, goal) → iterate fact table, collect matches
-                    if name == "findall" && args.len() == 2 {
+                    if builtin_visible && name == "findall" && args.len() == 2 {
                         return self.emit_findall(&args[0], &args[1]);
                     }
                     // Prolog wildcard calls: fn(x, _) → inline fact table scan
@@ -51302,18 +48872,20 @@ fn __futuruna_install_error_hook() {
                         }
                     }
                     // Async stream operators: intercept before sync builtin registry
-                    if let Some(async_code) = self.emit_async_stream_op(name, args) {
-                        return async_code;
-                    }
-                    // Pure aggregations over async stream state operate on the current snapshot.
-                    if let Some(snapshot_builtin) =
-                        self.emit_async_stream_snapshot_builtin(name, args)
-                    {
-                        return snapshot_builtin;
-                    }
-                    // Stream fusion: fuse chains of map/filter/take/skip into single iterator
-                    if let Some(fused) = self.try_emit_fused_chain(name, args) {
-                        return fused;
+                    if builtin_visible {
+                        if let Some(async_code) = self.emit_async_stream_op(name, args) {
+                            return async_code;
+                        }
+                        // Terminal operations on live streams read the values the stream holds now.
+                        if let Some(snapshot_builtin) =
+                            self.emit_async_stream_snapshot_builtin(name, args)
+                        {
+                            return snapshot_builtin;
+                        }
+                        // Stream fusion: fuse chains of map/filter/take/skip into single iterator
+                        if let Some(fused) = self.try_emit_fused_chain(name, args) {
+                            return fused;
+                        }
                     }
                     if matches!(
                         name.as_str(),
@@ -51399,6 +48971,11 @@ fn __futuruna_install_error_hook() {
                             };
                             let borrowed_param_prefix =
                                 format!("let {} = (*{}).clone();", param, param);
+                            let body_code = if matches!(name.as_str(), "any" | "all" | "find") {
+                                self.collection_predicate_code(name, &args[1], body_code)
+                            } else {
+                                body_code
+                            };
                             return match name.as_str() {
                                 "any" => format!(
                                     "{}.clone().into_iter().any(|{}| {{ {} {} }})",
@@ -51513,6 +49090,8 @@ fn __futuruna_install_error_hook() {
                                     + " "
                             };
                             if name == "filter" {
+                                let body_code =
+                                    self.collection_predicate_code(name, &args[1], body_code);
                                 return format!(
                                     "{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
                                     coll, param, clone_prefix, param, param, body_code
@@ -51574,6 +49153,7 @@ fn __futuruna_install_error_hook() {
                                 let pred = self
                                     .emit_function_value_call(&args[1], &[("__x.clone()", "__x")])
                                     .unwrap_or(call);
+                                let pred = self.collection_predicate_code(name, &args[1], pred);
                                 return format!(
                                     "{}.clone().into_iter().filter(|__x| {}).collect::<Vec<_>>()",
                                     coll, pred
@@ -51615,6 +49195,7 @@ fn __futuruna_install_error_hook() {
                                     let pred = self
                                         .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                         .unwrap();
+                                    let pred = self.collection_predicate_code(name, &args[1], pred);
                                     return format!(
                                         "{}.clone().into_iter().any(|__x| {})",
                                         coll, pred
@@ -51624,6 +49205,7 @@ fn __futuruna_install_error_hook() {
                                     let pred = self
                                         .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                         .unwrap();
+                                    let pred = self.collection_predicate_code(name, &args[1], pred);
                                     return format!(
                                         "{}.clone().into_iter().all(|__x| {})",
                                         coll, pred
@@ -51636,6 +49218,7 @@ fn __futuruna_install_error_hook() {
                                             &[("__x.clone()", "__x")],
                                         )
                                         .unwrap();
+                                    let pred = self.collection_predicate_code(name, &args[1], pred);
                                     return format!(
                                         "{}.clone().into_iter().find(|__x| {})",
                                         coll, pred
@@ -51851,9 +49434,7 @@ fn __futuruna_install_error_hook() {
                     // Builtin registry lookup — replaces 300+ lines of if-chain
 
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
-                        if args_str.len() == def.arity
-                            && (!def.shadowable || !self.builtin_shadowed_by_callable(name))
-                        {
+                        if args_str.len() == def.arity && !self.builtin_shadowed_by_callable(name) {
                             for &(dep_name, dep_ver) in def.deps {
                                 self.cargo_deps
                                     .entry(dep_name.to_string())
@@ -51863,20 +49444,33 @@ fn __futuruna_install_error_hook() {
                         }
                     }
                     // Custom builtins that need runtime state beyond templates
-                    if name == "push" && args_str.len() == 2 {
+                    if builtin_visible && name == "push" && args_str.len() == 2 {
+                        // `push` returns a new list. An inout parameter is a
+                        // `&mut` borrow of the caller's list; copy it instead
+                        // of moving the borrow.
+                        let copy = if matches!(&args[0].kind, ExprKind::Var(list) if self.inout_param_vars.contains(list.as_str()))
+                        {
+                            ".clone()"
+                        } else {
+                            ""
+                        };
                         return format!(
-                            "{{ let mut v = {}; v.push({}); v }}",
-                            args_str[0], args_str[1]
+                            "{{ let mut v = {}{}; v.push({}); v }}",
+                            args_str[0], copy, args_str[1]
                         );
                     }
-                    if name == "subject" {
-                        if args_str.is_empty() {
-                            return "vec![]".to_string();
-                        } else {
-                            return format!("vec![{}]", args_str[0]);
-                        }
+                    if builtin_visible && name == "subject" {
+                        let initial = args_str
+                            .first()
+                            .map(|value| format!("Some({})", value))
+                            .unwrap_or_else(|| "None".to_string());
+                        let keep = args_str
+                            .get(1)
+                            .map(|keep| format!("Some(({}) as i64)", keep))
+                            .unwrap_or_else(|| "None".to_string());
+                        return format!("__FutStream::subject({}, {})", initial, keep);
                     }
-                    if name == "spawn" && args.len() == 2 {
+                    if builtin_visible && name == "spawn" && args.len() == 2 {
                         let actor_name = if let ExprKind::Var(n) = &args[0].kind {
                             sanitize_name(n)
                         } else {
@@ -51885,32 +49479,12 @@ fn __futuruna_install_error_hook() {
                         let init_val = &args_str[1];
                         return format!("{}_spawn({})", actor_name, init_val);
                     }
-                    if name == "ask" && args.len() == 2 {
-                        let handle_name = if let ExprKind::Var(n) = &args[0].kind {
-                            n.clone()
-                        } else {
-                            args_str[0].clone()
-                        };
-                        let actor_name = self
-                            .actor_handle_vars
-                            .get(&handle_name)
-                            .map(|n| sanitize_name(n))
-                            .unwrap_or_else(|| handle_name.clone());
-                        let await_expr = if self.in_async_context() {
-                            "__rx.await.unwrap()".to_string()
-                        } else {
-                            "tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async move { __rx.await.unwrap() }))".to_string()
-                        };
-                        return format!(
-                            "{{ let (__tx, __rx) = tokio::sync::oneshot::channel(); {}.send({}Msg::__Ask(Box::new({}), __tx)).unwrap(); {} }}",
-                            args_str[0], actor_name, args_str[1], await_expr
-                        );
+                    if builtin_visible && name == "ask" && args.len() == 2 {
+                        return format!("{}.ask({})", args_str[0], args_str[1]);
                     }
-                    if name == "as_stream" && args_str.len() == 1 {
-                        if self.has_async {
-                            if self.is_async_stream_expr(&args[0]) {
-                                return format!("{}.clone()", args_str[0]);
-                            }
+                    if builtin_visible && name == "as_stream" && args_str.len() == 1 {
+                        if self.has_async && self.is_async_stream_expr(&args[0]) {
+                            return format!("{}.read_only()", args_str[0]);
                         }
                         return format!("{}.clone()", args_str[0]);
                     }
@@ -52539,20 +50113,19 @@ fn __futuruna_install_error_hook() {
                 out
             }
             ExprKind::Field(obj, field) => {
-                if self.has_async && self.is_async_stream_expr(obj) {
-                    let obj_str = self.emit_expr(obj);
-                    match field.as_str() {
-                        "count" => {
-                            return self
-                                .emit_async_stream_settled_read(&obj_str, "__stream.count()");
-                        }
-                        "latest" => {
-                            return self
-                                .emit_async_stream_settled_read(&obj_str, "__stream.latest()");
-                        }
-                        _ => {}
+                let live_runtime = self.has_async;
+                let stream_field = |obj_str: &str| -> Option<String> {
+                    match (field.as_str(), live_runtime) {
+                        ("count", true) => Some(format!("({}).count()", obj_str)),
+                        ("latest", true) => Some(format!("({}).latest()", obj_str)),
+                        ("count", false) => Some(format!("({}.len() as i64)", obj_str)),
+                        ("latest", false) => Some(format!(
+                            "{}.last().cloned().unwrap_or_else(|| panic!(\"`latest` of a stream that has no values\"))",
+                            obj_str
+                        )),
+                        _ => None,
                     }
-                }
+                };
                 if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.binary_global_value_refs_in_scope
                         && self.binary_global_binding_types.contains_key(var_name)
@@ -52566,10 +50139,8 @@ fn __futuruna_install_error_hook() {
                             sanitize_name(var_name),
                             var_name
                         );
-                        match field.as_str() {
-                            "count" => return format!("({}.len() as i64)", obj_str),
-                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                            _ => {}
+                        if let Some(read) = stream_field(&obj_str) {
+                            return read;
                         }
                     }
                     if self.getter_stream_bindings.contains(var_name.as_str())
@@ -52580,18 +50151,20 @@ fn __futuruna_install_error_hook() {
                         && !self.local_bindings.contains(var_name.as_str())
                     {
                         let obj_str = format!("{}()", sanitize_name(var_name));
-                        match field.as_str() {
-                            "count" => return format!("({}.len() as i64)", obj_str),
-                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                            _ => {}
+                        if let Some(read) = stream_field(&obj_str) {
+                            return read;
                         }
                     }
                 }
                 if let Some(obj_str) = self.module_stream_binding_getter_call(obj) {
-                    match field.as_str() {
-                        "count" => return format!("({}.len() as i64)", obj_str),
-                        "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                        _ => {}
+                    if let Some(read) = stream_field(&obj_str) {
+                        return read;
+                    }
+                }
+                if self.has_async && self.is_async_stream_expr(obj) {
+                    let obj_str = self.emit_expr(obj);
+                    if let Some(read) = stream_field(&obj_str) {
+                        return read;
                     }
                 }
                 if let Some(obj_str) = self.module_binding_getter_call(obj) {
@@ -52603,23 +50176,10 @@ fn __futuruna_install_error_hook() {
                     };
                     return format!("{}.{}", obj_str, rust_field);
                 }
-                // Sync subject field access: subject.count → subject.len(), subject.latest → subject.last().cloned().unwrap()
-                if let ExprKind::Var(var_name) = &obj.as_ref().kind {
-                    if self.sync_subject_vars.contains(var_name.as_str()) {
-                        let obj_str = self.emit_expr(obj);
-                        match field.as_str() {
-                            "count" => return format!("({}.len() as i64)", obj_str),
-                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                            _ => {}
-                        }
-                    }
-                }
                 if let Some(binding_name) = self.scope_qualified_stream_binding_name(obj) {
                     let obj_str = sanitize_name(&binding_name);
-                    match field.as_str() {
-                        "count" => return format!("({}.len() as i64)", obj_str),
-                        "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
-                        _ => {}
+                    if let Some(read) = stream_field(&obj_str) {
+                        return read;
                     }
                 }
                 // Scope-qualified access: ScopeName.field → field (local variable)
@@ -53105,9 +50665,7 @@ fn __futuruna_install_error_hook() {
                         .unwrap_or_default();
                     let capture_names: BTreeSet<String> =
                         typed_captures.iter().map(|(n, _)| n.clone()).collect();
-                    let handler_body = self.with_sync_context(|cg| {
-                        cg.emit_handle_body_with_captures(&h.body, &capture_names)
-                    });
+                    let handler_body = self.emit_handle_body_with_captures(&h.body, &capture_names);
                     out.push_str(&format!(
                         "{}    fn {}(&self, {}){} {{\n",
                         self.ind(),
@@ -53401,12 +50959,18 @@ fn __futuruna_install_error_hook() {
     fn emit_display_value_expr(&self, expr: &Expr, emitted: &str) -> String {
         if self.has_async && self.is_async_stream_expr(expr) {
             return format!(
-                "__futuruna_show_any(&{})",
-                self.emit_async_stream_settled_read(emitted, "__stream.snapshot()")
+                "format!(\"~{{}}\", __futuruna_show_any(&({}).snapshot()))",
+                emitted
             );
         }
         if self.expr_is_known_empty_list_value(expr) {
             return "\"[]\".to_string()".to_string();
+        }
+        if self.expr_is_empty_list_literal_access(expr) {
+            return format!(
+                "{{ let __fut_shown: () = {}; __futuruna_show_any(&__fut_shown) }}",
+                emitted
+            );
         }
         if self.expr_is_string(expr) {
             return format!("format!(\"{{}}\", {})", emitted);
@@ -53551,7 +51115,7 @@ fn __futuruna_install_error_hook() {
             ExprKind::List(elems) => elems.is_empty(),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    matches!(builtin_canonical(name), "tail")
+                    matches!(name.as_str(), "tail")
                         && matches!(
                             args.first(),
                             Some(Expr {
@@ -53565,6 +51129,26 @@ fn __futuruna_install_error_hook() {
             }
             _ => false,
         }
+    }
+
+    /// `head([])` and `nth([], i)` are emitted as a bare `panic!`, whose Rust
+    /// type `!` has no display implementation.
+    fn expr_is_empty_list_literal_access(&self, expr: &Expr) -> bool {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return false;
+        };
+        let ExprKind::Var(name) = &func.kind else {
+            return false;
+        };
+        matches!(name.as_str(), "head" | "first" | "last" | "nth")
+            && !self.builtin_shadowed_by_callable(name)
+            && matches!(
+                args.first(),
+                Some(Expr {
+                    kind: ExprKind::List(elems),
+                    ..
+                }) if elems.is_empty()
+            )
     }
 
     /// Emit handler body, replacing captured variables with self.field references.
@@ -54067,7 +51651,7 @@ fn __futuruna_install_error_hook() {
         free.into_iter().all(|name| {
             env.get(name.as_str()).is_some()
                 || pure_fns.contains(&name)
-                || registry.contains_key(builtin_canonical(&name))
+                || registry.contains_key(name.as_str())
                 || self.types.variant_parent.contains_key(name.as_str())
                 || self.types.prolog_rule_fns.contains_key(name.as_str())
         })
@@ -54446,9 +52030,7 @@ fn __futuruna_install_error_hook() {
                     collect_pattern_names(pat, &mut self.local_bindings);
                 }
                 Stmt::Expr(expr) if is_last => {
-                    let rendered = expected_ty
-                        .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
-                        .unwrap_or_else(|| self.emit_expr(expr));
+                    let rendered = self.emit_tail_expr_with_expected_ty(expr, expected_ty);
                     out.push_str(&format!("{}{}\n", self.ind(), rendered));
                 }
                 _ => out.push_str(&self.emit_stmt(stmt)),
@@ -54491,11 +52073,28 @@ fn __futuruna_install_error_hook() {
                 self.emit_block_body_lines_with_expected_ty(stmts, expected_ty)
             }
             _ => {
-                let rendered = expected_ty
-                    .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
-                    .unwrap_or_else(|| self.emit_expr(expr));
+                let rendered = self.emit_tail_expr_with_expected_ty(expr, expected_ty);
                 format!("{}{}\n", self.ind(), rendered)
             }
+        }
+    }
+
+    /// A body declared `-> ()` discards the value of a non-unit tail
+    /// expression, such as `push(values, value)` on an `inout` list.
+    fn emit_tail_expr_with_expected_ty(
+        &mut self,
+        expr: &Expr,
+        expected_ty: Option<&FirTy>,
+    ) -> String {
+        let rendered = expected_ty
+            .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
+            .unwrap_or_else(|| self.emit_expr(expr));
+        if matches!(expected_ty, Some(FirTy::Unit))
+            && !matches!(self.infer_expr_fir_ty(expr), FirTy::Unit)
+        {
+            format!("let _ = {};", rendered)
+        } else {
+            rendered
         }
     }
 
@@ -56364,8 +53963,8 @@ mod tests {
 
     #[test]
     fn formatter_canonicalizes_specialized_multiline_sequences() {
-        let source = "@ use std::collections::{\nHashMap,\nBTreeMap,\n}\n\n? proof by {\n| (\nleft: Int,\nright: Int,\n) -> apply theorem(\nrefl,\n)\n}\n";
-        let expected = "@ use std::collections::{\n    HashMap,\n    BTreeMap,\n}\n\n? proof by {\n    | (\n        left: Int,\n        right: Int,\n    ) -> apply theorem(\n        refl,\n    )\n}\n";
+        let source = "@ use std::collections::{\nHashMap,\nBTreeMap,\n}\n";
+        let expected = "@ use std::collections::{\n    HashMap,\n    BTreeMap,\n}\n";
 
         assert_eq!(format_runa_source(source), expected);
         assert_eq!(format_runa_source(expected), expected);
@@ -56419,7 +54018,7 @@ fn parse_age(s: &str) -> Result<i64, AppError> {
 }
 "#;
         let runa = rust_to_runa_checked(source).expect("parse map_err should be supported");
-        assert!(runa.contains("regex_match(\"^-?[0-9]+$\", s)"));
+        assert!(runa.contains("match parse_int(s) { | Ok(__n) -> Ok(__n) | Err(_) -> Err("));
         assert!(runa.contains("Err(Parse(\"bad\"))"));
     }
 
@@ -56447,7 +54046,7 @@ fn parse_age(s: &str) -> Result<i64, String> {
 }
 "#;
         let runa = rust_to_runa_checked(source).expect("i64 parse map_err should be supported");
-        assert!(runa.contains("regex_match(\"^-?[0-9]+$\", s)"));
+        assert!(runa.contains("match parse_int(s) { | Ok(__n) -> Ok(__n) | Err(_) -> Err("));
         assert!(runa.contains("Err(\"bad\")"));
     }
 
@@ -57272,55 +54871,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         rust_to_runa_checked(source).expect("simple Result try should stay supported");
     }
 
-    fn parse_invariant_and_proof(source: &str) -> (Expr, Expr, ProofBlock, BTreeMap<String, Expr>) {
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("parse failed");
-
-        let (subject, predicate) = match &stmts[0] {
-            Stmt::Invariant {
-                subject, predicate, ..
-            } => (subject.clone(), predicate.clone()),
-            other => panic!("expected invariant, got {:?}", other),
-        };
-        let proof_block = match &stmts[1] {
-            Stmt::Prove {
-                proof_block: Some(block),
-                ..
-            } => block.clone(),
-            other => panic!("expected explicit proof, got {:?}", other),
-        };
-
-        let bindings = stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-                _ => None,
-            })
-            .collect();
-
-        (subject, predicate, proof_block, bindings)
-    }
-
-    fn explicit_proof_statuses(source: &str) -> BTreeMap<String, ExplicitProofStatus> {
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("parse failed");
-        explicit_proof_statuses_for_stmts(&stmts)
-    }
-
-    fn proof_bindings_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Expr> {
-        stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-                _ => None,
-            })
-            .collect()
-    }
-
     fn smt_skip_reason_for_named_invariant(source: &str, inv_name: &str) -> Option<String> {
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -57643,380 +55193,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     }
 
     #[test]
-    fn explicit_proof_evaluates_successfully() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-"#;
-        let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
-        let reg = proof_kernel::Registry::with_builtins();
-        let binding_types = BTreeMap::<String, Option<Ty>>::new();
-        let function_param_types = BTreeMap::<String, Vec<Option<Ty>>>::new();
-        let constructors = ProofConstructorTable::default();
-        assert_eq!(
-            evaluate_explicit_proof(
-                &subject,
-                &predicate,
-                &bindings,
-                &binding_types,
-                &function_param_types,
-                &constructors,
-                &proof_block,
-                &reg,
-            ),
-            ExplicitProofStatus::Proved
-        );
-    }
-
-    #[test]
-    fn explicit_proof_reports_failed_kernel_check() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> refl
-}
-"#;
-        let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
-        let reg = proof_kernel::Registry::with_builtins();
-        let binding_types = BTreeMap::<String, Option<Ty>>::new();
-        let function_param_types = BTreeMap::<String, Vec<Option<Ty>>>::new();
-        let constructors = ProofConstructorTable::default();
-        match evaluate_explicit_proof(
-            &subject,
-            &predicate,
-            &bindings,
-            &binding_types,
-            &function_param_types,
-            &constructors,
-            &proof_block,
-            &reg,
-        ) {
-            ExplicitProofStatus::Failed(err) => {
-                assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
-            }
-            other => panic!("expected failed proof, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn explicit_proof_can_apply_previously_proved_local_invariant() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-
-| add_comm_symm: (a, b) -> b + a == a + b
-? add_comm_symm by {
-    | (lhs, rhs) -> apply eq.sym(apply add_comm)
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("add_comm"), Some(&ExplicitProofStatus::Proved));
-        assert_eq!(
-            statuses.get("add_comm_symm"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
-    fn explicit_proof_can_apply_generated_computation_lemma() {
-        let source = r#"
-# Switch = On | Off
-> flip(s: Switch) -> Switch {
-    match s {
-        | On -> Off
-        | Off -> On
-    }
-}
-
-= anchor = 0
-| flip_on: anchor -> flip(On) == Off
-? flip_on by {
-    | n -> apply flip.on
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("flip_on"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn computation_lemma_validation_accepts_verified_bootstrap_fixture() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/verified_bootstrap_test.runa"
-        ))
-        .expect("fixture should read");
-        let stmts = parse_test_program(&source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let lemmas = collect_computation_lemmas_checked(&stmts, &bindings)
-            .expect("verified bootstrap computation lemmas should validate");
-        let names: BTreeSet<String> = lemmas.into_iter().map(|(name, _)| name).collect();
-
-        assert!(names.contains("lower.sadd3"));
-        assert!(names.contains("lower_value.svadd"));
-        assert!(names.contains("eval_surface_let.slet"));
-        assert!(names.contains("lower_let.slet"));
-    }
-
-    #[test]
-    fn computation_lemma_expected_map_is_source_arm_derived() {
-        let source = r#"
-# Switch = On | Off
-> flip(s: Switch) -> Switch {
-    match s {
-        | On -> Off
-        | Off -> On
-    }
-}
-"#;
-        let stmts = parse_test_program(source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let source_arms = collect_computation_lemma_source_arms(&stmts);
-        let source_names: Vec<String> = source_arms
-            .iter()
-            .map(|arm| arm.lemma_name.clone())
-            .collect();
-
-        assert_eq!(source_names, vec!["flip.on", "flip.off"]);
-
-        let expected = expected_computation_lemma_map(&stmts, &bindings)
-            .expect("source-derived expected map should build");
-        assert_eq!(expected.len(), 2);
-        assert!(expected.contains_key("flip.on"));
-        assert!(expected.contains_key("flip.off"));
-    }
-
-    #[test]
-    fn computation_lemma_expected_map_skips_unlowerable_function_arms() {
-        let source = r#"
-# Verdict = Accept | Queue
-> verdict_label(v: Verdict) -> String {
-    match v {
-        | Accept -> "accept"
-        | Queue -> "queue"
-    }
-}
-"#;
-        let stmts = parse_test_program(source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let source_arms = collect_computation_lemma_source_arms(&stmts);
-
-        assert_eq!(source_arms.len(), 2);
-        assert!(
-            collect_computation_lemmas(&stmts, &bindings).is_empty(),
-            "unlowerable source arms must not generate computation lemmas"
-        );
-        assert!(
-            expected_computation_lemma_map(&stmts, &bindings)
-                .expect("unlowerable functions should be treated as ineligible")
-                .is_empty(),
-            "unlowerable source arms should not become expected proof lemmas"
-        );
-    }
-
-    #[test]
-    fn computation_lemma_validation_rejects_tampered_generated_lemmas() {
-        let source = r#"
-# Switch = On | Off
-> flip(s: Switch) -> Switch {
-    match s {
-        | On -> Off
-        | Off -> On
-    }
-}
-"#;
-        let stmts = parse_test_program(source);
-        let bindings = proof_bindings_for_stmts(&stmts);
-        let generated = collect_computation_lemmas(&stmts, &bindings);
-        validate_computation_lemmas_against_sources(&stmts, &bindings, &generated)
-            .expect("untampered generated lemmas should validate");
-
-        let mut missing = generated.clone();
-        missing.retain(|(name, _)| name != "flip.off");
-        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &missing)
-            .expect_err("missing source-backed lemma should fail validation");
-        assert!(err.contains("missing generated computation lemma `flip.off`"));
-
-        let mut ghost = generated.clone();
-        ghost.push(("flip.ghost".into(), generated[0].1.clone()));
-        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &ghost)
-            .expect_err("ghost lemma should fail validation");
-        assert!(err.contains("has no eligible source arm"));
-
-        let mut mismatched = generated.clone();
-        let (_, schema) = mismatched
-            .iter_mut()
-            .find(|(name, _)| name == "flip.on")
-            .expect("flip.on should be generated");
-        schema.conclusion = proof_kernel::Prop::Eq(
-            proof_kernel::Term::App("flip".into(), vec![proof_kernel::Term::Var("On".into())]),
-            proof_kernel::Term::Var("On".into()),
-        );
-        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &mismatched)
-            .expect_err("mismatched lemma schema should fail validation");
-        assert!(err.contains("does not match its source arm"));
-    }
-
-    #[test]
-    fn explicit_proof_can_case_split_over_bound_constructor_subject() {
-        let source = r#"
-# Switch = On | Off
-
-= state: Switch = On
-| stable: state -> state == state
-? stable by {
-    | s -> cases s {
-        | On -> refl
-        | Off -> refl
-    }
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("stable"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn explicit_proof_can_case_split_on_constructor_field() {
-        let source = r#"
-# Switch = On | Off
-# Packet = Drop | Wrap(Switch)
-
-= packet: Packet = Wrap(On)
-| stable: packet -> packet == packet
-? stable by {
-    | value -> cases value {
-        | Drop -> refl
-        | Wrap(mode) -> cases mode {
-            | On -> refl
-            | Off -> refl
-        }
-    }
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("stable"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn explicit_proof_reports_missing_case_arm() {
-        let source = r#"
-# Switch = On | Off
-
-= state: Switch = On
-| stable: 0 -> state == state
-? stable by {
-    | witness -> cases state {
-        | On -> refl
-    }
-}
-"#;
-        match explicit_proof_statuses(source).get("stable") {
-            Some(ExplicitProofStatus::Failed(err)) => {
-                assert!(err.contains("missing case arm"));
-            }
-            other => panic!("expected missing-case-arm failure, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn explicit_proof_can_induct_over_recursive_list() {
-        let source = r#"
-# List(a) = Nil | Cons(a, List(a))
-
-> keep(xs: List(a)) -> List(a) {
-    match xs {
-        | Nil -> Nil
-        | Cons(h, t) -> Cons(h, keep(t))
-    }
-}
-
-| keep_id: xs -> keep(xs) == xs
-? keep_id by {
-    | xs -> induction_on xs {
-        | Nil -> rewrite (apply keep.nil) in refl
-        | Cons(h, t) -> rewrite (apply keep.cons) in (rewrite ih in refl)
-    }
-}
-"#;
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(statuses.get("keep_id"), Some(&ExplicitProofStatus::Proved));
-    }
-
-    #[test]
-    fn verified_bootstrap_fixture_proves_verified_bootstrap_stages() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/verified_bootstrap_test.runa"
-        ))
-        .expect("fixture should read");
-
-        let statuses = explicit_proof_statuses(&source);
-        assert_eq!(
-            statuses.get("lower_sound"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("lower_value_sound"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("lower_let_sound"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
-    fn explicit_proof_handles_non_kernel_top_level_bindings_without_expanding_through_them() {
-        let source = r#"
-= base_scores = [18, 42, 37, 41]
-= escalation_score = foldl(base_scores, 0, |acc, score| acc + score)
-= audit_bonus = 12
-= raw_priority = escalation_score + audit_bonus
-
-| raw_identity: raw_priority -> raw_priority == raw_priority
-? raw_identity by {
-    | n -> refl
-}
-"#;
-
-        let statuses = explicit_proof_statuses(source);
-        assert_eq!(
-            statuses.get("raw_identity"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
-    fn proof_guarded_canary_fixture_proves_its_explicit_invariants() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/canary/core/proof_guarded_pipeline_test.runa"
-        ))
-        .expect("fixture should read");
-
-        let statuses = explicit_proof_statuses(&source);
-        assert_eq!(
-            statuses.get("freeze_points_exact"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("freeze_slots_exact"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("freeze_points_capped"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        assert_eq!(
-            statuses.get("freeze_slots_bounded"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-    }
-
-    #[test]
     fn smt_symbol_encoding_is_ascii_and_does_not_merge_distinct_names() {
         let names = [
             "øre",
@@ -58057,7 +55233,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     fn smt_skip_reason_reports_unsupported_ordinary_pipeline_invariant_cleanly() {
         let source = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/canary/core/proof_guarded_pipeline_test.runa"
+            "/tests/canary/core/invariant_guarded_pipeline_test.runa"
         ))
         .expect("fixture should read");
 
@@ -58084,88 +55260,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             smt_skip_reason_for_named_invariant(source, "balance_bounded"),
             None
         );
-    }
-
-    #[test]
-    fn explicit_proof_registry_rejects_duplicate_local_names_clearly() {
-        let conclusion = proof_kernel::Prop::Eq(
-            proof_kernel::Term::Var("x".into()),
-            proof_kernel::Term::Var("x".into()),
-        );
-        let mut proved_invariants = BTreeMap::new();
-        proved_invariants.insert(
-            "eq.refl".into(),
-            proof_kernel::Schema {
-                vars: vec!["x".into()],
-                premises: vec![],
-                conclusion,
-            },
-        );
-
-        match build_explicit_proof_registry(&[], &proved_invariants) {
-            Ok(_) => panic!("expected duplicate-schema failure"),
-            Err(err) => assert!(err.contains("schema already registered")),
-        }
-    }
-
-    #[test]
-    fn proof_adversarial_fixture_covers_all_kernel_statuses() {
-        let source = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/proof_adversarial_test.runa"
-        ))
-        .expect("fixture should read");
-
-        let statuses = explicit_proof_statuses(&source);
-        assert_eq!(
-            statuses.get("add_comm_ok"),
-            Some(&ExplicitProofStatus::Proved)
-        );
-        match statuses.get("add_comm_bad") {
-            Some(ExplicitProofStatus::Failed(err)) => {
-                assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
-            }
-            other => panic!("expected failed proof status, got {:?}", other),
-        }
-        match statuses.get("lt_progress") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved `<` proof, got {:?}", other),
-        }
-        match statuses.get("gt_progress") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved `>` proof, got {:?}", other),
-        }
-        match statuses.get("mul_comm_ok") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!(
-                "expected proved multiplication-commutativity proof, got {:?}",
-                other
-            ),
-        }
-        match statuses.get("literal_order_ok") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved concrete-order proof, got {:?}", other),
-        }
-        match statuses.get("literal_order_bad") {
-            Some(ExplicitProofStatus::Failed(err)) => {
-                assert!(err.contains("concrete literals") || err.contains("goal mismatch"));
-            }
-            other => panic!("expected failed concrete-order proof, got {:?}", other),
-        }
-        match statuses.get("both_zero") {
-            Some(ExplicitProofStatus::Unsupported(reason)) => {
-                assert!(reason.contains("exactly one arm"));
-            }
-            other => panic!("expected multi-arm unsupported proof, got {:?}", other),
-        }
-        match statuses.get("computed_subject") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected computed-subject proved status, got {:?}", other),
-        }
-        match statuses.get("bound_subject") {
-            Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected bound-subject proved status, got {:?}", other),
-        }
     }
 
     #[test]
@@ -58398,7 +55492,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             },
             Stmt::Prove {
                 name: "prove_visit".to_string(),
-                proof_block: None,
                 capture: None,
                 pass_block: Some(vec![expr_stmt("prove_pass")]),
                 else_block: Some(vec![expr_stmt("prove_else")]),
@@ -59388,7 +56481,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "Prove",
                 stmt: Stmt::Prove {
                     name: "prove_visit".to_string(),
-                    proof_block: None,
                     capture: None,
                     pass_block: Some(vec![coverage_expr_stmt("prove_pass")]),
                     else_block: Some(vec![coverage_expr_stmt("prove_else")]),
@@ -59608,7 +56700,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "FirStmt::Prove",
                 stmt: FirStmt::Prove {
                     name: "prove_visit".to_string(),
-                    proof_block: None,
                     capture: None,
                     pass_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_pass"))]),
                     else_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_else"))]),
@@ -60178,7 +57269,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 label: "RustCodegen::scan_declarations export pre-scan",
                 source: include_str!("runa.rs"),
                 start_marker: "        // Pre-scan: collect @ export annotations (M3b)",
-                end_marker: "        // M13c: Pre-scan for async mode",
+                end_marker: "        // Subjects and actors use the live runtime",
             },
         ]
     }
@@ -61239,7 +58330,6 @@ module Local
             ),
             Stmt::Prove {
                 name: "run_check".to_string(),
-                proof_block: None,
                 capture: None,
                 pass_block: Some(vec![Stmt::Bind(
                     Pat::Var("pass_probe".to_string()),
@@ -62373,8 +59463,14 @@ assert_with_message(true, message())
             ("char_at", FirTy::String),
             ("index_of", FirTy::Int),
             ("format_float", FirTy::String),
-            ("parse_int", FirTy::Int),
-            ("parse_float", FirTy::Float),
+            (
+                "parse_int",
+                FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String)),
+            ),
+            (
+                "parse_float",
+                FirTy::Result(Box::new(FirTy::Float), Box::new(FirTy::String)),
+            ),
             ("sum_list", FirTy::Int),
             ("map_contains", FirTy::Bool),
             ("map_len", FirTy::Int),
@@ -62383,14 +59479,20 @@ assert_with_message(true, message())
             ("is_some", FirTy::Bool),
             ("is_none", FirTy::Bool),
             ("not", FirTy::Bool),
-            ("read_file", FirTy::String),
+            (
+                "read_file",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             ("file_exists", FirTy::Bool),
             ("read_lines", FirTy::List(Box::new(FirTy::String))),
             (
                 "process_run",
                 FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
             ),
-            ("json_parse", FirTy::String),
+            (
+                "json_parse",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             ("json_get", FirTy::String),
             ("json_string", FirTy::String),
             ("json_number", FirTy::Float),
@@ -62398,8 +59500,14 @@ assert_with_message(true, message())
             ("json_array", FirTy::List(Box::new(FirTy::String))),
             ("json_emit", FirTy::String),
             ("json_object", FirTy::String),
-            ("http_get", FirTy::String),
-            ("http_post", FirTy::String),
+            (
+                "http_get",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
+            (
+                "http_post",
+                FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
+            ),
             (
                 "http_respond",
                 FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
@@ -63131,13 +60239,20 @@ assert_with_message(true, message())
         let location = lsp_definition(&uri, &local, 1, 15);
         assert_eq!(location["uri"], uri);
         assert_eq!(location["range"]["start"]["line"], 3);
-        let qualified = format!("{source}@ import Q from ./direct\n@ print(show(Q.helper(2)))\n");
+        std::fs::write(
+            root.join("other.runa"),
+            "> helper(value: Int) -> Int { value + 4 }\n",
+        )
+        .unwrap();
+        let qualified = format!("{source}@ import Q from ./other\n@ print(show(Q.helper(2)))\n");
+        let location = lsp_definition(&uri, &qualified, 4, 17);
         assert_eq!(
-            lsp_definition(&uri, &qualified, 4, 17),
-            serde_json::Value::Null,
-            "qualified members must not borrow a plain import's same-named target"
+            location["uri"],
+            lsp_document_uri(&std::fs::canonicalize(root.join("other.runa")).unwrap()),
+            "qualified members resolve in their own module, not a plain import's same-named target"
         );
-        for name in ["main.runa", "direct.runa", "nested.runa"] {
+        assert_eq!(location["range"]["start"]["line"], 0);
+        for name in ["main.runa", "direct.runa", "nested.runa", "other.runa"] {
             std::fs::remove_file(root.join(name)).unwrap();
         }
         std::fs::remove_dir(root).unwrap();
@@ -63618,6 +60733,7 @@ assert_with_message(true, message())
     fn interpreted_and_generated_boolean_rule_misses_match() {
         let source = r#"
 | conditional(value: Int) -> True under value > 0
+| exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value: Int) -> True under value > 0
 
 @ print(show(conditional(1)))
@@ -66303,30 +63419,6 @@ fn main() {{
     }
 
     #[test]
-    fn legacy_emit_program_skips_runtime_emission_for_explicit_proof_blocks() {
-        let source = r#"
-| add_comm: (a, b) -> a + b == b + a
-? add_comm by {
-    | (lhs, rhs) -> apply int_ring.comm_add
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains(
-                "// ? add_comm by { ... } checked by runa verify; no runtime proof emission"
-            ),
-            "explicit proof blocks should emit a comment, not runtime verification: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("panic!(\"? add_comm FAILED\")"),
-            "explicit proof blocks must not lower to runtime ? checks: {}",
-            rust
-        );
-    }
-
-    #[test]
     fn compiled_rust_trait_wrappers_dispatch_futuruna_impl_methods() {
         let source = r#"
 # trait Printable {
@@ -67045,27 +64137,19 @@ readings <- "score"
         let mut codegen = RustCodegen::new();
         codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
         let rust = codegen.emit_program(&stmts);
-        let metadata = codegen
-            .module_callable_metadata
-            .get(&("Q".to_string(), "collide".to_string(), 1))
-            .expect("qualified ADT method metadata");
-        assert!(metadata.rules.is_none(), "method metadata: {metadata:#?}");
-        assert_eq!(
-            metadata.return_type,
-            FirTy::Named("crate::Q::Remote".to_string())
-        );
-        assert_eq!(metadata.borrow_only_params, vec![true]);
+        let private_source = "@ import Q from ./dep\n@ print(show(Q.hidden_amount(Q.Remote(2))))\n";
+        let private_stmts = prepend_prelude(parse_prelude(), &parse_test_program(private_source));
+        let private_diagnostics = TypeChecker::check_with_artifacts(
+            &private_stmts,
+            source_dir_for(main_path.to_str().unwrap()),
+            private_source,
+        )
+        .diagnostics;
         assert!(
-            rust.contains("pub fn collide(self_: &Remote) -> Remote"),
-            "generated Rust: {rust}"
-        );
-        assert!(
-            rust.contains("fn hidden_amount(value: &Remote) -> i64"),
-            "generated Rust: {rust}"
-        );
-        assert!(
-            !rust.contains("pub fn hidden_amount"),
-            "private ADT method leaked from module: {rust}"
+            private_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("no exported member `hidden_amount`")),
+            "{private_diagnostics:?}"
         );
         let compiled = compile_and_capture_generated_test_code(&rust);
         assert!(
@@ -67076,22 +64160,6 @@ readings <- "score"
         );
         assert_eq!(interpreted.trim(), "1\n12");
         assert_eq!(String::from_utf8_lossy(&compiled.stdout).trim(), "1\n12");
-
-        let mut wasm_codegen = RustCodegen::new();
-        wasm_codegen.wasm_mode = true;
-        wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
-        let wasm_rust = wasm_codegen.emit_program(&stmts);
-        assert_eq!(
-            wasm_codegen
-                .module_callable_metadata
-                .get(&("Q".to_string(), "collide".to_string(), 1))
-                .map(|metadata| metadata.borrow_only_params.as_slice()),
-            Some([false].as_slice())
-        );
-        assert!(
-            wasm_rust.contains("pub fn collide(self_: Remote) -> Remote"),
-            "generated WASM Rust: {wasm_rust}"
-        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -68855,29 +65923,38 @@ Q.append_shared(value = 3, values = shared_values)
     }
 
     #[test]
-    fn legacy_emit_async_stream_helpers_honor_borrow_only_signatures() {
-        let source = r#"
-~ readings = subject()
-> render(route: String) -> String { "watch:" + route }
-> count_step(acc: Int, route: String) -> Int { acc + 1 }
-~ mapped = readings |> map(render)
-~ counted = mapped |> scan(0, count_step)
-~ counted | total -> {
-    @ print(show(total))
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("__out_1.send((render)(&__v));"),
-            "async map over helper functions should borrow when the helper param is borrow-only: {}",
-            rust
+    fn compiled_live_stream_operators_accept_borrow_only_helpers() {
+        let output = compile_and_run_test_program(
+            "~ readings = subject()\n\
+             > render(route: String) -> String { \"watch:\" + route }\n\
+             > count_step(acc: Int, route: String) -> Int { acc + 1 }\n\
+             ~ mapped = readings |> map(render)\n\
+             ~ counted = mapped |> scan(0, count_step)\n\
+             ~ counted | total -> { @ print(show(total)) }\n\
+             readings <- \"a\"\n\
+             readings <- \"b\"\n",
         );
-        assert!(
-            rust.contains("__acc_seed_2 = (count_step)(__acc_seed_2.clone(), &__v);"),
-            "async scan over helper functions should borrow borrow-only item params: {}",
-            rust
+        assert_eq!(output, "1\n2\n");
+    }
+
+    #[test]
+    fn compiled_scope_teardown_freezes_scope_owned_streams() {
+        let output = compile_and_run_test_program(
+            "~ readings = subject()\n\
+             ~ sink = subject()\n\
+             | scope Dashboard {\n\
+                 ~ projected = readings |> map(|x| x + 1)\n\
+                 ~ projected | x -> { sink <- x }\n\
+                 readings <- 1\n\
+             }\n\
+             readings <- 2\n\
+             @ teardown(\"Dashboard\")\n\
+             readings <- 3\n\
+             @ print(show(collect(Dashboard.projected)))\n\
+             @ print(show(Dashboard.projected.count))\n\
+             @ print(show(collect(sink)))\n",
         );
+        assert_eq!(output, "[2, 3]\n2\n[2, 3]\n");
     }
 
     #[test]
@@ -69079,138 +66156,6 @@ routes <- "b"
     }
 
     #[test]
-    fn legacy_emit_async_stream_reads_wait_for_quiescence() {
-        let source = r#"
-~ readings = subject()
-~ routed = subject()
-~ readings | x -> {
-    routed <- x
-}
-= routed_snapshot = collect(routed)
-= routed_count = routed.count
-= routed_latest = routed.latest
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
-            "async collect/show paths should settle derived stream state before snapshot reads: {}",
-            rust
-        );
-        assert!(
-            rust.contains("stream.inject_barrier(barrier_id);"),
-            "settle helper should inject a propagation barrier instead of polling watermarks: {}",
-            rust
-        );
-        assert!(
-            rust.contains("Ok(__FutEvent::Barrier(id)) if id == barrier_id => seen += 1"),
-            "settle helper should wait for barrier arrival at the target stream: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("tokio::time::sleep(std::time::Duration::from_millis(0)).await;"),
-            "settle helper should no longer spin on zero-duration sleeps: {}",
-            rust
-        );
-        assert!(
-            rust.contains("let __stream = (routed.clone()).clone();")
-                || rust.contains("let __stream = (routed).clone();"),
-            "settled stream reads should clone named stream handles instead of moving them: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.count()"),
-            "async .count reads should settle derived stream state before reading: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
-            "async .latest reads should settle derived stream state before reading: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_scope_qualified_async_stream_reads_wait_for_quiescence() {
-        let source = r#"
-~ readings = subject()
-~ observed = subject()
-| scope Dashboard {
-    ~ projected = readings |> map(|x| x + 1)
-    ~ projected | x -> {
-        observed <- x
-    }
-    readings <- 1
-    readings <- 2
-}
-= projected_snapshot = collect(Dashboard.projected)
-= projected_count = Dashboard.projected.count
-= projected_latest = Dashboard.projected.latest
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let __stream = (projected.clone()).clone();")
-                || rust.contains("let __stream = (projected).clone();"),
-            "scope-qualified stream reads should clone the resolved stream handle instead of lowering to bare fields: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
-            "scope-qualified collect should settle resolved stream state before snapshot reads: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.count()"),
-            "scope-qualified .count reads should settle resolved stream state before reading: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
-            "scope-qualified .latest reads should settle resolved stream state before reading: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("let projected_count = count;")
-                && !rust.contains("let projected_latest = latest;"),
-            "scope-qualified stream accessors must not collapse to bare count/latest identifiers: {}",
-            rust
-        );
-    }
-
-    #[test]
-    fn legacy_emit_scope_qualified_sync_stream_accessors_use_vec_reads() {
-        let source = r#"
-~ readings = subject()
-| scope Dashboard {
-    ~ projected = readings |> map(|x| x + 1)
-    readings <- 1
-    readings <- 2
-}
-= projected_count = Dashboard.projected.count
-= projected_latest = Dashboard.projected.latest
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let projected_count = (projected.len() as i64);"),
-            "sync scope-qualified .count should lower to a Vec length read, not a bare identifier: {}",
-            rust
-        );
-        assert!(
-            rust.contains("let projected_latest = projected.last().cloned().unwrap();"),
-            "sync scope-qualified .latest should lower to a Vec last read, not a bare identifier: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("let projected_count = count;")
-                && !rust.contains("let projected_latest = latest;"),
-            "sync scope-qualified stream accessors must not collapse to bare count/latest identifiers: {}",
-            rust
-        );
-    }
-
-    #[test]
     fn compiled_direct_show_of_empty_head_reports_runtime_error() {
         compile_test_source_expect_runtime_failure(
             "@ print(show(head([])))\n",
@@ -69225,29 +66170,6 @@ routes <- "b"
             "@ print(show(nth([], 0)))\n",
             None,
             &["index out of bounds: 0 (len 0)"],
-        );
-    }
-
-    #[test]
-    fn legacy_emit_program_subscribes_to_derived_async_stream_bindings() {
-        let source = r#"
-~ s = subject()
-~ mapped = map(s, |x| x * 10)
-~ mapped | val -> {
-    @ print(show(val))
-}
-"#;
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("let mut _rx_1 = __stream_1.subscribe();"),
-            "derived async stream bindings should subscribe through the async stream wrapper instead of iterating: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("for _item in mapped.into_iter()"),
-            "derived async stream bindings must not lower to sync iteration: {}",
-            rust
         );
     }
 
@@ -69287,11 +66209,11 @@ routes <- "b"
         );
         assert!(
             diags.iter().any(
-                |d| d.message == "live async stream for-loops require a named scope"
+                |d| d.message == "live stream for-loops require a named scope"
                     && d.context.iter().any(|ctx| ctx == "in function `install`")
                     && d.notes.iter().any(|note| note.contains("| scope Name"))
             ),
-            "expected function-local async stream for-loop diagnostic, got: {:?}",
+            "expected function-local live stream for-loop diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
@@ -69308,13 +66230,14 @@ routes <- "b"
              }\n",
         );
         assert!(
-            diags.iter().any(|d| d.message
-                == "derived async stream operators require a named scope"
-                && d.context.iter().any(|ctx| ctx == "in function `install`")
-                && d.notes
-                    .iter()
-                    .any(|note| note.contains("return the stream expression directly"))),
-            "expected function-local async stream binding diagnostic, got: {:?}",
+            diags.iter().any(
+                |d| d.message == "derived live streams require a named scope"
+                    && d.context.iter().any(|ctx| ctx == "in function `install`")
+                    && d.notes
+                        .iter()
+                        .any(|note| note.contains("return the stream expression directly"))
+            ),
+            "expected function-local live stream binding diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
@@ -69332,10 +66255,11 @@ routes <- "b"
              }\n",
         );
         assert!(
-            diags.iter().any(|d| d.message
-                == "derived async stream operators require a named scope"
-                && d.context.iter().any(|ctx| ctx == "in function `install`")),
-            "expected nested function-local async stream work diagnostic, got: {:?}",
+            diags.iter().any(
+                |d| d.message == "derived live streams require a named scope"
+                    && d.context.iter().any(|ctx| ctx == "in function `install`")
+            ),
+            "expected nested function-local live stream work diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
@@ -69358,7 +66282,7 @@ routes <- "b"
         assert!(
             diags.iter().all(
                 |d| d.message != "live stream subscriptions require a named scope"
-                    && d.message != "live async stream for-loops require a named scope"
+                    && d.message != "live stream for-loops require a named scope"
             ),
             "named scopes inside functions should own live subscriptions explicitly, got: {:?}",
             diags
@@ -69385,36 +66309,6 @@ routes <- "b"
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
                 .collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
-    fn legacy_emit_scope_registers_derived_async_stream_operator_handles() {
-        let source = "~ readings = subject()\n\
-             ~ sink = subject()\n\
-             | scope Dashboard {\n\
-                 ~ projected = readings |> map(|x| x + 1)\n\
-                 ~ running = projected |> scan(0, |acc, x| acc + x)\n\
-                 ~ running | total -> { sink <- total }\n\
-                 readings <- 1\n\
-             }\n\
-             @ teardown(\"Dashboard\")\n";
-        let (mut cg, stmts) = scan_with_codegen(source);
-        let rust = cg.emit_program(&stmts);
-        assert!(
-            rust.contains("_ScopeGuard { name: \"Dashboard\""),
-            "scope guard should carry the owning scope name: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_register_scope_handle(\"Dashboard\", __stream_op_"),
-            "derived stream operator forwarders inside scopes should be teardown-owned: {}",
-            rust
-        );
-        assert!(
-            rust.contains("__fut_register_scope_barrier_chain(\"Dashboard\""),
-            "scope-owned subscriptions should unregister their barrier expectations on teardown: {}",
-            rust
         );
     }
 
@@ -74857,8 +71751,8 @@ impl RustToRunaCtx {
             None => return None,
         };
         Some(format!(
-            "if regex_match(\"^-?[0-9]+$\", {}) {{ Ok(parse_int({})) }} else {{ Err({}) }}",
-            input, input, err_expr
+            "match parse_int({}) {{ | Ok(__n) -> Ok(__n) | Err(_) -> Err({}) }}",
+            input, err_expr
         ))
     }
 

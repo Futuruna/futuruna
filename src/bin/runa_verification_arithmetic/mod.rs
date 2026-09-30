@@ -43,23 +43,6 @@ pub(super) fn guard_name(name: &str) -> String {
     format!("runa_defined_{}", smt_value_symbol(name))
 }
 
-pub(super) fn needs_arithmetic_check(expression: &Expr, known_calls: &BTreeSet<String>) -> bool {
-    let mut needed = false;
-    walk_ast_expr(expression, &mut |node| {
-        if let AstChild::Expr(expr) = node {
-            needed |= matches!(&expr.kind, ExprKind::BinOp(op, _, _) if matches!(op.as_str(), "+" | "-" | "*" | "/" | "%"))
-                || matches!(&expr.kind, ExprKind::UnOp(op, _) if op == "-");
-            if let ExprKind::App(function, _) = &expr.kind {
-                // Known function bodies are inspected through the dependency
-                // closure. Opaque calls (including abs and collection folds)
-                // may perform arithmetic even without a visible operator.
-                needed |= !matches!(&function.kind, ExprKind::Var(name) if known_calls.contains(name) || name == "not");
-            }
-        }
-    });
-    needed
-}
-
 pub(super) fn check_float_expression(expression: &Expr) -> Result<(), String> {
     let mut has_float = false;
     walk_ast_expr(expression, &mut |node| {
