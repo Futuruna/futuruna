@@ -133,11 +133,47 @@ fn normalized_meta(file: &str) -> Value {
     value
 }
 
+/// Programs with layout that `fmt` rewrites. The repository corpus is kept
+/// formatted, so these guarantee the oracle always compares real rewrites.
+const UNFORMATTED_PROGRAMS: [(&str, &str); 2] = [
+    (
+        "rules_and_exceptions",
+        "# Applicant(student: Bool, waiver: Bool)\n\
+         |   fee(a: Applicant)   ->   100\n\
+         | fee(a: Applicant) -> 40   under a.student\n\
+         |   exception waived fee(a: Applicant) -> 0 under a.waiver\n\
+         >   invoice(a: Applicant) -> String {\n\
+         \x20       \"Fee: \" +   show(fee(a))\n\
+         }\n\
+         =   applicant = Applicant(true,   false)\n\
+         @   print(invoice(applicant))\n",
+    ),
+    (
+        "lambdas_and_templates",
+        "> total(xs: List(Int)) -> Int {\n\
+         \x20 foldl(xs, 0, |acc, x|   acc + x)\n\
+         }\n\
+         = items = [1,2,  3]\n\
+         \x20 @ print(show(total(items)))\n\
+         = labels = map(items, |x|   \"\"\"item {{x}}\"\"\")\n\
+         @ print(join(labels,   \", \"))\n",
+    ),
+];
+
 #[test]
 fn formatting_preserves_program_output_and_metadata() {
     let mut files = Vec::new();
     collect_runa(&root().join("tests"), false, &mut files);
     collect_runa(&root().join("examples"), true, &mut files);
+    let generated = root()
+        .join("target")
+        .join(format!("fmt-oracle-{}", std::process::id()));
+    std::fs::create_dir_all(&generated).unwrap();
+    for (name, source) in UNFORMATTED_PROGRAMS {
+        let path = generated.join(format!("{name}.runa"));
+        std::fs::write(&path, source).unwrap();
+        files.push(path);
+    }
     files.sort();
     let mut compared = Vec::new();
     let mut failures = Vec::new();
@@ -184,10 +220,15 @@ fn formatting_preserves_program_output_and_metadata() {
             ));
         }
     }
-    assert!(
-        !compared.is_empty(),
-        "the corpus has no file that fmt changes"
-    );
+    let _ = std::fs::remove_dir_all(&generated);
+    for (name, _) in UNFORMATTED_PROGRAMS {
+        assert!(
+            compared
+                .iter()
+                .any(|file| file.ends_with(&format!("{name}.runa"))),
+            "{name} was not rewritten by fmt"
+        );
+    }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
