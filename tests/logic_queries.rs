@@ -337,7 +337,7 @@ fn recursive_chain_source(edges: usize, query: &str) -> String {
 fn eval_recursive_query(source: String) -> Result<String, String> {
     // Match the CLI runtime stack for a deliberately deep recursive fixture.
     std::thread::Builder::new()
-        .stack_size(64 * 1024 * 1024)
+        .stack_size(futuruna::interpreter_stack_bytes())
         .spawn(move || eval_source_with_prelude(&source, false))
         .expect("spawn query runtime")
         .join()
@@ -350,7 +350,9 @@ fn recursive_queries_do_not_return_partial_answers_at_the_depth_limit() {
         "@ print(show(length(findall(b, reach(0, b)))))",
         "| distant() -> reach(0, node), node > 100\n@ print(show(not(distant())))",
     ] {
-        let error = eval_recursive_query(recursive_chain_source(71, query))
+        // Closing the chain into a cycle makes the search nest past the limit.
+        let source = format!("| edge(71, 0)\n{}", recursive_chain_source(71, query));
+        let error = eval_recursive_query(source)
             .expect_err("depth exhaustion must fail instead of publishing a partial answer");
         assert!(error.contains("logic query"), "{error}");
         assert!(error.contains("recursion limit"), "{error}");
@@ -950,9 +952,10 @@ fn cyclic_direct_queries_fail_explicitly_including_under_negation() {
 "#
         );
         let error = eval_recursive_query(source).expect_err("cyclic search must fail explicitly");
-        assert!(error.contains("rule call"), "{error}");
-        assert!(error.contains("recursion limit"), "{error}");
-        assert!(error.contains("evaluation is incomplete"), "{error}");
+        assert!(
+            error.contains(&futuruna::logic_search::logic_query_depth_error("edge")),
+            "{error}"
+        );
     }
 }
 

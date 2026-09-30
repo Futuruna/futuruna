@@ -299,8 +299,9 @@ A goal whose arguments contain unbound variables starts a logic query that
 searches the matching facts and clauses. Every derived-rule goal inside the
 query, including a fully bound one, runs one level deeper than the body that
 contains it; the depth carries into rules called from those goals. A query may
-nest derived-rule goals up to 10000 levels deep, so bounded chains such as a
-path over a few hundred links succeed. A cyclic relation queried for an
+nest derived-rule goals up to 10000 levels deep, so a chain succeeds whenever
+its derivation nests fewer than 10000 rule goals, such as a path over thousands
+of links. A cyclic relation queried for an
 unreachable target exceeds that depth and stops with the located error
 ``logic query `edge` exceeded its recursion limit of 10000; evaluation is
 incomplete``. Interpreted and compiled programs apply the same limit.

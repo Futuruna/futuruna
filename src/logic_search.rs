@@ -3,6 +3,7 @@
 //! This module deliberately depends only on `std`: code generation can embed
 //! it in an ordinary Rust executable without linking the compiler or parser.
 
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::BTreeMap;
 
@@ -268,15 +269,34 @@ struct Candidate<'a> {
     condition_started: bool,
 }
 
-#[derive(Clone, Default)]
-struct Bindings(BTreeMap<usize, Term>);
+/// One binding environment shared by the whole search. Every binding is
+/// recorded on a trail; a search step marks the trail before it binds and
+/// undoes back to the mark when it backtracks, so extending the environment
+/// costs time proportional to the new bindings rather than to the old ones.
+#[derive(Default)]
+struct Bindings {
+    /// Indexed by variable; `None` while the variable is unbound.
+    values: Vec<Option<Term>>,
+    trail: Vec<usize>,
+}
 
 impl Bindings {
+    fn mark(&self) -> usize {
+        self.trail.len()
+    }
+
+    fn undo(&mut self, mark: usize) {
+        for index in self.trail.drain(mark..) {
+            self.values[index] = None;
+        }
+    }
+
     fn resolve(&self, term: &Term) -> Term {
         match term {
             Term::Variable(index) => self
-                .0
-                .get(index)
+                .values
+                .get(*index)
+                .and_then(Option::as_ref)
                 .map_or_else(|| term.clone(), |value| self.resolve(value)),
             Term::Compound(name, fields) => Term::Compound(
                 name.clone(),
@@ -303,7 +323,11 @@ impl Bindings {
                 if Self::occurs(*index, value) {
                     return false;
                 }
-                self.0.insert(*index, value.clone());
+                if self.values.len() <= *index {
+                    self.values.resize(*index + 1, None);
+                }
+                self.values[*index] = Some(value.clone());
+                self.trail.push(*index);
                 true
             }
             (Term::Compound(left, xs), Term::Compound(right, ys)) => {
@@ -328,7 +352,10 @@ pub struct Search<'program, E> {
     program: &'program Program,
     evaluate: E,
     next_variable: usize,
+    bindings: Bindings,
 }
+
+type Visitor<'a, S> = dyn FnMut(&mut S) -> Result<bool, String> + 'a;
 
 impl<'program, E> Search<'program, E>
 where
@@ -339,61 +366,63 @@ where
             program,
             evaluate,
             next_variable: 0,
+            bindings: Bindings::default(),
         }
     }
 
     pub fn findall(&mut self, goal: &Goal, projection: &Term) -> Result<Vec<Term>, String> {
         self.next_variable = goal.variable_bound().max(projection.variable_bound());
+        self.bindings = Bindings::default();
         let mut values: Vec<Term> = Vec::new();
-        self.visit(
-            goal,
-            &Bindings::default(),
-            EVALUATION_DEPTH.get(),
-            &mut |_, bindings| {
-                let value = bindings.ground(projection)?;
-                if !values.iter().any(|previous| previous.same_value(&value)) {
-                    values.push(value);
-                }
-                Ok(false)
-            },
-        )?;
+        self.visit(goal, EVALUATION_DEPTH.get(), &mut |search| {
+            let value = search.bindings.ground(projection)?;
+            if !values.iter().any(|previous| previous.same_value(&value)) {
+                values.push(value);
+            }
+            Ok(false)
+        })?;
         Ok(values)
     }
 
     pub fn exists(&mut self, goal: &Goal) -> Result<bool, String> {
         self.next_variable = goal.variable_bound();
-        self.visit(
-            goal,
-            &Bindings::default(),
-            EVALUATION_DEPTH.get(),
-            &mut |_, _| Ok(true),
-        )
+        self.bindings = Bindings::default();
+        self.visit(goal, EVALUATION_DEPTH.get(), &mut |_| Ok(true))
     }
 
+    /// Run `step` and then drop every binding it made, on success and failure.
+    fn scoped<T>(&mut self, step: impl FnOnce(&mut Self) -> T) -> T {
+        let mark = self.bindings.mark();
+        let result = step(self);
+        self.bindings.undo(mark);
+        result
+    }
+
+    /// Visit every solution of `goal` under the current bindings. The
+    /// bindings are the same on return as on entry.
     fn visit(
         &mut self,
         goal: &Goal,
-        bindings: &Bindings,
         depth: usize,
-        visitor: &mut dyn FnMut(&mut Self, &Bindings) -> Result<bool, String>,
+        visitor: &mut Visitor<'_, Self>,
     ) -> Result<bool, String> {
         match goal {
-            Goal::Succeed => visitor(self, bindings),
+            Goal::Succeed => visitor(self),
             Goal::Fail => Ok(false),
-            Goal::All(goals) => self.visit_all(goals, bindings, depth, visitor),
+            Goal::All(goals) => self.visit_all(goals, depth, visitor),
             Goal::Any(goals) => {
                 for goal in goals {
-                    if self.visit(goal, bindings, depth, visitor)? {
+                    if self.visit(goal, depth, visitor)? {
                         return Ok(true);
                     }
                 }
                 Ok(false)
             }
             Goal::Not(goal) => {
-                if self.visit(goal, bindings, depth, &mut |_, _| Ok(true))? {
+                if self.visit(goal, depth, &mut |_| Ok(true))? {
                     Ok(false)
                 } else {
-                    visitor(self, bindings)
+                    visitor(self)
                 }
             }
             Goal::Evaluate {
@@ -403,7 +432,7 @@ where
             } => {
                 let arguments = arguments
                     .iter()
-                    .map(|term| bindings.ground(term))
+                    .map(|term| self.bindings.ground(term))
                     .collect::<Result<Vec<_>, _>>()?;
                 // A rule called from this expression runs its body one level deeper.
                 let outer = EVALUATION_DEPTH.replace(depth + 1);
@@ -413,12 +442,13 @@ where
                 if value.variable_bound() != 0 {
                     return Err("compiled logic expression returned an unbound value".into());
                 }
-                let mut next = bindings.clone();
-                if next.unify(result, &value) {
-                    visitor(self, &next)
-                } else {
-                    Ok(false)
-                }
+                self.scoped(|search| {
+                    if search.bindings.unify(result, &value) {
+                        visitor(search)
+                    } else {
+                        Ok(false)
+                    }
+                })
             }
             Goal::Call(name, arguments, binders) => {
                 if depth > LOGIC_QUERY_DEPTH_LIMIT {
@@ -435,7 +465,9 @@ where
                             arguments.len()
                         )
                     })?;
-                let enumerate = binders.iter().any(|term| bindings.ground(term).is_err());
+                let enumerate = binders
+                    .iter()
+                    .any(|term| self.bindings.ground(term).is_err());
                 let mut seen: Vec<Vec<Term>> = Vec::new();
                 let mut priority = Priority {
                     overrides: &relation.overrides,
@@ -463,62 +495,61 @@ where
                         .max()
                         .unwrap_or(0);
                     let offset = self.reserve_variables(variable_count)?;
-                    let mut next = bindings.clone();
-                    let head = head
-                        .iter()
-                        .map(|term| term.renamed(offset))
-                        .collect::<Vec<_>>();
-                    if !head
-                        .iter()
-                        .zip(arguments)
-                        .all(|(head, value)| next.unify(head, value))
-                    {
-                        continue;
-                    }
-                    let body = body.renamed(offset);
-                    let value = value.map(|value| value.renamed(offset));
-                    let mut accepted = |search: &mut Self, next: &Bindings| {
-                        if !enumerate {
-                            return Ok(true);
-                        }
-                        let values = binders
+                    let head: Cow<'_, [Term]> = if variable_count == 0 {
+                        Cow::Borrowed(head)
+                    } else {
+                        Cow::Owned(head.iter().map(|term| term.renamed(offset)).collect())
+                    };
+                    let found = self.scoped(|search| {
+                        if !head
                             .iter()
-                            .map(|term| next.ground(term))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        if seen.iter().any(|previous| {
-                            previous
-                                .iter()
-                                .zip(&values)
-                                .all(|(left, right)| left.same_value(right))
-                        }) {
+                            .zip(arguments)
+                            .all(|(head, value)| search.bindings.unify(head, value))
+                        {
                             return Ok(false);
                         }
-                        seen.push(values);
-                        visitor(search, next)
-                    };
-                    let found = if relation.overrides.is_empty() && value.is_none() {
-                        self.visit(&body, &next, depth + 1, &mut accepted)?
-                    } else {
-                        self.visit_priority_goals(
-                            std::slice::from_ref(&body),
-                            Candidate {
-                                head: &head,
-                                override_position,
-                                value: value.as_ref(),
-                                condition_started: false,
-                            },
-                            &next,
-                            depth + 1,
-                            &mut priority,
-                            &mut accepted,
-                        )?
-                    };
-                    if found {
-                        return if enumerate {
-                            Ok(true)
-                        } else {
-                            visitor(self, bindings)
+                        let body = body.renamed(offset);
+                        let value = value.map(|value| value.renamed(offset));
+                        let mut accepted = |search: &mut Self| {
+                            if !enumerate {
+                                return Ok(true);
+                            }
+                            let values = binders
+                                .iter()
+                                .map(|term| search.bindings.ground(term))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            if seen.iter().any(|previous| {
+                                previous
+                                    .iter()
+                                    .zip(&values)
+                                    .all(|(left, right)| left.same_value(right))
+                            }) {
+                                return Ok(false);
+                            }
+                            seen.push(values);
+                            visitor(search)
                         };
+                        if relation.overrides.is_empty() && value.is_none() {
+                            search.visit(&body, depth + 1, &mut accepted)
+                        } else {
+                            search.visit_priority_goals(
+                                std::slice::from_ref(&body),
+                                Candidate {
+                                    head: &head,
+                                    override_position,
+                                    value: value.as_ref(),
+                                    condition_started: false,
+                                },
+                                depth + 1,
+                                &mut priority,
+                                &mut accepted,
+                            )
+                        }
+                    })?;
+                    // Nothing outside this candidate refers to its variables.
+                    self.next_variable = offset;
+                    if found {
+                        return if enumerate { Ok(true) } else { visitor(self) };
                     }
                 }
                 Ok(false)
@@ -534,15 +565,10 @@ where
         Ok(offset)
     }
 
-    fn rule_value(
-        &mut self,
-        value: &RuleValue,
-        bindings: &Bindings,
-        depth: usize,
-    ) -> Result<bool, String> {
+    fn rule_value(&mut self, value: &RuleValue, depth: usize) -> Result<bool, String> {
         let mut result = None;
-        self.visit(&value.setup, bindings, depth, &mut |_, next| {
-            result = Some(next.ground(&value.result)?);
+        self.visit(&value.setup, depth, &mut |search| {
+            result = Some(search.bindings.ground(&value.result)?);
             Ok(true)
         })?;
         match result {
@@ -553,6 +579,8 @@ where
 
     /// Resolve only higher-priority candidates, never re-evaluate a clause
     /// that has already produced bindings (and may have performed effects).
+    /// `arguments` are ground and each rule is renamed apart, so checking a
+    /// rule reads none of the caller's bindings.
     fn resolve_priority(
         &mut self,
         priority: &mut Priority<'_>,
@@ -574,21 +602,21 @@ where
                 .max()
                 .unwrap_or(0);
             let offset = self.reserve_variables(count)?;
-            let mut bindings = Bindings::default();
-            if rule
-                .head
-                .iter()
-                .zip(arguments)
-                .all(|(head, value)| bindings.unify(&head.renamed(offset), value))
-                && self.visit(
-                    &rule.condition.renamed(offset),
-                    &bindings,
-                    depth,
-                    &mut |_, _| Ok(true),
-                )?
-            {
-                priority.decisions[index].selected =
-                    Some(self.rule_value(&rule.value.renamed(offset), &bindings, depth)?);
+            let selected = self.scoped(|search| {
+                if rule
+                    .head
+                    .iter()
+                    .zip(arguments)
+                    .all(|(head, value)| search.bindings.unify(&head.renamed(offset), value))
+                    && search.visit(&rule.condition.renamed(offset), depth, &mut |_| Ok(true))?
+                {
+                    Ok(Some(search.rule_value(&rule.value.renamed(offset), depth)?))
+                } else {
+                    Ok::<_, String>(None)
+                }
+            })?;
+            if selected.is_some() {
+                priority.decisions[index].selected = selected;
             }
             priority.decisions[index].checked += 1;
         }
@@ -599,10 +627,9 @@ where
         &mut self,
         goals: &[Goal],
         candidate: Candidate<'_>,
-        bindings: &Bindings,
         depth: usize,
         priority: &mut Priority<'_>,
-        visitor: &mut dyn FnMut(&mut Self, &Bindings) -> Result<bool, String>,
+        visitor: &mut Visitor<'_, Self>,
     ) -> Result<bool, String> {
         let Candidate {
             head,
@@ -613,7 +640,7 @@ where
         let arguments = (!priority.overrides.is_empty())
             .then(|| {
                 head.iter()
-                    .map(|term| bindings.ground(term))
+                    .map(|term| self.bindings.ground(term))
                     .collect::<Result<Vec<_>, _>>()
                     .ok()
             })
@@ -625,11 +652,7 @@ where
             let index = self.resolve_priority(priority, arguments, through, depth)?;
             let decision = &priority.decisions[index];
             if let Some(selected) = decision.selected {
-                return if selected {
-                    visitor(self, bindings)
-                } else {
-                    Ok(false)
-                };
+                return if selected { visitor(self) } else { Ok(false) };
             }
             if override_position.is_some_and(|position| decision.checked > position) {
                 return Ok(false);
@@ -638,14 +661,14 @@ where
         let Some((first, rest)) = goals.split_first() else {
             if !priority.overrides.is_empty() && arguments.is_none() {
                 if value.is_some_and(|value| {
-                    matches!(bindings.resolve(&value.result), Term::Bool(false))
+                    matches!(self.bindings.resolve(&value.result), Term::Bool(false))
                 }) {
                     return Ok(false);
                 }
                 return Err("logic query cannot resolve exception/default priority for an unbound head; evaluation is incomplete".into());
             }
             if let Some(value) = value {
-                let selected = self.rule_value(value, bindings, depth)?;
+                let selected = self.rule_value(value, depth)?;
                 if let (Some(position), Some(arguments)) = (override_position, &arguments) {
                     let index = priority.decision(arguments);
                     priority.decisions[index].checked = position + 1;
@@ -655,23 +678,19 @@ where
                     return Ok(false);
                 }
             }
-            return visitor(self, bindings);
+            return visitor(self);
         };
         match first {
             Goal::All(nested) => {
                 let mut flattened = nested.clone();
                 flattened.extend_from_slice(rest);
-                return self.visit_priority_goals(
-                    &flattened, candidate, bindings, depth, priority, visitor,
-                );
+                return self.visit_priority_goals(&flattened, candidate, depth, priority, visitor);
             }
             Goal::Any(alternatives) => {
                 for alternative in alternatives {
                     let mut branch = vec![alternative.clone()];
                     branch.extend_from_slice(rest);
-                    if self.visit_priority_goals(
-                        &branch, candidate, bindings, depth, priority, visitor,
-                    )? {
+                    if self.visit_priority_goals(&branch, candidate, depth, priority, visitor)? {
                         return Ok(true);
                     }
                 }
@@ -681,10 +700,12 @@ where
                 arguments: inputs, ..
             } if override_position.is_some()
                 && arguments.is_none()
-                && inputs.iter().any(|term| bindings.ground(term).is_err()) =>
+                && inputs
+                    .iter()
+                    .any(|term| self.bindings.ground(term).is_err()) =>
             {
                 if value.is_some_and(|value| {
-                    matches!(bindings.resolve(&value.result), Term::Bool(false))
+                    matches!(self.bindings.resolve(&value.result), Term::Bool(false))
                 }) {
                     return Ok(false);
                 }
@@ -692,14 +713,13 @@ where
             }
             _ => {}
         }
-        self.visit(first, bindings, depth, &mut |search, next| {
+        self.visit(first, depth, &mut |search| {
             search.visit_priority_goals(
                 rest,
                 Candidate {
                     condition_started: true,
                     ..candidate
                 },
-                next,
                 depth,
                 priority,
                 visitor,
@@ -710,15 +730,14 @@ where
     fn visit_all(
         &mut self,
         goals: &[Goal],
-        bindings: &Bindings,
         depth: usize,
-        visitor: &mut dyn FnMut(&mut Self, &Bindings) -> Result<bool, String>,
+        visitor: &mut Visitor<'_, Self>,
     ) -> Result<bool, String> {
         let Some((first, rest)) = goals.split_first() else {
-            return visitor(self, bindings);
+            return visitor(self);
         };
-        self.visit(first, bindings, depth, &mut |search, next| {
-            search.visit_all(rest, next, depth, visitor)
+        self.visit(first, depth, &mut |search| {
+            search.visit_all(rest, depth, visitor)
         })
     }
 }
@@ -993,10 +1012,19 @@ mod tests {
             vec![Term::Variable(0)],
             call("cycle", vec![Term::Variable(0)]),
         );
-        let error = Search::new(&program, no_expressions)
-            .exists(&call("cycle", vec![Term::Int(1)]))
-            .unwrap_err();
-        assert!(error.contains("evaluation is incomplete"));
+        // Compiled programs search on a 1 GiB worker stack; the cycle nests
+        // goals up to the full depth limit.
+        let error = std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn(move || {
+                Search::new(&program, no_expressions)
+                    .exists(&call("cycle", vec![Term::Int(1)]))
+                    .unwrap_err()
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        assert_eq!(error, logic_query_depth_error("cycle"));
     }
 
     #[test]
