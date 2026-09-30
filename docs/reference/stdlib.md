@@ -477,7 +477,7 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 |----------|-----------|-------------|
 | `http_get` | `String -> Result(String, String)` | GET request; `Ok` body for a 2xx response, `Err` for other statuses, connection failures and a 30 s timeout |
 | `http_post` | `(String, String) -> Result(String, String)` | POST with body; non-2xx, connection errors and timeouts are `Err` |
-| `http_serve` | `(Int, (String, String, String) -> (Int, String, String)) -> ()` | Start HTTP server |
+| `http_serve` | `(Int, (String, String, String) -> (Int, String, String)) -> ()` | Serve HTTP on the port until the process stops; compiled code only |
 | `http_respond` | `(Int, String, String) -> (Int, String, String)` | Build response tuple |
 | `http_request_path` | `Request -> String` | Extract request URL path |
 | `http_request_method` | `Request -> String` | Extract HTTP method |
@@ -506,6 +506,8 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 ```
 
 The handler receives three string arguments: request path, HTTP method, and request body. Return a response tuple via `http_respond(status, content_type, body)`.
+
+`http_serve` runs only in compiled code (`runa run`, `runa build`). The interpreter refuses it: reaching an `http_serve` call is a runtime error at that point.
 
 ---
 

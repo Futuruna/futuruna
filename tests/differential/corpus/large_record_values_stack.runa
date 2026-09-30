@@ -1,0 +1,43 @@
+-- Record values live on the stack in compiled code. Top-level values that
+-- together need more than 64 MiB of stack run in both execution modes.
+# L1(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int)
+# L2(a: L1, b: L1, c: L1, d: L1, e: L1, f: L1, g: L1, h: L1)
+# L3(a: L2, b: L2, c: L2, d: L2, e: L2, f: L2, g: L2, h: L2)
+# L4(a: L3, b: L3, c: L3, d: L3, e: L3, f: L3, g: L3, h: L3)
+# L5(a: L4, b: L4, c: L4, d: L4, e: L4, f: L4, g: L4, h: L4)
+# L6(a: L5, b: L5, c: L5, d: L5, e: L5, f: L5, g: L5, h: L5)
+# L7(a: L6, b: L6, c: L6, d: L6, e: L6, f: L6, g: L6, h: L6)
+> l1(x: Int) -> L1 { L1(x + 0, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, x + 7) }
+> l2(x: Int) -> L2 {
+    = p = l1(x)
+    L2(p, p, p, p, p, p, p, p)
+}
+> l3(x: Int) -> L3 {
+    = p = l2(x)
+    L3(p, p, p, p, p, p, p, p)
+}
+> l4(x: Int) -> L4 {
+    = p = l3(x)
+    L4(p, p, p, p, p, p, p, p)
+}
+> l5(x: Int) -> L5 {
+    = p = l4(x)
+    L5(p, p, p, p, p, p, p, p)
+}
+> l6(x: Int) -> L6 {
+    = p = l5(x)
+    L6(p, p, p, p, p, p, p, p)
+}
+> l7(x: Int) -> L7 {
+    = p = l6(x)
+    L7(p, p, p, p, p, p, p, p)
+}
+# Seed(value: Int)
+= seed = Seed(1)
+= u = l7(seed.value + 0)
+= v = l7(seed.value + 1)
+= w = l7(seed.value + 2)
+= x = l7(seed.value + 3)
+= y = l7(seed.value + 4)
+= z = l7(seed.value + 5)
+@ print(show(u.a.b.c.d.e.f.g + v.h.g.f.e.d.c.b + w.a.a.a.a.a.a.h + x.h.h.h.h.h.h.a + y.b.b.b.b.b.b.b + z.h.h.h.h.h.h.h))
