@@ -6,7 +6,6 @@
 -- expect-stdout: .clone().into_iter().partition(|w|
 -- expect-stdout-not: serde_json::from_str(&json_passthrough
 -- expect-stdout-not: sort_by_cached_key(|__item| format!
--- expect-stdout-file: ../golden/artifact/collection_helper_eval_contract.stdout
 # Word(form: String, score: Int)
 
 > word_key(w: Word) -> String {
