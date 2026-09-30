@@ -10163,6 +10163,15 @@ fn single_expectation_marker(
     Ok(markers.into_iter().next())
 }
 
+fn z3_on_path() -> bool {
+    std::process::Command::new("z3")
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
 fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase, String> {
     let has_marker = source
         .lines()
@@ -10182,7 +10191,11 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         Some(raw) => ExpectStatus::parse(&raw)?,
         None => ExpectStatus::Pass,
     };
-    let skip = single_expectation_marker(source, "-- expect-skip:", path)?;
+    let mut skip = single_expectation_marker(source, "-- expect-skip:", path)?;
+    // Proofs need the SMT solver; without it a verify case cannot pass.
+    if skip.is_none() && matches!(command, ExpectCommand::Verify) && !z3_on_path() {
+        skip = Some("verify needs the Z3 solver, which is not installed".to_string());
+    }
     let args = single_expectation_marker(source, "-- expect-args:", path)?
         .map(|raw| raw.split_whitespace().map(str::to_string).collect())
         .unwrap_or_default();
