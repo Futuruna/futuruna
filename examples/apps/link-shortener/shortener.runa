@@ -1,4 +1,5 @@
 -- shortener.runa — URL Shortener REST API
+-- roundtrip-skip: http_serve runs only in compiled code (`runa run`)
 --
 -- A complete HTTP microservice with in-memory link storage, click tracking,
 -- actor-based counters, spam detection, and verified URL invariants.
@@ -42,7 +43,7 @@
     = i = 0
     = len = string_length(url)
     for _ in range(0, len) {
-        = h = h * 33 + i + 1
+        = h = (h * 33 + i + 1) % 1000000007
         = i = i + 1
     }
     = h = abs(h) % 1000000

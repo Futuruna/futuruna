@@ -139,18 +139,18 @@ efter reglerne om indskud.
 
 | etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
     penge_positivt_beløb(input.kontant_løn_kroner)
-        + penge_positivt_beløb(input.skatteværdi_af_frit_ophold_og_andre_goder_kroner)
-        + penge_positivt_beløb(input.skattepligtige_arbejdsgivergodtgørelser_kroner)
+    + penge_positivt_beløb(input.skatteværdi_af_frit_ophold_og_andre_goder_kroner)
+    + penge_positivt_beløb(input.skattepligtige_arbejdsgivergodtgørelser_kroner)
 )
 | etableringskonto_nettolønindtægt_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
     etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input)
-        - penge_positivt_beløb(input.ligningslov9_til_9d_fradrag_kroner)
+    - penge_positivt_beløb(input.ligningslov9_til_9d_fradrag_kroner)
 )
 | etableringskonto_reguleret_virksomhedsoverskud_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
     input.skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner
-        + penge_positivt_beløb(input.vsl22b_henlæggelse_kroner)
-        + penge_positivt_beløb(input.renteudgifter_og_kurstab_kroner)
-        - penge_positivt_beløb(input.rente_udbytte_og_kursgevinst_kroner)
+    + penge_positivt_beløb(input.vsl22b_henlæggelse_kroner)
+    + penge_positivt_beløb(input.renteudgifter_og_kurstab_kroner)
+    - penge_positivt_beløb(input.rente_udbytte_og_kursgevinst_kroner)
 )
 | etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(indkomstgrundlag_kroner: Heltal) -> penge_mindste_beløb(
     penge_positivt_beløb(indkomstgrundlag_kroner),
@@ -191,7 +191,7 @@ efter reglerne om indskud.
 }
 | etableringskonto_højeste_indskud_efter_forskudsafskrivning_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
     etableringskonto_højeste_indskud_før_forskudsafskrivning_kroner(input)
-        - penge_positivt_beløb(input.forskudsafskrivning_efter_al29_kroner)
+    - penge_positivt_beløb(input.forskudsafskrivning_efter_al29_kroner)
 )
 | etableringskonto_faktiske_indskud_i_alt_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(input.faktisk_etableringskontoindskud_kroner) + penge_positivt_beløb(input.faktisk_iværksætterkontoindskud_kroner)
 | etableringskonto_par4_placering_godkendt(placering: EtableringskontoPlacering) -> placering != EtblIkkeGodkendtPlacering

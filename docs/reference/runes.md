@@ -295,6 +295,13 @@ Declares rules, invariants, effect handlers, and scopes. The most versatile rune
 | taxable(person) -> resident(person), has_income(person)
 ```
 
+Commas join goals and `||` separates alternatives. A lowercase name in a goal
+that is neither bound (a head parameter, an earlier goal's binding or a local
+value) nor the name of a function or rule is a logic variable; the goal
+searches for values that make it true. A function or rule name is passed as a
+value, so `| any_eligible(items) -> false || any(items, eligible)` calls
+`eligible` on each item.
+
 A goal whose arguments contain unbound variables starts a logic query that
 searches the matching facts and clauses. Every derived-rule goal inside the
 query, including a fully bound one, runs one level deeper than the body that

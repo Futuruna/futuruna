@@ -1,7 +1,7 @@
 -- expect-command: check
 -- expect-status: fail
 -- expect-stderr: undefined constructor `TypoPurpose`
--- expect-stderr-not: generated Rust did not compile
+-- expect-stderr-not: does not compile (Futuruna compiler bug)
 
 # TravelPurpose = Work | Study
 # TravelInput(purpose: TravelPurpose)
