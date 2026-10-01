@@ -1,4 +1,5 @@
 @ sprog da
+-- roundtrip-expect-failure: needs FUTURUNA_PROBE_START and FUTURUNA_PROBE_END, and refuses to run without them
 
 @ importer ./personskat-income-cliffs.audit
 

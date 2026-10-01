@@ -10,12 +10,12 @@
     har_lovhjemmel = Sandt
 )
 = anden_person_politisk_med_lovhjemmel = Frihedsberøvelsessag(
-    personkreds = AndenPerson,
+    personkreds = IkkeDanskBorger,
     grund = PolitiskOverbevisning,
     har_lovhjemmel = Sandt
 )
 = anden_person_politisk_uden_lovhjemmel = Frihedsberøvelsessag(
-    personkreds = AndenPerson,
+    personkreds = IkkeDanskBorger,
     grund = PolitiskOverbevisning,
     har_lovhjemmel = Falskt
 )

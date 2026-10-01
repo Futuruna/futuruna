@@ -40,4 +40,5 @@ jobs:
       - name: Compare examples in both execution modes
         env:
           FUTURUNA_ROUNDTRIP_SHARD: ${{ matrix.shard }}/8
+          FUTURUNA_ROUNDTRIP_REQUIRE_SUCCESS: 1
         run: ./target/release/runa test --roundtrip examples --allow-list tests/differential/roundtrip-allowlist.txt

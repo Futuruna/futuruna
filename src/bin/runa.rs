@@ -12266,6 +12266,10 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool, allow_list: Option<&str>) {
     );
     let suite_start = Instant::now();
     let self_bin = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("runa"));
+    // FUTURUNA_ROUNDTRIP_REQUIRE_SUCCESS=1 also fails programs that fail the
+    // same way in both modes, unless they declare `-- roundtrip-expect-failure:`.
+    let require_success =
+        std::env::var("FUTURUNA_ROUNDTRIP_REQUIRE_SUCCESS").is_ok_and(|v| v == "1");
     let (mut matched, mut skipped, mut allowed_failures) = (0usize, 0usize, 0usize);
     let mut failures: Vec<String> = Vec::new();
 
@@ -12330,6 +12334,18 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool, allow_list: Option<&str>) {
                         "errors differ: interp={:?} compiled={:?}",
                         error_lines(&interp.stderr),
                         error_lines(&compiled.stderr)
+                    ))
+                } else if require_success
+                    && !interp.status.success()
+                    && !source.contains("-- roundtrip-expect-failure:")
+                {
+                    let errors = error_lines(&interp.stderr);
+                    Err(format!(
+                        "both modes fail: {}",
+                        errors
+                            .first()
+                            .map(String::as_str)
+                            .unwrap_or("non-zero exit")
                     ))
                 } else {
                     Ok(())

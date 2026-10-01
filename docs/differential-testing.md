@@ -39,6 +39,10 @@ The production-ready contract for this lane is intentionally bounded:
 - Skips must be explicit. Generic roundtrip skips for imported helper files are
   not counted as parity evidence; import entrypoints instead run through
   compiled execution, check-codegen, import hygiene, and exact run expectations.
+- The scheduled examples lane sets `FUTURUNA_ROUNDTRIP_REQUIRE_SUCCESS=1`: an
+  example that fails identically in both modes still fails the lane. A program
+  that is meant to fail declares it with
+  `-- roundtrip-expect-failure: <reason>`.
 
 The internal generator grammar, generated source text shape, number of checked
 cases, and corpus contents may grow as compiler bugs are found.

@@ -30,7 +30,7 @@
 )
 
 | procedurer_samtykke_er_positivt_og_manglende_samtykke_negativt() -> {
-    = anden_person = AndenPerson(
+    = anden_person = AndenRigsretstiltalt(
         kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt
     )
     = rigsretssag_med_samtykke = Rigsretssag(

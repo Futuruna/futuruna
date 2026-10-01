@@ -61,11 +61,11 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
 --@begin:grundlov_par60--
 
 # Rigsretstiltaler = KongenSomRigsretstiltaler | FolketingetSomRigsretstiltaler
-# Rigsretstiltalt = Minister | AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten: Boolsk)
+# Rigsretstiltalt = Minister | AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten: Boolsk)
 # Rigsretssag(tiltaler: Rigsretstiltaler, tiltalt: Rigsretstiltalt, folketingets_samtykke: Samtykke) {
     | kan_påkendes_efter_par60() -> match tiltalt {
         | Minister -> Sandt
-        | AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten) -> tiltaler == KongenSomRigsretstiltaler && kongen_finder_forbrydelsen_særdeles_farlig_for_staten && folketingets_samtykke == Givet
+        | AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten) -> tiltaler == KongenSomRigsretstiltaler && kongen_finder_forbrydelsen_særdeles_farlig_for_staten && folketingets_samtykke == Givet
     }
 }
 --@end:grundlov_par60--

@@ -38,7 +38,7 @@ henvendelse.
 
 --@begin:grundlov_par71--
 
-# PersonkredsPar71 = DanskBorger | AndenPerson
+# PersonkredsPar71 = DanskBorger | IkkeDanskBorger
 # Frihedsberøvelsesgrund = PolitiskOverbevisning | ReligiøsOverbevisning | AfstamningSomFrihedsberøvelsesgrund | AndenFrihedsberøvelsesgrund
 # Frihedsberøvelsessag(personkreds: PersonkredsPar71, grund: Frihedsberøvelsesgrund, har_lovhjemmel: Boolsk) {
     | grund_er_beskyttet_efter_stk1() -> match grund {

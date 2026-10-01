@@ -115,7 +115,7 @@
         har_lovhjemmel = Sandt
     )
     = anden_person_uden_lovhjemmel = Frihedsberøvelsessag(
-        personkreds = AndenPerson,
+        personkreds = IkkeDanskBorger,
         grund = AndenFrihedsberøvelsesgrund,
         har_lovhjemmel = Falskt
     )

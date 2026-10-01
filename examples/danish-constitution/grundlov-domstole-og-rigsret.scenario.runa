@@ -76,22 +76,22 @@
 = ministersag_rejst_af_folketinget = Rigsretssag(tiltaler = FolketingetSomRigsretstiltaler, tiltalt = Minister, folketingets_samtykke = IkkeGivet)
 = gyldig_sag_mod_anden_person = Rigsretssag(
     tiltaler = KongenSomRigsretstiltaler,
-    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    tiltalt = AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
     folketingets_samtykke = Givet
 )
 = anden_person_tiltalt_af_folketinget = Rigsretssag(
     tiltaler = FolketingetSomRigsretstiltaler,
-    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    tiltalt = AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
     folketingets_samtykke = Givet
 )
 = anden_person_uden_farlighedsvurdering = Rigsretssag(
     tiltaler = KongenSomRigsretstiltaler,
-    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Falskt),
+    tiltalt = AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Falskt),
     folketingets_samtykke = Givet
 )
 = anden_person_uden_samtykke = Rigsretssag(
     tiltaler = KongenSomRigsretstiltaler,
-    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    tiltalt = AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
     folketingets_samtykke = IkkeGivet
 )
 
