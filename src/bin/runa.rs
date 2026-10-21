@@ -24696,6 +24696,9 @@ struct RustCodegen {
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
+    /// Ordinary functions used as values rather than called (see
+    /// `collect_function_values`); their parameters are always owned.
+    function_values: BTreeSet<String>,
     /// Aliased variables: var_name -> true if assigned from another variable
     /// (e.g. `= y = x` means y aliases x — both need consideration for ownership)
     aliased_vars: BTreeSet<String>,
@@ -27659,15 +27662,153 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
 // OWNERSHIP COUNTING FUNCTIONS
 // ============================================================================
 
+/// The parts of a loop statement, split by how often they run: a `for`
+/// iterable runs once, while a `for` body or a `while` condition and body run
+/// on every iteration. A repeated use of a name bound outside the loop moves
+/// that value again on the next iteration, so the ownership counters weigh it
+/// as two uses. Names bound inside the repeated parts are fresh on every
+/// iteration and keep their ordinary weight.
+struct LoopRepetition<'a> {
+    once: Option<&'a Expr>,
+    condition: Option<&'a Expr>,
+    body: &'a [Stmt],
+    bound: BTreeSet<String>,
+}
+
+impl<'a> LoopRepetition<'a> {
+    fn of(stmt: &'a Stmt) -> Option<Self> {
+        let (variable, once, condition, body) = match stmt {
+            Stmt::For(variable, iterable, body) => (Some(variable), Some(iterable), None, body),
+            Stmt::While(condition, body) => (None, None, Some(condition), body),
+            _ => return None,
+        };
+        let mut bound: BTreeSet<String> = variable.cloned().into_iter().collect();
+        let mut collect_bound = |child: AstChild<'_>| match child {
+            AstChild::Stmt(Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _)) => {
+                collect_pattern_binding_names(pat, &mut bound);
+            }
+            AstChild::Stmt(Stmt::For(name, _, _) | Stmt::StreamBind(name, _)) => {
+                bound.insert(name.clone());
+            }
+            AstChild::Expr(expr) => match &expr.kind {
+                ExprKind::Lambda(params, _) => {
+                    bound.extend(params.iter().map(|param| param.name.clone()));
+                }
+                ExprKind::Match(_, arms) => {
+                    for arm in arms {
+                        collect_pattern_binding_names(&arm.pat, &mut bound);
+                    }
+                }
+                _ => {}
+            },
+            AstChild::Stmt(_) => {}
+        };
+        if let Some(condition) = condition {
+            walk_ast_expr(condition, &mut collect_bound);
+        }
+        for stmt in body {
+            walk_ast_stmt(stmt, &mut collect_bound);
+        }
+        Some(Self {
+            once,
+            condition,
+            body,
+            bound,
+        })
+    }
+
+    fn count(
+        &self,
+        counts: &mut BTreeMap<String, usize>,
+        count_expr: &mut dyn FnMut(&Expr, &mut BTreeMap<String, usize>),
+        count_stmt: &mut dyn FnMut(&Stmt, &mut BTreeMap<String, usize>),
+    ) {
+        if let Some(once) = self.once {
+            count_expr(once, counts);
+        }
+        let mut repeated = BTreeMap::new();
+        if let Some(condition) = self.condition {
+            count_expr(condition, &mut repeated);
+        }
+        for stmt in self.body {
+            count_stmt(stmt, &mut repeated);
+        }
+        for (name, uses) in repeated {
+            let weight = if self.bound.contains(&name) { 1 } else { 2 };
+            *counts.entry(name).or_insert(0) += uses * weight;
+        }
+    }
+}
+
+/// Finds ordinary functions used as values. A name in callee position (a
+/// call head or the right side of `|>`) is a call, and a name passed directly
+/// to a builtin is adapted by that builtin's lowering; every other occurrence
+/// is a value.
+struct FunctionValueScan<'a> {
+    functions: &'a BTreeSet<String>,
+    builtins: &'a BTreeMap<String, BuiltinDef>,
+    found: BTreeSet<String>,
+}
+
+impl FunctionValueScan<'_> {
+    fn expr(&mut self, expr: &Expr) {
+        match &expr.kind {
+            ExprKind::Var(name) => {
+                if self.functions.contains(name) {
+                    self.found.insert(name.clone());
+                }
+                return;
+            }
+            ExprKind::App(func, args) => {
+                let builtin_callee = matches!(&func.kind, ExprKind::Var(callee)
+                    if self.builtins.contains_key(callee) && !self.functions.contains(callee));
+                if !matches!(func.kind, ExprKind::Var(_)) {
+                    self.expr(func);
+                }
+                for arg in args {
+                    if !(builtin_callee && matches!(arg.kind, ExprKind::Var(_))) {
+                        self.expr(arg);
+                    }
+                }
+                return;
+            }
+            ExprKind::Pipe(input, transform) => {
+                self.expr(input);
+                if !matches!(transform.kind, ExprKind::Var(_)) {
+                    self.expr(transform);
+                }
+                return;
+            }
+            _ => {}
+        }
+        visit_ast_expr_children(expr, &mut |child| match child {
+            AstChild::Expr(expr) => self.expr(expr),
+            AstChild::Stmt(stmt) => self.stmt(stmt),
+        });
+    }
+
+    fn stmt(&mut self, stmt: &Stmt) {
+        // `@ export name` names a declaration; it does not use it as a value.
+        if matches!(stmt, Stmt::Annot(name, _) if name == "export") {
+            return;
+        }
+        visit_ast_stmt_children(stmt, &mut |child| match child {
+            AstChild::Expr(expr) => self.expr(expr),
+            AstChild::Stmt(stmt) => self.stmt(stmt),
+        });
+    }
+}
+
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
 /// This is the core of escape analysis: single-use variables can be moved, not cloned.
+/// A use repeated by an enclosing loop counts as two (see `LoopRepetition`).
 fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
-    walk_ast_expr(expr, &mut |child| {
-        if let AstChild::Expr(expr) = child {
-            if let ExprKind::Var(name) = &expr.kind {
-                *counts.entry(name.clone()).or_insert(0) += 1;
-            }
-        }
+    if let ExprKind::Var(name) = &expr.kind {
+        *counts.entry(name.clone()).or_insert(0) += 1;
+    }
+    visit_ast_expr_children(expr, &mut |child| match child {
+        AstChild::Expr(expr) => count_var_uses(expr, counts),
+        AstChild::Stmt(stmt) => count_var_uses_in_stmt(stmt, counts),
     });
 }
 
@@ -27675,12 +27816,17 @@ fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
     if matches!(stmt, Stmt::Explore(_)) {
         return;
     }
-    walk_ast_stmt(stmt, &mut |child| {
-        if let AstChild::Expr(expr) = child {
-            if let ExprKind::Var(name) = &expr.kind {
-                *counts.entry(name.clone()).or_insert(0) += 1;
-            }
-        }
+    count_var_uses_in_stmt(stmt, counts);
+}
+
+fn count_var_uses_in_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
+    if let Some(repetition) = LoopRepetition::of(stmt) {
+        repetition.count(counts, &mut count_var_uses, &mut count_var_uses_in_stmt);
+        return;
+    }
+    visit_ast_stmt_children(stmt, &mut |child| match child {
+        AstChild::Expr(expr) => count_var_uses(expr, counts),
+        AstChild::Stmt(stmt) => count_var_uses_in_stmt(stmt, counts),
     });
 }
 
@@ -27781,6 +27927,14 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 
 fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
     if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
+    if let Some(repetition) = LoopRepetition::of(stmt) {
+        repetition.count(
+            counts,
+            &mut count_consuming_uses,
+            &mut count_consuming_uses_stmt,
+        );
         return;
     }
     if let Stmt::Bind(_, _, expr) = stmt {
@@ -28208,6 +28362,32 @@ fn count_consuming_uses_borrow_aware_stmt_impl(
     ignore_self_passthrough: bool,
 ) {
     if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
+    if let Some(repetition) = LoopRepetition::of(stmt) {
+        repetition.count(
+            counts,
+            &mut |expr, counts| {
+                count_consuming_uses_borrow_aware_impl(
+                    expr,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                )
+            },
+            &mut |stmt, counts| {
+                count_consuming_uses_borrow_aware_stmt_impl(
+                    stmt,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                )
+            },
+        );
         return;
     }
     if let Stmt::Bind(_, _, expr) = stmt {
@@ -29615,6 +29795,7 @@ impl RustCodegen {
             native_logic_parameter_types: BTreeMap::new(),
             rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode::RequireStaticTotality,
             borrow_only_params: BTreeMap::new(),
+            function_values: BTreeSet::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
             current_borrow_params: BTreeSet::new(),
@@ -32230,9 +32411,30 @@ impl RustCodegen {
         }
     }
 
-    /// Pin the parameter-passing ABI of exported functions: WASM exports take
-    /// non-`String` values owned, and `runa lib` exports take `String` as `&str`.
-    fn constrain_export_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
+    /// Names of ordinary functions used as values: passed to a user-defined
+    /// function, bound, stored, or returned rather than called. Builtin
+    /// collection operations adapt a borrowing callback themselves, so a
+    /// function name passed directly to one of them is not a value here.
+    fn collect_function_values(&self, stmts: &[Stmt]) -> BTreeSet<String> {
+        let mut scan = FunctionValueScan {
+            functions: &self.types.user_functions,
+            builtins: &self.builtin_registry,
+            found: BTreeSet::new(),
+        };
+        for stmt in stmts {
+            scan.stmt(stmt);
+        }
+        scan.found
+    }
+
+    /// Pin the parameter-passing ABI of functions whose callers cannot borrow:
+    /// a function used as a value is called through an `Fn(T)` bound and takes
+    /// every parameter owned, WASM exports take non-`String` values owned, and
+    /// `runa lib` exports take `String` as `&str`.
+    fn constrain_abi_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
+        if self.function_values.contains(name) {
+            flags.fill(false);
+        }
         if self.wasm_mode && self.name_is_exported_in_current_namespace(name) {
             for (idx, p) in params.iter().enumerate() {
                 if !matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
@@ -32293,7 +32495,7 @@ impl RustCodegen {
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_export_borrow_flags(name, &params, &mut borrow_flags);
+                    self.constrain_abi_borrow_flags(name, &params, &mut borrow_flags);
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
@@ -33820,6 +34022,7 @@ fn __futuruna_install_error_hook() {
         ) = self.collect_binary_global_env_fn_names(stmts, &fn_stmts, &rule_groups);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
+        self.function_values = self.collect_function_values(stmts);
         self.compute_borrow_flags(&fn_stmts);
 
         // Collect simple literal = bindings for inlining in rule bodies
@@ -42937,7 +43140,7 @@ fn __futuruna_install_error_hook() {
                 // otherwise compute fresh.
                 let borrow_flags = if let Some(pre) = self.borrow_only_params.get(name) {
                     let mut flags = pre.clone();
-                    self.constrain_export_borrow_flags(name, params, &mut flags);
+                    self.constrain_abi_borrow_flags(name, params, &mut flags);
                     flags
                 } else {
                     let mut flags = analyze_borrow_only_params_named(
@@ -42947,7 +43150,7 @@ fn __futuruna_install_error_hook() {
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_export_borrow_flags(name, params, &mut flags);
+                    self.constrain_abi_borrow_flags(name, params, &mut flags);
                     // Phase 3b safety: disable ref-match for types with boxed (recursive) fields.
                     // Matching on &T can't dereference Box<T> fields — they'd be &Box<T>.
                     {

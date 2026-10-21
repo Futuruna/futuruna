@@ -102,6 +102,30 @@ impl TypeChecker {
         }
     }
 
+    /// The operand's type when it is known not to be `Bool`: a scalar,
+    /// collection or function type other than `Bool`, or another type declared
+    /// in the program (the prelude declares `Bool` itself). Unknown and
+    /// generic types are not evidence.
+    fn known_non_bool_operand(&self, operand: &Expr, inferred: Option<&str>) -> Option<Ty> {
+        let ty = Self::ordinary_operand_type(operand, inferred)?;
+        let mut outer = &ty;
+        while let Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) = outer {
+            outer = inner;
+        }
+        let declared_name = match outer {
+            Ty::Name(name) => Some(name),
+            Ty::App(head, _) => match head.as_ref() {
+                Ty::Name(name) => Some(name),
+                _ => None,
+            },
+            _ => None,
+        };
+        let declared =
+            declared_name.is_some_and(|name| name != "Bool" && self.types.contains(name));
+        (declared || Self::ordinary_operand_kind(outer).is_some_and(|kind| kind != "Bool"))
+            .then_some(ty)
+    }
+
     /// `+` with a String operand is text concatenation. The other operand
     /// must be a scalar with one obvious text form; structured values
     /// (collections, Option/Result, records, streams, functions) need an
@@ -187,8 +211,8 @@ impl TypeChecker {
                 !(numeric(l) && numeric(r) || l == r && matches!(l, "String" | "Char"))
             }),
             "&&" | "||" => {
-                left_kind.is_some_and(|kind| kind != "Bool")
-                    || right_kind.is_some_and(|kind| kind != "Bool")
+                self.known_non_bool_operand(left, left_type).is_some()
+                    || self.known_non_bool_operand(right, right_type).is_some()
             }
             _ => false,
         };
@@ -219,22 +243,17 @@ impl TypeChecker {
         };
         self.check_expr(operand, in_fn);
         let inferred = self.infer_expr_type_name(operand);
-        let ty = Self::ordinary_operand_type(operand, inferred.as_deref());
-        if ty
-            .as_ref()
-            .and_then(Self::ordinary_operand_kind)
-            .is_some_and(|kind| match operator.as_str() {
-                "!" => kind != "Bool",
-                "-" | "+" => !matches!(kind, "Int" | "Float"),
-                _ => false,
-            })
-        {
+        let invalid = match operator.as_str() {
+            "!" => self.known_non_bool_operand(operand, inferred.as_deref()),
+            "-" | "+" => Self::ordinary_operand_type(operand, inferred.as_deref()).filter(|ty| {
+                Self::ordinary_operand_kind(ty).is_some_and(|kind| !matches!(kind, "Int" | "Float"))
+            }),
+            _ => None,
+        };
+        if let Some(ty) = invalid {
             self.error_at_expr(
                 expression,
-                format!(
-                    "unsupported operands for operator `{operator}`: `{}`",
-                    ty.unwrap()
-                ),
+                format!("unsupported operands for operator `{operator}`: `{ty}`"),
             );
         }
     }
@@ -242,16 +261,19 @@ impl TypeChecker {
     pub(super) fn check_if_condition(&mut self, condition: &Expr, in_fn: Option<&str>) {
         self.check_expr(condition, in_fn);
         let inferred = self.infer_expr_type_name(condition);
-        let ty = Self::ordinary_operand_type(condition, inferred.as_deref());
-        if ty
-            .as_ref()
-            .and_then(Self::ordinary_operand_kind)
-            .is_some_and(|kind| kind != "Bool")
-        {
+        if let Some(ty) = self.known_non_bool_operand(condition, inferred.as_deref()) {
             self.error_at_expr(
                 condition,
-                format!("if condition must return Bool, got `{}`", ty.unwrap()),
+                format!("if condition must return Bool, got `{ty}`"),
             );
+        }
+    }
+
+    /// `not(value)` negates a `Bool`.
+    pub(super) fn check_not_argument(&mut self, argument: &Expr) {
+        let inferred = self.infer_expr_type_name(argument);
+        if let Some(ty) = self.known_non_bool_operand(argument, inferred.as_deref()) {
+            self.error_at_expr(argument, format!("`not` expects `Bool`, got `{ty}`"));
         }
     }
 

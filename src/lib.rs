@@ -59651,6 +59651,9 @@ impl TypeChecker {
                         {
                             self.check_collection_predicate(name, args);
                         }
+                        if name == "not" && actual_arity == 1 && !self.var_defined(name) {
+                            self.check_not_argument(&args[0]);
+                        }
                         if name == "assert_with_message"
                             && actual_arity == 2
                             && !self.var_defined(name)

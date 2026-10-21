@@ -123,6 +123,35 @@ fn known_non_boolean_conditions_fail_before_any_effect() {
 }
 
 #[test]
+fn declared_type_values_are_not_booleans() {
+    let declared = "# Verdict = Accepted | Rejected; | verdict(x: Int) -> Accepted; @ print(\"must not execute\")";
+    for (expression, diagnostic) in [
+        (
+            "if verdict(1) { 1 } else { 2 }",
+            "if condition must return Bool",
+        ),
+        ("!Accepted", "unsupported operands for operator `!`"),
+        ("Accepted && True", "unsupported operands for operator `&&`"),
+        (
+            "False || verdict(1)",
+            "unsupported operands for operator `||`",
+        ),
+        ("not(verdict(1))", "`not` expects `Bool`"),
+    ] {
+        rejected_before_effects(
+            &format!("{declared}\n= result = {expression}\n"),
+            diagnostic,
+            &["Verdict"],
+        );
+    }
+    rejected_before_effects(
+        "@ print(\"must not execute\")\n= result = not(1)\n",
+        "`not` expects `Bool`",
+        &["Int"],
+    );
+}
+
+#[test]
 fn supported_operators_agree_in_interpretation_and_native_execution() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/differential/corpus/ordinary_operator_contracts.runa");

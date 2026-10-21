@@ -1,0 +1,53 @@
+-- A value bound outside a loop and used once inside it is used on every
+-- iteration. Compiled code moved it on the first iteration ("use of moved
+-- value") whether the loop iterated it, bound it, consumed it as an argument
+-- or stored it in a constructor; a `while` condition and loops inside
+-- function bodies behaved the same. Accumulators rebound in the loop body are
+-- fresh on every iteration and still move.
+
+# Item(name: String)
+# Bundle(items: List(Item))
+
+= items = [Item("a"), Item("b")]
+= labels = ["x"]
+
+for round in [1, 2] {
+    for item in items {
+        @ print(item.name + show(round))
+    }
+    = copy = items
+    @ print(show(length(copy)))
+    @ print(show(push(labels, "y")))
+    @ print(show(Bundle(items)))
+}
+
+= remaining = 2
+while remaining > 0 {
+    for label in labels {
+        @ print(label)
+    }
+    = remaining = remaining - 1
+}
+
+> report(rounds: List(Int)) -> () {
+    = local_items = [Item("c")]
+    for round in rounds {
+        for item in local_items {
+            @ print(item.name + show(round))
+        }
+    }
+}
+report([1, 2])
+
+> apply_each(step: Int -> Int) -> () {
+    for value in [1, 2] {
+        @ print(show(step(value)))
+    }
+}
+apply_each(|value| value * 10)
+
+= collected = []
+for value in [1, 2, 3] {
+    = collected = push(collected, value)
+}
+@ print(show(collected))

@@ -1,0 +1,36 @@
+-- A function whose parameters were only read compiled to `fn f(x: &T)`, but
+-- a function value is called through `Fn(T)`: passing it to a user-defined
+-- function, binding it, storing it in a list or returning it failed to
+-- compile. Builtin collection operations keep adapting borrowing callbacks.
+
+# Item(name: String)
+
+> prime(text: String) -> List(String) { [text + "'"] }
+> name_of(item: Item) -> String { item.name }
+> shout(text: String) -> String { to_upper(text) }
+> whisper(text: String) -> String { to_lower(text) }
+> is_short(text: String) -> Bool { string_length(text) < 3 }
+
+> apply_text(text: String, step: String -> List(String)) -> List(String) { step(text) }
+> apply_item(item: Item, step: Item -> String) -> String { step(item) }
+> pick(loud: Bool) -> String -> String {
+    if loud { shout } else { whisper }
+}
+
+= word = "ab"
+@ print(show(prime(word)))
+@ print(show(apply_text(word, prime)))
+@ print(show(map([word], prime)))
+@ print(word)
+@ print(apply_item(Item("record"), name_of))
+
+= bound = prime
+@ print(show(bound("c")))
+
+= steps = [shout, whisper]
+for step in steps {
+    @ print(step("Mixed"))
+}
+@ print(pick(True)("loud"))
+
+@ print(show(filter(["a", "long"], is_short)))
