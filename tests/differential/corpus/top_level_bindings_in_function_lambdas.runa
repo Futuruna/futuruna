@@ -1,0 +1,22 @@
+-- A top-level binding read inside a lambda inside a function body: compiled
+-- code copied it into the closure from a Rust local that does not exist
+-- ("cannot find value"), because the function reads top-level bindings
+-- through the program globals. A parameter with the same name still shadows
+-- the binding.
+
+# Item(name: String)
+
+= offsets = [1, 2]
+= items = [Item("a"), Item("b")]
+
+> shifted(values: List(Int)) -> List(Int) { flat_map(values, |value| map(offsets, |offset| value + offset)) }
+> counted(values: List(Int)) -> List(Int) { map(values, |value| value + length(offsets)) }
+> named(prefixes: List(String)) -> List(String) { flat_map(prefixes, |prefix| map(items, |item| prefix + item.name)) }
+> keep_known(names: List(String)) -> List(String) { filter(names, |name| any(items, |item| item.name == name)) }
+> shadowed(offsets: List(Int)) -> List(Int) { map([10], |value| value + length(offsets)) }
+
+@ print(show(shifted([10, 20])))
+@ print(show(counted([10])))
+@ print(show(named(["x", "y"])))
+@ print(show(keep_known(["a", "z"])))
+@ print(show(shadowed([1, 2, 3])))

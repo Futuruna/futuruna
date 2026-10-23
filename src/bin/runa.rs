@@ -46174,6 +46174,20 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// A top-level binding read from a function body resolves through the
+    /// program globals or its getter, not through a Rust local, unless a
+    /// parameter or local binding shadows it.
+    fn reads_top_level_binding(&self, name: &str) -> bool {
+        let shadowed = self.current_borrow_params.contains(name)
+            || self.var_types.contains_key(name)
+            || self.local_bindings.contains(name);
+        !shadowed
+            && self.lib_static_names.contains(name)
+            && (self.allow_global_getter_refs
+                || (self.binary_global_value_refs_in_scope
+                    && self.binary_global_binding_types.contains_key(name)))
+    }
+
     fn lambda_free_var_is_runtime_capture(&self, name: &str) -> bool {
         let is_param = self.current_borrow_params.contains(name);
         let locally_bound = is_param || self.local_bindings.contains(name);
@@ -46189,6 +46203,7 @@ fn __futuruna_install_error_hook() {
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
             && self.visible_bare_module_path(name).is_none()
+            && !self.reads_top_level_binding(name)
             && (is_param || !comptime_const)
             && (locally_bound || !lowered_builtin)
     }
