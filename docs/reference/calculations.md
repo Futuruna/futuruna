@@ -337,6 +337,22 @@ candidate against the public input contract and source model before removing or
 connecting it. Running `runa audit` without `--entry` keeps the original
 topology audit for invariant gaps, asymmetries, and tensions.
 
+Both modes also report clause reachability for the rule families with a clause
+in the audited file (see
+[Auditing clause reachability](runes.md#auditing-clause-reachability)). In the
+JSON report it is the `clause_reachability` object: `status` is `ran` or
+`not_run` (with a `reason`, for example a missing Z3); `summary` counts
+`families`, `clauses`, `analyzed`, `not_analyzed`, `overlap_not_checked`,
+`unreachable_clauses`, and `overlapping_guards`; each entry of `findings` has a
+`kind` of `unreachable_clause` (with `cause` `shadowed` or
+`unsatisfiable_guard` and the clauses that take its inputs in `shadowed_by`) or
+`overlapping_guards` (with the earlier, selected clause in `overlaps` and a
+`witness` mapping each argument, and `self` for a RuleScope, to a solver
+value). Every clause location carries `file`, `line`, `tier` (`exception`,
+`guarded_default`, `clause`, or `unguarded_default`), and `source`.
+`not_analyzed` and `overlap_not_checked` list clauses with the reason the
+solver encoding could not decide them.
+
 ## Generate Input
 
 ```sh

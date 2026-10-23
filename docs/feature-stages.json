@@ -276,14 +276,16 @@
     {
       "id": "exploratory-audit-tooling",
       "kind": "tooling",
-      "name": "Invariant-gap and rule-asymmetry audit tooling",
+      "name": "Invariant-gap, rule-asymmetry, and clause-reachability audit tooling",
       "stage": "experimental",
       "commands": [
         "audit"
       ],
       "docs": [
         "docs/reference/style.md",
+        "docs/reference/runes.md",
         "docs/tutorial/README.md",
+        "docs/tutorial/04-rules.md",
         "docs/tutorial/07-project.md"
       ]
     },
@@ -550,7 +552,8 @@
       "surfaces": [
         "core-language-syntax",
         "typed-calculation-contracts",
-        "rust-escape-hatches"
+        "rust-escape-hatches",
+        "exploratory-audit-tooling"
       ]
     },
     {
@@ -629,9 +632,10 @@
     },
     {
       "path": "docs/tutorial/04-rules.md",
-      "stage": "preview",
+      "stage": "mixed",
       "surfaces": [
-        "solver-assisted-verification"
+        "solver-assisted-verification",
+        "exploratory-audit-tooling"
       ]
     },
     {

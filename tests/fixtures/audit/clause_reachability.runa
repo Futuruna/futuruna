@@ -1,0 +1,26 @@
+-- Clause reachability: unreachable clauses and overlapping guards.
+
+| status(x: Int) -> "mortal"
+| status(x: Int) -> "immortal" under x > 0
+| status(x: Int) -> "god" under x > 0
+
+| band(x: Int) -> 0
+| band(x: Int) -> 70 under x > 7
+| band(x: Int) -> 80 under x > 8
+
+| rate(x: Int) -> 1
+| rate(x: Int) -> 2 under x > 10
+| rate(x: Int) -> 3 under x < 20
+
+| never(x: Int) -> 1
+| never(x: Int) -> 2 under x > 5 && x < 3
+
+-- Guards over RuleScope fields that call another pure rule.
+| limit(kind: Int) -> 100
+| limit(kind: Int) -> 500 under kind > 1
+
+# Claim(amount: Int, kind: Int) {
+    | payout() -> 0
+    | payout() -> amount under amount < limit(kind)
+    | payout() -> 1 under amount < limit(kind) && amount > 0
+}

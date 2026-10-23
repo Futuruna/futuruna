@@ -1,0 +1,14 @@
+@ import ./clause-reachability-base
+
+-- A local clause composes with the imported family and is shadowed by it.
+| surcharge(x: Int) -> 7 under x > 20
+
+| rate(x: Int) -> 1
+| rate(x: Int) -> 2 under x > 10
+| rate(x: Int) -> 3 under x < 20
+
+# Order(amount: Int)
+# Charge(total: Int)
+
+@ calculate("Clause reachability fixture")
+| calculate_charge(order: Order) -> Charge(total = rate(order.amount) + surcharge(order.amount))
