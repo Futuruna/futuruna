@@ -721,9 +721,19 @@ claims remain explicitly unverified; exact real arithmetic cannot substitute
 for floating-point evaluation.
 
 `runa verify` is Preview. PROVED means that for every value of the invariant's
-free variables (Int ranges over the 64-bit values) the predicate is true and no
-Int operation it evaluates overflows or divides by zero. Claims involving Float
-are reported as unsupported, never proved.
+free variables (Int ranges over the 64-bit values; a variable used as an enum
+whose constructors carry no payload ranges over exactly those constructors) the
+predicate is true and no Int operation it evaluates overflows or divides by
+zero. Claims involving Float are reported as unsupported, never proved.
+
+A free variable ranges over an enum when the invariant passes it to a rule,
+function, or constructor parameter declared with that enum, compares it with a
+constructor or another value of that enum, or matches it against the enum's
+constructors. Every other free variable ranges over Int. A free variable used
+as an enum whose constructors carry payloads, as a generic type, or as two
+different types makes the claim unsupported with a diagnostic. A
+counterexample names each free variable's witness in source syntax, such as
+`s = Shipped`.
 
 ### Verifying rule dispatch
 
@@ -747,6 +757,27 @@ separate `>` function.
 = high_income_case = TaxCase(income = 600000)
 | high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
 ```
+
+Finite state machines verify over every state and event:
+
+```runa
+# State = Draft | Submitted | Paid | Shipped | Cancelled
+# Event = Submit | Pay | Ship | Cancel
+
+| next(s: State, e: Event) -> s
+| next(s: State, e: Event) -> Submitted under s == Draft && e == Submit
+| next(s: State, e: Event) -> Paid under s == Submitted && e == Pay
+| next(s: State, e: Event) -> Shipped under s == Paid && e == Ship
+| next(s: State, e: Event) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
+| exception refund_window next(s: State, e: Event) -> Cancelled under s == Paid && e == Cancel
+
+| shipped_is_final: next(Shipped, e) -> next(Shipped, e) == Shipped
+| cancel_always_cancels: next(s, Cancel) -> next(s, Cancel) == Cancelled
+```
+
+`e` ranges over the four events and `s` over the five states.
+`shipped_is_final` is PROVED; `cancel_always_cancels` is refuted with the
+witness `s = Shipped`, so `runa verify` exits 1.
 
 Verification uses the same merged declaration scope and binding dependencies
 as execution, including when a plain import appears after a local declaration.

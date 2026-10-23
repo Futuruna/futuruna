@@ -76,7 +76,8 @@ These lanes are the core mint contract because they cover:
 - the docs oracle: every documentation example that states its expected
   output is run and must print exactly that, before and after `runa fmt`
 - the tool oracles in `tests/tool_oracles.rs`: invariants `verify` proves hold
-  at Int boundary inputs, and `fmt` keeps program output and metadata
+  at Int boundary inputs and at every constructor of an enum free variable, and
+  `fmt` keeps program output and metadata
 - Rust codegen validation across the test corpus
 - interpreter-vs-compiled roundtrip parity across the test corpus
 - the blocking codegen regression program

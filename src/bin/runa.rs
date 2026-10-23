@@ -14121,6 +14121,10 @@ struct SmtRuleLowerer<'program, 'registry> {
     fields_by_type: BTreeMap<String, BTreeMap<String, String>>,
     function_returns: BTreeMap<String, String>,
     binding_types: BTreeMap<String, String>,
+    /// Authored non-generic enums whose constructors all carry no payload,
+    /// with their constructors in declaration order. Invariant free variables
+    /// of these types range over exactly these constructors.
+    nullary_enums: BTreeMap<String, Vec<String>>,
 }
 
 impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
@@ -14185,6 +14189,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         let mut fields_by_type = BTreeMap::new();
         let mut function_returns = BTreeMap::new();
         let mut binding_types = BTreeMap::new();
+        let mut nullary_enums = BTreeMap::new();
 
         for statement in statements {
             match statement {
@@ -14216,6 +14221,17 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                                 positional: variant.positional,
                             },
                         );
+                    }
+                    if params.is_empty()
+                        && !variants.is_empty()
+                        && variants.iter().all(|variant| variant.fields.is_empty())
+                    {
+                        nullary_enums.entry(name.clone()).or_insert_with(|| {
+                            variants
+                                .iter()
+                                .map(|variant| variant.name.clone())
+                                .collect::<Vec<_>>()
+                        });
                     }
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
@@ -14264,6 +14280,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             fields_by_type,
             function_returns,
             binding_types,
+            nullary_enums,
         };
         let canonical_rule_returns = lowerer
             .registry
@@ -15881,6 +15898,437 @@ fn smt_skip_reason_for_invariant(
     None
 }
 
+/// Primitive uses keep the 64-bit Int domain that unbound invariant variables
+/// always have; only nominal types can change what a variable ranges over.
+fn smt_free_variable_type_is_nominal(type_name: &str) -> bool {
+    match parse_type_annotation(type_name) {
+        Ok(Ty::Name(name)) => {
+            !matches!(name.as_str(), "Int" | "Float" | "Bool" | "String" | "Char")
+        }
+        Ok(Ty::App(_, _) | Ty::Optional(_)) => true,
+        _ => false,
+    }
+}
+
+impl SmtRuleLowerer<'_, '_> {
+    /// Decide what each unbound invariant variable ranges over. A variable
+    /// without a nominal use ranges over the 64-bit Int values. A variable
+    /// passed to a parameter or constructor field of a payload-free enum,
+    /// compared with a value of one, or matched against its constructors
+    /// ranges over exactly that enum's constructors. Any other nominal use,
+    /// or uses at two different types, is rejected.
+    fn invariant_free_variable_types(
+        &self,
+        expressions: &[&Expr],
+        candidates: &BTreeSet<String>,
+        function_parameters: &BTreeMap<String, Vec<Param>>,
+    ) -> Result<BTreeMap<String, String>, String> {
+        let mut uses = BTreeMap::<String, BTreeSet<String>>::new();
+        for expression in expressions {
+            self.collect_free_variable_type_uses(
+                expression,
+                candidates,
+                function_parameters,
+                &mut uses,
+            );
+        }
+        candidates
+            .iter()
+            .map(|name| {
+                let used_as = uses.remove(name).unwrap_or_default();
+                if !used_as
+                    .iter()
+                    .any(|type_name| smt_free_variable_type_is_nominal(type_name))
+                {
+                    return Ok((name.clone(), "Int".to_string()));
+                }
+                let mut used_as = used_as.into_iter();
+                let type_name = used_as.next().expect("a nominal use was found");
+                if let Some(other) = used_as.next() {
+                    return Err(format!(
+                        "free variable `{}` has an ambiguous sort: it is used as both `{}` and `{}`",
+                        name, type_name, other
+                    ));
+                }
+                self.free_variable_domain(name, &type_name)
+                    .map(|type_name| (name.clone(), type_name))
+            })
+            .collect()
+    }
+
+    fn free_variable_domain(&self, name: &str, type_name: &str) -> Result<String, String> {
+        if self.nullary_enums.contains_key(type_name) {
+            return Ok(type_name.to_string());
+        }
+        let reason =
+            match parse_type_annotation(type_name) {
+                Ok(Ty::Name(owner))
+                    if self
+                        .type_parameters_by_owner
+                        .get(&owner)
+                        .is_some_and(|parameters| !parameters.is_empty()) =>
+                {
+                    "is a generic type"
+                }
+                Ok(Ty::App(_, _) | Ty::Optional(_)) => "is an instance of a generic type",
+                Ok(Ty::Name(owner))
+                    if self.constructors.values().flatten().any(|signature| {
+                        signature.parent == owner && !signature.fields.is_empty()
+                    }) =>
+                {
+                    "has constructors that carry payloads"
+                }
+                _ => "is not a non-generic enum",
+            };
+        Err(format!(
+            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int and over enums whose constructors carry no payload",
+            name, type_name, reason
+        ))
+    }
+
+    fn collect_free_variable_type_uses(
+        &self,
+        expression: &Expr,
+        candidates: &BTreeSet<String>,
+        function_parameters: &BTreeMap<String, Vec<Param>>,
+        uses: &mut BTreeMap<String, BTreeSet<String>>,
+    ) {
+        let candidate = |expression: &Expr| match &expression.kind {
+            ExprKind::Var(name) if candidates.contains(name) => Some(name.clone()),
+            _ => None,
+        };
+        let visit = |child: &Expr,
+                     candidates: &BTreeSet<String>,
+                     uses: &mut BTreeMap<String, BTreeSet<String>>| {
+            self.collect_free_variable_type_uses(child, candidates, function_parameters, uses)
+        };
+        match &expression.kind {
+            ExprKind::App(function, arguments) => {
+                if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                    if let Some(value) = arguments.get(1) {
+                        visit(value, candidates, uses);
+                    }
+                    return;
+                }
+                for (argument, type_name) in
+                    self.call_parameter_types(function, arguments, function_parameters)
+                {
+                    if let Some(name) = candidate(argument) {
+                        uses.entry(name).or_default().insert(type_name);
+                    }
+                }
+                visit(function, candidates, uses);
+                for argument in arguments {
+                    visit(argument, candidates, uses);
+                }
+            }
+            ExprKind::BinOp(operator, left, right) => {
+                match operator.as_str() {
+                    "==" | "!=" => {
+                        for (operand, other) in [(left, right), (right, left)] {
+                            let Some(name) = candidate(operand) else {
+                                continue;
+                            };
+                            if let Some(type_name) =
+                                self.infer_expr_type(other, &SmtLoweringEnv::default())
+                            {
+                                uses.entry(name).or_default().insert(type_name);
+                            }
+                        }
+                    }
+                    "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" => {
+                        for operand in [left, right] {
+                            if let Some(name) = candidate(operand) {
+                                uses.entry(name).or_default().insert("Int".to_string());
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                visit(left, candidates, uses);
+                visit(right, candidates, uses);
+            }
+            ExprKind::UnOp(operator, inner) => {
+                if operator == "-" {
+                    if let Some(name) = candidate(inner) {
+                        uses.entry(name).or_default().insert("Int".to_string());
+                    }
+                }
+                visit(inner, candidates, uses);
+            }
+            ExprKind::If(condition, then_expression, else_expression) => {
+                visit(condition, candidates, uses);
+                visit(then_expression, candidates, uses);
+                visit(else_expression, candidates, uses);
+            }
+            ExprKind::Field(receiver, _) => visit(receiver, candidates, uses),
+            ExprKind::Match(scrutinee, arms) => {
+                if let Some(name) = candidate(scrutinee) {
+                    for arm in arms {
+                        if let Some(type_name) = self.pattern_type(&arm.pat) {
+                            uses.entry(name.clone()).or_default().insert(type_name);
+                        }
+                    }
+                }
+                visit(scrutinee, candidates, uses);
+                for arm in arms {
+                    let mut bound = BTreeSet::new();
+                    collect_smt_pattern_bindings(&arm.pat, &mut bound);
+                    let arm_candidates: BTreeSet<String> =
+                        candidates.difference(&bound).cloned().collect();
+                    if let Some(guard) = &arm.guard {
+                        visit(guard, &arm_candidates, uses);
+                    }
+                    visit(&arm.body, &arm_candidates, uses);
+                }
+            }
+            ExprKind::Block(statements) => {
+                let mut scope = candidates.clone();
+                for statement in statements {
+                    match statement {
+                        Stmt::Bind(pattern, _, value) => {
+                            visit(value, &scope, uses);
+                            let mut bound = BTreeSet::new();
+                            collect_smt_pattern_bindings(pattern, &mut bound);
+                            for name in bound {
+                                scope.remove(&name);
+                            }
+                        }
+                        Stmt::Expr(inner) => visit(inner, &scope, uses),
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// The declared parameter types of a rule, constructor, or function call,
+    /// paired with the argument passed for each. Type variables are omitted:
+    /// they constrain nothing about the argument on their own.
+    fn call_parameter_types<'call>(
+        &self,
+        function: &Expr,
+        arguments: &'call [Expr],
+        function_parameters: &BTreeMap<String, Vec<Param>>,
+    ) -> Vec<(&'call Expr, String)> {
+        let rule_parameters = |group: &RuleDispatchGroup<'_>| {
+            (
+                group
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.name.clone())
+                    .collect::<Option<Vec<_>>>(),
+                group
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        parameter
+                            .ty
+                            .as_deref()
+                            .and_then(|ty| parse_type_annotation(ty).ok())
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        };
+        let (names, types) = match &function.kind {
+            ExprKind::Var(name) => {
+                if let Some(group) = self.registry.get(None, name, arguments.len()) {
+                    rule_parameters(group)
+                } else if let Some(signature) = self.constructor_signature(name, arguments) {
+                    let generics = self
+                        .type_parameters_by_owner
+                        .get(&signature.parent)
+                        .cloned()
+                        .unwrap_or_default();
+                    (
+                        Some(signature.field_names()),
+                        signature
+                            .fields
+                            .iter()
+                            .map(|field| {
+                                (!matches!(&field.ty, Ty::Name(name) if generics.contains(name)))
+                                    .then(|| field.ty.clone())
+                            })
+                            .collect(),
+                    )
+                } else if let Some(parameters) = function_parameters.get(name) {
+                    (
+                        Some(
+                            parameters
+                                .iter()
+                                .map(|parameter| parameter.name.clone())
+                                .collect(),
+                        ),
+                        parameters
+                            .iter()
+                            .map(|parameter| parameter.ty.clone())
+                            .collect(),
+                    )
+                } else {
+                    return Vec::new();
+                }
+            }
+            ExprKind::Field(receiver, member) => {
+                let Some(receiver_type) =
+                    self.infer_expr_type(receiver, &SmtLoweringEnv::default())
+                else {
+                    return Vec::new();
+                };
+                let Some(group) = self
+                    .registry
+                    .get(Some(&receiver_type), member, arguments.len())
+                else {
+                    return Vec::new();
+                };
+                rule_parameters(group)
+            }
+            _ => return Vec::new(),
+        };
+        let ordered: Vec<&Expr> = if has_named_args(arguments) {
+            match names.and_then(|names| order_named_args_by_names(&names, arguments)) {
+                Some(ordered) => ordered,
+                None => return Vec::new(),
+            }
+        } else {
+            arguments.iter().collect()
+        };
+        ordered
+            .into_iter()
+            .zip(types)
+            .filter_map(|(argument, ty)| match ty? {
+                Ty::Var(_) | Ty::Hole => None,
+                ty => Some((argument, ty.to_string())),
+            })
+            .collect()
+    }
+
+    /// The type a match pattern requires of its scrutinee, when the pattern
+    /// names a constructor of exactly one type.
+    fn pattern_type(&self, pattern: &Pat) -> Option<String> {
+        match pattern {
+            Pat::Con(constructor, _) | Pat::NamedCon(constructor, _) => {
+                let parents: BTreeSet<&String> = self
+                    .constructors
+                    .get(constructor)?
+                    .iter()
+                    .map(|signature| &signature.parent)
+                    .collect();
+                (parents.len() == 1).then(|| parents.into_iter().next().unwrap().clone())
+            }
+            Pat::Var(name) => self.unique_nullary_constructor_parent(name),
+            Pat::As(inner, _) => self.pattern_type(inner),
+            Pat::Lit(Literal::Int(_)) => Some("Int".to_string()),
+            Pat::Wild | Pat::Lit(_) => None,
+        }
+    }
+
+    /// Render a solver model value of a free variable in source syntax.
+    fn smt_witness_value(&self, type_name: &str, value: &SmtTerm) -> Option<String> {
+        match (type_name, value) {
+            ("Int", SmtTerm::Atom(numeral))
+                if numeral.bytes().all(|byte| byte.is_ascii_digit()) =>
+            {
+                Some(numeral.clone())
+            }
+            ("Int", SmtTerm::List(items)) => match items.as_slice() {
+                [SmtTerm::Atom(minus), SmtTerm::Atom(numeral)]
+                    if minus == "-" && numeral.bytes().all(|byte| byte.is_ascii_digit()) =>
+                {
+                    Some(format!("-{}", numeral))
+                }
+                _ => None,
+            },
+            (_, SmtTerm::Atom(symbol)) => self
+                .nullary_enums
+                .get(type_name)?
+                .iter()
+                .find(|constructor| smt_symbol(constructor) == *symbol)
+                .cloned(),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SmtTerm {
+    Atom(String),
+    List(Vec<SmtTerm>),
+}
+
+/// Parse solver output into S-expressions. Returns `None` for text that is
+/// not a well-formed sequence of terms.
+fn parse_smt_terms(text: &str) -> Option<Vec<SmtTerm>> {
+    let mut stack: Vec<Vec<SmtTerm>> = vec![Vec::new()];
+    let mut characters = text.char_indices().peekable();
+    while let Some((start, character)) = characters.next() {
+        match character {
+            '(' => stack.push(Vec::new()),
+            ')' => {
+                let list = stack.pop()?;
+                stack.last_mut()?.push(SmtTerm::List(list));
+            }
+            ';' => while characters.next_if(|(_, next)| *next != '\n').is_some() {},
+            character if character.is_whitespace() => {}
+            '|' | '"' => {
+                let mut end = None;
+                while let Some((index, next)) = characters.next() {
+                    if next == character {
+                        // A doubled quote is an escaped quote inside a string.
+                        if character == '"' && characters.next_if(|(_, c)| *c == '"').is_some() {
+                            continue;
+                        }
+                        end = Some(index + next.len_utf8());
+                        break;
+                    }
+                }
+                stack
+                    .last_mut()?
+                    .push(SmtTerm::Atom(text[start..end?].to_string()));
+            }
+            _ => {
+                let mut end = start + character.len_utf8();
+                while let Some((index, next)) = characters.next_if(|(_, next)| {
+                    !next.is_whitespace() && !matches!(next, '(' | ')' | ';' | '|' | '"')
+                }) {
+                    end = index + next.len_utf8();
+                }
+                stack
+                    .last_mut()?
+                    .push(SmtTerm::Atom(text[start..end].to_string()));
+            }
+        }
+    }
+    (stack.len() == 1).then(|| stack.pop().unwrap())
+}
+
+/// The value each constant is defined as in a `(get-model)` response, keyed
+/// by SMT symbol. Accepts both the bare and the `(model ...)` response forms.
+fn smt_model_constants(response: &str) -> BTreeMap<String, SmtTerm> {
+    let mut constants = BTreeMap::new();
+    let Some(terms) = parse_smt_terms(response) else {
+        return constants;
+    };
+    for term in terms {
+        let SmtTerm::List(items) = term else {
+            continue;
+        };
+        for definition in items {
+            let SmtTerm::List(parts) = definition else {
+                continue;
+            };
+            if let [SmtTerm::Atom(keyword), SmtTerm::Atom(symbol), SmtTerm::List(parameters), _, value] =
+                parts.as_slice()
+            {
+                if keyword == "define-fun" && parameters.is_empty() {
+                    constants.insert(symbol.clone(), value.clone());
+                }
+            }
+        }
+    }
+    constants
+}
+
 /// Keep ordinary ASCII names readable while encoding other spellings into
 /// simple SMT symbols. Reserve the encoded prefix so authored ASCII names
 /// cannot collide with an encoded Unicode name.
@@ -17408,7 +17856,7 @@ fn run_z3_script(script: &str) -> Result<String, String> {
 
 /// What a PROVED result from `runa verify` guarantees. Printed with every run
 /// and repeated in the reference documentation.
-const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
+const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
 
 /// Generate SMT-LIB2 for all invariants and verify with Z3.
 /// Successful exit requires every claim to be proved. Unsupported claims and
@@ -17570,32 +18018,48 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
     }
 
+    let function_parameters: BTreeMap<String, Vec<Param>> = functions
+        .iter()
+        .map(|(name, params, _, _)| (name.clone(), params.clone()))
+        .collect();
     let mut invariant_lowering_errors = BTreeMap::new();
+    let mut invariant_free_variable_types = BTreeMap::new();
     for (name, subject, predicate) in &mut invariants {
         let mut environment = SmtLoweringEnv {
             rule_calls_as_symbols: true,
             ..SmtLoweringEnv::default()
         };
-        // Unbound invariant variables are declared as SMT Int below. Give
-        // argument validation that same sort before lowering symbolic calls.
-        // Never default a program binding (including an unresolved one), a
-        // constructor, or a callable to Int: those retain their checked type.
+        // Unbound invariant variables are declared below at the sort they
+        // range over. Give argument validation that same sort before lowering
+        // symbolic calls. Never treat a program binding (including an
+        // unresolved one), a constructor, or a callable as a free variable:
+        // those retain their checked type.
         let mut free_variables = BTreeSet::new();
         collect_free_vars(subject, &mut free_variables);
         collect_free_vars(predicate, &mut free_variables);
-        for variable in free_variables {
-            if !bindings.contains_key(&variable)
-                && !rule_lowerer.constructors.contains_key(&variable)
-                && !functions.iter().any(|(name, _, _, _)| name == &variable)
+        free_variables.retain(|variable| {
+            !bindings.contains_key(variable)
+                && !rule_lowerer.constructors.contains_key(variable)
+                && !functions.iter().any(|(name, _, _, _)| name == variable)
                 && !rule_lowerer
                     .registry
                     .groups
                     .keys()
-                    .any(|key| key.name == variable)
-            {
-                environment.types.insert(variable, "Int".to_string());
+                    .any(|key| &key.name == variable)
+        });
+        let free_variable_types = match rule_lowerer.invariant_free_variable_types(
+            &[&*subject, &*predicate],
+            &free_variables,
+            &function_parameters,
+        ) {
+            Ok(types) => types,
+            Err(error) => {
+                invariant_lowering_errors.insert(name.clone(), error);
+                continue;
             }
-        }
+        };
+        environment.types.extend(free_variable_types.clone());
+        invariant_free_variable_types.insert(name.clone(), free_variable_types);
         let lowered_subject = rule_lowerer.lower_expr(subject, &environment, &mut Vec::new());
         let lowered_predicate = rule_lowerer.lower_expr(predicate, &environment, &mut Vec::new());
         match (lowered_subject, lowered_predicate) {
@@ -17649,6 +18113,7 @@ fn verify_with_z3(source: &str, filename: &str) {
             println!();
             continue;
         }
+        let free_variable_types = invariant_free_variable_types.get(inv_name);
 
         let mut function_free_vars = BTreeSet::new();
         let (ordered_vars, used_functions) = loop {
@@ -17807,7 +18272,10 @@ fn verify_with_z3(source: &str, filename: &str) {
                     infer_smt_sort_adts(bound_expr, &ctor_to_type)
                 }
             } else {
-                "Int".to_string()
+                free_variable_types
+                    .and_then(|types| types.get(var))
+                    .map(|type_name| smt_type_name_to_sort(type_name))
+                    .unwrap_or_else(|| "Int".to_string())
             };
             smt.push_str(&format!(
                 "(declare-const {} {})\n",
@@ -17909,6 +18377,26 @@ fn verify_with_z3(source: &str, filename: &str) {
                             if model.lines().next().map(str::trim) == Some("sat")
                                 && !model.contains("(error ") =>
                         {
+                            // Name each free variable's witness in source
+                            // syntax; the raw model follows for the rest.
+                            let constants = smt_model_constants(
+                                model.split_once('\n').map_or("", |(_, rest)| rest),
+                            );
+                            for var in ordered_vars
+                                .iter()
+                                .filter(|var| !bindings.contains_key(*var))
+                            {
+                                let type_name = free_variable_types
+                                    .and_then(|types| types.get(var))
+                                    .map_or("Int", String::as_str);
+                                if let Some(value) =
+                                    constants.get(&smt_value_symbol(var)).and_then(|value| {
+                                        rule_lowerer.smt_witness_value(type_name, value)
+                                    })
+                                {
+                                    println!("    {} = {}", var, value);
+                                }
+                            }
                             for line in model.lines().skip(1) {
                                 println!("    {}", line);
                             }

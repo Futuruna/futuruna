@@ -1,0 +1,20 @@
+# Light = Red | Amber | Green
+# Shape = Circle(Int) | Square(Int)
+
+| advance(l: Light) -> Red
+| advance(l: Light) -> Green under l == Red
+| advance(l: Light) -> Amber under l == Green
+
+| sides(shape: Shape) -> 4
+
+> is_red(l: Light) -> Bool { l == Red }
+
+| compared_light_is_quantified: l -> l == Red || l == Amber || l == Green
+| matched_light_is_quantified: l -> match l { | Red -> advance(Red) == Green | Green -> advance(Green) == Amber | Amber -> advance(Amber) == Red }
+| rule_argument_is_quantified: advance(l) -> if l == Amber { advance(l) == Red } else { advance(l) != Red }
+| function_parameter_is_quantified: is_red(l) -> is_red(l) == (advance(l) == Green)
+| int_variables_are_unchanged: x -> x + 0 == x
+| int_witness_is_readable: x -> x != -7
+| payload_enum_is_unsupported: sides(shape) -> sides(shape) == 4
+| generic_enum_is_unsupported: o -> o == None
+| ambiguous_sort_is_unsupported: advance(l) -> l + 1 > 0

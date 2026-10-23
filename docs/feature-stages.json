@@ -140,7 +140,7 @@
       "kind": "verification",
       "name": "runa verify SMT checking of invariants",
       "stage": "preview",
-      "notes": "PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.",
+      "notes": "PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.",
       "commands": [
         "verify"
       ],

@@ -3,7 +3,7 @@
 
 use futuruna::{Defn, Lexer, Parser, Pat, Stmt, TokenKind, TypeDecl};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -267,7 +267,7 @@ fn top_level_names(statements: &[Stmt]) -> BTreeSet<String> {
 }
 
 /// Identifiers in the predicate that no declaration binds: `verify`
-/// quantifies them over every Int.
+/// quantifies them over the sort it declares for them.
 fn free_variables(predicate: &str, declared: &BTreeSet<String>) -> Vec<String> {
     let tokens = Lexer::new(predicate).tokenize();
     let mut free = Vec::new();
@@ -288,15 +288,66 @@ fn free_variables(predicate: &str, declared: &BTreeSet<String>) -> Vec<String> {
     free
 }
 
-fn assignments(count: usize) -> Vec<Vec<&'static str>> {
+/// Enums whose constructors all carry no payload, with their constructors.
+fn payload_free_enums(statements: &[Stmt]) -> BTreeMap<String, Vec<String>> {
+    statements
+        .iter()
+        .filter_map(|statement| match statement {
+            Stmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params,
+                variants,
+                ..
+            }) if params.is_empty()
+                && !variants.is_empty()
+                && variants.iter().all(|variant| variant.fields.is_empty()) =>
+            {
+                Some((
+                    name.clone(),
+                    variants
+                        .iter()
+                        .map(|variant| variant.name.clone())
+                        .collect(),
+                ))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The SMT sort `verify` declared for each free variable of one invariant,
+/// read from the `(declare-const runa_v_<hex name> Sort)` lines of its report
+/// section.
+fn declared_sorts(report: &str, invariant: &str) -> BTreeMap<String, String> {
+    let header = format!("--- | {invariant} ---");
+    let Some(start) = report.find(&header) else {
+        return BTreeMap::new();
+    };
+    let section = &report[start + header.len()..];
+    let section = &section[..section.find("--- | ").unwrap_or(section.len())];
+    section
+        .lines()
+        .filter_map(|line| {
+            let declaration = line.trim().strip_prefix("(declare-const runa_v_")?;
+            let (encoded, sort) = declaration.strip_suffix(')')?.split_once(' ')?;
+            let bytes = (0..encoded.len())
+                .step_by(2)
+                .map(|index| u8::from_str_radix(encoded.get(index..index + 2)?, 16).ok())
+                .collect::<Option<Vec<_>>>()?;
+            Some((String::from_utf8(bytes).ok()?, sort.to_string()))
+        })
+        .collect()
+}
+
+fn assignments(domains: &[Vec<String>]) -> Vec<Vec<String>> {
     let mut all = vec![Vec::new()];
-    for _ in 0..count {
+    for domain in domains {
         all = all
             .into_iter()
-            .flat_map(|prefix| {
-                BOUNDARY_INPUTS.iter().map(move |value| {
+            .flat_map(|prefix: Vec<String>| {
+                domain.iter().map(move |value| {
                     let mut next = prefix.clone();
-                    next.push(*value);
+                    next.push(value.clone());
                     next
                 })
             })
@@ -306,7 +357,7 @@ fn assignments(count: usize) -> Vec<Vec<&'static str>> {
 }
 
 #[test]
-fn invariants_proved_by_verify_hold_at_integer_boundaries() {
+fn invariants_proved_by_verify_hold_at_int_boundaries_and_enum_constructors() {
     if !std::process::Command::new("z3")
         .arg("--version")
         .output()
@@ -341,6 +392,7 @@ fn invariants_proved_by_verify_hold_at_integer_boundaries() {
         let source = std::fs::read_to_string(path).unwrap();
         let statements = parses(&source).expect("verified file parses");
         let declared = top_level_names(&statements);
+        let enums = payload_free_enums(&statements);
         // Keep declarations and program flow; `?` statements (with their
         // handler blocks) would halt on the program's own terms, which is not
         // what this oracle measures.
@@ -365,15 +417,32 @@ fn invariants_proved_by_verify_hold_at_integer_boundaries() {
                 continue;
             };
             let free = free_variables(&predicate, &declared);
-            let parameters = free
-                .iter()
-                .map(|variable| format!("{variable}: Int"))
-                .collect::<Vec<_>>()
-                .join(", ");
+            let sorts = declared_sorts(&report, name);
+            // An Int variable is sampled at the 64-bit boundaries; an enum
+            // variable is evaluated at every constructor verify quantified.
+            let mut domains = Vec::with_capacity(free.len());
+            let mut parameters = Vec::with_capacity(free.len());
+            for variable in &free {
+                let sort = sorts.get(variable).map_or("Int", String::as_str);
+                match enums.get(sort) {
+                    Some(constructors) => domains.push(constructors.clone()),
+                    None => {
+                        assert_eq!(sort, "Int", "{relative}: {name} quantifies `{variable}`");
+                        domains.push(
+                            BOUNDARY_INPUTS
+                                .iter()
+                                .map(|value| value.to_string())
+                                .collect(),
+                        );
+                    }
+                }
+                parameters.push(format!("{variable}: {sort}"));
+            }
+            let parameters = parameters.join(", ");
             program.push_str(&format!(
                 "> {marker}{index}({parameters}) -> Bool {{ {predicate} }}\n"
             ));
-            for values in assignments(free.len()) {
+            for values in assignments(&domains) {
                 program.push_str(&format!(
                     "@ print(\"{marker} {name} {}: \" + show({marker}{index}({})))\n",
                     values.join(","),

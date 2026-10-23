@@ -119,9 +119,16 @@ Three assurance levels from the same `?` line:
 - `runa verify` — translates to SMT-LIB2, proves with Z3
 
 `runa verify` is Preview. PROVED means that for every value of the invariant's
-free variables (Int ranges over the 64-bit values) the predicate is true and no
-Int operation it evaluates overflows or divides by zero. Claims involving Float
-are reported as unsupported, never proved.
+free variables (Int ranges over the 64-bit values; a variable used as an enum
+whose constructors carry no payload ranges over exactly those constructors) the
+predicate is true and no Int operation it evaluates overflows or divides by
+zero. Claims involving Float are reported as unsupported, never proved.
+
+A free variable passed to a parameter typed with such an enum, or compared with
+one of its constructors, ranges over exactly that enum's constructors; every
+other free variable ranges over Int. Enums whose constructors carry payloads,
+generic types, and variables used as two different types are reported as
+unsupported.
 
 The verifier understands pure, total, non-recursive rule cascades directly. A
 RuleScope does not need a duplicate helper function for Z3:
@@ -146,6 +153,27 @@ The generated solver model preserves exception priority and first-applicable
 source order inside each priority tier. Recursive, partial non-Boolean,
 higher-order, or effectful rule groups are rejected from this Preview solver
 path with a diagnostic instead of being approximated.
+
+Claims about a finite state machine quantify over every state and event:
+
+```runa
+# State = Draft | Submitted | Paid | Shipped | Cancelled
+# Event = Submit | Pay | Ship | Cancel
+
+| next(s: State, e: Event) -> s
+| next(s: State, e: Event) -> Submitted under s == Draft && e == Submit
+| next(s: State, e: Event) -> Paid under s == Submitted && e == Pay
+| next(s: State, e: Event) -> Shipped under s == Paid && e == Ship
+| next(s: State, e: Event) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
+| exception refund_window next(s: State, e: Event) -> Cancelled under s == Paid && e == Cancel
+
+| shipped_is_final: next(Shipped, e) -> next(Shipped, e) == Shipped
+| cancel_always_cancels: next(s, Cancel) -> next(s, Cancel) == Cancelled
+```
+
+`shipped_is_final` is PROVED for all four events. `cancel_always_cancels` is
+refuted: the counterexample reports `s = Shipped`, because no rule cancels a
+shipped order.
 
 ## Next
 

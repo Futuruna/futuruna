@@ -65,7 +65,7 @@ On the language side, the recent focus has been semantic parity and determinism:
   canaries
 
 On the verification side, `runa verify` (Preview) checks `|` invariants with an
-SMT backend (Z3). PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved. The command exits non-zero unless every
+SMT backend (Z3). PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved. The command exits non-zero unless every
 invariant is PROVED.
 
 ## What Is Trusted Today

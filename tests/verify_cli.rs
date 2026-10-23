@@ -393,3 +393,184 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
         );
     }
 }
+
+fn z3_available() -> bool {
+    Command::new("z3")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+/// The report section of one invariant, from its header to the next header.
+fn invariant_section<'a>(stdout: &'a str, invariant: &str) -> &'a str {
+    let header = format!("--- | {invariant} ---");
+    let start = stdout
+        .find(&header)
+        .unwrap_or_else(|| panic!("missing section for {invariant}:\n{stdout}"));
+    let rest = &stdout[start + header.len()..];
+    let end = rest
+        .find("--- | ")
+        .or_else(|| rest.find("Verification: "))
+        .unwrap_or(rest.len());
+    &rest[..end]
+}
+
+#[test]
+fn nullary_enum_free_variables_range_over_their_constructors() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/order_state_machine.runa");
+    let fixture = fixture.to_str().expect("UTF-8 fixture path");
+
+    // The runtime agrees with the witness below: a shipped order stays shipped.
+    let interpreted = run_runa(&[fixture]);
+    assert!(
+        interpreted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&interpreted.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&interpreted.stdout).trim(),
+        "Shipped\nCancelled"
+    );
+
+    let verified = run_runa(&["verify", fixture]);
+    let stdout = String::from_utf8_lossy(&verified.stdout);
+    // `wrong_claim` is refuted, so verify fails even though three claims hold.
+    assert_eq!(
+        verified.status.code(),
+        Some(1),
+        "stdout:\n{stdout}\nstderr:\n{}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+    assert!(
+        !stdout.contains("SMT fallback skipped"),
+        "enum free variables must reach the solver:\n{stdout}"
+    );
+    // `e` (0x65) ranges over Event and `s` (0x73) over State, not Int.
+    assert!(
+        stdout.contains("(declare-const runa_v_65 Event)"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("(declare-const runa_v_73 State)"),
+        "{stdout}"
+    );
+    for symbol in ["runa_v_65", "runa_v_73"] {
+        assert!(
+            !stdout.contains(&format!("(<= (- 9223372036854775808) {symbol})")),
+            "an enum variable must not receive an Int domain:\n{stdout}"
+        );
+    }
+
+    if z3_available() {
+        for invariant in [
+            "shipped_is_final",
+            "cancelled_is_final",
+            "no_shipping_unpaid",
+        ] {
+            assert!(
+                stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
+                "missing proof for {invariant}:\n{stdout}"
+            );
+        }
+        let wrong = invariant_section(&stdout, "wrong_claim");
+        assert!(
+            wrong.contains("COUNTEREXAMPLE found for |wrong_claim|"),
+            "{wrong}"
+        );
+        assert!(
+            wrong.lines().any(|line| line.trim() == "s = Shipped"),
+            "the witness must name the constructor:\n{wrong}"
+        );
+        assert!(
+            stdout.contains("Verification: 3 of 4 invariant(s) proved."),
+            "{stdout}"
+        );
+    } else {
+        assert!(stdout.contains("Z3 not found"), "{stdout}");
+        assert!(!stdout.contains("PROVED:"), "{stdout}");
+    }
+}
+
+#[test]
+fn enum_free_variable_domains_fail_closed_outside_payload_free_enums() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/enum_free_variable_domains.runa");
+    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&verified.stdout);
+    assert_eq!(
+        verified.status.code(),
+        Some(1),
+        "stdout:\n{stdout}\nstderr:\n{}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+
+    // Comparisons, match patterns, rule parameters, and function parameters
+    // each give `l` (0x6c) the Light sort; `x` (0x78) keeps the Int domain.
+    for invariant in [
+        "compared_light_is_quantified",
+        "matched_light_is_quantified",
+        "rule_argument_is_quantified",
+        "function_parameter_is_quantified",
+    ] {
+        let section = invariant_section(&stdout, invariant);
+        assert!(
+            section.contains("(declare-const runa_v_6c Light)"),
+            "{invariant}:\n{section}"
+        );
+    }
+    for invariant in ["int_variables_are_unchanged", "int_witness_is_readable"] {
+        let section = invariant_section(&stdout, invariant);
+        assert!(
+            section.contains("(declare-const runa_v_78 Int)")
+                && section.contains(
+                    "(assert (and (<= (- 9223372036854775808) runa_v_78) (<= runa_v_78 9223372036854775807)))"
+                ),
+            "{invariant}:\n{section}"
+        );
+    }
+
+    for (invariant, diagnostic) in [
+        (
+            "payload_enum_is_unsupported",
+            "SMT fallback skipped: free variable `shape` would range over `Shape`, which has constructors that carry payloads",
+        ),
+        (
+            "generic_enum_is_unsupported",
+            "SMT fallback skipped: free variable `o` would range over `Option`, which is a generic type",
+        ),
+        (
+            "ambiguous_sort_is_unsupported",
+            "SMT fallback skipped: free variable `l` has an ambiguous sort: it is used as both `Int` and `Light`",
+        ),
+    ] {
+        let section = invariant_section(&stdout, invariant);
+        assert!(section.contains(diagnostic), "{invariant}:\n{section}");
+        assert!(!section.contains("declare-const"), "{invariant}:\n{section}");
+    }
+
+    if z3_available() {
+        for invariant in [
+            "compared_light_is_quantified",
+            "matched_light_is_quantified",
+            "rule_argument_is_quantified",
+            "function_parameter_is_quantified",
+            "int_variables_are_unchanged",
+        ] {
+            assert!(
+                stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
+                "missing proof for {invariant}:\n{stdout}"
+            );
+        }
+        let witness = invariant_section(&stdout, "int_witness_is_readable");
+        assert!(
+            witness.contains("COUNTEREXAMPLE found for |int_witness_is_readable|")
+                && witness.lines().any(|line| line.trim() == "x = -7"),
+            "{witness}"
+        );
+        assert!(
+            stdout.contains("Verification: 5 of 9 invariant(s) proved."),
+            "{stdout}"
+        );
+    }
+}

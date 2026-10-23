@@ -1,0 +1,17 @@
+# State = Draft | Submitted | Paid | Shipped | Cancelled
+# Event = Submit | Pay | Ship | Cancel
+
+| next(s: State, e: Event) -> s
+| next(s: State, e: Event) -> Submitted under s == Draft && e == Submit
+| next(s: State, e: Event) -> Paid under s == Submitted && e == Pay
+| next(s: State, e: Event) -> Shipped under s == Paid && e == Ship
+| next(s: State, e: Event) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
+| exception refund_window next(s: State, e: Event) -> Cancelled under s == Paid && e == Cancel
+
+| shipped_is_final: next(Shipped, e) -> next(Shipped, e) == Shipped
+| cancelled_is_final: next(Cancelled, e) -> next(Cancelled, e) == Cancelled
+| no_shipping_unpaid: next(s, Ship) -> if s == Paid || s == Shipped { True } else { next(s, Ship) != Shipped }
+| wrong_claim: next(s, Cancel) -> next(s, Cancel) == Cancelled
+
+@ print(show(next(Shipped, Cancel)))
+@ print(show(next(Paid, Cancel)))
