@@ -27,6 +27,8 @@ macro_rules! status_println {
 }
 
 mod runa_packages;
+// Reports with `status_println!`, so it follows the macro definitions.
+mod runa_rule_reachability;
 
 use futuruna::*;
 use quote::ToTokens;
@@ -1490,7 +1492,7 @@ impl ToolGuarantee {
             Self::FrontendCheck => "The program parses, its imports resolve and it type-checks; nothing is executed and no Rust is compiled.",
             Self::Check => "The frontend check passes, `@ comptime` evaluates without host effects, and the generated Rust compiles; the program is not run.",
             Self::Verify => "Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail.",
-            Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); no findings does not prove the rules consistent or correct.",
+            Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); a clause reported unreachable never fires for any input under 64-bit Int semantics; no findings does not prove the rules consistent or correct.",
             Self::Fmt => "Only layout changes; every file's tokens and parsed program are identical before and after formatting.",
             Self::Test => "Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run.",
         }
@@ -12846,6 +12848,10 @@ struct SmtResolvedNamespace {
     identity: String,
     display_name: String,
     statements: Vec<Stmt>,
+    /// Source file of each statement, parallel to `statements`. Imported
+    /// declarations keep the file they were written in so tools can report
+    /// source locations across the flattened program.
+    origins: Vec<Rc<str>>,
     exports: BTreeSet<String>,
     qualified_imports: BTreeMap<String, String>,
 }
@@ -12938,7 +12944,7 @@ impl SmtProgramResolver {
             root_identity.clone(),
             "root".to_string(),
             statements,
-            &smt_source_dir(filename),
+            filename,
             BTreeSet::new(),
             &mut visited,
             true,
@@ -12956,7 +12962,7 @@ impl SmtProgramResolver {
         identity: String,
         display_name: String,
         statements: &[Stmt],
-        source_dir: &str,
+        source_file: &str,
         exports: BTreeSet<String>,
         visited_plain_sources: &mut BTreeSet<String>,
         retain_program_flow: bool,
@@ -12968,7 +12974,7 @@ impl SmtProgramResolver {
         let mut qualified_imports = BTreeMap::new();
         self.collect_namespace_statements(
             statements,
-            source_dir,
+            &Rc::from(source_file),
             &identity,
             &display_name,
             visited_plain_sources,
@@ -12976,12 +12982,14 @@ impl SmtProgramResolver {
             &mut resolved_statements,
             &mut qualified_imports,
         )?;
+        let (statements, origins) = resolved_statements.into_iter().unzip();
         self.namespaces.insert(
             identity.clone(),
             SmtResolvedNamespace {
                 identity,
                 display_name,
-                statements: resolved_statements,
+                statements,
+                origins,
                 exports,
                 qualified_imports,
             },
@@ -12993,20 +13001,27 @@ impl SmtProgramResolver {
     fn collect_namespace_statements(
         &mut self,
         statements: &[Stmt],
-        source_dir: &str,
+        source_file: &Rc<str>,
         namespace_identity: &str,
         namespace_display_name: &str,
         visited_plain_sources: &mut BTreeSet<String>,
         retain_program_flow: bool,
-        output: &mut Vec<Stmt>,
+        output: &mut Vec<(Stmt, Rc<str>)>,
         qualified_imports: &mut BTreeMap<String, String>,
     ) -> Result<(), String> {
+        let source_dir = smt_source_dir(source_file);
+        let source_dir = source_dir.as_str();
         let prelude_len = statements
             .iter()
             .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
             .map_or(0, |index| index + 1);
         let (prelude, statements) = statements.split_at(prelude_len);
-        output.extend_from_slice(prelude);
+        let prelude_origin: Rc<str> = Rc::from(SMT_PRELUDE_ORIGIN);
+        output.extend(
+            prelude
+                .iter()
+                .map(|statement| (statement.clone(), Rc::clone(&prelude_origin))),
+        );
         // Plain imports are declaration overlays in the current namespace and
         // precede the importing source, matching interpreter/codegen lookup.
         for statement in statements {
@@ -13037,7 +13052,7 @@ impl SmtProgramResolver {
             self.active_sources.insert(canonical.clone());
             let result = self.collect_namespace_statements(
                 module.statements(),
-                &smt_source_dir(&file_path),
+                &Rc::from(file_path.as_str()),
                 namespace_identity,
                 namespace_display_name,
                 visited_plain_sources,
@@ -13102,7 +13117,7 @@ impl SmtProgramResolver {
                     child_identity,
                     child_display_name,
                     module.statements(),
-                    &smt_source_dir(&file_path),
+                    &file_path,
                     smt_exported_names(module.statements()),
                     &mut child_visited,
                     false,
@@ -13123,7 +13138,7 @@ impl SmtProgramResolver {
                 _ => None,
             })
             .collect();
-        output.retain(|statement| {
+        output.retain(|(statement, _)| {
             !matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if local_functions.contains(name.as_str()))
         });
         output.extend(
@@ -13133,11 +13148,14 @@ impl SmtProgramResolver {
                     !matches!(statement, Stmt::Import(_) | Stmt::QualifiedImport(_, _))
                         && (retain_program_flow || smt_imported_library_statement(statement))
                 })
-                .cloned(),
+                .map(|statement| (statement.clone(), Rc::clone(source_file))),
         );
         Ok(())
     }
 }
+
+/// Origin recorded for statements contributed by the standard prelude.
+const SMT_PRELUDE_ORIGIN: &str = "<prelude>";
 
 fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<SmtResolvedProgram, String> {
     SmtProgramResolver::default().resolve(statements, filename)
@@ -14039,10 +14057,12 @@ fn rewrite_smt_statement_for_namespace(
     }
 }
 
+/// Flatten every namespace into one statement list (qualified namespaces
+/// first, the root last) together with each statement's source file.
 fn lower_smt_namespaces(
     program: &SmtResolvedProgram,
     symbols: &SmtSymbolIndex,
-) -> Result<Vec<Stmt>, String> {
+) -> Result<(Vec<Stmt>, Vec<Rc<str>>), String> {
     let mut ordered_namespaces = program
         .namespaces
         .keys()
@@ -14053,12 +14073,13 @@ fn lower_smt_namespaces(
     ordered_namespaces.push(program.root_identity.clone());
 
     let mut output = Vec::new();
+    let mut origins = Vec::new();
     for identity in ordered_namespaces {
         let namespace = program
             .namespaces
             .get(&identity)
             .ok_or_else(|| format!("missing resolved SMT namespace `{}`", identity))?;
-        for statement in &namespace.statements {
+        for (statement, origin) in namespace.statements.iter().zip(&namespace.origins) {
             // Nominal declarations are metadata owned by the qualified module,
             // not declarations in the importing root. Omit unused metadata;
             // actual nominal use is rejected by the scalar-call guards above.
@@ -14068,9 +14089,148 @@ fn lower_smt_namespaces(
             output.push(rewrite_smt_statement_for_namespace(
                 statement, &identity, symbols,
             )?);
+            origins.push(Rc::clone(origin));
         }
     }
-    Ok(output)
+    Ok((output, origins))
+}
+
+/// The declarations of a flattened program in the form the SMT encoder
+/// consumes: datatypes, invariants, top-level bindings and functions (including
+/// one generated function per rule group), with bindings and function bodies
+/// already lowered so rule calls are calls of the generated functions.
+struct SmtProgramDeclarations {
+    adts: Vec<(String, Vec<Variant>)>,
+    ctor_to_type: BTreeMap<String, String>,
+    invariants: Vec<(String, Expr, Expr)>,
+    bindings: BTreeMap<String, Expr>,
+    binding_types: BTreeMap<String, Option<Ty>>,
+    functions: Vec<(String, Vec<Param>, Option<Ty>, Expr)>,
+    binding_lowering_errors: BTreeMap<String, String>,
+    function_lowering_errors: BTreeMap<String, String>,
+}
+
+impl SmtProgramDeclarations {
+    fn collect(all_stmts: &[Stmt], rule_lowerer: &SmtRuleLowerer<'_, '_>) -> Self {
+        let mut adts: Vec<(String, Vec<Variant>)> = Vec::new();
+        let mut adt_indexes: BTreeMap<String, usize> = BTreeMap::new();
+        let mut ctor_to_type: BTreeMap<String, String> = BTreeMap::new();
+        let mut invariants: Vec<(String, Expr, Expr)> = Vec::new();
+        let mut bindings: BTreeMap<String, Expr> = BTreeMap::new();
+        let mut binding_types: BTreeMap<String, Option<Ty>> = BTreeMap::new();
+        let mut functions: Vec<(String, Vec<Param>, Option<Ty>, Expr)> = Vec::new();
+
+        for stmt in all_stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                    if !adt_indexes.contains_key(name) {
+                        adt_indexes.insert(name.clone(), adts.len());
+                        adts.push((name.clone(), variants.clone()));
+                    }
+                    for v in variants {
+                        ctor_to_type.insert(v.name.clone(), name.clone());
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                    let variant = Variant {
+                        name: name.clone(),
+                        fields: params
+                            .iter()
+                            .map(|param| Field {
+                                name: param.name.clone(),
+                                ty: param.ty.clone().unwrap_or(Ty::Hole),
+                            })
+                            .collect(),
+                        positional: false,
+                        from_type: None,
+                    };
+                    if let Some(index) = adt_indexes.get(name).copied() {
+                        adts[index] = (name.clone(), vec![variant]);
+                    } else {
+                        adt_indexes.insert(name.clone(), adts.len());
+                        adts.push((name.clone(), vec![variant]));
+                    }
+                    ctor_to_type.insert(name.clone(), name.clone());
+                }
+                Stmt::Invariant {
+                    name,
+                    subject,
+                    predicate,
+                } => {
+                    invariants.push((name.clone(), subject.clone(), predicate.clone()));
+                }
+                Stmt::Bind(Pat::Var(name), ty, expr) => {
+                    bindings.insert(name.clone(), expr.clone());
+                    binding_types.insert(name.clone(), ty.clone());
+                }
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    body,
+                    ..
+                }) => {
+                    functions.push((name.clone(), params.clone(), ret_ty.clone(), body.clone()));
+                }
+                _ => {}
+            }
+        }
+
+        let (generated_rule_functions, generated_rule_function_errors) =
+            rule_lowerer.generated_rule_functions();
+        let generated_rule_function_names: BTreeSet<String> = generated_rule_functions
+            .iter()
+            .map(|(name, _, _, _)| name.clone())
+            .collect();
+        functions.extend(generated_rule_functions);
+
+        let mut binding_lowering_errors = BTreeMap::new();
+        let binding_environment = SmtLoweringEnv {
+            rule_calls_as_symbols: true,
+            ..SmtLoweringEnv::default()
+        };
+        for (name, expression) in &mut bindings {
+            match rule_lowerer.lower_expr(expression, &binding_environment, &mut Vec::new()) {
+                Ok(lowered) => *expression = lowered,
+                Err(error) => {
+                    binding_lowering_errors.insert(name.clone(), error);
+                }
+            }
+        }
+
+        let mut function_lowering_errors = generated_rule_function_errors;
+        for (name, params, _, body) in &mut functions {
+            if generated_rule_function_names.contains(name) {
+                continue;
+            }
+            let mut environment = SmtLoweringEnv {
+                rule_calls_as_symbols: true,
+                ..SmtLoweringEnv::default()
+            };
+            for param in params {
+                if let Some(ty) = &param.ty {
+                    environment.types.insert(param.name.clone(), ty.to_string());
+                }
+            }
+            match rule_lowerer.lower_expr(body, &environment, &mut Vec::new()) {
+                Ok(lowered) => *body = lowered,
+                Err(error) => {
+                    function_lowering_errors.insert(name.clone(), error);
+                }
+            }
+        }
+
+        Self {
+            adts,
+            ctor_to_type,
+            invariants,
+            bindings,
+            binding_types,
+            functions,
+            binding_lowering_errors,
+            function_lowering_errors,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -14107,6 +14267,18 @@ struct SmtLoweringEnv {
     types: BTreeMap<String, String>,
     active_scope: Option<(String, Expr)>,
     rule_calls_as_symbols: bool,
+}
+
+/// One rule dispatch candidate after its applicability has been lowered.
+struct SmtLoweredRuleCandidate<'program> {
+    /// Head bindings, scope captures and argument types for the value.
+    environment: SmtLoweringEnv,
+    /// When the candidate applies (and so is selected unless an earlier
+    /// candidate applies first).
+    applicability: Expr,
+    /// The selected value; `None` selects `true` (facts and Boolean
+    /// clause-as-predicate candidates).
+    value: Option<&'program Expr>,
 }
 
 fn smt_rule_function_name(identity: &SmtCallableIdentity) -> String {
@@ -15176,6 +15348,117 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         }))
     }
 
+    /// Lower when one dispatch candidate applies to a call with `arguments`:
+    /// its head patterns, its `under` condition and, for a Boolean
+    /// clause-as-predicate, its body. `Ok(None)` means the candidate cannot
+    /// take part in such a call (another arity, or not a dispatch rule).
+    fn lower_rule_candidate_applicability(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+        rule: &'program Rule,
+        arguments: &[Expr],
+        receiver: Option<&Expr>,
+        caller_environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Option<SmtLoweredRuleCandidate<'program>>, String> {
+        let Some(head) = rule.head() else {
+            return Ok(None);
+        };
+        let head_arguments = match &head.kind {
+            ExprKind::App(_, head_arguments) => head_arguments.as_slice(),
+            ExprKind::Var(_) => &[],
+            _ => {
+                return Err(format!(
+                    "rule `{}` has a head shape that is not translatable to SMT",
+                    self.rule_display_name(&group.key)
+                ));
+            }
+        };
+        if head_arguments.len() != arguments.len() {
+            return Ok(None);
+        }
+
+        let mut environment = caller_environment.clone();
+        if let (Some(scope), Some(receiver)) = (&group.key.scope, receiver) {
+            environment.active_scope = Some((scope.clone(), receiver.clone()));
+            for capture in &group.captures {
+                environment.substitutions.insert(
+                    capture.name.clone(),
+                    Expr::unspanned(ExprKind::Field(
+                        Box::new(receiver.clone()),
+                        capture.name.clone(),
+                    )),
+                );
+                if let Some(ty) = &capture.ty {
+                    environment
+                        .types
+                        .insert(capture.name.clone(), ty.to_string());
+                }
+            }
+        }
+
+        let mut applicability = smt_bool(true);
+        let mut head_bound = BTreeSet::new();
+        for (head_argument, actual_argument) in head_arguments.iter().zip(arguments.iter()) {
+            let guard = self.match_rule_head_argument(
+                head_argument,
+                actual_argument,
+                &mut environment,
+                &mut head_bound,
+            )?;
+            applicability = smt_and(applicability, guard);
+        }
+
+        // Bool determines clause-as-predicate lowering, but it does
+        // not by itself authorize a checked False value on dispatch
+        // miss.  That capability is carried separately by totality.
+        let return_is_bool = group.return_type.as_deref() == Some("Bool");
+        let (value, condition, clause) = match rule {
+            Rule::Exception {
+                value, condition, ..
+            }
+            | Rule::Default {
+                value, condition, ..
+            } => (Some(value), condition.as_ref(), false),
+            Rule::Clause { body, .. } => (body.as_ref(), None, true),
+            Rule::ReactiveScope { .. } => return Ok(None),
+        };
+        if let Some(condition) = condition {
+            applicability = smt_and(
+                applicability,
+                self.lower_expr(condition, &environment, expansion_stack)?,
+            );
+        }
+        let value = if clause && return_is_bool {
+            if let Some(body) = value {
+                applicability = smt_and(
+                    applicability,
+                    self.lower_expr(body, &environment, expansion_stack)?,
+                );
+            }
+            None
+        } else {
+            value
+        };
+        Ok(Some(SmtLoweredRuleCandidate {
+            environment,
+            applicability,
+            value,
+        }))
+    }
+
+    /// Lower the value a candidate selects once it applies.
+    fn lower_rule_candidate_value(
+        &self,
+        candidate: &SmtLoweredRuleCandidate<'program>,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Expr, String> {
+        match candidate.value {
+            Some(value) => self.lower_expr(value, &candidate.environment, expansion_stack),
+            None => Ok(smt_bool(true)),
+        }
+    }
+
     fn expand_rule_group(
         &self,
         group: &RuleDispatchGroup<'program>,
@@ -15195,94 +15478,23 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         let result = (|| {
             let mut candidates = Vec::new();
             for candidate in group.plan.candidates() {
-                let rule = candidate.rule;
-                let Some(head) = rule.head() else {
+                let Some(lowered) = self.lower_rule_candidate_applicability(
+                    group,
+                    candidate.rule,
+                    arguments,
+                    receiver.as_ref(),
+                    caller_environment,
+                    expansion_stack,
+                )?
+                else {
                     continue;
                 };
-                let head_arguments = match &head.kind {
-                    ExprKind::App(_, head_arguments) => head_arguments.as_slice(),
-                    ExprKind::Var(_) => &[],
-                    _ => {
-                        return Err(format!(
-                            "rule `{}` has a head shape that is not translatable to SMT",
-                            self.rule_display_name(&group.key)
-                        ));
-                    }
-                };
-                if head_arguments.len() != arguments.len() {
-                    continue;
-                }
-
-                let mut environment = caller_environment.clone();
-                if let (Some(scope), Some(receiver)) = (&group.key.scope, receiver.as_ref()) {
-                    environment.active_scope = Some((scope.clone(), receiver.clone()));
-                    for capture in &group.captures {
-                        environment.substitutions.insert(
-                            capture.name.clone(),
-                            Expr::unspanned(ExprKind::Field(
-                                Box::new(receiver.clone()),
-                                capture.name.clone(),
-                            )),
-                        );
-                        if let Some(ty) = &capture.ty {
-                            environment
-                                .types
-                                .insert(capture.name.clone(), ty.to_string());
-                        }
-                    }
-                }
-
-                let mut applicability = smt_bool(true);
-                for (head_argument, actual_argument) in head_arguments.iter().zip(arguments.iter())
-                {
-                    let guard = self.match_rule_head_argument(
-                        head_argument,
-                        actual_argument,
-                        &mut environment,
-                    )?;
-                    applicability = smt_and(applicability, guard);
-                }
-
-                // Bool determines clause-as-predicate lowering, but it does
-                // not by itself authorize a checked False value on dispatch
-                // miss.  That capability is carried separately by totality.
-                let return_is_bool = group.return_type.as_deref() == Some("Bool");
-                let (value, condition, clause) = match rule {
-                    Rule::Exception {
-                        value, condition, ..
-                    }
-                    | Rule::Default {
-                        value, condition, ..
-                    } => (Some(value), condition.as_ref(), false),
-                    Rule::Clause { body, .. } => (body.as_ref(), None, true),
-                    Rule::ReactiveScope { .. } => continue,
-                };
-                if let Some(condition) = condition {
-                    applicability = smt_and(
-                        applicability,
-                        self.lower_expr(condition, &environment, expansion_stack)?,
-                    );
-                }
-
-                let (selected_value, applicability) = if clause && return_is_bool {
-                    match value {
-                        Some(body) => (
-                            smt_bool(true),
-                            smt_and(
-                                applicability,
-                                self.lower_expr(body, &environment, expansion_stack)?,
-                            ),
-                        ),
-                        None => (smt_bool(true), applicability),
-                    }
-                } else {
-                    let selected = match value {
-                        Some(value) => self.lower_expr(value, &environment, expansion_stack)?,
-                        None => smt_bool(true),
-                    };
-                    (selected, applicability)
-                };
-                candidates.push((applicability, selected_value, candidate.source_order));
+                let selected_value = self.lower_rule_candidate_value(&lowered, expansion_stack)?;
+                candidates.push((
+                    lowered.applicability,
+                    selected_value,
+                    candidate.source_order,
+                ));
             }
 
             let mut fallback = if group.totality == RuleDispatchTotality::PredicateFallbackFalse {
@@ -15318,11 +15530,15 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         result
     }
 
+    /// Lower one head pattern against the actual argument. `head_bound`
+    /// holds the variables this head has already bound: a repeated variable
+    /// requires the same value, as in the runtime matcher.
     fn match_rule_head_argument(
         &self,
         pattern: &Expr,
         actual: &Expr,
         environment: &mut SmtLoweringEnv,
+        head_bound: &mut BTreeSet<String>,
     ) -> Result<Expr, String> {
         if let Some((inner, type_name)) = typed_rule_head_argument(pattern) {
             if let ExprKind::Var(name) = &inner.kind {
@@ -15330,21 +15546,35 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     .types
                     .insert(name.clone(), type_name.to_string());
             }
-            return self.match_rule_head_argument(inner, actual, environment);
+            return self.match_rule_head_argument(inner, actual, environment, head_bound);
         }
 
         match &pattern.kind {
             ExprKind::Var(name) if name == "_" => Ok(smt_bool(true)),
             ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
+                if !head_bound.insert(name.clone()) {
+                    let bound = environment
+                        .substitutions
+                        .get(name)
+                        .cloned()
+                        .ok_or_else(|| {
+                            format!("repeated head variable `{}` has no SMT binding", name)
+                        })?;
+                    return Ok(Expr::unspanned(ExprKind::BinOp(
+                        "==".to_string(),
+                        Box::new(actual.clone()),
+                        Box::new(bound),
+                    )));
+                }
                 environment
                     .substitutions
                     .insert(name.clone(), actual.clone());
                 Ok(smt_bool(true))
             }
-            ExprKind::Var(name) => Ok(Expr::unspanned(ExprKind::BinOp(
+            ExprKind::Var(_) => Ok(Expr::unspanned(ExprKind::BinOp(
                 "==".to_string(),
                 Box::new(actual.clone()),
-                Box::new(Expr::unspanned(ExprKind::Var(name.clone()))),
+                Box::new(self.lower_expr(pattern, environment, &mut Vec::new())?),
             ))),
             ExprKind::Lit(literal) => Ok(Expr::unspanned(ExprKind::BinOp(
                 "==".to_string(),
@@ -15382,7 +15612,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     ));
                     guard = smt_and(
                         guard,
-                        self.match_rule_head_argument(child_pattern, &selected, environment)?,
+                        self.match_rule_head_argument(
+                            child_pattern,
+                            &selected,
+                            environment,
+                            head_bound,
+                        )?,
                     );
                 }
                 Ok(guard)
@@ -16268,6 +16503,8 @@ fn audit_calculation_reachability_source(
             .unwrap_or_else(|_| filename.to_string()),
     );
     let loaded_sources = loaded_sources.into_iter().collect::<Vec<_>>();
+    let clause_report =
+        runa_rule_reachability::analyze_clause_reachability(&stmts, filename, source);
 
     if json {
         let report = serde_json::json!({
@@ -16292,6 +16529,7 @@ fn audit_calculation_reachability_source(
             "loaded_sources": loaded_sources,
             "callables": callable_values,
             "not_reached_candidates": not_reached_candidates,
+            "clause_reachability": clause_report.json(),
         });
         println!(
             "{}",
@@ -16320,6 +16558,8 @@ fn audit_calculation_reachability_source(
     println!(
         "Policy: not_reached is a conservative implementation-review candidate, not a proof of impossibility."
     );
+    println!();
+    clause_report.print();
 }
 
 /// Audit: discover invariant gaps, rule asymmetries, and contradictions automatically.
@@ -16364,6 +16604,8 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     if print_type_check_diagnostics(&effect_diagnostics, source, filename) {
         std::process::exit(1);
     }
+    let clause_report =
+        runa_rule_reachability::analyze_clause_reachability(&stmts, filename, source);
     let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
     interp.deny_host_effects("`runa audit`");
@@ -16984,9 +17226,16 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         "  Invariants: {}, covering {} Bool rules ({}%)",
         invariant_count, covered_bool_count, header_pct
     );
+    let unreachable_count = clause_report.unreachable_count();
+    let overlap_count = clause_report.overlap_count();
     println!(
-        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap",
-        contradiction_count, tension_count, asymmetry_count, gap_count
+        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} overlapping guards",
+        contradiction_count,
+        tension_count,
+        asymmetry_count,
+        gap_count,
+        unreachable_count,
+        overlap_count
     );
     println!();
 
@@ -17058,7 +17307,14 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         println!();
     }
 
-    let interesting = contradiction_count + asymmetry_count + gap_count + tension_count;
+    clause_report.print();
+
+    let interesting = contradiction_count
+        + asymmetry_count
+        + gap_count
+        + tension_count
+        + unreachable_count
+        + overlap_count;
     if interesting > 0 {
         status_println!(
             "\x1b[1m{} findings\x1b[0m from {} rules across {} type domains.",
@@ -17443,7 +17699,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
     };
     let all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
-        Ok(statements) => statements,
+        Ok((statements, _)) => statements,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
             std::process::exit(1);
@@ -17461,114 +17717,16 @@ fn verify_with_z3(source: &str, filename: &str) {
         symbol_index.rule_identities.clone(),
     );
 
-    // Collect ADTs, invariants, bindings, and function definitions
-    let mut adts: Vec<(String, Vec<Variant>)> = Vec::new();
-    let mut adt_indexes: BTreeMap<String, usize> = BTreeMap::new();
-    let mut ctor_to_type: BTreeMap<String, String> = BTreeMap::new();
-    let mut invariants: Vec<(String, Expr, Expr)> = Vec::new();
-    let mut bindings: BTreeMap<String, Expr> = BTreeMap::new();
-    let mut binding_types: BTreeMap<String, Option<Ty>> = BTreeMap::new();
-    let mut functions: Vec<(String, Vec<Param>, Option<Ty>, Expr)> = Vec::new();
-
-    for stmt in &all_stmts {
-        match stmt {
-            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
-                if !adt_indexes.contains_key(name) {
-                    adt_indexes.insert(name.clone(), adts.len());
-                    adts.push((name.clone(), variants.clone()));
-                }
-                for v in variants {
-                    ctor_to_type.insert(v.name.clone(), name.clone());
-                }
-            }
-            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
-                let variant = Variant {
-                    name: name.clone(),
-                    fields: params
-                        .iter()
-                        .map(|param| Field {
-                            name: param.name.clone(),
-                            ty: param.ty.clone().unwrap_or(Ty::Hole),
-                        })
-                        .collect(),
-                    positional: false,
-                    from_type: None,
-                };
-                if let Some(index) = adt_indexes.get(name).copied() {
-                    adts[index] = (name.clone(), vec![variant]);
-                } else {
-                    adt_indexes.insert(name.clone(), adts.len());
-                    adts.push((name.clone(), vec![variant]));
-                }
-                ctor_to_type.insert(name.clone(), name.clone());
-            }
-            Stmt::Invariant {
-                name,
-                subject,
-                predicate,
-            } => {
-                invariants.push((name.clone(), subject.clone(), predicate.clone()));
-            }
-            Stmt::Bind(Pat::Var(name), ty, expr) => {
-                bindings.insert(name.clone(), expr.clone());
-                binding_types.insert(name.clone(), ty.clone());
-            }
-            Stmt::Defn(Defn::Fn {
-                name,
-                params,
-                ret_ty,
-                body,
-                ..
-            }) => {
-                functions.push((name.clone(), params.clone(), ret_ty.clone(), body.clone()));
-            }
-            _ => {}
-        }
-    }
-
-    let (generated_rule_functions, generated_rule_function_errors) =
-        rule_lowerer.generated_rule_functions();
-    let generated_rule_function_names: BTreeSet<String> = generated_rule_functions
-        .iter()
-        .map(|(name, _, _, _)| name.clone())
-        .collect();
-    functions.extend(generated_rule_functions);
-
-    let mut binding_lowering_errors = BTreeMap::new();
-    let binding_environment = SmtLoweringEnv {
-        rule_calls_as_symbols: true,
-        ..SmtLoweringEnv::default()
-    };
-    for (name, expression) in &mut bindings {
-        match rule_lowerer.lower_expr(expression, &binding_environment, &mut Vec::new()) {
-            Ok(lowered) => *expression = lowered,
-            Err(error) => {
-                binding_lowering_errors.insert(name.clone(), error);
-            }
-        }
-    }
-
-    let mut function_lowering_errors = generated_rule_function_errors;
-    for (name, params, _, body) in &mut functions {
-        if generated_rule_function_names.contains(name) {
-            continue;
-        }
-        let mut environment = SmtLoweringEnv {
-            rule_calls_as_symbols: true,
-            ..SmtLoweringEnv::default()
-        };
-        for param in params {
-            if let Some(ty) = &param.ty {
-                environment.types.insert(param.name.clone(), ty.to_string());
-            }
-        }
-        match rule_lowerer.lower_expr(body, &environment, &mut Vec::new()) {
-            Ok(lowered) => *body = lowered,
-            Err(error) => {
-                function_lowering_errors.insert(name.clone(), error);
-            }
-        }
-    }
+    let SmtProgramDeclarations {
+        adts,
+        ctor_to_type,
+        mut invariants,
+        bindings,
+        binding_types,
+        functions,
+        binding_lowering_errors,
+        function_lowering_errors,
+    } = SmtProgramDeclarations::collect(&all_stmts, &rule_lowerer);
 
     let mut invariant_lowering_errors = BTreeMap::new();
     for (name, subject, predicate) in &mut invariants {

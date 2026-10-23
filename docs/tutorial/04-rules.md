@@ -1,7 +1,8 @@
 ---
-feature_stage: preview
+feature_stage: mixed
 feature_stage_surfaces:
   - solver-assisted-verification
+  - exploratory-audit-tooling
 ---
 
 # 4. Rules and Verification
@@ -100,6 +101,25 @@ heads or generating conditions. A condition such as `person(p)` can bind `p`
 from facts; a condition such as `p > 0` cannot enumerate all possible integers.
 An unbound positive override reports incomplete evaluation instead of claiming
 that its answer set is empty or complete.
+
+`runa audit` checks these priorities for you with Z3. It reports a clause that
+can never fire because earlier-priority guards always take its inputs (or its
+guard can never hold), and two guards of one tier that can both apply with
+different results, with a witness input:
+
+```runa
+| band(x: Int) -> 0
+| band(x: Int) -> 70 under x > 7
+| band(x: Int) -> 80 under x > 8
+```
+
+```bash
+runa audit band.runa
+```
+
+The audit names `band.runa:3` as unreachable and `band.runa:2` as the clause
+that takes its inputs. Guards the solver encoding cannot translate are listed
+as not analyzed. See [Auditing clause reachability](../reference/runes.md#auditing-clause-reachability).
 
 ## Invariants and verification
 

@@ -117,8 +117,10 @@ Write `|` invariants with captured values and boolean predicates. The `?` rune c
 
 `runa audit` analyzes the topology of all `|` rules — it finds structural
 asymmetries, proof gaps, resolution tensions, and same-rule contradictions you
-didn't think to check. Rule names never imply a relationship. The `?` rune
-proves what you expect; the audit discovers structural cases to review.
+didn't think to check. Rule names never imply a relationship. With Z3 it also
+reports clauses that can never fire and same-tier guards that overlap with
+different results (see [runes.md](runes.md#auditing-clause-reachability)). The
+`?` rune proves what you expect; the audit discovers structural cases to review.
 
 ## `----` blocks are for source text, `--` is for code comments
 

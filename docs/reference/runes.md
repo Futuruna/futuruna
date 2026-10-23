@@ -4,6 +4,7 @@ feature_stage_surfaces:
   - core-language-syntax
   - typed-calculation-contracts
   - rust-escape-hatches
+  - exploratory-audit-tooling
 ---
 
 # The Seven Runes
@@ -323,7 +324,10 @@ incomplete``. Interpreted and compiled programs apply the same limit.
 Rules are evaluated by priority tier: exceptions, guarded defaults, ordinary
 clauses, then an unguarded default. Within one tier, source order is
 authoritative and the first applicable rule wins. Put the more specific of two
-overlapping guards first. `under` adds a guard condition. `exception <label>`
+overlapping guards first; `runa audit` reports clauses that can never fire and
+same-tier guards that overlap with different results (see
+[Auditing clause reachability](#auditing-clause-reachability)). `under` adds a
+guard condition. `exception <label>`
 places the rule in the exception tier for the same head. The label (here
 `heatwave`) names the exception for readability and debugging; it does not
 affect priority. Write both the label and the named call:
@@ -763,3 +767,40 @@ outside its current first-order subset. Rule return sorts are resolved by the
 exact RuleScope (when present), name, and arity; same-named overloads never
 share a sort, and conflicting or unresolved result sorts fail closed. `runa
 verify` remains a Preview surface.
+
+### Auditing clause reachability
+
+`runa audit` (Experimental) uses the same SMT translation of rule groups and
+Z3 to check every rule family (same scope, name, and arity) with a clause in the
+audited file, imported clauses of that family included:
+
+- **Unreachable clause.** No input makes the clause fire: whenever its guard
+  (head patterns, `under` condition, and the body of a Boolean clause) holds, a
+  higher-priority candidate applies first, or the guard cannot hold at all. The
+  report names the clause, file and line, and the earlier clauses that take its
+  inputs. A clause after an unguarded clause of the same tier, a guard repeated
+  further down, and a guard such as `x > 5 && x < 3` are all unreachable.
+- **Overlapping guards.** Two candidates of one tier can both apply to the same
+  input and select different results, so source order silently picks the first.
+  The report names both clauses and a witness input. An earlier guard that is a
+  special case of a later one (a specific head pattern before a general one,
+  `x > 1000` before `x > 0`) is ordinary first-match refinement and is not
+  reported, and an unreachable clause is reported only as unreachable.
+
+```runa
+| band(x: Int) -> 0
+| band(x: Int) -> 70 under x > 7
+| band(x: Int) -> 80 under x > 8        -- unreachable: x > 7 takes every input
+| rate(x: Int) -> 1                     -- unreachable: the two guards cover every Int
+| rate(x: Int) -> 2 under x > 10
+| rate(x: Int) -> 3 under x < 20        -- overlaps the guard above, witness x = 11
+```
+
+A clause reported unreachable never fires for any value of the family's
+arguments and RuleScope fields (Int ranges over the 64-bit values); top-level
+bindings keep their declared values. A Boolean clause whose body is the literal
+`false` only marks a matched head and is not audited. Guards outside the
+translatable subset (the same limits as `runa verify`, plus Float and other
+values the encoding does not represent) are listed as not analyzed and counted
+in the summary, never guessed. When Z3 is missing the report says the check did
+not run.
