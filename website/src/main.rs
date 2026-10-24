@@ -498,6 +498,7 @@ fn Hero() -> Element {
                     a { class: "btn btn-tertiary", href: "/playground", "Try it yourself" }
                 }
             }
+            span { class: "law-graph-hint", aria_hidden: "true", "Click the graph to add a rule" }
             button {
                 id: "law-graph-pause",
                 class: "law-graph-pause",

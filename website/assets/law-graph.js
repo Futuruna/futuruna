@@ -1,4 +1,4 @@
-/* A quiet technical drawing: outlined nodes, restrained tilts, and rare traces. */
+/* The rule graph: every node is a rune, traces travel real connections and end verified. */
 (() => {
     window.__futurunaLawGraph?.destroy();
     const root = document.getElementById('law-graph');
@@ -12,7 +12,11 @@
     const events = new AbortController();
     const styles = getComputedStyle(hero);
     const ink = styles.getPropertyValue('--graph-ink').trim() || '#aaa5ba';
-    const activeInk = styles.getPropertyValue('--graph-active').trim() || '#d3cde3';
+    const runeVars = ['--rune-hash', '--rune-gt', '--rune-pipe', '--rune-eq', '--rune-tilde', '--rune-at', '--rune-question'];
+    const palette = runeVars.map((v, i) => styles.getPropertyValue(v).trim() || ['#e06070', '#50b060', '#5090e0', '#e0a040', '#c060e0', '#50c0c0', '#e08050'][i]);
+    const glyphs = ['#', '>', '|', '=', '~', '@', '?'];
+    const okInk = styles.getPropertyValue('--ok').trim() || '#50b060';
+    const labels = ['§ 29', '§ 12 stk. 2', 'exception', 'under', 'Tenant', 'deposit', 'notice', 'valgret', '§ 5', 'unless', 'shall', 'may', 'definition', 'remedy'];
     const ground = styles.getPropertyValue('--graph-ground').trim() || '#08080d';
     const pointer = { x: 0, y: 0, tx: 0, ty: 0, strength: 0, active: false };
     const nodes = [], edges = [], signals = [];
@@ -23,7 +27,7 @@
     const introDuration = 3.2;
     const signalLegDuration = 1.6;
     let width = 0, height = 0, dpr = 1;
-    let frame = 0, lastTime = 0, time = 0, nextSignal = 4.6;
+    let frame = 0, lastTime = 0, time = 0, nextSignal = 3.4;
     let introAge = preference.matches ? introDuration : 0;
     let visible = true, destroyed = false, paused = false;
 
@@ -46,9 +50,11 @@
                 const x = (col - 0.25 + noise(id + 10) * 0.5) * width / (cols - 1);
                 const y = (row - 0.25 + noise(id + 200) * 0.5) * height / (rows - 1);
                 nodes.push({
-                    key: `base-${id}`, born: null, selectedAt: -Infinity,
+                    key: `base-${id}`, born: null, selectedAt: -Infinity, verifiedAt: -Infinity,
                     x, y, bx: x, by: y, angle: 0,
-                    triangle: id % 2 === 0, radius: 5.2 + noise(id + 150) * 1.8,
+                    kind: Math.floor(noise(id + 900) * 7),
+                    label: noise(id + 1300) < 0.08 ? labels[Math.floor(noise(id + 1400) * labels.length)] : null,
+                    radius: 5.2 + noise(id + 150) * 1.8,
                     heat: 0, neighbors: [], reveal: 1, signal: 0
                 });
                 if (col) edges.push([id - 1, id]);
@@ -60,7 +66,7 @@
         nodes.forEach(n => {
             const old = previous.get(n.key);
             if (old) {
-                for (const field of ['x', 'y', 'angle', 'heat', 'selectedAt']) n[field] = old[field];
+                for (const field of ['x', 'y', 'angle', 'heat', 'selectedAt', 'verifiedAt']) n[field] = old[field];
             }
         });
         edges.forEach(([a, b], edge) => {
@@ -87,8 +93,8 @@
             if (distance < splitDistance) { split = index; splitDistance = distance; }
         });
         nodes.push({
-            key: `added-${placement.serial}`, born: placement.born, selectedAt: placement.born,
-            x, y, bx: x, by: y, angle: 0, triangle: placement.serial % 2 === 0,
+            key: `added-${placement.serial}`, born: placement.born, selectedAt: placement.born, verifiedAt: -Infinity,
+            x, y, bx: x, by: y, angle: 0, kind: placement.serial % 7, label: null,
             radius: 6, heat: 0, neighbors: [], reveal: 0, signal: 0
         });
         if (split >= 0) {
@@ -178,11 +184,16 @@
         // Ambient traces follow actual connections, even with a stationary mouse.
         if (nodes.length && time > nextSignal) {
             startSignal();
-            nextSignal = time + 9 + noise(time + 700) * 4;
+            nextSignal = time + 5 + noise(time + 700) * 3;
         }
         for (let i = signals.length - 1; i >= 0; i--) {
             signals[i].age += dt;
-            if (signals[i].age > (signals[i].route.length + 1) * signalLegDuration) signals.splice(i, 1);
+            if (signals[i].age > (signals[i].route.length + 1) * signalLegDuration) {
+                // The trace reached its conclusion: the final rule is verified.
+                const route = signals[i].route;
+                nodes[route[route.length - 1].to].verifiedAt = time;
+                signals.splice(i, 1);
+            }
         }
         nodes.forEach(n => {
             let tx = n.bx, ty = n.by, targetAngle = 0;
@@ -232,55 +243,83 @@
             const from = nodes[a], to = nodes[b];
             const join = born === undefined ? 1 : smooth(0.12, 1, time - born);
             const heat = Math.max(from.heat, to.heat, edgeSignals[index]);
-            ctx.strokeStyle = ink;
-            ctx.globalAlpha = (0.17 + heat * 0.22) * Math.min(from.reveal, to.reveal);
-            ctx.lineWidth = 0.7;
+            const ex = from.x + (to.x - from.x) * join, ey = from.y + (to.y - from.y) * join;
+            if (heat > 0.02) {
+                const gradient = ctx.createLinearGradient(from.x, from.y, ex, ey);
+                gradient.addColorStop(0, palette[from.kind]);
+                gradient.addColorStop(1, palette[to.kind]);
+                ctx.strokeStyle = gradient;
+            } else {
+                ctx.strokeStyle = ink;
+            }
+            ctx.globalAlpha = (0.2 + heat * 0.6) * Math.min(from.reveal, to.reveal);
+            ctx.lineWidth = 0.7 + heat * 0.6;
             ctx.beginPath();
             ctx.moveTo(from.x, from.y);
-            ctx.lineTo(from.x + (to.x - from.x) * join, from.y + (to.y - from.y) * join);
+            ctx.lineTo(ex, ey);
             ctx.stroke();
         });
         heads.forEach(({ from, to, phase }) => {
             const a = nodes[from], b = nodes[to];
-            const tail = Math.max(0, phase - 0.16);
-            ctx.strokeStyle = activeInk;
-            ctx.globalAlpha = Math.sin(phase * Math.PI) * 0.42 * Math.min(a.reveal, b.reveal);
-            ctx.lineWidth = 1.1;
+            const tail = Math.max(0, phase - 0.22);
+            ctx.strokeStyle = palette[a.kind];
+            ctx.shadowColor = palette[a.kind];
+            ctx.shadowBlur = 10;
+            ctx.globalAlpha = Math.sin(phase * Math.PI) * 0.9 * Math.min(a.reveal, b.reveal);
+            ctx.lineWidth = 1.8;
             ctx.beginPath();
             ctx.moveTo(a.x + (b.x - a.x) * tail, a.y + (b.y - a.y) * tail);
             ctx.lineTo(a.x + (b.x - a.x) * phase, a.y + (b.y - a.y) * phase);
             ctx.stroke();
+            ctx.shadowBlur = 0;
         });
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         nodes.forEach(n => {
             const selected = 1 - smooth(0.3, 1.8, time - n.selectedAt);
-            const emphasis = Math.max(n.heat, n.signal, selected * 0.65);
-            const radius = n.radius;
+            const verified = 1 - smooth(0, 1.8, time - n.verifiedAt);
+            const emphasis = Math.max(n.heat, n.signal * 2.2, selected * 0.8, verified);
+            const color = palette[n.kind];
             ctx.save();
             ctx.translate(n.x, n.y);
             ctx.rotate(n.angle);
-            ctx.beginPath();
-            if (n.triangle) {
-                for (let corner = 0; corner < 3; corner++) {
-                    const angle = -Math.PI / 2 + corner * Math.PI * 2 / 3;
-                    const x = Math.cos(angle) * radius;
-                    const y = Math.sin(angle) * radius;
-                    if (corner === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.closePath();
-            } else {
-                ctx.rect(-radius * 0.75, -radius * 0.75, radius * 1.5, radius * 1.5);
-            }
-            ctx.lineJoin = 'round';
-            ctx.lineWidth = 0.9;
-            // An opaque interior masks the connection beneath each hollow node.
+            // An opaque disc masks the connections beneath each rune.
             ctx.globalAlpha = n.reveal;
             ctx.fillStyle = ground;
+            ctx.beginPath();
+            ctx.arc(0, 0, 11, 0, Math.PI * 2);
             ctx.fill();
-            ctx.globalAlpha = (0.58 + emphasis * 0.28) * n.reveal;
-            ctx.strokeStyle = selected > 0.05 ? activeInk : ink;
+            ctx.globalAlpha = (0.62 + emphasis * 0.38) * n.reveal;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 0.8;
             ctx.stroke();
+            if (emphasis > 0.3) { ctx.shadowColor = color; ctx.shadowBlur = 14 * emphasis; }
+            ctx.fillStyle = color;
+            ctx.font = '700 12px "JetBrains Mono", monospace';
+            ctx.fillText(glyphs[n.kind], 0, 0.5);
+            ctx.shadowBlur = 0;
+            if (verified > 0.01) {
+                // A conclusion that holds: a green ring settles around the final rule.
+                const t = 1 - verified;
+                ctx.globalAlpha = verified * 0.85 * n.reveal;
+                ctx.strokeStyle = okInk;
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 12 + t * 12, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = okInk;
+                ctx.font = '700 10px "JetBrains Mono", monospace';
+                ctx.fillText('✓', 0, -22 - t * 4);
+            }
             ctx.restore();
+            if (n.label) {
+                ctx.globalAlpha = (0.32 + emphasis * 0.5) * n.reveal;
+                ctx.fillStyle = emphasis > 0.2 ? color : ink;
+                ctx.font = '400 10.5px "JetBrains Mono", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(n.label, n.x + 16, n.y + 0.5);
+                ctx.textAlign = 'center';
+            }
         });
         ctx.globalAlpha = 1;
     }
