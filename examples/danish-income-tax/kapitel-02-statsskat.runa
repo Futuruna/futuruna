@@ -649,10 +649,12 @@ Bundfradraget reguleres efter § 20.
     | TopskatLag -> PersonskattelovenLov482Af2024Par1Nr5
     | ToptopskatLag -> PersonskattelovenLov482Af2024Par1Nr6
 }
-| reform_statskat_bundfradrag_2010_niveau_for_lag_kroner(lag: ProgressivStatsskatLag) -> 0
-| exception mellemskat_bundfradrag_2010 reform_statskat_bundfradrag_2010_niveau_for_lag_kroner(lag: ProgressivStatsskatLag) -> 467000 under lag == MellemskatLag
-| exception topskat_bundfradrag_2010 reform_statskat_bundfradrag_2010_niveau_for_lag_kroner(lag: ProgressivStatsskatLag) -> 566500 under lag == TopskatLag
-| exception toptopskat_bundfradrag_2010 reform_statskat_bundfradrag_2010_niveau_for_lag_kroner(lag: ProgressivStatsskatLag) -> 1888300 under lag == ToptopskatLag
+-- Udtømmende over lagene: et nyt lag skal have sit eget beløb.
+| reform_statskat_bundfradrag_2010_niveau_for_lag_kroner(lag: ProgressivStatsskatLag) -> match lag {
+    | MellemskatLag -> 467000
+    | TopskatLag -> 566500
+    | ToptopskatLag -> 1888300
+}
 | reform_statskat_bundfradrag_2010_niveau_kroner(lag: ProgressivStatsskatLag) -> reform_statskat_bundfradrag_2010_niveau_for_lag_kroner(lag)
 | reform_statskat_reguleret_bundfradrag_kroner_opslag(lag: ProgressivStatsskatLag, skatteår: Heltal) -> match par20_reguleringstal_tiendedele_for_skatteår_opslag(skatteår) {
     | Some(reguleringstal) -> Some(par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
@@ -664,10 +666,12 @@ Bundfradraget reguleres efter § 20.
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
 | reform_statskat_reguleret_bundfradrag_kroner_opslag(lag: ProgressivStatsskatLag, skatteår: Heltal) -> None
 | reform_statskat_reguleret_bundfradrag_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> head(match reform_statskat_reguleret_bundfradrag_kroner_opslag(lag, skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| reform_statskat_sats_basispoint_for_lag(lag: ProgressivStatsskatLag) -> 0
-| exception mellemskat_2026 reform_statskat_sats_basispoint_for_lag(lag: ProgressivStatsskatLag) -> 750 under lag == MellemskatLag
-| exception topskat_2026 reform_statskat_sats_basispoint_for_lag(lag: ProgressivStatsskatLag) -> 750 under lag == TopskatLag
-| exception toptopskat_2026 reform_statskat_sats_basispoint_for_lag(lag: ProgressivStatsskatLag) -> 500 under lag == ToptopskatLag
+-- Udtømmende over lagene: et nyt lag skal have sin egen sats.
+| reform_statskat_sats_basispoint_for_lag(lag: ProgressivStatsskatLag) -> match lag {
+    | MellemskatLag -> 750
+    | TopskatLag -> 750
+    | ToptopskatLag -> 500
+}
 | reform_statskat_parameter_resultat_opslag(lag: ProgressivStatsskatLag, skatteår: Heltal) -> match reform_statskat_reguleret_bundfradrag_kroner_opslag(lag, skatteår) {
     | Some(bundfradrag) -> Some(ReformStatsskatParameterResultat(
         lag = lag,
