@@ -1,7 +1,7 @@
 -- expect-command: check
 -- expect-status: fail
 -- expect-stderr: cannot infer the result type of function `twice`; declare it after the parameters, as in `> twice(...) -> Type`
--- expect-stderr: function_uninferred_result_type.runa:8:14
+-- expect-stderr: function_uninferred_result_type.runa:9:14
 -- expect-stderr-not: Futuruna compiler bug
 -- expect-stderr-not: rustc
 -- roundtrip-skip: native compilation needs a result type the interpreter does not
