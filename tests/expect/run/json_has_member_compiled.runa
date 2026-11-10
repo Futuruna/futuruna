@@ -1,0 +1,19 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: present:null
+-- expect-stdout: present:5
+-- expect-stdout: missing:null
+-- expect-stdout: array=false
+-- expect-stdout: invalid=false
+
+= record = "{\"note\": null, \"amount\": 5}"
+
+> present(json: String, key: String) -> String {
+    if json_has(json, key) { "present:" + json_get(json, key) } else { "missing:" + json_get(json, key) }
+}
+
+@ print(present(record, "note"))
+@ print(present(record, "amount"))
+@ print(present(record, "owner"))
+@ print("array=" + show(json_has("[1, 2]", "0")))
+@ print("invalid=" + show(json_has("not json", "note")))

@@ -217,6 +217,16 @@ final `-total`.
 | `Option(a)` | `Option<A>` | `Some(42)`, `None` |
 | `Result(a, e)` | `Result<A, E>` | `Ok(42)`, `Err("fail")` |
 | `Pair(a, b)` | `(A, B)` | `Pair(1, "x")` |
+| `(a, b, c)` | `(A, B, C)` | `(1, "x", true)` |
+
+A tuple type is written like its literal, with two or more element types:
+
+```runa
+> describe(x: Int) -> (Int, String) { (x, "a") }
+```
+
+Followed by `->`, the same parentheses list the parameters of a function type
+instead; see [Function types](#function-types).
 
 Tuple literals may span lines and may end in a trailing comma:
 
@@ -382,7 +392,7 @@ For the complete standard library with all ~70 builtins, see [stdlib.md](stdlib.
 ### Math
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `abs` | `Int -> Int` | Absolute value |
+| `abs` | `Int -> Int`, `Float -> Float` | Absolute value |
 | `sqrt` | `Float -> Float` | Square root |
 | `pow` | `(Float, Float) -> Float` | Exponentiation |
 | `round` | `Float -> Int` | Round to nearest |
@@ -585,6 +595,7 @@ source line spells them (`fold`, not `foldl`; `returner`, not `return`).
 | `json_fortolk` | `json_parse` |
 | `json_hent` | `json_get` |
 | `json_tekst` | `json_string` |
+| `json_har` | `json_has` |
 | `json_tal` | `json_number` |
 | `json_sand` | `json_bool` |
 | `json_liste` | `json_array` |

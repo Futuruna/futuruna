@@ -1,0 +1,46 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: reply=(200, text/plain, 42)
+-- expect-stdout: error=400
+-- expect-stdout: double=8
+-- expect-stdout: greeting=hi x
+-- expect-stdout: pick=[1, 2][]
+-- expect-stdout: cheapest=a
+-- expect-stdout: factorial=120
+-- expect-stdout: quadruple=12
+-- expect-stdout: announce=done
+-- expect-stdout: offset=41
+-- expect-stdout: scaled=7
+
+# Item(name: String, price: Int)
+
+> reply(body: String) {
+    match parse_int(body) {
+        | Ok(n) -> http_respond(200, "text/plain", show(n))
+        | Err(e) -> http_respond(400, "text/plain", e)
+    }
+}
+> double(x: Int) { x * 2 }
+> greeting(name: String) { "hi " + name }
+> pick(flag: Bool) { if flag { [1, 2] } else { [] } }
+> cheapest(items: List(Item)) { head(sort_by(items, |item: Item| item.price)) }
+> factorial(n: Int) { if n <= 1 { 1 } else { n * factorial(n - 1) } }
+> quadruple(x: Int) { double(double(x)) }
+> announce(text: String) { @ print("announce=" + text) }
+> offset() { base + 1 }
+| scaled(x: Int) -> double(x) + 1
+
+= base = double(20)
+= answer = reply("42")
+
+@ print("reply=" + show(answer))
+@ print("error=" + show(fst(reply("x"))))
+@ print("double=" + show(double(4)))
+@ print("greeting=" + greeting("x"))
+@ print("pick=" + show(pick(true)) + show(pick(false)))
+@ print("cheapest=" + cheapest([Item(name = "b", price = 2), Item(name = "a", price = 1)]).name)
+@ print("factorial=" + show(factorial(5)))
+@ print("quadruple=" + show(quadruple(3)))
+announce("done")
+@ print("offset=" + show(offset()))
+@ print("scaled=" + show(scaled(3)))

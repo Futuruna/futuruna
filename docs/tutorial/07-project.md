@@ -133,6 +133,10 @@ runa emit src/main.runa    # Show generated Rust
 runa test                  # Run all tests/*.runa
 ```
 
+`runa build FILE` names the binary after the source file and writes it to the
+directory the command runs in, whatever directory the source is in: from the
+project root, `runa build src/main.runa` produces `./main`.
+
 Full `check` validates the generated Rust. When a program declares Rust crates
 with `@ depend`, or uses a feature that adds them, validating it needs Cargo to
 download and build those crates, which runs their build scripts. `check` does

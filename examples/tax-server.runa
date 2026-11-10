@@ -4,9 +4,9 @@
 -- A progressive tax engine with deductions, served over HTTP.
 -- Pure Futuruna. No Rust escape hatches.
 --
--- Build and run:
+-- Build and run (the binary is written to the current directory):
 --   runa build examples/tax-server.runa
---   .runa-build/tax-server/target/release/tax-server
+--   ./tax-server
 --
 -- Test with the client:
 --   runa run examples/tax-client.runa

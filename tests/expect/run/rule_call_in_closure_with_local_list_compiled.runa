@@ -1,0 +1,16 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: true
+-- expect-stdout: false
+
+# Item(owner: String, amount: Int)
+
+| in_list(names: List(String), name: String) -> any(names, |candidate| candidate == name)
+
+> has_big_for_flagged(items: List(Item), flagged_source: List(Item)) -> Bool {
+    = flagged = map(flagged_source, |i| i.owner)
+    any(items, |i| i.amount > 10 && in_list(flagged, i.owner))
+}
+
+@ print(show(has_big_for_flagged([Item(owner = "a", amount = 20)], [Item(owner = "a", amount = 0)])))
+@ print(show(has_big_for_flagged([Item(owner = "a", amount = 20)], [Item(owner = "b", amount = 0)])))

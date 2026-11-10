@@ -201,7 +201,25 @@ Defines transformation: functions, actors, and modules.
 }
 ```
 
-Parameters can omit type annotations (inferred). Return type after `->`.
+Parameters can omit type annotations (inferred). The result type follows `->`.
+
+A top-level function may omit its result type; the result is then inferred
+from the body:
+
+```runa
+> reply(body: String) {
+    match parse_int(body) {
+        | Ok(n) -> http_respond(200, "text/plain", show(n))
+        | Err(e) -> http_respond(400, "text/plain", e)
+    }
+}
+```
+
+`reply` returns `(Int, String, String)`. A body that ends in a statement
+returns `()`. When a body ends in a value whose type cannot be inferred, for
+example one computed from an untyped parameter, the interpreter still runs the
+function, and native compilation (`runa check`, `runa run`, `runa build`)
+reports an error that asks for a declared result type.
 
 An ordinary function name has one declaration in each authored lexical scope,
 regardless of parameter count. Duplicate declarations are errors before

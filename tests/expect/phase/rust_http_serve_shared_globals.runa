@@ -1,0 +1,16 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: let __fut_globals_shared = std::sync::Arc::new(__fut_globals.clone());
+-- expect-stdout: let __fut_globals = &*__fut_globals_shared;
+-- expect-stdout: body_for(&__fut_globals, &path)
+-- roundtrip-skip: http_serve runs only in compiled code (`runa run`)
+
+# Info(id: String, text: String)
+
+= notes = [Info(id = "a", text = "first"), Info(id = "b", text = "second")]
+
+> body_for(path: String) -> String { join(map(notes, |n| n.id + path), ",") }
+
+@ http_serve(18999, |path, method, body| {
+        http_respond(200, "text/plain", body_for(path))
+    })

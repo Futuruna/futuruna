@@ -1,0 +1,46 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: high=50
+-- expect-stdout: spread=1.75
+-- expect-stdout: day=7
+-- expect-stdout: first=1.75
+-- expect-stdout: total=3.75
+-- expect-stdout: any=1
+-- expect-stdout: reordered=16
+-- expect-stdout: lead=8
+-- expect-stdout: label=seven
+-- expect-stdout: position=2
+-- expect-stdout: larger=2.75
+
+# Params(threshold: Int)
+# Case(total: Int, ratio: Float, parameters: Params) {
+    | low() -> min_int(abs(total), parameters.threshold)
+    | high() -> abs(total) - low()
+    | spread() -> abs(ratio) - 0.5
+}
+
+| month_offset(month: Int) -> nth([0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4], month - 1)
+| first_weight(weights: List(Float)) -> head(weights)
+| total_weight(weights: List(Float)) -> sum(weights)
+| any_of(values: List(Int)) -> random_choice(values) * 0
+| reordered_total(values: List(Int)) -> sum(shuffle(values))
+| lead(entry: (Int, String)) -> fst(entry)
+| label(entry: (Int, String)) -> snd(entry)
+| position(text: String) -> index_of(text, "b")
+| larger(left: Float, right: Float) -> max_f(left, right)
+
+> day_number(month: Int, day: Int) -> Int { month_offset(month) + day }
+
+= c = Case(total = -150, ratio = -2.0, parameters = Params(threshold = 100))
+
+@ print("high=" + show(c.high()))
+@ print("spread=" + show(c.spread() + 0.25))
+@ print("day=" + show(day_number(3, 5)))
+@ print("first=" + show(first_weight([1.5, 2.0]) + 0.25))
+@ print("total=" + show(total_weight([1.5, 2.0]) + 0.25))
+@ print("any=" + show(any_of([4, 5, 6]) + 1))
+@ print("reordered=" + show(reordered_total([4, 5, 6]) + 1))
+@ print("lead=" + show(lead((7, "seven")) + 1))
+@ print("label=" + label((7, "seven")))
+@ print("position=" + show(position("abc") + 1))
+@ print("larger=" + show(larger(1.5, 2.5) + 0.25))

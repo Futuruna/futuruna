@@ -159,6 +159,12 @@ impl TypeChecker {
                         function_type_result(parse_type_annotation(local).ok()?, arguments.len())?;
                     return Some(Self::canonical_explore_ty_name(&result));
                 }
+                if let Some(inferred) = self
+                    .function_inferred_return_types
+                    .get(&(name.clone(), arguments.len()))
+                {
+                    return Some(inferred.clone());
+                }
                 if let Some(definitions) = self
                     .explore_function_definitions_by_arity
                     .get(&(name.clone(), arguments.len()))
@@ -448,6 +454,243 @@ impl TypeChecker {
                     self.return_type_mismatch(name, &expected, &actual, expr);
                 }
             }
+        }
+    }
+
+    /// Infer the result of every ordinary function that omits `-> Type`.
+    ///
+    /// A function is considered when its name and arity have one top-level
+    /// declaration. The fixed point lets such functions call each other and
+    /// feed top-level bindings; every seeded result is then re-inferred, so a
+    /// provisional type never survives a branch it does not explain. Returns
+    /// whether the inferred results changed.
+    pub(super) fn infer_omitted_function_return_types(&mut self, stmts: &[Stmt]) -> bool {
+        let candidates = self
+            .explore_function_definitions_by_arity
+            .iter()
+            .filter_map(|(key, definitions)| match definitions.as_slice() {
+                [(params, None, body)] => Some((key.clone(), params.clone(), body.clone())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let previous = std::mem::take(&mut self.function_inferred_return_types);
+        self.function_inferred_return_issues.clear();
+        if candidates.is_empty() {
+            return !previous.is_empty();
+        }
+
+        let previous_scope = self.active_rule_scope_inference.take();
+        let locals = candidates
+            .iter()
+            .map(|(_, params, _)| Self::omitted_result_locals(params))
+            .collect::<Vec<_>>();
+        for _ in 0..candidates
+            .len()
+            .saturating_add(stmts.len())
+            .saturating_add(1)
+        {
+            let mut changed = self.infer_top_level_binding_types(stmts);
+            for ((key, _, body), locals) in candidates.iter().zip(&locals) {
+                if !Self::omitted_result_is_inferable(body) {
+                    continue;
+                }
+                let Some(inferred) = self
+                    .provisional_expr_type_name_with_locals(body, locals)
+                    .map(|ty| if ty == "Unit" { "()".to_string() } else { ty })
+                    .filter(|ty| self.omitted_result_type_is_closed(ty))
+                else {
+                    continue;
+                };
+                if self.function_inferred_return_types.get(key) != Some(&inferred) {
+                    self.function_inferred_return_types
+                        .insert(key.clone(), inferred);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        // Drop every seed the completed environment cannot reproduce, and
+        // repeat so callers of a dropped function are dropped as well.
+        loop {
+            let mut changed = false;
+            for ((key, _, body), locals) in candidates.iter().zip(&locals) {
+                let Some(seeded) = self.function_inferred_return_types.get(key) else {
+                    continue;
+                };
+                let exact = self
+                    .infer_expr_type_name_with_locals(body, locals)
+                    .map(|ty| if ty == "Unit" { "()".to_string() } else { ty });
+                if exact.as_ref() != Some(seeded) {
+                    self.function_inferred_return_types.remove(key);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        for ((key, _, body), _) in candidates.iter().zip(&locals) {
+            if !self.function_inferred_return_types.contains_key(key)
+                && self.omitted_result_is_value(body)
+            {
+                self.function_inferred_return_issues.insert(key.clone());
+            }
+        }
+        self.active_rule_scope_inference = previous_scope;
+        self.function_inferred_return_types != previous
+    }
+
+    fn omitted_result_locals(params: &[Param]) -> BTreeMap<String, String> {
+        params
+            .iter()
+            .map(|param| {
+                let ty = param.ty.as_ref().map_or_else(
+                    // An untyped parameter still shadows a top-level binding.
+                    || CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
+                    Self::canonical_explore_ty_name,
+                );
+                (param.name.clone(), ty)
+            })
+            .collect()
+    }
+
+    /// Whether the body's result is the value of its last expression on every
+    /// path. A block that ends in a statement has no value to type, and
+    /// `expr?` returns early with a different one.
+    fn omitted_result_is_inferable(body: &Expr) -> bool {
+        fn ends_in_expression(expr: &Expr) -> bool {
+            match &expr.kind {
+                ExprKind::Block(stmts) => {
+                    matches!(stmts.last(), Some(Stmt::Expr(result)) if ends_in_expression(result))
+                }
+                ExprKind::If(_, then_expr, else_expr) => {
+                    ends_in_expression(then_expr) && ends_in_expression(else_expr)
+                }
+                ExprKind::Match(_, arms) => arms.iter().all(|arm| ends_in_expression(&arm.body)),
+                _ => true,
+            }
+        }
+        let mut propagates = false;
+        walk_ast_expr(body, &mut |child| {
+            if matches!(child, AstChild::Expr(expr) if matches!(expr.kind, ExprKind::Try(_))) {
+                propagates = true;
+            }
+        });
+        !propagates && ends_in_expression(body)
+    }
+
+    /// A result a signature can state: no missing type argument, no type
+    /// variable and no live stream.
+    fn omitted_result_type_is_closed(&self, type_name: &str) -> bool {
+        fn closed(checker: &TypeChecker, ty: &Ty) -> bool {
+            match ty {
+                Ty::Name(name) => {
+                    !matches!(
+                        name.as_str(),
+                        "List" | "Map" | "Set" | "Tuple" | "Stream" | "Subject"
+                    ) && checker
+                        .type_parameters_by_owner
+                        .get(name)
+                        .is_none_or(Vec::is_empty)
+                }
+                Ty::App(constructor, arguments) => {
+                    matches!(constructor.as_ref(), Ty::Name(name) if !matches!(name.as_str(), "Stream" | "Subject"))
+                        && arguments.iter().all(|argument| closed(checker, argument))
+                }
+                Ty::Arrow(input, output) => closed(checker, input) && closed(checker, output),
+                Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                    closed(checker, inner)
+                }
+                Ty::Unit => true,
+                Ty::Var(_) | Ty::Hole => false,
+            }
+        }
+        parse_type_annotation(type_name).is_ok_and(|ty| closed(self, &ty))
+    }
+
+    /// Whether a body certainly ends in a value. A call whose callee has no
+    /// known result (an effect operation, embedded Rust, an untyped parameter)
+    /// may be a statement, so it does not count.
+    fn omitted_result_is_value(&self, expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::Lit(_)
+            | ExprKind::List(_)
+            | ExprKind::Tuple(_)
+            | ExprKind::Lambda(_, _)
+            | ExprKind::BinOp(_, _, _)
+            | ExprKind::UnOp(_, _)
+            | ExprKind::Field(_, _)
+            | ExprKind::Index(_, _)
+            | ExprKind::Var(_) => true,
+            ExprKind::App(callee, arguments) => match &callee.kind {
+                ExprKind::Var(name) => {
+                    let key = (name.clone(), arguments.len());
+                    self.constructors.contains_key(name)
+                        || self
+                            .explore_function_return_types_by_arity
+                            .get(&key)
+                            .is_some_and(|result| {
+                                !matches!(result, Ty::Unit)
+                                    && !matches!(result, Ty::Name(name) if name == "Unit")
+                            })
+                        || self
+                            .function_inferred_return_types
+                            .get(&key)
+                            .is_some_and(|result| result != "()")
+                }
+                _ => false,
+            },
+            ExprKind::If(_, then_expr, else_expr) => {
+                self.omitted_result_is_value(then_expr) || self.omitted_result_is_value(else_expr)
+            }
+            ExprKind::Match(_, arms) => arms
+                .iter()
+                .any(|arm| self.omitted_result_is_value(&arm.body)),
+            ExprKind::Block(stmts) => matches!(
+                stmts.last(),
+                Some(Stmt::Expr(result)) if self.omitted_result_is_value(result)
+            ),
+            _ => false,
+        }
+    }
+
+    /// Native compilation needs a signature for every function. Report each
+    /// authored function whose omitted result could not be inferred.
+    pub(super) fn report_uninferred_function_results(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            let Stmt::Defn(Defn::Fn {
+                name,
+                params,
+                ret_ty: None,
+                body,
+                ..
+            }) = stmt
+            else {
+                continue;
+            };
+            if !self
+                .function_inferred_return_issues
+                .contains(&(name.clone(), params.len()))
+            {
+                continue;
+            }
+            let mut result = body;
+            while let ExprKind::Block(stmts) = &result.kind {
+                match stmts.last() {
+                    Some(Stmt::Expr(last)) => result = last,
+                    _ => break,
+                }
+            }
+            self.push_context(format!("in function `{name}`"));
+            self.error_at_expr(
+                result,
+                format!(
+                    "cannot infer the result type of function `{name}`; declare it after the parameters, as in `> {name}(...) -> Type`"
+                ),
+            );
+            self.pop_context();
         }
     }
 }

@@ -12430,6 +12430,7 @@ fn codegen_check_direct_skip_reason(source: &str) -> Option<&'static str> {
         || source.contains("http_serve")
         || source.contains("json_parse")
         || source.contains("json_get")
+        || source.contains("json_has")
         || source.contains("regex_match")
         || source.contains("regex_find")
     {
@@ -19240,6 +19241,7 @@ fn emit_fir_ty_as_rust(ty: &Ty) -> String {
                 "Option" => format!("Option<{}>", arg_strs.join(", ")),
                 "Result" => format!("Result<{}>", arg_strs.join(", ")),
                 "Map" => format!("BTreeMap<{}>", arg_strs.join(", ")),
+                "Tuple" if arg_strs.len() >= 2 => format!("({})", arg_strs.join(", ")),
                 "Set" => format!(
                     "__FutSet<{}>",
                     arg_strs
@@ -22857,6 +22859,7 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("process_run", 1),
     ("json_parse", 1),
     ("json_get", 2),
+    ("json_has", 2),
     ("json_emit", 1),
     ("json_string", 1),
     ("json_number", 1),
@@ -22976,6 +22979,10 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
         "json_get" => Some((
             "> json_get(json: Json, key: String) -> Json",
             "Get field from JSON",
+        )),
+        "json_has" => Some((
+            "> json_has(json: Json, key: String) -> Bool",
+            "Whether a JSON object has the member, including a null one",
         )),
         _ => None,
     }
@@ -23434,6 +23441,15 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 impure: false,
                 deps: SERDE,
                 rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }",
+            },
+        ),
+        (
+            "json_has",
+            BuiltinDef {
+                arity: 2,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_object().is_some_and(|__o| __o.contains_key(&*{1})) }",
             },
         ),
         (
@@ -25298,6 +25314,10 @@ struct RustCodegen {
     allow_comptime_binding_emit: bool,
     /// Inside an iterator closure (foldl/map/filter) — captured non-Copy vars need .clone()
     in_iter_closure: bool,
+    /// The next closure emitted outlives the frame that owns `__fut_globals`
+    /// (an `http_serve` handler): it must own a shared copy of the top-level
+    /// bindings instead of borrowing them.
+    closure_owns_global_env: bool,
     /// Parameters of the current closure (not captured — don't clone these)
     closure_params: BTreeSet<String>,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
@@ -25327,6 +25347,10 @@ struct RustCodegen {
     /// invent a result ABI after the canonical checker rejected the family.
     canonical_rule_return_types: BTreeMap<RuleDispatchKey, String>,
     canonical_rule_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Results the type checker inferred for functions that omit `-> Type`.
+    inferred_function_return_types: BTreeMap<(String, usize), String>,
+    /// Functions whose omitted result the type checker could not infer.
+    inferred_function_return_issues: BTreeSet<(String, usize)>,
     canonical_rule_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     canonical_rule_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     canonical_rule_parameter_issues: BTreeSet<RuleDispatchKey>,
@@ -26480,6 +26504,14 @@ impl<'a> LoweringCtx<'a> {
                             Self::ty_to_fir_with_pair_representation(&args[0], pair_is_tuple),
                             Self::ty_to_fir_with_pair_representation(&args[1], pair_is_tuple),
                         ]),
+                        // `(A, B, ...)`: the tuple type, a Rust tuple.
+                        "Tuple" if args.len() >= 2 => FirTy::Tuple(
+                            args.iter()
+                                .map(|arg| {
+                                    Self::ty_to_fir_with_pair_representation(arg, pair_is_tuple)
+                                })
+                                .collect(),
+                        ),
                         "Set" if args.len() == 1 => FirTy::Set(Box::new(
                             Self::ty_to_fir_with_pair_representation(&args[0], pair_is_tuple),
                         )),
@@ -26937,6 +26969,41 @@ impl<'a> LoweringCtx<'a> {
         }
     }
 
+    /// Lower a closure. `first_param_ty` types an unannotated first parameter
+    /// when the caller knows the value it is applied to.
+    fn lower_lambda(
+        &mut self,
+        expr: &Expr,
+        params: &[Param],
+        body: &Expr,
+        first_param_ty: Option<FirTy>,
+    ) -> FirExpr {
+        let saved_env = self.type_env.clone();
+        let mut first_param_ty = first_param_ty;
+        let mut param_tys = Vec::new();
+        for p in params {
+            let seeded = first_param_ty.take();
+            let ty = match (&p.ty, seeded) {
+                (Some(ty), _) => self.source_ty_to_fir(ty),
+                (None, Some(ty)) if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) => ty,
+                (None, _) => self.fresh_or_unknown(),
+            };
+            self.type_env.insert(p.name.clone(), ty.clone());
+            param_tys.push(ty);
+        }
+        let fir_body = self.lower_expr(body);
+        self.type_env = saved_env;
+        let mut lambda_ty = fir_body.ty.clone();
+        for param_ty in param_tys.into_iter().rev() {
+            lambda_ty = FirTy::Arrow(Box::new(param_ty), Box::new(lambda_ty));
+        }
+        FirExpr {
+            kind: FirExprKind::Lambda(params.to_vec(), Box::new(fir_body)),
+            span: expr.span,
+            ty: lambda_ty,
+        }
+    }
+
     /// Lower an AST expression to FIR with type resolution.
     fn lower_expr(&mut self, expr: &Expr) -> FirExpr {
         if let Some(path) = pathof_canonical_path(expr) {
@@ -27035,10 +27102,33 @@ impl<'a> LoweringCtx<'a> {
                         fir_func.ty = member_ty;
                     }
                 }
-                let fir_args: Vec<FirExpr> = args_for_lowering
-                    .iter()
-                    .map(|a| self.lower_expr(a))
-                    .collect();
+                // A collection builtin calls its callback with one element, so
+                // an untyped callback parameter has the element type.
+                let passes_elements = matches!(&func.kind, ExprKind::Var(name)
+                    if matches!(
+                        name.as_str(),
+                        "map" | "filter" | "flat_map" | "any" | "all" | "find" | "count_by"
+                            | "sort_by" | "take_while" | "drop_while" | "partition"
+                    ) && !self.types.user_functions.contains(name)
+                        && !self.type_env.contains_key(name));
+                let mut fir_args: Vec<FirExpr> = Vec::with_capacity(args_for_lowering.len());
+                for (index, argument) in args_for_lowering.iter().enumerate() {
+                    let element_ty = match fir_args.first().map(|collection| &collection.ty) {
+                        Some(FirTy::List(element) | FirTy::Set(element))
+                            if passes_elements && index == 1 =>
+                        {
+                            Some((**element).clone())
+                        }
+                        _ => None,
+                    };
+                    let lowered = match (&argument.kind, element_ty) {
+                        (ExprKind::Lambda(params, body), Some(element_ty)) if params.len() == 1 => {
+                            self.lower_lambda(argument, params, body, Some(element_ty))
+                        }
+                        _ => self.lower_expr(argument),
+                    };
+                    fir_args.push(lowered);
+                }
 
                 if let Some(ty) = qualified_return_ty {
                     return FirExpr {
@@ -27054,6 +27144,21 @@ impl<'a> LoweringCtx<'a> {
                         &fir_args,
                         resolved_constructor_parent.as_deref(),
                     ) {
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty,
+                        };
+                    }
+                    // `abs` keeps the numeric type of its argument.
+                    if fn_name == "abs"
+                        && fir_args.len() == 1
+                        && !self.types.user_functions.contains(fn_name)
+                    {
+                        let ty = match &fir_args[0].ty {
+                            FirTy::Float => FirTy::Float,
+                            _ => FirTy::Int,
+                        };
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args),
                             span: expr.span,
@@ -27504,35 +27609,7 @@ impl<'a> LoweringCtx<'a> {
                     ty,
                 }
             }
-            ExprKind::Lambda(params, body) => {
-                let saved_env = self.type_env.clone();
-                let mut param_tys = Vec::new();
-                for p in params {
-                    let ty = match &p.ty {
-                        Some(ty) => self.source_ty_to_fir(ty),
-                        None => {
-                            if let Some(ref mut inf) = self.inference {
-                                inf.fresh()
-                            } else {
-                                FirTy::Unknown
-                            }
-                        }
-                    };
-                    self.type_env.insert(p.name.clone(), ty.clone());
-                    param_tys.push(ty);
-                }
-                let fir_body = self.lower_expr(body);
-                self.type_env = saved_env;
-                let mut lambda_ty = fir_body.ty.clone();
-                for param_ty in param_tys.into_iter().rev() {
-                    lambda_ty = FirTy::Arrow(Box::new(param_ty), Box::new(lambda_ty));
-                }
-                FirExpr {
-                    kind: FirExprKind::Lambda(params.clone(), Box::new(fir_body)),
-                    span: expr.span,
-                    ty: lambda_ty,
-                }
-            }
+            ExprKind::Lambda(params, body) => self.lower_lambda(expr, params, body, None),
             ExprKind::BinOp(op, lhs, rhs) => {
                 let mut fir_lhs = self.lower_expr(lhs);
                 let mut fir_rhs = self.lower_expr(rhs);
@@ -30285,6 +30362,8 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
     match name {
         "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "random_float"
         | "json_number" => Some(FirTy::Float),
+        // `abs` returns its argument's numeric type. `Int` is the result where
+        // only the name is known; a call site types it from the argument.
         "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of" | "abs"
         | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff" => Some(FirTy::Int),
         "parse_int" | "parse_danish_int" => {
@@ -30299,8 +30378,8 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
             Box::new(FirTy::String),
         )),
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
-        | "set_contains" | "file_exists" | "json_bool" | "regex_match" | "is_some" | "is_none"
-        | "not" => Some(FirTy::Bool),
+        | "set_contains" | "file_exists" | "json_bool" | "json_has" | "regex_match" | "is_some"
+        | "is_none" | "not" => Some(FirTy::Bool),
         "substring"
         | "char_at"
         | "trim"
@@ -30416,6 +30495,7 @@ impl RustCodegen {
             local_bindings: BTreeSet::new(),
             allow_comptime_binding_emit: false,
             in_iter_closure: false,
+            closure_owns_global_env: false,
             closure_params: BTreeSet::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
@@ -30428,6 +30508,8 @@ impl RustCodegen {
             rule_emitted_names: BTreeMap::new(),
             canonical_rule_return_types: BTreeMap::new(),
             canonical_rule_return_issues: BTreeMap::new(),
+            inferred_function_return_types: BTreeMap::new(),
+            inferred_function_return_issues: BTreeSet::new(),
             canonical_rule_parameter_types: BTreeMap::new(),
             canonical_rule_parameter_names: BTreeMap::new(),
             canonical_rule_parameter_issues: BTreeSet::new(),
@@ -30488,6 +30570,8 @@ impl RustCodegen {
         // emitted, while Explore/SMT must not consume it as a total call.
         self.canonical_rule_return_types = artifacts.rule_dispatch_backend_return_types.clone();
         self.canonical_rule_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
+        self.inferred_function_return_types = artifacts.function_inferred_return_types.clone();
+        self.inferred_function_return_issues = artifacts.function_inferred_return_issues.clone();
         self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
         self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
         self.canonical_rule_parameter_issues = artifacts.rule_dispatch_parameter_issues.clone();
@@ -31495,6 +31579,24 @@ impl RustCodegen {
                     _ => Some(stmt),
                 })
                 .collect();
+        }
+
+        // A function that omits `-> Type` is emitted with the result the type
+        // checker inferred, exactly as if the result had been declared.
+        for stmt in &mut all_stmts {
+            if let Stmt::Defn(Defn::Fn {
+                name,
+                params,
+                ret_ty: ret_ty @ None,
+                ..
+            }) = stmt
+            {
+                *ret_ty = self
+                    .inferred_function_return_types
+                    .get(&(name.clone(), params.len()))
+                    .filter(|result| result.as_str() != "()")
+                    .and_then(|result| parse_type_annotation(result).ok());
+            }
         }
 
         self.types.module_value_bindings.clear();
@@ -35367,9 +35469,16 @@ fn __futuruna_install_error_hook() {
                 .get(ctor.as_str())
                 .cloned()
                 .unwrap_or_else(|| "impl Clone".to_string()),
-            ExprKind::App(func, _) => {
+            ExprKind::App(func, args) => {
                 if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if let Some(ret_ty) =
+                    if let Some(ret_ty) = (fn_name == "abs"
+                        && args.len() == 1
+                        && !self.types.user_functions.contains(fn_name)
+                        && self.infer_expr_fir_ty(&args[0]) == FirTy::Float)
+                        .then(|| "f64".to_string())
+                    {
+                        ret_ty
+                    } else if let Some(ret_ty) =
                         builtin_fixed_return_fir_ty_for_call(fn_name, &self.types.user_functions)
                             .and_then(|ty| Self::fir_type_to_rust(&ty))
                     {
@@ -36678,7 +36787,9 @@ fn __futuruna_install_error_hook() {
         out
     }
 
-    fn emit_binary_global_env_fn_wrapper(&self, name: &str) -> String {
+    /// A closure that calls `name` with the top-level bindings in scope. With
+    /// `owns_global_env` it owns the shared copy instead of borrowing them.
+    fn emit_binary_global_env_fn_wrapper(&self, name: &str, owns_global_env: bool) -> String {
         let rust_name = sanitize_name(name);
         let arity = self
             .binary_global_env_fn_arities
@@ -36717,6 +36828,14 @@ fn __futuruna_install_error_hook() {
         let mut call_args = self.global_context_arguments(name);
         call_args.extend(params.iter().cloned());
         let call_args = call_args.join(", ");
+        if owns_global_env {
+            return format!(
+                "{{ let __fut_globals_shared = __fut_globals_shared.clone(); move |{}| {{ let __fut_globals = &*__fut_globals_shared; {}({}) }} }}",
+                param_decls.join(", "),
+                rust_name,
+                call_args
+            );
+        }
         let move_prefix = if self.binary_global_value_refs_in_scope {
             "move "
         } else {
@@ -39669,6 +39788,13 @@ fn __futuruna_install_error_hook() {
                     && self.types.pair_uses_rust_tuple_representation()
                 {
                     return format!("({}, {})", args_str[0], args_str[1]);
+                }
+                // `(A, B, ...)` is the tuple type unless a user ADT is named Tuple.
+                if matches!(con.as_ref(), Ty::Name(name) if name == "Tuple")
+                    && args_str.len() >= 2
+                    && !self.types.type_decls.contains_key("Tuple")
+                {
+                    return format!("({})", args_str.join(", "));
                 }
                 // Only map List→Vec if List is NOT a user-defined ADT
                 if con_str == "List" && !self.types.type_decls.contains_key("List") {
@@ -43765,6 +43891,21 @@ fn __futuruna_install_error_hook() {
                         return format!("// comptime-only fn {} (returns TypeDef)\n", name);
                     }
                 }
+                // The pre-codegen type check reports this as a diagnostic; a
+                // caller that skipped it still never gets a unit signature.
+                if ret_ty.is_none()
+                    && self.current_module_path.is_empty()
+                    && self
+                        .inferred_function_return_issues
+                        .contains(&(name.clone(), params.len()))
+                {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!(
+                            "cannot infer the result type of function `{name}`; declare it after the parameters, as in `> {name}(...) -> Type`"
+                        )
+                    );
+                }
                 // Register inout params for call-site emission
                 let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
                 if inout_flags.iter().any(|f| *f) {
@@ -45066,7 +45207,7 @@ fn __futuruna_install_error_hook() {
                 } else {
                     ""
                 };
-                self.remember_binding_type(pat, value);
+                self.remember_binding_type(pat, _ty.as_ref(), value);
                 // Track actor handle variables: = c = spawn(counter, 0) → c maps to "counter"
                 if let Pat::Var(var_name) = pat {
                     if let ExprKind::App(f, spawn_args) = &value.kind {
@@ -46698,6 +46839,9 @@ fn __futuruna_install_error_hook() {
                 .collect()
         });
         let lambda_param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+        // Only this closure crosses the frame boundary; closures in its body
+        // borrow the copy it owns.
+        let owns_global_env = std::mem::take(&mut self.closure_owns_global_env);
         // Mark as iterator closure so captured vars get .clone()
         let prev_in_iter = self.in_iter_closure;
         let prev_closure_params = std::mem::take(&mut self.closure_params);
@@ -46745,8 +46889,24 @@ fn __futuruna_install_error_hook() {
                     )
             })
             .collect();
-        if captured.is_empty() {
+        let borrows_global_env = owns_global_env && body_str.contains("__fut_globals");
+        if captured.is_empty() && !borrows_global_env {
             format!("|{}| {}", ps.join(", "), body_str)
+        } else if borrows_global_env {
+            let mut clones =
+                vec!["let __fut_globals_shared = __fut_globals_shared.clone();".to_string()];
+            clones.extend(
+                captured
+                    .iter()
+                    .filter(|v| !self.copy_vars.contains(v.as_str()))
+                    .map(|v| self.closure_capture_clone(v)),
+            );
+            format!(
+                "{{ {} move |{}| {{ let __fut_globals = &*__fut_globals_shared; {} }} }}",
+                clones.join(" "),
+                ps.join(", "),
+                body_str
+            )
         } else {
             // Clone non-Copy captures, then use `move` so the closure owns all captures.
             let clones: Vec<String> = captured
@@ -47205,6 +47365,12 @@ fn __futuruna_install_error_hook() {
                     FirTy::Option(Box::new(self.fast_known_expr_fir_ty(&args[0])?))
                 } else if let Some(parent) = self.types.unambiguous_parent_for_variant(name) {
                     FirTy::Named(parent)
+                } else if name == "abs"
+                    && args.len() == 1
+                    && !self.types.user_functions.contains(name)
+                {
+                    self.fast_known_expr_fir_ty(&args[0])
+                        .filter(|ty| matches!(ty, FirTy::Int | FirTy::Float))?
                 } else if let Some(ty) =
                     builtin_fixed_return_fir_ty_for_call(name, &self.types.user_functions)
                 {
@@ -47258,7 +47424,16 @@ fn __futuruna_install_error_hook() {
         Self::fir_ty_is_fully_resolved(&ty).then_some(ty)
     }
 
-    fn remember_binding_type(&mut self, pat: &Pat, value: &Expr) {
+    fn remember_binding_type(&mut self, pat: &Pat, declared: Option<&Ty>, value: &Expr) {
+        // A declared type is the binding's type; the initializer alone may
+        // leave an element type open.
+        if let Some(declared) = declared {
+            let ty = self.source_ty_to_fir(declared);
+            if Self::fir_ty_is_fully_resolved(&ty) {
+                self.remember_pat_type(pat, &ty);
+                return;
+            }
+        }
         if let Some(rust_ty) = self.empty_list_binding_rust_type(pat, value) {
             if let Pat::Var(name) = pat {
                 self.remember_var_type(name, &Self::rust_type_to_fir(&rust_ty));
@@ -49435,7 +49610,8 @@ fn __futuruna_install_error_hook() {
                     && !self.var_types.contains_key(name)
                     && !self.local_bindings.contains(name.as_str())
                 {
-                    return self.emit_binary_global_env_fn_wrapper(name);
+                    let owns_global_env = std::mem::take(&mut self.closure_owns_global_env);
+                    return self.emit_binary_global_env_fn_wrapper(name, owns_global_env);
                 }
                 let sname = sanitize_name(name);
                 if self.binary_global_value_refs_in_scope
@@ -49617,10 +49793,17 @@ fn __futuruna_install_error_hook() {
                     resolved_fn_name.and_then(|n| self.borrow_only_params.get(n).cloned())
                 };
 
+                // An `http_serve` handler runs on the server's tasks after
+                // this frame's borrow of the top-level bindings has ended.
+                let serves_http = self.binary_global_env_arg_in_scope
+                    && args.len() == 2
+                    && matches!(&func.as_ref().kind, ExprKind::Var(name)
+                        if name == "http_serve" && !self.builtin_shadowed_by_callable(name));
                 let args_str: Vec<String> = args
                     .iter()
                     .enumerate()
                     .map(|(idx, a)| {
+                        self.closure_owns_global_env = serves_http && idx == 1;
                         // inout parameter: emit &mut var (no clone — passed by mutable reference)
                         let is_inout = inout_flags
                             .as_ref()
@@ -49801,6 +49984,7 @@ fn __futuruna_install_error_hook() {
                         }
                     })
                     .collect();
+                self.closure_owns_global_env = false;
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     if self.current_rule_scope_methods.get(name.as_str()) == Some(&args.len()) {
                         let mut method_args = args_str.clone();
@@ -50462,7 +50646,17 @@ fn __futuruna_install_error_hook() {
                                     .entry(dep_name.to_string())
                                     .or_insert(dep_ver.to_string());
                             }
-                            return apply_builtin_template(def.rust_tpl, &args_str);
+                            let call = apply_builtin_template(def.rust_tpl, &args_str);
+                            if name == "http_serve" && args_str[1].contains("__fut_globals_shared")
+                            {
+                                // The server never returns, so the snapshot
+                                // holds every binding the handler can read.
+                                return format!(
+                                    "{{ let __fut_globals_shared = std::sync::Arc::new(__fut_globals.clone()); {} }}",
+                                    call
+                                );
+                            }
+                            return call;
                         }
                     }
                     // Custom builtins that need runtime state beyond templates
@@ -53231,10 +53425,10 @@ fn __futuruna_install_error_hook() {
                 for (i, stmt) in stmts.iter().enumerate() {
                     let is_last = i == stmts.len() - 1;
                     match stmt {
-                        Stmt::Bind(pat, _, value) => {
+                        Stmt::Bind(pat, declared, value) => {
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
-                            self.remember_binding_type(pat, value);
+                            self.remember_binding_type(pat, declared.as_ref(), value);
                             // If binding shadows a TCE loop variable, reassign instead of new let
                             if let Pat::Var(name) = pat {
                                 if tce_mut_params.contains(name.as_str()) {
@@ -60505,6 +60699,7 @@ assert_with_message(true, message())
                 FirTy::Result(Box::new(FirTy::String), Box::new(FirTy::String)),
             ),
             ("json_get", FirTy::String),
+            ("json_has", FirTy::Bool),
             ("json_string", FirTy::String),
             ("json_number", FirTy::Float),
             ("json_bool", FirTy::Bool),

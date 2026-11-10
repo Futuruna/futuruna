@@ -438,6 +438,7 @@ pub const DANISH_BUILTIN_NAMES: &[(&str, &str)] = &[
     // ---- dansk: JSON ----
     ("json_fortolk", "json_parse"),
     ("json_hent", "json_get"),
+    ("json_har", "json_has"),
     ("json_tekst", "json_string"),
     ("json_tal", "json_number"),
     ("json_sand", "json_bool"),
@@ -12498,14 +12499,18 @@ impl Parser {
                         self.expect(TokenKind::RParen)?;
                         return Ok(inner);
                     }
-                    // `(A, B) -> C` is the type of a two-argument function.
+                    // `(A, B) -> C` is the type of a two-argument function;
+                    // `(A, B)` on its own is the tuple type.
                     let mut parameters = vec![inner];
                     while self.peek_kind() == TokenKind::Comma {
                         self.advance();
                         parameters.push(self.parse_type()?);
                     }
                     self.expect(TokenKind::RParen)?;
-                    self.expect(TokenKind::Arrow)?;
+                    if self.peek_kind() != TokenKind::Arrow {
+                        return Ok(Ty::App(Box::new(Ty::Name("Tuple".into())), parameters));
+                    }
+                    self.advance();
                     let mut ty = self.parse_type()?;
                     for parameter in parameters.into_iter().rev() {
                         ty = Ty::Arrow(Box::new(parameter), Box::new(ty));
@@ -18669,6 +18674,7 @@ impl Interpreter {
         // JSON builtins (M14c)
         env.set("json_parse".into(), Value::Builtin("json_parse".into()));
         env.set("json_get".into(), Value::Builtin("json_get".into()));
+        env.set("json_has".into(), Value::Builtin("json_has".into()));
         env.set("json_string".into(), Value::Builtin("json_string".into()));
         env.set("json_number".into(), Value::Builtin("json_number".into()));
         env.set("json_bool".into(), Value::Builtin("json_bool".into()));
@@ -23943,6 +23949,17 @@ impl Interpreter {
                     }
                 }
                 _ => Value::Str("null".to_string()),
+            },
+            // True for a member whose value is null; false for a missing
+            // member and for JSON that is not an object.
+            "json_has" => match (args.get(0), args.get(1)) {
+                (Some(Value::Str(json)), Some(Value::Str(key))) => Value::Bool(
+                    serde_json::from_str::<serde_json::Value>(json)
+                        .ok()
+                        .and_then(|value| value.as_object().map(|object| object.contains_key(key)))
+                        .unwrap_or(false),
+                ),
+                _ => Value::Bool(false),
             },
             "json_string" => match args.first() {
                 Some(Value::Str(json)) => match serde_json::from_str::<serde_json::Value>(json) {
@@ -30184,6 +30201,12 @@ pub struct TypeChecker {
     /// require namespace ownership and must not be flattened into root names.
     module_primitive_return_types: BTreeMap<(String, String, usize), String>,
     module_return_sources_in_progress: BTreeSet<String>,
+    /// Results of ordinary functions that omit `-> Type`, inferred from the
+    /// body of the one top-level declaration with that name and arity.
+    function_inferred_return_types: BTreeMap<(String, usize), String>,
+    /// Omitted results whose body ends in a value of unknown type. A native
+    /// backend cannot give these functions a signature.
+    function_inferred_return_issues: BTreeSet<(String, usize)>,
     /// structured diagnostics accumulated during checking
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
@@ -31278,6 +31301,10 @@ pub struct TypeCheckArtifacts {
     pub rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
     pub rule_dispatch_backend_return_types: BTreeMap<RuleDispatchKey, String>,
     pub rule_dispatch_backend_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Results inferred for ordinary functions that omit `-> Type`.
+    pub function_inferred_return_types: BTreeMap<(String, usize), String>,
+    /// Functions whose omitted result could not be inferred from a value.
+    pub function_inferred_return_issues: BTreeSet<(String, usize)>,
     pub rule_dispatch_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub rule_dispatch_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub rule_dispatch_parameter_issues: BTreeSet<RuleDispatchKey>,
@@ -46848,6 +46875,8 @@ impl TypeChecker {
             module_exports: BTreeMap::new(),
             module_primitive_return_types: BTreeMap::new(),
             module_return_sources_in_progress: BTreeSet::new(),
+            function_inferred_return_types: BTreeMap::new(),
+            function_inferred_return_issues: BTreeSet::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             ordinary_callable_scopes: vec![BTreeMap::new()],
@@ -46930,6 +46959,7 @@ impl TypeChecker {
             // JSON
             ("json_parse", 1),
             ("json_get", 2),
+            ("json_has", 2),
             ("json_string", 1),
             ("json_number", 1),
             ("json_bool", 1),
@@ -50830,6 +50860,7 @@ impl TypeChecker {
                 self.explore_function_return_types_by_arity
                     .get(&(name.clone(), arity))
                     .and_then(Self::type_name_from_ty)
+                    .or_else(|| self.inferred_function_result(name, arity))
                     .or_else(|| {
                         self.explore_rule_return_types_by_arity
                             .get(&(name.clone(), arity))
@@ -50847,6 +50878,17 @@ impl TypeChecker {
             }
             _ => None,
         }
+    }
+
+    /// The inferred result of an ordinary function that omits `-> Type`.
+    /// Exploration consumes helpers with a declared result only.
+    fn inferred_function_result(&self, name: &str, arity: usize) -> Option<String> {
+        if self.inferring_exact_explore_rule_returns || self.checking_explore_query {
+            return None;
+        }
+        self.function_inferred_return_types
+            .get(&(name.to_string(), arity))
+            .cloned()
     }
 
     /// Exact result laws for builtins whose result type is determined by
@@ -50870,15 +50912,34 @@ impl TypeChecker {
             ("trim", 1) if argument_type(0).as_deref() == Some("String") => {
                 Some("String".to_string())
             }
-            ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
+            ("exp" | "ln" | "sqrt" | "to_float" | "random_float" | "json_number", 1)
+            | ("pow" | "min_f" | "max_f", 2) => Some("Float".to_string()),
+            // `abs` keeps the numeric type of its argument.
+            ("abs", 1) => argument_type(0).filter(|ty| matches!(ty.as_str(), "Int" | "Float")),
             ("parse_int" | "parse_danish_int", 1) => Some("Result(Int, String)".to_string()),
             ("parse_float" | "parse_danish_float", 1) => Some("Result(Float, String)".to_string()),
             ("read_file" | "http_get" | "json_parse", 1) | ("http_post", 2) => {
                 Some("Result(String, String)".to_string())
             }
-            ("round" | "floor" | "string_length", 1) => Some("Int".to_string()),
+            ("round" | "floor" | "string_length", 1)
+            | ("now", 0)
+            | ("index_of" | "time_diff", 2) => Some("Int".to_string()),
             ("contains" | "map_contains" | "set_contains", 2)
-            | ("is_some" | "is_none" | "not", 1) => Some("Bool".to_string()),
+            | ("starts_with" | "ends_with" | "regex_match" | "json_has", 2)
+            | ("is_some" | "is_none" | "not" | "file_exists" | "json_bool", 1) => {
+                Some("Bool".to_string())
+            }
+            ("to_upper" | "to_lower" | "env_var" | "json_string" | "json_emit", 1)
+            | ("json_object", 1)
+            | ("join" | "format_float" | "json_get", 2)
+            | ("substring" | "replace" | "regex_replace", 3) => Some("String".to_string()),
+            ("string_chars" | "read_lines" | "json_array", 1) | ("split" | "regex_find_all", 2) => {
+                Some("List(String)".to_string())
+            }
+            ("regex_find", 2) => Some("Option(String)".to_string()),
+            ("http_respond", 3) | ("process_run", 1) => {
+                Some("Tuple(Int, String, String)".to_string())
+            }
             ("map_len" | "set_len", 1) | ("count_by", 2) => Some("Int".to_string()),
             ("map_new", 0) => Some("Map".to_string()),
             ("set_new", 0) => Some("Set".to_string()),
@@ -50890,10 +50951,29 @@ impl TypeChecker {
                         .find_map(|constructor| {
                             Self::applied_type_argument(&collection_type, constructor, 0)
                         })?;
-                // Integer collection sums retain an Int ABI, including empty
-                // collections. This is return typing, not a proof of arithmetic
-                // safety or an extension of the exact Explore intrinsic set.
-                (item_type == "Int").then(|| "Int".to_string())
+                // A sum has the numeric type of its items, including for an
+                // empty collection. This is return typing, not a proof of
+                // arithmetic safety or an extension of the exact Explore
+                // intrinsic set.
+                matches!(item_type.as_str(), "Int" | "Float").then_some(item_type)
+            }
+            ("random_choice", 1) | ("nth", 2) => {
+                let list_type = argument_type(0)?;
+                Self::applied_type_argument(&list_type, "List", 0)
+            }
+            ("shuffle", 1) => {
+                argument_type(0).filter(|ty| Self::applied_type_argument(ty, "List", 0).is_some())
+            }
+            ("fst" | "snd" | "trd", 1) => {
+                let tuple_type = argument_type(0)?;
+                let index = match name {
+                    "fst" => 0,
+                    "snd" => 1,
+                    _ => 2,
+                };
+                ["Tuple", "Pair"].into_iter().find_map(|constructor| {
+                    Self::applied_type_argument(&tuple_type, constructor, index)
+                })
             }
             ("tail", 1)
             | ("push", 2)
@@ -51351,6 +51431,11 @@ impl TypeChecker {
                             locals,
                             active_rule_scope,
                         );
+                    }
+                    if !locals.contains_key(name) {
+                        if let Some(ret) = self.inferred_function_result(name, args.len()) {
+                            return Some(ret);
+                        }
                     }
                     if let Some(ret) = self
                         .explore_rule_return_types_by_arity
@@ -54630,10 +54715,17 @@ impl TypeChecker {
         self.infer_top_level_binding_types(stmts);
         self.infer_canonical_rule_dispatch_metadata(stmts);
         self.establish_explore_function_return_types();
+        self.infer_omitted_function_return_types(stmts);
         self.infer_explore_rule_return_types(stmts);
         self.validate_explore_function_return_types();
         self.infer_canonical_rule_dispatch_metadata(stmts);
         self.infer_explore_rule_return_types(stmts);
+        // A function may return a rule result that only the pass above
+        // resolved; rules that call such a function are then inferred again.
+        if self.infer_omitted_function_return_types(stmts) {
+            self.infer_canonical_rule_dispatch_metadata(stmts);
+            self.infer_explore_rule_return_types(stmts);
+        }
     }
 
     fn collect_qualified_primitive_return_types(
@@ -60618,6 +60710,10 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        if collect_all_imported_metadata_bindings {
+            // A Rust-emitting backend needs a signature for every function.
+            tc.report_uninferred_function_results(stmts);
+        }
         tc.diagnostics
             .extend(host_effects::comptime_host_effect_diagnostics(stmts));
         let mut calculation_contracts = Vec::new();
@@ -60690,6 +60786,8 @@ impl TypeChecker {
             rule_dispatch_return_issues: tc.rule_dispatch_return_issues,
             rule_dispatch_backend_return_types: tc.rule_dispatch_backend_return_types,
             rule_dispatch_backend_return_issues: tc.rule_dispatch_backend_return_issues,
+            function_inferred_return_types: tc.function_inferred_return_types,
+            function_inferred_return_issues: tc.function_inferred_return_issues,
             rule_dispatch_parameter_types: tc
                 .rule_dispatch_parameter_types
                 .into_iter()

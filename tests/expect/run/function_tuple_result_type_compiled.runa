@@ -1,0 +1,22 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: pair=3a
+-- expect-stdout: status=(200, ok, true)
+-- expect-stdout: swap=(a, 3)
+-- expect-stdout: apply=8
+-- expect-stdout: doubled=(4, 8)
+
+> describe(x: Int) -> (Int, String) { (x, "a") }
+> status(code: Int) -> (Int, String, Bool) { (code, "ok", code < 400) }
+> swap(entry: (Int, String)) -> (String, Int) { (snd(entry), fst(entry)) }
+> apply(f: (Int, Int) -> Int, x: Int) -> Int { f(x, x) }
+| doubled(x: Int) -> (x, x * 2)
+
+= p = describe(3)
+= s = status(200)
+
+@ print("pair=" + show(fst(p)) + snd(p))
+@ print("status=" + show(s))
+@ print("swap=" + show(swap(p)))
+@ print("apply=" + show(apply(|a, b| a + b, 4)))
+@ print("doubled=" + show(doubled(4)))

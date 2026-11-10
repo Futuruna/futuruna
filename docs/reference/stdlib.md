@@ -57,7 +57,7 @@ values by constructor name, then by their fields in declaration order.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `abs` | `Int -> Int` | Absolute value |
+| `abs` | `Int -> Int`, `Float -> Float` | Absolute value, of the argument's type |
 | `sqrt` | `Float -> Float` | Square root |
 | `pow` | `(Float, Float) -> Float` | Exponentiation |
 | `exp` | `Float -> Float` | Natural exponential (e^x) |
@@ -441,7 +441,8 @@ JSON values are represented as `String` (serialized JSON text). Auto-adds `serde
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `json_parse` | `String -> Result(String, String)` | Validate JSON; `Ok` returns the text, `Err` describes invalid input |
-| `json_get` | `(String, String) -> String` | Access object field (returns JSON text) |
+| `json_get` | `(String, String) -> String` | Access object field (returns JSON text); `null` when the member is missing |
+| `json_has` | `(String, String) -> Bool` | Whether the object has the member, including a member whose value is `null` |
 | `json_string` | `String -> String` | Extract string value (unquoted) |
 | `json_number` | `String -> Float` | Extract number |
 | `json_bool` | `String -> Bool` | Extract boolean |
@@ -454,6 +455,19 @@ JSON text when valid; otherwise it becomes an escaped JSON string. For example,
 `"true"` supplies a Boolean, while `"\"true\""` supplies the string `true`.
 Text such as `"[draft]"`, `"NaN"`, and `"+5"` remains text. Repeated keys retain
 the last value. Serialized object key order is not input order.
+
+`json_get` returns the text `null` both for a member whose value is `null` and
+for a member that is missing; it also returns `null` when the first argument is
+not a JSON object. Use `json_has` to tell the cases apart: it is `true` for
+every member the object has, including a `null` one, and `false` for a missing
+member or a first argument that is not a JSON object.
+
+```runa
+= record = "{\"note\": null}"
+= explicit = json_has(record, "note")     -- true
+= missing = json_has(record, "amount")    -- false
+= both = json_get(record, "note") == json_get(record, "amount")  -- true: both are null
+```
 
 ```runa
 = raw = "{\"name\": \"Alice\", \"age\": 30, \"tags\": [\"dev\", \"runa\"]}"
@@ -471,7 +485,8 @@ the last value. Serialized object key order is not input order.
 
 ## HTTP
 
-HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) dependencies.
+HTTP client and server. Auto-adds the `ureq` dependency for the client and the
+`axum` and `tokio` dependencies for the server.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -508,6 +523,12 @@ HTTP client and server. Auto-adds `ureq` (client) and `tiny_http` (server) depen
 The handler receives three string arguments: request path, HTTP method, and request body. Return a response tuple via `http_respond(status, content_type, body)`.
 
 `http_serve` runs only in compiled code (`runa run`, `runa build`). The interpreter refuses it: reaching an `http_serve` call is a runtime error at that point.
+
+The server listens on all interfaces and calls the handler for each request,
+possibly for several requests at once. A request body larger than 1 MiB is read
+as empty. The handler may read top-level bindings, directly or through the
+functions it calls: the server shares one copy of them, taken when `http_serve`
+starts, between all requests.
 
 ---
 

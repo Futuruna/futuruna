@@ -1,0 +1,8 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 8
+-- roundtrip-skip: native compilation needs a result type the interpreter does not
+
+> twice(x) { x + x }
+
+@ print(show(twice(4)))
