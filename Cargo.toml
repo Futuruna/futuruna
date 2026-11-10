@@ -1,6 +1,6 @@
 [package]
 name = "futuruna"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 autobins = false
 rust-version = "1.94"
