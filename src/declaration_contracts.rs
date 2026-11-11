@@ -65,6 +65,18 @@ impl TypeChecker {
         }
     }
 
+    /// `Tuple` names the built-in tuple type `(A, B)`; a declaration of that
+    /// name would make every tuple annotation ambiguous.
+    pub(super) fn check_reserved_type_name(&mut self, name: &str) {
+        if name == "Tuple" {
+            self.declaration_error(
+                "variant:Tuple",
+                "`Tuple` is the built-in tuple type `(A, B)`; give this type a different name"
+                    .to_string(),
+            );
+        }
+    }
+
     /// Variant names may not reuse a prelude or list constructor owned by a
     /// different type, nor a built-in type name.
     pub(super) fn check_variant_names(&mut self, owner: &str, variants: &[Variant]) {

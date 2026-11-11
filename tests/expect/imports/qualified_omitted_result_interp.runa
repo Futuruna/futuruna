@@ -1,0 +1,8 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 15
+-- expect-stdout: n5
+-- Functions of a qualified import that omit their result get the inferred one.
+@ import U from ./qualified_omitted_result_lib
+@ print(show(U.helper(5)))
+@ print(U.label(5))

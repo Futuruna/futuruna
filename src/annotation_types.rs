@@ -125,8 +125,11 @@ impl TypeChecker {
             }
             Ty::App(constructor, args) => {
                 // `(A, B)` is the tuple type: a native surface type that has
-                // no declaration, written `Tuple(A, B)` in type names.
-                if !matches!(constructor.as_ref(), Ty::Name(name) if name == "Tuple") {
+                // no declaration, written `Tuple(A, B)` in type names. A tuple
+                // has at least two elements; `Tuple(A)` names no type.
+                if !(matches!(constructor.as_ref(), Ty::Name(name) if name == "Tuple")
+                    && args.len() >= 2)
+                {
                     self.check_annotation_type(constructor);
                 }
                 for argument in args {

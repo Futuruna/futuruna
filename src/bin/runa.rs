@@ -25549,6 +25549,9 @@ struct RustCodegen {
     canonical_rule_return_issues: BTreeMap<RuleDispatchKey, String>,
     /// Results the type checker inferred for functions that omit `-> Type`.
     inferred_function_return_types: BTreeMap<(String, usize), String>,
+    /// The same for functions of qualified-import modules, keyed by the
+    /// module's canonical source path.
+    module_inferred_function_return_types: BTreeMap<(String, String, usize), String>,
     /// Functions whose omitted result the type checker could not infer.
     inferred_function_return_issues: BTreeSet<(String, usize)>,
     canonical_rule_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
@@ -30709,6 +30712,7 @@ impl RustCodegen {
             canonical_rule_return_types: BTreeMap::new(),
             canonical_rule_return_issues: BTreeMap::new(),
             inferred_function_return_types: BTreeMap::new(),
+            module_inferred_function_return_types: BTreeMap::new(),
             inferred_function_return_issues: BTreeSet::new(),
             canonical_rule_parameter_types: BTreeMap::new(),
             canonical_rule_parameter_names: BTreeMap::new(),
@@ -30771,6 +30775,8 @@ impl RustCodegen {
         self.canonical_rule_return_types = artifacts.rule_dispatch_backend_return_types.clone();
         self.canonical_rule_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
         self.inferred_function_return_types = artifacts.function_inferred_return_types.clone();
+        self.module_inferred_function_return_types =
+            artifacts.module_function_inferred_return_types.clone();
         self.inferred_function_return_issues = artifacts.function_inferred_return_issues.clone();
         self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
         self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
@@ -31634,8 +31640,27 @@ impl RustCodegen {
             &child_namespace,
         );
         if inserted {
-            if let Some(canonical) = canonical {
-                seen.remove(&canonical);
+            if let Some(canonical) = canonical.as_ref() {
+                seen.remove(canonical);
+            }
+        }
+        // A module function that omits `-> Type` gets the result the type
+        // checker inferred for it in that module.
+        if let Some(canonical) = canonical.as_ref() {
+            for stmt in &mut mod_body {
+                if let Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty: ret_ty @ None,
+                    ..
+                }) = stmt
+                {
+                    *ret_ty = self
+                        .module_inferred_function_return_types
+                        .get(&(canonical.clone(), name.clone(), params.len()))
+                        .filter(|result| result.as_str() != "()")
+                        .and_then(|result| parse_type_annotation(result).ok());
+                }
             }
         }
         Some(Stmt::Defn(Defn::Module {
@@ -40001,10 +40026,8 @@ fn __futuruna_install_error_hook() {
                 {
                     return format!("({}, {})", args_str[0], args_str[1]);
                 }
-                // `(A, B, ...)` is the tuple type unless a user ADT is named Tuple.
-                if matches!(con.as_ref(), Ty::Name(name) if name == "Tuple")
-                    && args_str.len() >= 2
-                    && !self.types.type_decls.contains_key("Tuple")
+                // `(A, B, ...)` is the tuple type; `Tuple` cannot name a user type.
+                if matches!(con.as_ref(), Ty::Name(name) if name == "Tuple") && args_str.len() >= 2
                 {
                     return format!("({})", args_str.join(", "));
                 }

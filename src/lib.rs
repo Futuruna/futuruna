@@ -12504,6 +12504,10 @@ impl Parser {
                     let mut parameters = vec![inner];
                     while self.peek_kind() == TokenKind::Comma {
                         self.advance();
+                        // A trailing comma is allowed, as in a tuple literal.
+                        if self.peek_kind() == TokenKind::RParen && parameters.len() >= 2 {
+                            break;
+                        }
                         parameters.push(self.parse_type()?);
                     }
                     self.expect(TokenKind::RParen)?;
@@ -24551,30 +24555,25 @@ impl Interpreter {
                     .collect();
                 Value::Stream(pairs)
             }
-            "fst" => {
-                // fst(tuple) → first element of a pair/tuple
-                let val = args.into_iter().next().unwrap_or(Value::Unit);
-                match val {
-                    Value::Tuple(elems) => elems.into_iter().next().unwrap_or(Value::Unit),
-                    Value::Constructor(_, elems) => elems.first().cloned().unwrap_or(Value::Unit),
-                    _ => Value::Unit,
-                }
-            }
-            "snd" => {
-                // snd(tuple) → second element of a pair/tuple
-                let val = args.into_iter().next().unwrap_or(Value::Unit);
-                match val {
-                    Value::Tuple(elems) => elems.into_iter().nth(1).unwrap_or(Value::Unit),
-                    Value::Constructor(_, elems) => elems.get(1).cloned().unwrap_or(Value::Unit),
-                    _ => Value::Unit,
-                }
-            }
-            "trd" => {
-                // trd(tuple) → third element of a tuple
-                let val = args.into_iter().next().unwrap_or(Value::Unit);
-                match val {
-                    Value::Tuple(elems) => elems.into_iter().nth(2).unwrap_or(Value::Unit),
-                    Value::Constructor(_, elems) => elems.get(2).cloned().unwrap_or(Value::Unit),
+            // fst/snd/trd(value) → first/second/third element of a tuple or
+            // of a constructor such as `Pair(fst, snd)`, as in compiled code.
+            "fst" | "snd" | "trd" => {
+                let index = match name {
+                    "fst" => 0,
+                    "snd" => 1,
+                    _ => 2,
+                };
+                match args.into_iter().next().unwrap_or(Value::Unit) {
+                    Value::Tuple(elems) => elems.into_iter().nth(index).unwrap_or(Value::Unit),
+                    Value::Constructor(_, elems)
+                    | Value::NamespacedConstructor {
+                        arguments: elems, ..
+                    } => elems.get(index).cloned().unwrap_or(Value::Unit),
+                    Value::NamedConstructor(_, fields)
+                    | Value::NamespacedNamedConstructor { fields, .. } => fields
+                        .get(index)
+                        .map(|(_, value)| value.clone())
+                        .unwrap_or(Value::Unit),
                     _ => Value::Unit,
                 }
             }
@@ -30207,6 +30206,12 @@ pub struct TypeChecker {
     /// Omitted results whose body ends in a value of unknown type. A native
     /// backend cannot give these functions a signature.
     function_inferred_return_issues: BTreeSet<(String, usize)>,
+    /// Omitted results inferred inside each qualified-import module, keyed by
+    /// the module's canonical source path, function name and arity.
+    module_function_inferred_return_types: BTreeMap<(String, String, usize), String>,
+    /// Located "cannot infer the result type" errors for functions in
+    /// qualified-import modules; reported only for native compilation.
+    module_uninferred_result_diagnostics: Vec<Diagnostic>,
     /// structured diagnostics accumulated during checking
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
@@ -31305,6 +31310,9 @@ pub struct TypeCheckArtifacts {
     pub function_inferred_return_types: BTreeMap<(String, usize), String>,
     /// Functions whose omitted result could not be inferred from a value.
     pub function_inferred_return_issues: BTreeSet<(String, usize)>,
+    /// Omitted results inferred inside qualified-import modules, keyed by the
+    /// module's canonical source path, function name and arity.
+    pub module_function_inferred_return_types: BTreeMap<(String, String, usize), String>,
     pub rule_dispatch_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub rule_dispatch_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
     pub rule_dispatch_parameter_issues: BTreeSet<RuleDispatchKey>,
@@ -46877,6 +46885,8 @@ impl TypeChecker {
             module_return_sources_in_progress: BTreeSet::new(),
             function_inferred_return_types: BTreeMap::new(),
             function_inferred_return_issues: BTreeSet::new(),
+            module_function_inferred_return_types: BTreeMap::new(),
+            module_uninferred_result_diagnostics: Vec::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             ordinary_callable_scopes: vec![BTreeMap::new()],
@@ -50912,8 +50922,21 @@ impl TypeChecker {
             ("trim", 1) if argument_type(0).as_deref() == Some("String") => {
                 Some("String".to_string())
             }
-            ("exp" | "ln" | "sqrt" | "to_float" | "random_float" | "json_number", 1)
+            ("exp" | "ln" | "sqrt" | "to_float" | "json_number", 1)
+            | ("random_float", 0)
             | ("pow" | "min_f" | "max_f", 2) => Some("Float".to_string()),
+            ("char_at", 2) if argument_type(0).as_deref() == Some("String") => {
+                Some("String".to_string())
+            }
+            ("zip", 2) => {
+                let left = Self::applied_type_argument(&argument_type(0)?, "List", 0)?;
+                let right = Self::applied_type_argument(&argument_type(1)?, "List", 0)?;
+                Some(format!("List(Tuple({left}, {right}))"))
+            }
+            ("enumerate", 1) => {
+                let item = Self::applied_type_argument(&argument_type(0)?, "List", 0)?;
+                Some(format!("List(Tuple(Int, {item}))"))
+            }
             // `abs` keeps the numeric type of its argument.
             ("abs", 1) => argument_type(0).filter(|ty| matches!(ty.as_str(), "Int" | "Float")),
             ("parse_int" | "parse_danish_int", 1) => Some("Result(Int, String)".to_string()),
@@ -54741,6 +54764,7 @@ impl TypeChecker {
         let source = std::fs::canonicalize(file_path)
             .map(|path| path.to_string_lossy().to_string())
             .unwrap_or_else(|_| file_path.to_string());
+        let module_source = source.clone();
         if self.module_return_sources_in_progress.contains(&source) {
             return;
         }
@@ -54771,6 +54795,36 @@ impl TypeChecker {
             );
             return;
         }
+        // The module's own functions with an omitted result: their inferred
+        // results for the backend, and a located error for each one a native
+        // signature cannot be given.
+        for ((name, arity), result) in &child.function_inferred_return_types {
+            self.module_function_inferred_return_types.insert(
+                (module_source.clone(), name.clone(), *arity),
+                result.clone(),
+            );
+        }
+        self.module_function_inferred_return_types
+            .extend(std::mem::take(
+                &mut child.module_function_inferred_return_types,
+            ));
+        child.report_uninferred_function_results(statements);
+        if !child.diagnostics.is_empty() {
+            let start = self.diagnostics.len();
+            self.diagnostics
+                .extend(std::mem::take(&mut child.diagnostics));
+            self.locate_import_diagnostics(
+                start,
+                Path::new(file_path),
+                Arc::from(source_text),
+                self.import_diagnostic_anchor
+                    .or_else(|| self.import_path_span(import_path)),
+            );
+            let located = self.diagnostics.split_off(start);
+            self.module_uninferred_result_diagnostics.extend(located);
+        }
+        self.module_uninferred_result_diagnostics
+            .append(&mut child.module_uninferred_result_diagnostics);
         let Some(exports) = self.module_exports.get(module) else {
             return;
         };
@@ -59073,6 +59127,7 @@ impl TypeChecker {
                 ..
             }) => {
                 self.check_variant_names(name, variants);
+                self.check_reserved_type_name(name);
                 let arguments = type_params
                     .iter()
                     .filter(|param| param.ty.is_none())
@@ -60788,6 +60843,7 @@ impl TypeChecker {
             rule_dispatch_backend_return_issues: tc.rule_dispatch_backend_return_issues,
             function_inferred_return_types: tc.function_inferred_return_types,
             function_inferred_return_issues: tc.function_inferred_return_issues,
+            module_function_inferred_return_types: tc.module_function_inferred_return_types,
             rule_dispatch_parameter_types: tc
                 .rule_dispatch_parameter_types
                 .into_iter()

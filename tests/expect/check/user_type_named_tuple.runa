@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `Tuple` is the built-in tuple type `(A, B)`; give this type a different name
+-- expect-stderr-not: Futuruna compiler bug
+-- roundtrip-skip: rejected by the frontend
+# Tuple(a: Int, b: String)
+> f(x: Int) -> (Int, String) { (x, "a") }
+@ print(show(f(1)))

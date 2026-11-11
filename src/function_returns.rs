@@ -639,6 +639,21 @@ impl TypeChecker {
                             .function_inferred_return_types
                             .get(&key)
                             .is_some_and(|result| result != "()")
+                        // A builtin other than the few that return unit
+                        // produces a value, even one the checker cannot type.
+                        || (!self.explore_function_definitions_by_arity.contains_key(&key)
+                            && self.builtins.get(name) == Some(&arguments.len())
+                            && !matches!(
+                                name.as_str(),
+                                "print"
+                                    | "assert"
+                                    | "assert_with_message"
+                                    | "write_file"
+                                    | "append_file"
+                                    | "sleep"
+                                    | "http_serve"
+                                    | "subscribe"
+                            ))
                 }
                 _ => false,
             },
@@ -657,8 +672,24 @@ impl TypeChecker {
     }
 
     /// Native compilation needs a signature for every function. Report each
-    /// authored function whose omitted result could not be inferred.
+    /// authored function whose omitted result could not be inferred, including
+    /// those of qualified-import modules.
     pub(super) fn report_uninferred_function_results(&mut self, stmts: &[Stmt]) {
+        for diagnostic in std::mem::take(&mut self.module_uninferred_result_diagnostics) {
+            if !self.diagnostics.iter().any(|existing| {
+                existing.message == diagnostic.message
+                    && existing
+                        .origin
+                        .as_ref()
+                        .map(|origin| (&origin.path, origin.span))
+                        == diagnostic
+                            .origin
+                            .as_ref()
+                            .map(|origin| (&origin.path, origin.span))
+            }) {
+                self.diagnostics.push(diagnostic);
+            }
+        }
         for stmt in stmts {
             let Stmt::Defn(Defn::Fn {
                 name,

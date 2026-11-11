@@ -1,0 +1,5 @@
+-- expect-skip: dependency-only fixture for qualified omitted results
+@ export
+> helper(x: Int) { x * 3 }
+@ export
+> label(x: Int) { "n" + show(x) }

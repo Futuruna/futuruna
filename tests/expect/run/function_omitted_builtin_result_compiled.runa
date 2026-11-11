@@ -1,0 +1,21 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: second=b
+-- expect-stdout: pairs=[(1, 1), (2, 2)]
+-- expect-stdout: numbered=[(0, a), (1, b)]
+-- expect-stdout: roll=true
+-- expect-stdout: rule_roll=true
+
+-- A function ending in a builtin call gets that builtin's result type
+-- (0.2.4 compiled it with a `()` result and rustc failed).
+> second(s: String) { char_at(s, 1) }
+> pairs(xs: List(Int)) { zip(xs, xs) }
+> numbered(xs: List(String)) { enumerate(xs) }
+> roll() { random_float() }
+| rule_roll(seed: Int) -> random_float()
+
+@ print("second=" + second("ab"))
+@ print("pairs=" + show(pairs([1, 2])))
+@ print("numbered=" + show(numbered(["a", "b"])))
+@ print("roll=" + show(roll() < 1.0))
+@ print("rule_roll=" + show(rule_roll(1) < 1.0))

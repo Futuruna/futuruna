@@ -1,0 +1,8 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: pair=(1, a)
+
+-- A tuple type allows a trailing comma, like a tuple literal.
+> describe(x: Int) -> (Int, String,) { (x, "a",) }
+
+@ print("pair=" + show(describe(1)))

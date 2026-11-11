@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: unknown type `Tuple` in annotation
+-- expect-stderr-not: Futuruna compiler bug
+-- roundtrip-skip: rejected by the frontend
+> f(x: Tuple(Int)) -> Int { 1 }
+@ print("ok")

@@ -1,0 +1,12 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: cannot infer the result type of function `first_of`; declare it after the parameters, as in `> first_of(...) -> Type`
+-- expect-stderr: function_uninferred_builtin_result_type.runa:10:27
+-- expect-stderr-not: Futuruna compiler bug
+-- expect-stderr-not: rustc
+-- roundtrip-skip: native compilation needs a result type the interpreter does not
+
+-- A builtin result the checker cannot type is a located error, never rustc's.
+> first_of(xs: List(a)) { head(xs) }
+
+@ print(show(first_of([1, 2])))

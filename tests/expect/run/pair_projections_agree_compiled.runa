@@ -1,0 +1,13 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: fst=1
+-- expect-stdout: snd=a
+-- expect-stdout: rule=7
+
+-- fst/snd on a Pair constructor give its fields in both modes (the
+-- interpreter returned `()` before 0.2.5).
+| first_of(p: Pair(Int, String)) -> fst(p)
+
+@ print("fst=" + show(fst(Pair(1, "a"))))
+@ print("snd=" + snd(Pair(1, "a")))
+@ print("rule=" + show(first_of(Pair(7, "b"))))
