@@ -3735,10 +3735,12 @@ fn resolve_meta_references_with_stmts_and_checker(
                 continue;
             };
 
+            // Meta selects bindings by declared type name; an applied generic
+            // record type such as `MetaBundle(Tuple(...))` is `MetaBundle`.
             reference.qualified_type = definition.annotated_type.clone().or_else(|| {
                 checker
                     .binding_type_name(&reference.binding_name)
-                    .map(str::to_string)
+                    .map(|type_name| checker.declared_type_head(type_name))
             });
             reference.definition_file = definition.definition_file.clone();
             reference.definition_line = Some(definition.definition_line);
@@ -14199,7 +14201,48 @@ fn runtime_hash_bindings(hasher: &mut Sha256, bindings: &HashMap<String, Value>)
     runtime_finish_unordered_digest(hasher, sum, xor);
 }
 
+/// The fields of `Pair(fst, snd)`, the two-element tuple `(fst, snd)`:
+/// compiled code represents both as one Rust tuple, so they hash, compare and
+/// order alike.
+fn runtime_pair_fields(value: &Value) -> Option<(&Value, &Value)> {
+    match value {
+        Value::NamedConstructor(name, fields)
+        | Value::NamespacedNamedConstructor { name, fields, .. }
+            if name == "Pair" =>
+        {
+            match fields.as_slice() {
+                [(fst_name, fst), (snd_name, snd)] if fst_name == "fst" && snd_name == "snd" => {
+                    Some((fst, snd))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The tuple view of a `Pair` compared with a tuple; `None` when neither side
+/// needs it.
+fn runtime_pair_tuple_operands(left: &Value, right: &Value) -> Option<(Value, Value)> {
+    let as_tuple = |value: &Value| {
+        runtime_pair_fields(value).map(|(fst, snd)| Value::Tuple(vec![fst.clone(), snd.clone()]))
+    };
+    match (left, right) {
+        (Value::Tuple(_), _) => Some((left.clone(), as_tuple(right)?)),
+        (_, Value::Tuple(_)) => Some((as_tuple(left)?, right.clone())),
+        _ => None,
+    }
+}
+
 fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
+    if let Some((fst, snd)) = runtime_pair_fields(value) {
+        // Hash as the tuple `(fst, snd)`, as `runtime_hash_sequence` does.
+        hasher.update([7]);
+        runtime_hash_len(hasher, 2);
+        runtime_hash_value(hasher, fst);
+        runtime_hash_value(hasher, snd);
+        return;
+    }
     match value {
         Value::Int(value) => {
             hasher.update([0]);
@@ -14495,6 +14538,9 @@ fn runtime_constructor_values_equal(
 }
 
 fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
+    if let Some((left, right)) = runtime_pair_tuple_operands(left, right) {
+        return runtime_values_semantically_equal(&left, &right);
+    }
     if let Some(equal) =
         runtime_constructor_values_equal(left, right, runtime_values_semantically_equal)
     {
@@ -15924,6 +15970,13 @@ fn runtime_http_request(url: &str, body: Option<&str>) -> Result<String, String>
             "request to {url} timed out after {HTTP_GET_TIMEOUT_SECONDS} s"
         ));
     }
+    // Name and connection failures read the same in compiled code, whose
+    // HTTP client is not curl.
+    match output.status.code() {
+        Some(6) => return Err(format!("request to {url} failed: cannot resolve host")),
+        Some(7) => return Err(format!("request to {url} failed: cannot connect")),
+        _ => {}
+    }
     if !output.status.success() {
         let detail = String::from_utf8_lossy(&output.stderr);
         let detail = detail.trim().trim_start_matches("curl: ");
@@ -16287,12 +16340,47 @@ impl Interpreter {
         .map(|(owner, ())| owner)
     }
 
+    /// Constructors and types of the prelude (`TAU_PRELUDE`). A qualified
+    /// module that does not declare its own resolves them in the root, so
+    /// `Pair(1, "a")` built in a module is the same value as one built here.
+    fn runtime_prelude_name(name: &str) -> bool {
+        matches!(
+            name,
+            "Option"
+                | "Some"
+                | "None"
+                | "Result"
+                | "Ok"
+                | "Err"
+                | "Pair"
+                | "ProgramReference"
+                | "ProgramSymbolReference"
+                | "ProgramTypeReference"
+                | "ProgramMemberReference"
+        )
+    }
+
+    fn runtime_namespace_or_prelude_find<T>(
+        &self,
+        namespace: &RuntimeNamespace,
+        name: &str,
+        select: impl Fn(&RuntimeNamespaceState) -> Option<T>,
+    ) -> Option<(RuntimeNamespace, T)> {
+        Self::runtime_namespace_find(namespace, &select).or_else(|| {
+            Self::runtime_prelude_name(name)
+                .then(|| Self::runtime_namespace_find(&self.runtime_root, &select))
+                .flatten()
+        })
+    }
+
     fn runtime_constructor_layout(
         &self,
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<(RuntimeNamespace, (usize, bool))> {
-        Self::runtime_namespace_find(namespace, |state| state.constructors.get(name).copied())
+        self.runtime_namespace_or_prelude_find(namespace, name, |state| {
+            state.constructors.get(name).copied()
+        })
     }
 
     fn runtime_field_names(
@@ -16300,7 +16388,9 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<(RuntimeNamespace, Vec<String>)> {
-        Self::runtime_namespace_find(namespace, |state| state.field_names.get(name).cloned())
+        self.runtime_namespace_or_prelude_find(namespace, name, |state| {
+            state.field_names.get(name).cloned()
+        })
     }
 
     fn runtime_type_variants(
@@ -16308,7 +16398,9 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<(RuntimeNamespace, Vec<String>)> {
-        Self::runtime_namespace_find(namespace, |state| state.type_variants.get(name).cloned())
+        self.runtime_namespace_or_prelude_find(namespace, name, |state| {
+            state.type_variants.get(name).cloned()
+        })
     }
 
     fn runtime_constructor_parent(
@@ -16316,7 +16408,9 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<(RuntimeNamespace, String)> {
-        Self::runtime_namespace_find(namespace, |state| state.ctor_to_type.get(name).cloned())
+        self.runtime_namespace_or_prelude_find(namespace, name, |state| {
+            state.ctor_to_type.get(name).cloned()
+        })
     }
 
     fn runtime_rule_scope(
@@ -28315,6 +28409,9 @@ impl Interpreter {
 
 /// Compare two Values for structural equality (used in Prolog-style fact matching)
 pub fn values_equal(a: &Value, b: &Value) -> bool {
+    if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
+        return values_equal(&a, &b);
+    }
     if let Some(equal) = list_values_equal(a, b) {
         return equal;
     }
@@ -28538,6 +28635,9 @@ fn runtime_numeric_is_zero(value: &Value) -> bool {
 
 pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
     use std::cmp::Ordering;
+    if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
+        return value_sort_cmp(&a, &b);
+    }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {
             0.0
@@ -46804,6 +46904,24 @@ impl TypeChecker {
             .contains_key(&(trait_name.to_string(), for_type.to_string()))
     }
 
+    /// The declared record or enum an applied generic type names: `Box(Int)`
+    /// is `Box`. `Option(...)`, `Result(...)` and other type names are
+    /// unchanged.
+    pub fn declared_type_head(&self, type_name: &str) -> String {
+        match parse_type_annotation(type_name) {
+            Ok(Ty::App(head, _)) => match head.as_ref() {
+                Ty::Name(head)
+                    if !matches!(head.as_str(), "Option" | "Result")
+                        && self.type_parameters_by_owner.contains_key(head) =>
+                {
+                    head.clone()
+                }
+                _ => type_name.to_string(),
+            },
+            _ => type_name.to_string(),
+        }
+    }
+
     pub fn implementations_for_trait(&self, trait_name: &str) -> BTreeSet<String> {
         self.impl_methods
             .keys()
@@ -47457,7 +47575,9 @@ impl TypeChecker {
 
     pub fn define_var(&mut self, name: &str) {
         if let Some(scope) = self.ordinary_callable_scopes.last_mut() {
-            scope.entry(name.into()).or_default().is_value = true;
+            let binding = scope.entry(name.into()).or_default();
+            binding.is_value = true;
+            binding.closure_parameters = None;
         }
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
@@ -50394,7 +50514,8 @@ impl TypeChecker {
     }
 
     fn field_type_name(&self, type_name: &str, field: &str) -> Option<String> {
-        self.type_field_tys
+        let direct = self
+            .type_field_tys
             .get(type_name)
             .and_then(|fields| fields.get(field))
             .map(Self::canonical_explore_ty_name)
@@ -50403,7 +50524,20 @@ impl TypeChecker {
                     .get(type_name)
                     .and_then(|fields| fields.get(field))
                     .cloned()
-            })
+            });
+        if direct.is_some() {
+            return direct;
+        }
+        // A field of an applied generic type such as `Box(Int)` has the
+        // declared field type with the type arguments substituted.
+        let Ok(Ty::App(head, _)) = parse_type_annotation(type_name) else {
+            return None;
+        };
+        let Ty::Name(owner) = head.as_ref() else {
+            return None;
+        };
+        let field_ty = self.type_field_tys.get(owner)?.get(field)?;
+        Some(self.canonical_instantiate_nominal_type(type_name, field_ty))
     }
 
     fn pathof_transparent_ty(ty: &Ty) -> &Ty {
@@ -50899,6 +51033,32 @@ impl TypeChecker {
         }
     }
 
+    /// The result of a collection callback called with one element: an
+    /// untyped lambda parameter has the element type.
+    fn infer_callback_result_type_with_locals(
+        &self,
+        callable: &Expr,
+        element_type: Option<&str>,
+        locals: &BTreeMap<String, String>,
+        active_rule_scope: Option<&str>,
+    ) -> Option<String> {
+        if let (ExprKind::Lambda(params, body), Some(element_type)) = (&callable.kind, element_type)
+        {
+            if let [param] = params.as_slice() {
+                if param.ty.is_none() {
+                    let mut lambda_locals = locals.clone();
+                    lambda_locals.insert(param.name.clone(), element_type.to_string());
+                    return self.infer_expr_type_name_with_locals_in_scope(
+                        body,
+                        &lambda_locals,
+                        active_rule_scope,
+                    );
+                }
+            }
+        }
+        self.infer_callable_result_type_with_locals(callable, 1, locals, active_rule_scope)
+    }
+
     /// The inferred result of an ordinary function that omits `-> Type`.
     /// Exploration consumes helpers with a declared result only.
     fn inferred_function_result(&self, name: &str, arity: usize) -> Option<String> {
@@ -51021,6 +51181,32 @@ impl TypeChecker {
                 .filter(|ty| ty != "Set")
                 .or_else(|| Some(format!("Set({})", argument_type(1)?))),
             ("map_get_or", 3) => argument_type(2),
+            ("map_from", 1) => {
+                let entry = Self::applied_type_argument(&argument_type(0)?, "List", 0)?;
+                let key = Self::applied_type_argument(&entry, "Tuple", 0)
+                    .or_else(|| Self::applied_type_argument(&entry, "Pair", 0))?;
+                let value = Self::applied_type_argument(&entry, "Tuple", 1)
+                    .or_else(|| Self::applied_type_argument(&entry, "Pair", 1))?;
+                Some(format!("Map({key}, {value})"))
+            }
+            ("map_entries", 1) => {
+                let map_type = argument_type(0)?;
+                let key = Self::applied_type_argument(&map_type, "Map", 0)?;
+                let value = Self::applied_type_argument(&map_type, "Map", 1)?;
+                Some(format!("List(Tuple({key}, {value}))"))
+            }
+            ("pair", 2) => Some(format!(
+                "Tuple({}, {})",
+                argument_type(0)?,
+                argument_type(1)?
+            )),
+            ("triple", 3) => Some(format!(
+                "Tuple({}, {}, {})",
+                argument_type(0)?,
+                argument_type(1)?,
+                argument_type(2)?
+            )),
+            ("assert", 1) | ("assert_with_message", 2) => Some("()".to_string()),
             ("map_get", 2) => {
                 let map_type = argument_type(0)?;
                 let value_type = Self::applied_type_argument(&map_type, "Map", 1)?;
@@ -51217,6 +51403,80 @@ impl TypeChecker {
         }
     }
 
+    /// The type of a generic constructor call with every type parameter
+    /// bound from the arguments, such as `Pair(Int, String)` for
+    /// `Pair(1, "a")`. `None` when the owner is not generic or a parameter
+    /// stays unbound.
+    fn applied_constructor_type(
+        &self,
+        signature: &TypeConstructorSignature,
+        args: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_rule_scope: Option<&str>,
+    ) -> Option<String> {
+        fn bind(
+            expected: &Ty,
+            actual: &Ty,
+            parameters: &[String],
+            bound: &mut BTreeMap<String, Ty>,
+        ) {
+            match (expected, actual) {
+                (Ty::Name(name) | Ty::Var(name), _) if parameters.contains(name) => {
+                    bound.entry(name.clone()).or_insert_with(|| actual.clone());
+                }
+                (Ty::App(expected_head, expected_args), Ty::App(actual_head, actual_args))
+                    if expected_args.len() == actual_args.len() =>
+                {
+                    bind(expected_head, actual_head, parameters, bound);
+                    for (expected, actual) in expected_args.iter().zip(actual_args) {
+                        bind(expected, actual, parameters, bound);
+                    }
+                }
+                (Ty::Arrow(expected_in, expected_out), Ty::Arrow(actual_in, actual_out)) => {
+                    bind(expected_in, actual_in, parameters, bound);
+                    bind(expected_out, actual_out, parameters, bound);
+                }
+                (Ty::Optional(expected), Ty::Optional(actual)) => {
+                    bind(expected, actual, parameters, bound)
+                }
+                _ => {}
+            }
+        }
+        let parameters = self.type_parameters_by_owner.get(&signature.parent)?;
+        if parameters.is_empty() {
+            return None;
+        }
+        let names = signature
+            .fields
+            .iter()
+            .map(|field| Some(field.clone()))
+            .collect::<Vec<_>>();
+        let ordered = Self::canonical_ordered_arguments(args, &names)
+            .or_else(|| (args.len() == names.len()).then(|| args.iter().collect()))?;
+        let mut bound = BTreeMap::new();
+        for (argument, field_ty) in ordered.into_iter().zip(&signature.field_tys) {
+            let Some(expected) = field_ty
+                .as_deref()
+                .and_then(|ty| parse_type_annotation(ty).ok())
+            else {
+                continue;
+            };
+            let value = named_arg_parts(argument).map_or(argument, |(_, value)| value);
+            let Some(actual) = self
+                .infer_expr_type_name_with_locals_in_scope(value, locals, active_rule_scope)
+                .and_then(|ty| parse_type_annotation(&ty).ok())
+            else {
+                continue;
+            };
+            bind(&expected, &actual, parameters, &mut bound);
+        }
+        let arguments = parameters
+            .iter()
+            .map(|parameter| bound.get(parameter).map(Self::canonical_explore_ty_name))
+            .collect::<Option<Vec<_>>>()?;
+        Some(format!("{}({})", signature.parent, arguments.join(", ")))
+    }
+
     /// Infer an expression while retaining the exact lexical RuleScope.
     ///
     /// The rule-return fixed point historically carried this context in a
@@ -51333,34 +51593,45 @@ impl TypeChecker {
                         return None;
                     }
                     if name == "map" && args.len() == 2 {
-                        let result = self.infer_callable_result_type_with_locals(
-                            &args[1],
-                            1,
-                            locals,
-                            active_rule_scope,
-                        )?;
                         let collection_type = self.infer_expr_type_name_with_locals_in_scope(
                             &args[0],
                             locals,
                             active_rule_scope,
                         )?;
-                        let output_constructor =
-                            if Self::applied_type_argument(&collection_type, "List", 0).is_some() {
-                                "List"
-                            } else if ["Stream", "Subject"].into_iter().any(|constructor| {
+                        let (output_constructor, element_type) = if let Some(element) =
+                            Self::applied_type_argument(&collection_type, "List", 0)
+                        {
+                            ("List", element)
+                        } else if let Some(element) =
+                            ["Stream", "Subject"].into_iter().find_map(|constructor| {
                                 Self::applied_type_argument(&collection_type, constructor, 0)
-                                    .is_some()
-                            }) {
-                                "Stream"
-                            } else {
-                                return None;
-                            };
+                            })
+                        {
+                            ("Stream", element)
+                        } else {
+                            return None;
+                        };
+                        let result = self.infer_callback_result_type_with_locals(
+                            &args[1],
+                            Some(&element_type),
+                            locals,
+                            active_rule_scope,
+                        )?;
                         return Some(format!("{output_constructor}({result})"));
                     }
                     if name == "flat_map" && args.len() == 2 {
-                        return self.infer_callable_result_type_with_locals(
+                        let element_type = self
+                            .infer_expr_type_name_with_locals_in_scope(
+                                &args[0],
+                                locals,
+                                active_rule_scope,
+                            )
+                            .and_then(|collection| {
+                                Self::applied_type_argument(&collection, "List", 0)
+                            });
+                        return self.infer_callback_result_type_with_locals(
                             &args[1],
-                            1,
+                            element_type.as_deref(),
                             locals,
                             active_rule_scope,
                         );
@@ -51428,8 +51699,16 @@ impl TypeChecker {
                     if name == "range" && args.len() == 2 {
                         return Some("List(Int)".to_string());
                     }
-                    if let Some(parent) = self.constructor_parent_for_args(name, args) {
-                        return Some(parent);
+                    if let Some(signature) = self.constructor_signature_for_args(name, args) {
+                        return Some(
+                            self.applied_constructor_type(
+                                &signature,
+                                args,
+                                locals,
+                                active_rule_scope,
+                            )
+                            .unwrap_or(signature.parent),
+                        );
                     }
                     if let Some((parent, _)) = self.constructors.get(name) {
                         return Some(parent.clone());
@@ -55194,15 +55473,11 @@ impl TypeChecker {
         if self.var_defined(name) || self.functions.contains_key(name) {
             return;
         }
-        fn mentions_float(type_name: &str) -> bool {
-            type_name
-                .split(|c: char| !(c.is_alphanumeric() || c == '_'))
-                .any(|word| word == "Float")
-        }
         fn first_component(type_name: &str) -> Option<&str> {
             let inner = type_name.strip_prefix("List(")?.strip_suffix(')')?;
             let inner = inner
                 .strip_prefix("Pair(")
+                .or_else(|| inner.strip_prefix("Tuple("))
                 .or_else(|| inner.strip_prefix('('))?
                 .strip_suffix(')')?;
             let mut depth = 0usize;
@@ -55235,7 +55510,7 @@ impl TypeChecker {
             _ => None,
         };
         if let Some((anchor, key_type)) = key {
-            if mentions_float(&key_type) {
+            if self.type_name_contains_float(&key_type, &mut BTreeSet::new()) {
                 self.error_at_expr(
                     anchor,
                     "Float values cannot be Map keys or Set elements; use Int (e.g. cents) or String"
@@ -55243,6 +55518,21 @@ impl TypeChecker {
                 );
             }
         }
+    }
+
+    /// Whether a type, or a field of a declared type it names, is `Float`.
+    fn type_name_contains_float(&self, type_name: &str, seen: &mut BTreeSet<String>) -> bool {
+        type_name
+            .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+            .any(|word| {
+                word == "Float"
+                    || (seen.insert(word.to_string())
+                        && self.type_field_types.get(word).is_some_and(|fields| {
+                            fields
+                                .values()
+                                .any(|field| self.type_name_contains_float(field, seen))
+                        }))
+            })
     }
 
     pub fn var_defined(&self, name: &str) -> bool {
@@ -59250,6 +59540,7 @@ impl TypeChecker {
                     let actor = Self::spawned_actor_name(expr);
                     self.define_actor_handle(name, actor);
                     self.record_binding_variant_refinement(name, expr);
+                    self.record_closure_binding(name, expr);
                 }
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
@@ -60775,8 +61066,10 @@ impl TypeChecker {
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
         if collect_all_imported_metadata_bindings {
-            // A Rust-emitting backend needs a signature for every function.
+            // A Rust-emitting backend needs a signature for every function
+            // and a Rust type for every record field.
             tc.report_uninferred_function_results(stmts);
+            tc.report_native_function_fields(stmts);
         }
         tc.diagnostics
             .extend(host_effects::comptime_host_effect_diagnostics(stmts));

@@ -118,7 +118,11 @@ impl TypeChecker {
         }
         match (actual, expected) {
             (Ty::App(ac, aa), Ty::App(ec, ea)) => {
-                Self::return_types_compatible(ac, ec)
+                // `Pair(a, b)` is the two-element tuple `(a, b)`.
+                let pair_or_tuple =
+                    |head: &Ty| matches!(head, Ty::Name(name) if name == "Pair" || name == "Tuple");
+                let same_tuple = aa.len() == 2 && pair_or_tuple(ac) && pair_or_tuple(ec);
+                (same_tuple || Self::return_types_compatible(ac, ec))
                     && aa.len() == ea.len()
                     && aa
                         .iter()

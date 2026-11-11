@@ -16,6 +16,8 @@ Built into the compiler — no imports needed. Every function here is available 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `show` | `a -> String` | Convert any value to its string representation |
+| `show_int` | `Int -> String` | `show` for an `Int` |
+| `show_float` | `Float -> String` | `show` for a `Float` |
 | `print` | `String -> ()` | Print to stdout (use via `@ print(...)`) |
 
 ```runa
@@ -213,8 +215,6 @@ handling.
 
 = sorted = sort(xs)                       -- [1, 2, 3, 5, 8, 9]
 = words = sort(["banana", "apple", "cherry"])  -- ["apple", "banana", "cherry"]
--- Note: sort is lexicographic. sort([10, 2, 3]) gives [10, 2, 3] because "10" < "2".
--- Use sort_by for numeric sorting: sort_by([10, 2, 3], |x| x) sorts numerically.
 = has_big = any(xs, |x| x > 7)            -- true
 = all_pos = all(xs, |x| x > 0)            -- true
 = found = find(xs, |x| x > 4)             -- Some(5)
@@ -237,6 +237,8 @@ handling.
 | `fst` | `(a, b) -> a` | First element of a tuple/pair |
 | `snd` | `(a, b) -> b` | Second element of a tuple/pair |
 | `trd` | `(a, b, c) -> c` | Third element of a tuple |
+| `pair` | `(a, b) -> (a, b)` | Build a two-element tuple |
+| `triple` | `(a, b, c) -> (a, b, c)` | Build a three-element tuple |
 
 ```runa
 = p = (10, "hello")

@@ -65,6 +65,49 @@ impl TypeChecker {
         }
     }
 
+    /// Compiled code stores a record in a Rust struct, which cannot hold a
+    /// closure. Report a field whose type contains a function before Rust is
+    /// generated, instead of a rustc failure.
+    pub(super) fn report_native_function_fields(&mut self, stmts: &[Stmt]) {
+        fn contains_function(ty: &Ty) -> bool {
+            match ty {
+                Ty::Arrow(..) => true,
+                Ty::App(head, arguments) => {
+                    contains_function(head) || arguments.iter().any(contains_function)
+                }
+                Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                    contains_function(inner)
+                }
+                _ => false,
+            }
+        }
+        for stmt in stmts {
+            let Stmt::TypeDecl(TypeDecl::ADT { variants, .. }) = stmt else {
+                continue;
+            };
+            for variant in variants {
+                for field in variant
+                    .fields
+                    .iter()
+                    .filter(|field| contains_function(&field.ty))
+                {
+                    let field_label = if variant.positional {
+                        "a positional field".to_string()
+                    } else {
+                        format!("field `{}`", field.name)
+                    };
+                    self.declaration_error(
+                        &format!("variant:{}", variant.name),
+                        format!(
+                            "{field_label} of `{}` holds a function, which compiled code cannot store in a record; keep the function out of the record and pass it as a parameter",
+                            variant.name
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
     /// `Tuple` names the built-in tuple type `(A, B)`; a declaration of that
     /// name would make every tuple annotation ambiguous.
     pub(super) fn check_reserved_type_name(&mut self, name: &str) {

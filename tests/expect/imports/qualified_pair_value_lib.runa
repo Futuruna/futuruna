@@ -1,0 +1,9 @@
+-- expect-skip: dependency-only fixture for Pair values built in a qualified import
+@ export
+> make() -> Pair(Int, String) { Pair(1, "a") }
+@ export
+> first_of(p: Pair(Int, String)) -> Int {
+    match p {
+        | Pair(n, _) -> n
+    }
+}

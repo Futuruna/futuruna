@@ -13,6 +13,8 @@ pub(super) enum DeclaredCallable {
 pub(super) struct CallableBinding {
     declaration: Option<DeclaredCallable>,
     pub(super) is_value: bool,
+    /// The declared parameter types of a closure bound to this name.
+    pub(super) closure_parameters: Option<Vec<Option<Ty>>>,
 }
 
 impl CallableBinding {
@@ -20,11 +22,43 @@ impl CallableBinding {
         Self {
             declaration: Some(declaration),
             is_value: false,
+            closure_parameters: None,
         }
     }
 }
 
 impl TypeChecker {
+    /// After `= name = |params| body`, calls of `name` check their
+    /// arguments against the closure's declared parameter types.
+    pub(super) fn record_closure_binding(&mut self, name: &str, value: &Expr) {
+        let ExprKind::Lambda(parameters, _) = &value.kind else {
+            return;
+        };
+        if let Some(binding) = self
+            .ordinary_callable_scopes
+            .last_mut()
+            .and_then(|scope| scope.get_mut(name))
+        {
+            binding.closure_parameters = Some(
+                parameters
+                    .iter()
+                    .map(|parameter| parameter.ty.clone())
+                    .collect(),
+            );
+        }
+    }
+
+    /// The declared parameter types of the closure the nearest binder of
+    /// `name` holds.
+    fn closure_parameter_types(&self, name: &str) -> Option<Vec<Option<Ty>>> {
+        let index = self.scopes.iter().rposition(|names| names.contains(name))?;
+        self.ordinary_callable_scopes
+            .get(index)?
+            .get(name)?
+            .closure_parameters
+            .clone()
+    }
+
     pub(super) fn define_rule_callable(&mut self, name: &str, arity: usize) {
         let existing = self
             .ordinary_callable_scopes
@@ -118,6 +152,8 @@ impl TypeChecker {
                 if target.is_none() && !self.functions.contains_key(name) {
                     self.error_at_expr(call, format!("value `{name}` is not callable"));
                 }
+            } else {
+                self.check_closure_call_arguments(name, arguments);
             }
         }
         match target {
@@ -194,6 +230,44 @@ impl TypeChecker {
             _ => {}
         }
         true
+    }
+
+    /// A closure bound to a name takes arguments of its declared parameter
+    /// types; an `Int` is not a `Float`.
+    fn check_closure_call_arguments(&mut self, name: &str, arguments: &[Expr]) {
+        if has_named_args(arguments) {
+            return;
+        }
+        let Some(parameters) = self.closure_parameter_types(name) else {
+            return;
+        };
+        if parameters.len() != arguments.len() {
+            return;
+        }
+        let mut substitutions = BTreeMap::new();
+        for (index, (expected, argument)) in parameters.iter().zip(arguments).enumerate() {
+            let Some(expected) = expected else {
+                continue;
+            };
+            let Some(actual) = self.ordinary_expression_type(argument) else {
+                continue;
+            };
+            let Ok(actual_ty) = parse_type_annotation(&actual) else {
+                continue;
+            };
+            if Self::ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
+                continue;
+            }
+            self.error_at_expr(
+                argument,
+                format!(
+                    "argument {} to `{name}` expects `{}`, got `{actual}`{}",
+                    index + 1,
+                    Self::canonical_explore_ty_name(expected),
+                    Self::numeric_conversion_hint(&actual_ty, expected)
+                ),
+            );
+        }
     }
 
     /// Every clause of a rule family declares one type per typed parameter
@@ -663,8 +737,12 @@ impl TypeChecker {
                 }
             }
             (Ty::App(ac, aa), Ty::App(ec, ea)) => {
+                // `Pair(a, b)` is the two-element tuple `(a, b)`.
+                let pair_or_tuple =
+                    |head: &Ty| matches!(head, Ty::Name(name) if name == "Pair" || name == "Tuple");
+                let same_tuple = aa.len() == 2 && pair_or_tuple(ac) && pair_or_tuple(ec);
                 aa.len() == ea.len()
-                    && Self::ordinary_argument_matches(ac, ec, substitutions)
+                    && (same_tuple || Self::ordinary_argument_matches(ac, ec, substitutions))
                     && aa
                         .iter()
                         .zip(ea)

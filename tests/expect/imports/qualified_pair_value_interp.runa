@@ -1,0 +1,16 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: shown=(1, a)
+-- expect-stdout: equal=true
+-- expect-stdout: distinct=1
+-- expect-stdout: first=1
+-- expect-stdout: local=2
+-- A Pair built in a qualified import is the same tuple as one built here.
+
+@ import L from ./qualified_pair_value_lib
+
+@ print("shown=" + show(L.make()))
+@ print("equal=" + show(L.make() == Pair(1, "a")))
+@ print("distinct=" + show(set_len(set_from_list([L.make(), Pair(1, "a")]))))
+@ print("first=" + show(L.first_of(L.make())))
+@ print("local=" + show(L.first_of(Pair(2, "b"))))

@@ -1,0 +1,11 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: same=(1, 2)
+-- expect-stdout: joined=a1
+-- A closure passed for a tuple-typed or two-parameter function parameter.
+
+> k(f: ((Int, Int)) -> (Int, Int)) -> (Int, Int) { f((1, 2)) }
+> join(g: (Int, String) -> String) -> String { g(1, "a") }
+
+@ print("same=" + show(k(|p| p)))
+@ print("joined=" + join(|n, s| s + show(n)))
