@@ -1,0 +1,10 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |twice_is_even|
+-- The standard `Meta` and `MetaRole` marker traits are known to verify, as
+-- they are to `runa check`.
+# Meta1(a) = Source(value: a)
+# impl MetaRole for Meta1 {}
+# impl Meta for Meta1 {}
+| twice(x: Int) -> x + x
+| twice_is_even: x -> x > 1000000 || x < -1000000 || twice(x) % 2 == 0

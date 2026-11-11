@@ -759,14 +759,34 @@ counterexample names each free variable's witness in source syntax, such as
 
 ### Verifying rule dispatch
 
-For CI, `runa verify` exits 0 only when at least one invariant exists and every
-invariant is PROVED. A counterexample, unsupported claim, unknown result,
-missing or failed solver, or empty invariant set exits 1.
+`runa verify` first runs the same frontend check as `runa check`, with the
+same prelude (`max_int`, `min_int`, `clamp`, the `Meta` and `MetaRole` marker
+traits) and the same import resolution; a program that check rejects is not
+verified.
 
-`runa verify` can translate pure, total, non-recursive `|` rule groups directly,
+For CI, `runa verify` exits 0 only when every invariant is PROVED. A
+counterexample, unsupported claim, unknown result, or missing or failed solver
+exits 1. A file without invariants exits 0 and reports that nothing was proved.
+
+Each claim is translated on its own. A claim the SMT layer cannot translate (a
+list or map argument, Float, a higher-order call, an effect) is reported as
+`? SMT fallback skipped` or `? Verification unsupported` with the reason, and
+the remaining claims are still proved or refuted. The summary line counts both:
+`Verification: 4 of 6 invariant(s) proved, 2 unsupported.`
+`runa verify --allow-unsupported` exits 0 when at least one claim is PROVED and
+every other claim is unsupported, so a file that mixes translatable and
+untranslatable claims can gate CI. A counterexample, unknown result or solver
+failure still exits 1, and the closing guarantee line names how many claims
+were accepted unchecked.
+
+`runa verify` can translate pure, non-recursive `|` rule groups directly,
 including rules inside a product RuleScope. Conditions and exceptions use the
 same precedence as execution; there is no need to restate the rule cascade as a
-separate `>` function.
+separate `>` function. Int arithmetic inside a rule (`+`, `-`, `*`, `/`, `%`) is
+translated with its overflow and zero-divisor obligations, so a rule that can
+overflow for some input is refuted with that input rather than rejected. The
+prelude helpers `max_int`, `min_int` and `clamp`, and `abs` on Int, translate
+exactly; `abs` of the minimum Int is an overflow, as it is at runtime.
 
 ```runa
 # TaxCase(income: Int) {
@@ -814,8 +834,15 @@ The solver path fails closed with a diagnostic for partial non-Boolean rules,
 recursive dispatch, higher-order parameters, effects, and other expressions
 outside its current first-order subset. Rule return sorts are resolved by the
 exact RuleScope (when present), name, and arity; same-named overloads never
-share a sort, and conflicting or unresolved result sorts fail closed. `runa
-verify` remains a Preview surface.
+share a sort, and conflicting or unresolved result sorts fail closed.
+
+An invariant's subject is evaluated too, so its arithmetic must be defined for
+every input: `| nonneg: tax(i) -> i < 0 || tax(i) >= 0` is refuted when
+`tax(i)` overflows for some large `i`, while `| nonneg: i -> i < 0 || i > 1000000
+|| tax(i) >= 0` bounds the input first. A rule over a RuleScope is reached for
+all inputs through a rule that builds the scope, such as
+`| tax(income: Int) -> TaxCase(income = income).tax_due()`. `runa verify`
+remains a Preview surface.
 
 ### Auditing clause reachability
 

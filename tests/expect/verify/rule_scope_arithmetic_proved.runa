@@ -1,0 +1,18 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |high_income_tax|
+-- expect-stdout: PROVED: |tax_nonnegative|
+-- RuleScope rules doing checked Int arithmetic translate; the solver proves
+-- that no reachable operation overflows instead of rejecting the rule.
+# TaxCase(income: Int) {
+    | rate_percent() -> 25
+    | rate_percent() -> 30 under income > 500000
+    | exception low_income rate_percent() -> 20 under income < 100000
+    | tax_due() -> income * rate_percent() / 100
+}
+
+| tax(income: Int) -> TaxCase(income = income).tax_due()
+
+= high_income_case = TaxCase(income = 600000)
+| high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
+| tax_nonnegative: i -> i < 0 || i > 1000000000000 || tax(i) >= 0

@@ -224,6 +224,7 @@ fn main_inner() {
     let mut calculation_all_tables = false;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
+    let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
     let mut fetch_update = false; // --update flag for `runa fetch`
 
     let mut i = 1;
@@ -267,6 +268,10 @@ fn main_inner() {
             }
             "--build-deps" if mode == "check" => {
                 check_build_deps = true;
+                i += 1;
+            }
+            "--allow-unsupported" if mode == "verify" => {
+                verify_allow_unsupported = true;
                 i += 1;
             }
             "--rev" if mode == "add" => {
@@ -649,6 +654,7 @@ fn main_inner() {
                     "  meta          Report typed meta references across a file or source tree"
                 );
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
+                eprintln!("  verify --allow-unsupported  Exit 0 when every claim the SMT layer can translate is PROVED");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
                 eprintln!("  explore       Create or resume one durable relational exploration");
                 eprintln!("  fmt           Format source file(s)");
@@ -1282,7 +1288,9 @@ fn main_inner() {
                         )
                     }
                     "audit" => audit_source(&source, path, use_prelude),
-                    "verify" => verify_with_z3(&source, path),
+                    "verify" => {
+                        verify_with_z3(&source, path, use_prelude, verify_allow_unsupported)
+                    }
                     "explore" => run_relational_explore_stream(
                         &source,
                         path,
@@ -18115,10 +18123,48 @@ fn run_z3_script(script: &str) -> Result<String, String> {
 /// and repeated in the reference documentation.
 const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
 
+/// The Int helpers the SMT layer translates as ordinary functions: the
+/// prelude's `max_int`, `min_int` and `clamp`, and the builtin `abs` on Int,
+/// whose negation carries the same overflow obligation as runtime
+/// `checked_abs` (so `abs` of the minimum Int is an overflow). A program
+/// declaration of the same name takes precedence and suppresses the helper.
+fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<Stmt> {
+    const HELPERS: &str = "> abs(x: Int) -> Int { if x < 0 { -x } else { x } }\n";
+    let mut declared = BTreeSet::new();
+    for statement in &statements {
+        match statement {
+            Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Bind(Pat::Var(name), _, _) => {
+                declared.insert(name.clone());
+            }
+            Stmt::Rule(rule) => {
+                if let Some((name, _)) = rule.callable_name_arity() {
+                    declared.insert(name);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut helpers = Parser::new(Lexer::new(HELPERS).tokenize(), HELPERS)
+        .parse_program()
+        .expect("SMT arithmetic helpers parse");
+    if use_prelude {
+        helpers.extend(parse_prelude().into_iter().filter(|statement| {
+            matches!(statement, Stmt::Defn(Defn::Fn { name, .. })
+                if matches!(name.as_str(), "max_int" | "min_int" | "clamp"))
+        }));
+    }
+    helpers.retain(
+        |statement| !matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if declared.contains(name)),
+    );
+    helpers.extend(statements);
+    helpers
+}
+
 /// Generate SMT-LIB2 for all invariants and verify with Z3.
 /// Successful exit requires every claim to be proved. Unsupported claims and
-/// unavailable solvers are incomplete checks.
-fn verify_with_z3(source: &str, filename: &str) {
+/// unavailable solvers are incomplete checks; `allow_unsupported` accepts
+/// claims the SMT layer cannot translate, never refuted or unknown ones.
+fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsupported: bool) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
@@ -18129,6 +18175,23 @@ fn verify_with_z3(source: &str, filename: &str) {
             std::process::exit(1);
         }
     };
+    // The program must pass exactly the frontend check `runa check` runs:
+    // the same prelude (builtins such as `clamp`, the `Meta` marker traits)
+    // and the same import resolution.
+    let checked_stmts = if use_prelude {
+        prepend_prelude(parse_prelude(), &stmts)
+    } else {
+        stmts.clone()
+    };
+    if print_type_check_diagnostics(
+        &type_check_artifacts(&checked_stmts, source, filename).diagnostics,
+        source,
+        filename,
+    ) {
+        eprintln!("runa --verify: verification requires a type-correct program");
+        std::process::exit(1);
+    }
+    drop(checked_stmts);
 
     // Imported declarations precede local declarations, matching interpreter
     // and codegen registration. Rule groups intentionally compose across this
@@ -18154,11 +18217,28 @@ fn verify_with_z3(source: &str, filename: &str) {
             std::process::exit(1);
         }
     };
-    let type_artifacts = TypeChecker::check_with_artifacts(&all_stmts, None, "");
+    let mut type_artifacts = TypeChecker::check_with_artifacts(
+        &if use_prelude {
+            prepend_prelude(parse_prelude(), &all_stmts)
+        } else {
+            all_stmts.clone()
+        },
+        None,
+        "",
+    );
     if print_type_check_diagnostics(&type_artifacts.diagnostics, source, filename) {
         eprintln!("runa --verify: semantic SMT fallback requires a type-correct program");
         std::process::exit(1);
     }
+    // Execution checks Int arithmetic at runtime; the solver instead proves
+    // that no reachable operation overflows or divides by zero. A rule whose
+    // result type is known therefore translates even when its arithmetic is
+    // not statically total.
+    type_artifacts.rule_dispatch_return_types =
+        type_artifacts.rule_dispatch_backend_return_types.clone();
+    type_artifacts.rule_dispatch_return_issues =
+        type_artifacts.rule_dispatch_backend_return_issues.clone();
+    let all_stmts = smt_with_prelude_arithmetic(all_stmts, use_prelude);
     let rule_registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
     let rule_lowerer = SmtRuleLowerer::new(
         &all_stmts,
@@ -18245,6 +18325,9 @@ fn verify_with_z3(source: &str, filename: &str) {
     }
 
     let mut proved_count = 0usize;
+    // Claims the SMT layer cannot translate. Each is reported on its own;
+    // the remaining claims are still proved or refuted.
+    let mut unsupported_count = 0usize;
     let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
     let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
     let function_map: BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)> = functions
@@ -18268,6 +18351,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         println!("--- | {} ---", inv_name);
 
         if let Some(reason) = invariant_lowering_errors.get(inv_name) {
+            unsupported_count += 1;
             println!("  ? SMT fallback skipped: {}", reason);
             println!();
             continue;
@@ -18330,6 +18414,7 @@ fn verify_with_z3(source: &str, filename: &str) {
                     .find_map(|ty| runa_verification_arithmetic::check_float_type(ty, &adts).err())
             });
         if let Some(reason) = float_error {
+            unsupported_count += 1;
             println!("  ? Verification unsupported: {}", reason);
             println!();
             continue;
@@ -18353,6 +18438,7 @@ fn verify_with_z3(source: &str, filename: &str) {
                 .get(name)
                 .map(|reason| (name, reason))
         }) {
+            unsupported_count += 1;
             println!("  ? SMT fallback skipped: binding `{}` {}", binding, reason);
             println!();
             continue;
@@ -18366,6 +18452,7 @@ fn verify_with_z3(source: &str, filename: &str) {
             &function_map,
             &function_lowering_errors,
         ) {
+            unsupported_count += 1;
             println!("  ? SMT fallback skipped: {}", reason);
             println!();
             continue;
@@ -18378,6 +18465,7 @@ fn verify_with_z3(source: &str, filename: &str) {
             &function_map,
             &ctor_names,
         ) {
+            unsupported_count += 1;
             println!("  ? SMT fallback skipped: {}", reason);
             println!();
             continue;
@@ -18385,6 +18473,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         let function_order = match ordered_smt_functions(&used_functions, &function_map) {
             Ok(order) => order,
             Err(reason) => {
+                unsupported_count += 1;
                 println!("  ? SMT fallback skipped: {}", reason);
                 println!();
                 continue;
@@ -18411,6 +18500,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         let arithmetic_guard = match arithmetic_guards {
             Ok(guards) => runa_verification_arithmetic::and(guards),
             Err(reason) => {
+                unsupported_count += 1;
                 println!("  ? SMT fallback skipped: {}", reason);
                 println!();
                 continue;
@@ -18575,14 +18665,28 @@ fn verify_with_z3(source: &str, filename: &str) {
         println!();
     }
     println!(
-        "Verification: {} of {} invariant(s) proved.",
+        "Verification: {} of {} invariant(s) proved{}.",
         proved_count,
-        invariants.len()
+        invariants.len(),
+        if unsupported_count == 0 {
+            String::new()
+        } else {
+            format!(", {} unsupported", unsupported_count)
+        }
     );
-    if proved_count != invariants.len() {
-        std::process::exit(1);
+    if proved_count == invariants.len() {
+        ToolGuarantee::Verify.print(false);
+        return;
     }
-    ToolGuarantee::Verify.print(false);
+    if allow_unsupported && proved_count > 0 && proved_count + unsupported_count == invariants.len()
+    {
+        status_println!(
+            "\x1b[2mguarantee: Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; {} claim(s) the SMT layer cannot translate were accepted unchecked by --allow-unsupported.\x1b[0m",
+            unsupported_count
+        );
+        return;
+    }
+    std::process::exit(1);
 }
 
 fn show_hashes(source: &str, filename: &str) {

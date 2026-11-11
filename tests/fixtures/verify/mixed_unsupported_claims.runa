@@ -1,0 +1,10 @@
+-- One file mixing translatable Int claims with claims the SMT layer cannot
+-- translate (a list argument, Float, a higher-order call). Each unsupported
+-- claim is reported on its own; the others are still proved.
+| total(xs: List(Int)) -> foldl(xs, 0, |acc, x| acc + x)
+| half(x: Float) -> x / 2.0
+| twice(x: Int) -> x + x
+| twice_even: x -> x > 1000000 || x < -1000000 || twice(x) % 2 == 0
+| list_total: total([1, 2]) -> total([1, 2]) == 3
+| float_half: half(2.0) -> half(2.0) == 1.0
+| mapped: map([1], |x| x + 1) -> map([1], |x| x + 1) == [2]

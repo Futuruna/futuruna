@@ -205,7 +205,12 @@ fn opaque_builtin_arithmetic_cannot_be_certified_by_reflexivity() {
             "= value = {expression}\n| claim: value -> value == value\n"
         ));
         assert!(!output.contains("PROVED"), "{output}");
-        assert!(output.contains("SMT fallback skipped"), "{output}");
+        if expression.starts_with("abs") {
+            // `abs` on Int translates exactly, including its overflow.
+            assert_solver_result(&output, "COUNTEREXAMPLE found for |claim|");
+        } else {
+            assert!(output.contains("SMT fallback skipped"), "{output}");
+        }
     }
 }
 

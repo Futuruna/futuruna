@@ -322,29 +322,22 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             "literal_heads_are_lowered",
             "constructor_payload_is_symbolic",
             "total_sequential_rule_block_is_symbolic",
+            // Int arithmetic in a rule body translates with its overflow
+            // obligation instead of being rejected as non-total.
+            "integer_overload_is_well_sorted",
         ] {
             assert!(
                 stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
                 "missing proof for {invariant}:\n{stdout}"
             );
         }
-        for (invariant, family) in [
-            ("integer_overload_is_well_sorted", "overloaded_result"),
-            ("sequential_rule_block_is_symbolic", "block_value"),
-        ] {
-            let section = stdout
-                .split(&format!("--- | {invariant} ---"))
-                .nth(1)
-                .and_then(|section| section.split("--- |").next())
-                .expect("arithmetic invariant section");
-            assert!(
-                section.contains(&format!(
-                    "cannot prove every return clause and guard of rule `{family}`"
-                )),
-                "unbounded integer arithmetic must not acquire a totality certificate: {section}"
-            );
-            assert!(!section.contains("PROVED:"));
-        }
+        // `(amount + 1) * 2` overflows for large amounts: refuted, not proved.
+        let section = invariant_section(&stdout, "sequential_rule_block_is_symbolic");
+        assert!(
+            section.contains("COUNTEREXAMPLE found for |sequential_rule_block_is_symbolic|"),
+            "{section}"
+        );
+        assert!(!section.contains("PROVED:"), "{section}");
         assert!(
             stdout.contains("COUNTEREXAMPLE found for |intentional_wrong_order_claim|"),
             "the intentionally false ordering claim should be refuted:\n{stdout}"
@@ -365,11 +358,10 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             ),
             "recursive rules must fail closed with a precise diagnostic:\n{stdout}"
         );
+        let section = invariant_section(&stdout, "higher_order_dispatch_is_rejected");
         assert!(
-            stdout.contains(
-                "cannot prove every return clause and guard of rule `HigherOrderCase.projected`"
-            ),
-            "higher-order rule parameters must fail closed with a precise diagnostic:\n{stdout}"
+            section.contains("SMT fallback skipped") && section.contains("rule `projected`"),
+            "higher-order rule parameters must fail closed with a precise diagnostic:\n{section}"
         );
         assert!(stdout.contains("SMT argument 1 to rule `boolean_argument` has type `Int` but its canonical schema is `Bool`"),
             "an unbound invariant Int must not be retyped to fit a Bool parameter: {stdout}");
@@ -569,8 +561,57 @@ fn enum_free_variable_domains_fail_closed_outside_payload_free_enums() {
             "{witness}"
         );
         assert!(
-            stdout.contains("Verification: 5 of 9 invariant(s) proved."),
+            stdout.contains("Verification: 5 of 9 invariant(s) proved, 3 unsupported."),
             "{stdout}"
         );
     }
+}
+
+#[test]
+fn allow_unsupported_accepts_untranslatable_claims_but_not_refuted_ones() {
+    let mixed = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/mixed_unsupported_claims.runa");
+    let mixed = mixed.to_str().expect("UTF-8 fixture path");
+    let strict = run_runa(&["verify", mixed]);
+    let stdout = String::from_utf8_lossy(&strict.stdout);
+    // Without the flag an unsupported claim is an incomplete check.
+    assert_eq!(strict.status.code(), Some(1), "{stdout}");
+    for invariant in ["list_total", "float_half", "mapped"] {
+        let section = invariant_section(&stdout, invariant);
+        assert!(section.contains("  ? "), "{invariant}: {section}");
+        assert!(!section.contains("PROVED"), "{invariant}: {section}");
+    }
+    if !z3_available() {
+        return;
+    }
+    assert!(
+        invariant_section(&stdout, "twice_even").contains("PROVED"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Verification: 1 of 4 invariant(s) proved, 3 unsupported."),
+        "{stdout}"
+    );
+
+    let allowed = run_runa(&["verify", "--allow-unsupported", mixed]);
+    let stdout = String::from_utf8_lossy(&allowed.stdout);
+    assert_eq!(allowed.status.code(), Some(0), "{stdout}");
+    assert!(
+        stdout.contains("accepted unchecked by --allow-unsupported"),
+        "{stdout}"
+    );
+
+    let refuted = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/mixed_unsupported_refuted.runa");
+    let refuted = run_runa(&[
+        "verify",
+        "--allow-unsupported",
+        refuted.to_str().expect("UTF-8 fixture path"),
+    ]);
+    let stdout = String::from_utf8_lossy(&refuted.stdout);
+    assert_eq!(refuted.status.code(), Some(1), "{stdout}");
+    assert!(
+        stdout.contains("COUNTEREXAMPLE found for |twice_positive|"),
+        "{stdout}"
+    );
 }

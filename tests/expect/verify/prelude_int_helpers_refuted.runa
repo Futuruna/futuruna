@@ -1,0 +1,9 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: COUNTEREXAMPLE found for |abs_never_negative|:
+-- expect-stdout: x = -9223372036854775808
+-- expect-stdout: COUNTEREXAMPLE found for |clamp_is_identity|:
+-- expect-stdout: Verification: 0 of 2 invariant(s) proved.
+-- `abs` of the minimum Int overflows at runtime, so it is a counterexample.
+| abs_never_negative: abs(x) -> abs(x) >= 0
+| clamp_is_identity: clamp(x, 0, 10) -> clamp(x, 0, 10) == x

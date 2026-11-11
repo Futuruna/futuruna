@@ -1,0 +1,15 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |clamp_within_bounds|
+-- expect-stdout: PROVED: |min_below_max|
+-- expect-stdout: PROVED: |abs_nonnegative_above_minimum|
+-- expect-stdout: PROVED: |rule_arithmetic_with_clamp|
+-- expect-stdout: Verification: 4 of 4 invariant(s) proved.
+-- Prelude helpers and `abs` translate exactly, and a rule doing checked
+-- Int arithmetic is proved together with its overflow obligations.
+| deposit_room(value: Int, ceiling: Int, deposit: Int) -> clamp(ceiling - value, 0, deposit)
+
+| clamp_within_bounds: clamp(x, lo, hi) -> lo > hi || (clamp(x, lo, hi) >= lo && clamp(x, lo, hi) <= hi)
+| min_below_max: min_int(a, b) -> min_int(a, b) <= max_int(a, b)
+| abs_nonnegative_above_minimum: x -> x == -9223372036854775807 - 1 || abs(x) >= 0
+| rule_arithmetic_with_clamp: min_int(v, min_int(c, d)) -> v < 0 || c < 0 || d < 0 || (deposit_room(v, c, d) >= 0 && deposit_room(v, c, d) <= d)

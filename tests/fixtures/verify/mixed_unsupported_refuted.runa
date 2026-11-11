@@ -1,0 +1,5 @@
+-- A refuted claim fails verify even with --allow-unsupported.
+| half(x: Float) -> x / 2.0
+| twice(x: Int) -> x + x
+| twice_positive: x -> twice(x) > 0
+| float_half: half(2.0) -> half(2.0) == 1.0
