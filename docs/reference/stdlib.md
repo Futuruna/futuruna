@@ -525,10 +525,24 @@ The handler receives three string arguments: request path, HTTP method, and requ
 `http_serve` runs only in compiled code (`runa run`, `runa build`). The interpreter refuses it: reaching an `http_serve` call is a runtime error at that point.
 
 The server listens on all interfaces and calls the handler for each request,
-possibly for several requests at once. A request body larger than 1 MiB is read
-as empty. The handler may read top-level bindings, directly or through the
+possibly for several requests at once; each call runs on a blocking worker
+thread. The handler may read top-level bindings, directly or through the
 functions it calls: the server shares one copy of them, taken when `http_serve`
 starts, between all requests.
+
+One bad request never stops the server:
+
+| Request | Response | Handler called |
+|---------|----------|----------------|
+| The handler fails at runtime (for example a checked integer overflow) | `500`, `{"error":"internal error"}` | yes |
+| The body is larger than 1 MiB (declared `Content-Length` or bytes received) | `413`, `{"error":"request body too large"}` | no |
+| The body is not valid UTF-8 | `400`, `{"error":"request body is not valid UTF-8"}` | no |
+| The handler returns a status outside `100`–`999` or an invalid content type | `500`, `{"error":"internal error"}` | yes |
+
+These error responses have content type `application/json`. A handler failure
+is reported on stderr as `error: request <METHOD> <path>: <message>`, and the
+process keeps serving other requests. Outside a request handler a runtime error
+still ends the program with status 1.
 
 ---
 

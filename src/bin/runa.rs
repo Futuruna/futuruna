@@ -23040,6 +23040,89 @@ fn apply_builtin_template(tpl: &str, args: &[String]) -> String {
     rendered
 }
 
+/// The server behind `http_serve`, emitted into programs that call it. Each
+/// request runs its synchronous handler on a blocking thread; a panic there
+/// fails only that request (HTTP 500), never the server.
+const HTTP_SERVE_RUNTIME: &str = r#"
+const __FUTURUNA_HTTP_BODY_LIMIT: usize = 1 << 20;
+fn __futuruna_http_error(status: u16, message: &str) -> axum::response::Response {
+    axum::http::Response::builder()
+        .status(status)
+        .header("Content-Type", "application/json")
+        .body(axum::body::Body::from(format!("{{\"error\":\"{}\"}}", message)))
+        .unwrap()
+}
+async fn __futuruna_http_handle<H>(handler: H, request: axum::extract::Request) -> axum::response::Response
+where
+    H: Fn(String, String, String) -> (i64, String, String) + Send + 'static,
+{
+    use axum::extract::FromRequest;
+    let path = request.uri().path().to_string();
+    let method = request.method().to_string();
+    let declared_length = request
+        .headers()
+        .get(axum::http::header::CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok());
+    if declared_length.is_some_and(|length| length > __FUTURUNA_HTTP_BODY_LIMIT as u64) {
+        return __futuruna_http_error(413, "request body too large");
+    }
+    let bytes = match axum::body::Bytes::from_request(request, &()).await {
+        Ok(bytes) => bytes,
+        Err(rejection) if rejection.status() == axum::http::StatusCode::PAYLOAD_TOO_LARGE => {
+            return __futuruna_http_error(413, "request body too large");
+        }
+        Err(_) => return __futuruna_http_error(400, "request body could not be read"),
+    };
+    let body = match String::from_utf8(bytes.to_vec()) {
+        Ok(body) => body,
+        Err(_) => return __futuruna_http_error(400, "request body is not valid UTF-8"),
+    };
+    let request_label = format!("{} {}", method, path);
+    let handler_label = request_label.clone();
+    let outcome = tokio::task::spawn_blocking(move || {
+        __FUTURUNA_HTTP_REQUEST.with(|request| *request.borrow_mut() = Some(handler_label));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(path, method, body)));
+        __FUTURUNA_HTTP_REQUEST.with(|request| *request.borrow_mut() = None);
+        result
+    })
+    .await;
+    let (status, content_type, body) = match outcome {
+        Ok(Ok(response)) => response,
+        Ok(Err(_)) => return __futuruna_http_error(500, "internal error"),
+        Err(error) => {
+            eprintln!("error: request {}: {}", request_label, error);
+            return __futuruna_http_error(500, "internal error");
+        }
+    };
+    let response = u16::try_from(status).map_err(|error| error.to_string()).and_then(|status| {
+        axum::http::Response::builder()
+            .status(status)
+            .header("Content-Type", content_type)
+            .body(axum::body::Body::from(body))
+            .map_err(|error| error.to_string())
+    });
+    response.unwrap_or_else(|error| {
+        eprintln!("error: request {}: invalid response (status {}): {}", request_label, status, error);
+        __futuruna_http_error(500, "internal error")
+    })
+}
+async fn __futuruna_http_serve<H>(port: i64, handler: H)
+where
+    H: Fn(String, String, String) -> (i64, String, String) + Clone + Send + Sync + 'static,
+{
+    let app = axum::Router::new()
+        .fallback(move |request: axum::extract::Request| {
+            let handler = handler.clone();
+            async move { __futuruna_http_handle(handler, request).await }
+        })
+        .layer(axum::extract::DefaultBodyLimit::max(__FUTURUNA_HTTP_BODY_LIMIT));
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await.expect("Failed to bind");
+    println!("Listening on port {}", port);
+    axum::serve(listener, app).await.unwrap();
+}
+"#;
+
 static RUST_BUILTIN_REGISTRY: OnceLock<BTreeMap<String, BuiltinDef>> = OnceLock::new();
 
 fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
@@ -23531,7 +23614,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: true,
                 deps: AXUM,
-                rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }",
+                rust_tpl: "__futuruna_http_serve({0}, {1}).await",
             },
         ),
         (
@@ -34564,13 +34647,22 @@ fn __futuruna_predicate<T: 'static>(builtin: &str, value: T) -> bool {
     }
 }
 // A runtime error reports `error: <message>` on stderr and exits with status 1,
-// like the interpreter.
+// like the interpreter. A panic inside an `http_serve` handler fails only that
+// request: the hook reports it with the request and the server answers 500.
+thread_local! {
+    static __FUTURUNA_HTTP_REQUEST: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
 fn __futuruna_install_error_hook() {
     std::panic::set_hook(Box::new(|info| {
         let payload = info.payload();
         let message = payload.downcast_ref::<&str>().map(|s| s.to_string())
             .or_else(|| payload.downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "runtime error".to_string());
+        let request = __FUTURUNA_HTTP_REQUEST.with(|request| request.borrow().clone());
+        if let Some(request) = request {
+            eprintln!("error: request {}: {}", request, message);
+            return;
+        }
         eprintln!("error: {}", message);
         use std::io::Write;
         let _ = std::io::stdout().flush();
@@ -34579,6 +34671,9 @@ fn __futuruna_install_error_hook() {
 }
 "#,
         );
+        if self.needs_tokio {
+            out.push_str(HTTP_SERVE_RUNTIME);
+        }
         out.push_str("trait __FuturunaLen { fn __futuruna_len(&self) -> i64; }\n");
         out.push_str("impl __FuturunaLen for String { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }\n");
         out.push_str("impl __FuturunaLen for str { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }\n");
