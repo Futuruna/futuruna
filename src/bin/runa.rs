@@ -16708,7 +16708,7 @@ fn expr_to_smt(expr: &Expr) -> String {
         }
         // Field access: obj.field → (field obj) — Z3 selector function
         ExprKind::Field(obj, field) => {
-            format!("({} {})", smt_symbol(field), expr_to_smt(obj))
+            format!("({} {})", smt_field_function(field), expr_to_smt(obj))
         }
         // Match expression → nested ite with Z3 (_ is Ctor) testers
         ExprKind::Match(scrutinee, arms) => {
@@ -16794,10 +16794,22 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
     }
 }
 
-/// Emit a Z3 declare-datatype for a Futuruna ADT.
-/// Handles nullary constructors, positional fields, and named fields.
+/// The SMT function that reads field `key` (a field name, or `Ctor_f<i>` for
+/// a positional field) from a value of any datatype that has it. Each
+/// datatype defines its own overload over its constructors' accessors, so
+/// constructors and types that share a field name stay distinct.
+fn smt_field_function(key: &str) -> String {
+    smt_symbol(&format!("runa_field_{key}"))
+}
+
+/// Emit a Z3 declare-datatype for a Futuruna ADT, followed by one field
+/// reader per field name (see `smt_field_function`).
 fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
     let mut ctors = Vec::new();
+    // Field key -> (constructor, accessor, sort) for every constructor that
+    // has the field. SMT-LIB accessors share one namespace, so each one is
+    // named after its datatype and constructor.
+    let mut fields_by_key: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
     for v in variants {
         if v.fields.is_empty() {
             ctors.push(smt_symbol(&v.name));
@@ -16807,23 +16819,53 @@ fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
                 .iter()
                 .enumerate()
                 .map(|(i, f)| {
-                    let fname = if v.positional {
+                    let key = if v.positional {
                         format!("{}_f{}", v.name, i)
                     } else {
                         f.name.clone()
                     };
+                    let accessor = smt_symbol(&format!("runa_acc_{}_{}_{}", name, v.name, key));
                     let sort = ty_to_smt_sort(&f.ty);
-                    format!("({} {})", smt_symbol(&fname), sort)
+                    fields_by_key.entry(key).or_default().push((
+                        v.name.clone(),
+                        accessor.clone(),
+                        sort.clone(),
+                    ));
+                    format!("({} {})", accessor, sort)
                 })
                 .collect();
             ctors.push(format!("({} {})", smt_symbol(&v.name), fields.join(" ")));
         }
     }
-    format!(
-        "(declare-datatype {} ({}))",
-        smt_symbol(name),
-        ctors.join(" ")
-    )
+    let sort = smt_symbol(name);
+    let mut out = format!("(declare-datatype {} ({}))", sort, ctors.join(" "));
+    for (key, owners) in fields_by_key {
+        let Some((_, last_accessor, field_sort)) = owners.last() else {
+            continue;
+        };
+        // A field whose sort differs between constructors has no single
+        // reader; a claim that reads it fails on the undefined function.
+        if owners.iter().any(|(_, _, sort)| sort != field_sort) {
+            continue;
+        }
+        let mut body = format!("({} runa_x)", last_accessor);
+        for (ctor, accessor, _) in owners.iter().rev().skip(1) {
+            body = format!(
+                "(ite ((_ is {}) runa_x) ({} runa_x) {})",
+                smt_symbol(ctor),
+                accessor,
+                body
+            );
+        }
+        out.push_str(&format!(
+            "\n(define-fun {} ((runa_x {})) {} {})",
+            smt_field_function(&key),
+            sort,
+            field_sort,
+            body
+        ));
+    }
+    out
 }
 
 /// Map a Futuruna type annotation to a Z3 sort name

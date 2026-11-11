@@ -1,0 +1,9 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |amounts_add_up|
+-- Two record types with the same field name each read their own field.
+# Deposit(amount: Int, id: Int)
+# Withdrawal(amount: Int, id: Int)
+= deposit = Deposit(amount = 70, id = 1)
+= withdrawal = Withdrawal(amount = 30, id = 2)
+| amounts_add_up: deposit.amount - withdrawal.amount -> deposit.amount - withdrawal.amount == 40 && deposit.id < withdrawal.id
