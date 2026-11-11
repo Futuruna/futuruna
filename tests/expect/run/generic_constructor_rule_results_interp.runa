@@ -1,0 +1,19 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: pair=(1, a)
+-- expect-stdout: boxed=Box(item: 7)
+-- expect-stdout: unboxed=7
+-- expect-stdout: nested=[[], [1]]
+
+# Box(a) = Box(item: a)
+
+| pair_of(n: Int) -> Pair(n, "a")
+| boxed(n: Int) -> Box(item = n)
+| unboxed(b: Box(Int)) -> b.item
+
+= nested = map([[], [1]], |xs: List(Int)| xs)
+
+@ print("pair=" + show(pair_of(1)))
+@ print("boxed=" + show(boxed(7)))
+@ print("unboxed=" + show(unboxed(Box(item = 7))))
+@ print("nested=" + show(nested))

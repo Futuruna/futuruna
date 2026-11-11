@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: argument 1 to `scale` expects `Float`, got `Int`
+-- expect-stderr: closure_float_parameter.runa:7:
+
+= scale = |x: Float| x * 2.0
+@ print(show(scale(3)))

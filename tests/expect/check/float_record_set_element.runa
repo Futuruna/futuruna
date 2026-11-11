@@ -1,0 +1,9 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: Float values cannot be Map keys or Set elements
+-- expect-stderr: float_record_set_element.runa:8:
+
+# Price(amount: Float)
+
+= s = set_insert(set_new(), Price(amount = 1.0))
+@ print(show(set_len(s)))

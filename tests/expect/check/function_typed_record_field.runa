@@ -1,0 +1,10 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: field `step` of `Counter` holds a function, which compiled code cannot store in a record
+-- expect-stderr: function_typed_record_field.runa:7:
+-- expect-stderr-not: Futuruna compiler bug
+
+# Counter(start: Int, step: Int -> Int)
+
+= c = Counter(start = 1, step = |n| n + 1)
+@ print(show((c.step)(c.start)))

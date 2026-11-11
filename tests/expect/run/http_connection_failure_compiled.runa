@@ -1,0 +1,11 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: get=request to http://127.0.0.1:9/ failed: cannot connect
+-- expect-stdout: post=request to http://127.0.0.1:9/ failed: cannot connect
+-- A refused connection reads the same in both execution modes.
+
+= get = http_get("http://127.0.0.1:9/")
+= post = http_post("http://127.0.0.1:9/", "{}")
+
+@ print("get=" + match get { | Ok(_) -> "ok" | Err(e) -> e })
+@ print("post=" + match post { | Ok(_) -> "ok" | Err(e) -> e })
