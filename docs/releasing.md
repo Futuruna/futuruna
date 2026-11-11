@@ -33,7 +33,7 @@ metadata, rather than the website, wiki, research corpus, examples, or tests.
 `cargo install` installs only `runa`; developer adversarial binaries require
 the `internal-tools` feature. User-facing installation docs recommend the
 verified GitHub release binary or
-`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.4 --locked futuruna`.
+`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.5 --locked futuruna`.
 They mention `cargo install futuruna` only for a version confirmed published on
 crates.io, because the crates.io package is not guaranteed to match the current
 release.
@@ -120,8 +120,8 @@ Use an annotated or
 signed tag when the maintainer's signing setup is available:
 
 ```bash
-git tag -s v0.2.4 -m "Futuruna 0.2.4"
-git push origin v0.2.4
+git tag -s v0.2.5 -m "Futuruna 0.2.5"
+git push origin v0.2.5
 ```
 
 If signed tags are not configured, stop and configure them instead of silently
@@ -145,10 +145,10 @@ From clean Linux x86-64, Linux ARM64, Apple Silicon, and Intel macOS machines:
    establish runtime compatibility. This probe is not tax-law validation.
 4. On macOS, compare the observed Gatekeeper behavior with the signing status
    stated in the release notes. Never disable Gatekeeper globally.
-5. Run `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.4 --locked futuruna`
+5. Run `cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.5 --locked futuruna`
    in an isolated Cargo home and repeat the smoke checks. If the crate was
    published, also run
-   `cargo install futuruna --version 0.2.4 --locked` in an isolated Cargo home
+   `cargo install futuruna --version 0.2.5 --locked` in an isolated Cargo home
    and repeat the smoke checks.
 6. Confirm `https://futuruna.com/ai-setup.md` completes successfully from a
    clean agent session.

@@ -6,7 +6,7 @@
 
 Write laws, contracts, and policies you can run, test, and audit.
 
-[Version 0.2.4](Cargo.toml) · [futuruna.com](https://futuruna.com) ·
+[Version 0.2.5](Cargo.toml) · [futuruna.com](https://futuruna.com) ·
 [MIT License](LICENSE)
 
 ## What Futuruna does
@@ -36,7 +36,7 @@ Give the AI this instruction:
 The guide helps your AI install Futuruna locally, verify the download, and run a
 working example. If no verified release binary exists for your computer, the AI
 installs the tagged release with
-`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.4 --locked futuruna`
+`cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.5 --locked futuruna`
 or builds Futuruna there instead.
 
 ## The seven runes
