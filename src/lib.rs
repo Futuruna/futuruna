@@ -22895,6 +22895,15 @@ impl Interpreter {
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) => (v.clone(), true),
+                    // A set is filtered in its value order into a list, as in
+                    // compiled code (`filter` returns `List(a)`).
+                    Value::Set(items) => (
+                        runtime_set_ordered_values(items)
+                            .into_iter()
+                            .cloned()
+                            .collect(),
+                        false,
+                    ),
                     other => (list_to_vec(other), false),
                 };
                 let mut filtered = Vec::new();

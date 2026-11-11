@@ -1,0 +1,10 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: big=[3, 10, 20]
+-- expect-stdout: none=[]
+
+-- `filter` on a Set returns the matching elements as a List in value order
+-- in both modes (the interpreter returned `[]` before 0.2.5).
+= s = set_from_list([20, 1, 10, 3, 2])
+@ print("big=" + show(filter(s, |x| x > 2)))
+@ print("none=" + show(filter(s, |x| x > 100)))

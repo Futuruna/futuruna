@@ -25518,6 +25518,8 @@ struct RustCodegen {
     /// (an `http_serve` handler): it must own a shared copy of the top-level
     /// bindings instead of borrowing them.
     closure_owns_global_env: bool,
+    /// Top-level bindings whose value is a closure, by name.
+    top_level_lambda_bindings: BTreeMap<String, Expr>,
     /// Parameters of the current closure (not captured — don't clone these)
     closure_params: BTreeSet<String>,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
@@ -30699,6 +30701,7 @@ impl RustCodegen {
             allow_comptime_binding_emit: false,
             in_iter_closure: false,
             closure_owns_global_env: false,
+            top_level_lambda_bindings: BTreeMap::new(),
             closure_params: BTreeSet::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
@@ -35509,6 +35512,23 @@ fn __futuruna_install_error_hook() {
         // Detect variables rebound inside for loops (need `let mut`)
         self.mutable_vars.clear();
         collect_mutable_vars(&main_stmts, &mut self.mutable_vars);
+        // Top-level closure bindings, so an `http_serve` handler named by one
+        // can be emitted as a closure owning its copy of the bindings.
+        self.top_level_lambda_bindings.clear();
+        let mut bound_once = BTreeMap::<String, usize>::new();
+        for stmt in &main_stmts {
+            if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                *bound_once.entry(name.clone()).or_default() += 1;
+            }
+        }
+        for stmt in &main_stmts {
+            if let Stmt::Bind(Pat::Var(name), _, value) = stmt {
+                if matches!(value.kind, ExprKind::Lambda(_, _)) && bound_once[name] == 1 {
+                    self.top_level_lambda_bindings
+                        .insert(name.clone(), value.clone());
+                }
+            }
+        }
         // Detect variables passed to inout parameters (need `let mut`)
         self.collect_inout_mutables_stmts(&main_stmts);
         // Independence analysis: track aliased variables (= y = x where x is non-Copy)
@@ -50034,10 +50054,24 @@ fn __futuruna_install_error_hook() {
                     && args.len() == 2
                     && matches!(&func.as_ref().kind, ExprKind::Var(name)
                         if name == "http_serve" && !self.builtin_shadowed_by_callable(name));
+                // A handler named by a top-level closure binding is emitted as
+                // that closure, so it owns the bindings instead of borrowing.
+                let http_handler = if serves_http {
+                    match &args[1].kind {
+                        ExprKind::Var(name) => self.top_level_lambda_bindings.get(name).cloned(),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
                 let args_str: Vec<String> = args
                     .iter()
                     .enumerate()
                     .map(|(idx, a)| {
+                        let a = match (&http_handler, idx) {
+                            (Some(handler), 1) => handler,
+                            _ => a,
+                        };
                         self.closure_owns_global_env = serves_http && idx == 1;
                         // inout parameter: emit &mut var (no clone — passed by mutable reference)
                         let is_inout = inout_flags

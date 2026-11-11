@@ -106,3 +106,61 @@ fn handler_reads_top_level_bindings_through_a_function_under_concurrent_requests
     }
     drop(server);
 }
+
+#[test]
+fn handler_bound_to_a_top_level_closure_owns_the_bindings() {
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-http-serve-closure-binding-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    std::fs::write(
+        directory.join("bound_handler.runa"),
+        format!(
+            r#"= notes = ["a", "b"]
+> body_for(path: String) -> String {{ join(map(notes, |n| n + path), ",") }}
+= handler = |path: String, method: String, body: String| http_respond(200, "text/plain", body_for(path))
+@ http_serve({port}, handler)
+"#
+        ),
+    )
+    .unwrap();
+
+    let build = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .current_dir(&directory)
+        .args(["build", "bound_handler.runa"])
+        .output()
+        .unwrap();
+    assert!(
+        build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+
+    let server = Server {
+        child: Command::new(directory.join("bound_handler"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+        directory,
+    };
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while TcpStream::connect(("127.0.0.1", port)).is_err() {
+        assert!(Instant::now() < deadline, "server did not start listening");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let response = request(port, "/x");
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert!(response.ends_with("a/x,b/x"), "{response}");
+    drop(server);
+}

@@ -1,0 +1,7 @@
+-- fst/snd on a Pair and filter on a Set agree between interpreter and compiled code.
+= s = set_from_list([20, 1, 10, 3, 2])
+| first_of(p: Pair(Int, String)) -> fst(p)
+@ print(show(fst(Pair(1, "a"))))
+@ print(snd(Pair(1, "a")))
+@ print(show(first_of(Pair(7, "b"))))
+@ print(show(filter(s, |x| x > 2)))
