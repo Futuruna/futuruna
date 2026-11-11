@@ -241,3 +241,37 @@ fn test_runner_recognizes_expected_invariant_exits_and_rejects_missing_errors() 
     }
     std::fs::remove_dir_all(dir).expect("remove owned test fixtures");
 }
+
+#[test]
+fn test_runner_reports_type_errors_without_running_the_program() {
+    let dir = temp_test_dir();
+    std::fs::write(
+        dir.join("variant_field.runa"),
+        "# Outside = NotDeclared | Declared(amount: Int)\n# Person(outside: Outside)\n> ok(p: Person) -> Bool {\n    match p.outside {\n        | Declared -> p.outside.amount > 0\n        | NotDeclared -> True\n    }\n}\n@ print(show(ok(Person(outside = Declared(amount = 5)))))\n",
+    )
+    .expect("write type-error fixture");
+    std::fs::write(dir.join("ok.runa"), "@ print(\"fine\")\n").expect("write ok fixture");
+
+    let output = run(&["test", dir.to_str().expect("UTF-8 fixture path")]);
+    std::fs::remove_dir_all(&dir).ok();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "stdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    // The same diagnostic `runa FILE` reports, and the program never ran.
+    assert!(
+        stderr.contains("variant_field.runa — type error (the program was not run)"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("field `amount` exists only on variant `Declared` of `Outside`"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("panicked"), "{stderr}");
+    assert!(!stdout.contains("true"), "{stdout}");
+    assert_eq!(stdout, "fine\n");
+}

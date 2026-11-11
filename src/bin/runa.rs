@@ -10649,15 +10649,24 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
     } else {
         user_stmts
     };
+    // A test file passes the same frontend check as `runa FILE` before it
+    // runs; a type-incorrect program is reported, never interpreted.
+    let artifacts = type_check_artifacts(&stmts, &source, filename);
+    if print_type_check_diagnostics(&artifacts.diagnostics, &source, filename) {
+        std::process::exit(TEST_FILE_FRONTEND_FAILURE);
+    }
     let source_dir = Path::new(filename)
         .parent()
         .map(|parent| parent.to_string_lossy().to_string());
     let mut interp = Interpreter::new();
-    interp.source_dir = source_dir.clone();
-    interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
+    interp.source_dir = source_dir;
+    interp.install_rule_dispatch_metadata(&artifacts);
     let mut env = interp.default_env();
     interp.run_program(&stmts, &mut env);
 }
+
+/// Exit status of `runa __test-file` when the file fails the frontend check.
+const TEST_FILE_FRONTEND_FAILURE: i32 = 2;
 
 enum TestFileOutcome {
     Pass(&'static str),
@@ -10756,7 +10765,11 @@ fn run_test_case(
             TestFileOutcome::Fail(format!("expected {error_kind} but program succeeded"))
         }
     } else if expected.is_empty() {
-        TestFileOutcome::Fail(format!("{error_kind} ({})", output.status))
+        if command == "__test-file" && output.status.code() == Some(TEST_FILE_FRONTEND_FAILURE) {
+            TestFileOutcome::Fail("type error (the program was not run)".to_string())
+        } else {
+            TestFileOutcome::Fail(format!("{error_kind} ({})", output.status))
+        }
     } else {
         let missing = expected
             .iter()
