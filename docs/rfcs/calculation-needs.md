@@ -28,6 +28,10 @@ round 2: {married: true}            -> Needs [taxpayer.spouse.share_income_ore]
 round 3: {married: true, spouse...} -> Complete(result)
 ```
 
+If a partial case returns `Complete(r)`, every completion of its unknown paths
+returns `r`, or stops with an arithmetic-overflow error; no completion returns
+a different result.
+
 Without `--partial` nothing changes: every case is complete, a left-out
 required field is an input error, and a left-out optional field is `None`.
 
@@ -115,7 +119,28 @@ fallible paths returns `Needs` for those paths instead of `Complete`: a
 completion that fails is not a completion that returns `r`.
 
 Arithmetic overflow on unknown operands is not recorded as fallible (see Open
-questions).
+questions and the Guarantee).
+
+### Bounded speculation
+
+Anything evaluated only because a condition is unknown is *speculative*: both
+branches of an `if`, the arms of a `match`, and the clauses explored below an
+unknown guard. Speculation is bounded so that a partial case always
+terminates and cannot grow exponentially:
+
+- speculative evaluation counts its steps against a speculation budget per
+  case (100 000 evaluation steps), separate from and inside the calculation's
+  ordinary step budget. Once the budget is spent, every speculative
+  evaluation of the case gives an unknown result with its condition's paths
+  without exploring further;
+- a call to a rule or named function that is already on the call stack,
+  entered while a speculative evaluation is active, is not evaluated: its
+  result is unknown with the paths of every active speculation's condition.
+  `| f(n) -> f(n - 1) under n > 0` with `n` unknown therefore needs `n`
+  instead of recursing forever.
+
+Both cuts are conservative: they may ask a fact that deeper exploration would
+have shown irrelevant, and they never turn a `Needs` into a wrong `Complete`.
 
 ## Strict mode
 
@@ -209,7 +234,15 @@ marks it with two optional fields beside `path` and `label`:
 `entry` names the providing calculation and `subject` the input path of the
 person or object it runs for. Both are given or neither. An unknown value of
 such a field that blocks the result becomes a need of kind `entry`. The client
-runs that entry through the same loop and writes its result at `path`.
+runs that entry through the same loop and writes its whole result at `path`.
+
+The field's type must be the providing entry's result type, so that the
+entry's result can be written at `path` unchanged. `runa check` (and every
+command that extracts the contract) reports an error when the named entry is
+not a calculation of the same program, or when the field's contract type
+differs from that entry's output type. There is no projection of one field of
+the entry's result: a model that needs one figure of another entry declares
+that entry with that figure as its result.
 
 Spouses transfer unused amounts both ways, so two entries that need each other
 must be one joint household entry; a client resolver tracks the stack of
@@ -218,12 +251,15 @@ must be one joint household entry; a client resolver tracks the stack of
 ## Guarantee
 
 If a partial case returns `Complete(r)`, every completion of its unknown paths
-returns `r`. Two checks hold it in place:
+returns `r`, or stops with an arithmetic-overflow error; no completion returns
+a different result. Two checks hold it in place:
 
 - **the completion test**: for a case returning `Complete(r)`, completions of
   its unknown paths are generated from the contract types (boundary and
   seeded pseudo-random values; every variant of a sum type; empty and short
-  lists) and each must return `r` through the ordinary, complete calculation;
+  lists) and each must return `r` through the ordinary, complete calculation,
+  or stop with an arithmetic-overflow error. Any other error, and any other
+  result, fails the test;
 - **the strict-mode oracle**: whenever strict mode returns `Complete(r)`,
   propagation returns `Complete(r)`.
 
@@ -235,8 +271,11 @@ that use them.
 - **Overflow.** Arithmetic on unknown operands could overflow for extreme
   completions. Recording every arithmetic operation as fallible would block
   `Complete` whenever an unused intermediate amount depends on an unknown
-  fact, so overflow is not recorded. The completion test generates integers
-  within ±10^12, where calculations on amounts do not overflow.
+  fact, so overflow is not recorded, and the guarantee admits an
+  overflow error as the outcome of a completion.
+- **Speculation budget.** The budget of 100 000 steps per case is a fixed
+  constant. A model whose relevant facts sit behind deeper speculation is
+  asked more facts than it needs, never fewer.
 - **Left-out records.** A left-out required record decodes like `{}` (every
   field unknown) rather than as one unknown value, so needs name its fields,
   not the record. A left-out optional record stays one unknown value: whether
