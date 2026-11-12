@@ -89,6 +89,7 @@ class Model {
   constructor(sources: string, main: string); // { "src/x.runa": "<source>", ... }; parse and type-check
   entries(): string[];
   call(entry: string, input: string): string; // runa call input document -> output document
+  callPartial(entry: string, input: string): string; // runa call --partial document
 }
 ```
 
@@ -100,6 +101,16 @@ node wasm/interpreted.mjs <engine pkg> src/ekapital_ask.calculate.runa aktiespar
 `call` returns the `runa call` document itself; nothing is assembled in
 JavaScript. The module reserves a 64 MiB stack for the interpreter's
 recursion.
+
+The first call of an entry, full or partial, prepares it: the runtime
+rule-dispatch metadata, and an interpreter that has initialized the model (the
+prelude, the declarations, the top-level and metadata bindings the entry
+reaches). The `Model` keeps the prepared entry, and every later call runs only
+its cases from it. Each case starts from the prepared state alone, as in
+`runa call` ([Calculations](../reference/calculations.md#reuse-validated-contracts)),
+so the documents are the ones a fresh `Model` returns, byte for byte. Preparing
+lazily keeps the constructor's cost independent of the number of entries; a
+host that wants the cost before its first request makes one call at startup.
 
 ## Measurements
 
@@ -117,21 +128,51 @@ five runs in fresh processes (`wasm/bench.mjs` in the tax service).
 | JavaScript glue | 4.8 KB | 7.7 KB |
 | Load (require and instantiate) | 2–13 ms | 8–19 ms |
 | Initialization (`__fut_init` / parse and check the model) | 2–6 ms | 334–450 ms |
-| Demo case, 2 cases: first call / later calls | 29 ms / 8 ms | 131 ms / 108 ms |
-| Synthetic 2,000-event case: first call / later calls | 176 ms / 140 ms | 1,881 ms / 1,750 ms |
+| Demo file, 2 cases: first call / later calls | 29 ms / 8 ms | 146 ms / 26 ms |
+| Synthetic 2,000-event case: first call / later calls | 176 ms / 140 ms | 2,086 ms / 1,745 ms |
 | Package build | 14 s | 1.5–2.5 min after a library change |
 
-For reference, native `runa call` 0.2.5 takes 0.09 s for the demo file and
-1.35 s for the synthetic case, as a whole process. Its trace
-(`FUTURUNA_CALCULATION_TRACE=1`) splits the demo call into 0.18 s of
-initialization and 0.06 s of case evaluation: route B's per-call time is mostly
-the initialization that `invoke_calculation_cases` repeats on every call (the
-runtime rule-dispatch metadata and a fresh interpreter for the model), which a
-`Model` could keep between calls.
+Route B's call times are those of the 0.3.0 engine, which prepares an entry
+once per `Model` (below), on the tax service's 0.3 model; the other rows are
+from 0.2.5.
 
 The synthetic case is the first demo case with 1,982 more trades on the free
 depot (round trips that keep cash and holdings reconciled); it returns
 `Computed`.
+
+### Prepared entries
+
+Preparing an entry (the rule-dispatch metadata and the initialized model)
+takes 36 to 48 ms natively, and a case of the tax service 1 to 4 ms
+(`FUTURUNA_CALCULATION_TRACE=1`). When every call prepared the entry again,
+that initialization was most of every call. Node 22.15, Futuruna 0.3.0, the
+tax service's `release/runa-0.3` model; load average 5.6 to 8.5. Construction
+and first call are the best of six fresh processes; each per-call time is the
+best of five calls after two warm-up calls, best over the six processes.
+
+| | prepared on every call | prepared once per `Model` |
+|---|---|---|
+| `new Model`, Aktiesparekonto model / tax report model | 211 ms / 168 ms | 220 ms / 186 ms |
+| First call: one Aktiesparekonto case / demo case `u-1001-2026` | 57 ms / 83 ms | 63 ms / 88 ms |
+| One Aktiesparekonto case (`u-1001-2026-ask-1`) | 45.3 ms | 3.4 ms |
+| Aktiesparekonto demo, 6 cases | 56.8 ms | 16.1 ms |
+| Tax report, demo case `u-1001-2026` | 79.4 ms | 14.6 ms |
+| `callPartial`, spouse case (`Needs`) | 70.8 ms | 4.9 ms |
+| Tax report, demo file (2 cases) | 95 ms | 26 ms |
+
+The output is byte-identical to `runa call` for the demo, Aktiesparekonto and
+eKapital case files and the synthetic case, on the first and on a repeated
+call through one `Model`, with a partial call in between. 1,500 alternating
+full and partial calls through one `Model` return the same document every time,
+and the process's memory stays flat.
+
+Native `runa call` runs one batch per process, so it prepares its entry once:
+for the 6-case Aktiesparekonto file, initialization takes 40 to 48 ms and the
+cases 1 to 4 ms each. `runa call --partial=check` runs eight batches through
+one prepared entry (propagating, strict, and the completion tests): only the
+first reports initialization (38 to 44 ms), the others `0.000s`. When each
+batch prepared the entry again, the command took 0.72 to 0.86 s; it takes 0.45
+to 0.59 s.
 
 ## What does not work, or was stubbed
 
@@ -162,9 +203,9 @@ Route B:
 - A Rust panic cannot be caught on `wasm32-unknown-unknown` (panics abort).
   Native `runa call` turns a panic inside one case into that case's
   diagnostic and continues; in WebAssembly the call traps, the panic message
-  goes to `console.error`, and the instance must be discarded. Both routes
-  share this; isolating a crash per call means instantiating the module again
-  after a trap.
+  goes to `console.error`, and the instance, with its `Model`s and their
+  prepared entries, must be discarded. Both routes share this; isolating a
+  crash per call means instantiating the module again after a trap.
 - Paths are not canonicalized (there is no filesystem), so a file imported
   through two different relative spellings (`./x` and `../src/x`) would be
   loaded twice. The tax engine imports every file as `./name` from `src/`.
@@ -186,11 +227,13 @@ Route B:
 - One engine package serves every model version: the npm package ships the
   engine once and the model sources with their contract hash, which is the
   package M2 describes.
-- Its costs fit the workloads: 0.3–0.5 s to load a model once per process,
-  about 0.1 s per demo call and under 2 s for a 2,000-event year, for a
-  year-end run per account and an interview that waits on a person.
-  Keeping the runtime initialization in `Model` between calls is the first
-  optimization, before any comparison with route A's 8 ms.
+- Its costs fit the workloads: 0.2–0.3 s to load a model once per process and
+  60–100 ms on an entry's first call, which prepares it; then about 26 ms
+  per demo file call, 15 ms for its main case, 3–4 ms for one Aktiesparekonto
+  account, 5 ms for an interview round that ends in `Needs`, and under 2 s for
+  a 2,000-event year, for a year-end run per account and an interview that
+  waits on a person. What remains per call is case evaluation, two to three
+  times route A's 8 ms on the demo file.
 
 Route A stays usable: the code generation defects it exposed are fixed, so a
 compiled export remains an option where throughput matters more than Needs,

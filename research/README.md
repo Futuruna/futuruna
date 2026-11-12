@@ -80,7 +80,12 @@ The three eigenvalues (λ: 2.28, 1.66, 0.96) come from `syntax_pareto.rs`.
 [`wasm-engine/`](wasm-engine/) builds the Futuruna interpreter for
 `wasm32-unknown-unknown` as a Node package: a `Model` loads a model's source
 files and runs its calculation entries, returning the `runa call` output
-document. The comparison with the compiled-model route is
+document. The constructor parses and type-checks the model; the first call of
+an entry (`call` or `callPartial`) also prepares that entry, initializing the
+model in the interpreter once, and every later call of the entry runs only its
+cases from that prepared state, each case isolated as in `runa call`. Keep one
+`Model` per worker and reuse it. The comparison with the compiled-model route
+and the timings are in
 [docs/rfcs/wasm-engine-d1.md](../docs/rfcs/wasm-engine-d1.md).
 
 ```bash
