@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 mod json;
@@ -4911,60 +4912,73 @@ enum CalculationCaseOutcome {
     Diagnostics(Vec<CalculationCaseDiagnostic>),
 }
 
-#[derive(Clone)]
-struct CalculationProgram<'a> {
-    entry: &'a str,
-    stmts: &'a [Stmt],
-    source_dir: Option<String>,
-    rule_dispatch_return_types: &'a BTreeMap<RuleDispatchKey, String>,
-    rule_dispatch_return_issues: &'a BTreeMap<RuleDispatchKey, String>,
-    rule_dispatch_runtime_boolean_miss_keys: &'a BTreeSet<RuleDispatchKey>,
+/// The exact import-aware rule classification runtime dispatch needs.
+/// Contract extraction already validated the program; this is recomputed
+/// once per prepared calculation.
+struct RuleDispatchMetadata {
+    return_types: BTreeMap<RuleDispatchKey, String>,
+    return_issues: BTreeMap<RuleDispatchKey, String>,
+    runtime_boolean_miss_keys: BTreeSet<RuleDispatchKey>,
 }
 
-struct CalculationWorker<'a> {
-    program: CalculationProgram<'a>,
+/// What a calculation worker initializes its interpreter from, shared by
+/// every worker of one prepared calculation.
+#[derive(Clone)]
+struct CalculationProgram {
+    entry: String,
+    stmts: Arc<[Stmt]>,
+    source_dir: Option<String>,
+    rule_dispatch: Arc<RuleDispatchMetadata>,
+}
+
+impl CalculationProgram {
+    fn new(entry: &str, stmts: Arc<[Stmt]>, source_dir: Option<String>) -> Self {
+        let (return_types, return_issues, runtime_boolean_miss_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
+        Self {
+            entry: entry.to_string(),
+            stmts,
+            source_dir,
+            rule_dispatch: Arc::new(RuleDispatchMetadata {
+                return_types,
+                return_issues,
+                runtime_boolean_miss_keys,
+            }),
+        }
+    }
+}
+
+/// An interpreter that has initialized a calculation program, and runs
+/// cases from that state one at a time.
+struct CalculationWorker {
+    program: CalculationProgram,
     interpreter: Interpreter,
     base_env: Env,
-    base_rng_state: u64,
     initialization_error: Option<String>,
     needs_reinitialization: bool,
     /// Set for partial cases (`runa call --partial`).
     partial: Option<partial::PartialMode>,
 }
 
-impl<'a> CalculationWorker<'a> {
-    fn new(
-        entry: &'a str,
-        stmts: &'a [Stmt],
-        source_dir: Option<String>,
-        rule_dispatch_return_types: &'a BTreeMap<RuleDispatchKey, String>,
-        rule_dispatch_return_issues: &'a BTreeMap<RuleDispatchKey, String>,
-        rule_dispatch_runtime_boolean_miss_keys: &'a BTreeSet<RuleDispatchKey>,
-    ) -> Self {
-        Self::from_program(CalculationProgram {
-            entry,
-            stmts,
-            source_dir,
-            rule_dispatch_return_types,
-            rule_dispatch_return_issues,
-            rule_dispatch_runtime_boolean_miss_keys,
-        })
-    }
-
-    fn from_program(program: CalculationProgram<'a>) -> Self {
+impl CalculationWorker {
+    fn new(program: CalculationProgram) -> Self {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.deny_host_effects("a calculation");
         interpreter.source_dir = program.source_dir.clone();
         interpreter.install_rule_dispatch_return_metadata(
-            program.rule_dispatch_return_types,
-            program.rule_dispatch_return_issues,
-            program.rule_dispatch_runtime_boolean_miss_keys,
+            &program.rule_dispatch.return_types,
+            &program.rule_dispatch.return_issues,
+            &program.rule_dispatch.runtime_boolean_miss_keys,
         );
         let mut base_env = interpreter.default_env();
         let initialization_error = interpreter
             .with_calculation_runtime(|runtime| {
-                runtime.initialize_calculation_program(program.entry, program.stmts, &mut base_env)
+                runtime.initialize_calculation_program(
+                    &program.entry,
+                    &program.stmts,
+                    &mut base_env,
+                )
             })
             .err()
             .map(|error| {
@@ -4973,12 +4987,11 @@ impl<'a> CalculationWorker<'a> {
                     program.entry
                 )
             });
-        let base_rng_state = interpreter.rng_state;
+        interpreter.seal_calculation_initialization();
         Self {
             program,
             interpreter,
             base_env,
-            base_rng_state,
             initialization_error,
             needs_reinitialization: false,
             partial: None,
@@ -5019,7 +5032,7 @@ impl<'a> CalculationWorker<'a> {
 
         if self.needs_reinitialization {
             let partial = self.partial;
-            *self = Self::from_program(self.program.clone());
+            *self = Self::new(self.program.clone());
             self.partial = partial;
         }
         if let Some(message) = &self.initialization_error {
@@ -5031,12 +5044,7 @@ impl<'a> CalculationWorker<'a> {
             });
         }
 
-        self.interpreter.active_rule_scopes.clear();
-        self.interpreter.output.clear();
-        self.interpreter.handler_stack.clear();
-        self.interpreter.step_count = 0;
-        self.interpreter.budget_exceeded = false;
-        self.interpreter.rng_state = self.base_rng_state;
+        self.interpreter.begin_calculation_case();
         if let Some(decoder) = &decoder {
             self.interpreter
                 .begin_partial_case(self.partial, &contract.entry);
@@ -5055,6 +5063,11 @@ impl<'a> CalculationWorker<'a> {
         let evaluated = self
             .interpreter
             .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env));
+        // A panic may leave the interpreter half-changed, and a changed actor
+        // or live stream of the initialized program would reach the next
+        // case: either way the program is initialized again first.
+        self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
+            || self.interpreter.prepared_live_cell_changed();
         if let Some(decoder) = decoder {
             let outcome = self.finish_partial(contract, case, evaluated, &decoder);
             self.interpreter.begin_partial_case(None, "");
@@ -5064,7 +5077,6 @@ impl<'a> CalculationWorker<'a> {
         let result = match evaluated {
             Ok(result) => result,
             Err(error) => {
-                self.needs_reinitialization = matches!(error, CalculationRuntimeFailure::Panicked);
                 trace_calculation_case(&case.case_id, started);
                 return CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
                     case_id: case.case_id.clone(),
@@ -5110,7 +5122,6 @@ impl<'a> CalculationWorker<'a> {
                 waiting: self.interpreter.partial_waiting(),
             },
             Err(error) => {
-                self.needs_reinitialization = matches!(error, CalculationRuntimeFailure::Panicked);
                 return diagnostic(
                     "$".to_string(),
                     format!("calculation `{}` failed: {error}", contract.entry),
@@ -5239,200 +5250,206 @@ fn invoke_calculation_case_queue(
     }
 }
 
-fn invoke_calculation_cases_with_jobs(
-    contract: &CalculationContract,
-    stmts: &[Stmt],
+/// A calculation entry prepared once and invoked any number of times.
+///
+/// Preparing builds the state every case starts from: the runtime
+/// rule-dispatch metadata and an interpreter that has initialized the program
+/// (prelude, declarations, the top-level and metadata bindings the entry
+/// reaches). It happens on the first batch with a ready case, and later
+/// batches reuse it. Each case still starts from exactly that state: a fresh
+/// environment over the initialized bindings, with the handler, rule-scope,
+/// step-budget and random state initialization left. A case that changes an
+/// actor or live stream the initialized program holds, or that panics, makes
+/// the program be initialized again before the next case, so no case sees
+/// another case's state. Results are the ones a fresh preparation gives.
+///
+/// A batch with four or more ready cases also runs on further workers, each
+/// initializing its own interpreter for that batch (natively; WebAssembly runs
+/// one worker).
+pub struct PreparedCalculation {
+    contract: CalculationContract,
+    stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
-    envelope: &CalculationInputEnvelope,
-    requested_jobs: Option<usize>,
-) -> CalculationOutputEnvelope {
-    invoke_calculation_batch(contract, stmts, source_dir, envelope, requested_jobs, None)
+    worker: Option<CalculationWorker>,
 }
 
-fn invoke_calculation_batch(
-    contract: &CalculationContract,
-    stmts: &[Stmt],
-    source_dir: Option<String>,
-    envelope: &CalculationInputEnvelope,
-    requested_jobs: Option<usize>,
-    partial: Option<partial::PartialMode>,
-) -> CalculationOutputEnvelope {
-    let started = trace_clock();
-    let mut output = CalculationOutputEnvelope {
-        futuruna: CalculationEnvelopeMetadata {
-            schema: if partial.is_some() {
-                PARTIAL_OUTPUT_SCHEMA
-            } else {
-                OUTPUT_SCHEMA
-            }
-            .to_string(),
-            schema_hash: contract.schema_hash.clone(),
-            entry: contract.entry.clone(),
-        },
-        results: Vec::new(),
-        diagnostics: Vec::new(),
-    };
-    if let Err(diagnostics) = validate_input_envelope(contract, envelope) {
-        output.diagnostics = diagnostics;
-        return output;
-    }
-    // Do not initialize an interpreter for an entirely unfinished batch. An
-    // unfinished case in a mixed batch also never enters a calculation worker.
-    let mut readiness_outcomes = Vec::new();
-    let cases: Vec<_> = envelope
-        .cases
-        .iter()
-        .enumerate()
-        .filter_map(|(index, case)| {
-            let diagnostics = case.unfinished_diagnostics(index);
-            if diagnostics.is_empty() {
-                Some((index, case))
-            } else {
-                readiness_outcomes.push((index, CalculationCaseOutcome::Diagnostics(diagnostics)));
-                None
-            }
-        })
-        .collect();
-    let worker_count = calculation_worker_count(cases.len(), requested_jobs);
-    if worker_count == 0 {
-        for (_, outcome) in readiness_outcomes {
-            if let CalculationCaseOutcome::Diagnostics(diagnostics) = outcome {
-                output.diagnostics.extend(diagnostics);
-            }
+impl PreparedCalculation {
+    /// Prepare `contract`'s entry of the program `stmts` (with the prelude
+    /// already prepended when the program uses it). Nothing runs until the
+    /// first batch with a ready case.
+    pub fn new(
+        contract: CalculationContract,
+        stmts: Arc<[Stmt]>,
+        source_dir: Option<String>,
+    ) -> Self {
+        Self {
+            contract,
+            stmts,
+            source_dir,
+            worker: None,
         }
-        return output;
     }
 
-    // Contract extraction already validated the program. Recompute only the
-    // exact import-aware rule classification needed by runtime dispatch.
-    let (
-        rule_dispatch_return_types,
-        rule_dispatch_return_issues,
-        rule_dispatch_runtime_boolean_miss_keys,
-    ) = TypeChecker::rule_dispatch_metadata_for_runtime(stmts, source_dir.clone());
+    pub fn contract(&self) -> &CalculationContract {
+        &self.contract
+    }
 
-    // Prime the shared parsed-module cache before peers initialize their own
-    // isolated interpreters. The primary worker also serves the serial path.
-    let mut primary = CalculationWorker::new(
-        &contract.entry,
-        stmts,
-        source_dir.clone(),
-        &rule_dispatch_return_types,
-        &rule_dispatch_return_issues,
-        &rule_dispatch_runtime_boolean_miss_keys,
-    );
-    primary.partial = partial;
-    let initialized_after = started.map(|started| started.elapsed());
-    let mut outcomes = if worker_count == 1 {
-        invoke_calculation_case_stride(&mut primary, contract, &cases, 0, 1)
-    } else {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let next_case = AtomicUsize::new(0);
-            let rule_dispatch_return_types = &rule_dispatch_return_types;
-            let rule_dispatch_return_issues = &rule_dispatch_return_issues;
-            let rule_dispatch_runtime_boolean_miss_keys = &rule_dispatch_runtime_boolean_miss_keys;
-            let cases = &cases;
-            std::thread::scope(|scope| {
-                let mut handles = Vec::with_capacity(worker_count - 1);
-                for worker_index in 1..worker_count {
-                    let worker_source_dir = source_dir.clone();
-                    let next_case = &next_case;
-                    handles.push(
-                        std::thread::Builder::new()
-                            .name(format!("futuruna-calculation-{worker_index}"))
-                            .stack_size(CALCULATION_WORKER_STACK_BYTES)
-                            .spawn_scoped(scope, move || {
-                                let mut worker = CalculationWorker::new(
-                                    &contract.entry,
-                                    stmts,
-                                    worker_source_dir,
-                                    rule_dispatch_return_types,
-                                    rule_dispatch_return_issues,
-                                    rule_dispatch_runtime_boolean_miss_keys,
-                                );
-                                worker.partial = partial;
-                                invoke_calculation_case_queue(
-                                    &mut worker,
-                                    contract,
-                                    cases,
-                                    next_case,
-                                )
-                            })
-                            .expect("start calculation worker"),
-                    );
+    /// Decode, invoke, and encode a batch. Cases are isolated and retain input
+    /// order. Larger batches use independent workers unless explicitly
+    /// serialized.
+    pub fn invoke(&mut self, envelope: &CalculationInputEnvelope) -> CalculationOutputEnvelope {
+        self.invoke_batch(envelope, requested_calculation_jobs(), None)
+    }
+
+    /// Decode and invoke a batch of partial cases: each answers `Complete` or
+    /// `Needs` (`docs/rfcs/calculation-needs.md`).
+    pub fn invoke_partial(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        mode: partial::PartialMode,
+    ) -> CalculationOutputEnvelope {
+        self.invoke_batch(envelope, requested_calculation_jobs(), Some(mode))
+    }
+
+    fn invoke_batch(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+    ) -> CalculationOutputEnvelope {
+        let Self {
+            contract,
+            stmts,
+            source_dir,
+            worker,
+        } = self;
+        let contract = &*contract;
+        let started = trace_clock();
+        let mut output = CalculationOutputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: if partial.is_some() {
+                    PARTIAL_OUTPUT_SCHEMA
+                } else {
+                    OUTPUT_SCHEMA
                 }
-                let mut outcomes =
-                    invoke_calculation_case_queue(&mut primary, contract, cases, &next_case);
-                for handle in handles {
-                    outcomes.extend(handle.join().expect("calculation worker panicked"));
+                .to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            results: Vec::new(),
+            diagnostics: Vec::new(),
+        };
+        if let Err(diagnostics) = validate_input_envelope(contract, envelope) {
+            output.diagnostics = diagnostics;
+            return output;
+        }
+        // Do not initialize an interpreter for an entirely unfinished batch. An
+        // unfinished case in a mixed batch also never enters a calculation worker.
+        let mut readiness_outcomes = Vec::new();
+        let cases: Vec<_> = envelope
+            .cases
+            .iter()
+            .enumerate()
+            .filter_map(|(index, case)| {
+                let diagnostics = case.unfinished_diagnostics(index);
+                if diagnostics.is_empty() {
+                    Some((index, case))
+                } else {
+                    readiness_outcomes
+                        .push((index, CalculationCaseOutcome::Diagnostics(diagnostics)));
+                    None
                 }
-                outcomes
             })
+            .collect();
+        let worker_count = calculation_worker_count(cases.len(), requested_jobs);
+        if worker_count == 0 {
+            for (_, outcome) in readiness_outcomes {
+                if let CalculationCaseOutcome::Diagnostics(diagnostics) = outcome {
+                    output.diagnostics.extend(diagnostics);
+                }
+            }
+            return output;
         }
-        #[cfg(target_arch = "wasm32")]
-        {
-            unreachable!("WASM calculation batches always use one worker")
-        }
-    };
 
-    outcomes.extend(readiness_outcomes);
-    outcomes.sort_by_key(|(index, _)| *index);
-    for (_, outcome) in outcomes {
-        match outcome {
-            CalculationCaseOutcome::Result(result) => output.results.push(result),
-            CalculationCaseOutcome::Diagnostic(diagnostic) => output.diagnostics.push(diagnostic),
-            CalculationCaseOutcome::Diagnostics(diagnostics) => {
-                output.diagnostics.extend(diagnostics)
+        // The primary worker is the prepared state, and also primes the
+        // shared parsed-module cache before peers initialize their own
+        // isolated interpreters.
+        let primary = worker.get_or_insert_with(|| {
+            CalculationWorker::new(CalculationProgram::new(
+                &contract.entry,
+                stmts.clone(),
+                source_dir.clone(),
+            ))
+        });
+        primary.partial = partial;
+        let initialized_after = started.map(|started| started.elapsed());
+        let mut outcomes = if worker_count == 1 {
+            invoke_calculation_case_stride(primary, contract, &cases, 0, 1)
+        } else {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let next_case = AtomicUsize::new(0);
+                let program = &primary.program.clone();
+                let cases = &cases;
+                std::thread::scope(|scope| {
+                    let mut handles = Vec::with_capacity(worker_count - 1);
+                    for worker_index in 1..worker_count {
+                        let next_case = &next_case;
+                        handles.push(
+                            std::thread::Builder::new()
+                                .name(format!("futuruna-calculation-{worker_index}"))
+                                .stack_size(CALCULATION_WORKER_STACK_BYTES)
+                                .spawn_scoped(scope, move || {
+                                    let mut worker = CalculationWorker::new(program.clone());
+                                    worker.partial = partial;
+                                    invoke_calculation_case_queue(
+                                        &mut worker,
+                                        contract,
+                                        cases,
+                                        next_case,
+                                    )
+                                })
+                                .expect("start calculation worker"),
+                        );
+                    }
+                    let mut outcomes =
+                        invoke_calculation_case_queue(primary, contract, cases, &next_case);
+                    for handle in handles {
+                        outcomes.extend(handle.join().expect("calculation worker panicked"));
+                    }
+                    outcomes
+                })
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                unreachable!("WASM calculation batches always use one worker")
+            }
+        };
+
+        outcomes.extend(readiness_outcomes);
+        outcomes.sort_by_key(|(index, _)| *index);
+        for (_, outcome) in outcomes {
+            match outcome {
+                CalculationCaseOutcome::Result(result) => output.results.push(result),
+                CalculationCaseOutcome::Diagnostic(diagnostic) => {
+                    output.diagnostics.push(diagnostic)
+                }
+                CalculationCaseOutcome::Diagnostics(diagnostics) => {
+                    output.diagnostics.extend(diagnostics)
+                }
             }
         }
+        if let (Some(started), Some(initialized_after)) = (started, initialized_after) {
+            eprintln!(
+                "runa calculation: {} case(s), {} worker(s), initialization {:.3}s, total {:.3}s",
+                envelope.cases.len(),
+                worker_count,
+                initialized_after.as_secs_f64(),
+                started.elapsed().as_secs_f64()
+            );
+        }
+        output
     }
-    if let (Some(started), Some(initialized_after)) = (started, initialized_after) {
-        eprintln!(
-            "runa calculation: {} case(s), {} worker(s), initialization {:.3}s, total {:.3}s",
-            envelope.cases.len(),
-            worker_count,
-            initialized_after.as_secs_f64(),
-            started.elapsed().as_secs_f64()
-        );
-    }
-    output
-}
-
-/// Decode and invoke a batch of partial cases: each answers `Complete` or
-/// `Needs` (`docs/rfcs/calculation-needs.md`).
-pub fn invoke_partial_calculation_cases(
-    contract: &CalculationContract,
-    stmts: &[Stmt],
-    source_dir: Option<String>,
-    envelope: &CalculationInputEnvelope,
-    mode: partial::PartialMode,
-) -> CalculationOutputEnvelope {
-    invoke_calculation_batch(
-        contract,
-        stmts,
-        source_dir,
-        envelope,
-        requested_calculation_jobs(),
-        Some(mode),
-    )
-}
-
-/// Decode, invoke, and encode a batch. Cases are isolated and retain input
-/// order. Larger batches use independent workers unless explicitly serialized.
-pub fn invoke_calculation_cases(
-    contract: &CalculationContract,
-    stmts: &[Stmt],
-    source_dir: Option<String>,
-    envelope: &CalculationInputEnvelope,
-) -> CalculationOutputEnvelope {
-    invoke_calculation_cases_with_jobs(
-        contract,
-        stmts,
-        source_dir,
-        envelope,
-        requested_calculation_jobs(),
-    )
 }
 
 /// Deterministic generator of values for the completion test.
@@ -5775,34 +5792,29 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
 /// Completions the completion test runs per `Complete` partial case.
 pub const COMPLETION_TEST_COUNT: usize = 32;
 
-/// Run partial cases and check the guarantee: the strict-mode oracle (strict
-/// `Complete(r)` implies propagating `Complete(r)`) and the completion test
-/// (every completion of a `Complete(r)` case returns `r` or stops with an
-/// arithmetic-overflow error). Returns the propagating results; every
-/// violation is a diagnostic.
-pub fn check_partial_calculation_cases(
-    contract: &CalculationContract,
-    stmts: &[Stmt],
-    source_dir: Option<String>,
+impl PreparedCalculation {
+    /// Run partial cases and check the guarantee: the strict-mode oracle
+    /// (strict `Complete(r)` implies propagating `Complete(r)`) and the
+    /// completion test (every completion of a `Complete(r)` case returns `r`
+    /// or stops with an arithmetic-overflow error). Returns the propagating
+    /// results; every violation is a diagnostic. Every run shares this
+    /// prepared state.
+    pub fn check_partial(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+    ) -> CalculationOutputEnvelope {
+        check_partial_calculation_cases(self, envelope)
+    }
+}
+
+fn check_partial_calculation_cases(
+    prepared: &mut PreparedCalculation,
     envelope: &CalculationInputEnvelope,
 ) -> CalculationOutputEnvelope {
     let jobs = requested_calculation_jobs();
-    let mut propagated = invoke_calculation_batch(
-        contract,
-        stmts,
-        source_dir.clone(),
-        envelope,
-        jobs,
-        Some(partial::PartialMode::Propagate),
-    );
-    let strict = invoke_calculation_batch(
-        contract,
-        stmts,
-        source_dir.clone(),
-        envelope,
-        jobs,
-        Some(partial::PartialMode::Strict),
-    );
+    let mut propagated =
+        prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Propagate));
+    let strict = prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Strict));
     let parse = |case: &CalculationResultCase| {
         serde_json::from_value::<CalculationPartialResult>(case.result.clone()).ok()
     };
@@ -5835,7 +5847,9 @@ pub fn check_partial_calculation_cases(
             continue;
         };
         let completions =
-            contract.partial_case_completions(&input.input, COMPLETION_TEST_COUNT, 0x5EED);
+            prepared
+                .contract
+                .partial_case_completions(&input.input, COMPLETION_TEST_COUNT, 0x5EED);
         let completion_envelope = CalculationInputEnvelope {
             futuruna: envelope.futuruna.clone(),
             cases: completions
@@ -5848,14 +5862,7 @@ pub fn check_partial_calculation_cases(
                 })
                 .collect(),
         };
-        let completed = invoke_calculation_batch(
-            contract,
-            stmts,
-            source_dir.clone(),
-            &completion_envelope,
-            jobs,
-            None,
-        );
+        let completed = prepared.invoke_batch(&completion_envelope, jobs, None);
         for completion in &completed.results {
             if completion.result != result {
                 let index = completion
@@ -5896,6 +5903,21 @@ pub fn check_partial_calculation_cases(
 #[cfg(test)]
 mod calculation_execution_tests {
     use super::*;
+
+    /// One batch through a fresh preparation of `contract`'s entry.
+    fn invoke_calculation_cases_with_jobs(
+        contract: &CalculationContract,
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+    ) -> CalculationOutputEnvelope {
+        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir).invoke_batch(
+            envelope,
+            requested_jobs,
+            None,
+        )
+    }
 
     fn needs_fixture() -> (Vec<Stmt>, CalculationContract) {
         let source = r#"
@@ -6012,7 +6034,8 @@ mod calculation_execution_tests {
     fn oracle_and_completion_test_pass_on_a_decided_case() {
         let (stmts, contract) = needs_fixture();
         let envelope = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
-        let checked = check_partial_calculation_cases(&contract, &stmts, None, &envelope);
+        let checked =
+            PreparedCalculation::new(contract, stmts.into(), None).check_partial(&envelope);
         assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
         assert_eq!(
             checked.results[0].result,
@@ -6140,7 +6163,8 @@ mod calculation_execution_tests {
                 input: serde_json::json!({"amount": 100000}),
             }],
         };
-        let output = invoke_calculation_cases(&contract, &statements, source_dir, &envelope);
+        let output =
+            PreparedCalculation::new(contract, statements.into(), source_dir).invoke(&envelope);
         crate::provide_source_files([]);
         assert!(output.diagnostics.is_empty(), "{output:?}");
         assert_eq!(output.results[0].result, serde_json::json!(27000));
@@ -6932,15 +6956,11 @@ mod calculation_execution_tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse scenario calculation");
 
-        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
-        let worker = CalculationWorker::new(
+        let worker = CalculationWorker::new(CalculationProgram::new(
             "calculate_scenario",
-            &stmts,
+            stmts.into(),
             None,
-            &artifacts.rule_dispatch_return_types,
-            &artifacts.rule_dispatch_return_issues,
-            &artifacts.rule_dispatch_runtime_boolean_miss_keys,
-        );
+        ));
 
         assert!(worker.interpreter.output.is_empty());
     }
@@ -7169,5 +7189,145 @@ mod calculation_execution_tests {
             }))
             .expect_err("duplicate Set members must be rejected");
         assert!(duplicate_error.to_string().contains("duplicate set value"));
+    }
+
+    /// Each case sends to a top-level actor, subscribes (in a named scope) to
+    /// and emits on a top-level subject, shuffles with the shared random
+    /// state, and asks a RuleScope whose zero-argument members are memoized
+    /// per evaluation. Without isolation the second case of `[8, 8]` would
+    /// see `tally = 32`, `seen = 2` and `total = 16`.
+    const ISOLATION_SOURCE: &str = r#"
+# Input(value: Int)
+# Observed(tally: Int, seen: Int, total: Int, shuffled: List(Int), due: Int)
+
+> actor counter(state: Int) {
+    | n -> state + n
+}
+
+= tally = spawn(counter, 0)
+~ feed = subject()
+
+# Assessment(income: Int) {
+    | base() -> income / 4
+    | due() -> base() + base()
+}
+
+@ calculate
+> observe(input: Input) -> Observed {
+    | scope Watch {
+        ~ feed | x -> { tally <- x }
+    }
+    feed <- input.value
+    Observed(
+        tally = ask(tally, 0),
+        seen = feed.count,
+        total = sum(collect(feed)),
+        shuffled = shuffle(range(0, 8)),
+        due = Assessment(input.value).due()
+    )
+}
+"#;
+
+    fn document(output: &CalculationOutputEnvelope) -> String {
+        serde_json::to_string_pretty(output).expect("output is JSON")
+    }
+
+    #[test]
+    fn prepared_cases_never_see_an_earlier_case_or_call() {
+        let values = [8, 8, 20, 8];
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            ISOLATION_SOURCE,
+            values
+                .iter()
+                .map(|value| serde_json::json!({ "value": value }))
+                .collect(),
+        );
+        let mut prepared =
+            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None);
+        let first = prepared.invoke_batch(&envelope, Some(1), None);
+        assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
+        let shuffled = &first.results[0].result["shuffled"];
+        for (case, value) in first.results.iter().zip(values) {
+            // Only this case's message, value and subscription.
+            assert_eq!(case.result["tally"], value, "{}", case.case_id);
+            assert_eq!(case.result["seen"], 1, "{}", case.case_id);
+            assert_eq!(case.result["total"], value, "{}", case.case_id);
+            assert_eq!(case.result["due"], 2 * (value / 4), "{}", case.case_id);
+            assert_eq!(&case.result["shuffled"], shuffled, "{}", case.case_id);
+        }
+        // The case changed the initialized actor and subject, so the program
+        // is initialized again before the next case.
+        assert!(prepared.worker.as_ref().unwrap().needs_reinitialization);
+
+        // The next call through the same prepared state, and a fresh
+        // preparation per case, give the same documents byte for byte.
+        let second = prepared.invoke_batch(&envelope, Some(1), None);
+        assert_eq!(document(&second), document(&first));
+        for (index, case) in envelope.cases.iter().enumerate() {
+            let alone = CalculationInputEnvelope {
+                futuruna: envelope.futuruna.clone(),
+                cases: vec![case.clone()],
+            };
+            let fresh =
+                invoke_calculation_cases_with_jobs(&contract, &statements, None, &alone, Some(1));
+            assert_eq!(fresh.results, vec![first.results[index].clone()]);
+        }
+    }
+
+    #[test]
+    fn a_prepared_calculation_is_initialized_once_for_every_call() {
+        let (stmts, contract, envelope) = batch_fixture();
+        let fresh = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        for _ in 0..3 {
+            let output = prepared.invoke_batch(&envelope, Some(1), None);
+            assert_eq!(document(&output), document(&fresh));
+            // Nothing a case did requires initializing the program again.
+            assert!(!prepared.worker.as_ref().unwrap().needs_reinitialization);
+        }
+        // Parallel batches reuse the prepared worker as their primary one.
+        let parallel = prepared.invoke_batch(&envelope, Some(4), None);
+        assert_eq!(document(&parallel), document(&fresh));
+    }
+
+    #[test]
+    fn partial_and_complete_calls_share_one_prepared_calculation() {
+        let (stmts, contract) = needs_fixture();
+        let decided = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
+        let open = partial_envelope(&contract, serde_json::json!({ "income": 500 }));
+        let complete = partial_envelope(
+            &contract,
+            serde_json::json!({ "income": 500, "married": true, "filing": { "$variant": "Single" } }),
+        );
+        let fresh = |envelope: &CalculationInputEnvelope, partial| {
+            document(
+                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None)
+                    .invoke_batch(envelope, Some(1), partial),
+            )
+        };
+        let propagate = Some(partial::PartialMode::Propagate);
+        let expected = [
+            fresh(&decided, propagate),
+            fresh(&open, propagate),
+            fresh(&complete, None),
+        ];
+        assert!(expected[0].contains("Complete"), "{}", expected[0]);
+        assert!(expected[1].contains("Needs"), "{}", expected[1]);
+
+        let mut prepared =
+            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None);
+        for _ in 0..2 {
+            for (envelope, partial, expected) in [
+                (&decided, propagate, &expected[0]),
+                (&open, propagate, &expected[1]),
+                (&complete, None, &expected[2]),
+                (&open, propagate, &expected[1]),
+            ] {
+                assert_eq!(
+                    &document(&prepared.invoke_batch(envelope, Some(1), partial)),
+                    expected
+                );
+            }
+        }
     }
 }

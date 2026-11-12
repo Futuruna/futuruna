@@ -2116,6 +2116,11 @@ fn run_calculation_command(
                 std::process::exit(1);
             });
             let input_format = calculation_format(None, Some(input_path), "json");
+            let mut prepared = calculate::PreparedCalculation::new(
+                contract.clone(),
+                stmts.expect("calculation calls parse source").into(),
+                source_dir,
+            );
             if let Some((mode, check)) = partial {
                 // A blank cell or an omitted TOML key cannot tell "none" from
                 // "not asked yet", so partial cases are JSON.
@@ -2128,15 +2133,10 @@ fn run_calculation_command(
                     eprintln!("error: cannot read calculation input: {}", error);
                     std::process::exit(1);
                 });
-                let stmts = stmts.as_ref().expect("calculation calls parse source");
                 let result = if check {
-                    calculate::check_partial_calculation_cases(
-                        contract, stmts, source_dir, &envelope,
-                    )
+                    prepared.check_partial(&envelope)
                 } else {
-                    calculate::invoke_partial_calculation_cases(
-                        contract, stmts, source_dir, &envelope, mode,
-                    )
+                    prepared.invoke_partial(&envelope, mode)
                 };
                 let document = serde_json::to_string_pretty(&result).expect("result is JSON");
                 write_calculation_text(&document, output_path);
@@ -2168,12 +2168,7 @@ fn run_calculation_command(
                 }
                 _ => calculation_unknown_format(&input_format),
             };
-            let mut result = calculate::invoke_calculation_cases(
-                contract,
-                stmts.as_ref().expect("calculation calls parse source"),
-                source_dir,
-                &envelope,
-            );
+            let mut result = prepared.invoke(&envelope);
             adapter_diagnostics.append(&mut result.diagnostics);
             result.diagnostics = adapter_diagnostics;
 

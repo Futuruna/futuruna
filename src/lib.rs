@@ -16207,6 +16207,19 @@ pub struct Interpreter {
     /// Functions declared in module-level `@ rust` blocks. They exist only in
     /// compiled code; the interpreter refuses to call them.
     embedded_rust_functions: BTreeSet<String>,
+    /// Generation stamped on every actor and live stream when it is created.
+    /// A calculation worker advances it once its program is initialized, so
+    /// the actors and streams the initialized program holds are told apart
+    /// from those a case creates.
+    live_cell_generation: u64,
+    /// Set when an actor or live stream of an earlier generation receives a
+    /// message, a value or a subscriber, or loses one; see
+    /// `live_cell_generation`.
+    prepared_live_cell_changed: bool,
+    /// The random state and named-scope subscriptions initialization left;
+    /// see `seal_calculation_initialization`.
+    initialized_rng_state: u64,
+    initialized_live_scope_subscriptions: BTreeMap<String, Vec<(LiveStream, u64)>>,
 }
 
 /// Unwinds from a handler clause that did not `resume` to its `| handle`.
@@ -16269,6 +16282,10 @@ impl Interpreter {
             effect_handler_resumed: Vec::new(),
             effect_handler_result: None,
             embedded_rust_functions: BTreeSet::new(),
+            live_cell_generation: 0,
+            prepared_live_cell_changed: false,
+            initialized_rng_state: 0x12345678_9abcdef0,
+            initialized_live_scope_subscriptions: BTreeMap::new(),
         }
     }
 
@@ -16845,6 +16862,56 @@ impl Interpreter {
             }
         }
         value
+    }
+
+    /// Mark the end of a calculation program's initialization. Every case
+    /// starts from the state recorded here (`begin_calculation_case`), and the
+    /// actors and live streams created so far belong to the initialized
+    /// program: a case that changes one makes `prepared_live_cell_changed`
+    /// true.
+    pub(crate) fn seal_calculation_initialization(&mut self) {
+        self.live_cell_generation += 1;
+        self.initialized_rng_state = self.rng_state;
+        self.initialized_live_scope_subscriptions = self.live_scope_subscriptions.clone();
+    }
+
+    /// Start a calculation case on an initialized interpreter: the stacks,
+    /// counters, handler and scope state of an earlier case are gone, and the
+    /// random state and named-scope subscriptions are the ones initialization
+    /// left. The case's environment is a fresh copy of the initialized one
+    /// (the caller's), and its partial bookkeeping is reset by
+    /// `begin_partial_case`.
+    pub(crate) fn begin_calculation_case(&mut self) {
+        self.active_rule_scopes.clear();
+        self.checked_mechanism_rule_scope_memos.clear();
+        self.output.clear();
+        self.handler_stack.clear();
+        self.handler_lexical_env_stack.clear();
+        self.effect_handler_resumed.clear();
+        self.effect_handler_result = None;
+        self.live_scope_stack.clear();
+        self.live_scope_subscriptions = self.initialized_live_scope_subscriptions.clone();
+        self.step_count = 0;
+        self.budget_exceeded = false;
+        self.runtime_rule_call_depth.set(0);
+        self.logic_query_depth.set(None);
+        self.runtime_function_call_depth.set(0);
+        self.rng_state = self.initialized_rng_state;
+        self.prepared_live_cell_changed = false;
+    }
+
+    /// Whether the last case changed an actor or live stream the initialized
+    /// program holds. The next case would see that change, so the calculation
+    /// worker initializes the program again first.
+    pub(crate) fn prepared_live_cell_changed(&self) -> bool {
+        self.prepared_live_cell_changed
+    }
+
+    /// Record a change to an actor or live stream created in `generation`.
+    pub(crate) fn note_live_cell_change(&mut self, generation: u64) {
+        if generation < self.live_cell_generation {
+            self.prepared_live_cell_changed = true;
+        }
     }
 
     /// Guard initialization as well as case evaluation. Never retain an error

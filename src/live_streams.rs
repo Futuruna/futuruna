@@ -99,6 +99,8 @@ struct LiveStreamCell {
     next_event: u64,
     pending: VecDeque<(u64, StreamEvent)>,
     delivering: bool,
+    /// `Interpreter::live_cell_generation` when the stream was created.
+    generation: u64,
 }
 
 struct LiveSubscriber {
@@ -178,7 +180,7 @@ struct ConcatSecondState {
 }
 
 impl LiveStream {
-    fn new(limit: Option<usize>, writable: bool) -> Self {
+    fn new(limit: Option<usize>, writable: bool, generation: u64) -> Self {
         LiveStream {
             cell: Rc::new(RefCell::new(LiveStreamCell {
                 retained: VecDeque::new(),
@@ -191,6 +193,7 @@ impl LiveStream {
                 next_event: 0,
                 pending: VecDeque::new(),
                 delivering: false,
+                generation,
             })),
             writable,
         }
@@ -198,8 +201,8 @@ impl LiveStream {
 
     /// A completed stream holding `values`, used when a finite stream meets
     /// a live one.
-    fn finished(values: Vec<Value>) -> Self {
-        let stream = LiveStream::new(None, false);
+    fn finished(values: Vec<Value>, generation: u64) -> Self {
+        let stream = LiveStream::new(None, false, generation);
         {
             let mut cell = stream.cell.borrow_mut();
             cell.emitted = values.len() as i64;
@@ -232,6 +235,10 @@ impl LiveStream {
 
     fn limit(&self) -> Option<usize> {
         self.cell.borrow().limit
+    }
+
+    fn generation(&self) -> u64 {
+        self.cell.borrow().generation
     }
 
     fn end(&self) -> Option<StreamEnd> {
@@ -290,6 +297,8 @@ struct ActorCell {
     state: RefCell<Value>,
     mailbox: RefCell<VecDeque<Value>>,
     busy: Cell<bool>,
+    /// `Interpreter::live_cell_generation` when the actor was spawned.
+    generation: u64,
 }
 
 impl ActorRef {
@@ -367,7 +376,7 @@ impl Interpreter {
                 ))
             }
         };
-        let stream = LiveStream::new(limit, true);
+        let stream = LiveStream::new(limit, true, self.live_cell_generation);
         if let Some(initial) = initial {
             self.live_emit(&stream, StreamEvent::Value(initial));
         }
@@ -475,6 +484,7 @@ impl Interpreter {
     /// Events after the end are ignored; user-facing operations check
     /// `live_require_open` first.
     fn live_emit(&mut self, stream: &LiveStream, event: StreamEvent) {
+        self.note_live_cell_change(stream.generation());
         {
             let mut cell = stream.cell.borrow_mut();
             if cell.end.is_some() {
@@ -546,6 +556,7 @@ impl Interpreter {
         observer: Observer,
         replay: bool,
     ) -> Option<u64> {
+        self.note_live_cell_change(stream.generation());
         let observer = Rc::new(RefCell::new(observer));
         let (retained, end, was_delivering, id) = {
             let mut cell = stream.cell.borrow_mut();
@@ -840,8 +851,12 @@ impl Interpreter {
     fn live_source(&mut self, value: Value, operator: &str) -> LiveStream {
         match value {
             Value::LiveStream(stream) => stream,
-            Value::Stream(items) | Value::List(items) => LiveStream::finished(items),
-            other @ Value::Constructor(..) => LiveStream::finished(list_to_vec(&other)),
+            Value::Stream(items) | Value::List(items) => {
+                LiveStream::finished(items, self.live_cell_generation)
+            }
+            other @ Value::Constructor(..) => {
+                LiveStream::finished(list_to_vec(&other), self.live_cell_generation)
+            }
             other => {
                 self.ordinary_runtime_fail(format!("`{operator}` needs a stream, found {}", other))
             }
@@ -895,6 +910,7 @@ impl Interpreter {
             .remove(scope)
             .unwrap_or_default()
         {
+            self.note_live_cell_change(stream.generation());
             stream.unsubscribe(id);
         }
     }
@@ -947,7 +963,7 @@ impl Interpreter {
             None => this.ordinary_runtime_fail(format!("`{operator}` needs a count")),
         };
         let source = self.live_source(argument(0), operator);
-        let out = LiveStream::new(source.limit(), false);
+        let out = LiveStream::new(source.limit(), false, self.live_cell_generation);
         match operator {
             "map" => {
                 let observer = Observer::Map {
@@ -1016,7 +1032,11 @@ impl Interpreter {
             }
             "merge" => {
                 let other = self.live_source(argument(1), operator);
-                let out = LiveStream::new(combined_limit(source.limit(), other.limit()), false);
+                let out = LiveStream::new(
+                    combined_limit(source.limit(), other.limit()),
+                    false,
+                    self.live_cell_generation,
+                );
                 // Values both sources already retain alternate, as for
                 // finite streams; later values follow emission order.
                 let left = source.retained_values();
@@ -1040,7 +1060,11 @@ impl Interpreter {
             }
             "concat" => {
                 let second = self.live_source(argument(1), operator);
-                let out = LiveStream::new(combined_limit(source.limit(), second.limit()), false);
+                let out = LiveStream::new(
+                    combined_limit(source.limit(), second.limit()),
+                    false,
+                    self.live_cell_generation,
+                );
                 let state = Rc::new(RefCell::new(ConcatSecondState::default()));
                 self.live_attach(
                     &second,
@@ -1083,6 +1107,7 @@ impl Interpreter {
             state: RefCell::new(initial_state),
             mailbox: RefCell::new(VecDeque::new()),
             busy: Cell::new(false),
+            generation: self.live_cell_generation,
         })))
     }
 
@@ -1115,6 +1140,7 @@ impl Interpreter {
     /// A message sent while the actor is handling another one is handled
     /// right after it, in send order.
     pub(crate) fn actor_send(&mut self, actor: &ActorRef, message: Value) {
+        self.note_live_cell_change(actor.0.generation);
         actor.0.mailbox.borrow_mut().push_back(message);
         if actor.0.busy.replace(true) {
             return;
@@ -1131,6 +1157,7 @@ impl Interpreter {
             });
         };
         let actor = actor.clone();
+        self.note_live_cell_change(actor.0.generation);
         if actor.0.busy.replace(true) {
             self.ordinary_runtime_fail(format!(
                 "ask to actor `{}` while it is handling a message would never return",
