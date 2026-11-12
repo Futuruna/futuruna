@@ -341,17 +341,34 @@ reached, all members of that scope are marked reachable because the scope is the
 encapsulation boundary. A `not_reached` item is a review candidate, not a proof
 that dynamic or external invocation is impossible. Consumers should confirm a
 candidate against the public input contract and source model before removing or
-connecting it. Running `runa audit` without `--entry` keeps the original
-topology audit for invariant gaps, asymmetries, and tensions.
+connecting it.
 
-Both modes also report clause reachability and gaps for the rule families with
-a clause in the audited file (see
-[Auditing clause reachability](runes.md#auditing-clause-reachability)). In the
-JSON report it is the `clause_reachability` object: `status` is `ran` or
-`not_run` (with a `reason`, for example a missing Z3); `summary` counts
-`families`, `clauses`, `analyzed`, `not_analyzed`, `overlap_not_checked`,
-`gap_not_checked`, `unreachable_clauses`, `overlapping_guards`, and `gaps`; each
-entry of `findings` has a `kind` of `unreachable_clause` (with `cause`
+`runa audit FILE --json` works for every file. It also carries the structural
+audit as `topology` (`summary` counts of rules, invariants, `contradictions`,
+`tensions`, `asymmetries` and `invariant_gaps`; `findings` with `kind`,
+`severity`, `title`, `rules` and `explanation`). For a file without
+`@ calculate`, the entry sections (`entry`, `label`, `input_type`,
+`output_type`, `analysis`, `summary`, `reachable_symbols`, `required_bindings`,
+`loaded_sources`, `callables`, `not_reached_candidates`) are `null`. With
+`--json`, a file with several calculations needs `--entry`. Running `runa audit` without
+`--entry` or `--json` prints the topology audit for invariant gaps,
+asymmetries, and tensions.
+
+Every mode also reports clause reachability and gaps (see
+[Auditing clause reachability](runes.md#auditing-clause-reachability)). With a
+selected calculation (the file's only one, or `--entry`) it covers every rule
+family the entry reaches, imports included, plus the families with a clause in
+the audited file; otherwise the families with a clause in the audited file. In
+the JSON report it is the `clause_reachability` object: `status` is `ran` or
+`not_run` (with a `reason`, for example a missing Z3); `scope` is
+`{"kind": "reached_from_entry", "entry": …}` or
+`{"kind": "declared_in_file", "file": …}`; `families` lists every checked
+family with its `files` and number of `clauses`; `summary` counts `families`,
+`clauses`, `files`, `analyzed`, `not_analyzed`, `overlap_not_checked`,
+`gap_not_checked`, `unreachable_clauses`, `overlapping_guards`, and `gaps`, so
+a CI check can require that something was checked; each entry of `findings`
+has a `file` (that of the reported clause) and a `kind` of
+`unreachable_clause` (with `cause`
 `shadowed` or `unsatisfiable_guard` and the clauses that take its inputs in
 `shadowed_by`), `overlapping_guards` (with the earlier, selected clause in
 `overlaps`), or `gap` (with every clause of the family, in dispatch order, in

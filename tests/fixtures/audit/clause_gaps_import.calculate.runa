@@ -1,0 +1,9 @@
+-- Clause coverage of a calculation whose rules live in an imported module.
+
+@ import ./clause-gaps-module
+
+# Input(own_ore: Int)
+# Output(tax_ore: Int)
+
+@ calculate("Imported clause coverage fixture")
+| share_tax(input: Input) -> Output(tax_ore = ShareTax(own_ore = input.own_ore).tax_ore())

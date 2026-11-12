@@ -645,3 +645,103 @@ fn clause_audit_json_reports_gaps() {
     assert_eq!(locations[1]["tier"], "guarded_default", "{gap}");
     assert_eq!(locations[1]["line"], 4, "{gap}");
 }
+
+#[test]
+fn audit_json_works_for_a_file_without_a_calculation() {
+    let fixture = topology_fixture("clause_gaps.runa");
+    let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = parse_stdout(&output);
+    assert_eq!(report["schema"], "futuruna.audit.reachability.v1");
+    // No calculation: the entry sections are null, the rest is present.
+    for key in ["entry", "callables", "summary", "loaded_sources"] {
+        assert!(report[key].is_null(), "{key}: {report}");
+    }
+    assert!(report["topology"]["summary"]["rules"].is_u64(), "{report}");
+    assert!(report["topology"]["findings"].is_array(), "{report}");
+    let clauses = &report["clause_reachability"];
+    if !z3_available() {
+        assert_eq!(clauses["status"], "not_run", "{clauses}");
+        return;
+    }
+    assert_eq!(clauses["scope"]["kind"], "declared_in_file", "{clauses}");
+    assert_eq!(clauses["summary"]["families"], 3, "{clauses}");
+    assert_eq!(clauses["summary"]["clauses"], 6, "{clauses}");
+    assert_eq!(clauses["summary"]["gaps"], 3, "{clauses}");
+    for finding in clauses["findings"].as_array().expect("findings") {
+        assert!(
+            finding["file"]
+                .as_str()
+                .is_some_and(|file| file.ends_with("clause_gaps.runa")),
+            "{finding}"
+        );
+    }
+}
+
+#[test]
+fn calculation_audit_covers_the_families_it_reaches_through_imports() {
+    let fixture = topology_fixture("clause_gaps_import.calculate.runa");
+    let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = parse_stdout(&output);
+    let clauses = &report["clause_reachability"];
+    if !z3_available() {
+        assert_eq!(clauses["status"], "not_run", "{clauses}");
+        return;
+    }
+    assert_eq!(clauses["scope"]["kind"], "reached_from_entry", "{clauses}");
+    assert_eq!(clauses["scope"]["entry"], "share_tax", "{clauses}");
+    // The entry rule and the imported `ShareTax.tax_ore`; the imported but
+    // unreached `unused_sign` is outside the scope.
+    assert_eq!(clauses["summary"]["families"], 2, "{clauses}");
+    assert_eq!(clauses["summary"]["files"], 2, "{clauses}");
+    let families = clauses["families"].as_array().expect("families");
+    let tax = families
+        .iter()
+        .find(|family| family["family"] == "ShareTax.tax_ore/0")
+        .expect("imported family in scope");
+    assert!(
+        tax["files"][0]
+            .as_str()
+            .is_some_and(|file| file.ends_with("clause-gaps-module.runa")),
+        "{tax}"
+    );
+    assert!(
+        !families
+            .iter()
+            .any(|family| family["family"] == "unused_sign/1"),
+        "{clauses}"
+    );
+
+    let findings = clauses["findings"].as_array().expect("findings");
+    assert_eq!(findings.len(), 1, "{clauses}");
+    let gap = &findings[0];
+    assert_eq!(gap["kind"], "gap");
+    assert_eq!(gap["family"], "ShareTax.tax_ore/0");
+    assert!(
+        gap["file"]
+            .as_str()
+            .is_some_and(|file| file.ends_with("clause-gaps-module.runa")),
+        "{gap}"
+    );
+    assert_eq!(gap["witness"], serde_json::json!({ "self.own_ore": "0" }));
+
+    // The text report states the same scope and finds the same gap.
+    let stdout = audit_stdout(&fixture);
+    assert!(
+        stdout.contains(
+            "Scope: rule families calculation `share_tax` reaches, imports included (2 files)"
+        ),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Gap in ShareTax.tax_ore/0: "), "{stdout}");
+    assert!(!stdout.contains("unused_sign"), "{stdout}");
+}

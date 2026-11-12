@@ -1337,7 +1337,9 @@ fn main_inner() {
                             audit_json,
                         )
                     }
-                    "audit" => audit_source(&source, path, use_prelude),
+                    "audit" => {
+                        audit_source(&source, path, use_prelude, false);
+                    }
                     "verify" => {
                         verify_with_z3(&source, path, use_prelude, verify_allow_unsupported)
                     }
@@ -17271,6 +17273,69 @@ fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
     }
 }
 
+/// Initialize calculation `entry` the way `runa call` does, without host
+/// effects, and return the interpreter whose runtime closure it built.
+fn initialized_calculation_interpreter(
+    stmts: &[Stmt],
+    artifacts: &TypeCheckArtifacts,
+    filename: &str,
+    entry: &str,
+) -> Interpreter {
+    let runtime_stmts = stmts
+        .iter()
+        .filter(|statement| !matches!(statement, Stmt::Prove { .. }))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut interpreter = Interpreter::new();
+    interpreter.deny_host_effects("`runa audit`");
+    interpreter.source_dir = source_dir_for(filename);
+    interpreter.install_rule_dispatch_metadata(artifacts);
+    let mut env = interpreter.default_env();
+    interpreter.initialize_calculation_program(entry, &runtime_stmts, &mut env);
+    interpreter
+}
+
+/// The rule families (`rule` or `Scope.rule`) a calculation's runtime
+/// closure reaches.
+fn reached_rule_families(callables: &[CalculationCallableReachability]) -> BTreeSet<String> {
+    callables
+        .iter()
+        .filter(|callable| {
+            callable.reachable
+                && matches!(
+                    callable.declaration.kind.as_str(),
+                    "rule" | "rule_scope_rule"
+                )
+        })
+        .map(|callable| callable.declaration.qualified_name.clone())
+        .collect()
+}
+
+/// Clause reachability for `runa audit` without `--entry`: a file with one
+/// calculation is audited over every family that calculation reaches, any
+/// other file over the families with a clause in it.
+fn audit_clause_report(
+    stmts: &[Stmt],
+    artifacts: &TypeCheckArtifacts,
+    filename: &str,
+    source: &str,
+) -> runa_rule_reachability::ClauseReachabilityReport {
+    match artifacts.calculation_contracts.as_slice() {
+        [contract] => {
+            let interpreter =
+                initialized_calculation_interpreter(stmts, artifacts, filename, &contract.entry);
+            runa_rule_reachability::analyze_entry_clause_reachability(
+                stmts,
+                filename,
+                source,
+                &contract.entry,
+                &reached_rule_families(&interpreter.calculation_callable_reachability()),
+            )
+        }
+        _ => runa_rule_reachability::analyze_clause_reachability(stmts, filename, source),
+    }
+}
+
 fn audit_calculation_reachability_source(
     source: &str,
     filename: &str,
@@ -17294,24 +17359,43 @@ fn audit_calculation_reachability_source(
     if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         std::process::exit(1);
     }
+    // A file without a calculation has no entry closure: its JSON report
+    // keeps the same shape, with the entry sections null, and audits the
+    // families with a clause in the file.
+    if json && requested_entry.is_none() && artifacts.calculation_contracts.is_empty() {
+        let clause_report =
+            runa_rule_reachability::analyze_clause_reachability(&stmts, filename, source);
+        let topology = audit_source(source, filename, use_prelude, true);
+        let report = serde_json::json!({
+            "schema": "futuruna.audit.reachability.v1",
+            "entry": null,
+            "label": null,
+            "input_type": null,
+            "output_type": null,
+            "analysis": null,
+            "summary": null,
+            "reachable_symbols": null,
+            "required_bindings": null,
+            "loaded_sources": null,
+            "callables": null,
+            "not_reached_candidates": null,
+            "topology": topology,
+            "clause_reachability": clause_report.json(),
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).expect("audit report is JSON")
+        );
+        return;
+    }
     let contract = select_calculation_contract(&artifacts.calculation_contracts, requested_entry)
         .unwrap_or_else(|error| {
             eprintln!("error: {}", error);
             std::process::exit(1);
         });
 
-    let runtime_stmts = stmts
-        .iter()
-        .filter(|statement| !matches!(statement, Stmt::Prove { .. }))
-        .cloned()
-        .collect::<Vec<_>>();
-    let mut interpreter = Interpreter::new();
-    interpreter.deny_host_effects("`runa audit`");
-    interpreter.source_dir = source_dir_for(filename);
-    interpreter.install_rule_dispatch_metadata(&artifacts);
-    let mut env = interpreter.default_env();
-    interpreter.initialize_calculation_program(&contract.entry, &runtime_stmts, &mut env);
-
+    let interpreter =
+        initialized_calculation_interpreter(&stmts, &artifacts, filename, &contract.entry);
     let callables = interpreter.calculation_callable_reachability();
     let reachable_count = callables
         .iter()
@@ -17342,8 +17426,13 @@ fn audit_calculation_reachability_source(
             .unwrap_or_else(|_| filename.to_string()),
     );
     let loaded_sources = loaded_sources.into_iter().collect::<Vec<_>>();
-    let clause_report =
-        runa_rule_reachability::analyze_clause_reachability(&stmts, filename, source);
+    let clause_report = runa_rule_reachability::analyze_entry_clause_reachability(
+        &stmts,
+        filename,
+        source,
+        &contract.entry,
+        &reached_rule_families(&callables),
+    );
 
     if json {
         let report = serde_json::json!({
@@ -17368,6 +17457,7 @@ fn audit_calculation_reachability_source(
             "loaded_sources": loaded_sources,
             "callables": callable_values,
             "not_reached_candidates": not_reached_candidates,
+            "topology": audit_source(source, filename, use_prelude, true),
             "clause_reachability": clause_report.json(),
         });
         println!(
@@ -17407,7 +17497,11 @@ fn audit_calculation_reachability_source(
 /// heuristics. Rules returning the same ADT type are in the same semantic domain.
 /// Rules resolved via exception-override-default chains reveal explicit tensions.
 /// Invariant coverage analysis shows which rules are untested.
-fn audit_source(source: &str, filename: &str, use_prelude: bool) {
+///
+/// With `json`, prints nothing and returns the structural findings as the
+/// report's `topology` object (clause reachability is the caller's);
+/// otherwise prints the full report and returns `null`.
+fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> serde_json::Value {
     // Phase 1: Parse, resolve imports, register all rules via the interpreter
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
@@ -17443,8 +17537,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     if print_type_check_diagnostics(&effect_diagnostics, source, filename) {
         std::process::exit(1);
     }
-    let clause_report =
-        runa_rule_reachability::analyze_clause_reachability(&stmts, filename, source);
+    let clause_report = (!json).then(|| audit_clause_report(&stmts, &frontend, filename, source));
     let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
     interp.deny_host_effects("`runa audit`");
@@ -18024,6 +18117,33 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         })
         .collect();
 
+    let Some(clause_report) = clause_report else {
+        return serde_json::json!({
+            "summary": {
+                "rules": results.len(),
+                "zero_argument_rules": results.iter().filter(|r| r.param_count == 0).count(),
+                "parameterized_rules": results.iter().filter(|r| r.param_count > 0).count(),
+                "invariants": invariant_count,
+                "contradictions": contradiction_count,
+                "tensions": tension_count,
+                "asymmetries": asymmetry_count,
+                "invariant_gaps": gap_count,
+            },
+            "findings": findings.iter().map(|finding| serde_json::json!({
+                "kind": match finding.kind {
+                    FindingKind::Contradiction => "contradiction",
+                    FindingKind::Tension => "tension",
+                    FindingKind::Asymmetry => "asymmetry",
+                    FindingKind::Gap => "invariant_gap",
+                },
+                "severity": finding.severity,
+                "title": finding.title,
+                "rules": finding.rules_involved,
+                "explanation": finding.explanation,
+            })).collect::<Vec<_>>(),
+        });
+    };
+
     // Header
     println!();
     status_println!("\x1b[1;36m======================================================\x1b[0m");
@@ -18423,6 +18543,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
     }
     ToolGuarantee::Audit.print(false);
+    serde_json::Value::Null
 }
 
 /// Collect rule name references from an expression (for invariant coverage analysis)

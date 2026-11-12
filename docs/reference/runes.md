@@ -847,8 +847,14 @@ remains a Preview surface.
 ### Auditing clause reachability
 
 `runa audit` (Experimental) uses the same SMT translation of rule groups and
-Z3 to check every rule family (same scope, name, and arity) with a clause in the
-audited file, imported clauses of that family included:
+Z3 to check rule families (same scope, name, and arity). For a file with one
+`@ calculate` entry, or with `--entry`, it checks every family that entry
+reaches, in whichever imported file it is declared, plus the families with a
+clause in the audited file; for any other file it checks the families with a
+clause in that file. Imported clauses of a checked family are always included.
+The report states this scope and how many families, clauses and files it
+covers, and says so when no family is in scope, so a clean result is never an
+empty one in disguise:
 
 - **Unreachable clause.** No input makes the clause fire: whenever its guard
   (head patterns, `under` condition, and the body of a Boolean clause) holds, a

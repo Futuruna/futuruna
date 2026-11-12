@@ -103,11 +103,39 @@ pub(super) struct SkippedFamily {
     reason: String,
 }
 
+/// Which rule families a report covers.
+pub(super) enum ClauseScope {
+    /// Families with a clause in this file.
+    DeclaredIn(String),
+    /// Families a calculation entry reaches, through imports included, and
+    /// families with a clause in the audited file.
+    ReachedFromEntry(String),
+    /// One family, for `runa verify`.
+    Family,
+}
+
+/// A family the report covers, with the files its clauses come from.
+pub(super) struct AnalyzedFamily {
+    family: String,
+    files: Vec<String>,
+    clauses: usize,
+}
+
+/// Which families to analyze.
+enum Selection<'a> {
+    DeclaredIn,
+    ReachedFromEntry(&'a BTreeSet<String>),
+    Family(&'a RuleDispatchKey),
+}
+
 pub(super) enum ClauseReachabilityReport {
     NotRun {
         reason: String,
     },
     Ran {
+        scope: ClauseScope,
+        /// Every analyzed family, in report order.
+        analyzed_families: Vec<AnalyzedFamily>,
         families: usize,
         clauses: usize,
         findings: Vec<ClauseFinding>,
@@ -154,33 +182,61 @@ impl ClauseReachabilityReport {
     pub(super) fn print(&self) {
         println!("── Clause Reachability ──");
         println!();
-        let (families, clauses, findings, not_analyzed, overlap_not_checked, gap_not_checked) =
-            match self {
-                Self::NotRun { reason } => {
-                    println!("  Not run: {}", reason);
-                    println!(
-                        "  No clause was analyzed; unreachable clauses, overlapping guards and gaps are unknown."
-                    );
-                    println!();
-                    return;
-                }
-                Self::Ran {
-                    families,
-                    clauses,
-                    findings,
-                    not_analyzed,
-                    overlap_not_checked,
-                    gap_not_checked,
-                    ..
-                } => (
-                    families,
-                    clauses,
-                    findings,
-                    not_analyzed,
-                    overlap_not_checked,
-                    gap_not_checked,
-                ),
-            };
+        let (
+            scope,
+            analyzed_families,
+            families,
+            clauses,
+            findings,
+            not_analyzed,
+            overlap_not_checked,
+            gap_not_checked,
+        ) = match self {
+            Self::NotRun { reason } => {
+                println!("  Not run: {}", reason);
+                println!(
+                    "  No clause was analyzed; unreachable clauses, overlapping guards and gaps are unknown."
+                );
+                println!();
+                return;
+            }
+            Self::Ran {
+                scope,
+                analyzed_families,
+                families,
+                clauses,
+                findings,
+                not_analyzed,
+                overlap_not_checked,
+                gap_not_checked,
+                ..
+            } => (
+                scope,
+                analyzed_families,
+                families,
+                clauses,
+                findings,
+                not_analyzed,
+                overlap_not_checked,
+                gap_not_checked,
+            ),
+        };
+        let files = analyzed_families
+            .iter()
+            .flat_map(|family| &family.files)
+            .collect::<BTreeSet<_>>();
+        match scope {
+            ClauseScope::DeclaredIn(file) => {
+                println!("  Scope: rule families with a clause in {}", file)
+            }
+            ClauseScope::ReachedFromEntry(entry) => println!(
+                "  Scope: rule families calculation `{}` reaches, imports included ({} file{})",
+                entry,
+                files.len(),
+                if files.len() == 1 { "" } else { "s" }
+            ),
+            ClauseScope::Family => {}
+        }
         println!(
             "  {} rule famil{}, {} clause{}: {} analyzed, {} not analyzed",
             families,
@@ -190,6 +246,9 @@ impl ClauseReachabilityReport {
             clauses - not_analyzed.len(),
             not_analyzed.len()
         );
+        if *families == 0 {
+            println!("  No rule family is in scope, so nothing was checked.");
+        }
         println!(
             "  Findings: {} unreachable clause, {} overlapping guards, {} gap",
             self.unreachable_count(),
@@ -328,6 +387,8 @@ impl ClauseReachabilityReport {
                 "reason": reason,
             }),
             Self::Ran {
+                scope,
+                analyzed_families,
                 families,
                 clauses,
                 findings,
@@ -338,9 +399,25 @@ impl ClauseReachabilityReport {
             } => serde_json::json!({
                 "status": "ran",
                 "solver": "z3",
+                "scope": match scope {
+                    ClauseScope::DeclaredIn(file) => serde_json::json!({
+                        "kind": "declared_in_file",
+                        "file": file,
+                    }),
+                    ClauseScope::ReachedFromEntry(entry) => serde_json::json!({
+                        "kind": "reached_from_entry",
+                        "entry": entry,
+                    }),
+                    ClauseScope::Family => serde_json::json!({ "kind": "family" }),
+                },
                 "summary": {
                     "families": families,
                     "clauses": clauses,
+                    "files": analyzed_families
+                        .iter()
+                        .flat_map(|family| &family.files)
+                        .collect::<BTreeSet<_>>()
+                        .len(),
                     "analyzed": clauses - not_analyzed.len(),
                     "not_analyzed": not_analyzed.len(),
                     "overlap_not_checked": overlap_not_checked.len(),
@@ -349,7 +426,13 @@ impl ClauseReachabilityReport {
                     "overlapping_guards": self.overlap_count(),
                     "gaps": self.gap_count(),
                 },
-                "findings": findings.iter().map(|finding| match &finding.kind {
+                "families": analyzed_families.iter().map(|family| serde_json::json!({
+                    "family": family.family,
+                    "files": family.files,
+                    "clauses": family.clauses,
+                })).collect::<Vec<_>>(),
+                "findings": findings.iter().map(|finding| {
+                    let mut value = match &finding.kind {
                     ClauseFindingKind::Shadowed { by } => serde_json::json!({
                         "kind": "unreachable_clause",
                         "cause": "shadowed",
@@ -377,6 +460,9 @@ impl ClauseReachabilityReport {
                         "clauses": clauses.iter().map(ClauseLocation::json).collect::<Vec<_>>(),
                         "witness": witness_json(witness),
                     }),
+                    };
+                    value["file"] = serde_json::Value::String(finding.clause.file.clone());
+                    value
                 }).collect::<Vec<_>>(),
                 "not_analyzed": not_analyzed.iter().map(skipped_json).collect::<Vec<_>>(),
                 "overlap_not_checked": overlap_not_checked.iter().map(skipped_json).collect::<Vec<_>>(),
@@ -1089,7 +1175,33 @@ pub(super) fn analyze_clause_reachability(
     filename: &str,
     source: &str,
 ) -> ClauseReachabilityReport {
-    analyze(statements, filename, source, None)
+    analyze(
+        statements,
+        filename,
+        source,
+        Selection::DeclaredIn,
+        ClauseScope::DeclaredIn(filename.to_string()),
+    )
+}
+
+/// Analyze every rule family calculation `entry` reaches, wherever it is
+/// declared, and every family with a candidate declared in `filename`.
+/// `reached` holds the reached rule families by qualified name (`rule` or
+/// `Scope.rule`).
+pub(super) fn analyze_entry_clause_reachability(
+    statements: &[Stmt],
+    filename: &str,
+    source: &str,
+    entry: &str,
+    reached: &BTreeSet<String>,
+) -> ClauseReachabilityReport {
+    analyze(
+        statements,
+        filename,
+        source,
+        Selection::ReachedFromEntry(reached),
+        ClauseScope::ReachedFromEntry(entry.to_string()),
+    )
 }
 
 /// Whether some input makes no candidate of one family apply.
@@ -1114,7 +1226,13 @@ pub(super) fn dispatch_gap(
     key: &RuleDispatchKey,
 ) -> DispatchGap {
     let family = family_name(key);
-    match analyze(statements, filename, source, Some(key)) {
+    match analyze(
+        statements,
+        filename,
+        source,
+        Selection::Family(key),
+        ClauseScope::Family,
+    ) {
         ClauseReachabilityReport::NotRun { reason } => DispatchGap::Unknown(reason),
         ClauseReachabilityReport::Ran {
             families,
@@ -1144,13 +1262,13 @@ pub(super) fn dispatch_gap(
     }
 }
 
-/// Analyze the families with a candidate declared in `filename`, or only
-/// the family `only`.
+/// Analyze the families `selection` names.
 fn analyze(
     statements: &[Stmt],
     filename: &str,
     source: &str,
-    only: Option<&RuleDispatchKey>,
+    selection: Selection,
+    scope: ClauseScope,
 ) -> ClauseReachabilityReport {
     let not_run = |reason: String| ClauseReachabilityReport::NotRun { reason };
     let resolved = match resolve_smt_program(statements, filename) {
@@ -1196,6 +1314,7 @@ fn analyze(
     let mut sources: BTreeMap<String, Option<SourceLines>> = BTreeMap::new();
     sources.insert(filename.to_string(), Some(SourceLines::new(source)));
 
+    let mut analyzed_families = Vec::new();
     let mut families = 0;
     let mut clauses = 0;
     let mut findings = Vec::new();
@@ -1205,13 +1324,24 @@ fn analyze(
     let mut coverage_decided = BTreeSet::new();
     for group in registry.groups.values() {
         let candidates = group.plan.candidates().collect::<Vec<_>>();
-        let selected = match only {
-            Some(key) => &group.key == key,
-            None => candidates.iter().any(|candidate| {
+        let declared_here = || {
+            candidates.iter().any(|candidate| {
                 rule_origins
                     .get(&(candidate.rule as *const Rule))
                     .is_some_and(|origin| origin.as_ref() == filename)
-            }),
+            })
+        };
+        let selected = match selection {
+            Selection::Family(key) => &group.key == key,
+            Selection::DeclaredIn => declared_here(),
+            Selection::ReachedFromEntry(reached) => {
+                let identity = lowerer.rule_identity(&group.key);
+                let qualified = match &identity.scope {
+                    Some(scope) => format!("{}.{}", scope, identity.name),
+                    None => identity.name.clone(),
+                };
+                reached.contains(&qualified) || declared_here()
+            }
         };
         if !selected {
             continue;
@@ -1248,6 +1378,16 @@ fn analyze(
         }
         families += 1;
         clauses += lowered.len();
+        analyzed_families.push(AnalyzedFamily {
+            family: family.clone(),
+            files: lowered
+                .iter()
+                .map(|candidate| candidate.location.file.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+            clauses: lowered.len(),
+        });
         // A family with an unguarded candidate (an irrefutable head without
         // a guard) always selects one, and a Boolean family answers False
         // when no clause applies, as at run time: either its miss is
@@ -1288,6 +1428,8 @@ fn analyze(
         (&left.clause.file, left.clause.line).cmp(&(&right.clause.file, right.clause.line))
     });
     ClauseReachabilityReport::Ran {
+        scope,
+        analyzed_families,
         families,
         clauses,
         findings,
