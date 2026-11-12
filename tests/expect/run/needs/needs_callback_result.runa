@@ -1,0 +1,32 @@
+-- An unknown Bool through a rule, `not`, `&&` and a function's `if`, returned by a
+-- `flat_map` callback and spliced by `concat`, makes the flat_map's result unknown.
+-- expect-command: call
+-- expect-input: needs_callback_result.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_callback_result.stdout
+
+# Account(id: String, ask: Bool, deposits: Int)
+# Case(liable: Bool, accounts: List(Account))
+# Issue(code: String, subject: String)
+# Outcome = Accepted(accounts: Int) | Rejected(issues: List(Issue))
+
+| taxed_on_whole_return(liable: Bool) -> liable
+
+> issue_when(condition: Bool, code: String, subject: String) -> List(Issue) {
+    if condition { [Issue(code = code, subject = subject)] } else { [] }
+}
+
+> account_issues(c: Case, a: Account) -> List(Issue) {
+    concat(
+        issue_when(a.ask && not(taxed_on_whole_return(c.liable)), "owner-not-liable", a.id),
+        issue_when(not(a.ask) && a.deposits < 0, "negative-deposits", a.id)
+    )
+}
+
+> outcome(c: Case) -> Outcome {
+    = issues = flat_map(c.accounts, |a| account_issues(c, a))
+    if length(issues) == 0 { Accepted(accounts = length(c.accounts)) } else { Rejected(issues = issues) }
+}
+
+@ calculate
+| check_case(c: Case) -> outcome(c)

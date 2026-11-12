@@ -1,0 +1,49 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "bae8e19170b9cc38278df814f7ab01683ea8f50124f64ee7edee8a1c77203934",
+    "entry": "check_case"
+  },
+  "cases": [
+    {
+      "case_id": "ask-account-liability-left-out",
+      "input_status": "ready",
+      "input": {
+        "accounts": [
+          {
+            "id": "ASK-1",
+            "ask": true,
+            "deposits": 100
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "no-ask-account-liability-left-out",
+      "input_status": "ready",
+      "input": {
+        "accounts": [
+          {
+            "id": "FD-1",
+            "ask": false,
+            "deposits": 100
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "not-liable",
+      "input_status": "ready",
+      "input": {
+        "liable": false,
+        "accounts": [
+          {
+            "id": "ASK-1",
+            "ask": true,
+            "deposits": 100
+          }
+        ]
+      }
+    }
+  ]
+}

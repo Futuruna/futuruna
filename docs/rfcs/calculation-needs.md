@@ -107,7 +107,13 @@ or function, storing it in a record or list. Reading it propagates:
   (`length` needs the list, not its elements), or passed through (the elements
   given to a higher-order builtin's function). A builtin with an unknown needed
   argument gives an unknown result. A higher-order builtin over a list of
-  unknown length gives an unknown result with the list's path;
+  unknown length gives an unknown result with the list's path. What a
+  builtin's function returns is read the same way: `map` and `foldl` carry
+  it, `flat_map` needs its list structure, and every other builtin (a
+  predicate's Bool, a sort key) needs it whole; an unknown answer makes the
+  builtin's result unknown;
+- a loop (`for`, `while`) over an unknown list or condition stops the case
+  with that need;
 - field access on a record reads only that field; field access on an unknown
   value (a sum type whose variant is unknown) gives an unknown result.
 

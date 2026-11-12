@@ -16853,10 +16853,18 @@ impl Interpreter {
     ) -> Result<T, CalculationRuntimeFailure> {
         let previous_mode = std::mem::replace(&mut self.checking_calculation, true);
         let previous_error = self.calculation_error.replace(None);
-        partial::take_unknown_leak();
+        let nesting = partial::enter_calculation_runtime();
+        let enclosing_leak = partial::take_unknown_leak();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         let error = self.calculation_error.replace(previous_error);
         let leak = partial::take_unknown_leak();
+        partial::exit_calculation_runtime();
+        if nesting > 0 {
+            // A nested evaluation's leak also fails the evaluation around it.
+            if let Some(site) = enclosing_leak.or(leak) {
+                partial::report_unknown_leak(site);
+            }
+        }
         self.checking_calculation = previous_mode;
         // A panic wins even if evaluation had already recorded a user error:
         // the caller must not reuse potentially half-mutated runtime state.
@@ -17625,6 +17633,11 @@ impl Interpreter {
         self.checked_mechanism_push_builtin_callback(argument_index, arguments.len(), &callback);
         let result = self.apply(callback, arguments, env);
         self.checked_mechanism_pop_call();
+        if self.partial_mode.is_some() {
+            if let Some(stand_in) = self.partial_callback_result(&result) {
+                return stand_in;
+            }
+        }
         result
     }
 
@@ -21037,6 +21050,12 @@ impl Interpreter {
                 }
                 Stmt::For(var, iter_expr, body_stmts) => {
                     let iter_val = self.eval(iter_expr, env);
+                    if let Value::Unknown(paths) = &iter_val {
+                        // A loop over a list of unknown length mutates its
+                        // scope an unknown number of times: stop the case.
+                        self.partial_stop((**paths).clone());
+                        return Value::Unit;
+                    }
                     if let Value::LiveStream(stream) = &iter_val {
                         self.with_statement_span(iter_expr.span, |this| {
                             this.live_for_statement(stream, var, body_stmts, env)
@@ -21074,6 +21093,10 @@ impl Interpreter {
                 Stmt::While(cond, body_stmts) => {
                     loop {
                         let cond_val = self.eval(cond, env);
+                        if let Value::Unknown(paths) = &cond_val {
+                            self.partial_stop((**paths).clone());
+                            return Value::Unit;
+                        }
                         if !matches!(cond_val, Value::Bool(true)) {
                             break;
                         }
@@ -21132,6 +21155,11 @@ impl Interpreter {
                 }
                 Stmt::MonadicBind(pat, _ty, expr) => {
                     let val = self.eval(expr, env);
+                    if let Value::Unknown(paths) = &val {
+                        // Whether the block continues or returns early is
+                        // unknown, so is its value.
+                        return self.partial_unknown_read((**paths).clone());
+                    }
                     match runtime_result_or_option_parts(&val) {
                         Some(("Ok" | "Some", args)) => {
                             let inner = args.first().cloned().unwrap_or(Value::Unit);
@@ -25786,6 +25814,11 @@ impl Interpreter {
     }
 
     pub fn bind_pattern(&self, pat: &Pat, val: &Value, env: &mut Env) {
+        if matches!(val, Value::Unknown(_)) {
+            // Every part of an unknown value is unknown on the same paths.
+            partial::bind_pattern_variables(pat, val, env);
+            return;
+        }
         match pat {
             Pat::Var(name) => env.set(name.clone(), val.clone()),
             Pat::Wild => {}
@@ -28735,6 +28768,11 @@ fn checked_list_length(mut val: &Value) -> Option<i64> {
 }
 
 pub fn list_to_vec(val: &Value) -> Vec<Value> {
+    if matches!(val, Value::Unknown(_)) {
+        // An unknown list has no elements to give: never read it as empty.
+        partial::report_unknown_leak("list traversal");
+        return Vec::new();
+    }
     let mut result = Vec::new();
     let mut current = val.clone();
     loop {

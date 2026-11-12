@@ -19,6 +19,20 @@ pub(crate) const SPECULATION_STEP_BUDGET: usize = 100_000;
 
 thread_local! {
     static UNKNOWN_LEAK: Cell<Option<&'static str>> = const { Cell::new(None) };
+    static CALCULATION_RUNTIME_NESTING: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Enter a calculation evaluation; returns how many enclose it.
+pub(crate) fn enter_calculation_runtime() -> usize {
+    CALCULATION_RUNTIME_NESTING.with(|nesting| {
+        let outer = nesting.get();
+        nesting.set(outer + 1);
+        outer
+    })
+}
+
+pub(crate) fn exit_calculation_runtime() {
+    CALCULATION_RUNTIME_NESTING.with(|nesting| nesting.set(nesting.get().saturating_sub(1)));
 }
 
 /// Record that an unknown value reached an operation that must never see one
@@ -81,6 +95,27 @@ pub(crate) struct PartialState {
     /// While rule dispatch matches a clause head or a logic body, the paths
     /// of unknown values that make it a possible rather than a certain match.
     pub(crate) probe: Option<BTreeSet<String>>,
+    /// How each active builtin, innermost last, reads its callbacks' results.
+    pub(crate) callback_reads: Vec<CallbackRead>,
+}
+
+/// How a higher-order builtin reads what its callback returns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CallbackRead {
+    /// Stored or passed on unread (`map`'s elements, `foldl`'s accumulator).
+    Carries,
+    /// Read as a structure (`flat_map` splices the returned list).
+    Structure,
+    /// Read whole (a predicate's Bool, a sort key).
+    Whole,
+}
+
+fn callback_read(name: &str) -> CallbackRead {
+    match name {
+        "map" | "foldl" | "scan" | "reduce" | "subscribe" => CallbackRead::Carries,
+        "flat_map" => CallbackRead::Structure,
+        _ => CallbackRead::Whole,
+    }
 }
 
 /// What a speculative evaluation produced.
@@ -696,7 +731,7 @@ enum PatternFit {
 }
 
 /// Bind every variable of `pattern` to `value`.
-fn bind_pattern_variables(pattern: &Pat, value: &Value, env: &mut Env) {
+pub(crate) fn bind_pattern_variables(pattern: &Pat, value: &Value, env: &mut Env) {
     match pattern {
         Pat::Var(name) => env.set(name.clone(), value.clone()),
         Pat::As(inner, name) => {
@@ -1318,9 +1353,14 @@ impl Interpreter {
                 return self.partial_unknown_read(paths);
             }
         }
+        self.partial
+            .borrow_mut()
+            .callback_reads
+            .push(callback_read(name));
         let (value, probed) = self.with_partial_probe(|interpreter| {
             interpreter.eval_named_builtin(namespace, name, args, env)
         });
+        self.partial.borrow_mut().callback_reads.pop();
         if probed.is_empty() || self.calculation_failed() {
             return value;
         }
@@ -1374,6 +1414,29 @@ mod tests {
     }
 
     #[test]
+    fn a_leak_in_a_nested_evaluation_fails_the_enclosing_case() {
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.with_calculation_runtime(|runtime| {
+            let inner = runtime.with_calculation_runtime(|_| unknown_value().to_string());
+            assert!(inner.is_err());
+            7
+        });
+        assert!(
+            matches!(result, Err(CalculationRuntimeFailure::InvalidValue(ref message))
+                if message.contains("unknown input value")),
+            "{result:?}"
+        );
+        assert_eq!(interpreter.with_calculation_runtime(|_| 7), Ok(7));
+    }
+
+    #[test]
+    fn an_unknown_list_is_never_traversed_as_empty() {
+        take_unknown_leak();
+        assert!(list_to_vec(&unknown_value()).is_empty());
+        assert_eq!(take_unknown_leak(), Some("list traversal"));
+    }
+
+    #[test]
     fn agreement_needs_known_equal_data() {
         assert!(agreed_value(&[Value::Int(7), Value::Int(7)]).is_some());
         assert!(agreed_value(&[Value::Int(7), Value::Int(8)]).is_none());
@@ -1381,5 +1444,25 @@ mod tests {
         assert!(path_covers("", "accounts[0].id"));
         assert!(path_covers("accounts", "accounts[0].id"));
         assert!(!path_covers("account", "accounts"));
+    }
+}
+
+impl Interpreter {
+    /// A higher-order builtin's callback returned `result`. When the builtin
+    /// reads that result and it is unknown, the builtin's own result is
+    /// unknown: the paths go to the builtin's probe (`partial_builtin`).
+    ///
+    /// Returns the value the builtin reads instead, so that it never reads
+    /// the unknown value itself; its result is discarded.
+    pub(crate) fn partial_callback_result(&self, result: &Value) -> Option<Value> {
+        let read = self.partial.borrow().callback_reads.last().copied();
+        let (deep, stand_in) = match read {
+            None | Some(CallbackRead::Carries) => return None,
+            Some(CallbackRead::Structure) => (false, Value::List(Vec::new())),
+            Some(CallbackRead::Whole) => (true, Value::Bool(false)),
+        };
+        let paths = unknown_paths(result, deep)?;
+        self.partial_possible_match(&paths);
+        Some(stand_in)
     }
 }

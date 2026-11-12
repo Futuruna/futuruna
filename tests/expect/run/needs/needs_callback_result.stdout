@@ -1,0 +1,52 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "bae8e19170b9cc38278df814f7ab01683ea8f50124f64ee7edee8a1c77203934",
+    "entry": "check_case"
+  },
+  "results": [
+    {
+      "case_id": "ask-account-liability-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "liable",
+            "waiting_rule": "taxed_on_whole_return"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "no-ask-account-liability-left-out",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "$variant": "Accepted",
+          "accounts": 1
+        },
+        "unused_paths": []
+      }
+    },
+    {
+      "case_id": "not-liable",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "$variant": "Rejected",
+          "issues": [
+            {
+              "code": "owner-not-liable",
+              "subject": "ASK-1"
+            }
+          ]
+        },
+        "unused_paths": [
+          "accounts[0].deposits"
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}
