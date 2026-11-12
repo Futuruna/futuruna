@@ -274,6 +274,19 @@
       ]
     },
     {
+      "id": "typescript-sdk",
+      "kind": "tooling",
+      "name": "TypeScript SDK generated from calculation contracts",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: the generated modules, names and transport interface may change.",
+      "commands": [
+        "sdk"
+      ],
+      "docs": [
+        "docs/reference/calculations.md"
+      ]
+    },
+    {
       "id": "exploratory-audit-tooling",
       "kind": "tooling",
       "name": "Invariant-gap, rule-asymmetry, and clause-reachability audit tooling",
@@ -429,6 +442,11 @@
       "surface": "typed-calculation-contracts"
     },
     {
+      "name": "sdk",
+      "stage": "experimental",
+      "surface": "typescript-sdk"
+    },
+    {
       "name": "audit",
       "stage": "experimental",
       "surface": "exploratory-audit-tooling"
@@ -541,9 +559,10 @@
     },
     {
       "path": "docs/reference/calculations.md",
-      "stage": "preview",
+      "stage": "mixed",
       "surfaces": [
-        "typed-calculation-contracts"
+        "typed-calculation-contracts",
+        "typescript-sdk"
       ]
     },
     {

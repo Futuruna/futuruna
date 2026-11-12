@@ -17,6 +17,7 @@ mod json;
 pub use json::parse_calculation_json;
 
 pub mod compact;
+pub mod sdk_ts;
 
 #[cfg(test)]
 thread_local! {

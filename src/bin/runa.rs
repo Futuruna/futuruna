@@ -188,6 +188,9 @@ fn main() {
 
 fn main_inner() {
     let args: Vec<String> = env::args().collect();
+    if args.get(1).is_some_and(|command| command == "sdk") {
+        return run_sdk_command(&args[2..]);
+    }
 
     let mut mode = "interpret"; // "interpret", "emit", "build", "run", ...
     let mut filename = None;
@@ -650,6 +653,7 @@ fn main_inner() {
                     "  template      Generate or hydrate JSON, TOML, or XLSX calculation input"
                 );
                 eprintln!("  call          Validate input and invoke a typed calculation");
+                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every calculation entry");
                 eprintln!(
                     "  meta          Report typed meta references across a file or source tree"
                 );
@@ -2162,6 +2166,84 @@ fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> Stri
             .collect::<Vec<_>>()
             .join(", ")
     }
+}
+
+/// `runa sdk ts FILE --out DIR`: write the TypeScript SDK for every
+/// calculation entry of FILE.
+fn run_sdk_command(args: &[String]) {
+    const USAGE: &str = "usage: runa sdk ts <file.calculate.runa> --out <dir>";
+    let fail = |message: &str| -> ! {
+        eprintln!("error: {message}\n{USAGE}");
+        std::process::exit(1);
+    };
+    let mut positional = Vec::new();
+    let mut out_dir = None;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--help" | "-h" => {
+                println!("{USAGE}");
+                return;
+            }
+            "--out" => match rest.next() {
+                Some(dir) if !dir.starts_with('-') => out_dir = Some(dir.clone()),
+                _ => fail("--out requires a directory"),
+            },
+            arg if arg.starts_with("--out=") => out_dir = Some(arg["--out=".len()..].to_string()),
+            arg if arg.starts_with('-') => fail(&format!("unknown option `{arg}`")),
+            arg => positional.push(arg),
+        }
+    }
+    let (target, filename) = match positional.as_slice() {
+        [target, filename] => (*target, *filename),
+        _ => fail("expected a target and one source file"),
+    };
+    if target != "ts" {
+        fail(&format!(
+            "unknown SDK target `{target}`; the target is `ts`"
+        ));
+    }
+    let out_dir = out_dir.unwrap_or_else(|| fail("--out is required"));
+    let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
+        eprintln!("error: cannot read {filename}: {error}");
+        std::process::exit(1);
+    });
+    let user_stmts = Parser::new(Lexer::new(&source).tokenize(), &source)
+        .parse_program()
+        .unwrap_or_else(|error| {
+            display_error_in(&source, &error, filename);
+            std::process::exit(1);
+        });
+    let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+    let contracts = run_calculation_type_check(&stmts, &source, filename)
+        .unwrap_or_else(|| std::process::exit(1));
+    let files =
+        calculate::sdk_ts::generate_typescript_sdk(&contracts, filename).unwrap_or_else(|error| {
+            eprintln!("error: {error}");
+            std::process::exit(1);
+        });
+    let out_dir = Path::new(&out_dir);
+    if let Err(error) = std::fs::create_dir_all(out_dir) {
+        eprintln!("error: cannot create {}: {error}", out_dir.display());
+        std::process::exit(1);
+    }
+    for file in &files {
+        let path = out_dir.join(file.name);
+        if let Err(error) = write_file_if_changed(&path, file.contents.as_bytes()) {
+            eprintln!("error: cannot write {}: {error}", path.display());
+            std::process::exit(1);
+        }
+    }
+    println!(
+        "wrote {} for {} to {}",
+        files
+            .iter()
+            .map(|file| file.name)
+            .collect::<Vec<_>>()
+            .join(", "),
+        calculation_entry_names(&contracts),
+        out_dir.display()
+    );
 }
 
 fn calculation_unknown_format(format: &str) -> ! {
