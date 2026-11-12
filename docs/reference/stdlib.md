@@ -526,11 +526,12 @@ The handler receives three string arguments: request path, HTTP method, and requ
 
 `http_serve` runs only in compiled code (`runa run`, `runa build`). The interpreter refuses it: reaching an `http_serve` call is a runtime error at that point.
 
-The server listens on all interfaces and calls the handler for each request,
-possibly for several requests at once; each call runs on a blocking worker
-thread. The handler may read top-level bindings, directly or through the
-functions it calls: the server shares one copy of them, taken when `http_serve`
-starts, between all requests.
+`http_serve` may be called at the top level or inside a `>` function; the call
+does not return while the server runs. The server listens on all interfaces
+and calls the handler for each request, possibly for several requests at once;
+each call runs on a blocking worker thread. The handler may read top-level
+bindings, directly or through the functions it calls: the server shares one
+copy of them, taken when `http_serve` starts, between all requests.
 
 One bad request never stops the server:
 

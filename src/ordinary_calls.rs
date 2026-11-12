@@ -362,6 +362,27 @@ impl TypeChecker {
         }
     }
 
+    /// A binding's declared type holds for its value, whatever expression
+    /// computes it: a call, a rule call, a field, an `if` or a `match`.
+    pub(super) fn check_declared_binding_value(&mut self, declared: &Ty, value: &Expr) {
+        let Some(actual) = self.ordinary_expression_type(value) else {
+            return;
+        };
+        let Ok(actual_ty) = parse_type_annotation(&actual) else {
+            return;
+        };
+        if !Self::ordinary_argument_matches(&actual_ty, declared, &mut BTreeMap::new()) {
+            self.error_at_expr(
+                value,
+                format!(
+                    "type mismatch: binding expects `{}` but expression has `{actual}`{}",
+                    Self::canonical_explore_ty_name(declared),
+                    Self::numeric_conversion_hint(&actual_ty, declared)
+                ),
+            );
+        }
+    }
+
     fn numeric_conversion_hint(actual: &Ty, expected: &Ty) -> &'static str {
         match (actual, expected) {
             (Ty::Name(actual), Ty::Name(expected)) if actual == "Int" && expected == "Float" => {

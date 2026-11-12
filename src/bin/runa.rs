@@ -23199,9 +23199,11 @@ fn apply_builtin_template(tpl: &str, args: &[String]) -> String {
     rendered
 }
 
-/// The server behind `http_serve`, emitted into programs that call it. Each
-/// request runs its synchronous handler on a blocking thread; a panic there
-/// fails only that request (HTTP 500), never the server.
+/// The server behind `http_serve`, emitted into programs that call it. The
+/// call blocks: the server runs on its own Tokio runtime, so a function that
+/// calls `http_serve` is an ordinary function. Each request runs its
+/// synchronous handler on a blocking thread; a panic there fails only that
+/// request (HTTP 500), never the server.
 const HTTP_SERVE_RUNTIME: &str = r#"
 const __FUTURUNA_HTTP_BODY_LIMIT: usize = 1 << 20;
 fn __futuruna_http_error(status: u16, message: &str) -> axum::response::Response {
@@ -23266,19 +23268,22 @@ where
         __futuruna_http_error(500, "internal error")
     })
 }
-async fn __futuruna_http_serve<H>(port: i64, handler: H)
+fn __futuruna_http_serve<H>(port: i64, handler: H)
 where
     H: Fn(String, String, String) -> (i64, String, String) + Clone + Send + Sync + 'static,
 {
-    let app = axum::Router::new()
-        .fallback(move |request: axum::extract::Request| {
-            let handler = handler.clone();
-            async move { __futuruna_http_handle(handler, request).await }
-        })
-        .layer(axum::extract::DefaultBodyLimit::max(__FUTURUNA_HTTP_BODY_LIMIT));
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await.expect("Failed to bind");
-    println!("Listening on port {}", port);
-    axum::serve(listener, app).await.unwrap();
+    let runtime = tokio::runtime::Runtime::new().expect("failed to start the HTTP server runtime");
+    runtime.block_on(async move {
+        let app = axum::Router::new()
+            .fallback(move |request: axum::extract::Request| {
+                let handler = handler.clone();
+                async move { __futuruna_http_handle(handler, request).await }
+            })
+            .layer(axum::extract::DefaultBodyLimit::max(__FUTURUNA_HTTP_BODY_LIMIT));
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await.expect("Failed to bind");
+        println!("Listening on port {}", port);
+        axum::serve(listener, app).await.unwrap();
+    });
 }
 "#;
 
@@ -23809,7 +23814,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: true,
                 deps: AXUM,
-                rust_tpl: "__futuruna_http_serve({0}, {1}).await",
+                rust_tpl: "__futuruna_http_serve({0}, {1})",
             },
         ),
         (
@@ -25683,7 +25688,8 @@ struct RustCodegen {
     var_fir_types: BTreeMap<String, FirTy>,
     /// Program uses subjects, actors or http_serve: emits the live runtime.
     has_async: bool,
-    /// Program calls `http_serve`: needs the Tokio runtime and an async main.
+    /// Program calls `http_serve` anywhere: emits the server and its Tokio
+    /// dependency.
     needs_tokio: bool,
     /// Variables bound to subjects.
     subject_vars: BTreeSet<String>,
@@ -32071,34 +32077,28 @@ impl RustCodegen {
                 if matches!(stmt, Stmt::Defn(Defn::Actor { .. })) {
                     self.has_async = true;
                 }
-                // http_serve with axum needs the Tokio runtime
-                if let Stmt::Expr(Expr {
-                    kind: ExprKind::Effect(name, _),
-                    ..
-                }) = stmt
-                {
-                    if name == "http_serve" {
-                        self.has_async = true;
-                        self.needs_tokio = true;
-                    }
-                }
-                // Also detect http_serve in = bindings (e.g. = _ = http_serve(...))
-                if let Stmt::Bind(
-                    _,
-                    _,
-                    Expr {
-                        kind: ExprKind::App(f, _),
+            }
+            // http_serve, at the top level or in any function body, runs the
+            // server on its own Tokio runtime.
+            let mut serves_http = false;
+            for stmt in stmts {
+                walk_ast_stmt(stmt, &mut |child| match child {
+                    AstChild::Expr(Expr {
+                        kind: ExprKind::Effect(name, _),
                         ..
-                    },
-                ) = stmt
-                {
-                    if let ExprKind::Var(name) = &f.as_ref().kind {
-                        if name == "http_serve" {
-                            self.has_async = true;
-                            self.needs_tokio = true;
-                        }
+                    }) if name == "http_serve" => serves_http = true,
+                    AstChild::Expr(Expr {
+                        kind: ExprKind::App(func, _),
+                        ..
+                    }) if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "http_serve") => {
+                        serves_http = true
                     }
-                }
+                    _ => {}
+                });
+            }
+            if serves_http {
+                self.has_async = true;
+                self.needs_tokio = true;
             }
             if self.needs_tokio {
                 self.cargo_deps.insert(
@@ -35648,42 +35648,31 @@ fn __futuruna_install_error_hook() {
         if !self.lib_mode {
             // Detect if any main statement uses ? operator
             let uses_try = main_stmts.iter().any(|s| stmt_contains_try(s));
-            // Only `http_serve` needs an async main; subjects, live streams
-            // and actors run on the synchronous live runtime.
-            if self.needs_tokio {
-                if uses_try {
-                    out.push_str("#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
-                } else {
-                    out.push_str("#[tokio::main]\nasync fn main() {\n");
-                }
-                out.push_str("    __futuruna_install_error_hook();\n");
+            // The program runs on a thread whose stack is reserved, not
+            // committed: record values live on the stack, and only the
+            // depth a program reaches uses memory. Subjects, live streams
+            // and actors run on the synchronous live runtime; `http_serve`
+            // blocks on its own Tokio runtime.
+            out.push_str(
+                "const __FUT_RUNTIME_MAIN_STACK_BYTES: [usize; 2] = [1 << 30, 64 << 20];\n\n",
+            );
+            out.push_str("fn __fut_runtime_spawn_main<T: Send + 'static>(body: fn() -> T) -> std::io::Result<std::thread::JoinHandle<T>> {\n");
+            out.push_str("    let mut spawned = Err(std::io::Error::other(\"no stack size\"));\n");
+            out.push_str("    for stack_bytes in __FUT_RUNTIME_MAIN_STACK_BYTES {\n");
+            out.push_str("        spawned = std::thread::Builder::new()\n");
+            out.push_str("            .name(\"futuruna-main\".to_string())\n");
+            out.push_str("            .stack_size(stack_bytes)\n");
+            out.push_str("            .spawn(body);\n");
+            out.push_str("        if spawned.is_ok() {\n");
+            out.push_str("            break;\n");
+            out.push_str("        }\n");
+            out.push_str("    }\n");
+            out.push_str("    spawned\n");
+            out.push_str("}\n\n");
+            if uses_try {
+                out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
             } else {
-                // The program runs on a thread whose stack is reserved, not
-                // committed: record values live on the stack, and only the
-                // depth a program reaches uses memory.
-                out.push_str(
-                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: [usize; 2] = [1 << 30, 64 << 20];\n\n",
-                );
-                out.push_str("fn __fut_runtime_spawn_main<T: Send + 'static>(body: fn() -> T) -> std::io::Result<std::thread::JoinHandle<T>> {\n");
-                out.push_str(
-                    "    let mut spawned = Err(std::io::Error::other(\"no stack size\"));\n",
-                );
-                out.push_str("    for stack_bytes in __FUT_RUNTIME_MAIN_STACK_BYTES {\n");
-                out.push_str("        spawned = std::thread::Builder::new()\n");
-                out.push_str("            .name(\"futuruna-main\".to_string())\n");
-                out.push_str("            .stack_size(stack_bytes)\n");
-                out.push_str("            .spawn(body);\n");
-                out.push_str("        if spawned.is_ok() {\n");
-                out.push_str("            break;\n");
-                out.push_str("        }\n");
-                out.push_str("    }\n");
-                out.push_str("    spawned\n");
-                out.push_str("}\n\n");
-                if uses_try {
-                    out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
-                } else {
-                    out.push_str("fn __fut_runtime_main_inner() {\n");
-                }
+                out.push_str("fn __fut_runtime_main_inner() {\n");
             }
             self.indent = 1;
             let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
@@ -35778,29 +35767,27 @@ fn __futuruna_install_error_hook() {
             self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
             self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
             out.push_str("}\n");
-            if !self.needs_tokio {
-                out.push('\n');
-                if uses_try {
-                    out.push_str(
-                        "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
-                    );
-                    out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)?;\n");
-                    out.push_str("    match __fut_runtime_main.join() {\n");
-                    out.push_str("        Ok(result) => result,\n");
-                    out.push_str("        Err(_) => std::process::exit(1),\n");
-                    out.push_str("    }\n");
-                    out.push_str("}\n");
-                } else {
-                    out.push_str("fn main() {\n");
-                    out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)\n");
-                    out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
-                    out.push_str("    if __fut_runtime_main.join().is_err() {\n");
-                    out.push_str("        std::process::exit(1);\n");
-                    out.push_str("    }\n");
-                    out.push_str("}\n");
-                }
+            out.push('\n');
+            if uses_try {
+                out.push_str(
+                    "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
+                );
+                out.push_str("    __futuruna_install_error_hook();\n");
+                out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)?;\n");
+                out.push_str("    match __fut_runtime_main.join() {\n");
+                out.push_str("        Ok(result) => result,\n");
+                out.push_str("        Err(_) => std::process::exit(1),\n");
+                out.push_str("    }\n");
+                out.push_str("}\n");
+            } else {
+                out.push_str("fn main() {\n");
+                out.push_str("    __futuruna_install_error_hook();\n");
+                out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)\n");
+                out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
+                out.push_str("    if __fut_runtime_main.join().is_err() {\n");
+                out.push_str("        std::process::exit(1);\n");
+                out.push_str("    }\n");
+                out.push_str("}\n");
             }
         }
 

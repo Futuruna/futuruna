@@ -164,3 +164,63 @@ fn handler_bound_to_a_top_level_closure_owns_the_bindings() {
     assert!(response.ends_with("a/x,b/x"), "{response}");
     drop(server);
 }
+
+#[test]
+fn server_started_from_a_function_reads_a_top_level_binding() {
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-http-serve-from-function-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    std::fs::write(
+        directory.join("serve_from_function.runa"),
+        format!(
+            r#"= greeting = "hello"
+> serve(port: Int) {{
+    http_serve(port, |path: String, method: String, body: String| http_respond(200, "text/plain", greeting + path))
+}}
+> start() {{ serve({port}) }}
+start()
+"#
+        ),
+    )
+    .unwrap();
+
+    let build = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .current_dir(&directory)
+        .args(["build", "serve_from_function.runa"])
+        .output()
+        .unwrap();
+    assert!(
+        build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+
+    let server = Server {
+        child: Command::new(directory.join("serve_from_function"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+        directory,
+    };
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while TcpStream::connect(("127.0.0.1", port)).is_err() {
+        assert!(Instant::now() < deadline, "server did not start listening");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let response = request(port, "/x");
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert!(response.ends_with("hello/x"), "{response}");
+    drop(server);
+}

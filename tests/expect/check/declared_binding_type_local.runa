@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: type mismatch: binding expects `Float` but expression has `Int`
+-- expect-stderr: declared_binding_type_local.runa:8:
+
+# Item(count: Int, price: Float)
+> total(item: Item) -> Float {
+    = n: Float = item.count
+    n * item.price
+}
+@ print(show(total(Item(count = 2, price = 1.5))))
