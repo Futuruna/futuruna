@@ -127,6 +127,16 @@ pub(crate) enum Speculation<T> {
     Cut,
 }
 
+impl Speculation<Value> {
+    /// The value read as a decision: without its explanation trace.
+    fn untraced(self) -> Self {
+        match self {
+            Speculation::Done(value) => Speculation::Done(explain::strip(value)),
+            other => other,
+        }
+    }
+}
+
 /// The allocation identity of an input container, if the value has one.
 pub(crate) fn container_id(value: &Value) -> Option<usize> {
     match value {
@@ -213,7 +223,7 @@ pub(crate) fn has_unknown(value: &Value) -> bool {
 /// Values that decide a branching evaluation: plain data whose equality
 /// means the same result.
 fn decidable_data(value: &Value) -> bool {
-    match value {
+    match explain::untraced(value) {
         Value::Int(_)
         | Value::Float(_)
         | Value::Str(_)
@@ -446,7 +456,10 @@ impl Interpreter {
         if self.partial_mode == Some(PartialMode::Strict) {
             return self.partial_unknown_read(paths);
         }
-        match self.speculate(&paths, |interpreter| interpreter.eval(right, env)) {
+        match self
+            .speculate(&paths, |interpreter| interpreter.eval(right, env))
+            .untraced()
+        {
             Speculation::Done(Value::Bool(false)) if operator == "&&" => Value::Bool(false),
             Speculation::Done(Value::Bool(true)) if operator == "||" => Value::Bool(true),
             Speculation::Done(right) => self.branching_unknown(paths, &[right]),
@@ -472,7 +485,7 @@ impl Interpreter {
             if self.calculation_failed() {
                 return Value::Unit;
             }
-            match value {
+            match explain::strip(value) {
                 Value::Unknown(paths) => {
                     if self.partial_mode == Some(PartialMode::Strict) {
                         return self.partial_unknown_read((*paths).clone());
@@ -924,7 +937,7 @@ impl Interpreter {
             if let Some(guard) = &arm.guard {
                 let mut under = condition.clone();
                 under.extend(arm_paths.iter().cloned());
-                match self.partial_eval_under(&under, guard, &arm_env) {
+                match self.partial_eval_under(&under, guard, &arm_env).untraced() {
                     Speculation::Done(Value::Bool(true)) => {}
                     Speculation::Done(Value::Bool(false)) => continue,
                     Speculation::Done(Value::Unknown(paths)) => {
@@ -1033,7 +1046,7 @@ impl Interpreter {
                     Candidate::NoMatch => {}
                     Candidate::FalseClause => matched_false_clause = true,
                     Candidate::Fires { value, paths } => {
-                        outcomes.push(value);
+                        outcomes.push(self.explain_rule_result(&rule, family, value));
                         if paths.is_empty() {
                             certain = true;
                             break 'tiers;
@@ -1118,7 +1131,10 @@ impl Interpreter {
                 ..
             } => {
                 if let Some(guard) = guard {
-                    match self.partial_eval_under(&under(&paths), guard, &rule_env) {
+                    match self
+                        .partial_eval_under(&under(&paths), guard, &rule_env)
+                        .untraced()
+                    {
                         Speculation::Done(Value::Bool(true)) => {}
                         Speculation::Done(Value::Bool(false)) => return Candidate::NoMatch,
                         Speculation::Done(Value::Unknown(more)) => {
@@ -1179,7 +1195,7 @@ impl Interpreter {
                             .then_some(Value::Bool(true))
                     } else {
                         let value = interpreter.eval(body, &rule_env);
-                        (!matches!(value, Value::Bool(false))).then_some(value)
+                        (!matches!(explain::untraced(&value), Value::Bool(false))).then_some(value)
                     }
                 };
                 let outcome = if spec.is_empty() {

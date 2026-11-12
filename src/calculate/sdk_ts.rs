@@ -505,6 +505,8 @@ impl<'a> Sdk<'a> {
             names.push((format!("{values}SetAt"), "partial.ts"));
             names.push((values.clone(), "client.ts"));
             names.push((format!("{values}Query"), "client.ts"));
+            names.push((format!("{values}Explained"), "client.ts"));
+            names.push((format!("{values}QueryExplained"), "client.ts"));
             names.push((format!("{types}Resolvers"), "client.ts"));
         }
         let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
@@ -1674,11 +1676,23 @@ export function queryResultSchema<R, P extends string>(
 }
 "#;
 
-const CLIENT_RUNTIME_EXPORTS: [&str; 21] = [
+const CLIENT_RUNTIME_EXPORTS: [&str; 33] = [
     "INPUT_SCHEMA",
     "OUTPUT_SCHEMA",
     "PARTIAL_OUTPUT_SCHEMA",
     "EngineTransport",
+    "ExplainDepth",
+    "CitedParagraph",
+    "ExplainedRule",
+    "RuleContributor",
+    "InputContributor",
+    "Contributor",
+    "ExplainedBy",
+    "ExplainedValue",
+    "ExplainedSection",
+    "Explanation",
+    "Explained",
+    "ExplainedQuery",
     "CalculationErrorKind",
     "CalculationDiagnostic",
     "CalculationError",
@@ -1714,7 +1728,91 @@ export interface EngineTransport {
   call(entry: string, input: unknown): Promise<unknown>;
   /** Run `entry` on a partial case, as `runa call --partial`. */
   callPartial(entry: string, input: unknown): Promise<unknown>;
+  /**
+   * Run `entry` and explain every leaf of the result, as `runa call --explain`
+   * (`--explain=full` when `full`). Needed by the `...Explained` calls only.
+   */
+  callExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
+  /** As `callExplained`, on a partial case: `runa call --partial --explain`. */
+  callPartialExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
 }
+
+/** `direct`: each value's direct contributors; `full`: also the whole derivation. */
+export type ExplainDepth = "direct" | "full";
+
+/** A paragraph a rule clause cites, with its quoted text. */
+export type CitedParagraph = { paragraph: string; source?: string; text: string };
+
+/** The rule clause that produced a value: its law section and cited paragraphs. */
+export type ExplainedRule = {
+  $variant: "Rule";
+  rule: string;
+  /** The RuleScope of a scoped rule. */
+  scope?: string;
+  clause: "default" | "exception" | "clause";
+  /** The label of the exception that applied. */
+  exception?: string;
+  /** `file:line` of the clause. */
+  location?: string;
+  /** The law section around the clause; a key of {@link Explanation.sections}. */
+  section?: string;
+  cites?: CitedParagraph[];
+};
+
+/** A rule a value was computed from, with the value it gave. */
+export type RuleContributor = Omit<ExplainedRule, "cites"> & {
+  paragraphs?: string[];
+  value: unknown;
+  /** The node in {@link Explanation.derivation}, with depth `full`. */
+  node?: number;
+};
+
+/** An input a value was computed from. */
+export type InputContributor = { $variant: "Input"; path: string; value: unknown };
+
+export type Contributor = RuleContributor | InputContributor;
+
+/**
+ * What produced a value: a rule clause, the input unchanged, a computation
+ * outside any rule, or a constant of the model.
+ */
+export type ExplainedBy =
+  | ExplainedRule
+  | { $variant: "Input"; path: string }
+  | { $variant: "Computed" }
+  | { $variant: "Constant" };
+
+/** One leaf of a result and where it came from. */
+export type ExplainedValue = {
+  value: unknown;
+  by: ExplainedBy;
+  from?: Contributor[];
+  /** Direct contributors beyond the first 32, with depth `direct`. */
+  from_omitted?: number;
+};
+
+/** A law section: its anchor, quoted documents, attachments and quote. */
+export type ExplainedSection = {
+  location: string;
+  sources: string[];
+  attachments: { role: string; binding?: string; value: unknown }[];
+  quote: string;
+};
+
+/** Where every leaf of a result came from; `docs/rfcs/explanations.md`. */
+export type Explanation = {
+  /** Every leaf of the result by its output path, in the path syntax of needs. */
+  values: { [path: string]: ExplainedValue };
+  sections: { [label: string]: ExplainedSection };
+  /** With depth `full`: every rule node a value was computed from. */
+  derivation?: { [node: string]: { value: unknown; by: ExplainedRule; from: Contributor[] } };
+};
+
+/** A result with its explanation. */
+export type Explained<R> = { readonly result: R; readonly explanation: Explanation };
+
+/** A partial call's result; `Complete` results carry an explanation. */
+export type ExplainedQuery<R> = { readonly result: R; readonly explanation?: Explanation };
 
 /**
  * Why a call failed: the input did not validate, the output did not validate,

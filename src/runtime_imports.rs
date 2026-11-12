@@ -8,6 +8,8 @@ pub(super) struct RuntimeStatementSource {
     directory: Option<String>,
     diagnostics: Option<runtime_diagnostics::RuntimeDiagnosticContext>,
     type_source: Option<(Rc<str>, String)>,
+    /// The file the statement was written in (`None`: the root file).
+    file: Option<Rc<str>>,
 }
 
 pub(super) type RuntimeStatementSources = BTreeMap<usize, Rc<RuntimeStatementSource>>;
@@ -69,6 +71,7 @@ impl PlainImportProgram {
                     Rc::from(format!("{canonical:?}#{}", module.content_hash())),
                     namespace.identity_key(),
                 )),
+                file: Some(Rc::from(canonical.as_str())),
             });
             self.expand(
                 interpreter,
@@ -95,6 +98,7 @@ impl Interpreter {
             directory: self.source_dir.clone(),
             diagnostics: self.runtime_diagnostic_context.clone(),
             type_source: self.runtime_plain_type_source.clone(),
+            file: self.runtime_source_file.clone(),
         }
     }
 
@@ -102,6 +106,7 @@ impl Interpreter {
         self.source_dir = source.directory.clone();
         self.runtime_diagnostic_context = source.diagnostics.clone();
         self.runtime_plain_type_source = source.type_source.clone();
+        self.runtime_source_file = source.file.clone();
     }
 
     pub(super) fn activate_program_statement_source(

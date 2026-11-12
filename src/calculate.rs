@@ -18,7 +18,9 @@ mod json;
 pub use json::parse_calculation_json;
 
 pub mod compact;
+pub mod explain;
 pub mod sdk_ts;
+pub use explain::{explanation_json_schema, ExplainOptions};
 
 #[cfg(test)]
 thread_local! {
@@ -447,6 +449,9 @@ pub struct CalculationInputEnvelope {
 pub struct CalculationResultCase {
     pub case_id: String,
     pub result: JsonValue,
+    /// Where every leaf of `result` came from (`runa call --explain`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explanation: Option<JsonValue>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -4958,6 +4963,8 @@ struct CalculationWorker {
     needs_reinitialization: bool,
     /// Set for partial cases (`runa call --partial`).
     partial: Option<partial::PartialMode>,
+    /// Set for explained cases (`runa call --explain`).
+    explain: Option<explain::ExplainRenderer>,
 }
 
 impl CalculationWorker {
@@ -4995,6 +5002,7 @@ impl CalculationWorker {
             initialization_error,
             needs_reinitialization: false,
             partial: None,
+            explain: None,
         }
     }
 
@@ -5032,8 +5040,10 @@ impl CalculationWorker {
 
         if self.needs_reinitialization {
             let partial = self.partial;
+            let explain = self.explain.take();
             *self = Self::new(self.program.clone());
             self.partial = partial;
+            self.explain = explain;
         }
         if let Some(message) = &self.initialization_error {
             trace_calculation_case(&case.case_id, started);
@@ -5053,6 +5063,15 @@ impl CalculationWorker {
         }
 
         let mut runtime_env = self.base_env.clone();
+        let input = if self.explain.is_some() {
+            self.interpreter.begin_explained_case();
+            let tagged = explain::tag_input(&self.interpreter, &input, contract);
+            self.interpreter
+                .explain_keep_partial_containers(&input, &tagged);
+            tagged
+        } else {
+            input
+        };
         let input_binding = "__futuruna_calculation_input".to_string();
         runtime_env.set(input_binding.clone(), input);
         let call: Expr = ExprKind::App(
@@ -5068,8 +5087,10 @@ impl CalculationWorker {
         // case: either way the program is initialized again first.
         self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
             || self.interpreter.prepared_live_cell_changed();
+        let explained = self.interpreter.finish_explained_case();
         if let Some(decoder) = decoder {
-            let outcome = self.finish_partial(contract, case, evaluated, &decoder);
+            let outcome =
+                self.finish_partial(contract, case, evaluated, &decoder, explained.as_ref());
             self.interpreter.begin_partial_case(None, "");
             trace_calculation_case(&case.case_id, started);
             return outcome;
@@ -5085,10 +5106,21 @@ impl CalculationWorker {
                 });
             }
         };
+        let explanation = match (self.explain.as_mut(), explained.as_ref()) {
+            (Some(renderer), Some(state)) => {
+                Some(renderer.explanation(&self.interpreter, state, &result, contract))
+            }
+            _ => None,
+        };
+        let result = match explanation {
+            Some(_) => crate::explain::strip_deep(&result),
+            None => result,
+        };
         let outcome = match contract.encode_output(&result) {
             Ok(result) => CalculationCaseOutcome::Result(CalculationResultCase {
                 case_id: case.case_id.clone(),
                 result,
+                explanation,
             }),
             Err(error) => CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
                 case_id: case.case_id.clone(),
@@ -5107,6 +5139,7 @@ impl CalculationWorker {
         case: &CalculationInputCase,
         evaluated: Result<Value, CalculationRuntimeFailure>,
         decoder: &PartialDecoder,
+        explained: Option<&crate::explain::ExplainState>,
     ) -> CalculationCaseOutcome {
         let diagnostic = |path: String, message: String| {
             CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
@@ -5128,23 +5161,36 @@ impl CalculationWorker {
                 );
             }
         };
+        let mut explanation = None;
         let result = match outcome {
             partial::PartialOutcome::Complete {
                 result,
                 read_exact,
                 read_subtree,
-            } => match contract.encode_output(&result) {
-                Ok(result) => CalculationPartialResult::Complete {
-                    result,
-                    unused_paths: decoder
-                        .provided
-                        .iter()
-                        .filter(|path| !partial::path_was_read(path, &read_exact, &read_subtree))
-                        .cloned()
-                        .collect(),
-                },
-                Err(error) => return diagnostic(error.path, error.message),
-            },
+            } => {
+                if let (Some(renderer), Some(state)) = (self.explain.as_mut(), explained) {
+                    explanation =
+                        Some(renderer.explanation(&self.interpreter, state, &result, contract));
+                }
+                let result = match explanation {
+                    Some(_) => crate::explain::strip_deep(&result),
+                    None => result,
+                };
+                match contract.encode_output(&result) {
+                    Ok(result) => CalculationPartialResult::Complete {
+                        result,
+                        unused_paths: decoder
+                            .provided
+                            .iter()
+                            .filter(|path| {
+                                !partial::path_was_read(path, &read_exact, &read_subtree)
+                            })
+                            .cloned()
+                            .collect(),
+                    },
+                    Err(error) => return diagnostic(error.path, error.message),
+                }
+            }
             partial::PartialOutcome::Needs { paths, waiting } => CalculationPartialResult::Needs {
                 needs: paths
                     .into_iter()
@@ -5161,6 +5207,7 @@ impl CalculationWorker {
         CalculationCaseOutcome::Result(CalculationResultCase {
             case_id: case.case_id.clone(),
             result: serde_json::to_value(result).expect("partial result is JSON"),
+            explanation,
         })
     }
 }
@@ -5311,11 +5358,47 @@ impl PreparedCalculation {
         self.invoke_batch(envelope, requested_calculation_jobs(), Some(mode))
     }
 
+    /// [`Self::invoke`] with an explanation of every result
+    /// (`runa call --explain`; `docs/rfcs/explanations.md`).
+    pub fn invoke_explained(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        options: &ExplainOptions,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(envelope, requested_calculation_jobs(), None, Some(options))
+    }
+
+    /// [`Self::invoke_partial`] with an explanation of every `Complete`
+    /// result (`runa call --partial --explain`).
+    pub fn invoke_partial_explained(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        mode: partial::PartialMode,
+        options: &ExplainOptions,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(
+            envelope,
+            requested_calculation_jobs(),
+            Some(mode),
+            Some(options),
+        )
+    }
+
     fn invoke_batch(
         &mut self,
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
         partial: Option<partial::PartialMode>,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(envelope, requested_jobs, partial, None)
+    }
+
+    fn run_batch(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+        explain_options: Option<&ExplainOptions>,
     ) -> CalculationOutputEnvelope {
         let Self {
             contract,
@@ -5382,6 +5465,7 @@ impl PreparedCalculation {
             ))
         });
         primary.partial = partial;
+        primary.explain = explain_options.cloned().map(explain::ExplainRenderer::new);
         let initialized_after = started.map(|started| started.elapsed());
         let mut outcomes = if worker_count == 1 {
             invoke_calculation_case_stride(primary, contract, &cases, 0, 1)
@@ -5402,6 +5486,8 @@ impl PreparedCalculation {
                                 .spawn_scoped(scope, move || {
                                     let mut worker = CalculationWorker::new(program.clone());
                                     worker.partial = partial;
+                                    worker.explain =
+                                        explain_options.cloned().map(explain::ExplainRenderer::new);
                                     invoke_calculation_case_queue(
                                         &mut worker,
                                         contract,

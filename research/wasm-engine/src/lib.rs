@@ -47,6 +47,8 @@ fn report_panics() {
 pub struct Model {
     files: Vec<(PathBuf, String)>,
     entries: Vec<PreparedCalculation>,
+    /// The root file, as the interpreter sees it (`/model/<main>`).
+    main: PathBuf,
 }
 
 #[wasm_bindgen]
@@ -100,7 +102,11 @@ impl Model {
                 PreparedCalculation::new(contract, statements.clone(), source_dir.clone())
             })
             .collect();
-        Ok(Model { files, entries })
+        Ok(Model {
+            files,
+            entries,
+            main: root.join(main),
+        })
     }
 
     /// The model's calculation entries.
@@ -114,7 +120,7 @@ impl Model {
     /// Run the calculation `entry` on `input`, a `runa call` input document,
     /// and return the `runa call` output document.
     pub fn call(&mut self, entry: &str, input: &str) -> Result<String, String> {
-        self.invoke(entry, input, None)
+        self.invoke(entry, input, None, None)
     }
 
     /// Run the calculation `entry` on `input`, whose cases may leave facts
@@ -126,6 +132,36 @@ impl Model {
             entry,
             input,
             Some(futuruna::partial::PartialMode::Propagate),
+            None,
+        )
+    }
+
+    /// `call`, with an explanation of every leaf of each result: the
+    /// `runa call --explain` document, or `--explain=full` when `full`.
+    #[wasm_bindgen(js_name = callExplained)]
+    pub fn call_explained(
+        &mut self,
+        entry: &str,
+        input: &str,
+        full: Option<bool>,
+    ) -> Result<String, String> {
+        self.invoke(entry, input, None, Some(full.unwrap_or(false)))
+    }
+
+    /// `callPartial`, with an explanation of every `Complete` result: the
+    /// `runa call --partial --explain` document.
+    #[wasm_bindgen(js_name = callPartialExplained)]
+    pub fn call_partial_explained(
+        &mut self,
+        entry: &str,
+        input: &str,
+        full: Option<bool>,
+    ) -> Result<String, String> {
+        self.invoke(
+            entry,
+            input,
+            Some(futuruna::partial::PartialMode::Propagate),
+            Some(full.unwrap_or(false)),
         )
     }
 }
@@ -136,6 +172,7 @@ impl Model {
         entry: &str,
         input: &str,
         partial: Option<futuruna::partial::PartialMode>,
+        explain: Option<bool>,
     ) -> Result<String, String> {
         let Some(index) = self
             .entries
@@ -154,9 +191,18 @@ impl Model {
         // the model; serve them from this model.
         provide_source_files(self.files.iter().cloned());
         let prepared = &mut self.entries[index];
-        let result = match partial {
-            None => prepared.invoke(&envelope),
-            Some(mode) => prepared.invoke_partial(&envelope, mode),
+        let options = explain.map(|full| calculate::ExplainOptions {
+            full,
+            root_file: Some(self.main.clone()),
+            display_root: Some(PathBuf::from(MODEL_ROOT)),
+        });
+        let result = match (partial, &options) {
+            (None, None) => prepared.invoke(&envelope),
+            (Some(mode), None) => prepared.invoke_partial(&envelope, mode),
+            (None, Some(options)) => prepared.invoke_explained(&envelope, options),
+            (Some(mode), Some(options)) => {
+                prepared.invoke_partial_explained(&envelope, mode, options)
+            }
         };
         let document = serde_json::to_string_pretty(&result).map_err(|error| error.to_string())?;
         Ok(document + "\n")
