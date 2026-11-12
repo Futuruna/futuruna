@@ -1,0 +1,9 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: PROVED: |twice_even|
+-- Constructors of one enum may share a field name; the SMT encoding names
+-- each accessor after its type and constructor, so an unrelated claim proves.
+# Attachment = Source(value: Int) | Guidance(value: Int)
+= kept = Source(value = 1)
+| twice(x: Int) -> x + x
+| twice_even: x -> x > 1000000 || x < 0 || twice(x) % 2 == 0

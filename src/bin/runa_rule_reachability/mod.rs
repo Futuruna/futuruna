@@ -737,7 +737,7 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
                             };
                             self.value_domain(
                                 &field.ty,
-                                &format!("({} {})", smt_symbol(&selector), value),
+                                &format!("({} {})", smt_field_function(&selector), value),
                                 depth + 1,
                             )
                         })

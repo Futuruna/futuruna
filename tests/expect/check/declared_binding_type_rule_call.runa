@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: type mismatch: binding expects `Int` but expression has `String`
+-- expect-stderr: declared_binding_type_rule_call.runa:7:
+
+| size_label(n: Int) -> "small"
+= label: Int = size_label(3)
+@ print(show(label))

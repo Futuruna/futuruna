@@ -61,9 +61,14 @@ jobs:
 
       - name: Install Z3 for solver verification
         if: runner.os == 'Linux'
+        env:
+          Z3_VERSION: 4.13.3
+          Z3_SHA256: 32c7377026733c9d7b33c21cd77a68f50ba682367207b031a6bfd80140a8722f
         run: |
-          sudo apt-get update
-          sudo apt-get install -y z3
+          curl -fsSL --retry 5 -o "$RUNNER_TEMP/z3.zip" "https://github.com/Z3Prover/z3/releases/download/z3-${Z3_VERSION}/z3-${Z3_VERSION}-x64-glibc-2.35.zip"
+          echo "${Z3_SHA256}  $RUNNER_TEMP/z3.zip" | sha256sum --check --strict
+          unzip -q "$RUNNER_TEMP/z3.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/z3-${Z3_VERSION}-x64-glibc-2.35/bin" >> "$GITHUB_PATH"
 
       - name: Mint gate
         run: ./scripts/mint.sh

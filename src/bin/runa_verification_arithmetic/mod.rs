@@ -127,7 +127,10 @@ fn pattern(pat: &Pat, value: &str, bindings: &mut Vec<(String, String)>) -> Resu
             for (index, field) in fields.iter().enumerate() {
                 conditions.push(pattern(
                     field,
-                    &format!("({} {value})", smt_symbol(&format!("{ctor}_f{index}"))),
+                    &format!(
+                        "({} {value})",
+                        smt_field_function(&format!("{ctor}_f{index}"))
+                    ),
                     bindings,
                 )?);
             }
@@ -138,7 +141,7 @@ fn pattern(pat: &Pat, value: &str, bindings: &mut Vec<(String, String)>) -> Resu
             for (name, field) in fields {
                 conditions.push(pattern(
                     field,
-                    &format!("({} {value})", smt_symbol(name)),
+                    &format!("({} {value})", smt_field_function(name)),
                     bindings,
                 )?);
             }

@@ -1,0 +1,17 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: PROVED: |source_value_is_read|
+-- expect-stdout: PROVED: |guidance_value_is_read|
+-- expect-stdout: PROVED: |matched_value_is_nonnegative|
+-- expect-stdout: COUNTEREXAMPLE found for |every_value_is_positive|:
+-- expect-stdout: n = 0
+-- The field shared by both variants is read from whichever variant the
+-- value is.
+# Attachment = Source(value: Int) | Guidance(value: Int)
+= source = Source(value = 3)
+= guidance = Guidance(value = 5)
+> weight(a: Attachment) -> Int { match a { | Source -> a.value | Guidance -> a.value * 2 } }
+| source_value_is_read: weight(source) -> weight(source) == 3
+| guidance_value_is_read: weight(guidance) -> weight(guidance) == 10
+| matched_value_is_nonnegative: n -> n < 0 || n > 1000 || weight(Guidance(value = n)) >= 0
+| every_value_is_positive: n -> n < 0 || n > 1000 || weight(Source(value = n)) > 0

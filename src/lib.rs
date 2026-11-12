@@ -56949,6 +56949,7 @@ impl TypeChecker {
 
     fn check_declared_binding_ty(&mut self, ty: &Ty, expr: &Expr) {
         let Some(actual_ty) = self.obvious_expr_ty(expr) else {
+            self.check_declared_binding_value(ty, expr);
             return;
         };
         let expected_ty = ty.to_string();
