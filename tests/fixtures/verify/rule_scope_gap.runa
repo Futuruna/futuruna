@@ -1,0 +1,18 @@
+-- A RuleScope member without a value for zero, next to a same-named member
+-- of another scope that covers every input.
+
+# Share(own: Int) {
+    | tax() -> own under own > 0
+    | exception negative tax() -> 0 - own under own < 0
+}
+
+# Flat(own: Int) {
+    | tax() -> 1 under own >= 0
+    | tax() -> 2 under own < 0
+}
+
+| share_tax(own: Int) -> Share(own = own).tax()
+| flat_tax(own: Int) -> Flat(own = own).tax()
+
+| share_tax_is_signed: share_tax(own) -> own < -1000000 || own > 1000000 || share_tax(own) == own
+| flat_tax_is_positive: flat_tax(own) -> flat_tax(own) > 0

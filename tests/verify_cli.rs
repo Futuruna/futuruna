@@ -620,3 +620,39 @@ fn allow_unsupported_accepts_untranslatable_claims_but_not_refuted_ones() {
         "{stdout}"
     );
 }
+
+#[test]
+fn skipped_claim_names_the_gap_of_its_own_rule_scope_member() {
+    let fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/verify/rule_scope_gap.runa");
+    let output = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    assert!(
+        !output.status.success(),
+        "partial dispatch must fail verify"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // `Share.tax` leaves 0 uncovered; the same-named `Flat.tax` covers every
+    // input. Each claim names its own scoped family and only that one.
+    let share = invariant_section(&stdout, "share_tax_is_signed");
+    assert!(
+        share.contains("partial rule dispatch for `Share.tax` has no unconditional value"),
+        "{share}"
+    );
+    assert!(
+        share.contains("Gap in Share.tax/0: no clause applies to self.own = 0"),
+        "{share}"
+    );
+    assert!(!share.contains("Flat.tax"), "{share}");
+
+    let flat = invariant_section(&stdout, "flat_tax_is_positive");
+    assert!(
+        flat.contains("partial rule dispatch for `Flat.tax` has no unconditional value"),
+        "{flat}"
+    );
+    assert!(
+        flat.contains("Every input is covered by a clause of Flat.tax/0"),
+        "{flat}"
+    );
+    assert!(!flat.contains("Share.tax"), "{flat}");
+}

@@ -14842,6 +14842,16 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         self.rule_identity(key).name
     }
 
+    /// The family a dispatch diagnostic names: a RuleScope member carries its
+    /// scope (`Share.tax`), so same-named members of two scopes stay apart.
+    fn rule_family_display_name(&self, key: &RuleDispatchKey) -> String {
+        let identity = self.rule_identity(key);
+        match identity.scope {
+            Some(scope) => format!("{}.{}", scope, identity.name),
+            None => identity.name,
+        }
+    }
+
     fn rule_type_is_smt_representable(&self, ty: &Ty) -> bool {
         fn visit(
             lowerer: &SmtRuleLowerer<'_, '_>,
@@ -15864,7 +15874,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 } else {
                     let message = format!(
                         "partial rule dispatch for `{}` has no unconditional value for SMT",
-                        self.rule_display_name(&group.key)
+                        self.rule_family_display_name(&group.key)
                     );
                     self.partial_dispatches
                         .borrow_mut()
