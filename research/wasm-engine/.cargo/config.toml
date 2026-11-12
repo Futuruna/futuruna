@@ -1,0 +1,5 @@
+# The interpreter evaluates by recursion. A WebAssembly module's stack is a
+# fixed region of linear memory (1 MiB by default), so the engine reserves
+# 64 MiB, enough for the deepest rule chains of the tax models.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=-zstack-size=67108864"]

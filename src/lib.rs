@@ -7941,8 +7941,41 @@ pub fn parse_source_module_cached(
     Ok(module)
 }
 
+static PROVIDED_SOURCE_FILES: std::sync::LazyLock<Mutex<BTreeMap<PathBuf, Arc<str>>>> =
+    std::sync::LazyLock::new(|| Mutex::new(BTreeMap::new()));
+
+/// Replace the source files the host provides instead of the filesystem.
+///
+/// An embedder without a filesystem, such as the WebAssembly engine, registers
+/// a model's files here under absolute paths. Imports, type checking and
+/// calculation calls then read a provided path from this set before they try
+/// the filesystem. An empty set restores plain filesystem reads.
+pub fn provide_source_files(files: impl IntoIterator<Item = (PathBuf, String)>) {
+    let mut provided = PROVIDED_SOURCE_FILES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    *provided = files
+        .into_iter()
+        .map(|(path, source)| (path, Arc::from(source)))
+        .collect();
+}
+
+/// Read a Futuruna source file: a provided file (see [`provide_source_files`])
+/// or else the file on disk.
+pub fn read_source_file(path: &Path) -> std::io::Result<String> {
+    let provided = PROVIDED_SOURCE_FILES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .get(path)
+        .map(|source| source.to_string());
+    match provided {
+        Some(source) => Ok(source),
+        None => std::fs::read_to_string(path),
+    }
+}
+
 pub fn parse_source_module_file_cached(path: &Path) -> Result<Arc<ParsedSourceModule>, String> {
-    let source = std::fs::read_to_string(path)
+    let source = read_source_file(path)
         .map_err(|error| format!("cannot read {}: {}", path.display(), error))?;
     parse_source_module_cached(path, &source)
 }
@@ -55697,7 +55730,7 @@ impl TypeChecker {
         file_path: &str,
         feeds_checked_resolution: bool,
     ) -> Option<Arc<ParsedSourceModule>> {
-        let source = match std::fs::read_to_string(file_path) {
+        let source = match read_source_file(Path::new(file_path)) {
             Ok(source) => source,
             Err(error) => {
                 if feeds_checked_resolution || self.phase_a_has_exact_source_snapshot(file_path) {

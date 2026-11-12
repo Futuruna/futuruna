@@ -74,3 +74,16 @@ The `data/` directory contains POS (part-of-speech) bigram transition counts:
 The paper's Table 2 and Table 3 numbers come from `syntax_frontier2.rs`.
 The NSGA-II claim (85/122 frontier members require START→OP) comes from `syntax_pareto.rs`.
 The three eigenvalues (λ: 2.28, 1.66, 0.96) come from `syntax_pareto.rs`.
+
+## WebAssembly engine
+
+[`wasm-engine/`](wasm-engine/) builds the Futuruna interpreter for
+`wasm32-unknown-unknown` as a Node package: a `Model` loads a model's source
+files and runs its calculation entries, returning the `runa call` output
+document. The comparison with the compiled-model route is
+[docs/rfcs/wasm-engine-d1.md](../docs/rfcs/wasm-engine-d1.md).
+
+```bash
+cd research/wasm-engine
+wasm-pack build --target nodejs --release --out-dir pkg
+```

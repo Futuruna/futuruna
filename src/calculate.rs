@@ -987,7 +987,7 @@ impl TypeCatalog {
                     if !imported.insert(canonical.clone()) {
                         continue;
                     }
-                    let source = match std::fs::read_to_string(&file_path) {
+                    let source = match read_source_file(Path::new(&file_path)) {
                         Ok(source) => source,
                         Err(error) => {
                             if checked {
@@ -4869,7 +4869,7 @@ impl<'a> CalculationWorker<'a> {
         contract: &CalculationContract,
         case: &CalculationInputCase,
     ) -> CalculationCaseOutcome {
-        let started = Instant::now();
+        let started = trace_clock();
         let decoded = match self.partial {
             Some(_) => contract
                 .decode_partial_input(&case.input)
@@ -5039,8 +5039,14 @@ fn calculation_trace_enabled() -> bool {
         .is_some_and(|value| !value.is_empty() && value != "0" && value != "false")
 }
 
-fn trace_calculation_case(case_id: &str, started: Instant) {
-    if calculation_trace_enabled() {
+/// The start of a traced interval. The clock is read only when tracing is on,
+/// since a host without a clock (WebAssembly in Node) cannot read it.
+fn trace_clock() -> Option<Instant> {
+    calculation_trace_enabled().then(Instant::now)
+}
+
+fn trace_calculation_case(case_id: &str, started: Option<Instant>) {
+    if let Some(started) = started {
         eprintln!(
             "runa calculation case {:?}: {:.3}s",
             case_id,
@@ -5130,7 +5136,7 @@ fn invoke_calculation_batch(
     requested_jobs: Option<usize>,
     partial: Option<partial::PartialMode>,
 ) -> CalculationOutputEnvelope {
-    let started = Instant::now();
+    let started = trace_clock();
     let mut output = CalculationOutputEnvelope {
         futuruna: CalculationEnvelopeMetadata {
             schema: if partial.is_some() {
@@ -5195,7 +5201,7 @@ fn invoke_calculation_batch(
         &rule_dispatch_runtime_boolean_miss_keys,
     );
     primary.partial = partial;
-    let initialized_after = started.elapsed();
+    let initialized_after = started.map(|started| started.elapsed());
     let mut outcomes = if worker_count == 1 {
         invoke_calculation_case_stride(&mut primary, contract, &cases, 0, 1)
     } else {
@@ -5260,7 +5266,7 @@ fn invoke_calculation_batch(
             }
         }
     }
-    if calculation_trace_enabled() {
+    if let (Some(started), Some(initialized_after)) = (started, initialized_after) {
         eprintln!(
             "runa calculation: {} case(s), {} worker(s), initialization {:.3}s, total {:.3}s",
             envelope.cases.len(),
@@ -5901,6 +5907,50 @@ mod calculation_execution_tests {
                 .collect(),
         };
         (statements, contract, envelope)
+    }
+
+    #[test]
+    fn calculation_imports_resolve_against_provided_source_files() {
+        // No such directory exists: every import is served from the
+        // host-provided files, as in the WebAssembly engine.
+        let root = Path::new("/futuruna-provided-sources-test/model/src");
+        crate::provide_source_files([
+            (
+                root.join("rates.runa"),
+                "= rate_bp = 2700\n> taxed(amount: Int) -> Int { amount * rate_bp / 10000 }\n"
+                    .to_string(),
+            ),
+            (
+                root.join("money.runa"),
+                "@ import ./rates\n# Input(amount: Int)\n".to_string(),
+            ),
+        ]);
+        let source =
+            "@ import ./money\n@ calculate\n> tax(input: Input) -> Int { taxed(input.amount) }\n";
+        let source_dir = Some(root.to_string_lossy().into_owned());
+        let statements = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("parse calculation");
+        let contract = extract_calculation_contracts(&statements, source, source_dir.clone())
+            .expect("contract from provided imports")
+            .pop()
+            .expect("calculation contract");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "provided".to_string(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input: serde_json::json!({"amount": 100000}),
+            }],
+        };
+        let output = invoke_calculation_cases(&contract, &statements, source_dir, &envelope);
+        crate::provide_source_files([]);
+        assert!(output.diagnostics.is_empty(), "{output:?}");
+        assert_eq!(output.results[0].result, serde_json::json!(27000));
     }
 
     #[test]

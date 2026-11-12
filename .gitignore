@@ -18,6 +18,8 @@ __pycache__/
 /research/syntax_pareto
 /research/syntax_frontier2
 /research/syntax_stau
+/research/wasm-engine/target/
+/research/wasm-engine/pkg/
 
 # Deploy output
 /deploy/

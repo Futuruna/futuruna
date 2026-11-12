@@ -198,6 +198,12 @@ to obtain a context. Pass it before ordinary arguments where the generated
 TypeScript signature requires `__FutGlobals`, and call `context.free()` when
 finished with the instance.
 
+`runa wasm` builds an ES module for the browser by default (`--target web`).
+`runa wasm --target nodejs` builds a CommonJS package that Node loads with
+`require()`, already initialized; `--target bundler` builds an ES module for
+bundlers. A `String` parameter of a WASM export is a JavaScript string (`&str`
+in Rust); the function works on its own copy.
+
 Stable today:
 
 - exported Futuruna ADTs become public Rust structs/enums
