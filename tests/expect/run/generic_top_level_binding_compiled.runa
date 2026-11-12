@@ -1,0 +1,21 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: Box(value: 3)
+-- expect-stdout: Box(value: Box(value: y))
+-- expect-stdout: Pair(first: 1.5, second: [true, false])
+-- A top-level binding of a generic type, read by functions, keeps its type
+-- arguments: Box(Int), Box(Box(String)) and Pair(Float, Bool).
+# Box(a) = Box(value: a)
+# Pair(a, b) = Pair(first: a, second: List(b))
+
+= boxed = Box(value = 3)
+= nested = Box(value = Box(value = "y"))
+= pair = Pair(first = 1.5, second = [True, False])
+
+> boxed_text() -> String { show(boxed) }
+> nested_text() -> String { show(nested) }
+> pair_text() -> String { show(pair) }
+
+@ print(boxed_text())
+@ print(nested_text())
+@ print(pair_text())

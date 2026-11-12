@@ -204,6 +204,7 @@ fn main_inner() {
     let mut test_file_kind = TestFileKind::All; // --kind flag for `runa test`
     let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
+    let mut wasm_target = WasmTarget::Web; // --target flag for `runa wasm`
     let mut roundtrip_allow_list: Option<String> = None;
     let mut stress_save_failures = None;
     let mut meta_type_filter = None;
@@ -564,6 +565,20 @@ fn main_inner() {
                 roundtrip_allow_list = Some(args[i + 1].clone());
                 i += 2;
             }
+            "--target" if mode == "wasm" => {
+                let Some(value) = args.get(i + 1) else {
+                    eprintln!("error: --target requires web, nodejs or bundler");
+                    std::process::exit(1);
+                };
+                wasm_target = WasmTarget::parse(value).unwrap_or_else(|| {
+                    eprintln!(
+                        "error: invalid --target value '{}'; expected web, nodejs or bundler",
+                        value
+                    );
+                    std::process::exit(1);
+                });
+                i += 2;
+            }
             "--seed" if mode == "stress-gen" => {
                 if i + 1 >= args.len() {
                     eprintln!("error: --seed requires an integer value");
@@ -643,6 +658,7 @@ fn main_inner() {
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  registry      Update the source file's definition-hash registry");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
+                eprintln!("  wasm --target nodejs  Package for require() in Node (default: web)");
                 eprintln!("  check         Parse, type-check, generate, and validate Rust");
                 eprintln!("  check --frontend  Skip Rust generation and backend validation");
                 eprintln!("  schema        Emit a typed @ calculate contract as JSON");
@@ -1262,7 +1278,7 @@ fn main_inner() {
                     "hashes" => show_hashes(&source, path),
                     "interface" => print_semantic_interface_graph(&source, path, use_prelude),
                     "registry" => update_registry(&source, path),
-                    "wasm" => build_wasm(&source, path, use_prelude),
+                    "wasm" => build_wasm(&source, path, use_prelude, wasm_target),
                     "check" => check_source(
                         &source,
                         path,
@@ -5661,8 +5677,37 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
     }
 }
 
+/// The JavaScript module shape `runa wasm` asks wasm-pack for: `web` loads
+/// with an explicit initializer, `nodejs` is a CommonJS package that `require()`
+/// loads synchronously, and `bundler` is an ES module for bundlers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WasmTarget {
+    Web,
+    Nodejs,
+    Bundler,
+}
+
+impl WasmTarget {
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "web" => Some(Self::Web),
+            "nodejs" => Some(Self::Nodejs),
+            "bundler" => Some(Self::Bundler),
+            _ => None,
+        }
+    }
+
+    fn wasm_pack_name(self) -> &'static str {
+        match self {
+            Self::Web => "web",
+            Self::Nodejs => "nodejs",
+            Self::Bundler => "bundler",
+        }
+    }
+}
+
 /// Build Futuruna → WASM via wasm-pack. Generates Cargo project with wasm-bindgen.
-fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
+fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarget) {
     use std::process::Command;
     use std::time::Instant;
 
@@ -5678,6 +5723,14 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             } else {
                 user_stmts
             };
+
+            // The same pre-codegen type check as `runa build`: a type error is
+            // reported against the source, and the checked rule metadata
+            // drives code generation.
+            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
+                std::process::exit(1);
+            }
 
             let mut validation_cg = RustCodegen::new();
             validation_cg.lib_mode = true;
@@ -5701,6 +5754,8 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             let mut cg = RustCodegen::new();
             cg.lib_mode = true;
             cg.wasm_mode = true;
+            cg.install_canonical_rule_metadata(&type_check);
+            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
 
@@ -5784,7 +5839,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 }
             };
             let output = Command::new(&wasm_pack)
-                .args(&["build", "--target", "web", "--release"])
+                .args(["build", "--target", target.wasm_pack_name(), "--release"])
                 .env("PATH", &path_with_cargo)
                 .current_dir(&build_dir)
                 .output();
@@ -33448,7 +33503,7 @@ impl RustCodegen {
     /// Pin the parameter-passing ABI of functions whose callers cannot borrow:
     /// a function used as a value is called through an `Fn(T)` bound and takes
     /// every parameter owned, WASM exports take non-`String` values owned, and
-    /// `runa lib` exports take `String` as `&str`.
+    /// WASM and `runa lib` exports take `String` as `&str`.
     fn constrain_abi_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
         if self.function_values.contains(name) {
             flags.fill(false);
@@ -33468,10 +33523,15 @@ impl RustCodegen {
         }
     }
 
+    /// `String` parameters of a WASM or `runa lib` export are `&str` at the
+    /// boundary; the body works on an owned copy, like every other function.
     fn library_str_param_flags(&self, name: &str, params: &[Param]) -> Vec<bool> {
-        let exported = self.library_export_abi
-            && !self.wasm_mode
-            && self.name_is_exported_in_current_namespace(name);
+        let boundary = if self.wasm_mode {
+            self.current_module_path.is_empty()
+        } else {
+            self.library_export_abi
+        };
+        let exported = boundary && self.name_is_exported_in_current_namespace(name);
         params
             .iter()
             .map(|p| {
@@ -35755,6 +35815,9 @@ fn __futuruna_install_error_hook() {
         if let Some(ty) = ty_ann {
             return self.emit_type(ty);
         }
+        if let Some(instantiated) = self.generic_binding_type(type_env, expr) {
+            return instantiated.unwrap_or_else(|| "impl Clone".to_string());
+        }
 
         let fir_ty = self.infer_expr_fir_ty_with_env(expr, type_env.clone());
         if let Some(rust_ty) = Self::fir_type_to_rust(&fir_ty) {
@@ -35835,6 +35898,150 @@ fn __futuruna_install_error_hook() {
             ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
             ExprKind::Lit(Literal::Bool(_)) => "bool".to_string(),
             _ => "impl Clone".to_string(),
+        }
+    }
+
+    /// The Rust type of a top-level binding built by a constructor of a
+    /// generic ADT, or by a tuple or list of such constructors. A binding
+    /// stored outside `main` needs a complete Rust type, so each type parameter
+    /// is instantiated from the argument bound to a field that mentions it.
+    /// Returns `None` when `expr` builds no generic value, and `Some(None)` when
+    /// an argument leaves a parameter undetermined, since the bare type name is
+    /// not a Rust type.
+    fn generic_binding_type(
+        &self,
+        type_env: &BTreeMap<String, FirTy>,
+        expr: &Expr,
+    ) -> Option<Option<String>> {
+        let (constructor, args): (&str, &[Expr]) = match &expr.kind {
+            ExprKind::Tuple(items) | ExprKind::List(items)
+                if items.iter().any(|item| self.builds_generic_value(item)) =>
+            {
+                let item_types = items
+                    .iter()
+                    .map(|item| {
+                        self.infer_top_level_binding_getter_type_with_env(type_env, None, item)
+                    })
+                    .collect::<Vec<_>>();
+                if item_types.iter().any(|ty| ty == "impl Clone") {
+                    return Some(None);
+                }
+                return Some(Some(match &expr.kind {
+                    ExprKind::Tuple(_) => format!("({})", item_types.join(", ")),
+                    _ => format!("Vec<{}>", item_types[0]),
+                }));
+            }
+            ExprKind::Var(constructor) => (constructor, &[]),
+            ExprKind::App(func, args) => match &func.kind {
+                ExprKind::Var(constructor) => (constructor, args),
+                _ => return None,
+            },
+            _ => return None,
+        };
+        if !self.builds_generic_value(expr) {
+            return None;
+        }
+        let parent = self.types.variant_parent.get(constructor)?;
+        let (params, _) = self.types.type_decls.get(parent)?;
+        let key = (parent.clone(), constructor.to_string());
+        let field_names = self.types.variant_fields_by_parent.get(&key);
+        let field_types = self.types.variant_field_types_by_parent.get(&key);
+        let mut bound = BTreeMap::<String, String>::new();
+        for (index, arg) in args.iter().enumerate() {
+            let (field, value) = match named_arg_parts(arg) {
+                Some((field, value)) => (Some(field.to_string()), value),
+                None => (field_names.and_then(|names| names.get(index).cloned()), arg),
+            };
+            let Some(declared) = field.and_then(|field| field_types?.get(&field)) else {
+                continue;
+            };
+            self.bind_generic_field_type(type_env, declared, value, params, &mut bound);
+        }
+        let arguments = params
+            .iter()
+            .map(|param| bound.get(param).cloned())
+            .collect::<Option<Vec<_>>>();
+        Some(arguments.map(|arguments| format!("{}<{}>", parent, arguments.join(", "))))
+    }
+
+    fn builds_generic_value(&self, expr: &Expr) -> bool {
+        let constructor = match &expr.kind {
+            ExprKind::Tuple(items) | ExprKind::List(items) => {
+                return items.iter().any(|item| self.builds_generic_value(item));
+            }
+            ExprKind::Var(constructor) => constructor,
+            ExprKind::App(func, _) => match &func.kind {
+                ExprKind::Var(constructor) => constructor,
+                _ => return false,
+            },
+            _ => return false,
+        };
+        // `Option` and `Result` are Rust's own types, which FIR inference renders.
+        if matches!(constructor.as_str(), "Some" | "None" | "Ok" | "Err") {
+            return false;
+        }
+        self.types
+            .variant_parent
+            .get(constructor.as_str())
+            .and_then(|parent| self.types.type_decls.get(parent))
+            .is_some_and(|(params, _)| !params.is_empty())
+    }
+
+    fn bind_generic_field_type(
+        &self,
+        type_env: &BTreeMap<String, FirTy>,
+        declared: &Ty,
+        value: &Expr,
+        params: &[String],
+        bound: &mut BTreeMap<String, String>,
+    ) {
+        if let Ty::Name(name) | Ty::Var(name) = declared {
+            if params.contains(name) && !bound.contains_key(name) {
+                let rust_ty =
+                    self.infer_top_level_binding_getter_type_with_env(type_env, None, value);
+                if rust_ty != "impl Clone" {
+                    bound.insert(name.clone(), rust_ty);
+                }
+            }
+            return;
+        }
+        let actual = self.infer_expr_fir_ty_with_env(value, type_env.clone());
+        Self::bind_generic_fir_type(declared, &actual, params, bound);
+    }
+
+    fn bind_generic_fir_type(
+        declared: &Ty,
+        actual: &FirTy,
+        params: &[String],
+        bound: &mut BTreeMap<String, String>,
+    ) {
+        match (declared, actual) {
+            (Ty::Name(name) | Ty::Var(name), actual) if params.contains(name) => {
+                if let Some(rust_ty) = Self::fir_type_to_rust(actual) {
+                    bound.entry(name.clone()).or_insert(rust_ty);
+                }
+            }
+            (Ty::Optional(inner), FirTy::Option(actual)) => {
+                Self::bind_generic_fir_type(inner, actual, params, bound)
+            }
+            (Ty::App(constructor, arguments), actual) => {
+                let Ty::Name(constructor) = constructor.as_ref() else {
+                    return;
+                };
+                let actual_arguments: Vec<&FirTy> = match (constructor.as_str(), actual) {
+                    ("List", FirTy::List(item)) | ("Option", FirTy::Option(item)) => {
+                        vec![item]
+                    }
+                    ("Set", FirTy::Set(item)) => vec![item],
+                    ("Result", FirTy::Result(ok, err)) => vec![ok, err],
+                    ("Map", FirTy::Map(key, value)) => vec![key, value],
+                    _ => return,
+                };
+                for (declared, actual) in arguments.iter().zip(actual_arguments) {
+                    Self::bind_generic_fir_type(declared, actual, params, bound);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -44334,14 +44541,7 @@ fn __futuruna_install_error_hook() {
                             format!("{}: &str", sanitize_name(&p.name))
                         } else if borrow_flags.get(idx).copied().unwrap_or(false) {
                             // Auto-borrow: param is only read, emit &T
-                            let borrowed_ty = if self.wasm_mode
-                                && matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String")
-                            {
-                                "str".to_string()
-                            } else {
-                                ty
-                            };
-                            format!("{}: &{}", sanitize_name(&p.name), borrowed_ty)
+                            format!("{}: &{}", sanitize_name(&p.name), ty)
                         } else if matches!(p.ty.as_ref(), Some(Ty::Arrow(..))) {
                             if !is_fn_once {
                                 // FnMut params called multiple times need `mut`
@@ -44510,13 +44710,6 @@ fn __futuruna_install_error_hook() {
                 };
                 let wasm_attr = if is_wasm_export {
                     if wasm_issues.is_empty() {
-                        // wasm-bindgen needs &str not &String for params
-                        for p in all_params.iter_mut() {
-                            if p.ends_with(": &String") {
-                                let prefix = &p[..p.len() - ": &String".len()];
-                                *p = format!("{}: &str", prefix);
-                            }
-                        }
                         "#[wasm_bindgen]\n"
                     } else {
                         "// wasm: rejected by wasm export validation\n"
@@ -69808,7 +70001,7 @@ routes <- "b"
     }
 
     #[test]
-    fn wasm_exported_string_can_flow_through_private_helper_chain() {
+    fn wasm_exported_string_is_owned_inside_and_borrowed_by_private_helpers() {
         let rust = emit_wasm_program(
             r#"
 > normalize_name(name: String) -> String { trim(name) }
@@ -69817,20 +70010,75 @@ routes <- "b"
 "#,
         );
         assert!(
-            rust.contains("fn normalize_name(name: &str) -> String"),
-            "expected borrowed private string helper to accept &str in wasm mode, got:\n{}",
+            rust.contains("fn normalize_name(name: &String) -> String"),
+            "a private helper borrows String exactly as in native code, got:\n{}",
             rust
         );
         assert!(
-            rust.contains("#[wasm_bindgen]\npub fn greet(name: &str) -> String"),
-            "expected exported string function to accept &str, got:\n{}",
+            rust.contains(
+                "#[wasm_bindgen]\npub fn greet(name: &str) -> String {\n    let name: String = name.to_owned();"
+            ),
+            "the export takes &str at the boundary and owns a copy inside, got:\n{}",
             rust
         );
         assert!(
-            rust.contains("normalize_name(name)"),
-            "expected exported &str param to pass through helper chain without clone workaround, got:\n{}",
+            rust.contains("normalize_name(&name)"),
+            "the owned copy is borrowed by the private helper, got:\n{}",
             rust
         );
+    }
+
+    #[test]
+    fn wasm_private_string_helper_compares_with_literals_as_in_native_code() {
+        let source = r#"
+> kind_code(name: String) -> Int { if name == "FritDepot" { 1 } else { 2 } }
+
+@ export
+> account_code(name: String) -> Int { kind_code(name) }
+"#;
+        let rust = emit_wasm_program(source);
+        assert!(
+            rust.contains("fn kind_code(name: &String) -> i64"),
+            "a borrowed String parameter stays &String, so `*name == \"...\"` compiles: {}",
+            rust
+        );
+        assert!(!rust.contains("fn kind_code(name: &str)"), "{rust}");
+        let native = RustCodegen::new().emit_program(&parse_test_program(source));
+        assert!(
+            native.contains("fn kind_code(name: &String) -> i64"),
+            "{native}"
+        );
+    }
+
+    #[test]
+    fn wasm_top_level_bindings_of_generic_types_carry_type_arguments() {
+        let rust = emit_wasm_program(
+            r#"
+# Box(a) = Box(value: a)
+# Pair(a, b) = Pair(first: a, second: List(b))
+
+= boxed = Box(value = 3)
+= tagged = Box(value = ("x", 2))
+= nested = Box(value = Box(value = "y"))
+= attached = Box(value = (Box(value = 1), Box(value = "s")))
+= listed = [Box(value = 1), Box(value = 2)]
+= pair = Pair(first = 1.5, second = [True, False])
+
+@ export
+> answer(n: Int) -> Int { n + 1 }
+"#,
+        );
+        for field in [
+            "boxed: Option<FuturunaBox<i64>>",
+            "tagged: Option<FuturunaBox<(String, i64)>>",
+            "nested: Option<FuturunaBox<FuturunaBox<String>>>",
+            "attached: Option<FuturunaBox<(FuturunaBox<i64>, FuturunaBox<String>)>>",
+            "listed: Option<Vec<FuturunaBox<i64>>>",
+            "pair: Option<Pair<f64, bool>>",
+        ] {
+            assert!(rust.contains(field), "missing `{field}` in:\n{rust}");
+        }
+        assert!(!rust.contains("Option<FuturunaBox>"), "{rust}");
     }
 
     #[test]
