@@ -1,0 +1,72 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "6b5b2461edf925708a824905841da44bf7de0a998c7a9c3e4e13a79f0ab25987",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "spouse-empty",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "label": "Spouse age",
+            "path": "spouse.age",
+            "question": "How old is your spouse?",
+            "waiting_rule": "household_tax"
+          },
+          {
+            "help": "Answer no when you were separated.",
+            "kind": "fact",
+            "label": "Spouse cohabiting",
+            "path": "spouse.cohabiting",
+            "question": "Did you live with your spouse at the end of the year?",
+            "waiting_rule": "household_tax"
+          },
+          {
+            "kind": "fact",
+            "label": "Spouse income",
+            "path": "spouse.income",
+            "question": "What was your spouse's income?",
+            "unit": "kr",
+            "waiting_rule": "household_tax"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "cohabiting",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "label": "Spouse income",
+            "path": "spouse.income",
+            "question": "What was your spouse's income?",
+            "unit": "kr",
+            "waiting_rule": "household_tax"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "separated",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "label": "Spouse age",
+            "path": "spouse.age",
+            "question": "How old is your spouse?",
+            "waiting_rule": "household_tax"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

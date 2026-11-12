@@ -140,6 +140,22 @@ class InputGuideTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Positional"):
             GUIDE.InputGuide(data).inspect("choice.Present")
 
+    def test_optional_record_members_are_navigable_with_their_metadata(self):
+        data = fixture()
+        member = {"path": "choice.Present.details.value", "label": "Boxed values",
+                  "question": "Which values are boxed?"}
+        data["field_metadata"].append(member)
+        guide = GUIDE.InputGuide(data)
+        parent = guide.inspect("choice.Present.details")
+        self.assertEqual([{"path": "choice.Present.details", "kind": "optional"}], parent["containers"])
+        self.assertEqual([True], [row["has_explicit_metadata"] for row in parent["children"]])
+        self.assertIn(member, parent["field_metadata"])
+        view = guide.inspect("choice.Present.details.value")
+        self.assertTrue(view["node"]["has_explicit_metadata"])
+        self.assertIn(member, view["field_metadata"])
+        with self.assertRaises(ValueError):
+            guide.inspect("choice.Present.details.valeu")
+
     def test_json_reader_preserves_i64_rejects_duplicates_and_nonfinite_values(self):
         with tempfile.TemporaryDirectory(prefix="futuruna-input-guide-test-") as directory:
             path = Path(directory) / "schema.json"

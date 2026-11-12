@@ -1,0 +1,10 @@
+-- pathof reaches through an optional record to its member.
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: spouse.cohabiting
+
+# Spouse(cohabiting: Bool)
+# Household(spouse: Spouse?)
+
+= member_path = pathof(Household::spouse::cohabiting)
+@ print(member_path)

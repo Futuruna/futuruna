@@ -115,9 +115,13 @@ Exact `String`/`pathof(...)` metadata and `refof(...)` rooted at the calculation
 input override projected metadata. Duplicate declarations at the winning
 specificity are errors.
 
-Optional composites remain one canonical JSON field in calculation contract
-v1, so their internal members are not independent projected metadata targets.
-Target the optional JSON field exactly when it needs a label or question.
+Members of optional composites are metadata targets too, at any depth:
+`taxpayer.spouse.cohabiting_at_year_end`,
+`pathof(TaxCase::taxpayer::spouse::cohabiting_at_year_end)`, and
+`refof(Spouse::cohabiting_at_year_end)` projected through `spouse: Spouse?` name
+the same member, with the same precedence and duplicate rules. A path into a
+member the type does not declare is an error. The optional field itself stays
+one input field and can carry its own metadata.
 
 The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
 `path` is a `String` for exact metadata or a structural `ProgramReference` for
@@ -252,9 +256,10 @@ objects are preserved, not summarized into new legal claims.
 does not select that alternative for a person. `containers` identifies lists,
 sets, string-keyed maps and optional values along the path. Collection paths
 describe each element, not a particular row. Optional descendants apply only
-when their enclosing value is present; workbook optional composites still use
-one JSON cell. These are schema-navigation paths, **not JSON Pointers into case
-data**. Use the normal generated template and input encoding when supplying facts.
+when their enclosing value is present; their explicit metadata is listed like
+any other field's, while workbook optional composites still use one JSON cell.
+These are schema-navigation paths, **not JSON Pointers into case data**. Use the
+normal generated template and input encoding when supplying facts.
 
 The default page contains at most 20 children. Follow `page.next_offset` with
 `--offset N` until it is `null`; `--limit` accepts 1–100. Whole-calculation
@@ -424,7 +429,11 @@ complete topology, and column types; `_sheets` records the collection sheets
 actually generated. Do not edit these sheets or delete generated entry sheets.
 Optional composite fields
 and recursive or opaque leaves remain canonical JSON cells when they cannot be
-expanded to a finite unambiguous layout. Cells and child rows belonging to an
+expanded to a finite unambiguous layout. An optional composite's cell note lists
+the label and question of each member with metadata. `_columns` records those
+members' metadata in rows after the column rows: encoding `member`, no sheet,
+the cell's `path`, and the member's `input_path`. Members never become columns
+of their own. Cells and child rows belonging to an
 inactive alternative are rejected.
 
 When an AI or person fills a generated workbook, resolve `$variant` choices
@@ -617,7 +626,7 @@ The output is five ES modules whose only runtime dependency is
 |------|----------|
 | `types.ts` | One type per contract type, in the canonical JSON encoding: records as objects, sum types as unions tagged by `$variant` (positional payloads in `$values`), optional values as `T \| null`, lists and sets as arrays, `Map(String, T)` as an object. Every field carries its label, question, help, unit and source labels as TSDoc. |
 | `schema.ts` | A Zod validator for every type, and `SCHEMA_HASH` per entry. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. |
-| `partial.ts` | `Partial<Type>` for every input type, in which any field may be left out and a record may be `{}`; the `Complete` and `Needs` results of a partial call; `Need` typed by the entry's input paths; and `setAt(case, path, value)`. |
+| `partial.ts` | `Partial<Type>` for every input type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; the `Complete` and `Needs` results of a partial call; `Need` typed by the entry's input paths; and `setAt(case, path, value)`. |
 | `client.ts` | The `EngineTransport` interface, a call and a query function per entry, and the `resolve` loop. |
 | `index.ts` | Re-exports the other modules. |
 

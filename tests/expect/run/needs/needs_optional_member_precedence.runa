@@ -1,0 +1,45 @@
+-- Exact metadata on an optional record's member overrides metadata projected by refof.
+-- expect-command: call
+-- expect-input: needs_optional_member_precedence.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout: "label": "Exact spouse income"
+-- expect-stdout: "help": "Exact metadata overrides projected metadata."
+-- expect-stdout-not: Projected spouse income
+
+# Spouse(income: Int, age: Int, cohabiting: Bool)
+# Household(income: Int, spouse: Spouse?)
+# TaxResult(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# RelativeField(path: ProgramReference, label: String, question: String?)
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# RelativeMeta(fields: List(RelativeField))
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+# impl Meta for RelativeMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = "spouse.income",
+            label = "Exact spouse income",
+            question = Some("What was your spouse's income?"),
+            help = Some("Exact metadata overrides projected metadata."),
+            unit = None
+        )
+    ],
+    attachments = ()
+)
+= spouse_meta = RelativeMeta(fields = [
+    RelativeField(path = refof(Spouse::income), label = "Projected spouse income", question = None)
+])
+
+--@label:household_tax::meta:household_meta--
+--@label:Spouse::meta:spouse_meta--
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = match h.spouse {
+    | None -> 0
+    | Some(s) -> s.income
+})

@@ -329,10 +329,12 @@ the same specificity are ambiguous and fail contract extraction. A typed path
 must be a structural `ProgramMemberReference`; references to rules, functions,
 bindings, or unrelated types are rejected.
 
-An optional composite remains one canonical JSON layout field in contract v1,
-so its internal members are not separate projection targets. Metadata may
-describe that JSON field exactly; flattening optional composites would require
-an adapter encoding for presence and is outside this contract version.
+An optional composite remains one canonical JSON layout field in contract v1;
+flattening it would require an adapter encoding for presence and is outside
+this contract version. Its members are still metadata targets, exact or
+projected, at the same canonical paths a partial case's needs use
+(`taxpayer.spouse.cohabiting_at_year_end`). The workbook keeps the one JSON cell
+and lists the members' labels and questions in that cell's note.
 
 Field metadata cannot add requiredness, alternatives, defaults, or constraints
 that contradict the Futuruna type. It is nevertheless part of the contract hash,

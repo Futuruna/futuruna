@@ -204,8 +204,10 @@ variants.
 - `label`, `question`, `help`, `unit`, `sources`: the contract's
   `field_metadata` for the path with list indices removed
   (`accounts[2].closing_cash_ore` takes the metadata of
-  `accounts.closing_cash_ore`); each is omitted when the metadata does not
-  give it. `sources` are the contract's source references, unchanged;
+  `accounts.closing_cash_ore`; a member of an optional record such as
+  `taxpayer.spouse.cohabiting_at_year_end` has its own entry); each is omitted
+  when the metadata does not give it. `sources` are the contract's source
+  references, unchanged;
 - `waiting_rule`: the innermost rule family evaluating when the path was first
   read; the calculation entry when the value reached the output unread;
 - `entry`, `subject` (entry needs only): the calculation entry that provides

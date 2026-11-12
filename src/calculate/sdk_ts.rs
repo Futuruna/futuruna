@@ -944,6 +944,7 @@ impl<'a> Sdk<'a> {
             );
             let _ = writeln!(out, "export type Partial{name}{parameters} = {{");
             for field in &variant.fields {
+                write_doc(out, "  ", &self.field_doc(definition, variant, field));
                 let _ = writeln!(
                     out,
                     "  {}?: {} | undefined;",
@@ -984,6 +985,11 @@ impl<'a> Sdk<'a> {
             } else {
                 let mut member = format!("  | {{\n      $variant: {tag};\n");
                 for field in &variant.fields {
+                    write_doc(
+                        &mut member,
+                        "      ",
+                        &self.field_doc(definition, variant, field),
+                    );
                     let _ = writeln!(
                         member,
                         "      {}?: {} | undefined;",
@@ -2061,6 +2067,30 @@ mod tests {
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#
         )
+    }
+
+    #[test]
+    fn optional_record_members_carry_their_docs_in_types_and_partial_types() {
+        let files = generate(&format!(
+            r#"{META}
+# Spouse(income: Int, cohabiting: Bool)
+# Household(income: Int, spouse: Spouse?)
+# Result(tax: Int)
+
+= cohabiting_field = CalculationField(path = pathof(Household::spouse::cohabiting), label = "Spouse cohabiting", question = Some("Did you live together at the end of the year?"), help = None, unit = None)
+= household_meta = CalculationMeta(fields = [cohabiting_field], attachments = ())
+--@label:household_tax::meta:household_meta--
+
+@ calculate
+> household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
+"#
+        ));
+        let doc = "  /**\n   * Spouse cohabiting.\n   *\n   * Did you live together at the end of the year?\n   *\n   * Futuruna type: `Bool`.\n   */\n";
+        assert_contains(&files["types.ts"], &format!("{doc}  cohabiting: boolean;"));
+        assert_contains(
+            &files["partial.ts"],
+            &format!("{doc}  cohabiting?: boolean | undefined;"),
+        );
     }
 
     #[test]

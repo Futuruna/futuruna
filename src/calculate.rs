@@ -282,16 +282,17 @@ impl CalculationContract {
                 required: true,
                 choices: Vec::new(),
                 variant_guards: Vec::new(),
-                metadata: self.field_metadata_for_path("input").cloned(),
+                metadata: None,
+                member_metadata: Vec::new(),
             });
         }
         for column in &mut root_columns {
-            column.metadata = self.field_metadata_for_path(&column.input_path).cloned();
+            self.attach_column_metadata(column);
         }
         for table in &mut builder.tables {
             table.metadata = self.field_metadata_for_path(&table.path).cloned();
             for column in &mut table.columns {
-                column.metadata = self.field_metadata_for_path(&column.input_path).cloned();
+                self.attach_column_metadata(column);
             }
         }
         builder.tables.sort_by(|left, right| {
@@ -315,6 +316,17 @@ impl CalculationContract {
         self.field_metadata
             .iter()
             .find(|metadata| metadata.path == path)
+    }
+
+    fn attach_column_metadata(&self, column: &mut CalculationColumn) {
+        column.metadata = self.field_metadata_for_path(&column.input_path).cloned();
+        let members = optional_member_paths(self, column);
+        column.member_metadata = self
+            .field_metadata
+            .iter()
+            .filter(|metadata| members.contains(&metadata.path))
+            .cloned()
+            .collect();
     }
 }
 
@@ -694,6 +706,10 @@ pub struct CalculationColumn {
     pub variant_guards: Vec<CalculationVariantGuard>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<CalculationFieldMetadata>,
+    /// Field metadata of the members inside an optional composite JSON
+    /// column, which stays one cell.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub member_metadata: Vec<CalculationFieldMetadata>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -2556,16 +2572,22 @@ fn contract_field_metadata(
 ) -> Result<Vec<CalculationFieldMetadata>, Vec<Diagnostic>> {
     let layout = contract.input_layout();
     let mut valid_paths = BTreeSet::new();
+    let columns = layout.root_columns.iter().chain(
+        layout
+            .collection_tables
+            .iter()
+            .flat_map(|table| &table.columns),
+    );
+    for column in columns {
+        valid_paths.insert(column.input_path.clone());
+        valid_paths.extend(optional_member_paths(contract, column));
+    }
     valid_paths.extend(
         layout
-            .root_columns
+            .collection_tables
             .iter()
-            .map(|column| column.input_path.clone()),
+            .map(|table| table.path.clone()),
     );
-    for table in &layout.collection_tables {
-        valid_paths.insert(table.path.clone());
-        valid_paths.extend(table.columns.iter().map(|column| column.input_path.clone()));
-    }
 
     let type_occurrence_paths = calculation_type_occurrence_paths(contract);
     let input_type_names = type_occurrence_paths
@@ -3110,6 +3132,100 @@ fn collect_calculation_type_occurrence_paths(
         | CalculationTypeRef::TypeParameter { .. }
         | CalculationTypeRef::Unit => {}
     }
+}
+
+/// The canonical member paths inside an optional composite JSON column, as
+/// `canonical_input_path` writes them: record fields join with `.`, a sum
+/// type's payload sits under its variant name and its tag is `.$variant`,
+/// and collection elements and map values keep their container's path.
+fn optional_member_paths(
+    contract: &CalculationContract,
+    column: &CalculationColumn,
+) -> BTreeSet<String> {
+    let mut paths = BTreeSet::new();
+    if column.encoding != CalculationColumnEncoding::Json
+        || !matches!(column.ty, CalculationTypeRef::Optional { .. })
+    {
+        return paths;
+    }
+    let base = if column.input_path == "input" {
+        ""
+    } else {
+        column.input_path.as_str()
+    };
+    collect_member_paths(
+        &column.ty,
+        contract,
+        &BTreeMap::new(),
+        base,
+        &mut BTreeSet::new(),
+        &mut paths,
+    );
+    paths
+}
+
+fn collect_member_paths(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    substitutions: &BTreeMap<String, CalculationTypeRef>,
+    path: &str,
+    active: &mut BTreeSet<String>,
+    paths: &mut BTreeSet<String>,
+) {
+    match substitute_contract_type(ty, substitutions) {
+        CalculationTypeRef::Optional { item }
+        | CalculationTypeRef::List { item }
+        | CalculationTypeRef::Set { item }
+        | CalculationTypeRef::Map { value: item, .. } => {
+            collect_member_paths(&item, contract, substitutions, path, active, paths)
+        }
+        CalculationTypeRef::Named { name, arguments } => {
+            let Some(definition) = contract.definition(&name) else {
+                return;
+            };
+            if !active.insert(name.clone()) {
+                return;
+            }
+            let local = definition_substitutions(definition, &arguments);
+            let product = product_variant(definition).is_some();
+            if is_payload_sum(definition) {
+                paths.insert(joined_column_path(path, "$variant"));
+            }
+            for variant in &definition.variants {
+                let base = if product {
+                    path.to_string()
+                } else {
+                    joined_column_path(path, &variant.name)
+                };
+                for field in &variant.fields {
+                    let field_path = joined_column_path(&base, &field.name);
+                    // As in the layout, a required payload sum is addressed by
+                    // its `$variant` tag; an optional one also as a whole.
+                    if !payload_sum_type(&substitute_contract_type(&field.ty, &local), contract) {
+                        paths.insert(field_path.clone());
+                    }
+                    collect_member_paths(&field.ty, contract, &local, &field_path, active, paths);
+                }
+            }
+            active.remove(&name);
+        }
+        CalculationTypeRef::Primitive { .. }
+        | CalculationTypeRef::TypeParameter { .. }
+        | CalculationTypeRef::Unit => {}
+    }
+}
+
+fn is_payload_sum(definition: &CalculationTypeDefinition) -> bool {
+    product_variant(definition).is_none()
+        && definition
+            .variants
+            .iter()
+            .any(|variant| !variant.fields.is_empty())
+}
+
+fn payload_sum_type(ty: &CalculationTypeRef, contract: &CalculationContract) -> bool {
+    matches!(ty, CalculationTypeRef::Named { name, .. }
+        if contract.definition(name).is_some_and(is_payload_sum))
 }
 
 fn required_meta_string(
@@ -4335,6 +4451,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                             .collect(),
                         variant_guards: variant_guards.to_vec(),
                         metadata: None,
+                        member_metadata: Vec::new(),
                     });
                 } else if !definition.variants.is_empty() {
                     let discriminator_path = joined_column_path(column_path, "$variant");
@@ -4356,6 +4473,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                             .collect(),
                         variant_guards: variant_guards.to_vec(),
                         metadata: None,
+                        member_metadata: Vec::new(),
                     });
 
                     for variant in &definition.variants {
@@ -4537,6 +4655,7 @@ fn scalar_column(
         },
         variant_guards: variant_guards.to_vec(),
         metadata: None,
+        member_metadata: Vec::new(),
     }
 }
 
@@ -4625,6 +4744,7 @@ fn json_column(
         choices: Vec::new(),
         variant_guards: variant_guards.to_vec(),
         metadata: None,
+        member_metadata: Vec::new(),
     }
 }
 
@@ -5814,6 +5934,78 @@ mod calculation_execution_tests {
                 input,
             }],
         }
+    }
+
+    fn contract_from_source(source: &str) -> CalculationContract {
+        let stmts = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("fixture parses");
+        extract_calculation_contracts(&stmts, source, None)
+            .expect("fixture has a contract")
+            .remove(0)
+    }
+
+    const NEEDS_FACT_SOURCE: &str = include_str!("../tests/expect/run/needs/needs_fact.runa");
+
+    #[test]
+    fn optional_composites_without_member_metadata_keep_their_schema_hash() {
+        let input: JsonValue =
+            serde_json::from_str(include_str!("../tests/expect/run/needs/needs_fact.json"))
+                .expect("fixture input is JSON");
+        let contract = contract_from_source(NEEDS_FACT_SOURCE);
+        assert!(matches!(
+            contract_type_at_path(&contract, "spouse"),
+            Some(CalculationTypeRef::Optional { .. })
+        ));
+        assert_eq!(
+            contract.schema_hash,
+            input["$futuruna"]["schema_hash"].as_str().unwrap()
+        );
+        assert!(contract
+            .input_columns()
+            .iter()
+            .all(|column| column.member_metadata.is_empty()));
+    }
+
+    #[test]
+    fn optional_composite_member_metadata_is_a_contract_entry_and_a_need() {
+        let plain = contract_from_source(NEEDS_FACT_SOURCE);
+        let source = NEEDS_FACT_SOURCE.replace(
+            "pathof(Household::married)",
+            "pathof(Household::spouse::income)",
+        );
+        let contract = contract_from_source(&source);
+        assert_ne!(contract.schema_hash, plain.schema_hash);
+        assert_eq!(
+            contract
+                .field_metadata
+                .iter()
+                .map(|metadata| metadata.path.as_str())
+                .collect::<Vec<_>>(),
+            ["spouse.income"]
+        );
+
+        let columns = contract.input_columns();
+        assert_eq!(columns.len(), plain.input_columns().len());
+        let spouse = columns
+            .iter()
+            .find(|column| column.input_path == "spouse")
+            .expect("the optional spouse stays one column");
+        assert_eq!(spouse.encoding, CalculationColumnEncoding::Json);
+        assert!(spouse.metadata.is_none());
+        assert_eq!(spouse.member_metadata.len(), 1);
+        assert_eq!(spouse.member_metadata[0].path, "spouse.income");
+
+        let need = contract.need_for_path(
+            &serde_json::json!({ "spouse": {} }),
+            "spouse.income".to_string(),
+            "rate".to_string(),
+        );
+        assert_eq!(
+            need.question.as_deref(),
+            Some("Were you married at the end of the year?")
+        );
+        assert_eq!(need.help.as_deref(), Some("Cohabiting spouses only."));
     }
 
     #[test]

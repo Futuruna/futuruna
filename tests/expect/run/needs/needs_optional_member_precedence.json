@@ -1,0 +1,17 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "f64028219c078aaa4c20fda59c15efbfe2b3a5e656e8ff5632f18d114e82b6ea",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "spouse-empty",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "spouse": {}
+      }
+    }
+  ]
+}

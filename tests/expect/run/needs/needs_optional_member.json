@@ -1,0 +1,37 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "6b5b2461edf925708a824905841da44bf7de0a998c7a9c3e4e13a79f0ab25987",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "spouse-empty",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "spouse": {}
+      }
+    },
+    {
+      "case_id": "cohabiting",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "spouse": {
+          "cohabiting": true
+        }
+      }
+    },
+    {
+      "case_id": "separated",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "spouse": {
+          "cohabiting": false
+        }
+      }
+    }
+  ]
+}

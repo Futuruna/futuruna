@@ -2825,25 +2825,9 @@ fn write_calculation_xlsx_layout_metadata(
     tables.set_hidden(true);
 
     let columns = workbook.add_worksheet().set_name("_columns")?;
-    for (column, name) in [
-        "sheet",
-        "table_path",
-        "path",
-        "value_path",
-        "type",
-        "encoding",
-        "required",
-        "choices",
-        "active_when",
-        "input_path",
-        "label",
-        "question",
-        "help",
-        "unit",
-        "sources",
-    ]
-    .into_iter()
-    .enumerate()
+    for (column, name) in CALCULATION_XLSX_COLUMNS_METADATA_HEADER
+        .into_iter()
+        .enumerate()
     {
         columns.write_string_with_format(0, column as u16, name, &header)?;
     }
@@ -2863,6 +2847,24 @@ fn write_calculation_xlsx_layout_metadata(
             )?;
             row += 1;
         }
+    }
+    for (table_path, column, member) in calculation_xlsx_member_metadata(layout) {
+        columns.write_string(row, 0, "")?;
+        columns.write_string(row, 1, table_path)?;
+        columns.write_string(row, 2, &column.path)?;
+        columns.write_string(row, 3, &column.value_path)?;
+        columns.write_string(row, 4, column.ty.display_name())?;
+        columns.write_string(row, 5, CALCULATION_XLSX_MEMBER_ENCODING)?;
+        columns.write_boolean(row, 6, false)?;
+        columns.write_string(row, 7, "")?;
+        columns.write_string(
+            row,
+            8,
+            calculation_variant_guards_metadata(&column.variant_guards),
+        )?;
+        columns.write_string(row, 9, &member.path)?;
+        write_calculation_xlsx_field_metadata(columns, row, 10, Some(member))?;
+        row += 1;
     }
     for (column, width) in [
         24.0, 28.0, 36.0, 36.0, 32.0, 14.0, 12.0, 48.0, 48.0, 48.0, 32.0, 48.0, 64.0, 18.0, 64.0,
@@ -3437,6 +3439,33 @@ fn add_calculation_xlsx_column_note(
                 ));
             }
         }
+    }
+    // Members of an optional composite are entered in this one JSON cell: the
+    // note names each member with metadata, within Excel's note size.
+    let prefix = format!("{}.", column.input_path);
+    let mut length = lines
+        .iter()
+        .map(|line| line.chars().count() + 1)
+        .sum::<usize>();
+    for (index, member) in column.member_metadata.iter().enumerate() {
+        let path = member.path.strip_prefix(&prefix).unwrap_or(&member.path);
+        let mut entry = vec![format!("{path}: {}", member.label)];
+        if let Some(question) = &member.question {
+            entry.push(format!("  Question: {question}"));
+        }
+        let entry_length = entry
+            .iter()
+            .map(|line| line.chars().count() + 1)
+            .sum::<usize>();
+        if length + entry_length > CALCULATION_XLSX_NOTE_MEMBER_BUDGET {
+            lines.push(format!(
+                "… {} more members; `_columns` lists them all.",
+                column.member_metadata.len() - index
+            ));
+            break;
+        }
+        length += entry_length;
+        lines.extend(entry);
     }
     let note = rust_xlsxwriter::Note::new(lines.join("\n")).set_author("Futuruna");
     worksheet.insert_note(1, excel_column, &note)?;
@@ -4452,26 +4481,64 @@ fn calculation_xlsx_expected_tables_metadata(
     rows
 }
 
+const CALCULATION_XLSX_COLUMNS_METADATA_HEADER: [&str; 15] = [
+    "sheet",
+    "table_path",
+    "path",
+    "value_path",
+    "type",
+    "encoding",
+    "required",
+    "choices",
+    "active_when",
+    "input_path",
+    "label",
+    "question",
+    "help",
+    "unit",
+    "sources",
+];
+
+/// `_columns` rows after the column rows, without a sheet, record the field
+/// metadata of members inside an optional composite's one JSON cell.
+const CALCULATION_XLSX_MEMBER_ENCODING: &str = "member";
+
+/// Excel notes hold at most 32,767 characters; leave room for the ellipsis.
+const CALCULATION_XLSX_NOTE_MEMBER_BUDGET: usize = 32_000;
+
+/// The member metadata of every optional composite cell: its table path, its
+/// column, and each member's metadata.
+fn calculation_xlsx_member_metadata(
+    layout: &calculate::CalculationInputLayout,
+) -> impl Iterator<
+    Item = (
+        &str,
+        &calculate::CalculationColumn,
+        &calculate::CalculationFieldMetadata,
+    ),
+> {
+    let root = layout.root_columns.iter().map(|column| ("", column));
+    let tables = layout.collection_tables.iter().flat_map(|table| {
+        table
+            .columns
+            .iter()
+            .map(move |column| (table.path.as_str(), column))
+    });
+    root.chain(tables).flat_map(|(table_path, column)| {
+        column
+            .member_metadata
+            .iter()
+            .map(move |member| (table_path, column, member))
+    })
+}
+
 fn calculation_xlsx_expected_columns_metadata(
     layout: &calculate::CalculationInputLayout,
 ) -> Vec<Vec<String>> {
-    let mut rows = vec![vec![
-        "sheet".to_string(),
-        "table_path".to_string(),
-        "path".to_string(),
-        "value_path".to_string(),
-        "type".to_string(),
-        "encoding".to_string(),
-        "required".to_string(),
-        "choices".to_string(),
-        "active_when".to_string(),
-        "input_path".to_string(),
-        "label".to_string(),
-        "question".to_string(),
-        "help".to_string(),
-        "unit".to_string(),
-        "sources".to_string(),
-    ]];
+    let mut rows = vec![CALCULATION_XLSX_COLUMNS_METADATA_HEADER
+        .iter()
+        .map(|name| name.to_string())
+        .collect::<Vec<_>>()];
     rows.extend(
         layout
             .root_columns
@@ -4485,6 +4552,24 @@ fn calculation_xlsx_expected_columns_metadata(
             }),
         );
     }
+    rows.extend(
+        calculation_xlsx_member_metadata(layout).map(|(table_path, column, member)| {
+            let mut row = vec![
+                String::new(),
+                table_path.to_string(),
+                column.path.clone(),
+                column.value_path.clone(),
+                column.ty.display_name(),
+                CALCULATION_XLSX_MEMBER_ENCODING.to_string(),
+                false.to_string(),
+                String::new(),
+                calculation_variant_guards_metadata(&column.variant_guards),
+                member.path.clone(),
+            ];
+            row.extend(calculation_xlsx_expected_field_metadata(Some(member)));
+            row
+        }),
+    );
     rows
 }
 

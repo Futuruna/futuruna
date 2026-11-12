@@ -1,0 +1,36 @@
+-- A member of an optional record inside a list element is a need with its metadata.
+-- expect-command: call
+-- expect-input: needs_optional_in_list.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout-file: needs_optional_in_list.stdout
+
+# Holder(name: String, share_pct: Int)
+# Account(id: String, closing_ore: Int, joint: Holder?)
+# Household(income: Int, accounts: List(Account))
+# TaxResult(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::accounts::joint::share_pct),
+            label = "Joint holder's share",
+            question = Some("Which share of the account does the joint holder own?"),
+            help = Some("In whole percent."),
+            unit = Some("%")
+        )
+    ],
+    attachments = ()
+)
+
+--@label:household_tax::meta:household_meta--
+
+| account_tax(a: Account) -> match a.joint {
+    | None -> a.closing_ore / 10
+    | Some(j) -> a.closing_ore * (100 - j.share_pct) / 1000
+}
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = foldl(map(h.accounts, |a| account_tax(a)), 0, |total, tax| total + tax))

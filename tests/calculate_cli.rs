@@ -937,36 +937,194 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
         "stderr:\n{symbol_stderr}"
     );
 
-    let optional_composite_path = temp_path("runa");
+    let misspelled_member_path = temp_path("runa");
     std::fs::write(
-        &optional_composite_path,
+        &misspelled_member_path,
         "# Child(age: Int)\n\
 # Input(child: Child?)\n\
 # Result(value: Int)\n\
-# RelativeField(path: ProgramReference, label: String)\n\
-# RelativeMeta(fields: List(RelativeField))\n\
-# impl Meta for RelativeMeta {}\n\
-= child_meta = RelativeMeta(fields = [\n\
-    RelativeField(path = refof(Child::age), label = \"Child age\")\n\
+# ExactField(path: String, label: String)\n\
+# ExactMeta(fields: List(ExactField))\n\
+# impl Meta for ExactMeta {}\n\
+= exact_meta = ExactMeta(fields = [\n\
+    ExactField(path = \"child.agee\", label = \"Child age\")\n\
 ])\n\
---@label:Child::meta:child_meta--\n\
+--@label:calculate::meta:exact_meta--\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
-    .expect("write optional composite metadata source");
-    let optional_composite = run(&[
+    .expect("write misspelled optional member metadata source");
+    let misspelled = run(&[
         "schema",
-        optional_composite_path
+        misspelled_member_path
             .to_str()
-            .expect("optional composite source path"),
+            .expect("misspelled member source path"),
     ]);
-    std::fs::remove_file(&optional_composite_path).ok();
-    assert!(!optional_composite.status.success());
-    let optional_stderr = String::from_utf8_lossy(&optional_composite.stderr);
+    std::fs::remove_file(&misspelled_member_path).ok();
+    assert!(!misspelled.status.success());
+    let misspelled_stderr = String::from_utf8_lossy(&misspelled.stderr);
     assert!(
-        optional_stderr.contains("targets unknown input path `Child::age`"),
-        "stderr:\n{optional_stderr}"
+        misspelled_stderr.contains("targets unknown input path `child.agee`"),
+        "stderr:\n{misspelled_stderr}"
     );
+}
+
+const OPTIONAL_MEMBER_METADATA_SOURCE: &str = "# Child(age: Int, name: String)\n\
+# Input(income: Int, child: Child?)\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String, question: String?)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# impl Meta for RelativeMeta {}\n\
+= child_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(Child::age), label = \"Child age\", question = Some(\"How old is the child?\")),\n\
+    RelativeField(path = refof(Child::name), label = \"Child name\", question = None)\n\
+])\n\
+--@label:Child::meta:child_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.income)\n";
+
+#[test]
+fn schema_projects_relative_metadata_into_optional_composite_members() {
+    let path = temp_path("runa");
+    std::fs::write(&path, OPTIONAL_MEMBER_METADATA_SOURCE)
+        .expect("write optional composite metadata source");
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let paths = schema["field_metadata"]
+        .as_array()
+        .expect("field metadata")
+        .iter()
+        .map(|field| field["path"].as_str().unwrap().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(paths, ["child.age", "child.name"]);
+}
+
+fn xlsx_comment_text(path: &Path) -> String {
+    let file = File::open(path).expect("open XLSX package");
+    let mut archive = zip::ZipArchive::new(file).expect("read XLSX package");
+    let mut text = String::new();
+    for index in 0..archive.len() {
+        let mut part = archive.by_index(index).expect("read XLSX package part");
+        if part.name().starts_with("xl/comments") {
+            part.read_to_string(&mut text)
+                .expect("read comments XML as UTF-8");
+        }
+    }
+    text
+}
+
+#[test]
+fn workbook_keeps_optional_composites_one_cell_and_notes_member_metadata() {
+    let source = temp_path("runa");
+    std::fs::write(&source, OPTIONAL_MEMBER_METADATA_SOURCE)
+        .expect("write optional composite metadata source");
+    let workbook_path = temp_path("xlsx");
+    let refreshed_path = temp_path("xlsx");
+    let model = source.to_str().unwrap();
+    let template = run(&[
+        "template",
+        model,
+        "--output",
+        workbook_path.to_str().unwrap(),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    let mut workbook = open_uncached_workbook(&workbook_path).expect("open workbook");
+    let headers = workbook_headers(&mut workbook, "cases");
+    assert_eq!(headers.len(), 4, "headers: {headers:?}");
+    let columns = workbook.worksheet_range("_columns").expect("_columns");
+    let rows = columns
+        .rows()
+        .map(|row| row.iter().map(ToString::to_string).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    assert_eq!(rows[0].len(), 15, "no extra metadata column: {:?}", rows[0]);
+    let child = rows
+        .iter()
+        .filter(|row| row[9] == "child")
+        .collect::<Vec<_>>();
+    assert_eq!(child.len(), 1, "one child column");
+    assert_eq!(child[0][5], "json");
+    let members = rows
+        .iter()
+        .filter(|row| row[5] == "member")
+        .collect::<Vec<_>>();
+    assert_eq!(members.len(), 2);
+    for (member, (path, label, question)) in members.iter().zip([
+        ("child.age", "Child age", "How old is the child?"),
+        ("child.name", "Child name", ""),
+    ]) {
+        assert_eq!(member[0], "", "a member row is not a sheet column");
+        assert_eq!(
+            member[2], "child",
+            "the member is entered in the child cell"
+        );
+        assert_eq!(
+            (&*member[9], &*member[10], &*member[11]),
+            (path, label, question)
+        );
+    }
+
+    let notes = xlsx_comment_text(&workbook_path);
+    assert!(notes.contains("age: Child age"), "notes:\n{notes}");
+    assert!(
+        notes.contains("Question: How old is the child?"),
+        "notes:\n{notes}"
+    );
+    assert!(notes.contains("name: Child name"), "notes:\n{notes}");
+
+    let refresh = run(&[
+        "template",
+        model,
+        "--input",
+        workbook_path.to_str().unwrap(),
+        "--output",
+        refreshed_path.to_str().unwrap(),
+    ]);
+    std::fs::remove_file(&source).ok();
+    std::fs::remove_file(&workbook_path).ok();
+    std::fs::remove_file(&refreshed_path).ok();
+    assert!(
+        refresh.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&refresh.stderr)
+    );
+}
+
+#[test]
+fn workbook_without_member_metadata_has_no_member_rows() {
+    let workbook_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture().to_str().unwrap(),
+        "--output",
+        workbook_path.to_str().unwrap(),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut workbook = open_uncached_workbook(&workbook_path).expect("open workbook");
+    let columns = workbook.worksheet_range("_columns").expect("_columns");
+    std::fs::remove_file(&workbook_path).ok();
+    let rows = columns
+        .rows()
+        .map(|row| row.iter().map(ToString::to_string).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    assert_eq!(rows[0].len(), 15);
+    assert!(rows
+        .iter()
+        .all(|row| row[5] != "member" && !row[0].is_empty()));
 }
 
 #[test]

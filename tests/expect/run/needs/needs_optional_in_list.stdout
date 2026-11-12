@@ -1,0 +1,27 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "3dd57a5f5adf907d45ad6578767cfb11c0f3eeca9bdea3c284fd3bb647c0b68d",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "joint-holder-empty",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "help": "In whole percent.",
+            "kind": "fact",
+            "label": "Joint holder's share",
+            "path": "accounts[1].joint.share_pct",
+            "question": "Which share of the account does the joint holder own?",
+            "unit": "%",
+            "waiting_rule": "account_tax"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

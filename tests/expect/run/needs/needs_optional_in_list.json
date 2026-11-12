@@ -1,0 +1,30 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "3dd57a5f5adf907d45ad6578767cfb11c0f3eeca9bdea3c284fd3bb647c0b68d",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "joint-holder-empty",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "accounts": [
+          {
+            "id": "a",
+            "closing_ore": 1000,
+            "joint": null
+          },
+          {
+            "id": "b",
+            "closing_ore": 2000,
+            "joint": {
+              "name": "Kim"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
