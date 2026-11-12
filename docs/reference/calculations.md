@@ -3,6 +3,7 @@ feature_stage: mixed
 feature_stage_surfaces:
   - typed-calculation-contracts
   - calculation-needs
+  - typescript-sdk
 ---
 
 # Typed Calculations
@@ -599,3 +600,99 @@ The full format and evolution contract is in
 [Typed calculation contracts](../rfcs/typed-calculation-contracts.md). Partial
 cases and their needs are specified in
 [Calculation needs](../rfcs/calculation-needs.md).
+
+## TypeScript SDK
+
+Experimental. `runa sdk ts` generates a typed TypeScript client from the
+contracts of every `@ calculate` entry in one file:
+
+```sh
+runa sdk ts model.calculate.runa --out sdk/
+```
+
+The output is five ES modules whose only runtime dependency is
+[`zod`](https://zod.dev):
+
+| File | Contents |
+|------|----------|
+| `types.ts` | One type per contract type, in the canonical JSON encoding: records as objects, sum types as unions tagged by `$variant` (positional payloads in `$values`), optional values as `T \| null`, lists and sets as arrays, `Map(String, T)` as an object. Every field carries its label, question, help, unit and source labels as TSDoc. |
+| `schema.ts` | A Zod validator for every type, and `SCHEMA_HASH` per entry. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. |
+| `partial.ts` | `Partial<Type>` for every input type, in which any field may be left out and a record may be `{}`; the `Complete` and `Needs` results of a partial call; `Need` typed by the entry's input paths; and `setAt(case, path, value)`. |
+| `client.ts` | The `EngineTransport` interface, a call and a query function per entry, and the `resolve` loop. |
+| `index.ts` | Re-exports the other modules. |
+
+Each file starts with a header naming the source file and the schema hash of
+every entry. The output depends only on the contracts, so regenerating an
+unchanged model rewrites identical files. A contract type whose name collides
+with a generated name (`Need`, `Complete`, `Needs`, or `Partial`, `Schema` and
+entry-derived names) is an error; rename the type.
+
+### Calls
+
+The SDK reaches an engine only through a transport. Both methods receive the
+JSON document `runa call --input` reads, holding one case marked ready, and
+return the document `runa call` writes, as an object or as JSON text:
+
+```ts
+interface EngineTransport {
+  call(entry: string, input: unknown): Promise<unknown>;
+  callPartial(entry: string, input: unknown): Promise<unknown>;
+}
+```
+
+For an entry `tax_report` with input `TaxCase`:
+
+- `taxReport(transport, input: TaxCase)` validates the input, calls
+  `transport.call`, checks the envelope (schema hash, entry and output schema,
+  where the document has an envelope), and validates the result;
+- `taxReportQuery(transport, input: PartialTaxCase)` does the same through
+  `transport.callPartial` and returns `Complete` with `result` and
+  `unused_paths`, or `Needs` with `needs`.
+
+A failure throws `CalculationError` with `kind` `input`, `output`, `envelope`
+or `diagnostics`, and the validation issues or the engine's diagnostics.
+
+### Partial cases and needs
+
+In a partial case a value is the answer, `{}` is a record whose fields are not
+known yet, `null` is the answer "none", and a field left out is unknown. A sum
+type without `$variant` has an unknown variant.
+
+A need names a concrete input path: record fields join with `.`, list elements
+are `[index]`, map values are `.key`, and a sum type's tag is `.$variant`, as in
+`accounts[2].closing_cash_ore` or `taxpayer.outside_endavu.$variant`. Each
+need carries the field's `label`, `question`, `help`, `unit` and `sources`
+where the contract gives them, and the `waiting_rule`. A need of kind `entry`
+also names the `entry` that provides the value and the `subject` it runs for.
+
+`setAt(case, path, value)` returns a new case with `value` written at a
+concrete path; `taxReportSetAt` is the same, with the value typed by the path.
+`TaxReportInputPaths` maps every concrete path to the type written there, and
+`TaxReportInputPatterns` the same by pattern, with `[]` for any list index and
+`*` for any map key.
+
+### Resolving needs
+
+`resolve(query, initialCase, resolvers)` runs the interview loop. It queries the
+case, gives each need to the resolver registered for its path pattern, writes
+the answers into the case and queries again:
+
+```ts
+const resolvers: TaxReportResolvers = {
+  "accounts[].closing_cash_ore": (need) => answer(ledger.closingCash(need.path)),
+  "taxpayer.married": () => ask,
+};
+const outcome = await resolve((c) => taxReportQuery(transport, c), {}, resolvers);
+if (outcome.$variant === "Complete") report(outcome.result);
+else store(outcome.partialCase, outcome.questions);
+```
+
+A resolver returns `answer(value)`, `ask` for a question only the customer can
+answer, or the resolution of another entry from `context.runEntry(query,
+case, resolvers)`. A need without a resolver is a question. The loop stops
+with `Complete`, or with `Questions` (the questions, entry needs waiting on
+another case's questions, and the partial case) when a round adds no answer.
+It keeps the stack of `(entry, subject)` pairs it runs: a pair that repeats
+throws `ResolveCycleError`, since entries that need each other belong in one
+joint entry. A path the engine still needs after it was answered throws
+`ResolveError`.
