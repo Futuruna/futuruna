@@ -16,6 +16,8 @@ Built into the compiler — no imports needed. Every function here is available 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `show` | `a -> String` | Convert any value to its string representation |
+| `show_int` | `Int -> String` | `show` for an `Int` |
+| `show_float` | `Float -> String` | `show` for a `Float` |
 | `print` | `String -> ()` | Print to stdout (use via `@ print(...)`) |
 
 ```runa
@@ -213,8 +215,6 @@ handling.
 
 = sorted = sort(xs)                       -- [1, 2, 3, 5, 8, 9]
 = words = sort(["banana", "apple", "cherry"])  -- ["apple", "banana", "cherry"]
--- Note: sort is lexicographic. sort([10, 2, 3]) gives [10, 2, 3] because "10" < "2".
--- Use sort_by for numeric sorting: sort_by([10, 2, 3], |x| x) sorts numerically.
 = has_big = any(xs, |x| x > 7)            -- true
 = all_pos = all(xs, |x| x > 0)            -- true
 = found = find(xs, |x| x > 4)             -- Some(5)
@@ -237,6 +237,8 @@ handling.
 | `fst` | `(a, b) -> a` | First element of a tuple/pair |
 | `snd` | `(a, b) -> b` | Second element of a tuple/pair |
 | `trd` | `(a, b, c) -> c` | Third element of a tuple |
+| `pair` | `(a, b) -> (a, b)` | Build a two-element tuple |
+| `triple` | `(a, b, c) -> (a, b, c)` | Build a three-element tuple |
 
 ```runa
 = p = (10, "hello")
@@ -524,11 +526,12 @@ The handler receives three string arguments: request path, HTTP method, and requ
 
 `http_serve` runs only in compiled code (`runa run`, `runa build`). The interpreter refuses it: reaching an `http_serve` call is a runtime error at that point.
 
-The server listens on all interfaces and calls the handler for each request,
-possibly for several requests at once; each call runs on a blocking worker
-thread. The handler may read top-level bindings, directly or through the
-functions it calls: the server shares one copy of them, taken when `http_serve`
-starts, between all requests.
+`http_serve` may be called at the top level or inside a `>` function; the call
+does not return while the server runs. The server listens on all interfaces
+and calls the handler for each request, possibly for several requests at once;
+each call runs on a blocking worker thread. The handler may read top-level
+bindings, directly or through the functions it calls: the server shares one
+copy of them, taken when `http_serve` starts, between all requests.
 
 One bad request never stops the server:
 

@@ -1,0 +1,16 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: pair=(1, a)
+-- expect-stdout: triple=(1, a, true)
+-- expect-stdout: first=1
+-- expect-stdout: int=-42
+-- expect-stdout: float=2.5
+
+= p = pair(1, "a")
+= t = triple(1, "a", true)
+
+@ print("pair=" + show(p))
+@ print("triple=" + show(t))
+@ print("first=" + show(fst(p)))
+@ print("int=" + show_int(0 - 42))
+@ print("float=" + show_float(2.5))

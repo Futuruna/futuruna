@@ -23505,9 +23505,11 @@ fn apply_builtin_template(tpl: &str, args: &[String]) -> String {
     rendered
 }
 
-/// The server behind `http_serve`, emitted into programs that call it. Each
-/// request runs its synchronous handler on a blocking thread; a panic there
-/// fails only that request (HTTP 500), never the server.
+/// The server behind `http_serve`, emitted into programs that call it. The
+/// call blocks: the server runs on its own Tokio runtime, so a function that
+/// calls `http_serve` is an ordinary function. Each request runs its
+/// synchronous handler on a blocking thread; a panic there fails only that
+/// request (HTTP 500), never the server.
 const HTTP_SERVE_RUNTIME: &str = r#"
 const __FUTURUNA_HTTP_BODY_LIMIT: usize = 1 << 20;
 fn __futuruna_http_error(status: u16, message: &str) -> axum::response::Response {
@@ -23572,19 +23574,22 @@ where
         __futuruna_http_error(500, "internal error")
     })
 }
-async fn __futuruna_http_serve<H>(port: i64, handler: H)
+fn __futuruna_http_serve<H>(port: i64, handler: H)
 where
     H: Fn(String, String, String) -> (i64, String, String) + Clone + Send + Sync + 'static,
 {
-    let app = axum::Router::new()
-        .fallback(move |request: axum::extract::Request| {
-            let handler = handler.clone();
-            async move { __futuruna_http_handle(handler, request).await }
-        })
-        .layer(axum::extract::DefaultBodyLimit::max(__FUTURUNA_HTTP_BODY_LIMIT));
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await.expect("Failed to bind");
-    println!("Listening on port {}", port);
-    axum::serve(listener, app).await.unwrap();
+    let runtime = tokio::runtime::Runtime::new().expect("failed to start the HTTP server runtime");
+    runtime.block_on(async move {
+        let app = axum::Router::new()
+            .fallback(move |request: axum::extract::Request| {
+                let handler = handler.clone();
+                async move { __futuruna_http_handle(handler, request).await }
+            })
+            .layer(axum::extract::DefaultBodyLimit::max(__FUTURUNA_HTTP_BODY_LIMIT));
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await.expect("Failed to bind");
+        println!("Listening on port {}", port);
+        axum::serve(listener, app).await.unwrap();
+    });
 }
 "#;
 
@@ -23816,6 +23821,42 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 impure: false,
                 deps: D,
                 rust_tpl: "format!(\"{:?}\", {0})",
+            },
+        ),
+        (
+            "show_int",
+            BuiltinDef {
+                arity: 1,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_show_any(&({0}))",
+            },
+        ),
+        (
+            "show_float",
+            BuiltinDef {
+                arity: 1,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_show_any(&({0}))",
+            },
+        ),
+        (
+            "pair",
+            BuiltinDef {
+                arity: 2,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}, {1})",
+            },
+        ),
+        (
+            "triple",
+            BuiltinDef {
+                arity: 3,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}, {1}, {2})",
             },
         ),
         (
@@ -24061,7 +24102,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 1,
                 impure: true,
                 deps: UREQ,
-                rust_tpl: "{ let __url: String = {0}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().get(&__url).call() { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
+                rust_tpl: "{ let __url: String = {0}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().get(&__url).call() { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else if matches!(__e.kind(), ureq::ErrorKind::Dns) { Err(format!(\"request to {} failed: cannot resolve host\", __url)) } else if matches!(__e.kind(), ureq::ErrorKind::ConnectionFailed) { Err(format!(\"request to {} failed: cannot connect\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
             },
         ),
         (
@@ -24070,7 +24111,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: true,
                 deps: UREQ,
-                rust_tpl: "{ let __url: String = {0}.to_string(); let __body: String = {1}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().post(&__url).send_string(&__body) { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
+                rust_tpl: "{ let __url: String = {0}.to_string(); let __body: String = {1}.to_string(); match ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(30)).build().post(&__url).send_string(&__body) { Ok(__r) if (200..300).contains(&__r.status()) => __r.into_string().map_err(|__e| format!(\"request to {} failed: {}\", __url, __e)), Ok(__r) => Err(format!(\"HTTP {} from {}\", __r.status(), __url)), Err(ureq::Error::Status(__code, _)) => Err(format!(\"HTTP {} from {}\", __code, __url)), Err(__e) => { let __detail = __e.to_string(); if __detail.contains(\"timed out\") { Err(format!(\"request to {} timed out after 30 s\", __url)) } else if matches!(__e.kind(), ureq::ErrorKind::Dns) { Err(format!(\"request to {} failed: cannot resolve host\", __url)) } else if matches!(__e.kind(), ureq::ErrorKind::ConnectionFailed) { Err(format!(\"request to {} failed: cannot connect\", __url)) } else { Err(format!(\"request to {} failed: {}\", __url, __detail)) } } } }",
             },
         ),
         (
@@ -24079,7 +24120,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: true,
                 deps: AXUM,
-                rust_tpl: "__futuruna_http_serve({0}, {1}).await",
+                rust_tpl: "__futuruna_http_serve({0}, {1})",
             },
         ),
         (
@@ -24201,7 +24242,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| __futuruna_key_of(&__key(__item))); __v }",
+                rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| __futuruna_key_of(&__key(__item.clone()))); __v }",
             },
         ),
         (
@@ -25953,7 +25994,8 @@ struct RustCodegen {
     var_fir_types: BTreeMap<String, FirTy>,
     /// Program uses subjects, actors or http_serve: emits the live runtime.
     has_async: bool,
-    /// Program calls `http_serve`: needs the Tokio runtime and an async main.
+    /// Program calls `http_serve` anywhere: emits the server and its Tokio
+    /// dependency.
     needs_tokio: bool,
     /// Variables bound to subjects.
     subject_vars: BTreeSet<String>,
@@ -27840,6 +27882,39 @@ impl<'a> LoweringCtx<'a> {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
                             span: expr.span,
                             ty: fir_args[0].ty.clone(),
+                        };
+                    }
+                    let element_ty = |arg: Option<&FirExpr>| match arg.map(|arg| &arg.ty) {
+                        Some(FirTy::List(item)) => Some(item.as_ref().clone()),
+                        _ => None,
+                    };
+                    let list_result_ty = match fn_name.as_str() {
+                        "enumerate" => element_ty(fir_args.first()).map(|item| {
+                            FirTy::List(Box::new(FirTy::Tuple(vec![FirTy::Int, item])))
+                        }),
+                        "zip" => element_ty(fir_args.first())
+                            .zip(element_ty(fir_args.get(1)))
+                            .map(|(left, right)| {
+                                FirTy::List(Box::new(FirTy::Tuple(vec![left, right])))
+                            }),
+                        "chunked" => element_ty(fir_args.first())
+                            .map(|item| FirTy::List(Box::new(FirTy::List(Box::new(item))))),
+                        "partition" => element_ty(fir_args.first()).map(|item| {
+                            let list = FirTy::List(Box::new(item));
+                            FirTy::Tuple(vec![list.clone(), list])
+                        }),
+                        "list_min" | "list_max" => {
+                            element_ty(fir_args.first()).map(|item| FirTy::Option(Box::new(item)))
+                        }
+                        _ => None,
+                    };
+                    if let Some(ty) = list_result_ty
+                        .filter(|_| !self.types.user_functions.contains(fn_name.as_str()))
+                    {
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty,
                         };
                     }
                     if fn_name == "foldl" && fir_args.len() >= 2 {
@@ -32308,34 +32383,28 @@ impl RustCodegen {
                 if matches!(stmt, Stmt::Defn(Defn::Actor { .. })) {
                     self.has_async = true;
                 }
-                // http_serve with axum needs the Tokio runtime
-                if let Stmt::Expr(Expr {
-                    kind: ExprKind::Effect(name, _),
-                    ..
-                }) = stmt
-                {
-                    if name == "http_serve" {
-                        self.has_async = true;
-                        self.needs_tokio = true;
-                    }
-                }
-                // Also detect http_serve in = bindings (e.g. = _ = http_serve(...))
-                if let Stmt::Bind(
-                    _,
-                    _,
-                    Expr {
-                        kind: ExprKind::App(f, _),
+            }
+            // http_serve, at the top level or in any function body, runs the
+            // server on its own Tokio runtime.
+            let mut serves_http = false;
+            for stmt in stmts {
+                walk_ast_stmt(stmt, &mut |child| match child {
+                    AstChild::Expr(Expr {
+                        kind: ExprKind::Effect(name, _),
                         ..
-                    },
-                ) = stmt
-                {
-                    if let ExprKind::Var(name) = &f.as_ref().kind {
-                        if name == "http_serve" {
-                            self.has_async = true;
-                            self.needs_tokio = true;
-                        }
+                    }) if name == "http_serve" => serves_http = true,
+                    AstChild::Expr(Expr {
+                        kind: ExprKind::App(func, _),
+                        ..
+                    }) if matches!(&func.as_ref().kind, ExprKind::Var(name) if name == "http_serve") => {
+                        serves_http = true
                     }
-                }
+                    _ => {}
+                });
+            }
+            if serves_http {
+                self.has_async = true;
+                self.needs_tokio = true;
             }
             if self.needs_tokio {
                 self.cargo_deps.insert(
@@ -35890,42 +35959,31 @@ fn __futuruna_install_error_hook() {
         if !self.lib_mode {
             // Detect if any main statement uses ? operator
             let uses_try = main_stmts.iter().any(|s| stmt_contains_try(s));
-            // Only `http_serve` needs an async main; subjects, live streams
-            // and actors run on the synchronous live runtime.
-            if self.needs_tokio {
-                if uses_try {
-                    out.push_str("#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
-                } else {
-                    out.push_str("#[tokio::main]\nasync fn main() {\n");
-                }
-                out.push_str("    __futuruna_install_error_hook();\n");
+            // The program runs on a thread whose stack is reserved, not
+            // committed: record values live on the stack, and only the
+            // depth a program reaches uses memory. Subjects, live streams
+            // and actors run on the synchronous live runtime; `http_serve`
+            // blocks on its own Tokio runtime.
+            out.push_str(
+                "const __FUT_RUNTIME_MAIN_STACK_BYTES: [usize; 2] = [1 << 30, 64 << 20];\n\n",
+            );
+            out.push_str("fn __fut_runtime_spawn_main<T: Send + 'static>(body: fn() -> T) -> std::io::Result<std::thread::JoinHandle<T>> {\n");
+            out.push_str("    let mut spawned = Err(std::io::Error::other(\"no stack size\"));\n");
+            out.push_str("    for stack_bytes in __FUT_RUNTIME_MAIN_STACK_BYTES {\n");
+            out.push_str("        spawned = std::thread::Builder::new()\n");
+            out.push_str("            .name(\"futuruna-main\".to_string())\n");
+            out.push_str("            .stack_size(stack_bytes)\n");
+            out.push_str("            .spawn(body);\n");
+            out.push_str("        if spawned.is_ok() {\n");
+            out.push_str("            break;\n");
+            out.push_str("        }\n");
+            out.push_str("    }\n");
+            out.push_str("    spawned\n");
+            out.push_str("}\n\n");
+            if uses_try {
+                out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
             } else {
-                // The program runs on a thread whose stack is reserved, not
-                // committed: record values live on the stack, and only the
-                // depth a program reaches uses memory.
-                out.push_str(
-                    "const __FUT_RUNTIME_MAIN_STACK_BYTES: [usize; 2] = [1 << 30, 64 << 20];\n\n",
-                );
-                out.push_str("fn __fut_runtime_spawn_main<T: Send + 'static>(body: fn() -> T) -> std::io::Result<std::thread::JoinHandle<T>> {\n");
-                out.push_str(
-                    "    let mut spawned = Err(std::io::Error::other(\"no stack size\"));\n",
-                );
-                out.push_str("    for stack_bytes in __FUT_RUNTIME_MAIN_STACK_BYTES {\n");
-                out.push_str("        spawned = std::thread::Builder::new()\n");
-                out.push_str("            .name(\"futuruna-main\".to_string())\n");
-                out.push_str("            .stack_size(stack_bytes)\n");
-                out.push_str("            .spawn(body);\n");
-                out.push_str("        if spawned.is_ok() {\n");
-                out.push_str("            break;\n");
-                out.push_str("        }\n");
-                out.push_str("    }\n");
-                out.push_str("    spawned\n");
-                out.push_str("}\n\n");
-                if uses_try {
-                    out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
-                } else {
-                    out.push_str("fn __fut_runtime_main_inner() {\n");
-                }
+                out.push_str("fn __fut_runtime_main_inner() {\n");
             }
             self.indent = 1;
             let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
@@ -36020,29 +36078,27 @@ fn __futuruna_install_error_hook() {
             self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
             self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
             out.push_str("}\n");
-            if !self.needs_tokio {
-                out.push('\n');
-                if uses_try {
-                    out.push_str(
-                        "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
-                    );
-                    out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)?;\n");
-                    out.push_str("    match __fut_runtime_main.join() {\n");
-                    out.push_str("        Ok(result) => result,\n");
-                    out.push_str("        Err(_) => std::process::exit(1),\n");
-                    out.push_str("    }\n");
-                    out.push_str("}\n");
-                } else {
-                    out.push_str("fn main() {\n");
-                    out.push_str("    __futuruna_install_error_hook();\n");
-                    out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)\n");
-                    out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
-                    out.push_str("    if __fut_runtime_main.join().is_err() {\n");
-                    out.push_str("        std::process::exit(1);\n");
-                    out.push_str("    }\n");
-                    out.push_str("}\n");
-                }
+            out.push('\n');
+            if uses_try {
+                out.push_str(
+                    "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
+                );
+                out.push_str("    __futuruna_install_error_hook();\n");
+                out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)?;\n");
+                out.push_str("    match __fut_runtime_main.join() {\n");
+                out.push_str("        Ok(result) => result,\n");
+                out.push_str("        Err(_) => std::process::exit(1),\n");
+                out.push_str("    }\n");
+                out.push_str("}\n");
+            } else {
+                out.push_str("fn main() {\n");
+                out.push_str("    __futuruna_install_error_hook();\n");
+                out.push_str("    let __fut_runtime_main = __fut_runtime_spawn_main(__fut_runtime_main_inner)\n");
+                out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
+                out.push_str("    if __fut_runtime_main.join().is_err() {\n");
+                out.push_str("        std::process::exit(1);\n");
+                out.push_str("    }\n");
+                out.push_str("}\n");
             }
         }
 
@@ -44242,9 +44298,32 @@ fn __futuruna_install_error_hook() {
                 parameter_names.insert(sanitize_name(&params[index]));
             }
         }
+        // FIR names a generic declared type without its arguments; the
+        // canonical parameter type keeps them (`Box(Int)` -> `FuturunaBox<i64>`).
+        let canonical_parameter_types = canonical_contract_applies
+            .then(|| self.canonical_rule_parameter_types.get(&canonical_key))
+            .flatten()
+            .cloned();
         let inferred_types: Vec<String> = inferred_param_tys
             .iter()
-            .map(|ty| Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
+            .enumerate()
+            .map(|(index, ty)| {
+                let generic_declared = canonical_parameter_types
+                    .as_ref()
+                    .and_then(|types| types.get(index).cloned().flatten())
+                    .and_then(|type_name| parse_type_annotation(&type_name).ok())
+                    .filter(|canonical| {
+                        matches!((ty, canonical), (FirTy::Named(name), Ty::App(head, arguments))
+                            if !arguments.is_empty()
+                                && matches!(head.as_ref(), Ty::Name(head) if head == name))
+                    });
+                match generic_declared {
+                    Some(canonical) => self.emit_type(&canonical),
+                    None => {
+                        Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string())
+                    }
+                }
+            })
             .collect();
         let param_str = params
             .iter()
@@ -47517,11 +47596,170 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// Parameter types for a lambda passed as argument `idx` of a call to a
+    /// declared function whose parameter there is a function type: that
+    /// type, with the callee's type variables bound from the types of the
+    /// other arguments. A parameter whose type stays open gets no seed.
+    /// `None` when the callee is not such a declared function.
+    fn declared_callee_lambda_seeds(
+        &self,
+        func: &Expr,
+        args: &[Expr],
+        idx: usize,
+        params: &[Param],
+    ) -> Option<BTreeMap<String, FirTy>> {
+        let ExprKind::Var(name) = &func.kind else {
+            return None;
+        };
+        if self.local_bindings.contains(name)
+            || self.current_borrow_params.contains(name)
+            || self.closure_params.contains(name)
+        {
+            return None;
+        }
+        let fn_ty = self
+            .types
+            .fn_types_by_arity
+            .get(&(name.clone(), args.len()))?;
+        let mut current = Self::arrow_param_fir_ty(fn_ty, idx)?;
+        let type_vars = self.fir_type_vars_of(fn_ty);
+        let mut bindings = BTreeMap::new();
+        for (j, arg) in args.iter().enumerate() {
+            if j == idx || matches!(arg.kind, ExprKind::Lambda(..)) {
+                continue;
+            }
+            // A generic callee's result still names its own type variables;
+            // such an argument type binds nothing.
+            let actual = self.infer_expr_fir_ty(arg);
+            if !self.fir_type_vars_of(&actual).is_empty() {
+                continue;
+            }
+            if let Some(declared) = Self::arrow_param_fir_ty(fn_ty, j) {
+                Self::bind_fir_type_vars(&declared, &actual, &type_vars, &mut bindings);
+            }
+        }
+        let mut seeds = BTreeMap::new();
+        for param in params {
+            let FirTy::Arrow(from, to) = current else {
+                return None;
+            };
+            let ty = Self::substitute_fir_type_vars(&from, &type_vars, &bindings);
+            if param.ty.is_none() && Self::fir_ty_is_fully_resolved(&ty) {
+                seeds.insert(param.name.clone(), ty);
+            }
+            current = *to;
+        }
+        Some(seeds)
+    }
+
+    /// The type variables of a declared function type: single-letter names
+    /// that are not declared types.
+    fn fir_type_vars_of(&self, ty: &FirTy) -> BTreeSet<String> {
+        fn collect(ty: &FirTy, out: &mut BTreeSet<String>) {
+            match ty {
+                FirTy::Named(name) if name.chars().count() == 1 => {
+                    out.insert(name.clone());
+                }
+                FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                    collect(inner, out)
+                }
+                FirTy::Result(a, b) | FirTy::Map(a, b) | FirTy::Arrow(a, b) => {
+                    collect(a, out);
+                    collect(b, out);
+                }
+                FirTy::Tuple(items) => items.iter().for_each(|item| collect(item, out)),
+                _ => {}
+            }
+        }
+        let mut vars = BTreeSet::new();
+        collect(ty, &mut vars);
+        vars.retain(|name| !self.types.type_decls.contains_key(name));
+        vars
+    }
+
+    /// Bind the type variables of `declared` to the matching parts of
+    /// `actual`. The first closed binding of each variable wins.
+    fn bind_fir_type_vars(
+        declared: &FirTy,
+        actual: &FirTy,
+        type_vars: &BTreeSet<String>,
+        bindings: &mut BTreeMap<String, FirTy>,
+    ) {
+        if let FirTy::Named(var) = declared {
+            if type_vars.contains(var) {
+                if Self::fir_ty_is_fully_resolved(actual) {
+                    bindings
+                        .entry(var.clone())
+                        .or_insert_with(|| actual.clone());
+                }
+                return;
+            }
+        }
+        match (declared, actual) {
+            (FirTy::List(d), FirTy::List(a))
+            | (FirTy::Option(d), FirTy::Option(a))
+            | (FirTy::Set(d), FirTy::Set(a)) => Self::bind_fir_type_vars(d, a, type_vars, bindings),
+            (FirTy::Result(d1, d2), FirTy::Result(a1, a2))
+            | (FirTy::Map(d1, d2), FirTy::Map(a1, a2))
+            | (FirTy::Arrow(d1, d2), FirTy::Arrow(a1, a2)) => {
+                Self::bind_fir_type_vars(d1, a1, type_vars, bindings);
+                Self::bind_fir_type_vars(d2, a2, type_vars, bindings);
+            }
+            (FirTy::Tuple(ds), FirTy::Tuple(as_)) if ds.len() == as_.len() => {
+                for (d, a) in ds.iter().zip(as_) {
+                    Self::bind_fir_type_vars(d, a, type_vars, bindings);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Replace each type variable by its binding; an unbound one is unknown.
+    fn substitute_fir_type_vars(
+        ty: &FirTy,
+        type_vars: &BTreeSet<String>,
+        bindings: &BTreeMap<String, FirTy>,
+    ) -> FirTy {
+        let sub =
+            |inner: &FirTy| Box::new(Self::substitute_fir_type_vars(inner, type_vars, bindings));
+        match ty {
+            FirTy::Named(var) if type_vars.contains(var) => {
+                bindings.get(var).cloned().unwrap_or(FirTy::Unknown)
+            }
+            FirTy::List(inner) => FirTy::List(sub(inner)),
+            FirTy::Option(inner) => FirTy::Option(sub(inner)),
+            FirTy::Set(inner) => FirTy::Set(sub(inner)),
+            FirTy::Result(a, b) => FirTy::Result(sub(a), sub(b)),
+            FirTy::Map(a, b) => FirTy::Map(sub(a), sub(b)),
+            FirTy::Arrow(a, b) => FirTy::Arrow(sub(a), sub(b)),
+            FirTy::Tuple(items) => FirTy::Tuple(
+                items
+                    .iter()
+                    .map(|item| Self::substitute_fir_type_vars(item, type_vars, bindings))
+                    .collect(),
+            ),
+            other => other.clone(),
+        }
+    }
+
     fn emit_lambda_with_seeded_param_tys(
         &mut self,
         params: &[Param],
         body: &Expr,
         seeded_param_tys: &BTreeMap<String, FirTy>,
+    ) -> String {
+        self.emit_lambda_with_param_tys(params, body, seeded_param_tys, true)
+    }
+
+    /// `guess_param_types` lets an unseeded, uninferred parameter take a type
+    /// guessed from its use in the body. A lambda passed to a declared
+    /// function needs no guess: Rust infers it from the parameter's type.
+    fn emit_lambda_with_param_tys(
+        &mut self,
+        params: &[Param],
+        body: &Expr,
+        seeded_param_tys: &BTreeMap<String, FirTy>,
+        guess_param_types: bool,
     ) -> String {
         let param_tys = self.resolve_lambda_param_tys(params, body, seeded_param_tys);
         let ps: Vec<String> = self.with_temporary_param_types(params, &param_tys, |cg| {
@@ -47533,6 +47771,8 @@ fn __futuruna_install_error_hook() {
                         format!("{}: {}", sanitize_name(&p.name), cg.emit_type(ty))
                     } else if !matches!(param_tys[i], FirTy::Unknown | FirTy::Var(_)) {
                         cg.emit_lambda_param_decl(&p.name, &param_tys[i])
+                    } else if !guess_param_types {
+                        sanitize_name(&p.name)
                     } else if {
                         let mut fields = BTreeSet::new();
                         cg.collect_field_accesses(body, &p.name, &mut fields);
@@ -50665,6 +50905,17 @@ fn __futuruna_install_error_hook() {
                             }
                         } else if let Some(expected_ty) = expected_arg_ty.as_ref() {
                             self.emit_expr_with_expected_ty(a, expected_ty)
+                        } else if let ExprKind::Lambda(lambda_params, lambda_body) = &a.kind {
+                            match self.declared_callee_lambda_seeds(func, args, idx, lambda_params)
+                            {
+                                Some(seeds) => self.emit_lambda_with_param_tys(
+                                    lambda_params,
+                                    lambda_body,
+                                    &seeds,
+                                    false,
+                                ),
+                                None => self.emit_expr(a),
+                            }
                         } else {
                             self.emit_expr(a)
                         };
@@ -50733,6 +50984,31 @@ fn __futuruna_install_error_hook() {
                                 } else {
                                     format!("{}.clone()", s)
                                 }
+                            }
+                        } else if let ExprKind::Field(..) = &a.kind {
+                            // Passing `record.field` by value moves the field
+                            // out of the record; a record used again needs
+                            // its own copy of the field.
+                            let mut root = a;
+                            while let ExprKind::Field(base, _) = &root.kind {
+                                root = base;
+                            }
+                            let root_reused = match &root.kind {
+                                ExprKind::Var(n) => {
+                                    (self.in_iter_closure
+                                        && !self.closure_params.contains(n.as_str()))
+                                        || self.var_use_counts.get(n).copied().unwrap_or(2) > 1
+                                }
+                                _ => false,
+                            };
+                            if root_reused
+                                && !is_borrow_call
+                                && !s.ends_with(".clone()")
+                                && !Self::fir_ty_is_copy(&self.infer_expr_fir_ty(a))
+                            {
+                                format!("{}.clone()", s)
+                            } else {
+                                s
                             }
                         } else {
                             s
@@ -51002,6 +51278,16 @@ fn __futuruna_install_error_hook() {
                             } else {
                                 sanitize_name(&params[0].name)
                             };
+                            // A declared parameter type is kept: Rust cannot
+                            // infer it for a collection such as `[[]]`.
+                            let declared_param_ty = params
+                                .first()
+                                .and_then(|param| param.ty.as_ref())
+                                .map(|ty| self.emit_type(ty));
+                            let (owned_param, borrowed_param) = match &declared_param_ty {
+                                Some(ty) => (format!("{param}: {ty}"), format!("{param}: &{ty}")),
+                                None => (param.clone(), param.clone()),
+                            };
                             let body_code =
                                 self.with_lambda_param_scope(params, &param_tys, body, |cg| {
                                     cg.emit_expr(body)
@@ -51055,23 +51341,23 @@ fn __futuruna_install_error_hook() {
                                     self.collection_predicate_code(name, &args[1], body_code);
                                 return format!(
                                     "{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
-                                    coll, param, clone_prefix, param, param, body_code
+                                    coll, borrowed_param, clone_prefix, param, param, body_code
                                 );
                             } else if name == "partition" {
                                 return format!(
                                     "{{ let (__yes, __no): (Vec<_>, Vec<_>) = {}.clone().into_iter().partition(|{}| {{ {} let {} = {}.clone(); {} }}); (__yes, __no) }}",
-                                    coll, param, clone_prefix, param, param, body_code
+                                    coll, borrowed_param, clone_prefix, param, param, body_code
                                 );
                             } else {
                                 if clone_prefix.is_empty() {
                                     return format!(
                                         "{}.clone().into_iter().map(|{}| {}).collect::<Vec<_>>()",
-                                        coll, param, body_code
+                                        coll, owned_param, body_code
                                     );
                                 } else {
                                     return format!(
                                         "{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()",
-                                        coll, param, clone_prefix, body_code
+                                        coll, owned_param, clone_prefix, body_code
                                     );
                                 }
                             }

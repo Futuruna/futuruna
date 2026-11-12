@@ -1,0 +1,27 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: best=b
+-- expect-stdout: kept=2
+-- Passing a record's field to a rule or a value-taking function leaves the
+-- record whole for its later use.
+
+# Facts(a: Bool, b: Bool)
+# Case(facts: Facts, name: String)
+
+| similar(x: Facts, y: Facts) -> if x.a == y.a { 1 } else { 0 }
+> kept(x: Facts, y: Facts) -> Int {
+    = both = [x, y]
+    length(both)
+}
+
+= ours = Facts(a = true, b = false)
+= cases = [Case(facts = Facts(a = false, b = true), name = "a"), Case(facts = Facts(a = true, b = true), name = "b")]
+
+| best() -> foldl(cases, head(cases), |b: Case, k: Case| if similar(k.facts, ours) > similar(b.facts, ours) { k } else { b })
+> keep_case(c: Case) -> Case {
+    = n = kept(c.facts, ours)
+    if n > 0 { c } else { c }
+}
+
+@ print("best=" + best().name)
+@ print("kept=" + show(kept(keep_case(head(cases)).facts, ours)))

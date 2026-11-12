@@ -1,0 +1,17 @@
+-- expect-command: check
+-- expect-status: pass
+
+# Item(count: Int, price: Float)
+> name() -> String { "widget" }
+| size_label(n: Int) -> "small"
+> total(item: Item) -> Float {
+    = n: Int = item.count
+    = scale: Float = if n > 1 { 2.0 } else { 1.0 }
+    = kind: String = match n { | 0 -> "none" | _ -> size_label(n) }
+    to_float(n) * item.price * scale
+}
+= title: String = name()
+= label: String = size_label(3)
+= count: Int = length([1, 2, 3])
+= first: Int = head([1, 2])
+@ print(title + " " + label + " " + show(count) + " " + show(total(Item(count = 2, price = 1.5))))

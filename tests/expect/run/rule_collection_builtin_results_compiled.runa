@@ -1,0 +1,28 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: doubled=[2, 4]
+-- expect-stdout: twice=[1, 1, 2, 2]
+-- expect-stdout: lookup=Some(1)
+-- expect-stdout: keys=[a, b]
+-- expect-stdout: entries=[(a, 1)]
+-- expect-stdout: indexed=[(0, x), (1, y)]
+-- expect-stdout: zipped=[(a, 1)]
+-- expect-stdout: letter=b
+
+| doubled(n: Int) -> map([1, 2], |x| x * n)
+| twice() -> flat_map([1, 2], |x| [x, x])
+| lookup() -> map_get(map_from([("a", 1)]), "a")
+| keys() -> map_keys(map_from([("b", 2), ("a", 1)]))
+| entries() -> map_entries(map_from([("a", 1)]))
+| indexed() -> enumerate(["x", "y"])
+| zipped() -> zip(["a"], [1])
+| letter() -> char_at("abc", 1)
+
+@ print("doubled=" + show(doubled(2)))
+@ print("twice=" + show(twice()))
+@ print("lookup=" + show(lookup()))
+@ print("keys=" + show(keys()))
+@ print("entries=" + show(entries()))
+@ print("indexed=" + show(indexed()))
+@ print("zipped=" + show(zipped()))
+@ print("letter=" + letter())

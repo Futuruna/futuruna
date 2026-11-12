@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: type mismatch: binding expects `Bool` but expression has `Float`
+-- expect-stderr: declared_binding_type_literal.runa:6:
+
+= ready: Bool = 1.5
+@ print(show(ready))

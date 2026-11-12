@@ -1,0 +1,35 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: names=[a, b]
+-- expect-stdout: seconds=[x, y]
+-- expect-stdout: countries=[DK, US]
+-- expect-stdout: lengths=[a, cc, bbb]
+-- expect-stdout: keyed=[a, b]
+
+# Instrument(isin: String, issuer_country: String)
+# StateDividends(issuer_country: String, gross: Int)
+
+> sorted_by_key(items: List(a), key: a -> String) -> List(a) {
+    sort_by(items, |item| key(item))
+}
+> keys(items: List(a), key: a -> String) -> List(String) {
+    map(items, |item| key(item))
+}
+> sorted_by_value(items: List(a), key: a -> Int) -> List(a) {
+    sort_by(items, key)
+}
+> sorted_by_name(items: List(a), key: a -> String) -> List(a) {
+    sort_by(items, key)
+}
+> name_of(text: String) -> String { text }
+
+= dividends = [
+    StateDividends(issuer_country = "US", gross = 1),
+    StateDividends(issuer_country = "DK", gross = 2),
+]
+
+@ print("names=" + show(sorted_by_key(["b", "a"], |s| s)))
+@ print("seconds=" + show(keys(enumerate(["x", "y"]), |p| snd(p))))
+@ print("countries=" + show(keys(sorted_by_key(dividends, |d| d.issuer_country), |d| d.issuer_country)))
+@ print("lengths=" + show(sorted_by_value(["bbb", "a", "cc"], |s| string_length(s))))
+@ print("keyed=" + show(sorted_by_name(["b", "a"], name_of)))

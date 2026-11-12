@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: Float values cannot be Map keys or Set elements
+-- expect-stderr: float_tuple_map_key.runa:6:
+
+= m = map_from([(1.5, "a")])
+@ print(show(map_len(m)))
