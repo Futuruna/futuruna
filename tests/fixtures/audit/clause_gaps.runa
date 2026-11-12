@@ -1,0 +1,16 @@
+-- Clause coverage: inputs that no clause of a partial value family covers.
+
+-- Nothing covers zero.
+| sign(x: Int) -> 1 under x > 0
+| sign(x: Int) -> -1 under x < 0
+
+-- A RuleScope rule with the same gap, over its fields.
+# Share(own: Int, spouse: Int) {
+    | tax() -> own under own > 0
+    | exception negative tax() -> 0 - own under own < 0
+}
+
+-- The `Divorced` variant has no clause.
+# Status = Single | Married | Divorced
+| allowance(Single) -> 100
+| allowance(Married) -> 200

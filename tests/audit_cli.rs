@@ -521,3 +521,127 @@ fn clause_audit_says_it_did_not_run_without_z3() {
     );
     assert!(!stdout.contains("Unreachable clause in"), "{stdout}");
 }
+
+#[test]
+fn clause_audit_reports_gaps_with_a_witness() {
+    let fixture = topology_fixture("clause_gaps.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("0 overlapping guards, 3 clause gap"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Findings: 0 unreachable clause, 0 overlapping guards, 3 gap"),
+        "{stdout}"
+    );
+
+    // `> 0` and `< 0` leave exactly 0.
+    let sign = finding_block(&stdout, "Gap in sign/1: ");
+    assert!(
+        sign.contains("clause_gaps.runa:4 (guarded default)")
+            && sign.contains("clause_gaps.runa:5 (guarded default)"),
+        "{sign}"
+    );
+    assert!(sign.contains("Witness: x = 0\n"), "{sign}");
+    assert!(sign.contains("no value rule matched"), "{sign}");
+
+    // A RuleScope witness names each field.
+    let tax = finding_block(&stdout, "Gap in Share.tax/0: ");
+    assert!(
+        tax.contains("clause_gaps.runa:10 (exception)")
+            && tax.contains("clause_gaps.runa:9 (guarded default)"),
+        "{tax}"
+    );
+    let witness = tax
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("Witness: "))
+        .unwrap_or_else(|| panic!("missing witness:\n{tax}"));
+    assert!(witness.starts_with("self.own = 0, self.spouse = "), "{tax}");
+
+    // A variant without a clause.
+    let allowance = finding_block(&stdout, "Gap in allowance/1: ");
+    assert!(allowance.contains("= Divorced\n"), "{allowance}");
+}
+
+#[test]
+fn clause_audit_reports_no_gap_for_covered_families() {
+    let fixture = topology_fixture("clause_gaps_covered.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    // An unguarded default, guards that cover every Int, an exception over
+    // covering clauses, an exception that covers the rest, every variant,
+    // and Boolean rules (false on a miss).
+    assert!(
+        stdout.contains("7 rule families, 13 clauses: 13 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Findings: 0 unreachable clause, 0 overlapping guards, 0 gap"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("Gap in "), "{stdout}");
+    assert!(!stdout.contains("Gaps not checked"), "{stdout}");
+    assert!(
+        stdout.contains("No structural findings discovered."),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn clause_audit_does_not_check_gaps_past_an_untranslatable_guard() {
+    let fixture = topology_fixture("clause_gaps_untranslatable.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("1 rule family, 2 clauses: 1 analyzed, 1 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("Gap in mixed/2"), "{stdout}");
+    let not_checked = finding_block(&stdout, "Gaps not checked (coverage unknown):");
+    assert!(
+        not_checked.contains("mixed/2: the guard of ")
+            && not_checked.contains("clause_gaps_untranslatable.runa:6 is not translatable"),
+        "{not_checked}"
+    );
+}
+
+#[test]
+fn clause_audit_json_reports_gaps() {
+    let fixture = topology_fixture("clause_gaps.calculate.runa");
+    let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = parse_stdout(&output);
+    let clauses = &report["clause_reachability"];
+    if !z3_available() {
+        assert_eq!(clauses["status"], "not_run", "{clauses}");
+        return;
+    }
+    assert_eq!(clauses["summary"]["gaps"], 1, "{clauses}");
+    assert_eq!(clauses["summary"]["gap_not_checked"], 0, "{clauses}");
+    let findings = clauses["findings"].as_array().expect("findings");
+    assert_eq!(findings.len(), 1, "{clauses}");
+    let gap = &findings[0];
+    assert_eq!(gap["kind"], "gap");
+    assert_eq!(gap["family"], "ShareTax.tax_ore/0");
+    assert_eq!(gap["witness"], serde_json::json!({ "self.own_ore": "0" }));
+    let locations = gap["clauses"].as_array().expect("clauses");
+    assert_eq!(locations.len(), 2, "{gap}");
+    assert_eq!(locations[0]["tier"], "exception", "{gap}");
+    assert_eq!(locations[0]["line"], 5, "{gap}");
+    assert_eq!(locations[1]["tier"], "guarded_default", "{gap}");
+    assert_eq!(locations[1]["line"], 4, "{gap}");
+}

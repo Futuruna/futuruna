@@ -6342,7 +6342,9 @@ fn rule_head_is_irrefutable(rule: &Rule) -> bool {
     }
 }
 
-fn rule_dispatch_candidate_is_total(rule: &Rule, return_type: &str) -> bool {
+/// Whether a candidate selects a value for every argument once dispatch
+/// reaches it: an irrefutable head with no guard.
+pub fn rule_dispatch_candidate_is_total(rule: &Rule, return_type: &str) -> bool {
     rule_head_is_irrefutable(rule)
         && match rule {
             Rule::Exception {

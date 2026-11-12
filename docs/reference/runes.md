@@ -342,10 +342,10 @@ incomplete``. Interpreted and compiled programs apply the same limit.
 Rules are evaluated by priority tier: exceptions, guarded defaults, ordinary
 clauses, then an unguarded default. Within one tier, source order is
 authoritative and the first applicable rule wins. Put the more specific of two
-overlapping guards first; `runa audit` reports clauses that can never fire and
-same-tier guards that overlap with different results (see
-[Auditing clause reachability](#auditing-clause-reachability)). `under` adds a
-guard condition. `exception <label>`
+overlapping guards first; `runa audit` reports clauses that can never fire,
+same-tier guards that overlap with different results, and inputs no clause
+covers (see [Auditing clause reachability](#auditing-clause-reachability)).
+`under` adds a guard condition. `exception <label>`
 places the rule in the exception tier for the same head. The label (here
 `heatwave`) names the exception for readability and debugging; it does not
 affect priority. Write both the label and the named call:
@@ -862,6 +862,14 @@ audited file, imported clauses of that family included:
   special case of a later one (a specific head pattern before a general one,
   `x > 1000` before `x > 0`) is ordinary first-match refinement and is not
   reported, and an unreachable clause is reported only as unreachable.
+- **Gap.** Some input makes no candidate of a value rule apply, so a call with
+  it stops with `no value rule matched`. The report lists the family's clauses
+  in dispatch order and a witness input: each argument and, for a RuleScope
+  rule, each field as `self.<field>`. Values the gap does not depend on are
+  shown as `0`, `false` or `""` where the solver allows it. A family with an
+  unguarded candidate (a head without patterns or guard) has no gap;
+  exceptions and guarded defaults count like any other clause. A Boolean rule
+  that answers `False` when no clause applies (see above) has no gap either.
 
 ```runa
 | band(x: Int) -> 0
@@ -870,13 +878,29 @@ audited file, imported clauses of that family included:
 | rate(x: Int) -> 1                     -- unreachable: the two guards cover every Int
 | rate(x: Int) -> 2 under x > 10
 | rate(x: Int) -> 3 under x < 20        -- overlaps the guard above, witness x = 11
+| sign(x: Int) -> 1 under x > 0         -- gap: no clause covers x = 0
+| sign(x: Int) -> -1 under x < 0
 ```
 
 A clause reported unreachable never fires for any value of the family's
-arguments and RuleScope fields (Int ranges over the 64-bit values); top-level
-bindings keep their declared values. A Boolean clause whose body is the literal
-`false` only marks a matched head and is not audited. Guards outside the
-translatable subset (the same limits as `runa verify`, plus Float and other
-values the encoding does not represent) are listed as not analyzed and counted
-in the summary, never guessed. When Z3 is missing the report says the check did
-not run.
+arguments and RuleScope fields, and a gap's witness is such a value that every
+clause misses (Int ranges over the 64-bit values); top-level bindings keep their
+declared values. The audit does not know which inputs a model admits: a gap
+outside the values a calculation accepts is still reported, and closing it with
+a clause or an unguarded default records the decision. A Boolean clause whose
+body is the literal `false` only marks a matched head and is not audited. Guards
+outside the translatable subset (the same limits as `runa verify`, plus Float
+and other values the encoding does not represent) are listed as not analyzed and
+counted in the summary, never guessed; a family with such a guard is listed
+under gaps not checked, since that guard may cover the input. When Z3 is missing
+the report says the check did not run.
+
+The findings are a review report and do not change the exit status of
+`runa audit`. The gate for CI is `runa verify`, which exits 1 for a claim that
+reaches a family without an unconditional value; the skipped claim names the
+input that family leaves uncovered when the solver finds one:
+
+```text
+  ? SMT fallback skipped: partial rule dispatch for `sign` has no unconditional value for SMT
+    Gap in sign/1: no clause applies to x = 0
+```

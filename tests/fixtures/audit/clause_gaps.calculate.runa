@@ -1,0 +1,16 @@
+-- Clause coverage in a calculation: nothing covers a share income of 0.
+
+# ShareTax(own_ore: Int) {
+    | tax_ore() -> own_ore / 4 under own_ore > 0
+    | exception negative_share_income tax_ore() -> own_ore / 4 under own_ore < 0
+}
+
+-- The guards cover every Int, so this family has no gap.
+| band(x: Int) -> 1 under x >= 0
+| band(x: Int) -> 2 under x < 0
+
+# Input(own_ore: Int)
+# Output(tax_ore: Int, band: Int)
+
+@ calculate("Clause coverage fixture")
+| share_tax(input: Input) -> Output(tax_ore = ShareTax(own_ore = input.own_ore).tax_ore(), band = band(input.own_ore))

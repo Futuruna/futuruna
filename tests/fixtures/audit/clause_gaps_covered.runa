@@ -1,0 +1,27 @@
+-- Clause coverage: families that cover every input.
+
+-- An unguarded default covers whatever the guards leave.
+| rate(x: Int) -> 0
+| rate(x: Int) -> 5 under x > 10
+
+-- The guards together cover every Int.
+| sign(x: Int) -> 1 under x >= 0
+| sign(x: Int) -> -1 under x < 0
+
+-- An exception takes one value; the clauses below it still cover every Int.
+| fee(x: Int) -> 1 under x >= 0
+| fee(x: Int) -> 2 under x < 0
+| exception waived fee(x: Int) -> 0 under x == 7
+
+-- An exception covers what the clause leaves.
+| bonus(x: Int) -> 10 under x > 0
+| exception no_bonus bonus(x: Int) -> 0 under x <= 0
+
+-- Every variant has a clause.
+# Status = Single | Married
+| allowance(Single) -> 100
+| allowance(Married) -> 200
+
+-- Boolean rules answer false when no clause applies.
+| adult(age: Int) -> true under age >= 18
+| unmarried(status: Status) -> status != Married

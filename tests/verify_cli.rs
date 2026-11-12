@@ -352,6 +352,11 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             ),
             "partial rules must fail closed with a precise diagnostic:\n{stdout}"
         );
+        let section = invariant_section(&stdout, "partial_dispatch_is_rejected");
+        assert!(
+            section.contains("Gap in partial_value/1: no clause applies to amount = 0"),
+            "a skipped partial dispatch must name the input it leaves uncovered:\n{section}"
+        );
         assert!(
             stdout.contains(
                 "recursive rule dispatch for `recursive_value` is not yet translatable to SMT"

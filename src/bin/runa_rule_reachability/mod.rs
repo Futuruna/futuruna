@@ -1,13 +1,14 @@
-//! Clause reachability for `runa audit`.
+//! Clause reachability and coverage for `runa audit`.
 //!
 //! A rule family (scope, name, arity) dispatches its candidates in priority
 //! order: exceptions, guarded defaults (`under`), ordinary clauses, then
 //! unguarded defaults; inside a tier, the first applicable candidate in source
 //! order wins. For every family declared in the audited source this module
 //! asks Z3, through the `runa verify` SMT encoding of rule groups, whether a
-//! candidate can ever be selected and whether two candidates of one tier can
-//! both apply with different results. Guards outside that encoding are
-//! reported as not analyzed, never approximated.
+//! candidate can ever be selected, whether two candidates of one tier can
+//! both apply with different results, and, for a partial value family,
+//! whether some input makes no candidate apply. Guards outside that encoding
+//! are reported as not analyzed, never approximated.
 use super::*;
 use std::collections::HashMap;
 
@@ -75,6 +76,13 @@ pub(super) enum ClauseFindingKind {
         with: ClauseLocation,
         witness: Option<Vec<(String, String)>>,
     },
+    /// Some input makes no candidate of a partial value family apply, so a
+    /// call with it stops with "no value rule matched". `clauses` lists every
+    /// candidate in dispatch order.
+    Gap {
+        clauses: Vec<ClauseLocation>,
+        witness: Option<Vec<(String, String)>>,
+    },
 }
 
 pub(super) struct ClauseFinding {
@@ -86,6 +94,12 @@ pub(super) struct ClauseFinding {
 pub(super) struct SkippedClause {
     family: String,
     clause: ClauseLocation,
+    reason: String,
+}
+
+/// A family whose coverage (gap check) was not decided.
+pub(super) struct SkippedFamily {
+    family: String,
     reason: String,
 }
 
@@ -102,16 +116,29 @@ pub(super) enum ClauseReachabilityReport {
         /// Clauses whose reachability was decided but whose overlap with an
         /// earlier same-tier clause could not be checked.
         overlap_not_checked: Vec<SkippedClause>,
+        /// Partial value families whose coverage was not decided.
+        gap_not_checked: Vec<SkippedFamily>,
+        /// Families whose coverage the solver decided (gap or covered).
+        coverage_decided: BTreeSet<String>,
     },
 }
 
 impl ClauseReachabilityReport {
     pub(super) fn unreachable_count(&self) -> usize {
-        self.count(|kind| !matches!(kind, ClauseFindingKind::Overlap { .. }))
+        self.count(|kind| {
+            matches!(
+                kind,
+                ClauseFindingKind::Shadowed { .. } | ClauseFindingKind::UnsatisfiableGuard
+            )
+        })
     }
 
     pub(super) fn overlap_count(&self) -> usize {
         self.count(|kind| matches!(kind, ClauseFindingKind::Overlap { .. }))
+    }
+
+    pub(super) fn gap_count(&self) -> usize {
+        self.count(|kind| matches!(kind, ClauseFindingKind::Gap { .. }))
     }
 
     fn count(&self, predicate: impl Fn(&ClauseFindingKind) -> bool) -> usize {
@@ -127,29 +154,33 @@ impl ClauseReachabilityReport {
     pub(super) fn print(&self) {
         println!("── Clause Reachability ──");
         println!();
-        let (families, clauses, findings, not_analyzed, overlap_not_checked) = match self {
-            Self::NotRun { reason } => {
-                println!("  Not run: {}", reason);
-                println!(
-                    "  No clause was analyzed; unreachable clauses and overlapping guards are unknown."
-                );
-                println!();
-                return;
-            }
-            Self::Ran {
-                families,
-                clauses,
-                findings,
-                not_analyzed,
-                overlap_not_checked,
-            } => (
-                families,
-                clauses,
-                findings,
-                not_analyzed,
-                overlap_not_checked,
-            ),
-        };
+        let (families, clauses, findings, not_analyzed, overlap_not_checked, gap_not_checked) =
+            match self {
+                Self::NotRun { reason } => {
+                    println!("  Not run: {}", reason);
+                    println!(
+                        "  No clause was analyzed; unreachable clauses, overlapping guards and gaps are unknown."
+                    );
+                    println!();
+                    return;
+                }
+                Self::Ran {
+                    families,
+                    clauses,
+                    findings,
+                    not_analyzed,
+                    overlap_not_checked,
+                    gap_not_checked,
+                    ..
+                } => (
+                    families,
+                    clauses,
+                    findings,
+                    not_analyzed,
+                    overlap_not_checked,
+                    gap_not_checked,
+                ),
+            };
         println!(
             "  {} rule famil{}, {} clause{}: {} analyzed, {} not analyzed",
             families,
@@ -160,9 +191,10 @@ impl ClauseReachabilityReport {
             not_analyzed.len()
         );
         println!(
-            "  Findings: {} unreachable clause, {} overlapping guards",
+            "  Findings: {} unreachable clause, {} overlapping guards, {} gap",
             self.unreachable_count(),
-            self.overlap_count()
+            self.overlap_count(),
+            self.gap_count()
         );
         println!();
         for finding in findings {
@@ -212,20 +244,25 @@ impl ClauseReachabilityReport {
                         tier_label(clause.tier),
                         with.display()
                     );
-                    match witness {
-                        Some(values) if values.is_empty() => {
-                            println!("     Witness: every call")
-                        }
-                        Some(values) => println!(
-                            "     Witness: {}",
-                            values
-                                .iter()
-                                .map(|(name, value)| format!("{} = {}", name, value))
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        ),
-                        None => println!("     Witness: unavailable"),
+                    println!("     Witness: {}", witness_text(witness.as_deref()));
+                }
+                ClauseFindingKind::Gap { clauses, witness } => {
+                    status_println!(
+                        "  \x1b[31m?? Gap in {}: no clause applies to some input\x1b[0m",
+                        finding.family
+                    );
+                    for candidate in clauses {
+                        println!(
+                            "     {} ({})  {}",
+                            candidate.display(),
+                            tier_label(candidate.tier),
+                            candidate.text
+                        );
                     }
+                    println!("     Witness: {}", witness_text(witness.as_deref()));
+                    println!(
+                        "     A call with this input stops with \"no value rule matched\"; cover it with a clause or an unguarded default."
+                    );
                 }
             }
             println!();
@@ -254,8 +291,17 @@ impl ClauseReachabilityReport {
             }
             println!();
         }
+        if !gap_not_checked.is_empty() {
+            println!("  Gaps not checked (coverage unknown):");
+            for skipped in gap_not_checked {
+                println!("    - {}: {}", skipped.family, skipped.reason);
+            }
+            println!();
+        }
         if findings.is_empty() {
-            println!("  No unreachable clauses or overlapping guards among the analyzed clauses.");
+            println!(
+                "  No unreachable clauses, overlapping guards or gaps among the analyzed clauses."
+            );
             println!();
         }
     }
@@ -266,6 +312,14 @@ impl ClauseReachabilityReport {
                 "family": skipped.family,
                 "clause": skipped.clause.json(),
                 "reason": skipped.reason,
+            })
+        };
+        let witness_json = |witness: &Option<Vec<(String, String)>>| {
+            witness.as_ref().map(|values| {
+                values
+                    .iter()
+                    .map(|(name, value)| (name.clone(), serde_json::Value::String(value.clone())))
+                    .collect::<serde_json::Map<_, _>>()
             })
         };
         match self {
@@ -279,6 +333,8 @@ impl ClauseReachabilityReport {
                 findings,
                 not_analyzed,
                 overlap_not_checked,
+                gap_not_checked,
+                ..
             } => serde_json::json!({
                 "status": "ran",
                 "solver": "z3",
@@ -288,8 +344,10 @@ impl ClauseReachabilityReport {
                     "analyzed": clauses - not_analyzed.len(),
                     "not_analyzed": not_analyzed.len(),
                     "overlap_not_checked": overlap_not_checked.len(),
+                    "gap_not_checked": gap_not_checked.len(),
                     "unreachable_clauses": self.unreachable_count(),
                     "overlapping_guards": self.overlap_count(),
+                    "gaps": self.gap_count(),
                 },
                 "findings": findings.iter().map(|finding| match &finding.kind {
                     ClauseFindingKind::Shadowed { by } => serde_json::json!({
@@ -311,16 +369,37 @@ impl ClauseReachabilityReport {
                         "family": finding.family,
                         "clause": finding.clause.json(),
                         "overlaps": with.json(),
-                        "witness": witness.as_ref().map(|values| values
-                            .iter()
-                            .map(|(name, value)| (name.clone(), serde_json::Value::String(value.clone())))
-                            .collect::<serde_json::Map<_, _>>()),
+                        "witness": witness_json(witness),
+                    }),
+                    ClauseFindingKind::Gap { clauses, witness } => serde_json::json!({
+                        "kind": "gap",
+                        "family": finding.family,
+                        "clauses": clauses.iter().map(ClauseLocation::json).collect::<Vec<_>>(),
+                        "witness": witness_json(witness),
                     }),
                 }).collect::<Vec<_>>(),
                 "not_analyzed": not_analyzed.iter().map(skipped_json).collect::<Vec<_>>(),
                 "overlap_not_checked": overlap_not_checked.iter().map(skipped_json).collect::<Vec<_>>(),
+                "gap_not_checked": gap_not_checked.iter().map(|skipped| serde_json::json!({
+                    "family": skipped.family,
+                    "reason": skipped.reason,
+                })).collect::<Vec<_>>(),
             }),
         }
+    }
+}
+
+/// A witness in source spelling: `name = value` pairs, or "every call" for
+/// a family without arguments or fields.
+pub(super) fn witness_text(witness: Option<&[(String, String)]>) -> String {
+    match witness {
+        Some([]) => "every call".to_string(),
+        Some(values) => values
+            .iter()
+            .map(|(name, value)| format!("{} = {}", name, value))
+            .collect::<Vec<_>>()
+            .join(", "),
+        None => "unavailable".to_string(),
     }
 }
 
@@ -1010,6 +1089,69 @@ pub(super) fn analyze_clause_reachability(
     filename: &str,
     source: &str,
 ) -> ClauseReachabilityReport {
+    analyze(statements, filename, source, None)
+}
+
+/// Whether some input makes no candidate of one family apply.
+pub(super) enum DispatchGap {
+    /// The solver found an input no candidate covers (witness when it could
+    /// name one).
+    Found(Option<Vec<(String, String)>>),
+    /// Every input is covered by some candidate.
+    Covered,
+    /// The family cannot miss: it answers False when no clause applies, or
+    /// has an unconditional candidate.
+    NotApplicable,
+    /// Coverage was not decided, with the reason.
+    Unknown(String),
+}
+
+/// Check the coverage of the family `key` alone, wherever it is declared.
+pub(super) fn dispatch_gap(
+    statements: &[Stmt],
+    filename: &str,
+    source: &str,
+    key: &RuleDispatchKey,
+) -> DispatchGap {
+    let family = family_name(key);
+    match analyze(statements, filename, source, Some(key)) {
+        ClauseReachabilityReport::NotRun { reason } => DispatchGap::Unknown(reason),
+        ClauseReachabilityReport::Ran {
+            families,
+            findings,
+            gap_not_checked,
+            coverage_decided,
+            ..
+        } => {
+            if let Some(witness) = findings.into_iter().find_map(|finding| match finding.kind {
+                ClauseFindingKind::Gap { witness, .. } if finding.family == family => Some(witness),
+                _ => None,
+            }) {
+                DispatchGap::Found(witness)
+            } else if coverage_decided.contains(&family) {
+                DispatchGap::Covered
+            } else if let Some(skipped) = gap_not_checked
+                .into_iter()
+                .find(|skipped| skipped.family == family)
+            {
+                DispatchGap::Unknown(skipped.reason)
+            } else if families == 1 {
+                DispatchGap::NotApplicable
+            } else {
+                DispatchGap::Unknown(format!("`{}` has no translatable clause", family))
+            }
+        }
+    }
+}
+
+/// Analyze the families with a candidate declared in `filename`, or only
+/// the family `only`.
+fn analyze(
+    statements: &[Stmt],
+    filename: &str,
+    source: &str,
+    only: Option<&RuleDispatchKey>,
+) -> ClauseReachabilityReport {
     let not_run = |reason: String| ClauseReachabilityReport::NotRun { reason };
     let resolved = match resolve_smt_program(statements, filename) {
         Ok(program) => program,
@@ -1059,14 +1201,19 @@ pub(super) fn analyze_clause_reachability(
     let mut findings = Vec::new();
     let mut not_analyzed = Vec::new();
     let mut overlap_not_checked = Vec::new();
+    let mut gap_not_checked = Vec::new();
+    let mut coverage_decided = BTreeSet::new();
     for group in registry.groups.values() {
         let candidates = group.plan.candidates().collect::<Vec<_>>();
-        let from_audited_source = candidates.iter().any(|candidate| {
-            rule_origins
-                .get(&(candidate.rule as *const Rule))
-                .is_some_and(|origin| origin.as_ref() == filename)
-        });
-        if !from_audited_source {
+        let selected = match only {
+            Some(key) => &group.key == key,
+            None => candidates.iter().any(|candidate| {
+                rule_origins
+                    .get(&(candidate.rule as *const Rule))
+                    .is_some_and(|origin| origin.as_ref() == filename)
+            }),
+        };
+        if !selected {
             continue;
         }
         let family = family_name(&group.key);
@@ -1101,11 +1248,38 @@ pub(super) fn analyze_clause_reachability(
         }
         families += 1;
         clauses += lowered.len();
-        match analyze_family(&family, &signature, &encoder, &lowered) {
+        // A family with an unguarded candidate (an irrefutable head without
+        // a guard) always selects one, and a Boolean family answers False
+        // when no clause applies, as at run time: either its miss is
+        // certified Boolean, or none of its rules is a value rule (a default,
+        // an exception, or a literal value). Only the remaining families can
+        // leave an input uncovered.
+        let has_unguarded_candidate = candidates.iter().any(|candidate| {
+            rule_dispatch_candidate_is_total(
+                candidate.rule,
+                group.return_type.as_deref().unwrap_or_default(),
+            )
+        });
+        let answers_false = group.return_type.as_deref() == Some("Bool")
+            && group.return_type_issue.is_none()
+            && (type_artifacts
+                .rule_dispatch_runtime_boolean_miss_keys
+                .contains(&group.key)
+                || !rule_family_miss_is_value_error(
+                    candidates.iter().map(|candidate| candidate.rule),
+                ));
+        let check_coverage = group.totality == RuleDispatchTotality::Partial
+            && !has_unguarded_candidate
+            && !answers_false;
+        match analyze_family(&family, &signature, &encoder, &lowered, check_coverage) {
             Ok(outcome) => {
                 findings.extend(outcome.findings);
                 not_analyzed.extend(outcome.not_analyzed);
                 overlap_not_checked.extend(outcome.overlap_not_checked);
+                gap_not_checked.extend(outcome.gap_not_checked);
+                if outcome.coverage_decided {
+                    coverage_decided.insert(family.clone());
+                }
             }
             Err(FamilyError::SolverMissing(reason)) => return not_run(reason),
         }
@@ -1119,10 +1293,12 @@ pub(super) fn analyze_clause_reachability(
         findings,
         not_analyzed,
         overlap_not_checked,
+        gap_not_checked,
+        coverage_decided,
     }
 }
 
-fn family_name(key: &RuleDispatchKey) -> String {
+pub(super) fn family_name(key: &RuleDispatchKey) -> String {
     match &key.scope {
         Some(scope) => format!("{}.{}/{}", scope, key.name, key.arity),
         None => format!("{}/{}", key.name, key.arity),
@@ -1135,8 +1311,34 @@ struct FamilySignature {
     receiver: Option<Expr>,
     sorts: BTreeMap<String, Ty>,
     unsorted: BTreeMap<String, String>,
-    /// Display name of each declared value, in witness order.
-    witness_names: Vec<(String, String)>,
+    /// The values a witness names, in order: each RuleScope field
+    /// (`self.<field>`), then each argument.
+    witness_names: Vec<WitnessValue>,
+}
+
+struct WitnessValue {
+    /// SMT term whose model value is reported.
+    term: String,
+    display: String,
+    /// A plain value the witness takes when the finding allows it, so
+    /// values that do not matter read as `0`, `false` or `""`.
+    preferred: Option<&'static str>,
+}
+
+impl WitnessValue {
+    fn new(term: String, display: String, ty: &Ty) -> Self {
+        let preferred = match ty {
+            Ty::Name(name) if name == "Int" => Some("0"),
+            Ty::Name(name) if name == "Bool" => Some("false"),
+            Ty::Name(name) if name == "String" => Some("\"\""),
+            _ => None,
+        };
+        Self {
+            term,
+            display,
+            preferred,
+        }
+    }
 }
 
 fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySignature {
@@ -1145,7 +1347,32 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
     let mut witness_names = Vec::new();
     let receiver = group.key.scope.as_ref().map(|scope| {
         sorts.insert(RECEIVER.to_string(), Ty::Name(scope.clone()));
-        witness_names.push((RECEIVER.to_string(), "self".to_string()));
+        let receiver_term = smt_value_symbol(RECEIVER);
+        match encoder.adts_by_name.get(scope.as_str()) {
+            // A RuleScope is a product: name each representable field.
+            Some([variant]) => {
+                for (index, field) in variant.fields.iter().enumerate() {
+                    if !encoder.lowerer.rule_type_is_smt_representable(&field.ty) {
+                        continue;
+                    }
+                    let selector = if variant.positional {
+                        format!("{}_f{}", variant.name, index)
+                    } else {
+                        field.name.clone()
+                    };
+                    witness_names.push(WitnessValue::new(
+                        format!("({} {})", smt_field_function(&selector), receiver_term),
+                        format!("self.{}", field.name),
+                        &field.ty,
+                    ));
+                }
+            }
+            _ => witness_names.push(WitnessValue {
+                term: receiver_term,
+                display: "self".to_string(),
+                preferred: None,
+            }),
+        }
         Expr::unspanned(ExprKind::Var(RECEIVER.to_string()))
     });
     let arguments = group
@@ -1160,8 +1387,12 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
                 .unwrap_or_else(|| format!("argument {}", index + 1));
             match parameter.ty.as_deref().map(parse_type_annotation) {
                 Some(Ok(ty)) if encoder.lowerer.rule_type_is_smt_representable(&ty) => {
+                    witness_names.push(WitnessValue::new(
+                        smt_value_symbol(&symbol),
+                        display,
+                        &ty,
+                    ));
                     sorts.insert(symbol.clone(), ty);
-                    witness_names.push((symbol.clone(), display));
                 }
                 Some(Ok(ty)) => {
                     unsorted.insert(
@@ -1280,22 +1511,34 @@ struct FamilyOutcome {
     findings: Vec<ClauseFinding>,
     not_analyzed: Vec<SkippedClause>,
     overlap_not_checked: Vec<SkippedClause>,
+    gap_not_checked: Vec<SkippedFamily>,
+    /// The solver decided whether the family has a gap.
+    coverage_decided: bool,
 }
 
+/// `check_coverage` asks, in addition, whether some input makes no
+/// candidate apply (a partial value family).
 fn analyze_family(
     family: &str,
     signature: &FamilySignature,
     encoder: &Encoder,
     candidates: &[Candidate],
+    check_coverage: bool,
 ) -> Result<FamilyOutcome, FamilyError> {
     let mut outcome = FamilyOutcome {
         findings: Vec::new(),
         not_analyzed: Vec::new(),
         overlap_not_checked: Vec::new(),
+        gap_not_checked: Vec::new(),
+        coverage_decided: false,
     };
     let skip = |index: usize, reason: String| SkippedClause {
         family: family.to_string(),
         clause: candidates[index].location.clone(),
+        reason,
+    };
+    let skip_coverage = |reason: String| SkippedFamily {
+        family: family.to_string(),
         reason,
     };
     let count = candidates.len();
@@ -1310,6 +1553,17 @@ fn analyze_family(
                 .push(skip(index, format!("guard not translatable: {}", reason)));
         }
     }
+    // Whether an input misses every candidate depends on every guard.
+    let check_coverage = match guards.iter().position(Option::is_none) {
+        Some(blocker) if check_coverage => {
+            outcome.gap_not_checked.push(skip_coverage(format!(
+                "the guard of {} is not translatable",
+                candidates[blocker].location.display()
+            )));
+            false
+        }
+        _ => check_coverage,
+    };
     let analyzed: Vec<usize> = (0..count)
         .filter(|index| guards[*index].is_some())
         .collect();
@@ -1380,6 +1634,9 @@ fn analyze_family(
         }
         none_before = format!("(and {} (not {}))", none_before_name(index), guard);
     }
+    // Dispatch evaluated every guard, each was defined and none held: the
+    // call stops with "no value rule matched".
+    let misses = check_coverage.then(|| reach.expect("every guard is translatable"));
     let values: Vec<Option<(String, String)>> = candidates
         .iter()
         .map(|candidate| {
@@ -1479,12 +1736,41 @@ fn analyze_family(
             ));
         }
     }
+    let misses_at = misses.as_ref().map(|misses| {
+        assertions.push(misses.clone());
+        assertions.len() - 1
+    });
     let answers = match decide(&prefix, &assertions)? {
         Ok(answers) => answers,
         Err(error) => {
             record_solver_failure(&mut outcome, &analyzed, &skip, &error);
+            if misses.is_some() {
+                outcome.gap_not_checked.push(skip_coverage(format!(
+                    "Z3 rejected the query: {}",
+                    solver_error_summary(&error)
+                )));
+            }
             return Ok(outcome);
         }
+    };
+    // The uncovered-input formula, when the solver found such an input.
+    let gap = match misses_at.map(|position| answers[position]) {
+        Some(Answer::Sat) => {
+            outcome.coverage_decided = true;
+            misses
+        }
+        Some(Answer::Unsat) => {
+            outcome.coverage_decided = true;
+            None
+        }
+        Some(Answer::Unknown) => {
+            outcome.gap_not_checked.push(skip_coverage(
+                "Z3 could not decide whether some input misses every clause (unknown or timeout)"
+                    .into(),
+            ));
+            None
+        }
+        None => None,
     };
 
     let mut unreachable = vec![false; count];
@@ -1583,8 +1869,9 @@ fn analyze_family(
     }
 
     // Explanations: which candidates shadow each unreachable one, and a
-    // witness input for each overlap. Every query here is known satisfiable or
-    // unsatisfiable, so the solver can answer each follow-up request.
+    // witness input for each overlap and for a gap. Every query here is known
+    // satisfiable or unsatisfiable, so the solver can answer each follow-up
+    // request.
     let mut explanation = prefix;
     for &index in &shadowed {
         explanation.push_str(&format!(
@@ -1602,31 +1889,41 @@ fn analyze_family(
         }
         explanation.push_str("(check-sat)\n(get-unsat-core)\n(pop 1)\n");
     }
-    for &(earlier, later) in &overlaps {
-        explanation.push_str(&format!(
-            "(push 1)\n(assert {})\n(check-sat)\n",
-            overlap_assertion(earlier, later)
-        ));
-        for (symbol, _) in &signature.witness_names {
-            explanation.push_str(&format!("(get-value ({}))\n", smt_value_symbol(symbol)));
+    let witnessed = overlaps
+        .iter()
+        .map(|&(earlier, later)| overlap_assertion(earlier, later))
+        .chain(gap.iter().cloned())
+        .collect::<Vec<_>>();
+    for assertion in &witnessed {
+        explanation.push_str(&format!("(push 1)\n(assert {})\n", assertion));
+        // Soft preferences keep values the finding does not depend on plain.
+        for value in &signature.witness_names {
+            if let Some(preferred) = value.preferred {
+                explanation.push_str(&format!("(assert-soft (= {} {}))\n", value.term, preferred));
+            }
+        }
+        explanation.push_str("(check-sat)\n");
+        for value in &signature.witness_names {
+            explanation.push_str(&format!("(get-value ({}))\n", value.term));
         }
         explanation.push_str("(pop 1)\n");
     }
-    let explained = if shadowed.is_empty() && overlaps.is_empty() {
+    let explained = if shadowed.is_empty() && witnessed.is_empty() {
         None
     } else {
-        run_solver(&explanation)?
-            .ok()
-            .and_then(|output| parse_explanations(&output, &shadowed, &overlaps, signature))
+        run_solver(&explanation)?.ok().and_then(|output| {
+            parse_explanations(&output, shadowed.len(), witnessed.len(), signature)
+        })
     };
-    let (cores, witnesses) = match explained {
+    type Witness = Option<Vec<(String, String)>>;
+    let (cores, mut witnesses): (Vec<Option<Vec<usize>>>, Vec<Witness>) = match explained {
         Some((cores, witnesses)) => (
             cores.into_iter().map(Some).collect(),
             witnesses.into_iter().map(Some).collect(),
         ),
-        None => (vec![None; shadowed.len()], vec![None; overlaps.len()]),
+        None => (vec![None; shadowed.len()], vec![None; witnessed.len()]),
     };
-    for (&index, core) in shadowed.iter().zip::<Vec<Option<Vec<usize>>>>(cores) {
+    for (&index, core) in shadowed.iter().zip(cores) {
         outcome.findings.push(ClauseFinding {
             family: family.to_string(),
             clause: candidates[index].location.clone(),
@@ -1639,15 +1936,26 @@ fn analyze_family(
             },
         });
     }
-    for (&(earlier, later), witness) in overlaps
-        .iter()
-        .zip::<Vec<Option<Vec<(String, String)>>>>(witnesses)
-    {
+    let gap_witness = gap.is_some().then(|| witnesses.pop().flatten());
+    for (&(earlier, later), witness) in overlaps.iter().zip(witnesses) {
         outcome.findings.push(ClauseFinding {
             family: family.to_string(),
             clause: candidates[later].location.clone(),
             kind: ClauseFindingKind::Overlap {
                 with: candidates[earlier].location.clone(),
+                witness,
+            },
+        });
+    }
+    if let Some(witness) = gap_witness {
+        outcome.findings.push(ClauseFinding {
+            family: family.to_string(),
+            clause: candidates[0].location.clone(),
+            kind: ClauseFindingKind::Gap {
+                clauses: candidates
+                    .iter()
+                    .map(|candidate| candidate.location.clone())
+                    .collect(),
                 witness,
             },
         });
@@ -1748,13 +2056,13 @@ type Explanations = (Vec<Vec<usize>>, Vec<Vec<(String, String)>>);
 
 fn parse_explanations(
     output: &str,
-    shadowed: &[usize],
-    overlaps: &[(usize, usize)],
+    shadowed: usize,
+    witnessed: usize,
     signature: &FamilySignature,
 ) -> Option<Explanations> {
     let mut responses = smt_responses(output).into_iter();
     let mut cores = Vec::new();
-    for _ in shadowed {
+    for _ in 0..shadowed {
         if responses.next()? != "unsat" {
             return None;
         }
@@ -1770,16 +2078,22 @@ fn parse_explanations(
         cores.push(members);
     }
     let mut witnesses = Vec::new();
-    for _ in overlaps {
+    for _ in 0..witnessed {
         if responses.next()? != "sat" {
             return None;
         }
         let mut witness = Vec::new();
-        for (symbol, display) in &signature.witness_names {
+        for WitnessValue { display, .. } in &signature.witness_names {
+            // `((term value))`: the value is the last element of the pair.
             let response = responses.next()?;
-            let prefix = format!("(({} ", smt_value_symbol(symbol));
-            let value = response.strip_prefix(&prefix)?.strip_suffix("))")?;
-            witness.push((display.clone(), readable_smt_value(value)));
+            let pair = response
+                .strip_prefix('(')?
+                .strip_suffix(')')?
+                .trim()
+                .strip_prefix('(')?
+                .strip_suffix(')')?;
+            let value = smt_responses(pair).pop()?;
+            witness.push((display.clone(), readable_smt_value(&value)));
         }
         witnesses.push(witness);
     }

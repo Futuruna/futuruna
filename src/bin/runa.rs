@@ -1550,7 +1550,7 @@ impl ToolGuarantee {
             Self::FrontendCheck => "The program parses, its imports resolve and it type-checks; nothing is executed and no Rust is compiled.",
             Self::Check => "The frontend check passes, `@ comptime` evaluates without host effects, and the generated Rust compiles; the program is not run.",
             Self::Verify => "Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail.",
-            Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); a clause reported unreachable never fires for any input under 64-bit Int semantics; no findings does not prove the rules consistent or correct.",
+            Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); a clause reported unreachable never fires for any input under 64-bit Int semantics, and a reported gap's witness is missed by every clause; no findings does not prove the rules consistent or correct.",
             Self::Fmt => "Only layout changes; every file's tokens and parsed program are identical before and after formatting.",
             Self::Test => "Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run.",
         }
@@ -14625,6 +14625,10 @@ struct SmtRuleLowerer<'program, 'registry> {
     /// with their constructors in declaration order. Invariant free variables
     /// of these types range over exactly these constructors.
     nullary_enums: BTreeMap<String, Vec<String>>,
+    /// Each "partial rule dispatch" error produced so far and the families
+    /// it names, so `runa verify` can look for the input they leave
+    /// uncovered.
+    partial_dispatches: std::cell::RefCell<BTreeMap<String, BTreeSet<RuleDispatchKey>>>,
 }
 
 impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
@@ -14781,6 +14785,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             function_returns,
             binding_types,
             nullary_enums,
+            partial_dispatches: Default::default(),
         };
         let canonical_rule_returns = lowerer
             .registry
@@ -15857,10 +15862,16 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         Box::new(next),
                     ))
                 } else {
-                    return Err(format!(
+                    let message = format!(
                         "partial rule dispatch for `{}` has no unconditional value for SMT",
                         self.rule_display_name(&group.key)
-                    ));
+                    );
+                    self.partial_dispatches
+                        .borrow_mut()
+                        .entry(message.clone())
+                        .or_default()
+                        .insert(group.key.clone());
+                    return Err(message);
                 });
             }
             fallback.ok_or_else(|| {
@@ -18046,14 +18057,16 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     );
     let unreachable_count = clause_report.unreachable_count();
     let overlap_count = clause_report.overlap_count();
+    let clause_gap_count = clause_report.gap_count();
     println!(
-        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} overlapping guards",
+        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} overlapping guards, {} clause gap",
         contradiction_count,
         tension_count,
         asymmetry_count,
         gap_count,
         unreachable_count,
-        overlap_count
+        overlap_count,
+        clause_gap_count
     );
     println!();
 
@@ -18132,7 +18145,8 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         + gap_count
         + tension_count
         + unreachable_count
-        + overlap_count;
+        + overlap_count
+        + clause_gap_count;
     if interesting > 0 {
         status_println!(
             "\x1b[1m{} findings\x1b[0m from {} rules across {} type domains.",
@@ -18707,6 +18721,50 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     println!("{VERIFY_GUARANTEE}");
     println!();
 
+    // A claim skipped because a rule family has no unconditional clause
+    // names the input that family leaves uncovered, when the solver finds
+    // one. Each family is checked once.
+    let partial_dispatches = rule_lowerer.partial_dispatches.borrow().clone();
+    let mut dispatch_gaps: BTreeMap<RuleDispatchKey, runa_rule_reachability::DispatchGap> =
+        BTreeMap::new();
+    let mut audit_stmts: Option<Vec<Stmt>> = None;
+    let mut print_dispatch_gaps = |reason: &str| {
+        let keys = partial_dispatches
+            .iter()
+            .filter(|(message, _)| reason.contains(message.as_str()))
+            .flat_map(|(_, keys)| keys)
+            .collect::<BTreeSet<_>>();
+        for key in keys {
+            let statements = audit_stmts.get_or_insert_with(|| {
+                if use_prelude {
+                    prepend_prelude(parse_prelude(), &stmts)
+                } else {
+                    stmts.clone()
+                }
+            });
+            let gap = dispatch_gaps.entry(key.clone()).or_insert_with(|| {
+                runa_rule_reachability::dispatch_gap(statements, filename, source, key)
+            });
+            let family = runa_rule_reachability::family_name(key);
+            match gap {
+                runa_rule_reachability::DispatchGap::Found(witness) => println!(
+                    "    Gap in {}: no clause applies to {}",
+                    family,
+                    runa_rule_reachability::witness_text(witness.as_deref())
+                ),
+                runa_rule_reachability::DispatchGap::Covered => println!(
+                    "    Every input is covered by a clause of {}; an unguarded default would make the dispatch total for SMT.",
+                    family
+                ),
+                runa_rule_reachability::DispatchGap::Unknown(reason) => {
+                    println!("    Gaps in {} not checked: {}", family, reason)
+                }
+                // A Boolean miss answers False: nothing is uncovered.
+                runa_rule_reachability::DispatchGap::NotApplicable => {}
+            }
+        }
+    };
+
     // For each invariant, generate SMT-LIB2 and run Z3
     for (inv_name, subject_expr, pred_expr) in &invariants {
         println!("--- | {} ---", inv_name);
@@ -18714,6 +18772,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         if let Some(reason) = invariant_lowering_errors.get(inv_name) {
             unsupported_count += 1;
             println!("  ? SMT fallback skipped: {}", reason);
+            print_dispatch_gaps(reason);
             println!();
             continue;
         }
@@ -18801,6 +18860,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         }) {
             unsupported_count += 1;
             println!("  ? SMT fallback skipped: binding `{}` {}", binding, reason);
+            print_dispatch_gaps(reason);
             println!();
             continue;
         }
@@ -18815,6 +18875,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         ) {
             unsupported_count += 1;
             println!("  ? SMT fallback skipped: {}", reason);
+            print_dispatch_gaps(&reason);
             println!();
             continue;
         }
