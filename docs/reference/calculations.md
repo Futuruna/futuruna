@@ -1,7 +1,8 @@
 ---
-feature_stage: preview
+feature_stage: mixed
 feature_stage_surfaces:
   - typed-calculation-contracts
+  - calculation-needs
 ---
 
 # Typed Calculations
@@ -519,4 +520,6 @@ An XLSX result contains a compact `results` summary, a lossless
 ordered chunks rather than being truncated at Excel's cell-size limit.
 
 The full format and evolution contract is in
-[Typed calculation contracts](../rfcs/typed-calculation-contracts.md).
+[Typed calculation contracts](../rfcs/typed-calculation-contracts.md). Partial
+cases and their needs are specified in
+[Calculation needs](../rfcs/calculation-needs.md).
