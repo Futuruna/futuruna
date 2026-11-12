@@ -1,0 +1,22 @@
+[package]
+name = "futuruna-wasm-engine"
+version = "0.2.5"
+edition = "2021"
+rust-version = "1.94"
+description = "The Futuruna interpreter as a WebAssembly module: model sources and a calculation input in, the `runa call` output out"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+futuruna = { path = "../.." }
+serde_json = "1"
+wasm-bindgen = "0.2"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[profile.release]
+opt-level = 3
