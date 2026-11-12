@@ -5,13 +5,21 @@
 //! type-checked once, and each [`Model::call`] takes the JSON document
 //! `runa call --input` reads and returns the document `runa call` writes, byte
 //! for byte.
+//!
+//! Each calculation entry is prepared on its first call: the interpreter
+//! initializes the model (prelude, declarations, the top-level and metadata
+//! bindings the entry reaches) once, and every later call of that entry, full
+//! or partial, runs its cases from that state. Each case still starts from
+//! the initialized state alone, as in `runa call`
+//! (`futuruna::calculate::PreparedCalculation`).
 
-use futuruna::calculate::{self, CalculationContract, CalculationInputEnvelope};
+use futuruna::calculate::{self, CalculationInputEnvelope, PreparedCalculation};
 use futuruna::{
     parse_prelude, prepend_prelude, provide_source_files, Lexer, Parser, Stmt, TypeChecker,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 /// Every model file is placed under this directory, so imports resolve
@@ -33,13 +41,12 @@ fn report_panics() {
     });
 }
 
-/// A parsed and type-checked model with its calculation entries.
+/// A parsed and type-checked model with its calculation entries, each
+/// prepared on its first call and reused by every later one.
 #[wasm_bindgen]
 pub struct Model {
     files: Vec<(PathBuf, String)>,
-    statements: Vec<Stmt>,
-    source_dir: Option<String>,
-    contracts: Vec<CalculationContract>,
+    entries: Vec<PreparedCalculation>,
 }
 
 #[wasm_bindgen]
@@ -49,7 +56,8 @@ impl Model {
     /// `sources` maps paths relative to the model root
     /// (`src/tax_report.calculate.runa`) to their text, and must hold `main`
     /// and every file it imports. A model that does not parse or type-check is
-    /// an error carrying the diagnostics.
+    /// an error carrying the diagnostics. No entry is prepared yet: the first
+    /// call of an entry also initializes the model for it.
     #[wasm_bindgen(constructor)]
     pub fn new(sources: &str, main: &str) -> Result<Model, String> {
         report_panics();
@@ -84,25 +92,28 @@ impl Model {
                 .collect::<Vec<_>>();
             return Err(format!("{main}: {}", messages.join("\n")));
         }
-        Ok(Model {
-            files,
-            statements,
-            source_dir,
-            contracts: artifacts.calculation_contracts,
-        })
+        let statements: Arc<[Stmt]> = statements.into();
+        let entries = artifacts
+            .calculation_contracts
+            .into_iter()
+            .map(|contract| {
+                PreparedCalculation::new(contract, statements.clone(), source_dir.clone())
+            })
+            .collect();
+        Ok(Model { files, entries })
     }
 
     /// The model's calculation entries.
     pub fn entries(&self) -> Vec<String> {
-        self.contracts
+        self.entries
             .iter()
-            .map(|contract| contract.entry.clone())
+            .map(|entry| entry.contract().entry.clone())
             .collect()
     }
 
     /// Run the calculation `entry` on `input`, a `runa call` input document,
     /// and return the `runa call` output document.
-    pub fn call(&self, entry: &str, input: &str) -> Result<String, String> {
+    pub fn call(&mut self, entry: &str, input: &str) -> Result<String, String> {
         self.invoke(entry, input, None)
     }
 
@@ -110,47 +121,42 @@ impl Model {
     /// out, and return the `runa call --partial` output document: each case
     /// answers `Complete` or `Needs` (`docs/rfcs/calculation-needs.md`).
     #[wasm_bindgen(js_name = callPartial)]
-    pub fn call_partial(&self, entry: &str, input: &str) -> Result<String, String> {
-        self.invoke(entry, input, Some(futuruna::partial::PartialMode::Propagate))
+    pub fn call_partial(&mut self, entry: &str, input: &str) -> Result<String, String> {
+        self.invoke(
+            entry,
+            input,
+            Some(futuruna::partial::PartialMode::Propagate),
+        )
     }
 }
 
 impl Model {
     fn invoke(
-        &self,
+        &mut self,
         entry: &str,
         input: &str,
         partial: Option<futuruna::partial::PartialMode>,
     ) -> Result<String, String> {
-        let contract = self
-            .contracts
+        let Some(index) = self
+            .entries
             .iter()
-            .find(|contract| contract.entry == entry)
-            .ok_or_else(|| {
-                format!(
-                    "unknown calculation entry `{entry}`; available entries: {}",
-                    self.entries().join(", ")
-                )
-            })?;
+            .position(|prepared| prepared.contract().entry == entry)
+        else {
+            return Err(format!(
+                "unknown calculation entry `{entry}`; available entries: {}",
+                self.entries().join(", ")
+            ));
+        };
         let envelope: CalculationInputEnvelope = calculate::parse_calculation_json(input)
             .and_then(serde_json::from_value)
             .map_err(|error| format!("calculation input: {error}"))?;
-        // Imports are read again at run time; serve them from this model.
+        // An entry's first call reads the imports again while it initializes
+        // the model; serve them from this model.
         provide_source_files(self.files.iter().cloned());
+        let prepared = &mut self.entries[index];
         let result = match partial {
-            None => calculate::invoke_calculation_cases(
-                contract,
-                &self.statements,
-                self.source_dir.clone(),
-                &envelope,
-            ),
-            Some(mode) => calculate::invoke_partial_calculation_cases(
-                contract,
-                &self.statements,
-                self.source_dir.clone(),
-                &envelope,
-                mode,
-            ),
+            None => prepared.invoke(&envelope),
+            Some(mode) => prepared.invoke_partial(&envelope, mode),
         };
         let document = serde_json::to_string_pretty(&result).map_err(|error| error.to_string())?;
         Ok(document + "\n")

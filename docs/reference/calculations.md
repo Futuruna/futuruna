@@ -304,15 +304,30 @@ The default cache is under the operating system's user cache directory. Set
 standard error. The cache contains contracts only; calculation inputs and
 results are not stored.
 
-Calculation batches with at least four ready cases run independent cases concurrently
-and retain their original result and diagnostic order. Each worker initializes
-its own interpreter and each case still receives isolated environment, actor,
-handler, rule-scope, step-budget, and random state. Set
+A call prepares its calculation entry once: the runtime rule-dispatch metadata
+and an interpreter that has initialized the program (the prelude, the
+declarations, and the top-level and metadata bindings the entry reaches). Every
+case runs from that prepared state and starts from it alone: a fresh
+environment over the initialized bindings, with the handler, rule-scope,
+step-budget, and random state initialization left. A case that sends to an
+actor or emits on, subscribes to, or tears down a subject the initialized
+program holds, or that panics, has the program initialized again before the
+next case, so no case sees the messages or values of another. A host that keeps
+the prepared entry reuses it for every later call: the WebAssembly engine's
+`Model` prepares an entry on its first call (full or partial), and later calls
+run only their cases, with results byte-identical to a fresh call's. In Rust,
+`futuruna::calculate::PreparedCalculation` is that prepared entry.
+
+Calculation batches with at least four ready cases run independent cases
+concurrently and retain their original result and diagnostic order. The
+prepared interpreter serves one worker; each further worker initializes its own
+interpreter for the batch, under the same per-case isolation. Set
 `FUTURUNA_CALCULATION_JOBS=1` for a serial parity or debugging run, or set an
 explicit positive worker count. Zero and an unset value select the available
 machine parallelism, capped at eight workers by default.
 `FUTURUNA_CALCULATION_TRACE=1` reports per-case timings, the selected worker
-count, initialization time, and total calculation time on standard error.
+count, initialization time (the time until the entry was prepared, close to
+zero when it already was), and total calculation time on standard error.
 
 For repeated work on a large calculation corpus, `scripts/runa-corpus.sh`
 builds and reuses an optimized `target/corpus/runa` without changing the normal
