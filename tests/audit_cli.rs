@@ -745,3 +745,43 @@ fn calculation_audit_covers_the_families_it_reaches_through_imports() {
     assert!(stdout.contains("Gap in ShareTax.tax_ore/0: "), "{stdout}");
     assert!(!stdout.contains("unused_sign"), "{stdout}");
 }
+
+#[test]
+fn clause_audit_translates_not_string_length_option_results_and_arithmetic() {
+    let fixture = topology_fixture("clause_reachability_widened.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("6 rule families, 14 clauses: 14 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("3 unreachable clause, 1 overlapping guards, 0 gap"),
+        "{stdout}"
+    );
+    // `not` in a guard.
+    let held = finding_block(&stdout, "Unreachable clause in held/2: ");
+    assert!(
+        held.contains("clause_reachability_widened.runa:4 never fires"),
+        "{held}"
+    );
+    // `string_length` counts scalar values: the "å" clause stays reachable.
+    assert!(
+        !stdout.contains("Unreachable clause in label/1"),
+        "{stdout}"
+    );
+    // Option results are compared, with a witness.
+    let overlap = finding_block(&stdout, "Overlapping guards in parameters/1: ");
+    assert!(overlap.contains("Witness: year = 2025"), "{overlap}");
+    // Arithmetic in a called RuleScope rule.
+    let rate = finding_block(&stdout, "Unreachable clause in Case.rate/0: ");
+    assert!(
+        rate.contains("clause_reachability_widened.runa:26 never fires"),
+        "{rate}"
+    );
+    // An irrefutable predicate head answers False: no gap.
+    assert!(!stdout.contains("Gap in in_bounds/1"), "{stdout}");
+}

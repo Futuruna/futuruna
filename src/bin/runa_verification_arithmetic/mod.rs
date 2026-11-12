@@ -123,7 +123,7 @@ fn pattern(pat: &Pat, value: &str, bindings: &mut Vec<(String, String)>) -> Resu
             Ok(format!("(= {value} {})", ctor == "True"))
         }
         Pat::Con(ctor, fields) => {
-            let mut conditions = vec![format!("((_ is {}) {value})", smt_symbol(ctor))];
+            let mut conditions = vec![format!("({} {value})", smt_tester(ctor))];
             for (index, field) in fields.iter().enumerate() {
                 conditions.push(pattern(
                     field,
@@ -137,7 +137,7 @@ fn pattern(pat: &Pat, value: &str, bindings: &mut Vec<(String, String)>) -> Resu
             Ok(and(conditions))
         }
         Pat::NamedCon(ctor, fields) => {
-            let mut conditions = vec![format!("((_ is {}) {value})", smt_symbol(ctor))];
+            let mut conditions = vec![format!("({} {value})", smt_tester(ctor))];
             for (name, field) in fields {
                 conditions.push(pattern(
                     field,

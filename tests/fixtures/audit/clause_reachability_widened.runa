@@ -1,0 +1,32 @@
+-- `not` as a guard: the second clause never fires (the first takes every
+-- input it accepts).
+| held(quantity: Int, ended: Bool) -> "held" under quantity > 0 && not(ended)
+| held(quantity: Int, ended: Bool) -> "again" under quantity > 1 && not(ended)
+| held(quantity: Int, ended: Bool) -> "none"
+
+-- `string_length` counts Unicode scalar values: "å" has length 1, so this
+-- guard holds for it (a byte count would make it unsatisfiable).
+| label(text: String) -> "letter" under text == "å" && string_length(text) == 1
+| label(text: String) -> "short" under string_length(text) >= 1 && string_length(text) <= 3
+| label(text: String) -> "other"
+
+-- Option results are compared: both guarded clauses apply at 2025 with
+-- different results.
+# Parameters(threshold: Int)
+| parameters(year: Int) -> None
+| parameters(year: Int) -> Some(Parameters(threshold = 100)) under year >= 2025
+| parameters(year: Int) -> Some(Parameters(threshold = 200)) under year <= 2025
+
+-- Int arithmetic in a called rule (a sum and `%` by a constant) is an
+-- obligation for the solver, not a reason to skip: the rate clause with an
+-- even total of at least 10 is never reached past the first.
+# Case(a: Int, b: Int) {
+    | total() -> a + b
+    | rate() -> 1 under total() % 2 == 0 && total() >= 10
+    | rate() -> 2 under total() % 2 == 0 && total() >= 20
+    | rate() -> 3
+}
+
+-- A Boolean predicate with an irrefutable head answers False instead of
+-- missing: no gap.
+| in_bounds(amount: Int) -> amount >= -1000 && amount <= 1000

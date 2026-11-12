@@ -6362,6 +6362,22 @@ pub fn rule_dispatch_candidate_is_total(rule: &Rule, return_type: &str) -> bool 
 
 impl<'a> RuleDispatchRegistry<'a> {
     pub fn from_statements(stmts: &'a [Stmt], artifacts: &TypeCheckArtifacts) -> Self {
+        Self::build(stmts, artifacts, false)
+    }
+
+    /// The dispatch contract the SMT encoding translates. A family's result
+    /// type is the backend judgment: its Int arithmetic need not be
+    /// statically total, since every translated expression carries a
+    /// definedness predicate and the solver decides whether it overflows or
+    /// divides by zero. A Boolean family answers False on a miss exactly
+    /// when execution does: its static result is a total Bool (a calculation
+    /// then answers False), and its miss is certified Boolean or none of its
+    /// rules is a value rule (an ordinary call then answers False).
+    pub fn for_solver(stmts: &'a [Stmt], artifacts: &TypeCheckArtifacts) -> Self {
+        Self::build(stmts, artifacts, true)
+    }
+
+    fn build(stmts: &'a [Stmt], artifacts: &TypeCheckArtifacts, for_solver: bool) -> Self {
         #[derive(Default)]
         struct PendingGroup<'a> {
             captures: Vec<Param>,
@@ -6412,8 +6428,19 @@ impl<'a> RuleDispatchRegistry<'a> {
             .into_iter()
             .map(|(key, pending)| {
                 let parameter_issue = artifacts.rule_dispatch_parameter_issues.contains(&key);
+                let (return_types, return_issues) = if for_solver {
+                    (
+                        &artifacts.rule_dispatch_backend_return_types,
+                        &artifacts.rule_dispatch_backend_return_issues,
+                    )
+                } else {
+                    (
+                        &artifacts.rule_dispatch_return_types,
+                        &artifacts.rule_dispatch_return_issues,
+                    )
+                };
                 let return_type = (!parameter_issue)
-                    .then(|| artifacts.rule_dispatch_return_types.get(&key).cloned())
+                    .then(|| return_types.get(&key).cloned())
                     .flatten();
                 let return_type_issue = if parameter_issue {
                     Some(format!(
@@ -6421,13 +6448,25 @@ impl<'a> RuleDispatchRegistry<'a> {
                         key.name
                     ))
                 } else {
-                    artifacts.rule_dispatch_return_issues.get(&key).cloned()
+                    return_issues.get(&key).cloned()
                 };
-                let totality = if return_type.is_some()
-                    && artifacts
-                        .rule_dispatch_boolean_miss_safe_keys
-                        .contains(&key)
-                {
+                let answers_false_on_miss = if for_solver {
+                    !artifacts.rule_dispatch_return_issues.contains_key(&key)
+                        && artifacts
+                            .rule_dispatch_return_types
+                            .get(&key)
+                            .is_some_and(|return_type| return_type == "Bool")
+                        && (artifacts
+                            .rule_dispatch_runtime_boolean_miss_keys
+                            .contains(&key)
+                            || !rule_family_miss_is_value_error(pending.rules.iter().copied()))
+                } else {
+                    return_type.is_some()
+                        && artifacts
+                            .rule_dispatch_boolean_miss_safe_keys
+                            .contains(&key)
+                };
+                let totality = if answers_false_on_miss {
                     RuleDispatchTotality::PredicateFallbackFalse
                 } else if artifacts.rule_dispatch_total_value_keys.contains(&key) {
                     RuleDispatchTotality::IrrefutableCandidate

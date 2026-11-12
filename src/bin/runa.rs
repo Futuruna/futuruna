@@ -13955,26 +13955,26 @@ fn rewrite_smt_expr_for_namespace(
                     )
                 }
             } else if let ExprKind::Var(name) = &function.kind {
-                let rewritten_name = if bound.contains(name)
-                    || name == "not"
-                    || namespace_symbols.constructors.contains(name)
-                {
-                    name.clone()
-                } else if let Some(identity) =
-                    symbols.local_callable(namespace, name, arguments.len())?
-                {
-                    identity.internal_source_name()
-                } else if namespace == "root" {
-                    name.clone()
-                } else {
-                    smt_unresolved_identity(
-                        namespace,
-                        SmtCallableKind::UnresolvedFunction,
-                        name,
-                        arguments.len(),
-                    )
-                    .symbol()
-                };
+                let rewritten_name =
+                    if bound.contains(name) || namespace_symbols.constructors.contains(name) {
+                        name.clone()
+                    } else if let Some(identity) =
+                        symbols.local_callable(namespace, name, arguments.len())?
+                    {
+                        identity.internal_source_name()
+                    } else if namespace == "root"
+                        || smt_builtin_result_type(name, arguments.len()).is_some()
+                    {
+                        name.clone()
+                    } else {
+                        smt_unresolved_identity(
+                            namespace,
+                            SmtCallableKind::UnresolvedFunction,
+                            name,
+                            arguments.len(),
+                        )
+                        .symbol()
+                    };
                 ExprKind::App(
                     Box::new(Expr::new(ExprKind::Var(rewritten_name), function.span)),
                     arguments
@@ -14426,6 +14426,9 @@ fn lower_smt_namespaces(
 /// already lowered so rule calls are calls of the generated functions.
 struct SmtProgramDeclarations {
     adts: Vec<(String, Vec<Variant>)>,
+    /// How many of `adts` the program declares; the rest are builtin
+    /// generic datatypes it uses without declaring them.
+    declared_adts: usize,
     ctor_to_type: BTreeMap<String, String>,
     invariants: Vec<(String, Expr, Expr)>,
     bindings: BTreeMap<String, Expr>,
@@ -14501,6 +14504,87 @@ impl SmtProgramDeclarations {
             }
         }
 
+        let declared_adts = adts.len();
+        // Option, Result and Pair are builtin: a program without the prelude
+        // uses their constructors without declaring them.
+        for owner in ["Option", "Result", "Pair"] {
+            if adt_indexes.contains_key(owner) {
+                continue;
+            }
+            let mut variants = rule_lowerer
+                .constructors
+                .iter()
+                .flat_map(|(name, signatures)| {
+                    signatures
+                        .iter()
+                        .filter(|signature| signature.parent == owner)
+                        .map(move |signature| Variant {
+                            name: name.clone(),
+                            fields: signature.fields.clone(),
+                            positional: signature.positional,
+                            from_type: None,
+                        })
+                })
+                .collect::<Vec<_>>();
+            // Declaration order: the payload-free constructor first.
+            variants.sort_by_key(|variant| !variant.fields.is_empty());
+            for variant in &variants {
+                ctor_to_type.insert(variant.name.clone(), owner.to_string());
+            }
+            // Before the program's datatypes, whose fields may use them.
+            adts.insert(0, (owner.to_string(), variants));
+        }
+        // Each datatype after those its fields name, so a declaration only
+        // uses sorts already declared (a cycle keeps its source order).
+        fn field_type_names(ty: &Ty, output: &mut Vec<String>) {
+            match ty {
+                Ty::Name(name) => output.push(name.clone()),
+                Ty::App(constructor, arguments) => {
+                    field_type_names(constructor, output);
+                    for argument in arguments {
+                        field_type_names(argument, output);
+                    }
+                }
+                Ty::Optional(inner) => {
+                    output.push("Option".to_string());
+                    field_type_names(inner, output);
+                }
+                _ => {}
+            }
+        }
+        fn place(
+            index: usize,
+            adts: &[(String, Vec<Variant>)],
+            visited: &mut Vec<bool>,
+            order: &mut Vec<usize>,
+        ) {
+            if std::mem::replace(&mut visited[index], true) {
+                return;
+            }
+            let mut names = Vec::new();
+            for variant in &adts[index].1 {
+                for field in &variant.fields {
+                    field_type_names(&field.ty, &mut names);
+                }
+            }
+            for name in names {
+                if let Some(dependency) = adts.iter().position(|(adt, _)| *adt == name) {
+                    place(dependency, adts, visited, order);
+                }
+            }
+            order.push(index);
+        }
+        let mut visited = vec![false; adts.len()];
+        let mut order = Vec::with_capacity(adts.len());
+        for index in 0..adts.len() {
+            place(index, &adts, &mut visited, &mut order);
+        }
+        let mut slots = adts.into_iter().map(Some).collect::<Vec<_>>();
+        let adts = order
+            .into_iter()
+            .filter_map(|index| slots[index].take())
+            .collect::<Vec<_>>();
+
         let (generated_rule_functions, generated_rule_function_errors) =
             rule_lowerer.generated_rule_functions();
         let generated_rule_function_names: BTreeSet<String> = generated_rule_functions
@@ -14547,6 +14631,7 @@ impl SmtProgramDeclarations {
 
         Self {
             adts,
+            declared_adts,
             ctor_to_type,
             invariants,
             bindings,
@@ -14604,6 +14689,10 @@ struct SmtLoweredRuleCandidate<'program> {
     /// The selected value; `None` selects `true` (facts and Boolean
     /// clause-as-predicate candidates).
     value: Option<&'program Expr>,
+    /// For a Boolean clause-as-predicate, when its head matches. A matched
+    /// head whose body is false does not select the clause, but the call
+    /// then answers False instead of missing when no later candidate applies.
+    predicate_head: Option<Expr>,
 }
 
 fn smt_rule_function_name(identity: &SmtCallableIdentity) -> String {
@@ -14849,7 +14938,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         }
     }
 
+    /// Whether values of `ty` have an SMT sort: Int, Bool, String, a
+    /// datatype whose fields all have one, or an instance of a generic
+    /// datatype (`Option(Int)`, `Int?`) whose fields have one at its
+    /// arguments.
     fn rule_type_is_smt_representable(&self, ty: &Ty) -> bool {
+        /// Bounds polymorphic recursion, whose instances never repeat.
+        const MAX_NESTED_INSTANCES: usize = 32;
         fn visit(
             lowerer: &SmtRuleLowerer<'_, '_>,
             ty: &Ty,
@@ -14857,36 +14952,49 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         ) -> bool {
             match ty {
                 Ty::Name(name) if matches!(name.as_str(), "Int" | "Bool" | "String") => true,
-                Ty::Name(name) => {
-                    if lowerer
+                Ty::Name(_) | Ty::App(_, _) | Ty::Optional(_) => {
+                    let Some((owner, arguments)) = smt_type_instance(ty) else {
+                        return false;
+                    };
+                    let parameters = lowerer
                         .type_parameters_by_owner
-                        .get(name)
-                        .is_some_and(|parameters| !parameters.is_empty())
+                        .get(owner)
+                        .map(Vec::as_slice)
+                        .unwrap_or_default();
+                    if parameters.len() != arguments.len()
+                        || !arguments
+                            .iter()
+                            .all(|argument| visit(lowerer, argument, visiting))
                     {
                         return false;
                     }
-                    if !visiting.insert(name.clone()) {
+                    let key = ty_to_smt_sort(ty);
+                    if visiting.len() >= MAX_NESTED_INSTANCES {
+                        return false;
+                    }
+                    if !visiting.insert(key.clone()) {
                         return true;
                     }
                     let signatures = lowerer
                         .constructors
                         .values()
                         .flatten()
-                        .filter(|signature| signature.parent == *name)
+                        .filter(|signature| signature.parent == owner)
                         .collect::<Vec<_>>();
                     let representable = !signatures.is_empty()
                         && signatures.iter().all(|signature| {
-                            signature
-                                .fields
-                                .iter()
-                                .all(|field| visit(lowerer, &field.ty, visiting))
+                            signature.fields.iter().all(|field| {
+                                visit(
+                                    lowerer,
+                                    &smt_substitute_type(&field.ty, parameters, &arguments),
+                                    visiting,
+                                )
+                            })
                         });
-                    visiting.remove(name);
+                    visiting.remove(&key);
                     representable
                 }
-                Ty::App(_, _)
-                | Ty::Optional(_)
-                | Ty::Unit
+                Ty::Unit
                 | Ty::Ref(_)
                 | Ty::MutRef(_)
                 | Ty::Shared(_)
@@ -15181,7 +15289,9 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             return Some(return_type.clone());
                         }
                     }
-                    return self.function_returns.get(name).cloned();
+                    return self.function_returns.get(name).cloned().or_else(|| {
+                        smt_builtin_result_type(name, arguments.len()).map(str::to_string)
+                    });
                 }
                 if let ExprKind::Field(receiver, member) = &function.kind {
                     let receiver_type = self.infer_expr_type(receiver, environment)?;
@@ -15786,8 +15896,10 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 self.lower_expr(condition, &environment, expansion_stack)?,
             );
         }
+        let mut predicate_head = None;
         let value = if clause && return_is_bool {
             if let Some(body) = value {
+                predicate_head = Some(applicability.clone());
                 applicability = smt_and(
                     applicability,
                     self.lower_expr(body, &environment, expansion_stack)?,
@@ -15801,6 +15913,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             environment,
             applicability,
             value,
+            predicate_head,
         }))
     }
 
@@ -15834,6 +15947,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
 
         let result = (|| {
             let mut candidates = Vec::new();
+            let mut head_always_matches = false;
             for candidate in group.plan.candidates() {
                 let Some(lowered) = self.lower_rule_candidate_applicability(
                     group,
@@ -15846,6 +15960,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 else {
                     continue;
                 };
+                head_always_matches |= lowered.predicate_head.as_ref().is_some_and(smt_is_true);
                 let selected_value = self.lower_rule_candidate_value(&lowered, expansion_stack)?;
                 candidates.push((
                     lowered.applicability,
@@ -15854,7 +15969,11 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 ));
             }
 
-            let mut fallback = if group.totality == RuleDispatchTotality::PredicateFallbackFalse {
+            // A call whose predicate clause head matched answers False when
+            // no candidate applies, whatever the family's miss certificate.
+            let mut fallback = if group.totality == RuleDispatchTotality::PredicateFallbackFalse
+                || head_always_matches
+            {
                 Some(smt_bool(false))
             } else {
                 None
@@ -16083,6 +16202,21 @@ fn smt_pattern_support_reason(pat: &Pat) -> Option<String> {
     }
 }
 
+/// The builtins the SMT encoding translates directly, with their result
+/// type: `not` is the Boolean connective, and `string_length` is `str.len`.
+/// Both count the same thing: a Futuruna string is a sequence of Unicode
+/// scalar values and `string_length` counts them, while an SMT string is a
+/// sequence of code points and `str.len` counts those. String literals
+/// outside the SMT alphabet are refused (`smt_string_literal`), and every
+/// String value is kept to Unicode scalar values (`smt_string_domain`).
+fn smt_builtin_result_type(name: &str, arity: usize) -> Option<&'static str> {
+    match (name, arity) {
+        ("not", 1) => Some("Bool"),
+        ("string_length", 1) => Some("Int"),
+        _ => None,
+    }
+}
+
 fn smt_expr_support_reason(
     expr: &Expr,
     fn_names: &BTreeSet<String>,
@@ -16114,7 +16248,14 @@ fn smt_expr_support_reason(
             let ExprKind::Var(name) = &func.kind else {
                 return Some("higher-order function calls are not translatable to SMT".into());
             };
-            if name != "not" && !fn_names.contains(name) && !ctor_names.contains(name) {
+            let builtin = smt_builtin_result_type(name, args.len()).is_some();
+            if builtin && fn_names.contains(name) {
+                return Some(format!(
+                    "function `{}` shadows the builtin the SMT encoding translates",
+                    name
+                ));
+            }
+            if !builtin && !fn_names.contains(name) && !ctor_names.contains(name) {
                 return Some(format!("calls unsupported function `{}`", name));
             }
             args.iter()
@@ -16954,6 +17095,14 @@ fn smt_string_literal(text: &str) -> Result<String, String> {
     Ok(literal)
 }
 
+/// A String value holds Unicode scalar values only: SMT strings may also
+/// hold the surrogate code points, which no Futuruna string contains.
+fn smt_string_domain(value: &str) -> String {
+    format!(
+        "(str.in_re {value} (re.* (re.union (re.range \"\\u{{0}}\" \"\\u{{d7ff}}\") (re.range \"\\u{{e000}}\" \"\\u{{2ffff}}\"))))"
+    )
+}
+
 fn smt_value_symbol(name: &str) -> String {
     let mut encoded = String::with_capacity(name.len() * 2 + 7);
     encoded.push_str("runa_v_");
@@ -17012,6 +17161,9 @@ fn expr_to_smt(expr: &Expr) -> String {
         }
         ExprKind::App(func, args) => {
             let fname = match &func.kind {
+                ExprKind::Var(name) if name == "string_length" && args.len() == 1 => {
+                    "str.len".to_string()
+                }
                 ExprKind::Var(name) => smt_symbol(name),
                 _ => expr_to_smt(func),
             };
@@ -17034,7 +17186,7 @@ fn expr_to_smt(expr: &Expr) -> String {
         ExprKind::Field(obj, field) => {
             format!("({} {})", smt_field_function(field), expr_to_smt(obj))
         }
-        // Match expression → nested ite with Z3 (_ is Ctor) testers
+        // Match expression → nested ite with Z3 constructor testers
         ExprKind::Match(scrutinee, arms) => {
             let scrut = expr_to_smt(scrutinee);
             smt_match_arms(&scrut, arms, 0)
@@ -17078,7 +17230,7 @@ fn expr_to_smt(expr: &Expr) -> String {
     }
 }
 
-/// Convert match arms to nested Z3 ite expressions with (_ is Ctor) testers
+/// Convert match arms to nested Z3 ite expressions with constructor testers
 fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
     runa_verification_arithmetic::match_value(scrut, &arms[idx..])
         .unwrap_or_else(|reason| format!("; {reason}"))
@@ -17106,16 +17258,27 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
             .get(name)
             .map(|name| smt_symbol(name))
             .unwrap_or_else(|| "Int".into()),
-        ExprKind::App(func, _) => {
+        ExprKind::App(func, arguments) => {
             if let ExprKind::Var(name) = &func.as_ref().kind {
                 if let Some(ty) = ctor_to_type.get(name) {
                     return smt_symbol(ty);
+                }
+                if let Some(result) = smt_builtin_result_type(name, arguments.len()) {
+                    return result.into();
                 }
             }
             "Int".into()
         }
         _ => "Int".into(),
     }
+}
+
+/// The test whether a value was built by `constructor`. Z3's `is-Ctor`
+/// recognizer takes its datatype from the value, so it also names the
+/// constructor of a parametric datatype with several instances in scope,
+/// where `(_ is Ctor)` is ambiguous.
+fn smt_tester(constructor: &str) -> String {
+    format!("is-{}", smt_symbol(constructor))
 }
 
 /// The SMT function that reads field `key` (a field name, or `Ctor_f<i>` for
@@ -17126,57 +17289,126 @@ fn smt_field_function(key: &str) -> String {
     smt_symbol(&format!("runa_field_{key}"))
 }
 
-/// Emit a Z3 declare-datatype for a Futuruna ADT, followed by one field
-/// reader per field name (see `smt_field_function`).
-fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
-    let mut ctors = Vec::new();
-    // Field key -> (constructor, accessor, sort) for every constructor that
-    // has the field. SMT-LIB accessors share one namespace, so each one is
-    // named after its datatype and constructor.
-    let mut fields_by_key: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
-    for v in variants {
-        if v.fields.is_empty() {
-            ctors.push(smt_symbol(&v.name));
-        } else {
-            let fields: Vec<String> = v
+/// Emit a Z3 declare-datatype for a Futuruna ADT. A generic ADT (one with
+/// `parameters`) becomes a parametric datatype whose instances, such as
+/// `(Option Int)`, are sorts of their own; a non-generic one is followed by
+/// one field reader per field name (see `smt_field_function`), and each
+/// instance of a generic one gets its readers from
+/// `emit_z3_instance_readers`. Accessors are named after the datatype and
+/// constructor in both cases.
+fn emit_z3_datatype(name: &str, parameters: &[String], variants: &[Variant]) -> String {
+    let ctors = variants
+        .iter()
+        .map(|variant| {
+            if variant.fields.is_empty() {
+                return smt_symbol(&variant.name);
+            }
+            let fields = variant
                 .fields
                 .iter()
                 .enumerate()
-                .map(|(i, f)| {
-                    let key = if v.positional {
-                        format!("{}_f{}", v.name, i)
-                    } else {
-                        f.name.clone()
-                    };
-                    let accessor = smt_symbol(&format!("runa_acc_{}_{}_{}", name, v.name, key));
-                    let sort = ty_to_smt_sort(&f.ty);
-                    fields_by_key.entry(key).or_default().push((
-                        v.name.clone(),
-                        accessor.clone(),
-                        sort.clone(),
-                    ));
-                    format!("({} {})", accessor, sort)
+                .map(|(index, field)| {
+                    format!(
+                        "({} {})",
+                        smt_accessor(name, variant, index),
+                        smt_sort_with_parameters(&field.ty, parameters)
+                    )
                 })
-                .collect();
-            ctors.push(format!("({} {})", smt_symbol(&v.name), fields.join(" ")));
+                .collect::<Vec<_>>();
+            format!("({} {})", smt_symbol(&variant.name), fields.join(" "))
+        })
+        .collect::<Vec<_>>();
+    let sort = smt_symbol(name);
+    if !parameters.is_empty() {
+        return format!(
+            "(declare-datatype {} (par ({}) ({})))",
+            sort,
+            parameters
+                .iter()
+                .map(|parameter| smt_type_parameter(parameter))
+                .collect::<Vec<_>>()
+                .join(" "),
+            ctors.join(" ")
+        );
+    }
+    let mut out = format!("(declare-datatype {} ({}))", sort, ctors.join(" "));
+    out.push_str(&emit_z3_field_readers(name, &sort, variants, &|ty| {
+        ty_to_smt_sort(ty)
+    }));
+    out
+}
+
+/// Field readers for one instance of a generic datatype, such as
+/// `Option(YearParameters)`, at the sorts its arguments give each field.
+fn emit_z3_instance_readers(
+    name: &str,
+    parameters: &[String],
+    variants: &[Variant],
+    arguments: &[Ty],
+) -> String {
+    let instance = Ty::App(Box::new(Ty::Name(name.to_string())), arguments.to_vec());
+    emit_z3_field_readers(name, &ty_to_smt_sort(&instance), variants, &|ty| {
+        ty_to_smt_sort(&smt_substitute_type(ty, parameters, arguments))
+    })
+}
+
+fn smt_accessor(datatype: &str, variant: &Variant, index: usize) -> String {
+    smt_symbol(&format!(
+        "runa_acc_{}_{}_{}",
+        datatype,
+        variant.name,
+        smt_field_key(variant, index)
+    ))
+}
+
+/// The key a field is read by: its name, or `Ctor_f<i>` for a positional
+/// field.
+fn smt_field_key(variant: &Variant, index: usize) -> String {
+    if variant.positional {
+        format!("{}_f{}", variant.name, index)
+    } else {
+        variant.fields[index].name.clone()
+    }
+}
+
+/// One reader per field key over `sort`, the datatype `name` or one of its
+/// instances; `field_sort` gives each field's sort there.
+fn emit_z3_field_readers(
+    name: &str,
+    sort: &str,
+    variants: &[Variant],
+    field_sort: &dyn Fn(&Ty) -> String,
+) -> String {
+    // Field key -> (constructor, accessor, sort) for every constructor that
+    // has the field.
+    let mut fields_by_key: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
+    for variant in variants {
+        for (index, field) in variant.fields.iter().enumerate() {
+            fields_by_key
+                .entry(smt_field_key(variant, index))
+                .or_default()
+                .push((
+                    variant.name.clone(),
+                    smt_accessor(name, variant, index),
+                    field_sort(&field.ty),
+                ));
         }
     }
-    let sort = smt_symbol(name);
-    let mut out = format!("(declare-datatype {} ({}))", sort, ctors.join(" "));
+    let mut out = String::new();
     for (key, owners) in fields_by_key {
-        let Some((_, last_accessor, field_sort)) = owners.last() else {
+        let Some((_, last_accessor, last_sort)) = owners.last() else {
             continue;
         };
         // A field whose sort differs between constructors has no single
         // reader; a claim that reads it fails on the undefined function.
-        if owners.iter().any(|(_, _, sort)| sort != field_sort) {
+        if owners.iter().any(|(_, _, sort)| sort != last_sort) {
             continue;
         }
         let mut body = format!("({} runa_x)", last_accessor);
         for (ctor, accessor, _) in owners.iter().rev().skip(1) {
             body = format!(
-                "(ite ((_ is {}) runa_x) ({} runa_x) {})",
-                smt_symbol(ctor),
+                "(ite ({} runa_x) ({} runa_x) {})",
+                smt_tester(ctor),
                 accessor,
                 body
             );
@@ -17185,11 +17417,128 @@ fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
             "\n(define-fun {} ((runa_x {})) {} {})",
             smt_field_function(&key),
             sort,
-            field_sort,
+            last_sort,
             body
         ));
     }
     out
+}
+
+fn smt_type_parameter(parameter: &str) -> String {
+    smt_symbol(&format!("runa_t_{parameter}"))
+}
+
+/// Builtin collections have no SMT sort; a datatype field of one keeps the
+/// placeholder sort Int, and the support check refuses every read of it.
+fn smt_is_collection_type(name: &str) -> bool {
+    matches!(name, "List" | "Map" | "Set")
+}
+
+/// A field sort inside a parametric datatype declaration.
+fn smt_sort_with_parameters(ty: &Ty, parameters: &[String]) -> String {
+    match ty {
+        Ty::Name(name) | Ty::Var(name) if parameters.contains(name) => smt_type_parameter(name),
+        Ty::App(constructor, arguments) => match constructor.as_ref() {
+            Ty::Name(name) if !smt_is_collection_type(name) => format!(
+                "({} {})",
+                smt_symbol(name),
+                arguments
+                    .iter()
+                    .map(|argument| smt_sort_with_parameters(argument, parameters))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ),
+            _ => ty_to_smt_sort(ty),
+        },
+        Ty::Optional(inner) => format!(
+            "({} {})",
+            smt_symbol("Option"),
+            smt_sort_with_parameters(inner, parameters)
+        ),
+        _ => ty_to_smt_sort(ty),
+    }
+}
+
+/// `ty` with each of the generic `parameters` replaced by its argument.
+fn smt_substitute_type(ty: &Ty, parameters: &[String], arguments: &[Ty]) -> Ty {
+    match ty {
+        Ty::Name(name) | Ty::Var(name) => parameters
+            .iter()
+            .position(|parameter| parameter == name)
+            .and_then(|index| arguments.get(index))
+            .cloned()
+            .unwrap_or_else(|| ty.clone()),
+        Ty::App(constructor, inner) => Ty::App(
+            Box::new(smt_substitute_type(constructor, parameters, arguments)),
+            inner
+                .iter()
+                .map(|argument| smt_substitute_type(argument, parameters, arguments))
+                .collect(),
+        ),
+        Ty::Optional(inner) => {
+            Ty::Optional(Box::new(smt_substitute_type(inner, parameters, arguments)))
+        }
+        _ => ty.clone(),
+    }
+}
+
+/// The datatype a type names and its type arguments: `Option(Int)` and
+/// `Int?` are `Option` applied to `Int`; a plain name has no arguments.
+fn smt_type_instance(ty: &Ty) -> Option<(&str, Vec<Ty>)> {
+    match ty {
+        Ty::Name(name) => Some((name, Vec::new())),
+        Ty::App(constructor, arguments) => match constructor.as_ref() {
+            Ty::Name(name) => Some((name, arguments.clone())),
+            _ => None,
+        },
+        Ty::Optional(inner) => Some(("Option", vec![inner.as_ref().clone()])),
+        _ => None,
+    }
+}
+
+/// Every applied generic type in `ty`, its arguments included, keyed by
+/// its sort.
+fn collect_smt_type_instances(ty: &Ty, instances: &mut BTreeMap<String, (String, Vec<Ty>)>) {
+    if !matches!(ty, Ty::App(_, _) | Ty::Optional(_)) {
+        return;
+    }
+    let Some((owner, arguments)) = smt_type_instance(ty) else {
+        return;
+    };
+    for argument in &arguments {
+        collect_smt_type_instances(argument, instances);
+    }
+    instances
+        .entry(ty_to_smt_sort(ty))
+        .or_insert_with(|| (owner.to_string(), arguments));
+}
+
+/// Add the instances each instance's fields form at its arguments, until
+/// none is new (`Wrap(Int)` with a field `Option(a)` adds `Option(Int)`).
+fn close_smt_type_instances<'v>(
+    instances: &mut BTreeMap<String, (String, Vec<Ty>)>,
+    variants_of: impl Fn(&str) -> Option<&'v [Variant]>,
+    parameters_of: impl Fn(&str) -> Vec<String>,
+) {
+    let mut pending = instances.values().cloned().collect::<Vec<_>>();
+    while let Some((owner, arguments)) = pending.pop() {
+        let parameters = parameters_of(&owner);
+        for variant in variants_of(&owner).into_iter().flatten() {
+            for field in &variant.fields {
+                let mut found = BTreeMap::new();
+                collect_smt_type_instances(
+                    &smt_substitute_type(&field.ty, &parameters, &arguments),
+                    &mut found,
+                );
+                for (key, instance) in found {
+                    if !instances.contains_key(&key) {
+                        pending.push(instance.clone());
+                        instances.insert(key, instance);
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Map a Futuruna type annotation to a Z3 sort name
@@ -17202,63 +17551,92 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
             "String" => "String".into(),
             other => smt_symbol(other), // ADT name
         },
+        Ty::App(constructor, arguments) => match constructor.as_ref() {
+            Ty::Name(name) if !smt_is_collection_type(name) => format!(
+                "({} {})",
+                smt_symbol(name),
+                arguments
+                    .iter()
+                    .map(ty_to_smt_sort)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ),
+            _ => "Int".into(),
+        },
+        Ty::Optional(inner) => format!("({} {})", smt_symbol("Option"), ty_to_smt_sort(inner)),
         _ => "Int".into(),
     }
 }
 
 fn smt_type_name_to_sort(type_name: &str) -> String {
-    match type_name {
-        "Int" => "Int".to_string(),
-        "Float" => "Real".to_string(),
-        "Bool" => "Bool".to_string(),
-        "String" => "String".to_string(),
-        other => smt_symbol(other),
+    match parse_type_annotation(type_name) {
+        Ok(ty) => ty_to_smt_sort(&ty),
+        Err(_) => smt_symbol(type_name),
     }
 }
 
 fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
+    collect_free_vars_outside(expr, &BTreeSet::new(), vars);
+}
+
+/// The free variables of `expr` that `bound` (names a pattern, block or
+/// match arm binds around it) does not cover.
+fn collect_free_vars_outside(expr: &Expr, bound: &BTreeSet<String>, vars: &mut BTreeSet<String>) {
     match &expr.kind {
         ExprKind::Var(name) => {
-            vars.insert(name.clone());
+            if !bound.contains(name) {
+                vars.insert(name.clone());
+            }
         }
         ExprKind::BinOp(_, lhs, rhs) => {
-            collect_free_vars(lhs, vars);
-            collect_free_vars(rhs, vars);
+            collect_free_vars_outside(lhs, bound, vars);
+            collect_free_vars_outside(rhs, bound, vars);
         }
-        ExprKind::UnOp(_, inner) => collect_free_vars(inner, vars),
+        ExprKind::UnOp(_, inner) => collect_free_vars_outside(inner, bound, vars),
         ExprKind::App(func, args) => {
             if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
                 if let Some(value) = args.get(1) {
-                    collect_free_vars(value, vars);
+                    collect_free_vars_outside(value, bound, vars);
                 }
                 return;
             }
-            collect_free_vars(func, vars);
+            if !matches!(&func.kind, ExprKind::Var(name)
+                if smt_builtin_result_type(name, args.len()).is_some())
+            {
+                collect_free_vars_outside(func, bound, vars);
+            }
             for a in args {
-                collect_free_vars(a, vars);
+                collect_free_vars_outside(a, bound, vars);
             }
         }
         ExprKind::If(c, t, e) => {
-            collect_free_vars(c, vars);
-            collect_free_vars(t, vars);
-            collect_free_vars(e, vars);
+            collect_free_vars_outside(c, bound, vars);
+            collect_free_vars_outside(t, bound, vars);
+            collect_free_vars_outside(e, bound, vars);
         }
-        ExprKind::Field(obj, _) => collect_free_vars(obj, vars),
+        ExprKind::Field(obj, _) => collect_free_vars_outside(obj, bound, vars),
         ExprKind::Match(scrut, arms) => {
-            collect_free_vars(scrut, vars);
+            collect_free_vars_outside(scrut, bound, vars);
             for arm in arms {
-                collect_free_vars(&arm.body, vars);
-                if let Some(ref g) = arm.guard {
-                    collect_free_vars(g, vars);
+                let mut arm_bound = bound.clone();
+                collect_smt_pattern_bindings(&arm.pat, &mut arm_bound);
+                collect_free_vars_outside(&arm.body, &arm_bound, vars);
+                if let Some(guard) = &arm.guard {
+                    collect_free_vars_outside(guard, &arm_bound, vars);
                 }
             }
         }
-        ExprKind::Lambda(_, body) => collect_free_vars(body, vars),
+        ExprKind::Lambda(_, body) => collect_free_vars_outside(body, bound, vars),
         ExprKind::Block(stmts) => {
+            let mut block_bound = bound.clone();
             for s in stmts {
                 match s {
-                    Stmt::Bind(_, _, e) | Stmt::Expr(e) | Stmt::MonadicBind(_, _, e) => {
-                        collect_free_vars(e, vars);
+                    Stmt::Bind(pattern, _, e) => {
+                        collect_free_vars_outside(e, &block_bound, vars);
+                        collect_smt_pattern_bindings(pattern, &mut block_bound);
+                    }
+                    Stmt::Expr(e) | Stmt::MonadicBind(_, _, e) => {
+                        collect_free_vars_outside(e, &block_bound, vars);
                     }
                     _ => {}
                 }
@@ -18718,7 +19096,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             std::process::exit(1);
         }
     };
-    let mut type_artifacts = TypeChecker::check_with_artifacts(
+    let type_artifacts = TypeChecker::check_with_artifacts(
         &if use_prelude {
             prepend_prelude(parse_prelude(), &all_stmts)
         } else {
@@ -18732,15 +19110,11 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         std::process::exit(1);
     }
     // Execution checks Int arithmetic at runtime; the solver instead proves
-    // that no reachable operation overflows or divides by zero. A rule whose
-    // result type is known therefore translates even when its arithmetic is
-    // not statically total.
-    type_artifacts.rule_dispatch_return_types =
-        type_artifacts.rule_dispatch_backend_return_types.clone();
-    type_artifacts.rule_dispatch_return_issues =
-        type_artifacts.rule_dispatch_backend_return_issues.clone();
+    // that no reachable operation overflows or divides by zero, so a rule
+    // whose result type is known translates even when its arithmetic is not
+    // statically total.
     let all_stmts = smt_with_prelude_arithmetic(all_stmts, use_prelude);
-    let rule_registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
+    let rule_registry = RuleDispatchRegistry::for_solver(&all_stmts, &type_artifacts);
     let rule_lowerer = SmtRuleLowerer::new(
         &all_stmts,
         &rule_registry,
@@ -18749,6 +19123,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
 
     let SmtProgramDeclarations {
         adts,
+        declared_adts,
         ctor_to_type,
         mut invariants,
         bindings,
@@ -18841,7 +19216,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     println!(
         "runa --verify: {} invariant(s), {} ADT(s) from {}",
         invariants.len(),
-        adts.len(),
+        declared_adts,
         filename
     );
     println!("{VERIFY_GUARANTEE}");
@@ -18890,6 +19265,47 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             }
         }
     };
+
+    // A generic datatype is declared parametric; each instance the program's
+    // declared types form gets field readers at its arguments' sorts.
+    let type_parameters = |owner: &str| {
+        rule_lowerer
+            .type_parameters_by_owner
+            .get(owner)
+            .cloned()
+            .unwrap_or_default()
+    };
+    let inferred_binding_types = rule_lowerer
+        .binding_types
+        .values()
+        .filter_map(|type_name| parse_type_annotation(type_name).ok())
+        .collect::<Vec<_>>();
+    let mut datatype_instances = BTreeMap::new();
+    for ty in adts
+        .iter()
+        .filter(|(name, _)| type_parameters(name).is_empty())
+        .flat_map(|(_, variants)| variants)
+        .flat_map(|variant| variant.fields.iter().map(|field| &field.ty))
+        .chain(functions.iter().flat_map(|(_, params, ret, _)| {
+            params
+                .iter()
+                .filter_map(|param| param.ty.as_ref())
+                .chain(ret.iter())
+        }))
+        .chain(binding_types.values().flatten())
+        .chain(&inferred_binding_types)
+    {
+        collect_smt_type_instances(ty, &mut datatype_instances);
+    }
+    close_smt_type_instances(
+        &mut datatype_instances,
+        |owner| {
+            adts.iter()
+                .find(|(name, _)| name == owner)
+                .map(|(_, variants)| variants.as_slice())
+        },
+        type_parameters,
+    );
 
     // For each invariant, generate SMT-LIB2 and run Z3
     for (inv_name, subject_expr, pred_expr) in &invariants {
@@ -18972,8 +19388,23 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
 
         // Emit ADT datatype declarations
         for (adt_name, variants) in &adts {
-            smt.push_str(&emit_z3_datatype(adt_name, variants));
-            smt.push_str("\n");
+            smt.push_str(&emit_z3_datatype(
+                adt_name,
+                &type_parameters(adt_name),
+                variants,
+            ));
+            smt.push('\n');
+        }
+        for (owner, arguments) in datatype_instances.values() {
+            if let Some((_, variants)) = adts.iter().find(|(name, _)| name == owner) {
+                smt.push_str(&emit_z3_instance_readers(
+                    owner,
+                    &type_parameters(owner),
+                    variants,
+                    arguments,
+                ));
+                smt.push('\n');
+            }
         }
         if !adts.is_empty() {
             smt.push('\n');

@@ -606,9 +606,6 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
             if let Some(reason) = unsorted.get(variable) {
                 return Err(reason.clone());
             }
-            if !declarations.bindings.contains_key(variable) && !sorts.contains_key(variable) {
-                return Err(format!("`{}` has no value in the SMT encoding", variable));
-            }
             if let Some(reason) = declarations.binding_lowering_errors.get(variable) {
                 return Err(format!("binding `{}` {}", variable, reason));
             }
@@ -633,6 +630,13 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
             &self.ctor_names,
         ) {
             return Err(reason.trim_start_matches("predicate ").to_string());
+        }
+        // An unsupported call names its callee as a free value; report the
+        // call above before a value the encoding lacks.
+        if let Some(variable) = variables.iter().find(|variable| {
+            !declarations.bindings.contains_key(*variable) && !sorts.contains_key(*variable)
+        }) {
+            return Err(format!("`{}` has no value in the SMT encoding", variable));
         }
         let expressions = std::iter::once(expression)
             .chain(
@@ -674,12 +678,13 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
         }
         let guarded = self.guarded_functions(&functions)?;
         runa_verification_arithmetic::definedness(expression, &guarded)?;
-        // Datatypes are declared only for the types a query mentions, and
-        // generic types not at all. A constructor of an undeclared type, or a
-        // field whose type is not represented, is outside the encoding.
+        // Datatypes are declared only for the types a query mentions. A
+        // constructor of an undeclared type, or a field whose type is not
+        // represented, is outside the encoding.
         let variable_set = variables.iter().cloned().collect::<BTreeSet<_>>();
         let declared = self
-            .datatypes(sorts, &variable_set, &functions, &[expression])
+            .datatypes(sorts, &variable_set, &functions, &[expression], &[])
+            .0
             .into_iter()
             .collect::<BTreeSet<_>>();
         let mut fields = BTreeSet::new();
@@ -711,13 +716,18 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
             };
             if !declared.contains(owner.as_str()) {
                 return Err(format!(
-                    "constructor `{}` of generic type `{}` is not represented by the SMT encoding",
+                    "constructor `{}` of type `{}` is not represented by the SMT encoding",
                     constructor, owner
                 ));
             }
         }
         for field in fields {
-            for owner in &declared {
+            // A generic datatype's fields are checked at each instance's
+            // arguments, where its sort is formed.
+            for owner in declared
+                .iter()
+                .filter(|owner| self.type_parameters(owner).is_empty())
+            {
                 for variant in self.adts_by_name[owner] {
                     for field_declaration in &variant.fields {
                         if field_declaration.name == field
@@ -780,25 +790,34 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
             .expect("requirements checked expression definedness")
     }
 
-    /// Datatypes the query mentions, dependencies first.
+    fn type_parameters(&self, owner: &str) -> &[String] {
+        self.lowerer
+            .type_parameters_by_owner
+            .get(owner)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    /// Datatypes the query mentions, dependencies first, and the instances
+    /// of generic ones it forms (`Option(Int)`), whose field readers are
+    /// declared at their arguments' sorts. `extra_types` are further types
+    /// the query holds values of, such as a family's result.
     fn datatypes(
         &self,
         sorts: &BTreeMap<String, Ty>,
         variables: &BTreeSet<String>,
         functions: &BTreeSet<String>,
         expressions: &[&Expr],
-    ) -> Vec<&'a str> {
-        let mut roots = BTreeSet::new();
-        for ty in sorts.values() {
-            visit_type_names(ty, &mut roots);
-        }
+        extra_types: &[Ty],
+    ) -> (Vec<&'a str>, Vec<(String, Vec<Ty>)>) {
+        let mut types: Vec<Ty> = sorts.values().chain(extra_types).cloned().collect();
         let mut constructor_sources: Vec<&Expr> = expressions.to_vec();
         for variable in variables {
             if let Some(Some(ty)) = self.declarations.binding_types.get(variable) {
-                visit_type_names(ty, &mut roots);
+                types.push(ty.clone());
             } else if let Some(type_name) = self.lowerer.binding_types.get(variable) {
                 if let Ok(ty) = parse_type_annotation(type_name) {
-                    visit_type_names(&ty, &mut roots);
+                    types.push(ty);
                 }
             }
             if let Some(value) = self.declarations.bindings.get(variable) {
@@ -807,15 +826,19 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
         }
         for function in functions {
             if let Some((params, ret, body)) = self.function_map.get(function) {
-                for ty in params
-                    .iter()
-                    .filter_map(|param| param.ty.as_ref())
-                    .chain(ret)
-                {
-                    visit_type_names(ty, &mut roots);
-                }
+                types.extend(
+                    params
+                        .iter()
+                        .filter_map(|param| param.ty.as_ref())
+                        .chain(ret)
+                        .cloned(),
+                );
                 constructor_sources.push(body);
             }
+        }
+        let mut roots = BTreeSet::new();
+        for ty in &types {
+            visit_type_names(ty, &mut roots);
         }
         for expression in constructor_sources {
             walk_ast_expr(expression, &mut |node| {
@@ -847,7 +870,34 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
         for root in roots {
             self.order_datatype(&root, &mut visited, &mut ordered);
         }
-        ordered
+
+        // Instances the types above form, those the fields of each declared
+        // datatype form, and those each instance's fields form at its
+        // arguments, until none is new.
+        let mut instances = BTreeMap::new();
+        for ty in &types {
+            collect_smt_type_instances(ty, &mut instances);
+        }
+        for owner in ordered
+            .iter()
+            .filter(|owner| self.type_parameters(owner).is_empty())
+        {
+            for variant in self.adts_by_name[owner] {
+                for field in &variant.fields {
+                    collect_smt_type_instances(&field.ty, &mut instances);
+                }
+            }
+        }
+        close_smt_type_instances(
+            &mut instances,
+            |owner| self.adts_by_name.get(owner).copied(),
+            |owner| self.type_parameters(owner).to_vec(),
+        );
+        let instances = instances
+            .into_values()
+            .filter(|(owner, _)| ordered.contains(&owner.as_str()))
+            .collect();
+        (ordered, instances)
     }
 
     fn order_datatype(
@@ -859,35 +909,39 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
         let Some((&owner, variants)) = self.adts_by_name.get_key_value(name) else {
             return;
         };
-        if self
-            .lowerer
-            .type_parameters_by_owner
-            .get(name)
-            .is_some_and(|parameters| !parameters.is_empty())
-            || !visited.insert(name.to_string())
-        {
+        if !visited.insert(name.to_string()) {
             return;
         }
+        let parameters = self.type_parameters(name);
         let mut dependencies = BTreeSet::new();
         for variant in variants.iter() {
             for field in &variant.fields {
                 visit_type_names(&field.ty, &mut dependencies);
             }
         }
-        for dependency in dependencies {
-            self.order_datatype(&dependency, visited, output);
+        for dependency in dependencies
+            .iter()
+            .filter(|dependency| !parameters.contains(dependency))
+        {
+            self.order_datatype(dependency, visited, output);
         }
         output.push(owner);
     }
 
-    /// Constraints that keep every Int inside a value in the 64-bit range.
+    /// Constraints that keep every Int inside a value in the 64-bit range
+    /// and every String to Unicode scalar values.
     fn value_domain(&self, ty: &Ty, value: &str, depth: usize) -> String {
         match ty {
             Ty::Name(name) if name == "Int" => runa_verification_arithmetic::int_domain(value),
-            Ty::Name(name) if depth < 4 => {
-                let Some(variants) = self.adts_by_name.get(name.as_str()) else {
+            Ty::Name(name) if name == "String" => smt_string_domain(value),
+            Ty::Name(_) | Ty::App(_, _) | Ty::Optional(_) if depth < 4 => {
+                let Some((owner, arguments)) = smt_type_instance(ty) else {
                     return "true".into();
                 };
+                let Some(variants) = self.adts_by_name.get(owner) else {
+                    return "true".into();
+                };
+                let parameters = self.type_parameters(owner);
                 let mut constraints = Vec::new();
                 for variant in variants.iter() {
                     let fields = variant
@@ -895,14 +949,13 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
                         .iter()
                         .enumerate()
                         .map(|(index, field)| {
-                            let selector = if variant.positional {
-                                format!("{}_f{}", variant.name, index)
-                            } else {
-                                field.name.clone()
-                            };
                             self.value_domain(
-                                &field.ty,
-                                &format!("({} {})", smt_field_function(&selector), value),
+                                &smt_substitute_type(&field.ty, parameters, &arguments),
+                                &format!(
+                                    "({} {})",
+                                    smt_field_function(&smt_field_key(variant, index)),
+                                    value
+                                ),
                                 depth + 1,
                             )
                         })
@@ -912,12 +965,7 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
                         constraints.push(if variants.len() == 1 {
                             fields
                         } else {
-                            format!(
-                                "(=> ((_ is {}) {}) {})",
-                                smt_symbol(&variant.name),
-                                value,
-                                fields
-                            )
+                            format!("(=> ({} {}) {})", smt_tester(&variant.name), value, fields)
                         });
                     }
                 }
@@ -945,14 +993,30 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
         variables: &BTreeSet<String>,
         functions: &BTreeSet<String>,
         expressions: &[&Expr],
+        extra_types: &[Ty],
     ) -> String {
         let mut smt = String::new();
         smt.push_str("; Auto-generated by runa audit (clause reachability)\n");
         smt.push_str("(set-option :produce-unsat-cores true)\n");
         smt.push_str(&format!("(set-option :timeout {})\n", SOLVER_TIMEOUT_MS));
         smt.push_str("(set-logic ALL)\n");
-        for name in self.datatypes(sorts, variables, functions, expressions) {
-            smt.push_str(&emit_z3_datatype(name, self.adts_by_name[name]));
+        let (datatypes, instances) =
+            self.datatypes(sorts, variables, functions, expressions, extra_types);
+        for name in datatypes {
+            smt.push_str(&emit_z3_datatype(
+                name,
+                self.type_parameters(name),
+                self.adts_by_name[name],
+            ));
+            smt.push('\n');
+        }
+        for (owner, arguments) in instances {
+            smt.push_str(&emit_z3_instance_readers(
+                &owner,
+                self.type_parameters(&owner),
+                self.adts_by_name[owner.as_str()],
+                &arguments,
+            ));
             smt.push('\n');
         }
         for variable in variables {
@@ -1036,9 +1100,11 @@ fn visit_type_names(ty: &Ty, output: &mut BTreeSet<String>) {
                 visit_type_names(argument, output);
             }
         }
-        Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+        Ty::Optional(inner) => {
+            output.insert("Option".to_string());
             visit_type_names(inner, output)
         }
+        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => visit_type_names(inner, output),
         Ty::Arrow(left, right) => {
             visit_type_names(left, output);
             visit_type_names(right, output);
@@ -1290,13 +1356,22 @@ fn analyze(
             diagnostic.message
         ));
     }
-    let registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
+    // As in `runa verify`: Int arithmetic is an obligation the solver
+    // decides (a guard that can overflow is undefined, never true), and
+    // `abs` translates as an ordinary function.
+    let statement_count = all_stmts.len();
+    let all_stmts = smt_with_prelude_arithmetic(all_stmts, false);
+    let helper_origin: Rc<str> = Rc::from(filename);
+    let origins = std::iter::repeat_n(&helper_origin, all_stmts.len() - statement_count)
+        .chain(&origins)
+        .collect::<Vec<_>>();
+    let registry = RuleDispatchRegistry::for_solver(&all_stmts, &type_artifacts);
     let lowerer = SmtRuleLowerer::new(&all_stmts, &registry, symbol_index.rule_identities.clone());
     let declarations = SmtProgramDeclarations::collect(&all_stmts, &lowerer);
     let encoder = Encoder::new(&lowerer, &declarations);
 
     let mut rule_origins: HashMap<*const Rule, &Rc<str>> = HashMap::new();
-    for (statement, origin) in all_stmts.iter().zip(&origins) {
+    for (statement, origin) in all_stmts.iter().zip(origins) {
         match statement {
             Stmt::Rule(rule) => {
                 rule_origins.insert(rule as *const Rule, origin);
@@ -1373,44 +1448,34 @@ fn analyze(
         };
         let signature = family_signature(&encoder, group);
         let lowered = lower_family(&encoder, group, &signature, &candidates, &mut locate);
-        if lowered.is_empty() {
+        if lowered.candidates.is_empty() {
             continue;
         }
         families += 1;
-        clauses += lowered.len();
+        clauses += lowered.candidates.len();
         analyzed_families.push(AnalyzedFamily {
             family: family.clone(),
             files: lowered
+                .candidates
                 .iter()
                 .map(|candidate| candidate.location.file.clone())
                 .collect::<BTreeSet<_>>()
                 .into_iter()
                 .collect(),
-            clauses: lowered.len(),
+            clauses: lowered.candidates.len(),
         });
         // A family with an unguarded candidate (an irrefutable head without
-        // a guard) always selects one, and a Boolean family answers False
-        // when no clause applies, as at run time: either its miss is
-        // certified Boolean, or none of its rules is a value rule (a default,
-        // an exception, or a literal value). Only the remaining families can
-        // leave an input uncovered.
+        // a guard) always selects one, and a Boolean family whose miss
+        // answers False at run time (`RuleDispatchRegistry::for_solver`)
+        // cannot leave an input uncovered. Only the remaining families can.
         let has_unguarded_candidate = candidates.iter().any(|candidate| {
             rule_dispatch_candidate_is_total(
                 candidate.rule,
                 group.return_type.as_deref().unwrap_or_default(),
             )
         });
-        let answers_false = group.return_type.as_deref() == Some("Bool")
-            && group.return_type_issue.is_none()
-            && (type_artifacts
-                .rule_dispatch_runtime_boolean_miss_keys
-                .contains(&group.key)
-                || !rule_family_miss_is_value_error(
-                    candidates.iter().map(|candidate| candidate.rule),
-                ));
-        let check_coverage = group.totality == RuleDispatchTotality::Partial
-            && !has_unguarded_candidate
-            && !answers_false;
+        let check_coverage =
+            group.totality == RuleDispatchTotality::Partial && !has_unguarded_candidate;
         match analyze_family(&family, &signature, &encoder, &lowered, check_coverage) {
             Ok(outcome) => {
                 findings.extend(outcome.findings);
@@ -1453,32 +1518,40 @@ struct FamilySignature {
     receiver: Option<Expr>,
     sorts: BTreeMap<String, Ty>,
     unsorted: BTreeMap<String, String>,
+    /// The declared type of every argument with one, represented or not, so
+    /// lowering reaches the reason an argument is outside the encoding.
+    types: BTreeMap<String, String>,
     /// The values a witness names, in order: each RuleScope field
     /// (`self.<field>`), then each argument.
     witness_names: Vec<WitnessValue>,
+    /// The family's result type, when the encoding represents it.
+    result: Option<Ty>,
 }
 
 struct WitnessValue {
     /// SMT term whose model value is reported.
     term: String,
     display: String,
-    /// A plain value the witness takes when the finding allows it, so
-    /// values that do not matter read as `0`, `false` or `""`.
-    preferred: Option<&'static str>,
+    /// Soft constraints that keep values the finding does not depend on
+    /// plain: `0`, `false`, `""`, or a string of lowercase ASCII letters.
+    preferences: Vec<String>,
 }
 
 impl WitnessValue {
     fn new(term: String, display: String, ty: &Ty) -> Self {
-        let preferred = match ty {
-            Ty::Name(name) if name == "Int" => Some("0"),
-            Ty::Name(name) if name == "Bool" => Some("false"),
-            Ty::Name(name) if name == "String" => Some("\"\""),
-            _ => None,
+        let preferences = match ty {
+            Ty::Name(name) if name == "Int" => vec![format!("(= {term} 0)")],
+            Ty::Name(name) if name == "Bool" => vec![format!("(= {term} false)")],
+            Ty::Name(name) if name == "String" => vec![
+                format!("(= {term} \"\")"),
+                format!("(str.in_re {term} (re.* (re.range \"a\" \"z\")))"),
+            ],
+            _ => Vec::new(),
         };
         Self {
             term,
             display,
-            preferred,
+            preferences,
         }
     }
 }
@@ -1512,11 +1585,15 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
             _ => witness_names.push(WitnessValue {
                 term: receiver_term,
                 display: "self".to_string(),
-                preferred: None,
+                preferences: Vec::new(),
             }),
         }
         Expr::unspanned(ExprKind::Var(RECEIVER.to_string()))
     });
+    let mut types = sorts
+        .iter()
+        .map(|(name, ty)| (name.clone(), ty.to_string()))
+        .collect::<BTreeMap<_, _>>();
     let arguments = group
         .parameters
         .iter()
@@ -1534,9 +1611,11 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
                         display,
                         &ty,
                     ));
+                    types.insert(symbol.clone(), ty.to_string());
                     sorts.insert(symbol.clone(), ty);
                 }
                 Some(Ok(ty)) => {
+                    types.insert(symbol.clone(), ty.to_string());
                     unsorted.insert(
                         symbol.clone(),
                         format!(
@@ -1566,7 +1645,13 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
         receiver,
         sorts,
         unsorted,
+        types,
         witness_names,
+        result: group
+            .return_type
+            .as_deref()
+            .and_then(|return_type| parse_type_annotation(return_type).ok())
+            .filter(|result| encoder.lowerer.rule_type_is_smt_representable(result)),
     }
 }
 
@@ -1579,20 +1664,19 @@ fn lower_family(
     signature: &FamilySignature,
     candidates: &[RuleDispatchCandidate],
     locate: &mut impl FnMut(&RuleDispatchCandidate) -> ClauseLocation,
-) -> Vec<Candidate> {
+) -> LoweredFamily {
     let environment = SmtLoweringEnv {
-        types: signature
-            .sorts
-            .iter()
-            .map(|(name, ty)| (name.clone(), ty.to_string()))
-            .collect(),
+        types: signature.types.clone(),
         rule_calls_as_symbols: true,
         ..SmtLoweringEnv::default()
     };
     let return_is_bool = group.return_type.as_deref() == Some("Bool");
-    let mut lowered = Vec::new();
+    let mut lowered = LoweredFamily {
+        candidates: Vec::new(),
+        predicate_heads: Vec::new(),
+    };
     for candidate in candidates {
-        if return_is_bool
+        let marks_head_only = return_is_bool
             && matches!(
                 candidate.rule,
                 Rule::Clause {
@@ -1602,10 +1686,7 @@ fn lower_family(
                     }),
                     ..
                 }
-            )
-        {
-            continue;
-        }
+            );
         let Some(tier) = candidate.rule.dispatch_tier() else {
             continue;
         };
@@ -1617,9 +1698,29 @@ fn lower_family(
             &environment,
             &mut Vec::new(),
         );
-        let (guard, value) = match applicability {
+        let lowered_candidate = match applicability {
             Ok(None) => continue,
-            Ok(Some(lowered_candidate)) => {
+            Ok(Some(lowered_candidate)) => Ok(lowered_candidate),
+            Err(error) => Err(error),
+        };
+        let predicate_head = match &lowered_candidate {
+            Ok(lowered_candidate) => lowered_candidate.predicate_head.clone().map(|head| {
+                encoder
+                    .requirements(&head, &signature.sorts, &signature.unsorted)
+                    .map(|requirements| (head, requirements))
+            }),
+            Err(error) => (return_is_bool
+                && matches!(candidate.rule, Rule::Clause { body: Some(_), .. }))
+            .then(|| Err(error.clone())),
+        };
+        if let Some(head) = predicate_head {
+            lowered.predicate_heads.push((locate(candidate), head));
+        }
+        if marks_head_only {
+            continue;
+        }
+        let (guard, value) = match lowered_candidate {
+            Ok(lowered_candidate) => {
                 let guard = encoder
                     .requirements(
                         &lowered_candidate.applicability,
@@ -1639,7 +1740,7 @@ fn lower_family(
             }
             Err(error) => (Err(error.clone()), Err(error)),
         };
-        lowered.push(Candidate {
+        lowered.candidates.push(Candidate {
             location: locate(candidate),
             tier,
             guard,
@@ -1647,6 +1748,14 @@ fn lower_family(
         });
     }
     lowered
+}
+
+struct LoweredFamily {
+    candidates: Vec<Candidate>,
+    /// The head of each Boolean clause-as-predicate, literal `false` bodies
+    /// included: once one matches, a call that no candidate selects answers
+    /// False instead of missing.
+    predicate_heads: Vec<(ClauseLocation, Result<(Expr, Requirements), String>)>,
 }
 
 struct FamilyOutcome {
@@ -1664,9 +1773,10 @@ fn analyze_family(
     family: &str,
     signature: &FamilySignature,
     encoder: &Encoder,
-    candidates: &[Candidate],
+    lowered: &LoweredFamily,
     check_coverage: bool,
 ) -> Result<FamilyOutcome, FamilyError> {
+    let candidates = lowered.candidates.as_slice();
     let mut outcome = FamilyOutcome {
         findings: Vec::new(),
         not_analyzed: Vec::new(),
@@ -1695,6 +1805,13 @@ fn analyze_family(
                 .push(skip(index, format!("guard not translatable: {}", reason)));
         }
     }
+    // Once a predicate clause's head matches, a call no candidate selects
+    // answers False: an irrefutable head means no input misses.
+    let check_coverage = check_coverage
+        && !lowered
+            .predicate_heads
+            .iter()
+            .any(|(_, head)| matches!(head, Ok((expression, _)) if smt_is_true(expression)));
     // Whether an input misses every candidate depends on every guard.
     let check_coverage = match guards.iter().position(Option::is_none) {
         Some(blocker) if check_coverage => {
@@ -1705,6 +1822,29 @@ fn analyze_family(
             false
         }
         _ => check_coverage,
+    };
+    let check_coverage = match lowered
+        .predicate_heads
+        .iter()
+        .find(|(_, head)| head.is_err())
+    {
+        Some((location, _)) if check_coverage => {
+            outcome.gap_not_checked.push(skip_coverage(format!(
+                "the head of {} is not translatable",
+                location.display()
+            )));
+            false
+        }
+        _ => check_coverage,
+    };
+    let predicate_heads = if check_coverage {
+        lowered
+            .predicate_heads
+            .iter()
+            .filter_map(|(_, head)| head.as_ref().ok())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
     };
     let analyzed: Vec<usize> = (0..count)
         .filter(|index| guards[*index].is_some())
@@ -1718,18 +1858,24 @@ fn analyze_family(
     let mut variables = BTreeSet::new();
     let mut functions = BTreeSet::new();
     let mut expressions = Vec::new();
-    for candidate in candidates {
-        for (expression, requirements) in [candidate.guard.as_ref(), candidate.value.as_ref()]
+    let candidate_parts = candidates.iter().flat_map(|candidate| {
+        [candidate.guard.as_ref(), candidate.value.as_ref()]
             .into_iter()
             .flatten()
-        {
-            variables.extend(requirements.variables.iter().cloned());
-            functions.extend(requirements.functions.iter().cloned());
-            expressions.push(expression);
-        }
+    });
+    for (expression, requirements) in candidate_parts.chain(predicate_heads.iter().copied()) {
+        variables.extend(requirements.variables.iter().cloned());
+        functions.extend(requirements.functions.iter().cloned());
+        expressions.push(expression);
     }
     variables.extend(signature.sorts.keys().cloned());
-    let mut prefix = encoder.preamble(&signature.sorts, &variables, &functions, &expressions);
+    let mut prefix = encoder.preamble(
+        &signature.sorts,
+        &variables,
+        &functions,
+        &expressions,
+        signature.result.as_slice(),
+    );
 
     // One definition per candidate, in dispatch order, so every question
     // below is a constant-size formula over these names.
@@ -1776,22 +1922,46 @@ fn analyze_family(
         }
         none_before = format!("(and {} (not {}))", none_before_name(index), guard);
     }
-    // Dispatch evaluated every guard, each was defined and none held: the
-    // call stops with "no value rule matched".
-    let misses = check_coverage.then(|| reach.expect("every guard is translatable"));
+    // Dispatch evaluated every guard, each was defined and none held, and no
+    // predicate clause's head matched: the call stops with "no value rule
+    // matched".
+    let misses = check_coverage.then(|| {
+        let reached = reach.expect("every guard is translatable");
+        if predicate_heads.is_empty() {
+            return reached;
+        }
+        format!(
+            "(and {} {})",
+            reached,
+            predicate_heads
+                .iter()
+                .map(|(head, _)| format!("(not {})", expr_to_smt(head)))
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    });
+    // Each value is defined at the family's result sort, so a constructor
+    // that names no sort of its own (`None`) takes it.
     let values: Vec<Option<(String, String)>> = candidates
         .iter()
-        .map(|candidate| {
-            candidate
-                .value
-                .as_ref()
-                .ok()
-                .map(|(expression, requirements)| {
-                    (
-                        expr_to_smt(expression),
-                        encoder.definedness(expression, &requirements.functions),
-                    )
-                })
+        .enumerate()
+        .map(|(index, candidate)| {
+            let (expression, requirements) = candidate.value.as_ref().ok()?;
+            let mut value = expr_to_smt(expression);
+            if let Some(result) = &signature.result {
+                let name = format!("runa_value_{}", index);
+                prefix.push_str(&format!(
+                    "(define-fun {} () {} {})\n",
+                    name,
+                    ty_to_smt_sort(result),
+                    value
+                ));
+                value = name;
+            }
+            Some((
+                value,
+                encoder.definedness(expression, &requirements.functions),
+            ))
         })
         .collect();
     let applies =
@@ -2039,10 +2209,12 @@ fn analyze_family(
     for assertion in &witnessed {
         explanation.push_str(&format!("(push 1)\n(assert {})\n", assertion));
         // Soft preferences keep values the finding does not depend on plain.
-        for value in &signature.witness_names {
-            if let Some(preferred) = value.preferred {
-                explanation.push_str(&format!("(assert-soft (= {} {}))\n", value.term, preferred));
-            }
+        for preference in signature
+            .witness_names
+            .iter()
+            .flat_map(|value| &value.preferences)
+        {
+            explanation.push_str(&format!("(assert-soft {})\n", preference));
         }
         explanation.push_str("(check-sat)\n");
         for value in &signature.witness_names {
@@ -2243,7 +2415,7 @@ fn parse_explanations(
 }
 
 /// Present a model value in source spelling where the encoding allows:
-/// negative integers and hex-encoded constructor names.
+/// negative integers, strings and hex-encoded constructor names.
 fn readable_smt_value(value: &str) -> String {
     let value = value.trim();
     if let Some(magnitude) = value
@@ -2252,6 +2424,12 @@ fn readable_smt_value(value: &str) -> String {
         .filter(|digits| digits.chars().all(|c| c.is_ascii_digit()))
     {
         return format!("-{}", magnitude);
+    }
+    if let Some(text) = value
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
+        return readable_smt_string(text).unwrap_or_else(|| value.to_string());
     }
     let mut readable = String::new();
     let mut rest = value;
@@ -2273,4 +2451,41 @@ fn readable_smt_value(value: &str) -> String {
     }
     readable.push_str(rest);
     readable
+}
+
+/// An SMT string literal's body (doubled quotes, `\u{..}` escapes) as a
+/// Futuruna string literal.
+fn readable_smt_string(text: &str) -> Option<String> {
+    let mut readable = String::from("\"");
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        let character = match character {
+            '"' if characters.next_if_eq(&'"').is_some() => '"',
+            '\\' if characters.peek() == Some(&'u') => {
+                characters.next();
+                if characters.next() != Some('{') {
+                    return None;
+                }
+                let mut digits = String::new();
+                loop {
+                    match characters.next()? {
+                        '}' => break,
+                        digit => digits.push(digit),
+                    }
+                }
+                char::from_u32(u32::from_str_radix(&digits, 16).ok()?)?
+            }
+            other => other,
+        };
+        match character {
+            '"' => readable.push_str("\\\""),
+            '\\' => readable.push_str("\\\\"),
+            control if control.is_control() => {
+                readable.push_str(&format!("\\u{{{:x}}}", control as u32))
+            }
+            other => readable.push(other),
+        }
+    }
+    readable.push('"');
+    Some(readable)
 }
