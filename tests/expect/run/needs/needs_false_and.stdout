@@ -1,0 +1,33 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "4b3f76eb421e22d7c0b80a8ca991e1f3cfc05aa50bc00cae0a3e427dda629d00",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "low-income",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "tax": 12
+        },
+        "unused_paths": []
+      }
+    },
+    {
+      "case_id": "high-income",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "married",
+            "waiting_rule": "base_tax"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

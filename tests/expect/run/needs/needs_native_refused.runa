@@ -1,0 +1,9 @@
+-- Partial cases are an interpreter feature of `runa call`; native runs refuse them.
+-- expect-command: run
+-- expect-args: --partial
+-- expect-status: fail
+-- expect-stderr: --partial applies only to `runa call`
+
+> main() -> Unit {
+    print("never runs")
+}

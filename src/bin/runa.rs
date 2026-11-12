@@ -222,6 +222,8 @@ fn main_inner() {
     let mut calculation_input = None;
     let mut calculation_output = None;
     let mut calculation_all_tables = false;
+    let mut calculation_partial: Option<futuruna::partial::PartialMode> = None;
+    let mut calculation_partial_check = false;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
     let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
@@ -503,6 +505,33 @@ fn main_inner() {
             arg if matches!(mode, "template" | "call") && arg.starts_with("--input=") => {
                 calculation_input = Some(arg["--input=".len()..].to_string());
                 i += 1;
+            }
+            "--partial" if mode == "call" => {
+                calculation_partial = Some(futuruna::partial::PartialMode::Propagate);
+                i += 1;
+            }
+            arg if mode == "call" && arg.starts_with("--partial=") => {
+                calculation_partial = Some(match &arg["--partial=".len()..] {
+                    "strict" => futuruna::partial::PartialMode::Strict,
+                    "propagate" => futuruna::partial::PartialMode::Propagate,
+                    "check" => {
+                        calculation_partial_check = true;
+                        futuruna::partial::PartialMode::Propagate
+                    }
+                    other => {
+                        eprintln!(
+                            "error: --partial={other} is not a partial mode; use --partial, --partial=propagate, --partial=strict or --partial=check"
+                        );
+                        std::process::exit(1);
+                    }
+                });
+                i += 1;
+            }
+            arg if arg == "--partial" || arg.starts_with("--partial=") => {
+                eprintln!(
+                    "error: --partial applies only to `runa call`: partial cases run in the interpreter; native and compiled programs take complete input"
+                );
+                std::process::exit(1);
             }
             "--output" if matches!(mode, "schema" | "template" | "call") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
@@ -1127,6 +1156,7 @@ fn main_inner() {
             calculation_output.as_deref(),
             use_prelude,
             calculation_all_tables,
+            calculation_partial.map(|mode| (mode, calculation_partial_check)),
         );
         return;
     }
@@ -1944,6 +1974,7 @@ fn run_calculation_command(
     output_path: Option<&str>,
     use_prelude: bool,
     all_tables: bool,
+    partial: Option<(futuruna::partial::PartialMode, bool)>,
 ) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
@@ -2005,8 +2036,12 @@ fn run_calculation_command(
                     &calculate::compact::CompactCalculationContract::from_contract(contract),
                 )
                 .expect("compact contract is JSON"),
+                "partial-result" => {
+                    serde_json::to_string_pretty(&calculate::partial_result_json_schema(contract))
+                        .expect("partial result schema is JSON")
+                }
                 format => {
-                    eprintln!("error: unsupported schema format `{format}`; expected json or compact-json");
+                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json or partial-result");
                     std::process::exit(1);
                 }
             };
@@ -2059,6 +2094,35 @@ fn run_calculation_command(
                 std::process::exit(1);
             });
             let input_format = calculation_format(None, Some(input_path), "json");
+            if let Some((mode, check)) = partial {
+                // A blank cell or an omitted TOML key cannot tell "none" from
+                // "not asked yet", so partial cases are JSON.
+                let output_format = calculation_format(requested_format, output_path, "json");
+                if input_format != "json" || output_format != "json" {
+                    eprintln!("error: --partial reads and writes JSON only");
+                    std::process::exit(1);
+                }
+                let envelope = read_calculation_json(input_path).unwrap_or_else(|error| {
+                    eprintln!("error: cannot read calculation input: {}", error);
+                    std::process::exit(1);
+                });
+                let stmts = stmts.as_ref().expect("calculation calls parse source");
+                let result = if check {
+                    calculate::check_partial_calculation_cases(
+                        contract, stmts, source_dir, &envelope,
+                    )
+                } else {
+                    calculate::invoke_partial_calculation_cases(
+                        contract, stmts, source_dir, &envelope, mode,
+                    )
+                };
+                let document = serde_json::to_string_pretty(&result).expect("result is JSON");
+                write_calculation_text(&document, output_path);
+                if !result.diagnostics.is_empty() {
+                    std::process::exit(1);
+                }
+                return;
+            }
             let (envelope, mut adapter_diagnostics) = match input_format.as_str() {
                 "json" => (
                     read_calculation_json(input_path).unwrap_or_else(|error| {
@@ -10033,6 +10097,7 @@ enum ExpectCommand {
     LintLibrary,
     LintLibraryImports,
     Audit,
+    Call,
 }
 
 impl ExpectCommand {
@@ -10050,8 +10115,9 @@ impl ExpectCommand {
             "lint-library" => Ok(Self::LintLibrary),
             "lint-library-imports" => Ok(Self::LintLibraryImports),
             "audit" => Ok(Self::Audit),
+            "call" => Ok(Self::Call),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, call, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -10071,6 +10137,7 @@ impl ExpectCommand {
             Self::LintLibrary => "lint-library",
             Self::LintLibraryImports => "lint-library-imports",
             Self::Audit => "audit",
+            Self::Call => "call",
         }
     }
 
@@ -10111,6 +10178,9 @@ impl ExpectCommand {
             }
             Self::Audit => {
                 cmd.arg("audit").arg(file);
+            }
+            Self::Call => {
+                cmd.arg("call").arg(file);
             }
         }
     }
@@ -10154,6 +10224,8 @@ struct ExpectCase {
     stderr_not: Vec<String>,
     stdout_file: Option<String>,
     stderr_file: Option<String>,
+    /// Calculation cases for `call`, relative to the case file.
+    input: Option<String>,
     skip: Option<String>,
 }
 
@@ -10211,6 +10283,13 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         .unwrap_or_default();
     let stdout_file = single_expectation_marker(source, "-- expect-stdout-file:", path)?;
     let stderr_file = single_expectation_marker(source, "-- expect-stderr-file:", path)?;
+    let input = single_expectation_marker(source, "-- expect-input:", path)?;
+    if matches!(command, ExpectCommand::Call) && input.is_none() {
+        return Err(format!(
+            "{} uses `expect-command: call` without `expect-input`",
+            path.display()
+        ));
+    }
     let env = collect_expectation_markers(source, "-- expect-env:")
         .into_iter()
         .map(|raw| match raw.split_once('=') {
@@ -10236,6 +10315,7 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         stderr_not: collect_expectation_markers(source, "-- expect-stderr-not:"),
         stdout_file,
         stderr_file,
+        input,
         skip,
     })
 }
@@ -10397,6 +10477,10 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
         let file_str = file_path.to_string_lossy().to_string();
         let mut cmd = std::process::Command::new(&self_bin);
         case.command.apply_to_command(&mut cmd, &file_str);
+        if let Some(input) = &case.input {
+            cmd.arg("--input")
+                .arg(expectation_golden_path(&file_path, input));
+        }
         cmd.args(&case.args);
         cmd.envs(case.env.iter().map(|(key, value)| (key, value)));
         if !use_prelude {

@@ -1,0 +1,17 @@
+-- `{}` is a record whose fields are unknown; `null` is the answer "none"; left out asks whether it exists.
+-- expect-command: call
+-- expect-input: needs_record_or_null.json
+-- expect-args: --entry household_tax --partial=check
+-- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = match h.spouse {
+    | None -> 0
+    | Some(s) -> s.income
+})

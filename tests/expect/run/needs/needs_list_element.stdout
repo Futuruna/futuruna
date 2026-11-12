@@ -1,0 +1,39 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "aa29e9afe9b1185e72b3ff34fd648744a1785ae10fd2d6847b580a275101b28d",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "second-closing-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "label": "Closing balance",
+            "path": "accounts[1].closing_ore",
+            "question": "What was the balance on the closing day?",
+            "unit": "øre",
+            "waiting_rule": "account_tax"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "accounts-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "accounts",
+            "waiting_rule": "household_tax"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

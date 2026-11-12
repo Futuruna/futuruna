@@ -1,0 +1,17 @@
+-- A recursive call under an unknown guard is not explored: the guard's facts are needed.
+-- expect-command: call
+-- expect-input: needs_recursion.json
+-- expect-args: --entry household_tax --partial=check
+-- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+| countdown(n: Int) -> 0
+| exception step countdown(n: Int) -> countdown(n - 1) under n > 0
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = countdown(h.n))

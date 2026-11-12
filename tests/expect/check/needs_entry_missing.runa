@@ -1,0 +1,40 @@
+-- An entry need must name a calculation entry of the program.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: field `spouse_share_income` is provided by `spouse_income`, which is not a calculation entry of this program
+
+# Spouse(income: Int)
+# Household(income: Int, spouse: Spouse, spouse_share_income: Int)
+# Result(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: String?, subject: String?)
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::spouse_share_income),
+            label = "Spouse's share income",
+            question = None,
+            help = None,
+            unit = Some("øre"),
+            entry = Some("spouse_income"),
+            subject = Some("spouse")
+        )
+    ],
+    attachments = ()
+)
+
+--@label:household_tax::meta:household_meta--
+
+@ calculate
+| share_income(s: Spouse) -> s.income
+
+| threshold(h: Household) -> 100
+| exception transferred threshold(h: Household) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))

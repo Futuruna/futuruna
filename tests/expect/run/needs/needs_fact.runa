@@ -1,0 +1,38 @@
+-- A left-out fact the result depends on is a need with its field metadata.
+-- expect-command: call
+-- expect-input: needs_fact.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout-file: needs_fact.stdout
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+
+= law = SourceInfo(url = "https://example.invalid/law", section = "§ 1")
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::married),
+            label = "Married",
+            question = Some("Were you married at the end of the year?"),
+            help = Some("Cohabiting spouses only."),
+            unit = Some("yes/no")
+        )
+    ],
+    attachments = (Source(value = law),)
+)
+
+--@label:household_tax::meta:household_meta--
+
+| rate(h: Household) -> if h.married { 5 } else { 4 }
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income / rate(h))

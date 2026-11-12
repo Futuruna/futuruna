@@ -1,0 +1,26 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "4b3f76eb421e22d7c0b80a8ca991e1f3cfc05aa50bc00cae0a3e427dda629d00",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "phone-and-account-fields-unused",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "tax": 11
+        },
+        "unused_paths": [
+          "accounts[0].closing_ore",
+          "accounts[0].id",
+          "filing.$variant",
+          "married",
+          "phone"
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

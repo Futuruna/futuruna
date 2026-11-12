@@ -1,0 +1,33 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "4b3f76eb421e22d7c0b80a8ca991e1f3cfc05aa50bc00cae0a3e427dda629d00",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "n-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "n",
+            "waiting_rule": "countdown"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "n-given",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "tax": 0
+        },
+        "unused_paths": []
+      }
+    }
+  ],
+  "diagnostics": []
+}

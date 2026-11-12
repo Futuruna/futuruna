@@ -216,6 +216,19 @@ evaluation produces a diagnostic, as in complete mode. A `Needs` result is not
 a diagnostic; `runa call --partial` exits successfully when every case
 returned `Complete` or `Needs`.
 
+## Commands
+
+- `runa call --partial` (or `--partial=propagate`) propagates;
+  `--partial=strict` is the oracle; `--partial=check` runs both and the
+  completion test and reports every violation as a diagnostic.
+- `runa schema --format partial-result` prints the JSON Schema of a partial
+  case's `result`.
+- Partial cases are read from JSON and still need `input_status: "ready"`:
+  readiness acknowledges the supplied facts, not completeness.
+- The contract's `field_metadata` carries `provided_by: {entry, subject}` for
+  entry-provided fields; it is omitted otherwise, so existing schema
+  fingerprints do not change.
+
 ## Entry needs
 
 A field may be the result of another calculation for another subject: the

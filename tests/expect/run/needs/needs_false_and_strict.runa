@@ -1,0 +1,17 @@
+-- `False && unknown` is `False`.
+-- expect-command: call
+-- expect-input: needs_false_and.json
+-- expect-args: --entry household_tax --partial=strict
+-- expect-stdout-file: needs_false_and_strict.stdout
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+| base_tax(h: Household) -> h.income / 4
+| exception married_relief base_tax(h: Household) -> h.income / 5 under h.income > 100 && h.married
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = base_tax(h))

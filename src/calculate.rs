@@ -27,6 +27,7 @@ pub const CONTRACT_SCHEMA: &str = "futuruna.calculate.v1";
 pub const INPUT_SCHEMA: &str = "futuruna.calculate.input.v2";
 pub const LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.input.v1";
 pub const OUTPUT_SCHEMA: &str = "futuruna.calculate.output.v1";
+pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.calculate.partial-output.v1";
 const CALCULATION_WORKER_STACK_BYTES: usize = 64 * 1024 * 1024;
 const DEFAULT_MAX_CALCULATION_WORKERS: usize = 8;
 
@@ -147,7 +148,23 @@ pub struct CalculationFieldMetadata {
     pub binding: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<CalculationMetadataReference>,
+    /// Another calculation entry provides this field's value, for a subject.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provided_by: Option<CalculationFieldProvider>,
 }
+
+/// The calculation entry that provides a field, and the input path of the
+/// subject it runs for (`taxpayer.spouse`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationFieldProvider {
+    pub entry: String,
+    pub subject: String,
+}
+
+/// Field metadata record members a calculation reads.
+const CALCULATION_FIELD_MEMBERS: [&str; 7] = [
+    "path", "label", "question", "help", "unit", "entry", "subject",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalculationContract {
@@ -213,7 +230,26 @@ impl CalculationContract {
         &self,
         value: &JsonValue,
     ) -> Result<Value, Vec<CalculationValueError>> {
-        decode_value(value, &self.input, self, &BTreeMap::new(), "$")
+        decode_value(value, &self.input, self, &BTreeMap::new(), "$", None)
+    }
+
+    /// Decode a partial case: left-out fields are unknown values carrying
+    /// their input paths. Also returns the provided input leaves and the
+    /// input containers, for read tracking.
+    pub(crate) fn decode_partial_input(
+        &self,
+        value: &JsonValue,
+    ) -> Result<(Value, PartialDecoder), Vec<CalculationValueError>> {
+        let decoder = RefCell::new(PartialDecoder::default());
+        let decoded = decode_value(
+            value,
+            &self.input,
+            self,
+            &BTreeMap::new(),
+            "$",
+            Some(&decoder),
+        )?;
+        Ok((decoded, decoder.into_inner()))
     }
 
     pub fn encode_output(&self, value: &Value) -> Result<JsonValue, CalculationValueError> {
@@ -412,6 +448,181 @@ pub struct CalculationOutputEnvelope {
     pub futuruna: CalculationEnvelopeMetadata,
     pub results: Vec<CalculationResultCase>,
     pub diagnostics: Vec<CalculationCaseDiagnostic>,
+}
+
+/// One case's answer to a partial call: its result, or what it still needs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "$variant")]
+pub enum CalculationPartialResult {
+    Complete {
+        result: JsonValue,
+        /// Provided input paths evaluation never read.
+        unused_paths: Vec<String>,
+    },
+    Needs {
+        needs: Vec<CalculationNeed>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationNeedKind {
+    /// The client answers the path itself.
+    Fact,
+    /// Another calculation entry provides the value.
+    Entry,
+}
+
+/// A fact or entry result that blocks a partial case's result.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalculationNeed {
+    pub kind: CalculationNeedKind,
+    /// The concrete input path to answer, with list indices.
+    pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub question: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<CalculationMetadataReference>,
+    /// The innermost rule family evaluating when the path was first read.
+    pub waiting_rule: String,
+}
+
+enum InputPathToken<'a> {
+    Field(&'a str),
+    Index(usize),
+}
+
+fn input_path_tokens(path: &str) -> Option<Vec<InputPathToken<'_>>> {
+    let mut tokens = Vec::new();
+    for segment in path.split('.') {
+        let (name, mut rest) = match segment.find('[') {
+            Some(open) => segment.split_at(open),
+            None => (segment, ""),
+        };
+        if !name.is_empty() {
+            tokens.push(InputPathToken::Field(name));
+        }
+        while let Some(stripped) = rest.strip_prefix('[') {
+            let close = stripped.find(']')?;
+            tokens.push(InputPathToken::Index(stripped[..close].parse().ok()?));
+            rest = &stripped[close + 1..];
+        }
+    }
+    Some(tokens)
+}
+
+impl CalculationContract {
+    /// The canonical metadata path of a concrete input path: list indices
+    /// and map keys removed, a sum type's payload under its variant name.
+    /// `input` resolves which variant a payload belongs to.
+    pub fn canonical_input_path(&self, input: &JsonValue, path: &str) -> Option<String> {
+        let mut ty = self.input.clone();
+        let mut substitutions = BTreeMap::new();
+        let mut json = Some(input);
+        let mut canonical: Vec<String> = Vec::new();
+        for token in input_path_tokens(path)? {
+            loop {
+                ty = substitute_contract_type(&ty, &substitutions);
+                match (&ty, &token) {
+                    (CalculationTypeRef::Optional { item }, _) => ty = (**item).clone(),
+                    (
+                        CalculationTypeRef::List { item } | CalculationTypeRef::Set { item },
+                        InputPathToken::Index(index),
+                    ) => {
+                        json = json.and_then(|json| json.get(*index));
+                        ty = (**item).clone();
+                        break;
+                    }
+                    _ => break,
+                }
+            }
+            let InputPathToken::Field(name) = token else {
+                continue;
+            };
+            match &ty {
+                CalculationTypeRef::Map { value, .. } => {
+                    json = json.and_then(|json| json.get(name));
+                    ty = (**value).clone();
+                    continue;
+                }
+                CalculationTypeRef::Named {
+                    name: type_name,
+                    arguments,
+                } => {
+                    let definition = self.definition(type_name)?;
+                    substitutions = definition_substitutions(definition, arguments);
+                    if let Some(variant) = product_variant(definition) {
+                        ty = variant.fields.iter().find(|f| f.name == name)?.ty.clone();
+                        canonical.push(name.to_string());
+                    } else if name == "$variant" {
+                        canonical.push(name.to_string());
+                        return Some(canonical.join("."));
+                    } else {
+                        let chosen = json
+                            .and_then(|json| json.get("$variant"))
+                            .and_then(JsonValue::as_str);
+                        let variant = definition.variants.iter().find(|variant| {
+                            chosen.map_or(true, |chosen| variant.name == chosen)
+                                && variant.fields.iter().any(|f| f.name == name)
+                        })?;
+                        ty = variant.fields.iter().find(|f| f.name == name)?.ty.clone();
+                        canonical.push(variant.name.clone());
+                        canonical.push(name.to_string());
+                    }
+                    json = json.and_then(|json| json.get(name));
+                }
+                _ => return None,
+            }
+        }
+        Some(canonical.join("."))
+    }
+
+    /// The need for a concrete input path, with the field's metadata.
+    pub(crate) fn need_for_path(
+        &self,
+        input: &JsonValue,
+        path: String,
+        waiting_rule: String,
+    ) -> CalculationNeed {
+        let metadata = self
+            .canonical_input_path(input, &path)
+            .and_then(|canonical| {
+                self.field_metadata_for_path(&canonical).or_else(|| {
+                    canonical
+                        .strip_suffix(".$variant")
+                        .and_then(|owner| self.field_metadata_for_path(owner))
+                })
+            });
+        let provider = metadata.and_then(|metadata| metadata.provided_by.as_ref());
+        CalculationNeed {
+            kind: if provider.is_some() {
+                CalculationNeedKind::Entry
+            } else {
+                CalculationNeedKind::Fact
+            },
+            path,
+            entry: provider.map(|provider| provider.entry.clone()),
+            subject: provider.map(|provider| provider.subject.clone()),
+            label: metadata.map(|metadata| metadata.label.clone()),
+            question: metadata.and_then(|metadata| metadata.question.clone()),
+            help: metadata.and_then(|metadata| metadata.help.clone()),
+            unit: metadata.and_then(|metadata| metadata.unit.clone()),
+            sources: metadata
+                .map(|metadata| metadata.sources.clone())
+                .unwrap_or_default(),
+            waiting_rule,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1545,6 +1756,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
         }
         contracts.push(contract.finish_hash());
     }
+    metadata_diagnostics.extend(entry_provider_diagnostics(&contracts));
     if !metadata_diagnostics.is_empty() {
         return Err(metadata_diagnostics);
     }
@@ -2256,6 +2468,87 @@ fn calculation_meta_value_json(value: &MetaValue) -> JsonValue {
     }
 }
 
+/// A field another entry provides must have that entry's result type, so a
+/// client can write the entry's result at the field's path unchanged.
+fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    for contract in contracts {
+        for field in &contract.field_metadata {
+            let Some(provider) = &field.provided_by else {
+                continue;
+            };
+            let Some(providing) = contracts
+                .iter()
+                .find(|candidate| candidate.entry == provider.entry)
+            else {
+                diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` is provided by `{}`, which is not a calculation entry of this program",
+                    contract.entry, field.path, provider.entry
+                )));
+                continue;
+            };
+            match contract_type_at_path(contract, &field.path) {
+                Some(ty) if ty == providing.output => {}
+                Some(ty) => diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` has type `{}`, but its provider `{}` returns `{}`",
+                    contract.entry,
+                    field.path,
+                    ty.display_name(),
+                    provider.entry,
+                    providing.output.display_name()
+                ))),
+                None => diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` provided by `{}` is not a single input field",
+                    contract.entry, field.path, provider.entry
+                ))),
+            }
+        }
+    }
+    diagnostics
+}
+
+/// The type of the input field at a canonical path (list, set, optional and
+/// map values are transparent; a sum type's payload is reached through its
+/// variant name).
+fn contract_type_at_path(contract: &CalculationContract, path: &str) -> Option<CalculationTypeRef> {
+    let mut ty = contract.input.clone();
+    let mut substitutions = BTreeMap::new();
+    let mut segments = path.split('.').peekable();
+    while let Some(segment) = segments.next() {
+        loop {
+            ty = substitute_contract_type(&ty, &substitutions);
+            match ty {
+                CalculationTypeRef::List { item }
+                | CalculationTypeRef::Set { item }
+                | CalculationTypeRef::Optional { item }
+                | CalculationTypeRef::Map { value: item, .. } => ty = *item,
+                _ => break,
+            }
+        }
+        let CalculationTypeRef::Named { name, arguments } = &ty else {
+            return None;
+        };
+        let definition = contract.definition(name)?;
+        substitutions = definition_substitutions(definition, arguments);
+        let variant = match product_variant(definition) {
+            Some(variant) => variant,
+            None => {
+                let variant = definition.variants.iter().find(|v| v.name == segment)?;
+                let field = segments.next()?;
+                ty = variant.fields.iter().find(|f| f.name == field)?.ty.clone();
+                continue;
+            }
+        };
+        ty = variant
+            .fields
+            .iter()
+            .find(|f| f.name == segment)?
+            .ty
+            .clone();
+    }
+    Some(substitute_contract_type(&ty, &substitutions))
+}
+
 fn contract_field_metadata(
     index: &MetaIndex,
     contract: &CalculationContract,
@@ -2480,7 +2773,7 @@ fn calculation_field_value(value: &MetaValue) -> bool {
     else {
         return false;
     };
-    let supported = ["path", "label", "question", "help", "unit"];
+    let supported = CALCULATION_FIELD_MEMBERS;
     let fields = arguments
         .iter()
         .filter_map(|argument| argument.field.as_deref())
@@ -2522,7 +2815,7 @@ fn calculation_field_metadata_from_value(
             )));
         }
     }
-    let supported = ["path", "label", "question", "help", "unit"];
+    let supported = CALCULATION_FIELD_MEMBERS;
     if let Some(unknown) = fields
         .keys()
         .find(|field| !supported.contains(field))
@@ -2559,6 +2852,19 @@ fn calculation_field_metadata_from_value(
     let question = optional_meta_string(&fields, "question", binding)?;
     let help = optional_meta_string(&fields, "help", binding)?;
     let unit = optional_meta_string(&fields, "unit", binding)?;
+    let provided_by = match (
+        optional_meta_string(&fields, "entry", binding)?,
+        optional_meta_string(&fields, "subject", binding)?,
+    ) {
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+        (None, None) => None,
+        _ => {
+            return Err(Diagnostic::error(format!(
+                "calculation field metadata binding `{}` must give both `entry` and `subject`, or neither",
+                binding
+            )))
+        }
+    };
     Ok(paths
         .into_iter()
         .map(|path| CalculationFieldMetadataCandidate {
@@ -2571,6 +2877,7 @@ fn calculation_field_metadata_from_value(
                 anchor: anchor.label.clone(),
                 binding: binding.to_string(),
                 sources: sources.to_vec(),
+                provided_by: provided_by.clone(),
             },
             specificity,
         })
@@ -3022,20 +3329,123 @@ fn collect_decoded<T>(
     }
 }
 
+/// Bookkeeping while decoding a partial case: the input leaves the case
+/// provides, and the input containers whose field reads are tracked.
+#[derive(Debug, Default)]
+pub(crate) struct PartialDecoder {
+    pub(crate) provided: BTreeSet<String>,
+    pub(crate) containers: Vec<(usize, String)>,
+    expanding: BTreeSet<String>,
+}
+
+type PartialDecode<'a> = Option<&'a RefCell<PartialDecoder>>;
+
+/// A decoder path (`$.taxpayer.married`) relative to the case input.
+pub(crate) fn input_relative_path(path: &str) -> String {
+    match path.strip_prefix("$.") {
+        Some(relative) => relative.to_string(),
+        None if path == "$" => String::new(),
+        None => path.trim_start_matches('$').to_string(),
+    }
+}
+
+fn partial_provided(partial: PartialDecode, path: &str) {
+    if let Some(partial) = partial {
+        partial
+            .borrow_mut()
+            .provided
+            .insert(input_relative_path(path));
+    }
+}
+
+fn partial_container(partial: PartialDecode, value: Value, path: &str) -> Value {
+    if let Some(partial) = partial {
+        if let Some(id) = partial::container_id(&value) {
+            partial
+                .borrow_mut()
+                .containers
+                .push((id, input_relative_path(path)));
+        }
+    }
+    value
+}
+
+fn unknown_at(path: &str) -> Value {
+    partial::unknown(BTreeSet::from([input_relative_path(path)]))
+}
+
+/// The value of a field a partial case leaves out. A record must exist, so
+/// it decodes like `{}` with its own fields unknown; any other value is
+/// unknown at its path, and a sum type at its `$variant`.
+fn decode_missing(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    substitutions: &BTreeMap<String, CalculationTypeRef>,
+    path: &str,
+    partial: &RefCell<PartialDecoder>,
+) -> Value {
+    let ty = substitute_contract_type(ty, substitutions);
+    let CalculationTypeRef::Named { name, arguments } = &ty else {
+        return unknown_at(path);
+    };
+    let Some(definition) = contract.definition(name) else {
+        return unknown_at(path);
+    };
+    let Some(variant) = product_variant(definition) else {
+        return unknown_at(&field_path(path, "$variant"));
+    };
+    if definition.parameters.len() != arguments.len()
+        || !partial.borrow_mut().expanding.insert(name.clone())
+    {
+        return unknown_at(path);
+    }
+    let local = definition_substitutions(definition, arguments);
+    let fields: Vec<(String, Value)> = variant
+        .fields
+        .iter()
+        .map(|field| {
+            (
+                field.name.clone(),
+                decode_missing(
+                    &field.ty,
+                    contract,
+                    &local,
+                    &field_path(path, &field.name),
+                    partial,
+                ),
+            )
+        })
+        .collect();
+    partial.borrow_mut().expanding.remove(name);
+    let value = if definition.kind == "rule_scope" {
+        Value::RuleScopeInstance {
+            name: name.clone(),
+            bindings: Rc::new(fields.into_iter().collect()),
+        }
+    } else {
+        Value::NamedConstructor(variant.name.clone(), fields.into())
+    };
+    partial_container(Some(partial), value, path)
+}
+
 fn decode_value(
     value: &JsonValue,
     ty: &CalculationTypeRef,
     contract: &CalculationContract,
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
+    partial: PartialDecode,
 ) -> Result<Value, Vec<CalculationValueError>> {
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
         CalculationTypeRef::Primitive { name } => {
-            decode_primitive(value, &name, path).map_err(|error| vec![error])
+            let decoded = decode_primitive(value, &name, path).map_err(|error| vec![error])?;
+            partial_provided(partial, path);
+            Ok(decoded)
         }
         CalculationTypeRef::Unit => {
             if value.is_null() {
+                partial_provided(partial, path);
                 Ok(Value::Unit)
             } else {
                 Err(vec![value_error(path, "expected null for unit")])
@@ -3043,11 +3453,28 @@ fn decode_value(
         }
         CalculationTypeRef::Optional { item } => {
             if value.is_null() {
-                Ok(Value::Constructor("None".to_string(), Vec::new().into()))
+                partial_provided(partial, path);
+                Ok(partial_container(
+                    partial,
+                    Value::Constructor("None".to_string(), Vec::new().into()),
+                    path,
+                ))
             } else {
-                Ok(Value::Constructor(
-                    "Some".to_string(),
-                    vec![decode_value(value, &item, contract, substitutions, path)?].into(),
+                Ok(partial_container(
+                    partial,
+                    Value::Constructor(
+                        "Some".to_string(),
+                        vec![decode_value(
+                            value,
+                            &item,
+                            contract,
+                            substitutions,
+                            path,
+                            partial,
+                        )?]
+                        .into(),
+                    ),
+                    path,
                 ))
             }
         }
@@ -3055,6 +3482,9 @@ fn decode_value(
             let values = value
                 .as_array()
                 .ok_or_else(|| vec![value_error(path, "expected an array")])?;
+            if values.is_empty() {
+                partial_provided(partial, path);
+            }
             collect_decoded(values.iter().enumerate().map(|(index, value)| {
                 decode_value(
                     value,
@@ -3062,6 +3492,7 @@ fn decode_value(
                     contract,
                     substitutions,
                     &format!("{}[{}]", path, index),
+                    partial,
                 )
             }))
             .map(Value::List)
@@ -3073,6 +3504,9 @@ fn decode_value(
             let object = value
                 .as_object()
                 .ok_or_else(|| vec![value_error(path, "expected an object")])?;
+            if object.is_empty() {
+                partial_provided(partial, path);
+            }
             let decoded = collect_decoded(object.iter().map(|(name, value)| {
                 decode_value(
                     value,
@@ -3080,6 +3514,7 @@ fn decode_value(
                     contract,
                     substitutions,
                     &field_path(path, name),
+                    partial,
                 )
                 .map(|value| (name, value))
             }))?;
@@ -3093,6 +3528,9 @@ fn decode_value(
             let array = value
                 .as_array()
                 .ok_or_else(|| vec![value_error(path, "expected an array")])?;
+            if array.is_empty() {
+                partial_provided(partial, path);
+            }
             let mut values = BTreeMap::new();
             let mut errors = Vec::new();
             for (index, item_value) in array.iter().enumerate() {
@@ -3102,6 +3540,7 @@ fn decode_value(
                     contract,
                     substitutions,
                     &format!("{}[{}]", path, index),
+                    partial,
                 ) {
                     Ok(value) => value,
                     Err(mut diagnostics) => {
@@ -3109,6 +3548,15 @@ fn decode_value(
                         continue;
                     }
                 };
+                // A set orders and deduplicates its elements, so each must
+                // be known when the case is decoded.
+                if partial::has_unknown(&decoded) {
+                    errors.push(value_error(
+                        format!("{}[{}]", path, index),
+                        "a set element must be given completely",
+                    ));
+                    continue;
+                }
                 let rendered = decoded.to_string();
                 if !runtime_set_insert_value(&mut values, decoded) {
                     errors.push(value_error(
@@ -3147,17 +3595,19 @@ fn decode_value(
             }
             let local = definition_substitutions(definition, &arguments);
             if let Some(variant) = product_variant(definition) {
-                let fields = decode_named_fields(value, variant, contract, &local, path, false)?;
-                if definition.kind == "rule_scope" {
-                    Ok(Value::RuleScopeInstance {
+                let fields =
+                    decode_named_fields(value, variant, contract, &local, path, false, partial)?;
+                let decoded = if definition.kind == "rule_scope" {
+                    Value::RuleScopeInstance {
                         name,
                         bindings: Rc::new(fields.into_iter().collect()),
-                    })
+                    }
                 } else {
-                    Ok(Value::NamedConstructor(variant.name.clone(), fields.into()))
-                }
+                    Value::NamedConstructor(variant.name.clone(), fields.into())
+                };
+                Ok(partial_container(partial, decoded, path))
             } else {
-                decode_variant(value, definition, contract, &local, path)
+                decode_variant(value, definition, contract, &local, path, partial)
             }
         }
     }
@@ -3213,6 +3663,7 @@ fn decode_named_fields(
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
     allow_variant_key: bool,
+    partial: PartialDecode,
 ) -> Result<Vec<(String, Value)>, Vec<CalculationValueError>> {
     let object = value
         .as_object()
@@ -3234,10 +3685,26 @@ fn decode_named_fields(
     let mut result = Vec::new();
     for field in &variant.fields {
         let field_ty = substitute_contract_type(&field.ty, substitutions);
-        let field_value = match object.get(&field.name) {
-            Some(value) => value,
-            None if matches!(field_ty, CalculationTypeRef::Optional { .. }) => &JsonValue::Null,
-            None => {
+        let field_value = match (object.get(&field.name), partial) {
+            (Some(value), _) => value,
+            // Left out of a partial case: not asked yet.
+            (None, Some(partial)) => {
+                result.push((
+                    field.name.clone(),
+                    decode_missing(
+                        &field_ty,
+                        contract,
+                        substitutions,
+                        &field_path(path, &field.name),
+                        partial,
+                    ),
+                ));
+                continue;
+            }
+            (None, None) if matches!(field_ty, CalculationTypeRef::Optional { .. }) => {
+                &JsonValue::Null
+            }
+            (None, None) => {
                 errors.push(value_error(
                     field_path(path, &field.name),
                     "missing required field",
@@ -3251,6 +3718,7 @@ fn decode_named_fields(
             contract,
             substitutions,
             &field_path(path, &field.name),
+            partial,
         ) {
             Ok(value) => result.push((field.name.clone(), value)),
             Err(mut diagnostics) => errors.append(&mut diagnostics),
@@ -3269,6 +3737,7 @@ fn decode_variant(
     contract: &CalculationContract,
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
+    partial: PartialDecode,
 ) -> Result<Value, Vec<CalculationValueError>> {
     let object = value.as_object().ok_or_else(|| {
         vec![value_error(
@@ -3279,6 +3748,10 @@ fn decode_variant(
             ),
         )]
     })?;
+    if partial.is_some() && object.is_empty() {
+        // `{}` for a sum type: which alternative applies is not known yet.
+        return Ok(unknown_at(&field_path(path, "$variant")));
+    }
     let variant_name = object
         .get("$variant")
         .and_then(JsonValue::as_str)
@@ -3308,6 +3781,7 @@ fn decode_variant(
                 ),
             )]
         })?;
+    partial_provided(partial, &field_path(path, "$variant"));
     if variant.positional {
         let mut errors = Vec::new();
         for key in object.keys() {
@@ -3344,13 +3818,16 @@ fn decode_variant(
                     contract,
                     substitutions,
                     &format!("{}.$values[{}]", path, index),
+                    partial,
                 )
             },
         ));
         match decoded {
-            Ok(values) if errors.is_empty() => {
-                Ok(Value::Constructor(variant.name.clone(), values.into()))
-            }
+            Ok(values) if errors.is_empty() => Ok(partial_container(
+                partial,
+                Value::Constructor(variant.name.clone(), values.into()),
+                path,
+            )),
             Ok(_) => Err(errors),
             Err(mut diagnostics) => {
                 errors.append(&mut diagnostics);
@@ -3358,12 +3835,14 @@ fn decode_variant(
             }
         }
     } else {
-        let fields = decode_named_fields(value, variant, contract, substitutions, path, true)?;
-        if fields.is_empty() {
-            Ok(Value::Constructor(variant.name.clone(), Vec::new().into()))
+        let fields =
+            decode_named_fields(value, variant, contract, substitutions, path, true, partial)?;
+        let decoded = if fields.is_empty() {
+            Value::Constructor(variant.name.clone(), Vec::new().into())
         } else {
-            Ok(Value::NamedConstructor(variant.name.clone(), fields.into()))
-        }
+            Value::NamedConstructor(variant.name.clone(), fields.into())
+        };
+        Ok(partial_container(partial, decoded, path))
     }
 }
 
@@ -3374,6 +3853,12 @@ fn encode_value(
     substitutions: &BTreeMap<String, CalculationTypeRef>,
     path: &str,
 ) -> Result<JsonValue, CalculationValueError> {
+    if matches!(value, Value::Unknown(_)) {
+        return Err(value_error(
+            path,
+            partial::unknown_leak_message("JSON encoding"),
+        ));
+    }
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
         CalculationTypeRef::Primitive { name } => encode_primitive(value, &name, path),
@@ -4322,6 +4807,8 @@ struct CalculationWorker<'a> {
     base_rng_state: u64,
     initialization_error: Option<String>,
     needs_reinitialization: bool,
+    /// Set for partial cases (`runa call --partial`).
+    partial: Option<partial::PartialMode>,
 }
 
 impl<'a> CalculationWorker<'a> {
@@ -4373,6 +4860,7 @@ impl<'a> CalculationWorker<'a> {
             base_rng_state,
             initialization_error,
             needs_reinitialization: false,
+            partial: None,
         }
     }
 
@@ -4382,8 +4870,16 @@ impl<'a> CalculationWorker<'a> {
         case: &CalculationInputCase,
     ) -> CalculationCaseOutcome {
         let started = Instant::now();
-        let input = match contract.decode_input_diagnostics(&case.input) {
-            Ok(input) => input,
+        let decoded = match self.partial {
+            Some(_) => contract
+                .decode_partial_input(&case.input)
+                .map(|(input, decoder)| (input, Some(decoder))),
+            None => contract
+                .decode_input_diagnostics(&case.input)
+                .map(|input| (input, None)),
+        };
+        let (input, decoder) = match decoded {
+            Ok(decoded) => decoded,
             Err(errors) => {
                 let outcome = CalculationCaseOutcome::Diagnostics(
                     errors
@@ -4401,7 +4897,9 @@ impl<'a> CalculationWorker<'a> {
         };
 
         if self.needs_reinitialization {
+            let partial = self.partial;
             *self = Self::from_program(self.program.clone());
+            self.partial = partial;
         }
         if let Some(message) = &self.initialization_error {
             trace_calculation_case(&case.case_id, started);
@@ -4418,6 +4916,12 @@ impl<'a> CalculationWorker<'a> {
         self.interpreter.step_count = 0;
         self.interpreter.budget_exceeded = false;
         self.interpreter.rng_state = self.base_rng_state;
+        if let Some(decoder) = &decoder {
+            self.interpreter
+                .begin_partial_case(self.partial, &contract.entry);
+            self.interpreter.partial.borrow_mut().containers =
+                decoder.containers.iter().cloned().collect();
+        }
 
         let mut runtime_env = self.base_env.clone();
         let input_binding = "__futuruna_calculation_input".to_string();
@@ -4427,10 +4931,16 @@ impl<'a> CalculationWorker<'a> {
             vec![ExprKind::Var(input_binding).into()],
         )
         .into();
-        let result = match self
+        let evaluated = self
             .interpreter
-            .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env))
-        {
+            .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env));
+        if let Some(decoder) = decoder {
+            let outcome = self.finish_partial(contract, case, evaluated, &decoder);
+            self.interpreter.begin_partial_case(None, "");
+            trace_calculation_case(&case.case_id, started);
+            return outcome;
+        }
+        let result = match evaluated {
             Ok(result) => result,
             Err(error) => {
                 self.needs_reinitialization = matches!(error, CalculationRuntimeFailure::Panicked);
@@ -4455,6 +4965,71 @@ impl<'a> CalculationWorker<'a> {
         };
         trace_calculation_case(&case.case_id, started);
         outcome
+    }
+
+    /// Turn a partial case's evaluation into `Complete` or `Needs`.
+    fn finish_partial(
+        &mut self,
+        contract: &CalculationContract,
+        case: &CalculationInputCase,
+        evaluated: Result<Value, CalculationRuntimeFailure>,
+        decoder: &PartialDecoder,
+    ) -> CalculationCaseOutcome {
+        let diagnostic = |path: String, message: String| {
+            CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
+                case_id: case.case_id.clone(),
+                path,
+                message,
+            })
+        };
+        let outcome = match evaluated {
+            Ok(result) => self.interpreter.finish_partial_case(result),
+            Err(CalculationRuntimeFailure::NeedsInput(paths)) => partial::PartialOutcome::Needs {
+                paths,
+                waiting: self.interpreter.partial_waiting(),
+            },
+            Err(error) => {
+                self.needs_reinitialization = matches!(error, CalculationRuntimeFailure::Panicked);
+                return diagnostic(
+                    "$".to_string(),
+                    format!("calculation `{}` failed: {error}", contract.entry),
+                );
+            }
+        };
+        let result = match outcome {
+            partial::PartialOutcome::Complete {
+                result,
+                read_exact,
+                read_subtree,
+            } => match contract.encode_output(&result) {
+                Ok(result) => CalculationPartialResult::Complete {
+                    result,
+                    unused_paths: decoder
+                        .provided
+                        .iter()
+                        .filter(|path| !partial::path_was_read(path, &read_exact, &read_subtree))
+                        .cloned()
+                        .collect(),
+                },
+                Err(error) => return diagnostic(error.path, error.message),
+            },
+            partial::PartialOutcome::Needs { paths, waiting } => CalculationPartialResult::Needs {
+                needs: paths
+                    .into_iter()
+                    .map(|path| {
+                        let rule = waiting
+                            .get(&path)
+                            .cloned()
+                            .unwrap_or_else(|| contract.entry.clone());
+                        contract.need_for_path(&case.input, path, rule)
+                    })
+                    .collect(),
+            },
+        };
+        CalculationCaseOutcome::Result(CalculationResultCase {
+            case_id: case.case_id.clone(),
+            result: serde_json::to_value(result).expect("partial result is JSON"),
+        })
     }
 }
 
@@ -4544,10 +5119,26 @@ fn invoke_calculation_cases_with_jobs(
     envelope: &CalculationInputEnvelope,
     requested_jobs: Option<usize>,
 ) -> CalculationOutputEnvelope {
+    invoke_calculation_batch(contract, stmts, source_dir, envelope, requested_jobs, None)
+}
+
+fn invoke_calculation_batch(
+    contract: &CalculationContract,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    envelope: &CalculationInputEnvelope,
+    requested_jobs: Option<usize>,
+    partial: Option<partial::PartialMode>,
+) -> CalculationOutputEnvelope {
     let started = Instant::now();
     let mut output = CalculationOutputEnvelope {
         futuruna: CalculationEnvelopeMetadata {
-            schema: OUTPUT_SCHEMA.to_string(),
+            schema: if partial.is_some() {
+                PARTIAL_OUTPUT_SCHEMA
+            } else {
+                OUTPUT_SCHEMA
+            }
+            .to_string(),
             schema_hash: contract.schema_hash.clone(),
             entry: contract.entry.clone(),
         },
@@ -4603,6 +5194,7 @@ fn invoke_calculation_cases_with_jobs(
         &rule_dispatch_return_issues,
         &rule_dispatch_runtime_boolean_miss_keys,
     );
+    primary.partial = partial;
     let initialized_after = started.elapsed();
     let mut outcomes = if worker_count == 1 {
         invoke_calculation_case_stride(&mut primary, contract, &cases, 0, 1)
@@ -4632,6 +5224,7 @@ fn invoke_calculation_cases_with_jobs(
                                     rule_dispatch_return_issues,
                                     rule_dispatch_runtime_boolean_miss_keys,
                                 );
+                                worker.partial = partial;
                                 invoke_calculation_case_queue(
                                     &mut worker,
                                     contract,
@@ -4679,6 +5272,25 @@ fn invoke_calculation_cases_with_jobs(
     output
 }
 
+/// Decode and invoke a batch of partial cases: each answers `Complete` or
+/// `Needs` (`docs/rfcs/calculation-needs.md`).
+pub fn invoke_partial_calculation_cases(
+    contract: &CalculationContract,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    envelope: &CalculationInputEnvelope,
+    mode: partial::PartialMode,
+) -> CalculationOutputEnvelope {
+    invoke_calculation_batch(
+        contract,
+        stmts,
+        source_dir,
+        envelope,
+        requested_calculation_jobs(),
+        Some(mode),
+    )
+}
+
 /// Decode, invoke, and encode a batch. Cases are isolated and retain input
 /// order. Larger batches use independent workers unless explicitly serialized.
 pub fn invoke_calculation_cases(
@@ -4696,9 +5308,569 @@ pub fn invoke_calculation_cases(
     )
 }
 
+/// Deterministic generator of values for the completion test.
+struct CompletionRng(u64);
+
+impl CompletionRng {
+    fn next(&mut self) -> u64 {
+        // xorshift64, as `runa stress-gen` uses.
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+
+    fn below(&mut self, bound: usize) -> usize {
+        (self.next() % bound.max(1) as u64) as usize
+    }
+}
+
+/// Integers a completion takes: boundaries of amounts and signs, and
+/// pseudo-random values within ±10^12.
+const COMPLETION_INTEGERS: [i64; 10] = [
+    0,
+    1,
+    -1,
+    2,
+    100,
+    -100,
+    50_000,
+    1_000_000,
+    1_000_000_000_000,
+    -1_000_000_000_000,
+];
+
+const COMPLETION_DEPTH_LIMIT: usize = 6;
+
+impl CalculationContract {
+    fn generate_completion_value(
+        &self,
+        ty: &CalculationTypeRef,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        rng: &mut CompletionRng,
+        depth: usize,
+    ) -> JsonValue {
+        let ty = substitute_contract_type(ty, substitutions);
+        let shallow = depth >= COMPLETION_DEPTH_LIMIT;
+        match ty {
+            CalculationTypeRef::Primitive { name } => match name.as_str() {
+                "Int" => {
+                    if rng.below(3) == 0 {
+                        let magnitude = (rng.next() % 1_000_000_000_000) as i64;
+                        JsonValue::from(if rng.below(2) == 0 {
+                            magnitude
+                        } else {
+                            -magnitude
+                        })
+                    } else {
+                        JsonValue::from(COMPLETION_INTEGERS[rng.below(COMPLETION_INTEGERS.len())])
+                    }
+                }
+                "Float" => JsonValue::from([0.0, 1.5, -2.25, 1e6, 0.001][rng.below(5)]),
+                "Bool" => JsonValue::Bool(rng.below(2) == 0),
+                "String" => JsonValue::from(["", "a", "DK0000000001", "x y"][rng.below(4)]),
+                "Char" => JsonValue::from(["a", "Z", "0"][rng.below(3)]),
+                _ => JsonValue::Null,
+            },
+            CalculationTypeRef::Unit => JsonValue::Null,
+            CalculationTypeRef::Optional { item } => {
+                if shallow || rng.below(3) == 0 {
+                    JsonValue::Null
+                } else {
+                    self.generate_completion_value(&item, substitutions, rng, depth + 1)
+                }
+            }
+            CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
+                let length = if shallow { 0 } else { rng.below(3) };
+                let mut items = Vec::new();
+                for _ in 0..length {
+                    let value =
+                        self.generate_completion_value(&item, substitutions, rng, depth + 1);
+                    if !items.contains(&value) {
+                        items.push(value);
+                    }
+                }
+                JsonValue::Array(items)
+            }
+            CalculationTypeRef::Map { value, .. } => {
+                let mut object = JsonMap::new();
+                if !shallow && rng.below(2) == 0 {
+                    object.insert(
+                        "k".to_string(),
+                        self.generate_completion_value(&value, substitutions, rng, depth + 1),
+                    );
+                }
+                JsonValue::Object(object)
+            }
+            CalculationTypeRef::TypeParameter { .. } => JsonValue::Null,
+            CalculationTypeRef::Named { name, arguments } => {
+                let Some(definition) = self.definition(&name) else {
+                    return JsonValue::Null;
+                };
+                let local = definition_substitutions(definition, &arguments);
+                if let Some(variant) = product_variant(definition) {
+                    let mut object = JsonMap::new();
+                    for field in &variant.fields {
+                        object.insert(
+                            field.name.clone(),
+                            self.generate_completion_value(&field.ty, &local, rng, depth + 1),
+                        );
+                    }
+                    return JsonValue::Object(object);
+                }
+                let candidates: Vec<&CalculationVariant> = if shallow {
+                    let nullary: Vec<_> = definition
+                        .variants
+                        .iter()
+                        .filter(|variant| variant.fields.is_empty())
+                        .collect();
+                    if nullary.is_empty() {
+                        definition.variants.iter().collect()
+                    } else {
+                        nullary
+                    }
+                } else {
+                    definition.variants.iter().collect()
+                };
+                let variant = candidates[rng.below(candidates.len())];
+                let mut object = JsonMap::new();
+                object.insert(
+                    "$variant".to_string(),
+                    JsonValue::from(variant.name.clone()),
+                );
+                if variant.positional {
+                    object.insert(
+                        "$values".to_string(),
+                        JsonValue::Array(
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| {
+                                    self.generate_completion_value(
+                                        &field.ty,
+                                        &local,
+                                        rng,
+                                        depth + 1,
+                                    )
+                                })
+                                .collect(),
+                        ),
+                    );
+                } else {
+                    for field in &variant.fields {
+                        object.insert(
+                            field.name.clone(),
+                            self.generate_completion_value(&field.ty, &local, rng, depth + 1),
+                        );
+                    }
+                }
+                JsonValue::Object(object)
+            }
+        }
+    }
+
+    /// Fill the left-out parts of a partial value of type `ty`.
+    fn complete_value(
+        &self,
+        value: Option<&JsonValue>,
+        ty: &CalculationTypeRef,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        rng: &mut CompletionRng,
+        depth: usize,
+    ) -> JsonValue {
+        let Some(value) = value else {
+            return self.generate_completion_value(ty, substitutions, rng, depth);
+        };
+        let ty = substitute_contract_type(ty, substitutions);
+        match ty {
+            CalculationTypeRef::Optional { item } if !value.is_null() => {
+                self.complete_value(Some(value), &item, substitutions, rng, depth + 1)
+            }
+            CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
+                match value.as_array() {
+                    Some(items) => JsonValue::Array(
+                        items
+                            .iter()
+                            .map(|element| {
+                                self.complete_value(
+                                    Some(element),
+                                    &item,
+                                    substitutions,
+                                    rng,
+                                    depth + 1,
+                                )
+                            })
+                            .collect(),
+                    ),
+                    None => value.clone(),
+                }
+            }
+            CalculationTypeRef::Map { value: item, .. } => match value.as_object() {
+                Some(entries) => JsonValue::Object(
+                    entries
+                        .iter()
+                        .map(|(key, element)| {
+                            (
+                                key.clone(),
+                                self.complete_value(
+                                    Some(element),
+                                    &item,
+                                    substitutions,
+                                    rng,
+                                    depth + 1,
+                                ),
+                            )
+                        })
+                        .collect(),
+                ),
+                None => value.clone(),
+            },
+            CalculationTypeRef::Named {
+                ref name,
+                ref arguments,
+            } => {
+                let (Some(definition), Some(object)) = (self.definition(name), value.as_object())
+                else {
+                    return value.clone();
+                };
+                let local = definition_substitutions(definition, arguments);
+                let variant = match product_variant(definition) {
+                    Some(variant) => variant,
+                    None => {
+                        let chosen = object.get("$variant").and_then(JsonValue::as_str);
+                        let Some(variant) = chosen.and_then(|chosen| {
+                            definition
+                                .variants
+                                .iter()
+                                .find(|variant| variant.name == chosen)
+                        }) else {
+                            // `{}`: which alternative applies is not known yet.
+                            return self.generate_completion_value(&ty, substitutions, rng, depth);
+                        };
+                        if variant.positional {
+                            return value.clone();
+                        }
+                        variant
+                    }
+                };
+                let mut completed = object.clone();
+                for field in &variant.fields {
+                    let field_value = self.complete_value(
+                        object.get(&field.name),
+                        &field.ty,
+                        &local,
+                        rng,
+                        depth + 1,
+                    );
+                    completed.insert(field.name.clone(), field_value);
+                }
+                JsonValue::Object(completed)
+            }
+            _ => value.clone(),
+        }
+    }
+
+    /// Completions of a partial case: every left-out part filled with
+    /// generated values of its type. Deterministic for a seed.
+    pub fn partial_case_completions(
+        &self,
+        input: &JsonValue,
+        count: usize,
+        seed: u64,
+    ) -> Vec<JsonValue> {
+        (0..count)
+            .map(|index| {
+                let mut rng = CompletionRng(
+                    seed.wrapping_mul(0x9E37_79B9_7F4A_7C15)
+                        .wrapping_add(index as u64 + 1)
+                        | 1,
+                );
+                self.complete_value(Some(input), &self.input, &BTreeMap::new(), &mut rng, 0)
+            })
+            .collect()
+    }
+}
+
+/// JSON Schema of one case's `result` in a partial output envelope
+/// (`futuruna.calculate.partial-output.v1`). The calculation's own output
+/// type is the contract's `output`.
+pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
+    let string = serde_json::json!({ "type": "string" });
+    serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": format!("Partial result of `{}`", contract.entry),
+        "description": "A partial case answers Complete with its result, or Needs with the facts and entries that block it. See docs/rfcs/calculation-needs.md.",
+        "x-futuruna-output-schema": PARTIAL_OUTPUT_SCHEMA,
+        "x-futuruna-schema-hash": contract.schema_hash,
+        "oneOf": [
+            {
+                "type": "object",
+                "required": ["$variant", "result", "unused_paths"],
+                "additionalProperties": false,
+                "properties": {
+                    "$variant": { "const": "Complete" },
+                    "result": { "description": format!("The canonical JSON value of `{}`.", contract.output.display_name()) },
+                    "unused_paths": { "type": "array", "items": string }
+                }
+            },
+            {
+                "type": "object",
+                "required": ["$variant", "needs"],
+                "additionalProperties": false,
+                "properties": {
+                    "$variant": { "const": "Needs" },
+                    "needs": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["kind", "path", "waiting_rule"],
+                            "additionalProperties": false,
+                            "properties": {
+                                "kind": { "enum": ["fact", "entry"] },
+                                "path": string,
+                                "entry": string,
+                                "subject": string,
+                                "label": string,
+                                "question": string,
+                                "help": string,
+                                "unit": string,
+                                "sources": { "type": "array", "items": { "type": "object" } },
+                                "waiting_rule": string
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+    })
+}
+
+/// Completions the completion test runs per `Complete` partial case.
+pub const COMPLETION_TEST_COUNT: usize = 32;
+
+/// Run partial cases and check the guarantee: the strict-mode oracle (strict
+/// `Complete(r)` implies propagating `Complete(r)`) and the completion test
+/// (every completion of a `Complete(r)` case returns `r` or stops with an
+/// arithmetic-overflow error). Returns the propagating results; every
+/// violation is a diagnostic.
+pub fn check_partial_calculation_cases(
+    contract: &CalculationContract,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    envelope: &CalculationInputEnvelope,
+) -> CalculationOutputEnvelope {
+    let jobs = requested_calculation_jobs();
+    let mut propagated = invoke_calculation_batch(
+        contract,
+        stmts,
+        source_dir.clone(),
+        envelope,
+        jobs,
+        Some(partial::PartialMode::Propagate),
+    );
+    let strict = invoke_calculation_batch(
+        contract,
+        stmts,
+        source_dir.clone(),
+        envelope,
+        jobs,
+        Some(partial::PartialMode::Strict),
+    );
+    let parse = |case: &CalculationResultCase| {
+        serde_json::from_value::<CalculationPartialResult>(case.result.clone()).ok()
+    };
+    let mut violations = Vec::new();
+    for strict_case in &strict.results {
+        let Some(CalculationPartialResult::Complete { result, .. }) = parse(strict_case) else {
+            continue;
+        };
+        let agrees = propagated.results.iter().any(|case| {
+            case.case_id == strict_case.case_id
+                && matches!(parse(case), Some(CalculationPartialResult::Complete { result: ref propagated, .. }) if *propagated == result)
+        });
+        if !agrees {
+            violations.push(CalculationCaseDiagnostic {
+                case_id: strict_case.case_id.clone(),
+                path: "$".to_string(),
+                message: "strict-mode oracle: strict evaluation is Complete, propagation does not return the same result".to_string(),
+            });
+        }
+    }
+    for case in &propagated.results {
+        let Some(CalculationPartialResult::Complete { result, .. }) = parse(case) else {
+            continue;
+        };
+        let Some(input) = envelope
+            .cases
+            .iter()
+            .find(|input| input.case_id == case.case_id)
+        else {
+            continue;
+        };
+        let completions =
+            contract.partial_case_completions(&input.input, COMPLETION_TEST_COUNT, 0x5EED);
+        let completion_envelope = CalculationInputEnvelope {
+            futuruna: envelope.futuruna.clone(),
+            cases: completions
+                .into_iter()
+                .enumerate()
+                .map(|(index, completion)| CalculationInputCase {
+                    case_id: format!("completion-{index}"),
+                    input_status: Some(CalculationInputStatus::Ready),
+                    input: completion,
+                })
+                .collect(),
+        };
+        let completed = invoke_calculation_batch(
+            contract,
+            stmts,
+            source_dir.clone(),
+            &completion_envelope,
+            jobs,
+            None,
+        );
+        for completion in &completed.results {
+            if completion.result != result {
+                let index = completion
+                    .case_id
+                    .trim_start_matches("completion-")
+                    .parse::<usize>()
+                    .unwrap_or_default();
+                violations.push(CalculationCaseDiagnostic {
+                    case_id: case.case_id.clone(),
+                    path: "$".to_string(),
+                    message: format!(
+                        "completion test: completion {} returns {} instead of {}",
+                        serde_json::to_string(&completion_envelope.cases[index].input)
+                            .unwrap_or_default(),
+                        completion.result,
+                        result
+                    ),
+                });
+            }
+        }
+        for diagnostic in &completed.diagnostics {
+            if !diagnostic.message.contains("overflow") {
+                violations.push(CalculationCaseDiagnostic {
+                    case_id: case.case_id.clone(),
+                    path: diagnostic.path.clone(),
+                    message: format!(
+                        "completion test: {} fails: {}",
+                        diagnostic.case_id, diagnostic.message
+                    ),
+                });
+            }
+        }
+    }
+    propagated.diagnostics.extend(violations);
+    propagated
+}
+
 #[cfg(test)]
 mod calculation_execution_tests {
     use super::*;
+
+    fn needs_fixture() -> (Vec<Stmt>, CalculationContract) {
+        let source = r#"
+# Filing = Single | Joint(partner_income: Int)
+# Household(income: Int, married: Bool, filing: Filing)
+# Result(tax: Int)
+
+| base_tax(h: Household) -> h.income / 4
+| exception relief base_tax(h: Household) -> h.income / 5 under h.income > 100 && h.married
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = base_tax(h))
+"#;
+        let stmts = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("fixture parses");
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("fixture has a contract")
+            .remove(0);
+        (stmts, contract)
+    }
+
+    fn partial_envelope(
+        contract: &CalculationContract,
+        input: JsonValue,
+    ) -> CalculationInputEnvelope {
+        CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "case".to_string(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input,
+            }],
+        }
+    }
+
+    #[test]
+    fn oracle_and_completion_test_pass_on_a_decided_case() {
+        let (stmts, contract) = needs_fixture();
+        let envelope = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
+        let checked = check_partial_calculation_cases(&contract, &stmts, None, &envelope);
+        assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
+        assert_eq!(
+            checked.results[0].result,
+            serde_json::json!({ "$variant": "Complete", "result": { "tax": 12 }, "unused_paths": [] })
+        );
+    }
+
+    #[test]
+    fn completions_fill_every_left_out_part_and_keep_given_facts() {
+        let (_, contract) = needs_fixture();
+        let completions = contract.partial_case_completions(
+            &serde_json::json!({ "income": 50, "filing": {} }),
+            32,
+            1,
+        );
+        let mut variants = BTreeSet::new();
+        for completion in &completions {
+            assert_eq!(completion["income"], 50);
+            assert!(completion["married"].is_boolean());
+            variants.insert(
+                completion["filing"]["$variant"]
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            );
+            assert!(contract.decode_input(completion).is_ok(), "{completion}");
+        }
+        assert_eq!(variants.len(), 2, "every variant is generated");
+    }
+
+    #[test]
+    fn the_completion_test_rejects_a_result_some_completion_contradicts() {
+        let (stmts, contract) = needs_fixture();
+        let input = serde_json::json!({ "income": 1000 });
+        let completions = contract.partial_case_completions(&input, 32, 0x5EED);
+        let envelope = CalculationInputEnvelope {
+            cases: completions
+                .into_iter()
+                .enumerate()
+                .map(|(index, input)| CalculationInputCase {
+                    case_id: format!("completion-{index}"),
+                    input_status: Some(CalculationInputStatus::Ready),
+                    input,
+                })
+                .collect(),
+            ..partial_envelope(&contract, input)
+        };
+        let results: BTreeSet<String> =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1))
+                .results
+                .iter()
+                .map(|case| case.result.to_string())
+                .collect();
+        // `married` decides the result here, so a claimed Complete would be
+        // contradicted by some completion.
+        assert!(results.len() > 1, "{results:?}");
+    }
 
     fn runtime_failure_fixture(
         source: &str,

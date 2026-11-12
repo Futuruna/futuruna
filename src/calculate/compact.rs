@@ -42,6 +42,8 @@ pub struct CompactFieldMetadata {
     pub unit: Option<String>,
     pub anchor: String,
     pub binding: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provided_by: Option<super::CalculationFieldProvider>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_group: Option<String>,
 }
@@ -114,6 +116,7 @@ impl CompactCalculationContract {
                     unit: field.unit.clone(),
                     anchor: field.anchor.clone(),
                     binding: field.binding.clone(),
+                    provided_by: field.provided_by.clone(),
                     source_group,
                 }
             })
@@ -214,6 +217,7 @@ impl CompactCalculationContract {
                     unit: field.unit,
                     anchor: field.anchor,
                     binding: field.binding,
+                    provided_by: field.provided_by,
                     sources,
                 }
             })
@@ -267,6 +271,7 @@ mod tests {
             unit: Some("DKK".into()),
             anchor: "input".into(),
             binding: "field".into(),
+            provided_by: None,
             sources,
         };
         CalculationContract {

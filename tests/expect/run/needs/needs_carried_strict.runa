@@ -1,0 +1,16 @@
+-- An unknown value carried but never read does not block the result.
+-- expect-command: call
+-- expect-input: needs_carried.json
+-- expect-args: --entry household_tax --partial=strict
+-- expect-stdout-file: needs_carried_strict.stdout
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+| keep(h: Household) -> h
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = keep(h).income + 1)

@@ -1,0 +1,16 @@
+-- `unused_paths` lists the provided paths evaluation never read.
+-- expect-command: call
+-- expect-input: needs_unused.json
+-- expect-args: --entry household_tax --partial=strict
+-- expect-stdout-file: needs_unused_strict.stdout
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+| account_count(h: Household) -> length(h.accounts)
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income + account_count(h))

@@ -1,0 +1,17 @@
+-- Two clauses that agree decide the call even when the guard between them is unknown.
+-- expect-command: call
+-- expect-input: needs_clauses_agree.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout-file: needs_clauses_agree.stdout
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+| allowance(h: Household) -> 7
+| exception large allowance(h: Household) -> 7 under h.income > 10
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = allowance(h))

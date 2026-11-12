@@ -61,6 +61,7 @@ mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
+pub mod partial;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
@@ -3452,7 +3453,8 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
         | Value::Scope { .. }
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
-        | Value::TypeDef { .. } => None,
+        | Value::TypeDef { .. }
+        | Value::Unknown(_) => None,
     }
 }
 
@@ -13680,6 +13682,10 @@ pub enum Value {
         kind: String,
         fields: Vec<(String, String)>,
     },
+    /// A fact a partial calculation case has not supplied yet, carrying the
+    /// input paths it depends on. It may be carried but never shown,
+    /// compared, hashed or encoded; see `partial`.
+    Unknown(partial::UnknownPaths),
 }
 
 const CHECKED_EXACT_OBSERVER_MEMO_ENTRY_LIMIT: usize = 2_048;
@@ -14104,7 +14110,8 @@ fn checked_exact_observer_memo_encode_value(value: &Value, output: &mut Vec<u8>)
         | Value::Scope { .. }
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
-        | Value::TypeDef { .. } => None,
+        | Value::TypeDef { .. }
+        | Value::Unknown(_) => None,
     }
 }
 
@@ -14395,6 +14402,10 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
                 runtime_hash_str(hasher, ty);
             }
         }
+        Value::Unknown(_) => {
+            partial::report_unknown_leak("hashing");
+            hasher.update([24]);
+        }
     }
 }
 
@@ -14495,6 +14506,10 @@ fn runtime_constructor_values_equal(
 }
 
 fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
+    if matches!(left, Value::Unknown(_)) || matches!(right, Value::Unknown(_)) {
+        partial::report_unknown_leak("equality");
+        return false;
+    }
     if let Some(equal) =
         runtime_constructor_values_equal(left, right, runtime_values_semantically_equal)
     {
@@ -14992,6 +15007,10 @@ impl fmt::Display for Value {
                     write!(f, "{}: {}", n, t)?;
                 }
                 write!(f, "}}>")
+            }
+            Value::Unknown(_) => {
+                partial::report_unknown_leak("display");
+                write!(f, "<unknown>")
             }
         }
     }
@@ -15670,6 +15689,9 @@ impl RuntimeConstructorSignature {
 pub(crate) enum CalculationRuntimeFailure {
     InvalidValue(String),
     Panicked,
+    /// Strict partial evaluation read an unknown value: not an error, but the
+    /// case's `Needs` outcome, with the paths of that read.
+    NeedsInput(BTreeSet<String>),
 }
 
 impl std::fmt::Display for CalculationRuntimeFailure {
@@ -15677,6 +15699,11 @@ impl std::fmt::Display for CalculationRuntimeFailure {
         match self {
             Self::InvalidValue(message) => formatter.write_str(message),
             Self::Panicked => formatter.write_str("internal runtime failure during calculation"),
+            Self::NeedsInput(paths) => write!(
+                formatter,
+                "the calculation needs input not supplied: {}",
+                paths.iter().cloned().collect::<Vec<_>>().join(", ")
+            ),
         }
     }
 }
@@ -16064,6 +16091,9 @@ pub struct Interpreter {
     /// This does not enable Explore's effect whitelist or collection budgets.
     checking_calculation: bool,
     calculation_error: RefCell<Option<CalculationRuntimeFailure>>,
+    /// Set while a partial calculation case runs; see `partial`.
+    partial_mode: Option<partial::PartialMode>,
+    partial: RefCell<partial::PartialState>,
     runtime_diagnostic_context: Option<runtime_diagnostics::RuntimeDiagnosticContext>,
     /// Runtime symbols reachable from the active calculation boundary.
     calculation_runtime_symbols: BTreeSet<String>,
@@ -16140,6 +16170,8 @@ impl Interpreter {
             ground_error: RefCell::new(None),
             checking_calculation: false,
             calculation_error: RefCell::new(None),
+            partial_mode: None,
+            partial: RefCell::new(partial::PartialState::default()),
             runtime_diagnostic_context: None,
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
@@ -16694,12 +16726,21 @@ impl Interpreter {
     ) -> Result<T, CalculationRuntimeFailure> {
         let previous_mode = std::mem::replace(&mut self.checking_calculation, true);
         let previous_error = self.calculation_error.replace(None);
+        partial::take_unknown_leak();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         let error = self.calculation_error.replace(previous_error);
+        let leak = partial::take_unknown_leak();
         self.checking_calculation = previous_mode;
         // A panic wins even if evaluation had already recorded a user error:
         // the caller must not reuse potentially half-mutated runtime state.
         let value = result.map_err(|_| CalculationRuntimeFailure::Panicked)?;
+        // An unknown value that reached display, equality, hashing or
+        // ordering may have shaped the result: the case fails internally.
+        if let Some(site) = leak {
+            return Err(CalculationRuntimeFailure::InvalidValue(
+                partial::unknown_leak_message(site),
+            ));
+        }
         match error {
             Some(error) => Err(error),
             None => Ok(value),
@@ -16765,6 +16806,9 @@ impl Interpreter {
     fn builtin_predicate_holds(&self, builtin: &str, result: Value) -> bool {
         match result {
             Value::Bool(holds) => holds,
+            // The builtin's result is unknown; `partial_builtin` collects the
+            // paths, and the value returned here is discarded.
+            Value::Unknown(paths) => self.partial_possible_match(&paths),
             other => {
                 let _ = self.panic_or_ground_fail(format!(
                     "{builtin} predicate must return Bool, got {}",
@@ -21752,6 +21796,9 @@ impl Interpreter {
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
         let left_value = self.eval(left, env);
+        if let Value::Unknown(paths) = &left_value {
+            return self.partial_short_circuit(operator, (**paths).clone(), right, env);
+        }
         let (result, outcome) = match (operator, left_value) {
             ("&&", Value::Bool(false)) => (
                 Value::Bool(false),
@@ -21807,6 +21854,12 @@ impl Interpreter {
         if self.calculation_failed() || self.ground_error.borrow().is_some() {
             return None;
         }
+        if let Value::Unknown(paths) = &value {
+            // Propagating dispatch evaluates guards itself; here an unknown
+            // guard stops the case.
+            self.partial_stop((**paths).clone());
+            return None;
+        }
         match value {
             Value::Bool(result) => Some(result),
             other => {
@@ -21827,7 +21880,11 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let (result, outcome) = match self.eval(condition, env) {
+        let condition_value = self.eval(condition, env);
+        if let Value::Unknown(paths) = &condition_value {
+            return self.partial_if((**paths).clone(), then_expression, else_expression, env);
+        }
+        let (result, outcome) = match condition_value {
             Value::Bool(true) => (
                 self.eval(then_expression, env),
                 CheckedInterpreterIfDecisionOutcome::Then,
@@ -21863,6 +21920,12 @@ impl Interpreter {
             && arms
                 .iter()
                 .any(|arm| matches!(&arm.pat, Pat::Con(_, args) if args.is_empty()));
+        if self.partial_mode.is_some() && partial::has_unknown(&value) {
+            return self.partial_match(value, arms, env, allow_bare_fielded_tag);
+        }
+        if self.partial_mode.is_some() {
+            self.partial_consume(&value, true);
+        }
         let (result, selected_arm) =
             self.eval_match_with_selected_arm(value, arms, env, allow_bare_fielded_tag);
         match selected_arm.and_then(|index| u32::try_from(index).ok()) {
@@ -21885,6 +21948,11 @@ impl Interpreter {
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
         if self.calculation_failed() {
             return Value::Unit;
+        }
+        if self.partial_mode.is_some() {
+            if let Some(cut) = self.partial_speculation_step() {
+                return cut;
+            }
         }
         if runtime_stack::expression_stack_exhausted() == Some(true) {
             return self.panic_or_ground_fail(
@@ -22020,10 +22088,20 @@ impl Interpreter {
                 }
                 let l = self.eval(lhs, env);
                 let r = self.eval(rhs, env);
+                if self.partial_mode.is_some() {
+                    if let Some(result) = self.partial_binop(op, &l, &r) {
+                        return result;
+                    }
+                }
                 self.eval_binop(op, l, r)
             }
             ExprKind::UnOp(op, operand) => {
                 let v = self.eval(operand, env);
+                if self.partial_mode.is_some() && !matches!(op.as_str(), "&" | "&mut") {
+                    if let Some(result) = self.partial_need(&[&v], false) {
+                        return result;
+                    }
+                }
                 match (op.as_str(), v) {
                     ("!", Value::Bool(b)) => Value::Bool(!b),
                     ("-", Value::Int(n)) => n.checked_neg().map(Value::Int).unwrap_or_else(|| {
@@ -22049,6 +22127,13 @@ impl Interpreter {
             }
             ExprKind::Field(obj, field) => {
                 let obj_val = self.eval(obj, env);
+                if self.partial_mode.is_some() {
+                    if let Some(paths) = partial::unknown_paths(&obj_val, false) {
+                        // A variant whose tag is unknown may lack the field.
+                        self.partial_fallible(&paths);
+                        return self.partial_unknown_read(paths);
+                    }
+                }
                 let missing =
                     || self.panic_or_ground_fail(format!("value has no field or method `{field}`"));
                 match &obj_val {
@@ -22073,6 +22158,9 @@ impl Interpreter {
                         // Named field access: obj.field_name
                         for (fname, val) in named_fields.iter() {
                             if fname == field {
+                                if self.partial_mode.is_some() {
+                                    self.partial_field_read(&obj_val, field, val);
+                                }
                                 return val.clone();
                             }
                         }
@@ -22100,6 +22188,9 @@ impl Interpreter {
                         {
                             for (i, fname) in names.iter().enumerate() {
                                 if fname == field {
+                                    if self.partial_mode.is_some() {
+                                        self.partial_consume(&obj_val, true);
+                                    }
                                     return fields.get(i).cloned().unwrap_or_else(missing);
                                 }
                             }
@@ -22117,11 +22208,16 @@ impl Interpreter {
                         self.live_field(stream, field).unwrap_or_else(missing)
                     }
                     Value::RuleScopeInstance { bindings, .. }
-                    | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings
-                        .get(field)
-                        .cloned()
-                        .or_else(|| self.bind_method_value(&obj_val, field, env))
-                        .unwrap_or_else(missing),
+                    | Value::NamespacedRuleScopeInstance { bindings, .. } => {
+                        if let Some(value) = bindings.get(field) {
+                            if self.partial_mode.is_some() {
+                                self.partial_field_read(&obj_val, field, value);
+                            }
+                            return value.clone();
+                        }
+                        self.bind_method_value(&obj_val, field, env)
+                            .unwrap_or_else(missing)
+                    }
                     // Scope field access: MyScope.field → look up field in scope bindings
                     Value::Scope {
                         bindings,
@@ -22168,6 +22264,16 @@ impl Interpreter {
             ExprKind::Index(arr, idx) => {
                 let arr_val = self.eval(arr, env);
                 let idx_val = self.eval(idx, env);
+                if self.partial_mode.is_some() {
+                    let mut paths = BTreeSet::new();
+                    partial::collect_unknown_paths(&arr_val, false, &mut paths);
+                    partial::collect_unknown_paths(&idx_val, true, &mut paths);
+                    if !paths.is_empty() {
+                        // An index or key may be missing for some completion.
+                        self.partial_fallible(&paths);
+                        return self.partial_unknown_read(paths);
+                    }
+                }
                 match (&arr_val, &idx_val) {
                     (Value::List(elems), Value::Int(i)) => {
                         let i = *i;
@@ -22278,6 +22384,11 @@ impl Interpreter {
                 }
                 // ? operator: unwrap Ok/Some, early-return Err/None (matches compiled ? behavior)
                 let val = self.eval(inner, env);
+                if self.partial_mode.is_some() {
+                    if let Some(result) = self.partial_need(&[&val], false) {
+                        return result;
+                    }
+                }
                 match runtime_result_or_option_parts(&val) {
                     Some(("Ok" | "Some", args)) => args[0].clone(),
                     Some(_) => {
@@ -22293,6 +22404,9 @@ impl Interpreter {
             }
             ExprKind::Unit => Value::Unit,
             ExprKind::Conjunction(exprs) => {
+                if self.partial_mode.is_some() {
+                    return self.partial_kleene(exprs, env, true);
+                }
                 // Evaluate all conjuncts; return true if all are true
                 for e in exprs {
                     if let Value::Bool(false) = self.eval(e, env) {
@@ -22302,6 +22416,9 @@ impl Interpreter {
                 Value::Bool(true)
             }
             ExprKind::Disjunction(alternatives) => {
+                if self.partial_mode.is_some() {
+                    return self.partial_kleene(alternatives, env, false);
+                }
                 // Evaluate alternatives; return true if ANY succeeds
                 for alt in alternatives {
                     let result = self.eval(alt, env);
@@ -22335,6 +22452,21 @@ impl Interpreter {
     pub fn apply(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
         if self.calculation_failed() {
             return Value::Unit;
+        }
+        if self.partial_mode.is_some() {
+            if let Value::Unknown(paths) = &func {
+                let paths = (**paths).clone();
+                self.partial_fallible(&paths);
+                return self.partial_unknown_read(paths);
+            }
+            if let Value::Closure {
+                name: Some(name), ..
+            } = &func
+            {
+                let name = name.clone();
+                let value = self.partial_apply_named(&name, func, args, call_env);
+                return self.calculation_checked_value(value);
+            }
         }
         let value = self.apply_inner(func, args, call_env);
         self.calculation_checked_value(value)
@@ -22482,6 +22614,12 @@ impl Interpreter {
                 return self
                     .panic_or_ground_fail(format!("method `{method}` needs a receiver argument"));
             };
+            if self.partial_mode.is_some() {
+                if let Some(paths) = partial::unknown_paths(&receiver, false) {
+                    self.partial_fallible(&paths);
+                    return self.partial_unknown_read(paths);
+                }
+            }
             let Some(bound) = self.bind_receiver_method(&receiver, method) else {
                 return self.panic_or_ground_fail(format!(
                     "no method `{method}` for a value of type `{}`",
@@ -22530,7 +22668,21 @@ impl Interpreter {
             let ctor_name = parts[0];
             return self.runtime_constructor_value(namespace, ctor_name.to_string(), args);
         }
+        if self.partial_mode.is_some() {
+            return self.partial_builtin(namespace, name, args, env);
+        }
+        self.eval_named_builtin(namespace, name, args, env)
+    }
 
+    /// The named builtins: everything but rule, method, RuleScope and
+    /// constructor applications.
+    pub(crate) fn eval_named_builtin(
+        &mut self,
+        namespace: &RuntimeNamespace,
+        name: &str,
+        args: Vec<Value>,
+        env: &Env,
+    ) -> Value {
         if let Some(refused) = self.refuse_host_effect(name) {
             return refused;
         }
@@ -26231,6 +26383,9 @@ impl Interpreter {
             .into_iter()
             .map(|a| self.eval(a, env))
             .collect();
+        if self.partial_mode.is_some() {
+            return self.partial_rule_call(namespace, family, dispatch, &arg_vals, env);
+        }
         let root_dispatch = namespace.same_instance(&self.runtime_root);
         let mechanism_memo_key = (root_dispatch
             && self.output.len() == memo_output_len_before_arguments)
@@ -26777,6 +26932,11 @@ impl Interpreter {
         ty: &Ty,
         expected_namespace: &RuntimeNamespace,
     ) -> bool {
+        // A partial case decodes every unknown value at its declared type,
+        // and propagation keeps it there.
+        if matches!(value, Value::Unknown(_)) {
+            return true;
+        }
         match ty {
             Ty::Name(type_name) | Ty::Var(type_name) => {
                 self.value_matches_named_type_in_namespace(value, type_name, expected_namespace)
@@ -27029,6 +27189,15 @@ impl Interpreter {
             let expected_namespace = self.namespace_for_env(env);
             return self.value_matches_type_in_namespace(val, type_name, &expected_namespace)
                 && self.match_rule_param(inner, val, env);
+        }
+        if let Value::Unknown(paths) = val {
+            let binds = matches!(&param.kind, ExprKind::Var(name)
+                if name == "_"
+                    || (!name.chars().next().is_some_and(char::is_uppercase)
+                        && env.get(name).is_none()));
+            if !binds {
+                return self.partial_possible_match(paths);
+            }
         }
 
         match &param.kind {
@@ -27302,6 +27471,9 @@ impl Interpreter {
 
         // All variables are bound — evaluate the goal normally
         let result = self.eval(goal, env);
+        if let Value::Unknown(paths) = &result {
+            return self.partial_possible_match(paths) && self.eval_conjunction(remaining, env);
+        }
         match result {
             Value::Bool(true) => self.eval_conjunction(remaining, env),
             Value::Bool(false) => false,
@@ -28315,6 +28487,10 @@ impl Interpreter {
 
 /// Compare two Values for structural equality (used in Prolog-style fact matching)
 pub fn values_equal(a: &Value, b: &Value) -> bool {
+    if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
+        partial::report_unknown_leak("equality");
+        return false;
+    }
     if let Some(equal) = list_values_equal(a, b) {
         return equal;
     }
@@ -28538,6 +28714,10 @@ fn runtime_numeric_is_zero(value: &Value) -> bool {
 
 pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
     use std::cmp::Ordering;
+    if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
+        partial::report_unknown_leak("ordering");
+        return Ordering::Equal;
+    }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {
             0.0

@@ -1,0 +1,29 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "aa29e9afe9b1185e72b3ff34fd648744a1785ae10fd2d6847b580a275101b28d",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "second-closing-left-out",
+      "input_status": "ready",
+      "input": {
+        "accounts": [
+          {
+            "id": "a",
+            "closing_ore": 100
+          },
+          {
+            "id": "b"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "accounts-left-out",
+      "input_status": "ready",
+      "input": {}
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "730ef3750785b9638602793874563876d1bcc020ec31684fd7ae0af32e70545e",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "married-left-out",
+      "input_status": "ready",
+      "input": {
+        "income": 1000
+      }
+    },
+    {
+      "case_id": "married-given",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "married": true
+      }
+    }
+  ]
+}

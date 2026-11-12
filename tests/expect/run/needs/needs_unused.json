@@ -1,0 +1,27 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "4b3f76eb421e22d7c0b80a8ca991e1f3cfc05aa50bc00cae0a3e427dda629d00",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "phone-and-account-fields-unused",
+      "input_status": "ready",
+      "input": {
+        "income": 10,
+        "phone": "555",
+        "married": true,
+        "accounts": [
+          {
+            "id": "a",
+            "closing_ore": 5
+          }
+        ],
+        "filing": {
+          "$variant": "Single"
+        }
+      }
+    }
+  ]
+}

@@ -519,6 +519,82 @@ An XLSX result contains a compact `results` summary, a lossless
 6901 JSON Pointer paths and canonical JSON scalar text; long values occupy
 ordered chunks rather than being truncated at Excel's cell-size limit.
 
+## Partial cases and needs
+
+Experimental. `runa call --partial` evaluates cases that leave facts out and
+answers each with its result or with the facts it still needs. A client
+answers some needs, writes the answers into the same case at their paths and
+calls again, until the case is `Complete`.
+
+```sh
+runa call model.calculate.runa --partial --input partial.json
+runa call model.calculate.runa --partial=strict --input partial.json
+runa call model.calculate.runa --partial=check --input partial.json
+runa schema model.calculate.runa --format partial-result
+```
+
+In a partial case a value means the answer, `{}` for a record means the
+record exists with its fields not known yet, `null` for an optional field
+means "none", and a field left out is unknown. A sum type given as `{}` or
+left out is unknown at `path.$variant`. Readiness, unknown fields, wrong
+types and placeholders are checked as in complete cases. Partial cases are
+JSON: a blank cell or omitted TOML key cannot tell "none" from "not asked
+yet".
+
+Each case's `result` is one of:
+
+```json
+{ "$variant": "Complete", "result": { "tax": 250 }, "unused_paths": ["phone"] }
+```
+
+```json
+{ "$variant": "Needs",
+  "needs": [
+    { "kind": "fact",
+      "path": "accounts[1].closing_ore",
+      "label": "Closing balance",
+      "question": "What was the balance on the closing day?",
+      "unit": "øre",
+      "sources": [ { "label": "§ 1", "role": "Source", "binding": "law" } ],
+      "waiting_rule": "account_tax" } ] }
+```
+
+`unused_paths` lists the provided input paths evaluation never read. A
+need's `path` is concrete, with list indices; its `label`, `question`,
+`help`, `unit` and `sources` come from the field metadata of the same path
+without indices, and `waiting_rule` names the rule that first read it. The
+output envelope's schema is `futuruna.calculate.partial-output.v1`, and
+`runa schema --format partial-result` prints the JSON Schema of `result`.
+
+Evaluation carries unknown values freely and decides wherever the known part
+decides: `False && unknown` is `False`, an `if` or `match` whose possible
+branches give one value is decided, and a rule whose clauses that might fire
+all agree is decided. A clause with an unknown guard blocks the clauses below
+it. Speculation (what runs only because a condition is unknown) is bounded:
+after 100 000 steps per case, or at a recursive call under an unknown
+condition, the result is unknown with the condition's paths. An operation
+that may fail for some answer (division by an unknown, a rule that might
+match no clause) keeps the case from completing until its facts are known.
+
+A field another calculation provides carries `entry` and `subject` in its
+metadata (`entry = Some("share_income")`, `subject =
+Some("taxpayer.spouse")`). Its need has kind `entry`: the client runs that
+entry for the subject and writes the entry's result at `path`. The field's
+type must be the entry's result type; `runa check` reports a missing entry or
+a different type.
+
+`--partial=strict` stops each case at the first unknown value it reads. Its
+`Complete(r)` holds by construction and serves as the test oracle.
+`--partial=check` runs both modes and the completion test: strict
+`Complete(r)` must be propagating `Complete(r)`, and every generated
+completion of a `Complete(r)` case must return `r` or stop with an
+arithmetic-overflow error; each violation is a diagnostic. If a partial case
+returns `Complete(r)`, every completion of its unknown paths returns `r` or
+stops with an overflow error; no completion returns a different result.
+
+Partial evaluation is an interpreter feature of `runa call`. Native and
+compiled programs take complete input; `--partial` is refused elsewhere.
+
 The full format and evolution contract is in
 [Typed calculation contracts](../rfcs/typed-calculation-contracts.md). Partial
 cases and their needs are specified in

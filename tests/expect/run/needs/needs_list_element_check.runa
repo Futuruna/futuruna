@@ -1,0 +1,37 @@
+-- A need inside a list element carries its index; its metadata is the field path without indices.
+-- expect-command: call
+-- expect-input: needs_list_element.json
+-- expect-args: --entry household_tax --partial=check
+-- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::accounts::closing_ore),
+            label = "Closing balance",
+            question = Some("What was the balance on the closing day?"),
+            help = None,
+            unit = Some("øre")
+        )
+    ],
+    attachments = ()
+)
+
+--@label:household_tax::meta:household_meta--
+
+| account_tax(a: Account) -> a.closing_ore / 10
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = foldl(map(h.accounts, |a| account_tax(a)), 0, |total, tax| total + tax))

@@ -1,0 +1,40 @@
+-- A field another entry provides must have that entry's result type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: field `spouse_share_income` has type `Int`, but its provider `share_income` returns `Result`
+
+# Spouse(income: Int)
+# Household(income: Int, spouse: Spouse, spouse_share_income: Int)
+# Result(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: String?, subject: String?)
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::spouse_share_income),
+            label = "Spouse's share income",
+            question = None,
+            help = None,
+            unit = Some("øre"),
+            entry = Some("share_income"),
+            subject = Some("spouse")
+        )
+    ],
+    attachments = ()
+)
+
+--@label:household_tax::meta:household_meta--
+
+@ calculate
+| share_income(s: Spouse) -> Result(tax = s.income)
+
+| threshold(h: Household) -> 100
+| exception transferred threshold(h: Household) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))

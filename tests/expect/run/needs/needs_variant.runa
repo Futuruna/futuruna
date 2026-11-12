@@ -1,0 +1,19 @@
+-- A sum type without `$variant` is a need at `path.$variant`; a chosen variant needs its fields.
+-- expect-command: call
+-- expect-input: needs_variant.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout-file: needs_variant.stdout
+
+# Filing = Single | Joint(partner_income: Int)
+# Spouse(income: Int, name: String)
+# Account(id: String, closing_ore: Int)
+# Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
+# Result(tax: Int)
+
+| filing_tax(h: Household) -> match h.filing {
+    | Single -> 1
+    | Joint(partner_income: p) -> p / 2
+}
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = filing_tax(h))

@@ -1,0 +1,71 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "730ef3750785b9638602793874563876d1bcc020ec31684fd7ae0af32e70545e",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "married-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "help": "Cohabiting spouses only.",
+            "kind": "fact",
+            "label": "Married",
+            "path": "married",
+            "question": "Were you married at the end of the year?",
+            "sources": [
+              {
+                "attachment_path": "household_meta.attachments[0]",
+                "binding": "law",
+                "data": {
+                  "applied": true,
+                  "arguments": [
+                    {
+                      "binding": null,
+                      "field": "url",
+                      "value": {
+                        "kind": "string",
+                        "value": "https://example.invalid/law"
+                      }
+                    },
+                    {
+                      "binding": null,
+                      "field": "section",
+                      "value": {
+                        "kind": "string",
+                        "value": "§ 1"
+                      }
+                    }
+                  ],
+                  "kind": "constructor",
+                  "name": "SourceInfo",
+                  "type": "SourceInfo"
+                },
+                "label": "household_tax",
+                "role": "source",
+                "type": "SourceInfo",
+                "value": "SourceInfo(url = \"https://example.invalid/law\", section = \"§ 1\")"
+              }
+            ],
+            "unit": "yes/no",
+            "waiting_rule": "rate"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "married-given",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "tax": 200
+        },
+        "unused_paths": []
+      }
+    }
+  ],
+  "diagnostics": []
+}
