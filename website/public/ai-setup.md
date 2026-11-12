@@ -22,7 +22,7 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 - **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Before tax calculations, also run the small runtime compatibility check below. Do not run the full project test suite merely to check an installation.
 
 **Tax-audit compatibility:** Use the verified
-[v0.2.6 release](https://github.com/Futuruna/futuruna/releases/tag/v0.2.6) or a
+[v0.3.0 release](https://github.com/Futuruna/futuruna/releases/tag/v0.3.0) or a
 source build of the same checkout as the models. A version string alone does
 not prove that a binary matches the models, so run the
 [runtime compatibility check](#tax-audit-runtime-check) on the exact binary
@@ -123,7 +123,7 @@ Choose the filename for the user's operating system and processor:
 | macOS `x86_64` | `runa-macos-x86_64` |
 
 From the repository root, replace `DOWNLOAD_NAME` below with that exact filename.
-`RELEASE_TAG` is `v0.2.6`; use one explicit tag for both files, never two
+`RELEASE_TAG` is `v0.3.0`; use one explicit tag for both files, never two
 independently changing `latest` downloads. This block leaves the verified binary
 in a new directory and prints its path; it never overwrites an existing
 compiler such as a source build in `target/release/runa`.
@@ -132,7 +132,7 @@ compiler such as a source build in `target/release/runa`.
 (
 set -eu
 BINARY=DOWNLOAD_NAME
-RELEASE_TAG=v0.2.6
+RELEASE_TAG=v0.3.0
 case "$BINARY" in
     runa-linux-x86_64|runa-linux-arm64|runa-macos-arm64|runa-macos-x86_64) ;;
     *) echo "Choose the exact download filename first." >&2; exit 1 ;;
@@ -192,12 +192,12 @@ When Cargo is already available and the user approves a user-level Cargo
 installation, install the exact release tag from the canonical repository:
 
 ```
-cargo install --git https://github.com/Futuruna/futuruna --tag v0.2.6 --locked futuruna
+cargo install --git https://github.com/Futuruna/futuruna --tag v0.3.0 --locked futuruna
 runa --version
 ```
 
-The version must print `0.2.6`. Do not use `cargo install futuruna` unless
-[crates.io](https://crates.io/crates/futuruna) lists version 0.2.6; the
+The version must print `0.3.0`. Do not use `cargo install futuruna` unless
+[crates.io](https://crates.io/crates/futuruna) lists version 0.3.0; the
 crates.io package is not guaranteed to match the current release.
 This installs into Cargo's configured binary directory, normally
 `~/.cargo/bin`. If the installation fails, diagnose the error before
@@ -208,7 +208,7 @@ unless the user asks.
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.2.6 requires Rust
+installing software or changing a shell profile. Futuruna 0.3.0 requires Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary

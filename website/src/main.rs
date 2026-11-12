@@ -3050,7 +3050,7 @@ fn docs_page(active_doc: usize) -> Element {
                 a { class: "docs-sidebar-link", href: "/docs/tutorial", "Tutorial" }
                 hr { class: "docs-sidebar-divider" }
                 h3 { class: "docs-sidebar-title", "Reference" }
-                span { class: "docs-version", "v0.2.6" }
+                span { class: "docs-version", "v0.3.0" }
                 for (i, page) in DOC_PAGES.iter().enumerate() {
                     a {
                         class: if active_doc == i { "docs-sidebar-link active" } else { "docs-sidebar-link" },
