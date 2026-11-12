@@ -45,6 +45,6 @@
 
 @ calculate
 | household_tax(h: Household) -> TaxResult(tax = match h.spouse {
-    | None -> 0
-    | Some(s) -> if s.cohabiting { s.income } else { s.age }
-})
+        | None -> 0
+        | Some(s) -> if s.cohabiting { s.income } else { s.age }
+    })

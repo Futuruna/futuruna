@@ -12,6 +12,6 @@
 
 @ calculate
 | household_tax(h: Household) -> Result(tax = match h.spouse {
-    | None -> 0
-    | Some(s) -> s.income
-})
+        | None -> 0
+        | Some(s) -> s.income
+    })
