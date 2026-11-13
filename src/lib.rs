@@ -69,6 +69,8 @@ mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
+mod unit_types;
+pub use unit_types::erase_unit_types;
 
 pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
 
@@ -6085,6 +6087,10 @@ pub enum TypeDecl {
         params: Vec<Param>,
         body: Vec<Stmt>,
     },
+    /// `# unit Ore "DKK øre"`: a unit of measure for whole numbers. A value of
+    /// the unit is an `Int` at runtime, on the wire and in proofs; the checker
+    /// keeps values of different units apart.
+    Unit { name: String, description: String },
 }
 
 #[derive(Debug, Clone)]
@@ -8213,7 +8219,7 @@ where
                 }
             }
         }
-        TypeDecl::EffectDecl { .. } => {}
+        TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {}
         TypeDecl::RuleScope { body, .. } => {
             for stmt in body {
                 visit(AstChild::Stmt(stmt));
@@ -8599,6 +8605,10 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             condition: strip_spans_expr(condition),
             variants: variants.clone(),
             except_from: except_from.clone(),
+        },
+        TypeDecl::Unit { name, description } => TypeDecl::Unit {
+            name: name.clone(),
+            description: description.clone(),
         },
         TypeDecl::EffectDecl { name, ops } => TypeDecl::EffectDecl {
             name: name.clone(),
@@ -9012,6 +9022,7 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
                 body.iter().map(strip_spans_stmt).collect::<Vec<_>>()
             )
         }
+        TypeDecl::Unit { description, .. } => format!("UNIT({description:?})"),
     };
     hash_string(&canonical)
 }
@@ -9053,6 +9064,7 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
         }
         TypeDecl::WhenType { name, .. } => name,
         TypeDecl::RuleScope { name, .. } => name,
+        TypeDecl::Unit { name, .. } => name,
     }
 }
 
@@ -9080,6 +9092,7 @@ pub fn print_hashes(stmts: &[Stmt]) {
                     TypeDecl::ImplBlock { .. } => "# impl",
                     TypeDecl::WhenType { .. } => "# WHEN",
                     TypeDecl::RuleScope { .. } => "# rulescope",
+                    TypeDecl::Unit { .. } => "# unit",
                 };
                 println!("  {} {} #{}", kind, type_decl_name(td), hash);
                 found = true;
@@ -11626,6 +11639,36 @@ impl Parser {
             }
             self.expect(TokenKind::RBrace)?;
             return Ok(Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }));
+        }
+
+        // # unit Name "description" — contextual: `unit` stays an ordinary name.
+        if self.peek_kind() == TokenKind::Ident
+            && self.peek().text == "unit"
+            && self
+                .tokens
+                .get(self.pos + 1)
+                .is_some_and(|token| token.kind == TokenKind::Type)
+        {
+            self.advance();
+            let name = self.expect_ident()?;
+            self.record_declaration_name_span(format!("unit:{name}"), self.pos - 1);
+            let description = if self.peek_kind() == TokenKind::String_ {
+                self.advance().text
+            } else {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: unit `{name}` needs a description of what it counts.\n  Try: # unit {name} \"DKK øre\"",
+                    p.line, p.col
+                ));
+            };
+            if description.trim().is_empty() {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: unit `{name}` needs a description of what it counts.\n  Try: # unit {name} \"DKK øre\"",
+                    p.line, p.col
+                ));
+            }
+            return Ok(Stmt::TypeDecl(TypeDecl::Unit { name, description }));
         }
 
         // # Name(params) = Variant1 | Variant2 | ...
@@ -15685,6 +15728,8 @@ struct RuntimeNamespaceState {
     constructor_sources: BTreeMap<String, Rc<str>>,
     field_names: BTreeMap<String, Vec<String>>,
     type_variants: BTreeMap<String, Vec<String>>,
+    /// Units of measure declared with `# unit`; their values are `Int`.
+    unit_types: BTreeSet<String>,
     ctor_to_type: BTreeMap<String, String>,
     functions: BTreeMap<String, FnDef>,
     function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
@@ -15751,6 +15796,7 @@ impl RuntimeNamespaceState {
             constructor_sources: BTreeMap::new(),
             field_names: BTreeMap::new(),
             type_variants: BTreeMap::new(),
+            unit_types: BTreeSet::new(),
             ctor_to_type: BTreeMap::new(),
             functions: BTreeMap::new(),
             function_declaration_envs: BTreeMap::new(),
@@ -18841,6 +18887,8 @@ impl Interpreter {
         env.set("head".into(), Value::Builtin("head".into()));
         env.set("tail".into(), Value::Builtin("tail".into()));
         env.set("abs".into(), Value::Builtin("abs".into()));
+        // `Int(amount)` takes the unit off a value; the value is unchanged.
+        env.set("Int".into(), Value::Builtin("unit:Int".into()));
         env.set("random_float".into(), Value::Builtin("random_float".into()));
         env.set(
             "random_choice".into(),
@@ -19414,6 +19462,9 @@ impl Interpreter {
                     .or_default()
                     .insert(for_type.clone());
                 self.install_trait_default_methods(namespace, trait_name, for_type);
+            }
+            TypeDecl::Unit { name, .. } => {
+                namespace.state.borrow_mut().unit_types.insert(name.clone());
             }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
@@ -21659,6 +21710,13 @@ impl Interpreter {
                 }
             }
             TypeDecl::EffectDecl { .. } => {}
+            // `Ore(100)` gives an Int the unit; the value is unchanged.
+            TypeDecl::Unit { name, .. } => {
+                env.set(
+                    name.clone(),
+                    self.runtime_registry_builtin(&namespace, format!("unit:{name}")),
+                );
+            }
             TypeDecl::TraitDecl { .. } => {} // no runtime values for traits
             TypeDecl::WhenType { .. } => {}  // handled in run_program
             TypeDecl::ImplBlock { .. } => {}
@@ -22906,6 +22964,10 @@ impl Interpreter {
                 scope_name.to_string(),
                 Rc::new(bindings),
             );
+        }
+        // A unit conversion (`Ore(n)`, `Int(amount)`) leaves the value as it is.
+        if name.starts_with("unit:") {
+            return args.into_iter().next().unwrap_or(Value::Unit);
         }
         // Constructor application
         if name.starts_with("nctor:") {
@@ -27117,6 +27179,13 @@ impl Interpreter {
             "String" => matches!(value, Value::Str(_)),
             "Bool" => matches!(value, Value::Bool(_)),
             "Char" => matches!(value, Value::Char(_)),
+            _ if Self::runtime_namespace_find(expected_namespace, |state| {
+                state.unit_types.contains(type_name).then_some(())
+            })
+            .is_some() =>
+            {
+                matches!(value, Value::Int(_))
+            }
             _ => {
                 let constructor_name = match value {
                     Value::Constructor(name, _)
@@ -29444,6 +29513,7 @@ pub(crate) enum DeclarationKind {
     Implementation,
     WhenType,
     RuleScope,
+    Unit,
     RuleClause,
     RuleDefault,
     RuleException,
@@ -29471,6 +29541,7 @@ impl DeclarationKind {
             Self::Implementation => "implementation",
             Self::WhenType => "when-type",
             Self::RuleScope => "rule-scope",
+            Self::Unit => "unit",
             Self::RuleClause => "rule-clause",
             Self::RuleDefault => "rule-default",
             Self::RuleException => "rule-exception",
@@ -30498,6 +30569,10 @@ pub struct TypeChecker {
     rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
     pub types: BTreeSet<String>,
+    /// Units of measure (`# unit Ore "DKK øre"`) -> description.
+    unit_types: BTreeMap<String, String>,
+    /// Functions declared by the standard prelude rather than the program.
+    prelude_functions: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
     annotation_source_spans: Option<(String, BTreeMap<String, Span>)>,
     declaration_source_spans: Option<(String, BTreeMap<String, Span>)>,
@@ -45849,7 +45924,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope {
                 name, params, body, ..
             }) => {
@@ -47299,6 +47374,8 @@ impl TypeChecker {
             rule_call_site_param_types: BTreeMap::new(),
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
+            unit_types: BTreeMap::new(),
+            prelude_functions: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
             declaration_source_spans: None,
@@ -48637,6 +48714,9 @@ impl TypeChecker {
             Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                 Some((DeclarationKind::WhenType, None, name.clone(), None))
             }
+            Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+                Some((DeclarationKind::Unit, None, name.clone(), None))
+            }
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => Some((
                 DeclarationKind::RuleScope,
                 None,
@@ -48779,6 +48859,7 @@ impl TypeChecker {
                 | DeclarationKind::Trait
                 | DeclarationKind::WhenType
                 | DeclarationKind::RuleScope
+                | DeclarationKind::Unit
                 | DeclarationKind::InlineModule
                 | DeclarationKind::QualifiedModule
         )
@@ -48810,6 +48891,9 @@ impl TypeChecker {
             )),
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
                 Some(format!("rule-scope:{name};params={params:?}"))
+            }
+            Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                Some(format!("unit:{name};description={description:?}"))
             }
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
@@ -50630,6 +50714,8 @@ impl TypeChecker {
                         if self.types.contains(expected_type)
                             && self.types.contains(&actual_type)
                             && expected_type != &actual_type
+                            && !(self.is_unit_type(expected_type)
+                                && Self::is_unitless_literal(value))
                         {
                             self.error_at_expr(
                                 value,
@@ -51908,6 +51994,28 @@ impl TypeChecker {
                     if name == REFOF_MARKER {
                         return Some("ProgramReference".to_string());
                     }
+                    if !locals.contains_key(name) {
+                        if self.is_unit_conversion_name(name) && args.len() == 1 {
+                            return Some(name.clone());
+                        }
+                        if !self.unit_types.is_empty() {
+                            let argument_types = args
+                                .iter()
+                                .map(|argument| {
+                                    self.infer_expr_type_name_with_locals_in_scope(
+                                        argument,
+                                        locals,
+                                        active_rule_scope,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            if let Some(unit) =
+                                self.unit_preserving_call_result(name, &argument_types)
+                            {
+                                return Some(unit);
+                            }
+                        }
+                    }
                     if !locals.contains_key(name)
                         && !self.explore_contextual_intrinsic_is_shadowed(name, args.len())
                     {
@@ -52190,11 +52298,7 @@ impl TypeChecker {
                         locals,
                         active_rule_scope,
                     );
-                    Self::binary_expression_result_type(
-                        operator,
-                        left_type.as_deref(),
-                        right_type.as_deref(),
-                    )
+                    self.binary_result_type(operator, left_type.as_deref(), right_type.as_deref())
                 }
             }
             ExprKind::UnOp(operator, inner) => {
@@ -52225,7 +52329,14 @@ impl TypeChecker {
                 );
                 match (then_ty, else_ty) {
                     (Some(then_ty), Some(else_ty)) => {
-                        Self::merge_inferred_type_names(&then_ty, &else_ty)
+                        Self::merge_inferred_type_names(&then_ty, &else_ty).or_else(|| {
+                            self.merge_unit_branch(
+                                &then_ty,
+                                Self::is_unitless_literal(then_expr),
+                                &else_ty,
+                                Self::is_unitless_literal(else_expr),
+                            )
+                        })
                     }
                     (Some(then_ty), None) if Self::is_polymorphic_empty_list_expr(else_expr) => {
                         Some(then_ty)
@@ -52243,6 +52354,7 @@ impl TypeChecker {
                     active_rule_scope,
                 );
                 let mut result_type: Option<String> = None;
+                let mut result_is_literal = true;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
@@ -52261,10 +52373,21 @@ impl TypeChecker {
                         }
                         None => return None,
                     };
+                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
                     let merged = match result_type {
-                        Some(known) => Self::merge_inferred_type_names(&known, &arm_type),
+                        Some(known) => {
+                            Self::merge_inferred_type_names(&known, &arm_type).or_else(|| {
+                                self.merge_unit_branch(
+                                    &known,
+                                    result_is_literal,
+                                    &arm_type,
+                                    arm_is_literal,
+                                )
+                            })
+                        }
                         None => Some(arm_type),
                     }?;
+                    result_is_literal &= arm_is_literal;
                     result_type = Some(merged);
                 }
                 result_type
@@ -56056,7 +56179,9 @@ impl TypeChecker {
                             exported.insert(variant.name.clone());
                         }
                     }
-                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    Stmt::TypeDecl(
+                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                    ) => {
                         exported.insert(name.clone());
                     }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
@@ -56548,6 +56673,15 @@ impl TypeChecker {
     pub fn collect_declarations(&mut self, stmts: &[Stmt]) {
         self.rule_dispatch_has_opaque_runtime_graph |=
             Self::rule_dispatch_program_has_opaque_runtime_graph(stmts);
+        let prelude_end = stmts
+            .iter()
+            .position(|stmt| matches!(stmt, Stmt::PreludeBoundary))
+            .unwrap_or(0);
+        for stmt in &stmts[..prelude_end] {
+            if let Stmt::Defn(Defn::Fn { name, .. }) = stmt {
+                self.prelude_functions.insert(name.clone());
+            }
+        }
         for stmt in stmts {
             self.record_explore_top_level_binding_initializer(stmt);
             match stmt {
@@ -56605,6 +56739,7 @@ impl TypeChecker {
                     methods,
                     ..
                 }) => {
+                    self.check_name_against_units(name);
                     self.clear_constructor_owner(name);
                     self.types.insert(name.clone());
                     self.type_parameters_by_owner.insert(
@@ -56842,6 +56977,9 @@ impl TypeChecker {
                     self.rule_scope_value_method_params
                         .insert(name.clone(), Self::rule_scope_value_method_params(body));
                     self.infer_rule_scope_member_return_types(name, params, body);
+                }
+                Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                    self.collect_unit_declaration(name, description);
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -59885,6 +60023,7 @@ impl TypeChecker {
                 }
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::Unit { .. }) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                 self.check_rule_scope_decl(name, params, body);
             }
@@ -60199,6 +60338,11 @@ impl TypeChecker {
                 if matches!(&func.kind, ExprKind::Var(name) if name == REFOF_MARKER) {
                     self.check_refof_expr(expr, args);
                     return;
+                }
+                if let ExprKind::Var(name) = &func.kind {
+                    if self.check_unit_conversion_call(expr, name, args, _in_fn) {
+                        return;
+                    }
                 }
                 if matches!(&func.kind, ExprKind::Var(name) if self.actor_message_arities.contains_key(name))
                     && self.check_actor_message(None, expr)
@@ -70990,6 +71134,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
+            TypeDecl::Unit { .. } => "Unit",
         }
     }
 
@@ -71000,7 +71145,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
             | TypeDecl::TraitDecl { .. }
             | TypeDecl::ImplBlock { .. }
             | TypeDecl::RuleScope { .. } => TypecheckerPassCoverage::VisitsExpressions,
-            TypeDecl::EffectDecl { .. } => TypecheckerPassCoverage::IntentionallyIgnored,
+            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {
+                TypecheckerPassCoverage::IntentionallyIgnored
+            }
         }
     }
 
@@ -71104,6 +71251,15 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
                     name: "EffectVisit".to_string(),
                     ops: vec![("op".to_string(), vec![], None)],
+                }),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::Unit",
+                stmt: Stmt::TypeDecl(TypeDecl::Unit {
+                    name: "UnitVisit".to_string(),
+                    description: "units of a visit".to_string(),
                 }),
                 coverage: ignored,
                 diagnostic_markers: vec![],
@@ -71520,6 +71676,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "TraitDecl",
             "ImplBlock",
             "RuleScope",
+            "Unit",
         ]
         .into_iter()
         .collect();

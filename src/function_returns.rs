@@ -452,6 +452,9 @@ impl TypeChecker {
                 return;
             }
         }
+        if self.unit_literal_fits(expr, &expected) {
+            return;
+        }
         if let Some(actual) = self.infer_return_type(expr, locals) {
             if let Ok(actual_ty) = parse_type_annotation(&actual) {
                 if !Self::return_types_compatible(&actual_ty, &expected) {

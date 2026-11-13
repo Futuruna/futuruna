@@ -27,6 +27,11 @@ const BUILTIN_TYPE_NAMES: &[&str] = &[
     "Result", "Stream",
 ];
 
+/// Whether `name` is a built-in type name such as `Int` or `List`.
+pub(super) fn is_builtin_type_name(name: &str) -> bool {
+    BUILTIN_TYPE_NAMES.contains(&name)
+}
+
 /// Types that accept trait implementations without a Futuruna declaration.
 const BUILTIN_IMPL_TYPES: &[&str] = &[
     "Int", "Float", "String", "Bool", "Char", "Unit", "List", "Map", "Set",
@@ -58,7 +63,7 @@ impl TypeChecker {
             .copied()
     }
 
-    fn declaration_error(&mut self, key: &str, message: String) {
+    pub(super) fn declaration_error(&mut self, key: &str, message: String) {
         match self.declaration_name_span(key) {
             Some(span) => self.error_at_span(span, message),
             None => self.error(message),

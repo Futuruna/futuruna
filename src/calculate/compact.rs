@@ -63,6 +63,8 @@ pub struct CompactCalculationContract {
     pub output: CalculationTypeRef,
     pub definitions: Vec<CalculationTypeDefinition>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub units: Vec<super::CalculationUnit>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<CalculationMetadataReference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub field_metadata: Vec<CompactFieldMetadata>,
@@ -132,6 +134,7 @@ impl CompactCalculationContract {
             input: contract.input.clone(),
             output: contract.output.clone(),
             definitions: contract.definitions.clone(),
+            units: contract.units.clone(),
             metadata: contract.metadata.clone(),
             field_metadata,
             source_objects,
@@ -232,6 +235,7 @@ impl CompactCalculationContract {
             input: self.input,
             output: self.output,
             definitions: self.definitions,
+            units: self.units,
             metadata: self.metadata,
             field_metadata: fields,
             schema_hash: String::new(),
@@ -280,8 +284,15 @@ mod tests {
             entry: "calculate".into(),
             label: Some("Synthetic calculation".into()),
             parameter: "input".into(),
-            input: CalculationTypeRef::Primitive { name: "Int".into() },
-            output: CalculationTypeRef::Primitive { name: "Int".into() },
+            input: CalculationTypeRef::Primitive {
+                name: "Int".into(),
+                unit: None,
+            },
+            output: CalculationTypeRef::Primitive {
+                name: "Int".into(),
+                unit: None,
+            },
+            units: vec![],
             definitions: vec![],
             metadata: vec![source.clone()],
             field_metadata: vec![

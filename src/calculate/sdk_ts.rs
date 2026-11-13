@@ -255,7 +255,7 @@ impl<'a> Sdk<'a> {
         context: &str,
     ) -> Result<(), String> {
         match ty {
-            CalculationTypeRef::Primitive { name } => {
+            CalculationTypeRef::Primitive { name, .. } => {
                 if PRIMITIVES.contains(&name.as_str()) {
                     Ok(())
                 } else {
@@ -267,7 +267,7 @@ impl<'a> Sdk<'a> {
             | CalculationTypeRef::List { item }
             | CalculationTypeRef::Set { item } => self.validate_type(item, parameters, context),
             CalculationTypeRef::Map { key, value } => {
-                if !matches!(key.as_ref(), CalculationTypeRef::Primitive { name } if name == "String")
+                if !matches!(key.as_ref(), CalculationTypeRef::Primitive { name, .. } if name == "String")
                 {
                     return Err(format!("{context}: only `Map(String, T)` is supported"));
                 }
@@ -520,7 +520,7 @@ impl<'a> Sdk<'a> {
 
     fn ts_type(&self, ty: &CalculationTypeRef, side: Side) -> String {
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive { name, .. } => match name.as_str() {
                 "Int" | "Float" => "number",
                 "Bool" => "boolean",
                 _ => "string",
@@ -568,7 +568,7 @@ impl<'a> Sdk<'a> {
     fn zod(&self, ty: &CalculationTypeRef, side: Side) -> String {
         let module = if side == Side::Local { "" } else { "schema." };
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive { name, .. } => match name.as_str() {
                 "Int" => format!("{module}IntSchema"),
                 "Float" => format!("{module}FloatSchema"),
                 "Char" => format!("{module}CharSchema"),
@@ -1304,7 +1304,7 @@ fn sentence(text: &str) -> String {
 
 fn mentions_int(ty: &CalculationTypeRef) -> bool {
     match ty {
-        CalculationTypeRef::Primitive { name } => name == "Int",
+        CalculationTypeRef::Primitive { name, .. } => name == "Int",
         CalculationTypeRef::Optional { item }
         | CalculationTypeRef::List { item }
         | CalculationTypeRef::Set { item } => mentions_int(item),

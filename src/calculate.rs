@@ -38,6 +38,11 @@ const DEFAULT_MAX_CALCULATION_WORKERS: usize = 8;
 pub enum CalculationTypeRef {
     Primitive {
         name: String,
+        /// The unit of measure of an `Int` declared with `# unit`; its
+        /// description is in the contract's `units`. The value on the wire is
+        /// the same JSON number.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unit: Option<String>,
     },
     Named {
         name: String,
@@ -66,7 +71,7 @@ pub enum CalculationTypeRef {
 impl CalculationTypeRef {
     pub fn display_name(&self) -> String {
         match self {
-            Self::Primitive { name } | Self::TypeParameter { name } => name.clone(),
+            Self::Primitive { name, .. } | Self::TypeParameter { name } => name.clone(),
             Self::Named { name, arguments } => display_type_application(name, arguments),
             Self::Optional { item } => format!("{}?", item.display_name()),
             Self::List { item } => format!("List({})", item.display_name()),
@@ -77,6 +82,24 @@ impl CalculationTypeRef {
             Self::Unit => "()".to_string(),
         }
     }
+
+    /// The unit of measure of this type: of the `Int` itself, or of the
+    /// optional value or list items it holds.
+    pub fn unit(&self) -> Option<&str> {
+        match self {
+            Self::Primitive { unit, .. } => unit.as_deref(),
+            Self::Optional { item } | Self::List { item } | Self::Set { item } => item.unit(),
+            _ => None,
+        }
+    }
+}
+
+/// A unit of measure declared with `# unit Ore "DKK øre"` and used by a type
+/// in the contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationUnit {
+    pub name: String,
+    pub description: String,
 }
 
 fn display_type_application(name: &str, arguments: &[CalculationTypeRef]) -> String {
@@ -179,6 +202,10 @@ pub struct CalculationContract {
     pub input: CalculationTypeRef,
     pub output: CalculationTypeRef,
     pub definitions: Vec<CalculationTypeDefinition>,
+    /// The units of measure the input and result types use, with the
+    /// description each unit is declared with.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub units: Vec<CalculationUnit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<CalculationMetadataReference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -785,6 +812,8 @@ pub(crate) struct TypeCatalog {
     type_order: BTreeMap<String, usize>,
     next_type_order: usize,
     exact_mode: bool,
+    /// Units of measure (`# unit Ore "DKK øre"`) -> description.
+    units: BTreeMap<String, String>,
 }
 
 impl TypeCatalog {
@@ -967,6 +996,9 @@ impl TypeCatalog {
                             parameters: params.clone(),
                         },
                     );
+                }
+                Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                    self.units.insert(name.clone(), description.clone());
                 }
                 Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                     if checked {
@@ -1739,8 +1771,10 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
     let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
     for candidate in candidates {
-        let input = ty_to_contract_ref(&candidate.input, false).expect("validated input type");
-        let output = ty_to_contract_ref(&candidate.output, false).expect("validated output type");
+        let input = ty_to_contract_ref(&candidate.input, false, &catalog.units)
+            .expect("validated input type");
+        let output = ty_to_contract_ref(&candidate.output, false, &catalog.units)
+            .expect("validated output type");
         let mut reachable = BTreeSet::new();
         collect_reachable_type_names(&candidate.input, &catalog, &mut reachable);
         collect_reachable_type_names(&candidate.output, &catalog, &mut reachable);
@@ -1763,14 +1797,19 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             parameter: candidate.parameter,
             input,
             output,
+            units: Vec::new(),
             definitions,
             metadata,
             field_metadata: Vec::new(),
             schema_hash: String::new(),
         };
+        contract.units = contract_units(&contract, &catalog.units);
         match contract_field_metadata(&meta_index, &contract) {
             Ok(field_metadata) => contract.field_metadata = field_metadata,
             Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
+        }
+        if let Err(mut diagnostics) = apply_unit_field_metadata(&mut contract) {
+            metadata_diagnostics.append(&mut diagnostics);
         }
         contracts.push(contract.finish_hash());
     }
@@ -2016,12 +2055,22 @@ fn is_canonical_exact_runtime_declaration(declaration: &TypeDecl) -> bool {
     })
 }
 
-fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationTypeRef, String> {
+fn ty_to_contract_ref(
+    ty: &Ty,
+    allow_parameters: bool,
+    units: &BTreeMap<String, String>,
+) -> Result<CalculationTypeRef, String> {
     match ty {
         Ty::Name(name) => {
             if let Some(name) = primitive_name(name) {
                 Ok(CalculationTypeRef::Primitive {
                     name: name.to_string(),
+                    unit: None,
+                })
+            } else if units.contains_key(name) {
+                Ok(CalculationTypeRef::Primitive {
+                    name: "Int".to_string(),
+                    unit: Some(name.clone()),
                 })
             } else {
                 Ok(CalculationTypeRef::Named {
@@ -2036,7 +2085,7 @@ fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationType
             };
             let arguments = arguments
                 .iter()
-                .map(|argument| ty_to_contract_ref(argument, allow_parameters))
+                .map(|argument| ty_to_contract_ref(argument, allow_parameters, units))
                 .collect::<Result<Vec<_>, _>>()?;
             match (name.as_str(), arguments.as_slice()) {
                 ("List", [item]) => Ok(CalculationTypeRef::List {
@@ -2059,7 +2108,7 @@ fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationType
             }
         }
         Ty::Optional(item) => Ok(CalculationTypeRef::Optional {
-            item: Box::new(ty_to_contract_ref(item, allow_parameters)?),
+            item: Box::new(ty_to_contract_ref(item, allow_parameters, units)?),
         }),
         Ty::Var(name) if allow_parameters => {
             Ok(CalculationTypeRef::TypeParameter { name: name.clone() })
@@ -2094,7 +2143,9 @@ fn validate_type_inner(
     active: &mut BTreeSet<String>,
 ) -> Result<(), String> {
     match ty {
-        Ty::Name(name) if primitive_name(name).is_some() => Ok(()),
+        Ty::Name(name) if primitive_name(name).is_some() || catalog.units.contains_key(name) => {
+            Ok(())
+        }
         Ty::Name(name) => validate_named_type(name, &[], catalog, active),
         Ty::App(base, arguments) => {
             let Ty::Name(name) = base.as_ref() else {
@@ -2284,7 +2335,7 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
                 .fields
                 .into_iter()
                 .filter_map(|field| {
-                    ty_to_contract_ref(&field.ty, true)
+                    ty_to_contract_ref(&field.ty, true, &catalog.units)
                         .ok()
                         .map(|ty| CalculationField {
                             name: field.name,
@@ -2565,6 +2616,98 @@ fn contract_type_at_path(contract: &CalculationContract, path: &str) -> Option<C
             .clone();
     }
     Some(substitute_contract_type(&ty, &substitutions))
+}
+
+/// The declared units the contract's types use, in name order.
+fn contract_units(
+    contract: &CalculationContract,
+    declared: &BTreeMap<String, String>,
+) -> Vec<CalculationUnit> {
+    fn collect(ty: &CalculationTypeRef, used: &mut BTreeSet<String>) {
+        match ty {
+            CalculationTypeRef::Primitive {
+                unit: Some(unit), ..
+            } => {
+                used.insert(unit.clone());
+            }
+            CalculationTypeRef::Named { arguments, .. } => {
+                for argument in arguments {
+                    collect(argument, used);
+                }
+            }
+            CalculationTypeRef::Optional { item }
+            | CalculationTypeRef::List { item }
+            | CalculationTypeRef::Set { item } => collect(item, used),
+            CalculationTypeRef::Map { key, value } => {
+                collect(key, used);
+                collect(value, used);
+            }
+            CalculationTypeRef::Primitive { unit: None, .. }
+            | CalculationTypeRef::TypeParameter { .. }
+            | CalculationTypeRef::Unit => {}
+        }
+    }
+    let mut used = BTreeSet::new();
+    collect(&contract.input, &mut used);
+    collect(&contract.output, &mut used);
+    for definition in &contract.definitions {
+        for variant in &definition.variants {
+            for field in &variant.fields {
+                collect(&field.ty, &mut used);
+            }
+        }
+    }
+    used.into_iter()
+        .filter_map(|name| {
+            declared.get(&name).map(|description| CalculationUnit {
+                description: description.clone(),
+                name,
+            })
+        })
+        .collect()
+}
+
+/// A field whose type has a unit takes the `unit` of its field metadata from
+/// the unit's declaration. An authored `unit` on such a field would say the
+/// unit a second time, so it is an error.
+fn apply_unit_field_metadata(contract: &mut CalculationContract) -> Result<(), Vec<Diagnostic>> {
+    if contract.units.is_empty() {
+        return Ok(());
+    }
+    let descriptions = contract
+        .units
+        .iter()
+        .map(|unit| (unit.name.clone(), unit.description.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let units = contract
+        .field_metadata
+        .iter()
+        .map(|metadata| {
+            contract_type_at_path(contract, &metadata.path)
+                .and_then(|ty| ty.unit().map(str::to_string))
+        })
+        .collect::<Vec<_>>();
+    let mut diagnostics = Vec::new();
+    for (metadata, unit) in contract.field_metadata.iter_mut().zip(units) {
+        let Some(unit) = unit else {
+            continue;
+        };
+        let Some(description) = descriptions.get(&unit) else {
+            continue;
+        };
+        match &metadata.unit {
+            None => metadata.unit = Some(description.clone()),
+            Some(authored) => diagnostics.push(Diagnostic::error(format!(
+                "calculation field `{}` has the unit `{unit}` (\"{description}\") from its type; remove `unit = Some(\"{authored}\")` from its field metadata",
+                metadata.path
+            ))),
+        }
+    }
+    if diagnostics.is_empty() {
+        Ok(())
+    } else {
+        Err(diagnostics)
+    }
 }
 
 fn contract_field_metadata(
@@ -3556,7 +3699,7 @@ fn decode_value(
 ) -> Result<Value, Vec<CalculationValueError>> {
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
-        CalculationTypeRef::Primitive { name } => {
+        CalculationTypeRef::Primitive { name, .. } => {
             let decoded = decode_primitive(value, &name, path).map_err(|error| vec![error])?;
             partial_provided(partial, path);
             Ok(decoded)
@@ -3616,7 +3759,7 @@ fn decode_value(
             .map(Value::List)
         }
         CalculationTypeRef::Map { key, value: item } => {
-            if !matches!(*key, CalculationTypeRef::Primitive { ref name } if name == "String") {
+            if !matches!(*key, CalculationTypeRef::Primitive { ref name, .. } if name == "String") {
                 return Err(vec![value_error(path, "only Map(String, T) is supported")]);
             }
             let object = value
@@ -3979,7 +4122,7 @@ fn encode_value(
     }
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
-        CalculationTypeRef::Primitive { name } => encode_primitive(value, &name, path),
+        CalculationTypeRef::Primitive { name, .. } => encode_primitive(value, &name, path),
         CalculationTypeRef::Unit => match value {
             Value::Unit => Ok(JsonValue::Null),
             _ => Err(runtime_type_error(path, "()", value)),
@@ -4022,7 +4165,7 @@ fn encode_value(
             ))
         }
         CalculationTypeRef::Map { key, value: item } => {
-            if !matches!(*key, CalculationTypeRef::Primitive { ref name } if name == "String") {
+            if !matches!(*key, CalculationTypeRef::Primitive { ref name, .. } if name == "String") {
                 return Err(value_error(path, "only Map(String, T) is supported"));
             }
             let Value::Map(values) = value else {
@@ -4350,7 +4493,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 variant_guards,
                 active,
             ),
-            CalculationTypeRef::Primitive { name } => {
+            CalculationTypeRef::Primitive { name, .. } => {
                 columns.push(scalar_column(
                     layout_column_path(column_path, parent_table),
                     normalized_input_path(absolute_path),
@@ -4661,7 +4804,7 @@ fn scalar_column(
 }
 
 fn is_string_type(ty: &CalculationTypeRef) -> bool {
-    matches!(ty, CalculationTypeRef::Primitive { name } if name == "String")
+    matches!(ty, CalculationTypeRef::Primitive { name, .. } if name == "String")
 }
 
 fn is_normalized_collection_type(ty: &CalculationTypeRef) -> bool {
@@ -5497,7 +5640,7 @@ impl CalculationContract {
         let ty = substitute_contract_type(ty, substitutions);
         let shallow = depth >= COMPLETION_DEPTH_LIMIT;
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive { name, .. } => match name.as_str() {
                 "Int" => {
                     if rng.below(3) == 0 {
                         let magnitude = (rng.next() % 1_000_000_000_000) as i64;

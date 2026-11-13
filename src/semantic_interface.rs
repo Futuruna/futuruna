@@ -513,6 +513,15 @@ fn collect_type_interface(
                 details,
             });
         }
+        TypeDecl::Unit { name, description } => {
+            types.push(SemanticTypeDeclaration {
+                kind: "unit".to_string(),
+                name: name.clone(),
+                parameters: Vec::new(),
+                variants: Vec::new(),
+                details: vec![format!("description:{description}")],
+            });
+        }
         TypeDecl::EffectDecl { name, ops } => {
             types.push(SemanticTypeDeclaration {
                 kind: "effect".to_string(),

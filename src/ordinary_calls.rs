@@ -191,6 +191,8 @@ impl TypeChecker {
                     ),
                 );
             }
+            Some(DeclaredCallable::Function(_))
+                if self.check_unit_preserving_call(name, arguments) => {}
             Some(DeclaredCallable::Function(parameters)) => {
                 let names = parameters
                     .iter()
@@ -202,6 +204,9 @@ impl TypeChecker {
                         let Some(expected) = parameter.ty.as_ref() else {
                             continue;
                         };
+                        if self.unit_literal_fits(argument, expected) {
+                            continue;
+                        }
                         let Some(actual) = self.ordinary_expression_type(argument) else {
                             continue;
                         };
@@ -219,7 +224,7 @@ impl TypeChecker {
                                     "argument `{}` to `{name}` expects `{}`, got `{actual}`{}",
                                     parameter.name,
                                     Self::canonical_explore_ty_name(expected),
-                                    Self::numeric_conversion_hint(&actual_ty, expected)
+                                    self.numeric_conversion_hint(&actual_ty, expected)
                                 ),
                             );
                         }
@@ -249,6 +254,9 @@ impl TypeChecker {
             let Some(expected) = expected else {
                 continue;
             };
+            if self.unit_literal_fits(argument, expected) {
+                continue;
+            }
             let Some(actual) = self.ordinary_expression_type(argument) else {
                 continue;
             };
@@ -264,7 +272,7 @@ impl TypeChecker {
                     "argument {} to `{name}` expects `{}`, got `{actual}`{}",
                     index + 1,
                     Self::canonical_explore_ty_name(expected),
-                    Self::numeric_conversion_hint(&actual_ty, expected)
+                    self.numeric_conversion_hint(&actual_ty, expected)
                 ),
             );
         }
@@ -295,6 +303,9 @@ impl TypeChecker {
             let Some(expected) = expected else {
                 continue;
             };
+            if self.unit_literal_fits(argument, expected) {
+                continue;
+            }
             let Some(actual) = self.ordinary_expression_type(argument) else {
                 continue;
             };
@@ -314,7 +325,7 @@ impl TypeChecker {
                 format!(
                     "argument {parameter} to `{name}` expects `{}`, got `{actual}`{}",
                     Self::canonical_explore_ty_name(expected),
-                    Self::numeric_conversion_hint(&actual_ty, expected)
+                    self.numeric_conversion_hint(&actual_ty, expected)
                 ),
             );
         }
@@ -343,6 +354,9 @@ impl TypeChecker {
             else {
                 continue;
             };
+            if self.unit_literal_fits(argument, &expected) {
+                continue;
+            }
             let Some(actual) = self.ordinary_expression_type(argument) else {
                 continue;
             };
@@ -355,7 +369,7 @@ impl TypeChecker {
                     format!(
                         "constructor `{name}` field `{field}` expects `{}`, got `{actual}`{}",
                         Self::canonical_explore_ty_name(&expected),
-                        Self::numeric_conversion_hint(&actual_ty, &expected)
+                        self.numeric_conversion_hint(&actual_ty, &expected)
                     ),
                 );
             }
@@ -365,6 +379,9 @@ impl TypeChecker {
     /// A binding's declared type holds for its value, whatever expression
     /// computes it: a call, a rule call, a field, an `if` or a `match`.
     pub(super) fn check_declared_binding_value(&mut self, declared: &Ty, value: &Expr) {
+        if self.unit_literal_fits(value, declared) {
+            return;
+        }
         let Some(actual) = self.ordinary_expression_type(value) else {
             return;
         };
@@ -377,18 +394,35 @@ impl TypeChecker {
                 format!(
                     "type mismatch: binding expects `{}` but expression has `{actual}`{}",
                     Self::canonical_explore_ty_name(declared),
-                    Self::numeric_conversion_hint(&actual_ty, declared)
+                    self.numeric_conversion_hint(&actual_ty, declared)
                 ),
             );
         }
     }
 
-    fn numeric_conversion_hint(actual: &Ty, expected: &Ty) -> &'static str {
+    pub(super) fn numeric_conversion_hint(&self, actual: &Ty, expected: &Ty) -> String {
         match (actual, expected) {
             (Ty::Name(actual), Ty::Name(expected)) if actual == "Int" && expected == "Float" => {
-                "; write a Float literal such as `25.0` or convert with `to_float`"
+                "; write a Float literal such as `25.0` or convert with `to_float`".to_string()
             }
-            _ => "",
+            (Ty::Name(actual), Ty::Name(expected))
+                if actual == "Int" && self.is_unit_type(expected) =>
+            {
+                format!("; write `{expected}(n)` when the number is an amount in `{expected}`")
+            }
+            (Ty::Name(actual), Ty::Name(expected))
+                if self.is_unit_type(actual) && expected == "Int" =>
+            {
+                "; take the unit off with `Int(...)`".to_string()
+            }
+            (Ty::Name(actual), Ty::Name(expected))
+                if self.is_unit_type(actual) && self.is_unit_type(expected) =>
+            {
+                format!(
+                    "; `{actual}` and `{expected}` are different units: state the conversion in a function that uses `Int(...)` and `{expected}(...)`"
+                )
+            }
+            _ => String::new(),
         }
     }
 
@@ -528,7 +562,8 @@ impl TypeChecker {
             } else if matches!(
                 owner,
                 "Int" | "Float" | "Bool" | "String" | "Char" | "Unit" | "List" | "Map" | "Set"
-            ) {
+            ) || self.is_unit_type(owner)
+            {
                 Some(false)
             } else {
                 None

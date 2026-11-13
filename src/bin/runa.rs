@@ -1423,7 +1423,7 @@ const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2"
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
 const CALCULATION_XLSX_STRING_HELP: &str = "For empty text, enter \"\" (two double quotes). Clearing a cell means no value. For text starting with a double quote, use JSON string quoting.";
 const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
-const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 2;
+const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 3;
 const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
 const NATIVE_ARTIFACT_CACHE_VERSION: u32 = 1;
 const COMPILER_FINGERPRINT_CACHE_VERSION: u32 = 1;
@@ -9169,6 +9169,9 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
                     }
                 }
             }
+        }
+        Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+            names.insert(name.clone());
         }
         Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
             names.insert(name.clone());
@@ -19089,13 +19092,16 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             std::process::exit(1);
         }
     };
-    let all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
+    let mut all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
         Ok((statements, _)) => statements,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
             std::process::exit(1);
         }
     };
+    // A unit of measure is an Int to the solver; the checker above has kept
+    // the units apart.
+    erase_unit_types(&mut all_stmts);
     let type_artifacts = TypeChecker::check_with_artifacts(
         &if use_prelude {
             prepend_prelude(parse_prelude(), &all_stmts)
@@ -32406,7 +32412,9 @@ impl RustCodegen {
                         exported.insert(name.clone());
                         exported.extend(variants.iter().map(|variant| variant.name.clone()));
                     }
-                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    Stmt::TypeDecl(
+                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                    ) => {
                         exported.insert(name.clone());
                     }
                     Stmt::Rule(rule) => {
@@ -32867,6 +32875,9 @@ impl RustCodegen {
                     .and_then(|result| parse_type_annotation(result).ok());
             }
         }
+        // Units of measure are `Int` in generated Rust; the checker has
+        // already kept them apart.
+        erase_unit_types(&mut all_stmts);
 
         self.types.module_value_bindings.clear();
         self.types.module_stream_bindings.clear();
@@ -32931,7 +32942,9 @@ impl RustCodegen {
                                 self.types.root_exported_names.insert(variant.name.clone());
                             }
                         }
-                        Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                        Stmt::TypeDecl(
+                            TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                        ) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
                         }
@@ -34913,7 +34926,7 @@ impl RustCodegen {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::RustBlock(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
                 | Stmt::Explore(_) => {}
@@ -35354,7 +35367,7 @@ impl RustCodegen {
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
-            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
             | Stmt::Explore(_) => {}
         }
     }
@@ -40854,6 +40867,13 @@ fn __futuruna_install_error_hook() {
             }
             TypeDecl::RuleScope { name, params, body } => {
                 self.emit_rule_scope_decl(name, params, body)
+            }
+            // A unit is `Int`: values are i64 and conversions are erased.
+            TypeDecl::Unit { name, description } => {
+                format!(
+                    "/// {}\n#[allow(dead_code)]\npub type {name} = i64;\n",
+                    description.replace(['\n', '\r'], " ")
+                )
             }
             TypeDecl::EffectDecl { name, ops } => {
                 // Emit effect as a trait — each operation becomes a method
@@ -55548,7 +55568,7 @@ fn __futuruna_install_error_hook() {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::Explore(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
                     self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
                 }
@@ -59061,6 +59081,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
+            TypeDecl::Unit { .. } => "Unit",
         }
     }
 
@@ -59136,6 +59157,15 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
                     name: "EffectVisit".to_string(),
                     ops: vec![("op".to_string(), vec![], None)],
+                }),
+                ownership_markers: vec![],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::Unit",
+                stmt: Stmt::TypeDecl(TypeDecl::Unit {
+                    name: "UnitVisit".to_string(),
+                    description: "units of a visit".to_string(),
                 }),
                 ownership_markers: vec![],
                 import_expansion: retained,
@@ -59684,6 +59714,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "TraitDecl",
             "ImplBlock",
             "RuleScope",
+            "Unit",
         ]
         .into_iter()
         .collect();
@@ -60470,6 +60501,9 @@ match stmt {
                     .collect::<Vec<_>>()
                     .join(" | ");
                 out.push_str(&format!("{}when-type {} = {}\n", pad, name, variants));
+            }
+            Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                out.push_str(&format!("{}unit {} {:?}\n", pad, name, description));
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                 out.push_str(&format!("{}effect {}/{}\n", pad, name, ops.len()));
