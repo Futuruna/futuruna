@@ -1,0 +1,19 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "d5dd4827a1a8de9a2e8aaf85a670d4f39cdd359703070c10a32ac2c4f48e3731",
+    "entry": "explain_rules"
+  },
+  "cases": [
+    {
+      "case_id": "2026",
+      "input_status": "ready",
+      "input": { "name": "A", "year": 2026, "items": [ { "amount": 1000 }, { "amount": 300 } ] }
+    },
+    {
+      "case_id": "2019",
+      "input_status": "ready",
+      "input": { "name": "B", "year": 2019, "items": [ { "amount": 2000 } ] }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+-- A need names the innermost rule of a law section waiting for it, with the
+-- section and the paragraphs the rule cites, not the helper that read it.
+-- expect-command: call
+-- expect-input: needs_section.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_section.stdout
+
+# Owner(fully_liable: Bool, income: Int)
+# Result(tax: Int)
+
+--@label:liability--
+----
+[sources/law.txt]
+
+§ 1. Personer, der er fuldt skattepligtige, beskattes af hele indkomsten.
+
+§ 2. Andre beskattes ikke.
+----
+
+-- A helper outside any section.
+| checked(flag: Bool) -> flag == True
+
+--@begin:liability--
+--@cite:§ 1--
+| taxed(o: Owner) -> o.income / 4
+--@cite:§ 2--
+| exception not_liable taxed(o: Owner) -> 0 under not(checked(o.fully_liable))
+--@end:liability--
+
+@ calculate
+| needs_section(o: Owner) -> Result(tax = taxed(o))

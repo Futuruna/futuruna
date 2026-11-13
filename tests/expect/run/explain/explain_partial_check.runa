@@ -1,0 +1,15 @@
+-- Explanations are not combined with the completion test.
+-- expect-command: call
+-- expect-input: explain_partial.json
+-- expect-args: --entry explain_partial --partial=check --explain
+-- expect-status: fail
+-- expect-stderr: --explain does not combine with --partial=check
+
+# Case(income: Int, married: Bool, spouse_income: Int)
+# Result(allowance: Int, income: Int)
+
+| allowance(married: Bool) -> 4000
+| exception married allowance(married: Bool) -> 8000 under married
+
+@ calculate
+| explain_partial(c: Case) -> Result(allowance = allowance(c.married), income = c.income)

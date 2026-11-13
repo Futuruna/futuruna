@@ -1,0 +1,27 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "8b98c536517ab68794ccb19b55e0fb68496efdf4b615b31df1a86dd07cf3b968",
+    "entry": "needs_section_law"
+  },
+  "results": [
+    {
+      "case_id": "liability-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "paragraphs": [
+              "§ 1"
+            ],
+            "path": "fully_liable",
+            "section": "liability",
+            "waiting_rule": "liable"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -37,11 +37,13 @@ mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod citations;
 mod danish;
 mod declaration_contracts;
 mod editor_fields;
 mod effect_handling;
 pub use editor_fields::EditorField;
+pub mod explain;
 mod live_streams;
 pub use live_streams::{
     finite_only_stream_operator_message, ActorRef, LiveStream, FINITE_ONLY_STREAM_OPERATORS,
@@ -3357,7 +3359,7 @@ fn meta_impure_runtime_names() -> BTreeSet<String> {
 }
 
 fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Option<MetaValue> {
-    match value {
+    match explain::untraced(value) {
         Value::Int(value) => Some(MetaValue::Integer(*value)),
         Value::Float(value) => Some(MetaValue::Float(value.to_string())),
         Value::Str(value) => Some(MetaValue::String(value.clone())),
@@ -3454,7 +3456,8 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
         | Value::TypeDef { .. }
-        | Value::Unknown(_) => None,
+        | Value::Unknown(_)
+        | Value::Traced(_) => None,
     }
 }
 
@@ -13762,6 +13765,10 @@ pub enum Value {
     /// input paths it depends on. It may be carried but never shown,
     /// compared, hashed or encoded; see `partial`.
     Unknown(partial::UnknownPaths),
+    /// A value of an explained case (`runa call --explain`) with where it
+    /// came from. Wraps a scalar or a nullary variant only, and reads as that
+    /// value everywhere; see `explain`.
+    Traced(Rc<explain::TracedValue>),
 }
 
 const CHECKED_EXACT_OBSERVER_MEMO_ENTRY_LIMIT: usize = 2_048;
@@ -14187,7 +14194,8 @@ fn checked_exact_observer_memo_encode_value(value: &Value, output: &mut Vec<u8>)
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
         | Value::TypeDef { .. }
-        | Value::Unknown(_) => None,
+        | Value::Unknown(_)
+        | Value::Traced(_) => None,
     }
 }
 
@@ -14316,6 +14324,7 @@ fn runtime_pair_tuple_operands(left: &Value, right: &Value) -> Option<(Value, Va
 }
 
 fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
+    let value = explain::untraced(value);
     if let Some((fst, snd)) = runtime_pair_fields(value) {
         // Hash as the tuple `(fst, snd)`, as `runtime_hash_sequence` does.
         hasher.update([7]);
@@ -14523,6 +14532,7 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
             partial::report_unknown_leak("hashing");
             hasher.update([24]);
         }
+        Value::Traced(_) => unreachable!("hashing reads a traced value as its value"),
     }
 }
 
@@ -14623,6 +14633,7 @@ fn runtime_constructor_values_equal(
 }
 
 fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
+    let (left, right) = (explain::untraced(left), explain::untraced(right));
     if matches!(left, Value::Unknown(_)) || matches!(right, Value::Unknown(_)) {
         partial::report_unknown_leak("equality");
         return false;
@@ -15132,6 +15143,7 @@ impl fmt::Display for Value {
                 partial::report_unknown_leak("display");
                 write!(f, "<unknown>")
             }
+            Value::Traced(traced) => write!(f, "{}", traced.value),
         }
     }
 }
@@ -16221,6 +16233,13 @@ pub struct Interpreter {
     /// Set while a partial calculation case runs; see `partial`.
     partial_mode: Option<partial::PartialMode>,
     partial: RefCell<partial::PartialState>,
+    /// Set while an explained case runs; see `explain`.
+    explain: Option<RefCell<explain::ExplainState>>,
+    /// The file each rule declared outside the root file came from, by the
+    /// rule's allocation, for explanations.
+    rule_source_files: HashMap<usize, Rc<str>>,
+    /// The file whose statements are being installed (`None`: the root).
+    runtime_source_file: Option<Rc<str>>,
     runtime_diagnostic_context: Option<runtime_diagnostics::RuntimeDiagnosticContext>,
     /// Runtime symbols reachable from the active calculation boundary.
     calculation_runtime_symbols: BTreeSet<String>,
@@ -16312,6 +16331,9 @@ impl Interpreter {
             calculation_error: RefCell::new(None),
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
+            explain: None,
+            rule_source_files: HashMap::new(),
+            runtime_source_file: None,
             runtime_diagnostic_context: None,
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
@@ -16896,7 +16918,7 @@ impl Interpreter {
             if self.calculation_failed() {
                 return Value::Unit;
             }
-            if matches!(&value, Value::Float(number) if !number.is_finite()) {
+            if matches!(explain::untraced(&value), Value::Float(number) if !number.is_finite()) {
                 return self.calculation_fail("non-finite floating-point result in calculation");
             }
         }
@@ -17047,7 +17069,7 @@ impl Interpreter {
 
     /// A collection predicate must answer with a Bool.
     fn builtin_predicate_holds(&self, builtin: &str, result: Value) -> bool {
-        match result {
+        match explain::strip(result) {
             Value::Bool(holds) => holds,
             // The builtin's result is unknown; `partial_builtin` collects the
             // paths, and the value returned here is discarded.
@@ -17746,6 +17768,9 @@ impl Interpreter {
                 return stand_in;
             }
         }
+        if self.explain.is_some() {
+            return self.explain_callback_result(result);
+        }
         result
     }
 
@@ -18015,9 +18040,12 @@ impl Interpreter {
             state.rule_dispatch_keys.insert(dispatch_key);
         }
         let index = state.rules.len();
-        state
-            .rules
-            .push((name.clone(), Rc::new(rule), declaration_env));
+        let rule = Rc::new(rule);
+        if let Some(file) = &self.runtime_source_file {
+            self.rule_source_files
+                .insert(Rc::as_ptr(&rule) as usize, file.clone());
+        }
+        state.rules.push((name.clone(), rule, declaration_env));
         state.rules_by_name.entry(name).or_default().push(index);
     }
 
@@ -18348,9 +18376,11 @@ impl Interpreter {
             .then(|| self.diagnostic_source_context(Path::new(path), source));
         let previous_diagnostics =
             std::mem::replace(&mut self.runtime_diagnostic_context, diagnostic_context);
+        let previous_file = self.runtime_source_file.replace(Rc::from(path));
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         self.source_dir = previous;
         self.runtime_diagnostic_context = previous_diagnostics;
+        self.runtime_source_file = previous_file;
         match result {
             Ok(value) => value,
             Err(payload) => std::panic::resume_unwind(payload),
@@ -19452,10 +19482,12 @@ impl Interpreter {
                 for stmt in body {
                     if let Stmt::Rule(rule) = stmt {
                         if !matches!(rule, Rule::ReactiveScope { .. }) {
+                            let rule = Rc::new(rule.clone());
+                            self.record_rule_source(&rule);
                             rules_by_name
-                                .entry(self.rule_name(rule))
+                                .entry(self.rule_name(&rule))
                                 .or_default()
-                                .push(Rc::new(rule.clone()));
+                                .push(rule);
                         }
                     }
                 }
@@ -21200,7 +21232,7 @@ impl Interpreter {
                 }
                 Stmt::While(cond, body_stmts) => {
                     loop {
-                        let cond_val = self.eval(cond, env);
+                        let cond_val = explain::strip(self.eval(cond, env));
                         if let Value::Unknown(paths) = &cond_val {
                             self.partial_stop((**paths).clone());
                             return Value::Unit;
@@ -22058,7 +22090,7 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let left_value = self.eval(left, env);
+        let left_value = explain::strip(self.eval(left, env));
         if let Value::Unknown(paths) = &left_value {
             return self.partial_short_circuit(operator, (**paths).clone(), right, env);
         }
@@ -22072,7 +22104,7 @@ impl Interpreter {
                 CheckedInterpreterShortCircuitOutcome::SkippedRight { result: true },
             ),
             ("&&" | "||", _) => {
-                let result = self.eval(right, env);
+                let result = explain::strip(self.eval(right, env));
                 let boolean = match &result {
                     Value::Bool(value) => *value,
                     _ => {
@@ -22113,7 +22145,7 @@ impl Interpreter {
 
     /// A malformed guard is an evaluation error, never a rejected candidate.
     fn eval_rule_guard(&mut self, condition: &Expr, env: &Env, family: &str) -> Option<bool> {
-        let value = self.eval(condition, env);
+        let value = explain::strip(self.eval(condition, env));
         if self.calculation_failed() || self.ground_error.borrow().is_some() {
             return None;
         }
@@ -22143,7 +22175,7 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let condition_value = self.eval(condition, env);
+        let condition_value = explain::strip(self.eval(condition, env));
         if let Value::Unknown(paths) = &condition_value {
             return self.partial_if((**paths).clone(), then_expression, else_expression, env);
         }
@@ -22365,7 +22397,14 @@ impl Interpreter {
                         return result;
                     }
                 }
-                match (op.as_str(), v) {
+                let operand_node =
+                    explain::node_of(&v).filter(|_| !matches!(op.as_str(), "&" | "&mut"));
+                let v = if operand_node.is_some() {
+                    explain::strip(v)
+                } else {
+                    v
+                };
+                let result = match (op.as_str(), v) {
                     ("!", Value::Bool(b)) => Value::Bool(!b),
                     ("-", Value::Int(n)) => n.checked_neg().map(Value::Int).unwrap_or_else(|| {
                         self.checked_arithmetic_fail(
@@ -22378,7 +22417,8 @@ impl Interpreter {
                         "unsupported operand for operator `{op}`: `{}`",
                         self.runtime_value_type_label(&v)
                     )),
-                }
+                };
+                self.explain_unop(operand_node, result)
             }
             ExprKind::If(condition, then_expression, else_expression) => {
                 self.eval_checked_if(expr, condition, then_expression, else_expression, env)
@@ -22389,7 +22429,7 @@ impl Interpreter {
                 self.run_statement_block(stmts, &mut block_env)
             }
             ExprKind::Field(obj, field) => {
-                let obj_val = self.eval(obj, env);
+                let obj_val = explain::strip(self.eval(obj, env));
                 if self.partial_mode.is_some() {
                     if let Some(paths) = partial::unknown_paths(&obj_val, false) {
                         // A variant whose tag is unknown may lack the field.
@@ -22525,8 +22565,8 @@ impl Interpreter {
                 }
             }
             ExprKind::Index(arr, idx) => {
-                let arr_val = self.eval(arr, env);
-                let idx_val = self.eval(idx, env);
+                let arr_val = explain::strip(self.eval(arr, env));
+                let idx_val = explain::strip(self.eval(idx, env));
                 if self.partial_mode.is_some() {
                     let mut paths = BTreeSet::new();
                     partial::collect_unknown_paths(&arr_val, false, &mut paths);
@@ -22672,7 +22712,7 @@ impl Interpreter {
                 }
                 // Evaluate all conjuncts; return true if all are true
                 for e in exprs {
-                    if let Value::Bool(false) = self.eval(e, env) {
+                    if let Value::Bool(false) = explain::strip(self.eval(e, env)) {
                         return Value::Bool(false);
                     }
                 }
@@ -22685,7 +22725,7 @@ impl Interpreter {
                 // Evaluate alternatives; return true if ANY succeeds
                 for alt in alternatives {
                     let result = self.eval(alt, env);
-                    if !matches!(result, Value::Bool(false)) {
+                    if !matches!(explain::untraced(&result), Value::Bool(false)) {
                         return result;
                     }
                 }
@@ -22873,7 +22913,7 @@ impl Interpreter {
             // An exported type-body or impl method dispatches on its receiver,
             // exactly like a free call of the method name.
             let mut args = args.into_iter();
-            let Some(receiver) = args.next() else {
+            let Some(receiver) = args.next().map(explain::strip) else {
                 return self
                     .panic_or_ground_fail(format!("method `{method}` needs a receiver argument"));
             };
@@ -22930,6 +22970,9 @@ impl Interpreter {
             let parts: Vec<&str> = name[5..].split('/').collect();
             let ctor_name = parts[0];
             return self.runtime_constructor_value(namespace, ctor_name.to_string(), args);
+        }
+        if self.explain.is_some() {
+            return self.explain_builtin(namespace, name, args, env);
         }
         if self.partial_mode.is_some() {
             return self.partial_builtin(namespace, name, args, env);
@@ -25475,6 +25518,9 @@ impl Interpreter {
     }
 
     pub fn eval_binop(&self, op: &str, l: Value, r: Value) -> Value {
+        if matches!(l, Value::Traced(_)) || matches!(r, Value::Traced(_)) {
+            return self.explain_binop(op, l, r);
+        }
         if self.ground_collection_limit.is_some() {
             if matches!(op, "==" | "!=")
                 && (!ground_equality_value_within_limit(&l, 512)
@@ -25589,7 +25635,7 @@ impl Interpreter {
                 left.len() == right.len()
                     && left.iter().zip(right).all(|(left, right)| {
                         matches!(
-                            self.eval_binop("==", left.clone(), right.clone()),
+                            explain::strip(self.eval_binop("==", left.clone(), right.clone())),
                             Value::Bool(true)
                         )
                     }),
@@ -25605,7 +25651,7 @@ impl Interpreter {
                     && af.len() == bf.len()
                     && af.iter().zip(bf.iter()).all(|(x, y)| {
                         matches!(
-                            self.eval_binop("==", x.clone(), y.clone()),
+                            explain::strip(self.eval_binop("==", x.clone(), y.clone())),
                             Value::Bool(true)
                         )
                     }),
@@ -25677,7 +25723,7 @@ impl Interpreter {
             {
                 // Check guard
                 if let Some(guard) = &arm.guard {
-                    match self.eval(guard, &arm_env) {
+                    match explain::strip(self.eval(guard, &arm_env)) {
                         Value::Bool(true) => {}
                         Value::Bool(false) => continue,
                         other => {
@@ -25721,6 +25767,18 @@ impl Interpreter {
         env: &mut Env,
         allow_bare_fielded_tag: bool,
     ) -> bool {
+        if let Value::Traced(traced) = val {
+            // A pattern that reads the value reads it untraced; a variable
+            // binds it with its trace.
+            if !matches!(pat, Pat::Wild | Pat::Var(_) | Pat::As(..)) {
+                return self.match_pattern_with_options(
+                    pat,
+                    &traced.value,
+                    env,
+                    allow_bare_fielded_tag,
+                );
+            }
+        }
         match (pat, val) {
             (Pat::Wild, _) => true,
             (Pat::Var(name), _) => {
@@ -26701,6 +26759,8 @@ impl Interpreter {
             self.checked_mechanism_begin_dependency_scope();
         }
         let mut selected = None;
+        // The clause that produced the value, for explanations.
+        let mut produced_by = None;
 
         let result = 'dispatch: {
             // Check exceptions first — they override the default.
@@ -26765,6 +26825,7 @@ impl Interpreter {
                             CheckedInterpreterRuleAttemptOutcome::Applicable,
                         );
                     }
+                    produced_by = Some(*index);
                     break 'dispatch Some(value);
                 }
             }
@@ -26824,6 +26885,7 @@ impl Interpreter {
                             CheckedInterpreterRuleAttemptOutcome::Applicable,
                         );
                     }
+                    produced_by = Some(*index);
                     break 'dispatch Some(value);
                 }
             }
@@ -26879,7 +26941,8 @@ impl Interpreter {
                                     .then_some(Value::Bool(true))
                             } else {
                                 let value = self.eval(body_expression, &rule_env);
-                                (!matches!(value, Value::Bool(false))).then_some(value)
+                                (!matches!(explain::untraced(&value), Value::Bool(false)))
+                                    .then_some(value)
                             }
                         }
                     };
@@ -26891,6 +26954,7 @@ impl Interpreter {
                                 CheckedInterpreterRuleAttemptOutcome::Applicable,
                             );
                         }
+                        produced_by = Some(*index);
                         break 'dispatch Some(value);
                     }
                     matched_false_clause = true;
@@ -26944,11 +27008,18 @@ impl Interpreter {
                             CheckedInterpreterRuleAttemptOutcome::Applicable,
                         );
                     }
+                    produced_by = Some(*index);
                     break 'dispatch Some(value);
                 }
             }
 
             break 'dispatch matched_false_clause.then_some(Value::Bool(false));
+        };
+        let result = match (result, produced_by) {
+            (Some(value), Some(index)) if self.explain.is_some() => {
+                Some(self.explain_rule_result(&dispatch.matching[index].0, family, value))
+            }
+            (result, _) => result,
         };
 
         let cold_selection_event = traced_activation
@@ -27202,6 +27273,7 @@ impl Interpreter {
     ) -> bool {
         // A partial case decodes every unknown value at its declared type,
         // and propagation keeps it there.
+        let value = explain::untraced(value);
         if matches!(value, Value::Unknown(_)) {
             return true;
         }
@@ -27457,6 +27529,14 @@ impl Interpreter {
             let expected_namespace = self.namespace_for_env(env);
             return self.value_matches_type_in_namespace(val, type_name, &expected_namespace)
                 && self.match_rule_param(inner, val, env);
+        }
+        if let Value::Traced(traced) = val {
+            // A variable binds the value with its trace; a pattern reads it.
+            if !matches!(&param.kind, ExprKind::Var(name)
+                if !name.chars().next().is_some_and(char::is_uppercase))
+            {
+                return self.match_rule_param(param, &traced.value, env);
+            }
         }
         if let Value::Unknown(paths) = val {
             let binds = matches!(&param.kind, ExprKind::Var(name)
@@ -27738,7 +27818,7 @@ impl Interpreter {
         }
 
         // All variables are bound — evaluate the goal normally
-        let result = self.eval(goal, env);
+        let result = explain::strip(self.eval(goal, env));
         if let Value::Unknown(paths) = &result {
             return self.partial_possible_match(paths) && self.eval_conjunction(remaining, env);
         }
@@ -28755,6 +28835,7 @@ impl Interpreter {
 
 /// Compare two Values for structural equality (used in Prolog-style fact matching)
 pub fn values_equal(a: &Value, b: &Value) -> bool {
+    let (a, b) = (explain::untraced(a), explain::untraced(b));
     if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
         partial::report_unknown_leak("equality");
         return false;
@@ -28990,6 +29071,7 @@ fn runtime_numeric_is_zero(value: &Value) -> bool {
 
 pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
     use std::cmp::Ordering;
+    let (a, b) = (explain::untraced(a), explain::untraced(b));
     if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
         partial::report_unknown_leak("ordering");
         return Ordering::Equal;
@@ -56336,6 +56418,8 @@ impl TypeChecker {
                 {
                     self.check_stmt(statement);
                 }
+                self.diagnostics
+                    .extend(citations::citation_diagnostics(&unit.source));
                 self.locate_import_diagnostics(start, &unit.path, unit.source, unit.import_span);
                 self.source_text = previous_source;
                 self.source_dir = previous_dir;
@@ -61433,6 +61517,8 @@ impl TypeChecker {
         }
         tc.diagnostics
             .extend(host_effects::comptime_host_effect_diagnostics(stmts));
+        tc.diagnostics
+            .extend(citations::citation_diagnostics(source));
         let mut calculation_contracts = Vec::new();
         let mut compile_time_metadata_bindings = BTreeSet::new();
         let mut exploration_universes = Vec::new();

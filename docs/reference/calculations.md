@@ -609,7 +609,10 @@ Each case's `result` is one of:
 `unused_paths` lists the provided input paths evaluation never read. A
 need's `path` is concrete, with list indices; its `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
-without indices, and `waiting_rule` names the rule that first read it. The
+without indices, and `waiting_rule` names the rule or function it waits
+on: the innermost one on the stack declared in a law section (a section
+whose quote holds a `[sources/...]` document), else in any section with a quote, with its
+`section` and the `paragraphs` its clause cites; else the innermost rule. The
 output envelope's schema is `futuruna.calculate.partial-output.v1`, and
 `runa schema --format partial-result` prints the JSON Schema of `result`.
 
@@ -647,6 +650,89 @@ The full format and evolution contract is in
 cases and their needs are specified in
 [Calculation needs](../rfcs/calculation-needs.md).
 
+## Explanations
+
+Experimental. `runa call --explain` returns with every case result an
+`explanation`: for each leaf of the result, the rule clause that produced it,
+the law section and cited paragraphs of that clause, and the rules and inputs
+it was computed from.
+
+```sh
+runa call model.calculate.runa --input cases.json --explain
+runa call model.calculate.runa --input cases.json --explain=full
+runa call model.calculate.runa --input partial.json --partial --explain
+runa schema model.calculate.runa --format explanation
+```
+
+```json
+{ "case_id": "ask-over-ceiling-2026",
+  "result": { "...": "..." },
+  "explanation": {
+    "values": {
+      "outcome.statement.excess_levy_ore": {
+        "value": 31545,
+        "by": { "$variant": "Rule", "rule": "excess_levy_ore", "clause": "default",
+                "location": "src/ask.runa:268", "section": "ask_ceiling",
+                "cites": [ { "paragraph": "§ 9, stk. 3",
+                             "source": "sources/01-aktiesparekontoloven-LBK-281-2025.txt",
+                             "text": "Stk. 3. Foretages indskud i strid med stk. 1, ..." } ] },
+        "from": [
+          { "$variant": "Rule", "rule": "share_of", "clause": "default",
+            "location": "src/money.runa:17", "value": 11514000 },
+          { "$variant": "Rule", "rule": "levy_days_per_year", "clause": "default",
+            "section": "ask_ceiling", "paragraphs": ["§ 9, stk. 3"], "value": 365 } ] } },
+    "sections": {
+      "ask_ceiling": { "location": "src/ask.runa:167",
+                       "sources": ["sources/01-aktiesparekontoloven-LBK-281-2025.txt", "..."],
+                       "attachments": [ { "role": "Source", "binding": "aktiesparekontoloven", "value": { "...": "..." } } ],
+                       "quote": "..." } } } }
+```
+
+`values` holds every leaf (number, string, Bool, or the tag of a variant
+without fields) by its output path, in the path syntax of needs. `by` says
+what produced it:
+
+- `Rule`: the rule, its `scope` for a RuleScope member, `clause` (`default`,
+  or `exception` with the `exception` label that applied, or `clause` for a
+  logic clause), its `location`, its law `section`, and the paragraphs it
+  `cites` with their quoted text;
+- `Input`: the value is the input's at `path`, passed on unchanged into the
+  result by functions and as a member of the records rules build (a rule
+  that returns a single value claims it, with the input in `from`);
+- `Computed`: an operator or builtin outside any rule computed it;
+- `Constant`: a literal of the model.
+
+`from` lists the nearest rules and inputs the value was computed from, each
+with its value. `--explain` lists at most 32 and counts the rest in
+`from_omitted`; `--explain=full` lists all and adds `derivation`, every rule
+node reached with its own clause and contributors, so the whole tree can be
+walked from any value. `sections` holds each law section an explained clause
+sits in: its anchor's location, its `[sources/...]` documents, its metadata
+attachments and the quote.
+
+A rule clause names the paragraphs it implements with a citation comment
+above it, inside the section:
+
+```runa
+--@cite:§ 9, stk. 3--
+| excess_levy_ore(excess_days_ore: Int, levy_bp: Int) -> share_of(positive_part(excess_days_ore), levy_bp) / levy_days_per_year()
+```
+
+Paragraphs are separated by `;`; `nr. N` names a numbered item, and
+`in <source>` the quoted document when two hold the same number. A citation on
+a rule's first clause covers its other clauses that have none; a function
+(`> f(...)`) in a section can be cited too. `runa check`
+finds each cited paragraph in the section's quote, where a line starting
+`§ N.` opens a paragraph, `Stk. N.` a subsection and `N)` an item, and rejects
+one the quote does not hold. Without a citation, an explanation shows the
+section.
+
+Explaining never changes a result: the `result` of every case is the one
+`runa call` gives without `--explain`. `--explain` writes JSON only, and is
+refused with `--partial=check`; with `--partial` a `Complete` result is
+explained and a `Needs` result is not. Explanations are an interpreter
+feature. The design is [Explanations](../rfcs/explanations.md).
+
 ## TypeScript SDK
 
 Experimental. `runa sdk ts` generates a typed TypeScript client from the
@@ -683,6 +769,8 @@ return the document `runa call` writes, as an object or as JSON text:
 interface EngineTransport {
   call(entry: string, input: unknown): Promise<unknown>;
   callPartial(entry: string, input: unknown): Promise<unknown>;
+  callExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
+  callPartialExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
 }
 ```
 
@@ -693,7 +781,12 @@ For an entry `tax_report` with input `TaxCase`:
   where the document has an envelope), and validates the result;
 - `taxReportQuery(transport, input: PartialTaxCase)` does the same through
   `transport.callPartial` and returns `Complete` with `result` and
-  `unused_paths`, or `Needs` with `needs`.
+  `unused_paths`, or `Needs` with `needs`;
+- `taxReportExplained(transport, input, depth?)` and
+  `taxReportQueryExplained(transport, input, depth?)` do the same through
+  `callExplained` and `callPartialExplained` (`--explain`, or
+  `--explain=full` for depth `"full"`) and return `{ result, explanation }`,
+  typed by `Explanation`.
 
 A failure throws `CalculationError` with `kind` `input`, `output`, `envelope`
 or `diagnostics`, and the validation issues or the engine's diagnostics.

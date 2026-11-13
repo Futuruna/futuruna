@@ -505,6 +505,8 @@ impl<'a> Sdk<'a> {
             names.push((format!("{values}SetAt"), "partial.ts"));
             names.push((values.clone(), "client.ts"));
             names.push((format!("{values}Query"), "client.ts"));
+            names.push((format!("{values}Explained"), "client.ts"));
+            names.push((format!("{values}QueryExplained"), "client.ts"));
             names.push((format!("{types}Resolvers"), "client.ts"));
         }
         let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
@@ -1189,6 +1191,32 @@ impl<'a> Sdk<'a> {
                 out,
                 "export function {values}Query(\n  transport: EngineTransport,\n  input: {partial_input},\n): Promise<partial.{types}QueryResult> {{\n  return invoke(transport, {name}, true, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
             );
+            write_doc(
+                &mut out,
+                "",
+                &[
+                    format!("Calculate and explain {title}"),
+                    String::new(),
+                    "As the plain call, through `transport.callExplained`: also returns where every leaf of the result came from (`runa call --explain`).".to_string(),
+                ],
+            );
+            let _ = writeln!(
+                out,
+                "export function {values}Explained(\n  transport: EngineTransport,\n  input: {input},\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<{output}>> {{\n  return invokeExplained(transport, {name}, false, depth, {input_schema}, {output_schema}, input);\n}}\n"
+            );
+            write_doc(
+                &mut out,
+                "",
+                &[
+                    format!("Query and explain {title}"),
+                    String::new(),
+                    "As the query, through `transport.callPartialExplained`: a `Complete` result comes with its explanation.".to_string(),
+                ],
+            );
+            let _ = writeln!(
+                out,
+                "export function {values}QueryExplained(\n  transport: EngineTransport,\n  input: {partial_input},\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.{types}QueryResult>> {{\n  return invokeExplained(transport, {name}, true, depth, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
+            );
             let _ = writeln!(
                 out,
                 "/** Resolvers for the needs of `{}`, keyed by path pattern. */",
@@ -1605,8 +1633,15 @@ type NeedMetadata = {
   help?: string | undefined;
   unit?: string | undefined;
   sources?: SourceReference[] | undefined;
-  /** The innermost rule family evaluating when the path was first read. */
+  /**
+   * The innermost rule family of a law section evaluating when the path was
+   * first read; without one, the innermost rule family (or the entry).
+   */
   waiting_rule: string;
+  /** The law section (anchor label) of `waiting_rule`. */
+  section?: string | undefined;
+  /** The paragraphs `waiting_rule` cites, as `§ 16`. */
+  paragraphs?: string[] | undefined;
 };
 
 /** A fact the client answers, at `path`. */
@@ -1638,6 +1673,8 @@ export function needSchema<P extends string>(path: z.ZodType<P>): z.ZodType<Need
     unit: z.string().optional(),
     sources: z.array(SourceReferenceSchema).optional(),
     waiting_rule: z.string(),
+    section: z.string().optional(),
+    paragraphs: z.array(z.string()).optional(),
   };
   return z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("fact"), path, ...metadata }).strict(),
@@ -1674,11 +1711,23 @@ export function queryResultSchema<R, P extends string>(
 }
 "#;
 
-const CLIENT_RUNTIME_EXPORTS: [&str; 21] = [
+const CLIENT_RUNTIME_EXPORTS: [&str; 33] = [
     "INPUT_SCHEMA",
     "OUTPUT_SCHEMA",
     "PARTIAL_OUTPUT_SCHEMA",
     "EngineTransport",
+    "ExplainDepth",
+    "CitedParagraph",
+    "ExplainedRule",
+    "RuleContributor",
+    "InputContributor",
+    "Contributor",
+    "ExplainedBy",
+    "ExplainedValue",
+    "ExplainedSection",
+    "Explanation",
+    "Explained",
+    "ExplainedQuery",
     "CalculationErrorKind",
     "CalculationDiagnostic",
     "CalculationError",
@@ -1714,7 +1763,91 @@ export interface EngineTransport {
   call(entry: string, input: unknown): Promise<unknown>;
   /** Run `entry` on a partial case, as `runa call --partial`. */
   callPartial(entry: string, input: unknown): Promise<unknown>;
+  /**
+   * Run `entry` and explain every leaf of the result, as `runa call --explain`
+   * (`--explain=full` when `full`). Needed by the `...Explained` calls only.
+   */
+  callExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
+  /** As `callExplained`, on a partial case: `runa call --partial --explain`. */
+  callPartialExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
 }
+
+/** `direct`: each value's direct contributors; `full`: also the whole derivation. */
+export type ExplainDepth = "direct" | "full";
+
+/** A paragraph a rule clause cites, with its quoted text. */
+export type CitedParagraph = { paragraph: string; source?: string; text: string };
+
+/** The rule clause that produced a value: its law section and cited paragraphs. */
+export type ExplainedRule = {
+  $variant: "Rule";
+  rule: string;
+  /** The RuleScope of a scoped rule. */
+  scope?: string;
+  clause: "default" | "exception" | "clause";
+  /** The label of the exception that applied. */
+  exception?: string;
+  /** `file:line` of the clause. */
+  location?: string;
+  /** The law section around the clause; a key of {@link Explanation.sections}. */
+  section?: string;
+  cites?: CitedParagraph[];
+};
+
+/** A rule a value was computed from, with the value it gave. */
+export type RuleContributor = Omit<ExplainedRule, "cites"> & {
+  paragraphs?: string[];
+  value: unknown;
+  /** The node in {@link Explanation.derivation}, with depth `full`. */
+  node?: number;
+};
+
+/** An input a value was computed from. */
+export type InputContributor = { $variant: "Input"; path: string; value: unknown };
+
+export type Contributor = RuleContributor | InputContributor;
+
+/**
+ * What produced a value: a rule clause, the input unchanged, a computation
+ * outside any rule, or a constant of the model.
+ */
+export type ExplainedBy =
+  | ExplainedRule
+  | { $variant: "Input"; path: string }
+  | { $variant: "Computed" }
+  | { $variant: "Constant" };
+
+/** One leaf of a result and where it came from. */
+export type ExplainedValue = {
+  value: unknown;
+  by: ExplainedBy;
+  from?: Contributor[];
+  /** Direct contributors beyond the first 32, with depth `direct`. */
+  from_omitted?: number;
+};
+
+/** A law section: its anchor, quoted documents, attachments and quote. */
+export type ExplainedSection = {
+  location: string;
+  sources: string[];
+  attachments: { role: string; binding?: string; value: unknown }[];
+  quote: string;
+};
+
+/** Where every leaf of a result came from; `docs/rfcs/explanations.md`. */
+export type Explanation = {
+  /** Every leaf of the result by its output path, in the path syntax of needs. */
+  values: { [path: string]: ExplainedValue };
+  sections: { [label: string]: ExplainedSection };
+  /** With depth `full`: every rule node a value was computed from. */
+  derivation?: { [node: string]: { value: unknown; by: ExplainedRule; from: Contributor[] } };
+};
+
+/** A result with its explanation. */
+export type Explained<R> = { readonly result: R; readonly explanation: Explanation };
+
+/** A partial call's result; `Complete` results carry an explanation. */
+export type ExplainedQuery<R> = { readonly result: R; readonly explanation?: Explanation };
 
 /**
  * Why a call failed: the input did not validate, the output did not validate,
@@ -1762,9 +1895,13 @@ function issueSummary(issues: readonly { path: readonly PropertyKey[]; message: 
   return `${issues.length} issue${issues.length === 1 ? "" : "s"}; first at ${at}: ${first.message}`;
 }
 
-function caseResult(entry: EntryName, outputSchema: string, document: unknown): unknown {
+function caseOutput(
+  entry: EntryName,
+  outputSchema: string,
+  document: unknown,
+): { readonly [key: string]: unknown } {
   const parsed: unknown = typeof document === "string" ? JSON.parse(document) : document;
-  if (!isObject(parsed) || !("$futuruna" in parsed)) return parsed;
+  if (!isObject(parsed) || !("$futuruna" in parsed)) return { result: parsed };
   const envelope = parsed["$futuruna"];
   if (!isObject(envelope)) throw new CalculationError("envelope", entry, "`$futuruna` is not an object");
   const expectedHash = schema.SCHEMA_HASH[entry];
@@ -1799,7 +1936,59 @@ function caseResult(entry: EntryName, outputSchema: string, document: unknown): 
   if (!isObject(only) || !("result" in only)) {
     throw new CalculationError("envelope", entry, "the output document does not hold exactly one case result");
   }
-  return only["result"];
+  return only;
+}
+
+function inputDocument<I>(entry: EntryName, inputSchema: z.ZodType<I>, input: I): unknown {
+  const checkedInput = inputSchema.safeParse(input);
+  if (!checkedInput.success) {
+    const issues = checkedInput.error.issues;
+    throw new CalculationError("input", entry, `invalid input: ${issueSummary(issues)}`, { issues });
+  }
+  return {
+    $futuruna: { schema: INPUT_SCHEMA, schema_hash: schema.SCHEMA_HASH[entry], entry },
+    cases: [{ case_id: CASE_ID, input_status: "ready", input: checkedInput.data }],
+  };
+}
+
+function checkedResult<O>(entry: EntryName, outputSchema: z.ZodType<O>, result: unknown): O {
+  const checkedOutput = outputSchema.safeParse(result);
+  if (!checkedOutput.success) {
+    const issues = checkedOutput.error.issues;
+    throw new CalculationError("output", entry, `invalid result: ${issueSummary(issues)}`, { issues });
+  }
+  return checkedOutput.data;
+}
+
+async function invokeExplained<I, O>(
+  transport: EngineTransport,
+  entry: EntryName,
+  partialCall: boolean,
+  depth: ExplainDepth,
+  inputSchema: z.ZodType<I>,
+  outputSchema: z.ZodType<O>,
+  input: I,
+): Promise<{ result: O; explanation: Explanation }> {
+  const document = inputDocument(entry, inputSchema, input);
+  const call = partialCall ? transport.callPartialExplained : transport.callExplained;
+  if (call === undefined) {
+    throw new CalculationError(
+      "envelope",
+      entry,
+      `the transport has no ${partialCall ? "callPartialExplained" : "callExplained"}`,
+    );
+  }
+  const output = await call.call(transport, entry, document, depth === "full");
+  const only = caseOutput(entry, partialCall ? PARTIAL_OUTPUT_SCHEMA : OUTPUT_SCHEMA, output);
+  const result = checkedResult(entry, outputSchema, only["result"]);
+  const explanation = only["explanation"];
+  if (explanation !== undefined && !isObject(explanation)) {
+    throw new CalculationError("output", entry, "the explanation is not an object");
+  }
+  if (explanation === undefined && !partialCall) {
+    throw new CalculationError("output", entry, "the engine returned no explanation");
+  }
+  return { result, explanation: explanation as unknown as Explanation };
 }
 
 async function invoke<I, O>(
@@ -1810,17 +1999,9 @@ async function invoke<I, O>(
   outputSchema: z.ZodType<O>,
   input: I,
 ): Promise<O> {
-  const checkedInput = inputSchema.safeParse(input);
-  if (!checkedInput.success) {
-    const issues = checkedInput.error.issues;
-    throw new CalculationError("input", entry, `invalid input: ${issueSummary(issues)}`, { issues });
-  }
-  const document = {
-    $futuruna: { schema: INPUT_SCHEMA, schema_hash: schema.SCHEMA_HASH[entry], entry },
-    cases: [{ case_id: CASE_ID, input_status: "ready", input: checkedInput.data }],
-  };
+  const document = inputDocument(entry, inputSchema, input);
   const output = partialCall ? await transport.callPartial(entry, document) : await transport.call(entry, document);
-  const result = caseResult(entry, partialCall ? PARTIAL_OUTPUT_SCHEMA : OUTPUT_SCHEMA, output);
+  const result = caseOutput(entry, partialCall ? PARTIAL_OUTPUT_SCHEMA : OUTPUT_SCHEMA, output)["result"];
   const checkedOutput = outputSchema.safeParse(result);
   if (!checkedOutput.success) {
     const issues = checkedOutput.error.issues;
@@ -2248,6 +2429,13 @@ mod tests {
             client,
             "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n): Promise<partial.CoupleTaxQueryResult> {",
         );
+        for expected in [
+            "export function personTaxExplained(\n  transport: EngineTransport,\n  input: types.Person,\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<number>> {",
+            "export function coupleTaxQueryExplained(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.CoupleTaxQueryResult>> {",
+            "callExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;",
+        ] {
+            assert_contains(client, expected);
+        }
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
         assert_contains(client, "export type PersonTaxResolvers = {");
         let schema = &files["schema.ts"];

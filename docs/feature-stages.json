@@ -285,6 +285,17 @@
       ]
     },
     {
+      "id": "calculation-explanations",
+      "kind": "tooling",
+      "name": "Explanations of calculation results (`runa call --explain`) and paragraph citations (`--@cite`)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/reference/calculations.md",
+        "docs/rfcs/explanations.md"
+      ]
+    },
+    {
       "id": "typescript-sdk",
       "kind": "tooling",
       "name": "TypeScript SDK generated from calculation contracts",

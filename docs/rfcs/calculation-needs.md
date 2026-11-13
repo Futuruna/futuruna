@@ -214,8 +214,24 @@ variants.
   `taxpayer.spouse.cohabiting_at_year_end` has its own entry); each is omitted
   when the metadata does not give it. `sources` are the contract's source
   references, unchanged;
-- `waiting_rule`: the innermost rule family evaluating when the path was first
-  read; the calculation entry when the value reached the output unread;
+- `waiting_rule`: the rule or function the fact matters to. When the path is
+  first read, the rule families and named functions being evaluated form a
+  stack (for a rule family, the clause being tried). A frame's *section* is
+  the section (between `--@begin:<section>--` and `--@end:<section>--`) its
+  clause, or function body, is declared in, when the section's
+  `--@label:<section>` anchor has a `----` quote (an anchor that only carries
+  metadata, such as an entry's input guide, makes no section here); a *law
+  section* is one whose quote holds a `[sources/...]` document. `waiting_rule` is the
+  innermost frame in a law section; without one, the innermost frame in any
+  section (a section of input checks, say); without one, the innermost rule
+  family, and the calculation entry when no rule was evaluating (a value
+  that reached the output unread). A validation helper or the entry itself
+  tells a reader little; the rule of the law the fact matters to does;
+- `section`, `paragraphs`: the section of `waiting_rule`'s frame and the
+  paragraphs cited (`--@cite`, see [Explanations](explanations.md)) on the
+  clause being tried, or on the rule's first clause when that clause cites
+  none, or on the function; omitted when the frame has no section or nothing
+  is cited;
 - `entry`, `subject` (entry needs only): the calculation entry that provides
   the value, and the input path of the subject it runs for.
 

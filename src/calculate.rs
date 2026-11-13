@@ -18,7 +18,9 @@ mod json;
 pub use json::parse_calculation_json;
 
 pub mod compact;
+pub mod explain;
 pub mod sdk_ts;
+pub use explain::{explanation_json_schema, ExplainOptions};
 
 #[cfg(test)]
 thread_local! {
@@ -447,6 +449,9 @@ pub struct CalculationInputEnvelope {
 pub struct CalculationResultCase {
     pub case_id: String,
     pub result: JsonValue,
+    /// Where every leaf of `result` came from (`runa call --explain`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explanation: Option<JsonValue>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -507,8 +512,15 @@ pub struct CalculationNeed {
     pub unit: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<CalculationMetadataReference>,
-    /// The innermost rule family evaluating when the path was first read.
+    /// The innermost rule family of a law section evaluating when the path
+    /// was first read; without one, the innermost rule family (or the entry).
     pub waiting_rule: String,
+    /// The law section (anchor label) of `waiting_rule`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// The paragraphs `waiting_rule` cites (`--@cite`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paragraphs: Vec<String>,
 }
 
 enum InputPathToken<'a> {
@@ -635,6 +647,8 @@ impl CalculationContract {
                 .map(|metadata| metadata.sources.clone())
                 .unwrap_or_default(),
             waiting_rule,
+            section: None,
+            paragraphs: Vec::new(),
         }
     }
 }
@@ -4928,17 +4942,25 @@ struct CalculationProgram {
     entry: String,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    /// The program's root file, where rules without a recorded file are.
+    root_file: Option<PathBuf>,
     rule_dispatch: Arc<RuleDispatchMetadata>,
 }
 
 impl CalculationProgram {
-    fn new(entry: &str, stmts: Arc<[Stmt]>, source_dir: Option<String>) -> Self {
+    fn new(
+        entry: &str,
+        stmts: Arc<[Stmt]>,
+        source_dir: Option<String>,
+        root_file: Option<PathBuf>,
+    ) -> Self {
         let (return_types, return_issues, runtime_boolean_miss_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
         Self {
             entry: entry.to_string(),
             stmts,
             source_dir,
+            root_file,
             rule_dispatch: Arc::new(RuleDispatchMetadata {
                 return_types,
                 return_issues,
@@ -4958,6 +4980,10 @@ struct CalculationWorker {
     needs_reinitialization: bool,
     /// Set for partial cases (`runa call --partial`).
     partial: Option<partial::PartialMode>,
+    /// Set for explained cases (`runa call --explain`).
+    explain: Option<explain::ExplainRenderer>,
+    /// The law sections of rule families, for needs.
+    sections: Option<explain::ExplainRenderer>,
 }
 
 impl CalculationWorker {
@@ -4995,6 +5021,8 @@ impl CalculationWorker {
             initialization_error,
             needs_reinitialization: false,
             partial: None,
+            explain: None,
+            sections: None,
         }
     }
 
@@ -5032,8 +5060,10 @@ impl CalculationWorker {
 
         if self.needs_reinitialization {
             let partial = self.partial;
+            let explain = self.explain.take();
             *self = Self::new(self.program.clone());
             self.partial = partial;
+            self.explain = explain;
         }
         if let Some(message) = &self.initialization_error {
             trace_calculation_case(&case.case_id, started);
@@ -5053,6 +5083,15 @@ impl CalculationWorker {
         }
 
         let mut runtime_env = self.base_env.clone();
+        let input = if self.explain.is_some() {
+            self.interpreter.begin_explained_case();
+            let tagged = explain::tag_input(&self.interpreter, &input, contract);
+            self.interpreter
+                .explain_keep_partial_containers(&input, &tagged);
+            tagged
+        } else {
+            input
+        };
         let input_binding = "__futuruna_calculation_input".to_string();
         runtime_env.set(input_binding.clone(), input);
         let call: Expr = ExprKind::App(
@@ -5068,8 +5107,10 @@ impl CalculationWorker {
         // case: either way the program is initialized again first.
         self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
             || self.interpreter.prepared_live_cell_changed();
+        let explained = self.interpreter.finish_explained_case();
         if let Some(decoder) = decoder {
-            let outcome = self.finish_partial(contract, case, evaluated, &decoder);
+            let outcome =
+                self.finish_partial(contract, case, evaluated, &decoder, explained.as_ref());
             self.interpreter.begin_partial_case(None, "");
             trace_calculation_case(&case.case_id, started);
             return outcome;
@@ -5085,10 +5126,21 @@ impl CalculationWorker {
                 });
             }
         };
+        let explanation = match (self.explain.as_mut(), explained.as_ref()) {
+            (Some(renderer), Some(state)) => {
+                Some(renderer.explanation(&self.interpreter, state, &result, contract))
+            }
+            _ => None,
+        };
+        let result = match explanation {
+            Some(_) => crate::explain::strip_deep(&result),
+            None => result,
+        };
         let outcome = match contract.encode_output(&result) {
             Ok(result) => CalculationCaseOutcome::Result(CalculationResultCase {
                 case_id: case.case_id.clone(),
                 result,
+                explanation,
             }),
             Err(error) => CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
                 case_id: case.case_id.clone(),
@@ -5107,6 +5159,7 @@ impl CalculationWorker {
         case: &CalculationInputCase,
         evaluated: Result<Value, CalculationRuntimeFailure>,
         decoder: &PartialDecoder,
+        explained: Option<&crate::explain::ExplainState>,
     ) -> CalculationCaseOutcome {
         let diagnostic = |path: String, message: String| {
             CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
@@ -5128,39 +5181,79 @@ impl CalculationWorker {
                 );
             }
         };
+        let mut explanation = None;
         let result = match outcome {
             partial::PartialOutcome::Complete {
                 result,
                 read_exact,
                 read_subtree,
-            } => match contract.encode_output(&result) {
-                Ok(result) => CalculationPartialResult::Complete {
-                    result,
-                    unused_paths: decoder
-                        .provided
-                        .iter()
-                        .filter(|path| !partial::path_was_read(path, &read_exact, &read_subtree))
-                        .cloned()
-                        .collect(),
-                },
-                Err(error) => return diagnostic(error.path, error.message),
-            },
-            partial::PartialOutcome::Needs { paths, waiting } => CalculationPartialResult::Needs {
-                needs: paths
-                    .into_iter()
-                    .map(|path| {
-                        let rule = waiting
-                            .get(&path)
+            } => {
+                if let (Some(renderer), Some(state)) = (self.explain.as_mut(), explained) {
+                    explanation =
+                        Some(renderer.explanation(&self.interpreter, state, &result, contract));
+                }
+                let result = match explanation {
+                    Some(_) => crate::explain::strip_deep(&result),
+                    None => result,
+                };
+                match contract.encode_output(&result) {
+                    Ok(result) => CalculationPartialResult::Complete {
+                        result,
+                        unused_paths: decoder
+                            .provided
+                            .iter()
+                            .filter(|path| {
+                                !partial::path_was_read(path, &read_exact, &read_subtree)
+                            })
                             .cloned()
-                            .unwrap_or_else(|| contract.entry.clone());
-                        contract.need_for_path(&case.input, path, rule)
+                            .collect(),
+                    },
+                    Err(error) => return diagnostic(error.path, error.message),
+                }
+            }
+            partial::PartialOutcome::Needs { paths, waiting } => {
+                let sections = self.sections.get_or_insert_with(|| {
+                    explain::ExplainRenderer::new(ExplainOptions {
+                        full: false,
+                        root_file: self.program.root_file.clone(),
+                        display_root: None,
                     })
-                    .collect(),
-            },
+                });
+                CalculationPartialResult::Needs {
+                    needs: paths
+                        .into_iter()
+                        .map(|path| {
+                            let frames = waiting.get(&path);
+                            let sectioned = frames.and_then(|frames| {
+                                sections.waiting_frame(&self.interpreter, frames)
+                            });
+                            match sectioned {
+                                Some((rule, section, paragraphs)) => {
+                                    let mut need = contract.need_for_path(&case.input, path, rule);
+                                    need.section = Some(section);
+                                    need.paragraphs = paragraphs;
+                                    need
+                                }
+                                // The innermost rule family, or the entry.
+                                None => {
+                                    let rule = frames
+                                        .and_then(|frames| {
+                                            frames.iter().rev().find(|frame| frame.is_rule)
+                                        })
+                                        .map(|frame| frame.name.clone())
+                                        .unwrap_or_else(|| contract.entry.clone());
+                                    contract.need_for_path(&case.input, path, rule)
+                                }
+                            }
+                        })
+                        .collect(),
+                }
+            }
         };
         CalculationCaseOutcome::Result(CalculationResultCase {
             case_id: case.case_id.clone(),
             result: serde_json::to_value(result).expect("partial result is JSON"),
+            explanation,
         })
     }
 }
@@ -5270,6 +5363,7 @@ pub struct PreparedCalculation {
     contract: CalculationContract,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    root_file: Option<PathBuf>,
     worker: Option<CalculationWorker>,
 }
 
@@ -5286,8 +5380,16 @@ impl PreparedCalculation {
             contract,
             stmts,
             source_dir,
+            root_file: None,
             worker: None,
         }
+    }
+
+    /// Name the program's root file, so needs can name the law section of a
+    /// rule declared in it. Rules from imported files are found without it.
+    pub fn with_root_file(mut self, root_file: PathBuf) -> Self {
+        self.root_file = Some(root_file);
+        self
     }
 
     pub fn contract(&self) -> &CalculationContract {
@@ -5311,16 +5413,53 @@ impl PreparedCalculation {
         self.invoke_batch(envelope, requested_calculation_jobs(), Some(mode))
     }
 
+    /// [`Self::invoke`] with an explanation of every result
+    /// (`runa call --explain`; `docs/rfcs/explanations.md`).
+    pub fn invoke_explained(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        options: &ExplainOptions,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(envelope, requested_calculation_jobs(), None, Some(options))
+    }
+
+    /// [`Self::invoke_partial`] with an explanation of every `Complete`
+    /// result (`runa call --partial --explain`).
+    pub fn invoke_partial_explained(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        mode: partial::PartialMode,
+        options: &ExplainOptions,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(
+            envelope,
+            requested_calculation_jobs(),
+            Some(mode),
+            Some(options),
+        )
+    }
+
     fn invoke_batch(
         &mut self,
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
         partial: Option<partial::PartialMode>,
     ) -> CalculationOutputEnvelope {
+        self.run_batch(envelope, requested_jobs, partial, None)
+    }
+
+    fn run_batch(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+        explain_options: Option<&ExplainOptions>,
+    ) -> CalculationOutputEnvelope {
         let Self {
             contract,
             stmts,
             source_dir,
+            root_file,
             worker,
         } = self;
         let contract = &*contract;
@@ -5379,9 +5518,11 @@ impl PreparedCalculation {
                 &contract.entry,
                 stmts.clone(),
                 source_dir.clone(),
+                root_file.clone(),
             ))
         });
         primary.partial = partial;
+        primary.explain = explain_options.cloned().map(explain::ExplainRenderer::new);
         let initialized_after = started.map(|started| started.elapsed());
         let mut outcomes = if worker_count == 1 {
             invoke_calculation_case_stride(primary, contract, &cases, 0, 1)
@@ -5402,6 +5543,8 @@ impl PreparedCalculation {
                                 .spawn_scoped(scope, move || {
                                     let mut worker = CalculationWorker::new(program.clone());
                                     worker.partial = partial;
+                                    worker.explain =
+                                        explain_options.cloned().map(explain::ExplainRenderer::new);
                                     invoke_calculation_case_queue(
                                         &mut worker,
                                         contract,
@@ -5779,7 +5922,9 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
                                 "help": string,
                                 "unit": string,
                                 "sources": { "type": "array", "items": { "type": "object" } },
-                                "waiting_rule": string
+                                "waiting_rule": string,
+                                "section": { "type": "string", "description": "The law section (anchor label) of `waiting_rule`." },
+                                "paragraphs": { "type": "array", "items": string, "description": "The paragraphs `waiting_rule` cites." }
                             }
                         }
                     }
@@ -6960,6 +7105,7 @@ mod calculation_execution_tests {
             "calculate_scenario",
             stmts.into(),
             None,
+            None,
         ));
 
         assert!(worker.interpreter.output.is_empty());
@@ -7329,5 +7475,93 @@ mod calculation_execution_tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn an_unexplained_case_creates_no_trace_and_explaining_changes_no_result() {
+        let source = r#"
+# Line(amount: Int, kind: Kind)
+# Kind = Ordinary | Reduced
+# Case(lines: List(Line), rate_bp: Int)
+# Total(net: Int, tax: Int, kind: Kind)
+
+| line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 10000
+| exception reduced line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 20000 under l.kind == Reduced
+
+@ calculate
+| total(c: Case) -> Total(net = foldl(c.lines, 0, |acc, l| acc + l.amount), tax = foldl(c.lines, 0, |acc, l| acc + line_tax(l, c.rate_bp)), kind = head(c.lines).kind)
+"#;
+        let stmts = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("parse");
+        let stmts = prepend_prelude(parse_prelude(), &stmts);
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("contract")
+            .pop()
+            .expect("one entry");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "c".to_string(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input: serde_json::json!({
+                    "lines": [
+                        {"amount": 10000, "kind": {"$variant": "Ordinary"}},
+                        {"amount": 4000, "kind": {"$variant": "Reduced"}}
+                    ],
+                    "rate_bp": 2500
+                }),
+            }],
+        };
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let before = crate::explain::tracing_counts();
+        let off = prepared.invoke_batch(&envelope, Some(1), None);
+        assert_eq!(
+            crate::explain::tracing_counts(),
+            before,
+            "mode off traced a value"
+        );
+        assert!(off.results[0].explanation.is_none());
+
+        let explained = prepared.invoke_explained(&envelope, &ExplainOptions::default());
+        let (traced, nodes) = crate::explain::tracing_counts();
+        assert!(traced > before.0 && nodes > before.1);
+        let mut stripped = explained.clone();
+        let explanation = stripped.results[0].explanation.take().expect("explained");
+        assert_eq!(document(&stripped), document(&off));
+        let values = &explanation["values"];
+        // The entry is a rule: it produced every leaf, from the inputs.
+        assert_eq!(values["net"]["by"]["rule"], "total");
+        assert_eq!(values["net"]["by"]["clause"], "default");
+        let net_from = values["net"]["from"].as_array().expect("contributors");
+        assert_eq!(net_from.len(), 2);
+        assert_eq!(net_from[0]["path"], "lines[0].amount");
+        assert_eq!(net_from[1]["path"], "lines[1].amount");
+        assert_eq!(values["tax"]["value"], 3000);
+        let from = values["tax"]["from"].as_array().expect("contributors");
+        assert!(from.iter().any(|item| item["rule"] == "line_tax"
+            && item["clause"] == "exception"
+            && item["exception"] == "reduced"));
+        assert!(from
+            .iter()
+            .any(|item| item["rule"] == "line_tax" && item["clause"] == "default"));
+        // Passed on unchanged from the input: the input path, not a rule.
+        assert_eq!(values["kind.$variant"]["by"]["$variant"], "Input");
+        assert_eq!(
+            values["kind.$variant"]["by"]["path"],
+            "lines[0].kind.$variant"
+        );
+
+        // Off again after an explained call: still no trace.
+        let before = crate::explain::tracing_counts();
+        assert_eq!(
+            document(&prepared.invoke_batch(&envelope, Some(1), None)),
+            document(&off)
+        );
+        assert_eq!(crate::explain::tracing_counts(), before);
     }
 }

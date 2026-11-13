@@ -228,6 +228,8 @@ fn main_inner() {
     let mut calculation_all_tables = false;
     let mut calculation_partial: Option<futuruna::partial::PartialMode> = None;
     let mut calculation_partial_check = false;
+    // `--explain` (direct contributors) or `--explain=full` (Some(true)).
+    let mut calculation_explain: Option<bool> = None;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
     let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
@@ -534,6 +536,29 @@ fn main_inner() {
             arg if arg == "--partial" || arg.starts_with("--partial=") => {
                 eprintln!(
                     "error: --partial applies only to `runa call`: partial cases run in the interpreter; native and compiled programs take complete input"
+                );
+                std::process::exit(1);
+            }
+            "--explain" if mode == "call" => {
+                calculation_explain = Some(false);
+                i += 1;
+            }
+            arg if mode == "call" && arg.starts_with("--explain=") => {
+                calculation_explain = Some(match &arg["--explain=".len()..] {
+                    "direct" => false,
+                    "full" => true,
+                    other => {
+                        eprintln!(
+                            "error: --explain={other} is not an explanation depth; use --explain (direct contributors) or --explain=full (the whole derivation)"
+                        );
+                        std::process::exit(1);
+                    }
+                });
+                i += 1;
+            }
+            arg if arg == "--explain" || arg.starts_with("--explain=") => {
+                eprintln!(
+                    "error: --explain applies only to `runa call`: explanations come from the interpreter's evaluation of each case"
                 );
                 std::process::exit(1);
             }
@@ -1177,6 +1202,7 @@ fn main_inner() {
             use_prelude,
             calculation_all_tables,
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
+            calculation_explain,
         );
         return;
     }
@@ -1997,6 +2023,7 @@ fn run_calculation_command(
     use_prelude: bool,
     all_tables: bool,
     partial: Option<(futuruna::partial::PartialMode, bool)>,
+    explain: Option<bool>,
 ) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
@@ -2062,8 +2089,12 @@ fn run_calculation_command(
                     serde_json::to_string_pretty(&calculate::partial_result_json_schema(contract))
                         .expect("partial result schema is JSON")
                 }
+                "explanation" => {
+                    serde_json::to_string_pretty(&calculate::explanation_json_schema(contract))
+                        .expect("explanation schema is JSON")
+                }
                 format => {
-                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json or partial-result");
+                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json, partial-result or explanation");
                     std::process::exit(1);
                 }
             };
@@ -2120,7 +2151,25 @@ fn run_calculation_command(
                 contract.clone(),
                 stmts.expect("calculation calls parse source").into(),
                 source_dir,
+            )
+            .with_root_file(
+                std::fs::canonicalize(filename)
+                    .unwrap_or_else(|_| std::path::PathBuf::from(filename)),
             );
+            let explain_options = explain.map(|full| calculate::ExplainOptions {
+                full,
+                root_file: Some(
+                    std::fs::canonicalize(filename)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(filename)),
+                ),
+                display_root: std::env::current_dir().ok(),
+            });
+            if explain_options.is_some()
+                && calculation_format(requested_format, output_path, "json") != "json"
+            {
+                eprintln!("error: --explain writes JSON only; an explanation has no TOML or workbook form");
+                std::process::exit(1);
+            }
             if let Some((mode, check)) = partial {
                 // A blank cell or an omitted TOML key cannot tell "none" from
                 // "not asked yet", so partial cases are JSON.
@@ -2133,10 +2182,16 @@ fn run_calculation_command(
                     eprintln!("error: cannot read calculation input: {}", error);
                     std::process::exit(1);
                 });
-                let result = if check {
-                    prepared.check_partial(&envelope)
-                } else {
-                    prepared.invoke_partial(&envelope, mode)
+                let result = match (&explain_options, check) {
+                    (Some(_), true) => {
+                        eprintln!("error: --explain does not combine with --partial=check; explain a --partial or --partial=strict call");
+                        std::process::exit(1);
+                    }
+                    (None, true) => prepared.check_partial(&envelope),
+                    (Some(options), false) => {
+                        prepared.invoke_partial_explained(&envelope, mode, options)
+                    }
+                    (None, false) => prepared.invoke_partial(&envelope, mode),
                 };
                 let document = serde_json::to_string_pretty(&result).expect("result is JSON");
                 write_calculation_text(&document, output_path);
@@ -2168,7 +2223,10 @@ fn run_calculation_command(
                 }
                 _ => calculation_unknown_format(&input_format),
             };
-            let mut result = prepared.invoke(&envelope);
+            let mut result = match &explain_options {
+                Some(options) => prepared.invoke_explained(&envelope, options),
+                None => prepared.invoke(&envelope),
+            };
             adapter_diagnostics.append(&mut result.diagnostics);
             result.diagnostics = adapter_diagnostics;
 
@@ -56667,6 +56725,7 @@ mod tests {
             results: vec![calculate::CalculationResultCase {
                 case_id: "case-1".to_string(),
                 result: serde_json::Value::String(long_value.clone()),
+                explanation: None,
             }],
             diagnostics: Vec::new(),
         };
