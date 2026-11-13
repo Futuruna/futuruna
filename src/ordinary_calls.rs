@@ -497,6 +497,79 @@ impl TypeChecker {
         );
     }
 
+    /// `map(xs, |x| ...)`, `filter`, `foldl(xs, start, |total, x| ...)` and the
+    /// other collection builtins call their callback with the collection's
+    /// elements. Returns the callback's argument index and the types its
+    /// untyped parameters have, so the body is checked like any other body:
+    /// `|p| Out(price_ore = p.price_micro_dkk)` is judged with `p` known.
+    pub(super) fn collection_callback_parameter_types(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+    ) -> Option<(usize, Vec<Option<String>>)> {
+        if self.var_defined(name)
+            || self.functions.contains_key(name)
+            || !self.builtins.contains_key(name)
+        {
+            return None;
+        }
+        // (callback argument, its parameter count, the element parameter)
+        let (callback_index, arity, element_index) = match (name, arguments.len()) {
+            (
+                "map" | "filter" | "flat_map" | "any" | "all" | "find" | "sort_by" | "take_while"
+                | "drop_while" | "partition",
+                2,
+            ) => (1, 1, 0),
+            ("foldl", 3) => (2, 2, 1),
+            _ => return None,
+        };
+        let ExprKind::Lambda(parameters, _) = &arguments[callback_index].kind else {
+            return None;
+        };
+        if parameters.len() != arity {
+            return None;
+        }
+        let collection = self.ordinary_expression_type(&arguments[0])?;
+        let element = ["List", "Stream", "Subject"]
+            .into_iter()
+            .find_map(|constructor| Self::applied_type_argument(&collection, constructor, 0))
+            .filter(|element| {
+                parse_type_annotation(element).is_ok_and(|ty| {
+                    !matches!(ty, Ty::Hole) && !Self::canonical_type_contains_variable(&ty)
+                })
+            })?;
+        // A fold's accumulator takes its type from the start and the step,
+        // which the fold's own inference judges; only the element is known.
+        let mut types = vec![None; arity];
+        types[element_index] = Some(element);
+        Some((callback_index, types))
+    }
+
+    /// Check a callback lambda whose untyped parameters have known types.
+    pub(super) fn check_callback_lambda(
+        &mut self,
+        callback: &Expr,
+        parameter_types: &[Option<String>],
+        in_fn: Option<&str>,
+    ) {
+        let ExprKind::Lambda(parameters, body) = &callback.kind else {
+            self.check_expr(callback, in_fn);
+            return;
+        };
+        self.check_parameter_annotations(parameters);
+        self.push_scope();
+        for (index, parameter) in parameters.iter().enumerate() {
+            self.define_var(&parameter.name);
+            if let Some(ty) = &parameter.ty {
+                self.define_var_type(&parameter.name, ty);
+            } else if let Some(Some(type_name)) = parameter_types.get(index) {
+                self.define_inferred_var_type_name(&parameter.name, type_name);
+            }
+        }
+        self.check_expr(body, in_fn);
+        self.pop_scope();
+    }
+
     pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
         let locals = self.ordinary_locals();
         self.infer_expr_type_name_with_locals(expression, &locals)

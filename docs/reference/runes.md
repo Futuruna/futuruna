@@ -148,8 +148,17 @@ For a unit `U`, another unit `V` and a plain `Int` value `n`:
 
 A number written in the source (`0`, `-5`, `100 * 100`) has no unit of its own:
 it takes the unit its place requires. `amount > 0`, `amount + 100`, an `Ore`
-field given `0`, a function returning `0` for `-> Ore`, and
-`if c { 0 } else { amount }` need no conversion.
+field given `0`, a function returning `0` for `-> Ore`,
+`if c { 0 } else { amount }`, a match arm `| None -> 0` beside an `Ore` arm,
+and `= amounts: List(Ore) = [0, 100]` need no conversion. A named value has the
+unit it was given: `= counts = [0, 1]` is a `List(Int)`, so passing an element
+to an `Ore` parameter is an error.
+
+The parameter of a callback given to `map`, `filter`, `foldl` and the other
+collection functions has the type of the collection's elements, so a mistake
+inside the callback is caught as it would be outside:
+`map(prices, |p| Out(price_ore = p.price_micro))` is an error when the two
+fields have different units.
 
 `Ore(n)` gives a plain `Int` the unit and `Int(amount)` takes it off; both leave
 the value unchanged. `Ore(x)` of a value in another unit is an error. A rule

@@ -31843,6 +31843,10 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    /// Every declared unit of measure, including imported ones. A backend
+    /// that erases units reads the type metadata below with
+    /// `TypeCheckArtifacts::erase_units_for_backend`.
+    pub unit_names: BTreeSet<String>,
     pub rule_return_types: BTreeMap<String, String>,
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
@@ -50717,11 +50721,15 @@ impl TypeChecker {
                             && !(self.is_unit_type(expected_type)
                                 && Self::is_unitless_literal(value))
                         {
+                            let hint = self.numeric_conversion_hint(
+                                &Ty::Name(actual_type.clone()),
+                                &Ty::Name(expected_type.clone()),
+                            );
                             self.error_at_expr(
                                 value,
                                 format!(
-                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`",
-                                    constructor, field, expected_type, actual_type
+                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`{}",
+                                    constructor, field, expected_type, actual_type, hint
                                 ),
                             );
                         }
@@ -52333,16 +52341,12 @@ impl TypeChecker {
                     active_rule_scope,
                 );
                 match (then_ty, else_ty) {
-                    (Some(then_ty), Some(else_ty)) => {
-                        Self::merge_inferred_type_names(&then_ty, &else_ty).or_else(|| {
-                            self.merge_unit_branch(
-                                &then_ty,
-                                Self::is_unitless_literal(then_expr),
-                                &else_ty,
-                                Self::is_unitless_literal(else_expr),
-                            )
-                        })
-                    }
+                    (Some(then_ty), Some(else_ty)) => self.merge_branch_types(
+                        &then_ty,
+                        Self::is_unitless_literal(then_expr),
+                        &else_ty,
+                        Self::is_unitless_literal(else_expr),
+                    ),
                     (Some(then_ty), None) if Self::is_polymorphic_empty_list_expr(else_expr) => {
                         Some(then_ty)
                     }
@@ -52380,16 +52384,12 @@ impl TypeChecker {
                     };
                     let arm_is_literal = Self::is_unitless_literal(&arm.body);
                     let merged = match result_type {
-                        Some(known) => {
-                            Self::merge_inferred_type_names(&known, &arm_type).or_else(|| {
-                                self.merge_unit_branch(
-                                    &known,
-                                    result_is_literal,
-                                    &arm_type,
-                                    arm_is_literal,
-                                )
-                            })
-                        }
+                        Some(known) => self.merge_branch_types(
+                            &known,
+                            result_is_literal,
+                            &arm_type,
+                            arm_is_literal,
+                        ),
                         None => Some(arm_type),
                     }?;
                     result_is_literal &= arm_is_literal;
@@ -52465,17 +52465,20 @@ impl TypeChecker {
             return Some(inferred);
         }
 
-        let merge_candidates = |left: Option<String>, right: Option<String>| match (left, right) {
-            (Some(left), Some(right)) => Self::merge_inferred_type_names(&left, &right),
-            (Some(known), None) | (None, Some(known)) => Some(known),
-            (None, None) => None,
-        };
-
         match &expr.kind {
-            ExprKind::If(_, then_expr, else_expr) => merge_candidates(
+            ExprKind::If(_, then_expr, else_expr) => match (
                 self.provisional_expr_type_name_with_locals(then_expr, locals),
                 self.provisional_expr_type_name_with_locals(else_expr, locals),
-            ),
+            ) {
+                (Some(then_type), Some(else_type)) => self.merge_branch_types(
+                    &then_type,
+                    Self::is_unitless_literal(then_expr),
+                    &else_type,
+                    Self::is_unitless_literal(else_expr),
+                ),
+                (Some(known), None) | (None, Some(known)) => Some(known),
+                (None, None) => None,
+            },
             ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == "concat") =>
             {
                 let mut candidate: Option<String> = None;
@@ -52497,7 +52500,7 @@ impl TypeChecker {
             }
             ExprKind::Match(scrutinee, arms) => {
                 let subject_type = self.infer_expr_type_name_with_locals(scrutinee, locals);
-                let mut candidate: Option<String> = None;
+                let mut candidate: Option<(String, bool)> = None;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
@@ -52507,14 +52510,21 @@ impl TypeChecker {
                     else {
                         continue;
                     };
-                    candidate = match candidate {
-                        Some(known) => {
-                            Some(Self::merge_inferred_type_names(&known, &arm_candidate)?)
-                        }
-                        None => Some(arm_candidate),
-                    };
+                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
+                    candidate = Some(match candidate {
+                        Some((known, known_is_literal)) => (
+                            self.merge_branch_types(
+                                &known,
+                                known_is_literal,
+                                &arm_candidate,
+                                arm_is_literal,
+                            )?,
+                            known_is_literal && arm_is_literal,
+                        ),
+                        None => (arm_candidate, arm_is_literal),
+                    });
                 }
-                candidate
+                candidate.map(|(candidate, _)| candidate)
             }
             ExprKind::Block(stmts) => {
                 let mut block_locals = locals.clone();
@@ -52918,11 +52928,15 @@ impl TypeChecker {
         }
     }
 
-    fn canonical_dispatch_types_match(actual: &str, expected: &Ty) -> bool {
-        let Ok(actual) = parse_type_annotation(actual) else {
+    fn canonical_dispatch_types_match(&self, actual: &str, expected: &Ty) -> bool {
+        let Ok(actual) = parse_type_annotation(&self.canonical_type_without_units(actual)) else {
             return false;
         };
-        Self::explore_tys_equivalent(&actual, expected)
+        let expected = parse_type_annotation(
+            &self.canonical_type_without_units(&Self::canonical_explore_ty_name(expected)),
+        )
+        .unwrap_or_else(|_| expected.clone());
+        Self::explore_tys_equivalent(&actual, &expected)
     }
 
     fn canonical_dispatch_type_error<T>(&self) -> Option<T> {
@@ -53178,7 +53192,7 @@ impl TypeChecker {
                     )
                 }),
             Ty::Arrow(_, _) | Ty::Hole => false,
-            _ => Self::canonical_dispatch_types_match(actual, expected),
+            _ => self.canonical_dispatch_types_match(actual, expected),
         }
     }
 
@@ -53491,7 +53505,7 @@ impl TypeChecker {
             visiting_functions.remove(&visiting_key);
             let actual = actual?;
             let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
-            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+            if !self.canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
                 return self.canonical_dispatch_type_error();
             }
         }
@@ -53592,7 +53606,7 @@ impl TypeChecker {
             visiting_functions.remove(key);
             let actual = actual?;
             let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
-            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+            if !self.canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
                 return self.canonical_dispatch_type_error();
             }
         }
@@ -53867,7 +53881,7 @@ impl TypeChecker {
             Pat::Lit(literal) => parse_type_annotation(Self::obvious_literal_ty(literal))
                 .ok()
                 .is_some_and(|expected| {
-                    Self::canonical_dispatch_types_match(subject_type, &expected)
+                    self.canonical_dispatch_types_match(subject_type, &expected)
                 }),
             Pat::As(inner, _) => self.canonical_pattern_is_well_typed(inner, subject_type),
             Pat::Con(constructor, fields) => {
@@ -54016,7 +54030,7 @@ impl TypeChecker {
         let value_type = |index: usize| {
             values
                 .get(index)
-                .map(|value| Self::canonical_explore_type_name(&value.type_name))
+                .map(|value| self.canonical_type_without_units(&value.type_name))
         };
         let exact = |index: usize, expected: &str| {
             value_type(index).is_some_and(|actual| actual == expected)
@@ -54044,7 +54058,7 @@ impl TypeChecker {
                 let Ok(expected) = parse_type_annotation(&element) else {
                     return self.canonical_dispatch_type_error();
                 };
-                Self::canonical_dispatch_types_match(&values[1].type_name, &expected)
+                self.canonical_dispatch_types_match(&values[1].type_name, &expected)
                     .then_some("Bool")
             }
             ("starts_with" | "ends_with", 2) if exact(0, "String") && exact(1, "String") => {
@@ -54112,7 +54126,7 @@ impl TypeChecker {
                     let mut value = value?;
                     if let Some(declared) = declared {
                         let declared_type = parse_type_annotation(&declared).ok()?;
-                        if !Self::canonical_dispatch_types_match(&value.type_name, &declared_type) {
+                        if !self.canonical_dispatch_types_match(&value.type_name, &declared_type) {
                             return self.canonical_dispatch_type_error();
                         }
                         value.type_name = declared;
@@ -54201,6 +54215,24 @@ impl TypeChecker {
                     }
                     if matches!(name.as_str(), PATHOF_MARKER | REFOF_MARKER) {
                         return inferred();
+                    }
+                    // `Ore(n)` and `Int(amount)` leave the value unchanged.
+                    if self.is_unit_conversion_name(name)
+                        && arguments.len() == 1
+                        && !locals.contains_key(name)
+                        && !self.constructor_signatures.contains_key(name)
+                    {
+                        let argument = self.canonical_dispatch_expr_type(
+                            &arguments[0],
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                            None,
+                        )?;
+                        if self.canonical_type_without_units(&argument.type_name) != "Int" {
+                            return self.canonical_dispatch_type_error();
+                        }
+                        return Some(CanonicalDispatchValue::plain(name));
                     }
                     // Match the interpreter's bare-call interception order.
                     // An effect operation or nested logic search wins before
@@ -54387,8 +54419,8 @@ impl TypeChecker {
                     visiting_functions,
                     right_expected.as_deref(),
                 )?;
-                let left_type = Self::canonical_explore_type_name(&left.type_name);
-                let right_type = Self::canonical_explore_type_name(&right.type_name);
+                let left_type = self.canonical_type_without_units(&left.type_name);
+                let right_type = self.canonical_type_without_units(&right.type_name);
                 let numeric = |ty: &str| matches!(ty, "Int" | "Float");
                 match operator.as_str() {
                     "&&" | "||" if left_type == "Bool" && right_type == "Bool" => inferred(),
@@ -54419,7 +54451,7 @@ impl TypeChecker {
                     visiting_functions,
                     None,
                 )?;
-                let inner_type = Self::canonical_explore_type_name(&inner.type_name);
+                let inner_type = self.canonical_type_without_units(&inner.type_name);
                 match operator.as_str() {
                     "!" if inner_type == "Bool" => inferred(),
                     "-" if matches!(inner_type.as_str(), "Int" | "Float") => None,
@@ -54475,8 +54507,8 @@ impl TypeChecker {
                     visiting_functions,
                     expected,
                 )?;
-                let type_name =
-                    Self::merge_inferred_type_names(&then_value.type_name, &else_value.type_name)?;
+                let type_name = self
+                    .canonical_merge_branch_types(&then_value.type_name, &else_value.type_name)?;
                 let exact_constructor = (then_value.exact_constructor
                     == else_value.exact_constructor)
                     .then_some(then_value.exact_constructor)
@@ -54526,7 +54558,7 @@ impl TypeChecker {
                     )?;
                     result = Some(match result {
                         Some(known) => CanonicalDispatchValue {
-                            type_name: Self::merge_inferred_type_names(
+                            type_name: self.canonical_merge_branch_types(
                                 &known.type_name,
                                 &arm_value.type_name,
                             )?,
@@ -54559,7 +54591,7 @@ impl TypeChecker {
                                 annotation_name.as_deref().or(statement_expected),
                             )?;
                             if annotation.as_ref().is_some_and(|annotation| {
-                                !Self::canonical_dispatch_types_match(&value.type_name, annotation)
+                                !self.canonical_dispatch_types_match(&value.type_name, annotation)
                             }) {
                                 return self.canonical_dispatch_type_error();
                             }
@@ -55137,8 +55169,8 @@ impl TypeChecker {
                                 Some(&expected),
                             )
                             .is_some_and(|actual| {
-                                let matches = Self::canonical_explore_type_name(&actual.type_name)
-                                    == Self::canonical_explore_type_name(&expected);
+                                let matches = self.canonical_type_without_units(&actual.type_name)
+                                    == self.canonical_type_without_units(&expected);
                                 if !matches {
                                     self.canonical_dispatch_definite_error.set(true);
                                 }
@@ -57459,9 +57491,7 @@ impl TypeChecker {
             return;
         };
         let expected_ty = ty.to_string();
-        if expected_ty != actual_ty
-            && !(Self::is_unitless_literal(expr) && self.is_unit_type(&expected_ty))
-        {
+        if expected_ty != actual_ty && !self.unit_literal_fits(expr, ty) {
             self.error_at_expr(
                 expr,
                 format!(
@@ -60727,8 +60757,17 @@ impl TypeChecker {
                         return;
                     }
                 }
-                for arg in args {
-                    self.check_expr(arg, _in_fn);
+                let callback = match &func.kind {
+                    ExprKind::Var(name) => self.collection_callback_parameter_types(name, args),
+                    _ => None,
+                };
+                for (index, arg) in args.iter().enumerate() {
+                    match &callback {
+                        Some((callback_index, parameter_types)) if *callback_index == index => {
+                            self.check_callback_lambda(arg, parameter_types, _in_fn);
+                        }
+                        _ => self.check_expr(arg, _in_fn),
+                    }
                 }
                 self.check_collection_key_not_float(func, args);
             }
@@ -60748,6 +60787,7 @@ impl TypeChecker {
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type: Option<String> = None;
+                let mut arms_are_literal = false;
                 let refinement_subject = match &scrutinee.kind {
                     ExprKind::Var(subject) => subject_type
                         .as_deref()
@@ -60788,11 +60828,16 @@ impl TypeChecker {
                     }
                     self.check_expr(&arm.body, _in_fn);
                     if let Some(arm_type) = self.infer_expr_type_name(&arm.body) {
+                        let arm_is_literal = Self::is_unitless_literal(&arm.body);
                         if let Some(expected) = first_arm_type.take() {
-                            if let Some(merged) =
-                                Self::merge_inferred_type_names(&expected, &arm_type)
-                            {
+                            if let Some(merged) = self.merge_branch_types(
+                                &expected,
+                                arms_are_literal,
+                                &arm_type,
+                                arm_is_literal,
+                            ) {
                                 first_arm_type = Some(merged);
+                                arms_are_literal &= arm_is_literal;
                             } else {
                                 self.error_at_expr(
                                     &arm.body,
@@ -60807,6 +60852,7 @@ impl TypeChecker {
                             }
                         } else {
                             first_arm_type = Some(arm_type);
+                            arms_are_literal = arm_is_literal;
                         }
                     }
                     self.pop_scope();
@@ -61667,6 +61713,7 @@ impl TypeChecker {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
+            unit_names: tc.unit_types.keys().cloned().collect(),
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,

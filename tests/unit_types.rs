@@ -74,7 +74,15 @@ fn numbers_written_in_the_source_take_the_unit_of_their_place() {
          > positive(a: Ore) -> Ore { if a > 0 { a } else { 0 } }\n\
          > opened() -> Account { Account(cash = 0, holdings = [0, 100 * 100], limit = Some(-5)) }\n\
          > fee(a: Ore) -> Ore { a + 100 }\n\
-         = start: Ore = 0\n",
+         = start: Ore = 0\n\
+         = amounts: List(Ore) = [-5, 0, 100]\n\
+         = fees_hold = all(filter(amounts, |a| a >= 0), |a| fee(a) >= a)\n",
+    );
+    rejected(
+        "> fee(a: Ore) -> Ore { a + 100 }\n\
+         = counts = [0, 1]\n\
+         = fees = map(counts, |n| fee(n))\n",
+        "argument `a` to `fee` expects `Ore`, got `Int`",
     );
 }
 
@@ -98,7 +106,8 @@ fn conversions_and_unit_keeping_builtins() {
     accepted(
         "> value(quantity: Micro, price: Ore) -> Ore {\n    price * (Int(quantity) / 1000000) + price * (Int(quantity) % 1000000) / 1000000\n}\n\
          > kroner(k: Int) -> Ore { Ore(k * 100) }\n\
-         > bounded(a: Ore, b: Ore) -> Ore { clamp(a, 0, max_int(abs(a), b)) + min_int(a, b) }\n\
+         > bounded(a: Ore, b: Ore) -> Ore { clamp(min_int(a, b), 0, max_int(abs(a), b)) }\n\
+         > flat(a: Ore, b: Ore) -> Ore { clamp(a, 0, max_int(abs(a), b)) + min_int(a, b) }\n\
          > total(xs: List(Ore)) -> Ore { sum_list(xs) }\n",
     );
     rejected(
@@ -129,6 +138,57 @@ fn mixing_units_is_rejected() {
         "> takes(p: Ore) -> Ore { p }\n> gives(q: Micro) -> Ore { takes(q) }\n",
         "argument `p` to `takes` expects `Ore`, got `Micro`; `Micro` and `Ore` are different units",
     );
+}
+
+#[test]
+fn branches_take_the_unit_of_their_unit_arm() {
+    accepted(
+        "> value_or_zero(price: Ore?) -> Ore {\n    match price {\n        | Some(p) -> p\n        | None -> 0\n    }\n}\n\
+         > zero_or_value(price: Ore?) -> Ore {\n    match price {\n        | None -> 0\n        | Some(p) -> p\n    }\n}\n\
+         > doubled(price: Ore?) -> Ore { 2 * match price {\n    | Some(p) -> p\n    | None -> 0\n} }\n\
+         > floor(a: Ore) -> Ore { if a < 0 { 0 } else { a } }\n\
+         | kept_ore(closed: Bool, carried_ore: Ore) -> carried_ore\n\
+         | exception lost kept_ore(closed: Bool, carried_ore: Ore) -> 0 under closed\n",
+    );
+    rejected(
+        "> mixed(price: Ore?, q: Micro) -> Ore {\n    match price {\n        | Some(p) -> p\n        | None -> q\n    }\n}\n",
+        "match arms must have the same type; first arm is `Ore` but arm 2 is `Micro`",
+    );
+}
+
+#[test]
+fn callbacks_see_the_units_of_their_elements() {
+    accepted(
+        "# Part(country: String, gross_ore: Ore)\n\
+         > merged(groups: List(List(Part))) -> List(Part) {\n    map(groups, |state| Part(\n        country = head(state).country,\n        gross_ore = sum_list(map(state, |d| d.gross_ore))\n    ))\n}\n",
+    );
+    rejected(
+        "# In(price_micro: Micro)\n# Out(price_ore: Ore)\n\
+         > all_out(xs: List(In)) -> List(Out) { map(xs, |p| Out(price_ore = p.price_micro)) }\n",
+        "constructor `Out` field `price_ore` expects `Ore` but expression has `Micro`; `Micro` and `Ore` are different units",
+    );
+    rejected(
+        "# In(price_micro: Micro)\n\
+         > big(xs: List(In), limit: Ore) -> List(In) { filter(xs, |p| p.price_micro > limit) }\n",
+        "unsupported operands for operator `>`: `Micro` and `Ore` are different units",
+    );
+}
+
+#[test]
+fn a_wrong_unit_in_a_constructor_field_is_one_error() {
+    let source = format!(
+        "{UNITS}# In(price_micro: Micro)\n# Out(price_ore: Ore)\n\
+         > one(x: In) -> Out {{ Out(price_ore = x.price_micro) }}\n"
+    );
+    let output = runa(&["check", "--frontend"], &source);
+    let errors = stderr(&output);
+    assert!(!output.status.success(), "accepted");
+    assert!(
+        errors.contains("constructor `Out` field `price_ore` expects `Ore` but expression has `Micro`; `Micro` and `Ore` are different units: state the conversion in a function that uses `Int(...)` and `Ore(...)`"),
+        "{errors}"
+    );
+    assert!(errors.contains("1 type error"), "{errors}");
+    assert!(!errors.contains("return type mismatch"), "{errors}");
 }
 
 #[test]
@@ -191,18 +251,29 @@ fn unit_declarations_are_checked() {
 const RUNNABLE: &str = "# unit Ore \"DKK øre\"
 # unit Micro \"millionths of a share\"
 # Holding(quantity: Micro, price: Ore)
+# Account(cash: Ore) {
+    | charge() -> 0 under cash < 1000
+    | charge() -> cash / 100
+}
 
 > value(h: Holding) -> Ore {
     h.price * (Int(h.quantity) / 1000000) + h.price * (Int(h.quantity) % 1000000) / 1000000
 }
 
-> fee(x: Ore) -> Ore { x / 100 }
+| fee(x: Ore) -> 0 under x < 1000
+| fee(x: Ore) -> x / 100
+
+> kept(x: Ore) -> Ore { x - x / 10 }
 
 > total(holdings: List(Holding)) -> Ore { foldl(holdings, 0, |sum, h| sum + value(h)) }
 
 = holdings = [Holding(quantity = 2500000, price = 10000), Holding(quantity = 1, price = 3000000)]
 @ print(show(total(holdings)))
 @ print(show(fee(total(holdings))))
+@ print(show(fee(Ore(500))))
+@ print(show(Account(cash = 250000).charge()))
+@ print(show(Account(cash = 999).charge()))
+@ print(show(kept(total(holdings))))
 @ print(show(min_int(total(holdings), 100) / Ore(10)))
 ";
 
@@ -211,7 +282,7 @@ fn values_are_plain_numbers_when_interpreted() {
     let output = runa(&[], RUNNABLE);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        stdout(&output).ends_with("25003\n250\n10\n"),
+        stdout(&output).ends_with("25003\n250\n0\n2500\n0\n22503\n10\n"),
         "{}",
         stdout(&output)
     );
@@ -226,6 +297,25 @@ fn generated_rust_compiles_with_units_erased() {
     let rust = stdout(&emitted);
     assert!(rust.contains("pub type Ore = i64;"), "{rust}");
     assert!(!rust.contains("Ore("), "{rust}");
+    // The rule family and the RuleScope member over `Ore` are emitted with
+    // their `Int` representation, not skipped.
+    assert!(rust.contains("fn fee(x: i64) -> i64"), "{rust}");
+    assert!(rust.contains("fn charge(&self) -> i64"), "{rust}");
+}
+
+#[test]
+fn compiled_and_interpreted_runs_agree() {
+    let dir = temp_dir();
+    std::fs::write(dir.join("model.runa"), RUNNABLE).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .args(["test", "--roundtrip"])
+        .arg(&dir)
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let errors = stderr(&output);
+    assert!(output.status.success(), "{errors}");
+    assert!(errors.contains("Roundtrip: 1 matched"), "{errors}");
 }
 
 fn z3_available() -> bool {

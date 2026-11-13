@@ -31822,13 +31822,37 @@ impl RustCodegen {
         // Definition ABIs and exact-call consumability deliberately differ:
         // an intrinsically partial but type-consistent rule can still be
         // emitted, while Explore/SMT must not consume it as a total call.
-        self.canonical_rule_return_types = artifacts.rule_dispatch_backend_return_types.clone();
+        // Generated Rust erases units of measure, so the metadata names the
+        // same `Int` representations as the program it is emitted with.
+        let erase = |type_name: &String| artifacts.erase_unit_type_name(type_name);
+        self.canonical_rule_return_types = artifacts
+            .rule_dispatch_backend_return_types
+            .iter()
+            .map(|(key, result)| (key.clone(), erase(result)))
+            .collect();
         self.canonical_rule_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
-        self.inferred_function_return_types = artifacts.function_inferred_return_types.clone();
-        self.module_inferred_function_return_types =
-            artifacts.module_function_inferred_return_types.clone();
+        self.inferred_function_return_types = artifacts
+            .function_inferred_return_types
+            .iter()
+            .map(|(key, result)| (key.clone(), erase(result)))
+            .collect();
+        self.module_inferred_function_return_types = artifacts
+            .module_function_inferred_return_types
+            .iter()
+            .map(|(key, result)| (key.clone(), erase(result)))
+            .collect();
         self.inferred_function_return_issues = artifacts.function_inferred_return_issues.clone();
-        self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
+        self.canonical_rule_parameter_types = artifacts
+            .rule_dispatch_parameter_types
+            .iter()
+            .map(|(key, parameters)| {
+                let parameters = parameters
+                    .iter()
+                    .map(|parameter| parameter.as_ref().map(erase))
+                    .collect();
+                (key.clone(), parameters)
+            })
+            .collect();
         self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
         self.canonical_rule_parameter_issues = artifacts.rule_dispatch_parameter_issues.clone();
         self.runtime_rule_boolean_miss_keys =

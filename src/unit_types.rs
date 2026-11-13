@@ -531,7 +531,7 @@ impl TypeChecker {
 
     /// The type of a branching expression whose branches are a unit and a
     /// number written in the source (`if c { 0 } else { amount }`).
-    pub(super) fn merge_unit_branch(
+    fn merge_unit_branch(
         &self,
         known: &str,
         known_is_literal: bool,
@@ -545,6 +545,81 @@ impl TypeChecker {
             return Some(known.to_string());
         }
         None
+    }
+
+    /// Join the types of two branches (`if` branches, `match` arms): equal
+    /// types, or a unit and a number written in the source. Every place that
+    /// joins branches uses this, so they agree on `| None -> 0` beside an
+    /// `Ore` arm.
+    pub(super) fn merge_branch_types(
+        &self,
+        known: &str,
+        known_is_literal: bool,
+        next: &str,
+        next_is_literal: bool,
+    ) -> Option<String> {
+        Self::merge_inferred_type_names(known, next)
+            .or_else(|| self.merge_unit_branch(known, known_is_literal, next, next_is_literal))
+    }
+
+    /// A type as its runtime representation, with every unit an `Int`. The
+    /// canonical rule-dispatch proof judges representations, as generated
+    /// Rust and the solver do; the ordinary checker has already kept the
+    /// units apart, so a unit rule family is as type-safe as its `Int` form.
+    pub(super) fn canonical_type_without_units(&self, type_name: &str) -> String {
+        let canonical = Self::canonical_explore_type_name(type_name);
+        if self.unit_types.is_empty() {
+            return canonical;
+        }
+        match parse_type_annotation(&canonical) {
+            Ok(mut ty) => {
+                erase_ty(&mut ty, &self.unit_types);
+                Self::canonical_explore_ty_name(&ty)
+            }
+            Err(_) => canonical,
+        }
+    }
+
+    /// Join two branch types for the canonical proof: equal types, or a unit
+    /// and a number written in the source (`Ore` and `Int`), which have one
+    /// representation and keep the unit.
+    pub(super) fn canonical_merge_branch_types(&self, left: &str, right: &str) -> Option<String> {
+        Self::merge_inferred_type_names(left, right).or_else(|| {
+            (self.canonical_type_without_units(left) == self.canonical_type_without_units(right))
+                .then(|| {
+                    if self.canonical_type_without_units(left)
+                        == Self::canonical_explore_type_name(left)
+                    {
+                        right.to_string()
+                    } else {
+                        left.to_string()
+                    }
+                })
+        })
+    }
+}
+
+impl TypeCheckArtifacts {
+    /// A checked type name as a unit-erasing backend sees it: every unit is
+    /// an `Int` (`Ore` is `Int`, `List(Ore)` is `List(Int)`). Rust generation
+    /// erases the program it emits, so the checker metadata it consumes must
+    /// name the same representations.
+    pub fn erase_unit_type_name(&self, type_name: &str) -> String {
+        if self.unit_names.is_empty() {
+            return type_name.to_string();
+        }
+        match parse_type_annotation(type_name) {
+            Ok(ty) => {
+                let mut erased = ty.clone();
+                erase_ty(&mut erased, &self.unit_names);
+                if erased == ty {
+                    type_name.to_string()
+                } else {
+                    TypeChecker::canonical_explore_ty_name(&erased)
+                }
+            }
+            Err(_) => type_name.to_string(),
+        }
     }
 }
 
@@ -573,9 +648,26 @@ fn collect_unit_names(stmts: &[Stmt], units: &mut BTreeSet<String>) {
     }
 }
 
-fn erase_ty(ty: &mut Ty, units: &BTreeSet<String>) {
+/// The declared unit names, as a set or as the checker's unit table.
+trait UnitNames {
+    fn is_unit(&self, name: &str) -> bool;
+}
+
+impl UnitNames for BTreeSet<String> {
+    fn is_unit(&self, name: &str) -> bool {
+        self.contains(name)
+    }
+}
+
+impl UnitNames for BTreeMap<String, String> {
+    fn is_unit(&self, name: &str) -> bool {
+        self.contains_key(name)
+    }
+}
+
+fn erase_ty(ty: &mut Ty, units: &impl UnitNames) {
     match ty {
-        Ty::Name(name) if units.contains(name.as_str()) => *name = "Int".to_string(),
+        Ty::Name(name) if units.is_unit(name) => *name = "Int".to_string(),
         Ty::App(head, arguments) => {
             erase_ty(head, units);
             for argument in arguments {
