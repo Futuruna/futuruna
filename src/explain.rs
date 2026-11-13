@@ -452,11 +452,9 @@ fn builtin_tracing(name: &str) -> BuiltinTracing {
         "pair" | "triple" | "shared" => BuiltinTracing::Carries(ALL_POSITIONS),
         "map" | "filter" | "find" | "any" | "all" | "flat_map" | "count_by" | "take_while"
         | "drop_while" | "partition" | "enumerate" | "zip" | "reverse" | "head" | "tail"
-        | "last" | "first" | "nth" | "take" | "skip" | "chunked" | "fst" | "snd" | "trd"
-        | "collect" | "sort" | "sort_by" | "distinct" | "list_min" | "list_max" | "concat"
-        | "length" => BuiltinTracing::Carries(&[]),
-        // `is_some` and `is_none` read whether a value is there: their Bool is
-        // computed from what the option holds.
+        | "last" | "first" | "nth" | "take" | "skip" | "chunked" | "is_some" | "is_none"
+        | "fst" | "snd" | "trd" | "collect" | "sort" | "sort_by" | "distinct" | "list_min"
+        | "list_max" | "concat" | "length" => BuiltinTracing::Carries(&[]),
         _ => BuiltinTracing::Reads,
     }
 }
@@ -496,6 +494,17 @@ impl Interpreter {
             self.rule_source_files
                 .insert(Rc::as_ptr(rule) as usize, file.clone());
         }
+    }
+
+    /// A `match` arm chose `result`: a scalar the arm gives without a trace
+    /// of its own (a literal) is computed from the matched value.
+    pub(crate) fn explain_decided(&self, result: Value, matched: &Value) -> Value {
+        if node_of(&result).is_some() || Leaf::of(&result).is_none() {
+            return result;
+        }
+        let mut from = Vec::new();
+        collect_nodes(matched, &mut from);
+        self.explain_computed(result, from)
     }
 
     /// A leaf computed from traced operands.

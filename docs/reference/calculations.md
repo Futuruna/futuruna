@@ -852,8 +852,10 @@ A value a rule clause produced also says `because`: what the guards that
 chose the clause were computed from, the guard of the clause that applied and
 the guards of the clauses above it that were tried and did not. The guards are
 still read untraced, so `because` changes nothing in the result; it lists the
-rules and inputs behind the guard values (a `Bool` from `is_some(x)` is
-computed from what `x` holds), at most 32 without `full`.
+rules and inputs behind the guard values, at most 32 without `full`. A
+literal a `match` arm chose is computed from the matched value, so a `Bool`
+from `is_some(x)` is computed from what `x` holds (a `None` has nothing to
+show).
 
 `assumptions` lists the `Assumption` attachments of the sections whose rule
 clauses fired in the case, in the order they first fired, then those of the

@@ -105,10 +105,15 @@ A rule guard's value is read untraced too, but before it is read its trace
 is recorded beside the dispatch that evaluated it: each dispatch keeps the
 nodes of the guard values it read, and the clause that applies gets them as
 its node's `because`. The record is a side list of nodes; nothing reads it
-during evaluation. `is_some` and `is_none` read whether an option holds a
-value, so their `Bool` is computed from the traced leaves the option holds;
-an option that holds nothing traced (`None`) gives an untraced `Bool`, and a
-guard on it has no `because`.
+during evaluation.
+
+A guard often reads a `Bool` that a `match` chose, such as `is_some(x)`
+(`| None -> false | Some(_) -> true`). A literal an arm gives has no trace of
+its own, so an arm that a pattern chose (a refutable pattern, or any arm after
+the first) gives its literal scalar a `Computed` node over the traced leaves
+of the matched value: `is_some(x)` is computed from what `x` holds. A value
+with no traced leaf (`None`) gives an untraced literal, and a guard on it has
+no `because`.
 
 ### Cost when off
 

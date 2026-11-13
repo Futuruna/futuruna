@@ -34,7 +34,7 @@
                 }
               }
             ],
-            "location": "tests/expect/run/explain/explain_because.runa:24",
+            "location": "tests/expect/run/explain/explain_because.runa:27",
             "quote": "[sources/law.txt]\n\n§ 1. Der kan indskydes op til 1000.\n\n§ 2. Lukkes kontoen, kan der ikke indskydes.",
             "sources": [
               "sources/law.txt"
@@ -46,12 +46,19 @@
             "by": {
               "$variant": "Rule",
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_because.runa:53",
+              "location": "tests/expect/run/explain/explain_because.runa:56",
               "rule": "explain_because"
             },
             "value": 0
           },
           "room": {
+            "because": [
+              {
+                "$variant": "Input",
+                "path": "ending.day",
+                "value": 30
+              }
+            ],
             "by": {
               "$variant": "Rule",
               "cites": [
@@ -68,7 +75,7 @@
               ],
               "clause": "exception",
               "exception": "closed",
-              "location": "tests/expect/run/explain/explain_because.runa:37",
+              "location": "tests/expect/run/explain/explain_because.runa:40",
               "rule": "room",
               "section": "closing"
             },

@@ -26209,7 +26209,15 @@ impl Interpreter {
                         }
                     }
                 }
-                return (self.eval(&arm.body, &arm_env), Some(arm_index));
+                let result = self.eval(&arm.body, &arm_env);
+                // A literal an arm gives was chosen by the matched value.
+                let decided = arm_index > 0 || !matches!(arm.pat, Pat::Wild | Pat::Var(_));
+                let result = if decided && self.explain.is_some() {
+                    self.explain_decided(result, &val)
+                } else {
+                    result
+                };
+                return (result, Some(arm_index));
             }
         }
         (

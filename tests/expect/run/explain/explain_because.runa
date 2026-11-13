@@ -1,6 +1,9 @@
--- A cited paragraph carries the act its document's header names, and
--- `assumptions` holds those of the sections whose rule clauses fired: the
--- closing section's, not the transfer section's, whose rule never ran.
+-- `because` names what the guards that chose a clause were computed from: the
+-- exception `closed` applies because the account's ending is given (a Bool
+-- from `is_some` on the optional input). A cited paragraph carries the act
+-- its document's header names, and `assumptions` holds those of the
+-- sections whose rule clauses fired: the closing section's, not the transfer
+-- section's, whose rule never ran.
 -- expect-command: call
 -- expect-input: explain_because.json
 -- expect-args: --explain
