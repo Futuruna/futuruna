@@ -839,9 +839,9 @@ impl CalculationContract {
             .canonical_input_path(input, parent)
             .and_then(|canonical| contract_type_at_path(self, &canonical))
             .is_some_and(|ty| match ty {
-                CalculationTypeRef::Named { name, .. } => self
-                    .definition(&name)
-                    .is_some_and(is_date_definition),
+                CalculationTypeRef::Named { name, .. } => {
+                    self.definition(&name).is_some_and(is_date_definition)
+                }
                 _ => false,
             });
         if is_date {
@@ -6225,7 +6225,8 @@ impl CalculationWorker {
                     facts
                         .into_iter()
                         .map(|(path, stacks)| {
-                            let waiting = renderer.consumers(&self.interpreter, &stacks, &contract.entry);
+                            let waiting =
+                                renderer.consumers(&self.interpreter, &stacks, &contract.entry);
                             contract.need_for_path(&case.input, path, waiting)
                         })
                         .collect::<Vec<_>>()

@@ -57996,7 +57996,10 @@ impl TypeChecker {
                         if type_name != "Bool" {
                             self.error_at_expr(
                                 value,
-                                format!("`@ field` key `key` must be a `Bool`, got `{}`", type_name),
+                                format!(
+                                    "`@ field` key `key` must be a `Bool`, got `{}`",
+                                    type_name
+                                ),
                             );
                         }
                     } else if type_name != "String" {
