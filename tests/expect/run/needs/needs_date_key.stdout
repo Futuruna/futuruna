@@ -1,0 +1,36 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "59473da012c9fac02fcbc44f28f9dee3df623486a5bc6fd0f3455e6884fba9b5",
+    "entry": "needs_date_key"
+  },
+  "results": [
+    {
+      "case_id": "date-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "help": "The day the trade was agreed.",
+            "keys": [
+              {
+                "field": "isin",
+                "path": "trades[0]",
+                "value": "DK0010244508"
+              }
+            ],
+            "kind": "fact",
+            "label": "Trade date",
+            "path": "trades[0].date",
+            "waiting": [
+              {
+                "rule": "needs_date_key"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

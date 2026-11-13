@@ -13,7 +13,11 @@
           {
             "kind": "fact",
             "path": "n",
-            "waiting_rule": "countdown"
+            "waiting": [
+              {
+                "rule": "countdown"
+              }
+            ]
           }
         ]
       }

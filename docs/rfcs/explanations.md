@@ -27,14 +27,34 @@ cite.
   behind it, each with its value.
 - A rule clause names the rule, its RuleScope, whether its default or one of
   its exceptions applied (with the exception's label), its `file:line`, the
-  law section around it, and the paragraphs it cites with their quoted text.
+  law section around it, and the paragraphs it cites with their quoted text
+  and the act of the document they are quoted from (`act`: `title`,
+  `identifier`, `url`, read from the document's header as in
+  [Calculation needs](calculation-needs.md)).
+- `because` (on a value a rule clause produced): what decided that this
+  clause applied. Rule dispatch tries clauses in priority order; the guards
+  it evaluated until the clause applied (the clause's own guard, and the
+  guards of the clauses above it that did not hold) are values like any
+  other, and `because` lists the rules and inputs they were computed from,
+  each with its value. `deposit_room_ore = 0` by the exception `closed` is
+  there because the account's ending (its date and cause) made `closed`
+  true.
 - `sections`: each law section an explained clause sits in, with its
   location, its `[sources/...]` documents, its metadata attachments
   (`Source`, `Guidance`, `Assumption`, ...) and the whole quote.
+- `assumptions`: the `Assumption` attachments of the sections whose rule
+  clauses fired in the case (in the order they first fired), then those of
+  the entry's own section, each once. An assumption is what a result rests
+  on; a section none of whose rules fired adds nothing. Only rule clauses
+  count: a function runs whenever it is called, so a section of functions
+  says nothing about which law applied. A model therefore attaches an
+  assumption to the section of the rules that apply only when it matters
+  (the rules of a transfer, of a closing), and need not list assumptions in
+  its result type.
 - `--explain=full` adds `derivation`: every rule node a reported value was
-  computed from, by node number, each with its own clause and contributors.
-  The default reports at most 32 direct contributors per value and counts the
-  rest in `from_omitted`.
+  computed from, by node number, each with its own clause, contributors and
+  `because`. The default reports at most 32 direct contributors per value
+  and counts the rest in `from_omitted`, and at most 32 `because` entries.
 
 `runa schema --format explanation` prints the JSON Schema. `--partial
 --explain` explains every `Complete` result; a `Needs` result has nothing to
@@ -80,6 +100,15 @@ see through a trace. A traced value therefore computes exactly what the
 plain value computes, and the encoded result is the same with and without
 `--explain`; tests compare the two byte for byte on the tax engine's cases
 and interviews.
+
+A rule guard's value is read untraced too, but before it is read its trace
+is recorded beside the dispatch that evaluated it: each dispatch keeps the
+nodes of the guard values it read, and the clause that applies gets them as
+its node's `because`. The record is a side list of nodes; nothing reads it
+during evaluation. `is_some` and `is_none` read whether an option holds a
+value, so their `Bool` is computed from the traced leaves the option holds;
+an option that holds nothing traced (`None`) gives an untraced `Bool`, and a
+guard on it has no `because`.
 
 ### Cost when off
 

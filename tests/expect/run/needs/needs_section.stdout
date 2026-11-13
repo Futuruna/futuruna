@@ -12,12 +12,39 @@
         "needs": [
           {
             "kind": "fact",
-            "paragraphs": [
-              "§ 2"
-            ],
             "path": "fully_liable",
-            "section": "liability",
-            "waiting_rule": "taxed"
+            "waiting": [
+              {
+                "paragraphs": [
+                  {
+                    "act": {
+                      "identifier": "LOV nr. 1 af 01/01/2026",
+                      "title": "Lov om prøveskat",
+                      "url": "https://example.invalid/lov/1"
+                    },
+                    "paragraph": "§ 2",
+                    "source": "sources/law.txt"
+                  }
+                ],
+                "rule": "taxed",
+                "section": "liability"
+              },
+              {
+                "paragraphs": [
+                  {
+                    "act": {
+                      "identifier": "LOV nr. 1 af 01/01/2026",
+                      "title": "Lov om prøveskat",
+                      "url": "https://example.invalid/lov/1"
+                    },
+                    "paragraph": "§ 1",
+                    "source": "sources/law.txt"
+                  }
+                ],
+                "rule": "taxed",
+                "section": "liability"
+              }
+            ]
           }
         ]
       }

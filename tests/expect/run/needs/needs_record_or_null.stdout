@@ -13,7 +13,11 @@
           {
             "kind": "fact",
             "path": "spouse.income",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }
@@ -36,7 +40,11 @@
           {
             "kind": "fact",
             "path": "spouse",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }

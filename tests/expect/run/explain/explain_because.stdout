@@ -1,0 +1,82 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.output.v1",
+    "schema_hash": "c831468e572457107dbd162b630f4de5f923fc605dd0748c176dcab68c7450ce",
+    "entry": "explain_because"
+  },
+  "results": [
+    {
+      "case_id": "closed",
+      "result": {
+        "received": 0,
+        "room": 0
+      },
+      "explanation": {
+        "assumptions": [
+          {
+            "binding": "closing_day",
+            "section": "closing",
+            "value": {
+              "id": "CLOSING-DAY",
+              "statement": "The value on the closing day is the custodian's."
+            }
+          }
+        ],
+        "sections": {
+          "closing": {
+            "attachments": [
+              {
+                "binding": "closing_day",
+                "role": "Assumption",
+                "value": {
+                  "id": "CLOSING-DAY",
+                  "statement": "The value on the closing day is the custodian's."
+                }
+              }
+            ],
+            "location": "tests/expect/run/explain/explain_because.runa:24",
+            "quote": "[sources/law.txt]\n\n§ 1. Der kan indskydes op til 1000.\n\n§ 2. Lukkes kontoen, kan der ikke indskydes.",
+            "sources": [
+              "sources/law.txt"
+            ]
+          }
+        },
+        "values": {
+          "received": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_because.runa:53",
+              "rule": "explain_because"
+            },
+            "value": 0
+          },
+          "room": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "act": {
+                    "identifier": "LOV nr. 2 af 01/01/2026",
+                    "title": "Lov om prøvekonti",
+                    "url": "https://example.invalid/lov/2"
+                  },
+                  "paragraph": "§ 2",
+                  "source": "sources/law.txt",
+                  "text": "§ 2. Lukkes kontoen, kan der ikke indskydes."
+                }
+              ],
+              "clause": "exception",
+              "exception": "closed",
+              "location": "tests/expect/run/explain/explain_because.runa:37",
+              "rule": "room",
+              "section": "closing"
+            },
+            "value": 0
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -77,7 +77,10 @@
                 "clause": "default",
                 "location": "tests/expect/run/explain/explain_rules.runa:43",
                 "paragraphs": [
-                  "§ 1"
+                  {
+                    "paragraph": "§ 1",
+                    "source": "sources/tax-law.txt"
+                  }
                 ],
                 "rule": "base_of",
                 "section": "tax",
@@ -102,6 +105,13 @@
             "value": "A"
           },
           "rate_bp": {
+            "because": [
+              {
+                "$variant": "Input",
+                "path": "year",
+                "value": 2026
+              }
+            ],
             "by": {
               "$variant": "Rule",
               "cites": [
@@ -216,7 +226,10 @@
                 "clause": "default",
                 "location": "tests/expect/run/explain/explain_rules.runa:43",
                 "paragraphs": [
-                  "§ 1"
+                  {
+                    "paragraph": "§ 1",
+                    "source": "sources/tax-law.txt"
+                  }
                 ],
                 "rule": "base_of",
                 "section": "tax",
@@ -241,6 +254,13 @@
             "value": "B"
           },
           "rate_bp": {
+            "because": [
+              {
+                "$variant": "Input",
+                "path": "year",
+                "value": 2019
+              }
+            ],
             "by": {
               "$variant": "Rule",
               "cites": [

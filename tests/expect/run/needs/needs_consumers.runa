@@ -1,0 +1,40 @@
+-- A need lists every rule of the law that waits for the fact: the rules of
+-- § 1 and § 2 that read it, each paragraph with the act its quoted document's
+-- header names, and not the uncited rounding helper that read it first.
+-- expect-command: call
+-- expect-input: needs_consumers.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_consumers.stdout
+
+# Owner(amount_micro: Int)
+# Result(tax: Int, kept: Int)
+
+--@label:rounding--
+----
+[sources/guide.txt]
+
+Beløb angives i hele kroner.
+----
+
+--@begin:rounding--
+> whole(amount_micro: Int) -> Int { amount_micro / 1000000 }
+--@end:rounding--
+
+--@label:law--
+----
+[sources/law.txt]
+
+§ 1. Skatten er 10 pct. af beløbet.
+
+§ 2. Resten af beløbet beholdes.
+----
+
+--@begin:law--
+--@cite:§ 1--
+| tax(amount: Int) -> amount / 10
+--@cite:§ 2--
+| kept(amount: Int) -> amount - tax(amount)
+--@end:law--
+
+@ calculate
+| needs_consumers(o: Owner) -> Result(tax = tax(whole(o.amount_micro)), kept = kept(whole(o.amount_micro)))

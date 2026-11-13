@@ -75,14 +75,17 @@ and map wrappers are transparent, as in `pathof`.
 | `question`, `help`, `unit` | `String` |
 | `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
 | `entry`, `subject` | `String`, together: the calculation that provides the field and the input path it runs for |
+| `key` | `Bool`: `True` makes this `String` or `Int` field of a record type the key that identifies an element of the type in a list (one per type); the contract's definition of the type names it as `key`, and a need inside such an element carries the element's key |
 
-A key that does not apply is left out; values are plain strings, not
-`Some(...)`. A value may be any pure ground expression, resolved like a
-metadata binding. `runa check` reports an unknown or repeated key, a missing
-label, `entry` without `subject`, two `@ field` on one field or type, an
-`@ field` that no field or data type follows, and a value that is not a
-`String` (or, for `sources`, not a list). Declarations are presentation only:
-they do not change a type's meaning, content hash or semantic interface.
+A key that does not apply is left out; values are plain strings (`key` a
+plain `Bool`), not `Some(...)`. A value may be any pure ground expression,
+resolved like a metadata binding. `runa check` reports an unknown or repeated
+key, a missing label, `entry` without `subject`, two `@ field` on one field or
+type, an `@ field` that no field or data type follows, a value that is not a
+`String` (or, for `sources`, not a list; for `key`, not a `Bool`), and a `key`
+on a field that is not a `String` or `Int` of a record type, or a second one
+in a type. Declarations are presentation only: they do not change a type's
+meaning, content hash or semantic interface.
 
 A required record field has no column of its own; its members are spread into
 columns. Its `@ field` label gives those members context: a label written for a
@@ -95,7 +98,10 @@ labelled record field.
 ```
 
 For `trades: List(Trade)`, `trades.date.year` is labelled `Trade date: year`.
-Only the label of a record field without a column is used.
+Only the label of a record field without a column is used, except for a
+`Date`: a date is one fact, so the contract also keeps the date field's own
+metadata (label, question, help) at `trades.date`, where a need for it is
+asked.
 
 ### Metadata for one calculation
 
@@ -700,22 +706,49 @@ Each case's `result` is one of:
   "needs": [
     { "kind": "fact",
       "path": "accounts[1].closing_ore",
+      "keys": [ { "path": "accounts[1]", "field": "account_id", "value": "ASK-1" } ],
       "label": "Closing balance",
       "question": "What was the balance on the closing day?",
       "unit": "øre",
       "sources": [ { "label": "§ 1", "role": "Source", "binding": "law" } ],
-      "waiting_rule": "account_tax" } ] }
+      "waiting": [
+        { "rule": "account_tax", "section": "taxation",
+          "paragraphs": [ { "paragraph": "§ 13",
+                            "source": "sources/law.txt",
+                            "act": { "title": "Bekendtgørelse af aktiesparekontoloven",
+                                     "identifier": "LBK nr. 281 af 13/03/2025",
+                                     "url": "https://www.retsinformation.dk/eli/lta/2025/281" } } ] } ] } ],
+  "later": [ { "kind": "fact", "path": "accounts[1].closing_day", "waiting": [ "..." ] } ] }
 ```
 
 `unused_paths` lists the provided input paths evaluation never read. A
 need's `path` is concrete, with list indices; its `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
-without indices, and `waiting_rule` names the rule or function it waits
-on: the innermost one on the stack declared in a law section (a section
-whose quote holds a `[sources/...]` document), else in any section with a quote, with its
-`section` and the `paragraphs` its clause cites; else the innermost rule. The
-output envelope's schema is `futuruna.calculate.partial-output.v1`, and
-`runa schema --format partial-result` prints the JSON Schema of `result`.
+without indices. A `Date` is one fact: when its year, month or day is
+unknown, the need is at the date's path, with the date field's own metadata,
+and is answered with the whole date. `keys` names the list elements the path
+lies in by their key, outermost first, when the element's record type has a
+key field (`@ field(label = "ISIN", key = True)`) that the case gives.
+
+`waiting` lists the rules that wait for the value: of every rule and function
+evaluation was in when it read the value (or a value computed from it), the
+innermost one declared in a law section (a section whose quote holds a
+`[sources/...]` document) that cites paragraphs; when none cites, the
+innermost of a law section; else of any section with a quote; else the
+innermost rule. Cited rules are listed alone when there are any, each with
+its `section` and its `paragraphs`; a paragraph names its quoted document
+(`source`) and that document's `act`, read from the header block at the top
+of the document (`Title:`, `Document identifier:`, `Human-readable URL:` or
+`URL:` between `---` lines).
+
+`needs` are the facts that block the result as it stands; answering them can
+reveal more, since evaluation does not look past an unknown condition it
+cannot finish. `later` lists the facts evaluation did read behind such a
+condition (in a branch that failed, was cut, or was undecided because of
+another branch) and that are not needs: they may become needs once the needs
+are answered. The output envelope's schema is
+`futuruna.calculate.partial-output.v1`, and `runa schema --format
+partial-result` prints the JSON Schema of `result`.
 
 Evaluation carries unknown values freely and decides wherever the known part
 decides: `False && unknown` is `False`, an `if` or `match` whose possible
@@ -812,7 +845,21 @@ with its value. `--explain` lists at most 32 and counts the rest in
 node reached with its own clause and contributors, so the whole tree can be
 walked from any value. `sections` holds each law section an explained clause
 sits in: its anchor's location, its `[sources/...]` documents, its metadata
-attachments and the quote.
+attachments and the quote. A cited paragraph carries its document's `act`
+(`title`, `identifier`, `url`), read from the document's header as for needs.
+
+A value a rule clause produced also says `because`: what the guards that
+chose the clause were computed from, the guard of the clause that applied and
+the guards of the clauses above it that were tried and did not. The guards are
+still read untraced, so `because` changes nothing in the result; it lists the
+rules and inputs behind the guard values (a `Bool` from `is_some(x)` is
+computed from what `x` holds), at most 32 without `full`.
+
+`assumptions` lists the `Assumption` attachments of the sections whose rule
+clauses fired in the case, in the order they first fired, then those of the
+entry's own section, each once: a section of rules that never fired adds
+none. A function (`> f(...)`) firing does not count, so an assumption a model
+wants only under a condition sits in a section of rules that fire only then.
 
 A rule clause names the paragraphs it implements with a citation comment
 above it, inside the section:

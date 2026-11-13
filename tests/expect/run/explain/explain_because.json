@@ -1,0 +1,20 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "c831468e572457107dbd162b630f4de5f923fc605dd0748c176dcab68c7450ce",
+    "entry": "explain_because"
+  },
+  "cases": [
+    {
+      "case_id": "closed",
+      "input_status": "ready",
+      "input": {
+        "value": 400,
+        "ending": {
+          "day": 30
+        },
+        "transferred": false
+      }
+    }
+  ]
+}

@@ -6129,8 +6129,8 @@ pub struct Field {
 }
 
 /// The keys an `@ field(...)` declaration accepts, in documentation order.
-pub const FIELD_META_KEYS: [&str; 7] = [
-    "label", "question", "help", "unit", "sources", "entry", "subject",
+pub const FIELD_META_KEYS: [&str; 8] = [
+    "label", "question", "help", "unit", "sources", "entry", "subject", "key",
 ];
 
 /// One `@ field(key = value, ...)` declaration. Values are ordinary pure
@@ -16679,6 +16679,10 @@ pub struct Interpreter {
     /// Set while a partial calculation case runs; see `partial`.
     partial_mode: Option<partial::PartialMode>,
     partial: RefCell<partial::PartialState>,
+    /// Whether a rule clause or function being evaluated in a partial case
+    /// is cited in a law section: the value it returns is then that rule's,
+    /// and a later read of it waits on the rule, not on the fact.
+    pub(crate) partial_cited: Option<partial::CitedFrames>,
     /// Set while an explained case runs; see `explain`.
     explain: Option<RefCell<explain::ExplainState>>,
     /// The file each rule declared outside the root file came from, by the
@@ -16777,6 +16781,7 @@ impl Interpreter {
             calculation_error: RefCell::new(None),
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
+            partial_cited: None,
             explain: None,
             rule_source_files: HashMap::new(),
             runtime_source_file: None,
@@ -22604,7 +22609,9 @@ impl Interpreter {
 
     /// A malformed guard is an evaluation error, never a rejected candidate.
     fn eval_rule_guard(&mut self, condition: &Expr, env: &Env, family: &str) -> Option<bool> {
-        let value = explain::strip(self.eval(condition, env));
+        let value = self.eval(condition, env);
+        self.explain_guard_read(&value);
+        let value = explain::strip(value);
         if self.calculation_failed() || self.ground_error.borrow().is_some() {
             return None;
         }
@@ -27224,6 +27231,7 @@ impl Interpreter {
         let mut selected = None;
         // The clause that produced the value, for explanations.
         let mut produced_by = None;
+        self.explain_begin_dispatch();
 
         let result = 'dispatch: {
             // Check exceptions first — they override the default.
@@ -27484,6 +27492,7 @@ impl Interpreter {
             }
             (result, _) => result,
         };
+        self.explain_end_dispatch();
 
         let cold_selection_event = traced_activation
             .then(|| self.checked_mechanism_record_rule_selection(family, selected))
@@ -57981,6 +57990,13 @@ impl TypeChecker {
                                     "`@ field` key `sources` is a list of source values such as `[Source(value = law)]`, got `{}`",
                                     type_name
                                 ),
+                            );
+                        }
+                    } else if key == "key" {
+                        if type_name != "Bool" {
+                            self.error_at_expr(
+                                value,
+                                format!("`@ field` key `key` must be a `Bool`, got `{}`", type_name),
                             );
                         }
                     } else if type_name != "String" {
