@@ -5,5 +5,5 @@
 -- expect-stderr: --partial applies only to `runa call`
 
 > main() -> Unit {
-    print("never runs")
+    @ print("never runs")
 }

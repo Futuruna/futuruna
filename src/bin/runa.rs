@@ -32345,11 +32345,44 @@ impl RustCodegen {
             .unwrap_or_else(|| tau_name.to_string())
     }
 
+    /// The Rust name of a declared type. Names that Rust's prelude or the
+    /// generated runtime already use get a `Futuruna` prefix.
     fn declared_rust_type_name(source_name: &str) -> String {
-        if matches!(source_name, "Bool" | "Box" | "Vec" | "String") {
+        if matches!(
+            source_name,
+            "Bool" | "Box" | "Vec" | "String" | "Option" | "Result"
+        ) {
             format!("Futuruna{}", source_name)
         } else {
             source_name.to_string()
+        }
+    }
+
+    /// Whether a declaration is the prelude's `Option` (`None | Some`) or
+    /// `Result` (`Ok | Err`), which compiled code represents by Rust's own
+    /// `Option` and `Result`. Any other declaration of those names replaces
+    /// the prelude type with a type of the program's own.
+    fn is_native_prelude_adt(name: &str, variants: &[Variant]) -> bool {
+        let mut names = variants
+            .iter()
+            .map(|variant| variant.name.as_str())
+            .collect::<Vec<_>>();
+        names.sort_unstable();
+        match name {
+            "Option" => names == ["None", "Some"],
+            "Result" => names == ["Err", "Ok"],
+            _ => false,
+        }
+    }
+
+    /// The Rust name of a declared ADT: the prelude's `Option` and `Result`
+    /// keep Rust's types; every other declaration uses
+    /// [`Self::declared_rust_type_name`].
+    fn declared_adt_rust_type_name(name: &str, variants: &[Variant]) -> String {
+        if Self::is_native_prelude_adt(name, variants) {
+            name.to_string()
+        } else {
+            Self::declared_rust_type_name(name)
         }
     }
 
@@ -33696,7 +33729,7 @@ impl RustCodegen {
                 ..
             }) = stmt
             {
-                let rust_name = Self::declared_rust_type_name(name);
+                let rust_name = Self::declared_adt_rust_type_name(name, variants);
                 if rust_name != *name {
                     self.types
                         .type_rename
@@ -34163,7 +34196,7 @@ impl RustCodegen {
                         variants,
                         ..
                     }) => {
-                        let parent = Self::declared_rust_type_name(name);
+                        let parent = Self::declared_adt_rust_type_name(name, variants);
                         let struct_type = variants.len() == 1
                             && variants[0].name == *name
                             && !variants[0].fields.is_empty();
@@ -40432,8 +40465,8 @@ fn __futuruna_install_error_hook() {
                 if variants.is_empty() {
                     return format!("// type {} (opaque)\n", name);
                 }
-                // Result and Option use Rust's native types — don't emit custom enums
-                if name == "Result" || name == "Option" {
+                // The prelude's Result and Option use Rust's native types.
+                if Self::is_native_prelude_adt(name, variants) {
                     return String::new();
                 }
 
@@ -56485,7 +56518,9 @@ fn __futuruna_install_error_hook() {
 fn sanitize_name(name: &str) -> String {
     match name {
         "self" | "Self" => name.to_string(),
-        "crate" | "super" => format!("{}_", name),
+        // `main` is the generated program's entry point; a Futuruna `main`
+        // is an ordinary function and must not clash with it.
+        "crate" | "super" | "main" => format!("{}_", name),
         "abstract" | "as" | "async" | "await" | "become" | "box" | "break" | "const"
         | "continue" | "do" | "dyn" | "else" | "enum" | "extern" | "false" | "final" | "fn"
         | "for" | "if" | "impl" | "in" | "let" | "loop" | "macro" | "match" | "mod" | "move"

@@ -1,0 +1,19 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: tax=8
+-- expect-stdout: rule=3
+-- expect-stdout: shown=Result(tax: 5)
+-- expect-stdout: main=main ran
+
+-- A program's own `Result` record replaces the prelude type and `main` is an
+-- ordinary function: neither may clash with Rust's `Result` or entry point.
+# Result(tax: Int)
+
+> f(x: Int) -> Result { Result(tax = x * 2) }
+| g(x: Int) -> Result(tax = x)
+> main() -> String { "main ran" }
+
+@ print("tax=" + show(f(4).tax))
+@ print("rule=" + show(g(3).tax))
+@ print("shown=" + show(Result(tax = 5)))
+@ print("main=" + main())

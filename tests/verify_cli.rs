@@ -639,10 +639,17 @@ fn skipped_claim_names_the_gap_of_its_own_rule_scope_member() {
         share.contains("partial rule dispatch for `Share.tax` has no unconditional value"),
         "{share}"
     );
-    assert!(
-        share.contains("Gap in Share.tax/0: no clause applies to self.own = 0"),
-        "{share}"
-    );
+    if z3_available() {
+        assert!(
+            share.contains("Gap in Share.tax/0: no clause applies to self.own = 0"),
+            "{share}"
+        );
+    } else {
+        assert!(
+            share.contains("Gaps in Share.tax/0 not checked: Z3 not found"),
+            "{share}"
+        );
+    }
     assert!(!share.contains("Flat.tax"), "{share}");
 
     let flat = invariant_section(&stdout, "flat_tax_is_positive");
@@ -650,9 +657,16 @@ fn skipped_claim_names_the_gap_of_its_own_rule_scope_member() {
         flat.contains("partial rule dispatch for `Flat.tax` has no unconditional value"),
         "{flat}"
     );
-    assert!(
-        flat.contains("Every input is covered by a clause of Flat.tax/0"),
-        "{flat}"
-    );
+    if z3_available() {
+        assert!(
+            flat.contains("Every input is covered by a clause of Flat.tax/0"),
+            "{flat}"
+        );
+    } else {
+        assert!(
+            flat.contains("Gaps in Flat.tax/0 not checked: Z3 not found"),
+            "{flat}"
+        );
+    }
     assert!(!flat.contains("Share.tax"), "{flat}");
 }
