@@ -120,6 +120,8 @@ impl ExplainState {
         if let Some(id) = self.interned.get(&node) {
             return *id;
         }
+        #[cfg(test)]
+        PROVENANCE_NODES.with(|count| count.set(count.get() + 1));
         let id = NodeId::try_from(self.nodes.len()).expect("provenance graph fits u32");
         self.nodes.push(node.clone());
         self.interned.insert(node, id);
@@ -208,7 +210,26 @@ pub(crate) fn node_of(value: &Value) -> Option<NodeId> {
 }
 
 pub(crate) fn traced(value: Value, node: NodeId) -> Value {
+    #[cfg(test)]
+    TRACED_VALUES.with(|count| count.set(count.get() + 1));
     Value::Traced(Rc::new(TracedValue { value, node }))
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Traced values and provenance nodes created on this thread, so tests can
+    /// show an unexplained case creates none.
+    static TRACED_VALUES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static PROVENANCE_NODES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Traced values and provenance nodes created on this thread so far.
+#[cfg(test)]
+pub(crate) fn tracing_counts() -> (usize, usize) {
+    (
+        TRACED_VALUES.with(std::cell::Cell::get),
+        PROVENANCE_NODES.with(std::cell::Cell::get),
+    )
 }
 
 /// Whether a trace occurs anywhere in `value`.
@@ -616,8 +637,22 @@ impl Interpreter {
             return value;
         }
         let clause = state.borrow_mut().clause_id(rule, family);
+        // A clause that returns one value produced it. A clause that returns a
+        // structure produced the leaves it computed; a leaf it passes on
+        // unchanged from another rule keeps that rule.
+        let structure = Leaf::of(untraced(&value)).is_none();
         let mut tag = |leaf: &Value| -> Value {
             let from = node_of(leaf);
+            // A value passed on unchanged from the input stays the input's:
+            // the explanation names its input path, not the rule.
+            let kept = from.is_some_and(|node| match state.borrow().node(node) {
+                Node::Input { .. } => true,
+                Node::Rule { .. } => structure,
+                Node::Computed { .. } => false,
+            });
+            if kept {
+                return leaf.clone();
+            }
             let inner = untraced(leaf).clone();
             let Some(value) = Leaf::of(&inner) else {
                 return inner;

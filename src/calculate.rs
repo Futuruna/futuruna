@@ -7416,4 +7416,92 @@ mod calculation_execution_tests {
             }
         }
     }
+
+    #[test]
+    fn an_unexplained_case_creates_no_trace_and_explaining_changes_no_result() {
+        let source = r#"
+# Line(amount: Int, kind: Kind)
+# Kind = Ordinary | Reduced
+# Case(lines: List(Line), rate_bp: Int)
+# Total(net: Int, tax: Int, kind: Kind)
+
+| line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 10000
+| exception reduced line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 20000 under l.kind == Reduced
+
+@ calculate
+| total(c: Case) -> Total(net = foldl(c.lines, 0, |acc, l| acc + l.amount), tax = foldl(c.lines, 0, |acc, l| acc + line_tax(l, c.rate_bp)), kind = head(c.lines).kind)
+"#;
+        let stmts = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("parse");
+        let stmts = prepend_prelude(parse_prelude(), &stmts);
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("contract")
+            .pop()
+            .expect("one entry");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "c".to_string(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input: serde_json::json!({
+                    "lines": [
+                        {"amount": 10000, "kind": {"$variant": "Ordinary"}},
+                        {"amount": 4000, "kind": {"$variant": "Reduced"}}
+                    ],
+                    "rate_bp": 2500
+                }),
+            }],
+        };
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let before = crate::explain::tracing_counts();
+        let off = prepared.invoke_batch(&envelope, Some(1), None);
+        assert_eq!(
+            crate::explain::tracing_counts(),
+            before,
+            "mode off traced a value"
+        );
+        assert!(off.results[0].explanation.is_none());
+
+        let explained = prepared.invoke_explained(&envelope, &ExplainOptions::default());
+        let (traced, nodes) = crate::explain::tracing_counts();
+        assert!(traced > before.0 && nodes > before.1);
+        let mut stripped = explained.clone();
+        let explanation = stripped.results[0].explanation.take().expect("explained");
+        assert_eq!(document(&stripped), document(&off));
+        let values = &explanation["values"];
+        // The entry is a rule: it produced every leaf, from the inputs.
+        assert_eq!(values["net"]["by"]["rule"], "total");
+        assert_eq!(values["net"]["by"]["clause"], "default");
+        let net_from = values["net"]["from"].as_array().expect("contributors");
+        assert_eq!(net_from.len(), 2);
+        assert_eq!(net_from[0]["path"], "lines[0].amount");
+        assert_eq!(net_from[1]["path"], "lines[1].amount");
+        assert_eq!(values["tax"]["value"], 3000);
+        let from = values["tax"]["from"].as_array().expect("contributors");
+        assert!(from.iter().any(|item| item["rule"] == "line_tax"
+            && item["clause"] == "exception"
+            && item["exception"] == "reduced"));
+        assert!(from
+            .iter()
+            .any(|item| item["rule"] == "line_tax" && item["clause"] == "default"));
+        // Passed on unchanged from the input: the input path, not a rule.
+        assert_eq!(values["kind.$variant"]["by"]["$variant"], "Input");
+        assert_eq!(
+            values["kind.$variant"]["by"]["path"],
+            "lines[0].kind.$variant"
+        );
+
+        // Off again after an explained call: still no trace.
+        let before = crate::explain::tracing_counts();
+        assert_eq!(
+            document(&prepared.invoke_batch(&envelope, Some(1), None)),
+            document(&off)
+        );
+        assert_eq!(crate::explain::tracing_counts(), before);
+    }
 }

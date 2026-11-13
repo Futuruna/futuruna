@@ -480,11 +480,7 @@ impl ExplainRenderer {
         clause: u32,
     ) -> ClauseInfo {
         let record = state.clause(clause);
-        let (kind, exception) = match record.rule.as_ref() {
-            Rule::Exception { label, .. } => ("exception", Some(label.clone())),
-            Rule::Clause { .. } => ("clause", None),
-            _ => ("default", None),
-        };
+        let (kind, exception) = clause_kind(record.rule.as_ref());
         let mut info = ClauseInfo {
             rule: record.name.clone(),
             scope: record.scope.clone(),
@@ -812,6 +808,26 @@ impl CaseRenderer<'_> {
             }
             Node::Computed { .. } => serde_json::json!({ "$variant": "Computed" }),
         }
+    }
+}
+
+/// How a clause is reported: an exception with its label; a value rule
+/// (`| f(x) -> value`, with or without `under`) as the rule's default; a
+/// logic clause (`:-` goals, or a fact) as a clause.
+fn clause_kind(rule: &Rule) -> (&'static str, Option<String>) {
+    match rule {
+        Rule::Exception { label, .. } => ("exception", Some(label.clone())),
+        Rule::Clause {
+            body: Some(body), ..
+        } if !matches!(
+            body.kind,
+            ExprKind::Conjunction(_) | ExprKind::Disjunction(_)
+        ) =>
+        {
+            ("default", None)
+        }
+        Rule::Clause { .. } => ("clause", None),
+        _ => ("default", None),
     }
 }
 

@@ -1,0 +1,20 @@
+-- A citation must name a paragraph the quote of its section holds.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: citation `§ 2, stk. 3`: § 2, stk. 3 does not appear in the quote of this section; the quote holds § 1; § 2, stk. 1, 2 (section `tax`)
+
+--@label:tax--
+----
+[sources/tax-law.txt]
+
+§ 1. Skatten beregnes af summen af posterne.
+
+§ 2. Skatten er 27 pct.
+
+Stk. 2. For indkomstår før 2020 er skatten 15 pct.
+----
+
+--@begin:tax--
+--@cite:§ 2, stk. 3--
+| rate_bp(year: Int) -> 2700
+--@end:tax--
