@@ -693,7 +693,9 @@ what produced it:
   or `exception` with the `exception` label that applied, or `clause` for a
   logic clause), its `location`, its law `section`, and the paragraphs it
   `cites` with their quoted text;
-- `Input`: the value is the input's, passed on unchanged, at `path`;
+- `Input`: the value is the input's at `path`, passed on unchanged into the
+  result by functions and as a member of the records rules build (a rule
+  that returns a single value claims it, with the input in `from`);
 - `Computed`: an operator or builtin outside any rule computed it;
 - `Constant`: a literal of the model.
 

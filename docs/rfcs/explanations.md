@@ -56,6 +56,12 @@ graph.
   origin. Builtins that only move values (`map`, `filter`, `foldl`'s
   accumulator, `head`, `pair`) keep the elements' traces; builtins that read
   values (`sum_list`, `max_int`, `day_of_year`) compute from all of them.
+- A clause that returns a single value claims it, even when the value is an
+  input or another rule's result passed on unchanged: the auditor sees the
+  rule that decided the amount, with the input or the inner rule in `from`. A
+  clause that returns a record or a list claims only the members it computed;
+  a member it passes on from the input or another rule keeps that origin, so
+  an input carried into the result is reported with its input path.
 - Nodes are interned per case: the same computation from the same nodes is
   one node, so a fold over many items, or a rule called many times with the
   same arguments, adds no node beyond the first.
@@ -133,9 +139,9 @@ types the explanation (`Explanation`, `ExplainedValue`, ...) and generates
 ## Limits
 
 - Explanations are an interpreter feature; compiled programs do not explain.
-- A value built only from literals (an empty sum, a constant date part) is
-  `Constant`, even when a rule returned it; a value a rule returns unchanged
-  from a deeper rule is reported for the outermost rule, with the deeper one
-  in `from`.
+- A value outside any rule built only from literals (an empty sum in a
+  function) is `Constant`.
+- A single value a rule returns unchanged from a deeper rule or the input is
+  reported for the outer rule, with the deeper rule or the input in `from`.
 - Map and set elements are explained by their output path but not traced
   into map keys or set membership.

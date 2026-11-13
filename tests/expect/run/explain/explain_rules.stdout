@@ -1,0 +1,294 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.output.v1",
+    "schema_hash": "d5dd4827a1a8de9a2e8aaf85a670d4f39cdd359703070c10a32ac2c4f48e3731",
+    "entry": "explain_rules"
+  },
+  "results": [
+    {
+      "case_id": "2026",
+      "result": {
+        "base": 1300,
+        "carried": 1170,
+        "name": "A",
+        "rate_bp": 2700,
+        "tax": 351
+      },
+      "explanation": {
+        "sections": {
+          "tax": {
+            "attachments": [
+              {
+                "binding": "tax_law",
+                "role": "Source",
+                "value": {
+                  "file": "sources/tax-law.txt"
+                }
+              }
+            ],
+            "location": "tests/expect/run/explain/explain_rules.runa:24",
+            "quote": "[sources/tax-law.txt]\n\n§ 1. Skatten beregnes af summen af posterne.\n\n§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct.",
+            "sources": [
+              "sources/tax-law.txt"
+            ]
+          }
+        },
+        "values": {
+          "base": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "paragraph": "§ 1",
+                  "source": "sources/tax-law.txt",
+                  "text": "§ 1. Skatten beregnes af summen af posterne."
+                }
+              ],
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:43",
+              "rule": "base_of",
+              "section": "tax"
+            },
+            "from": [
+              {
+                "$variant": "Input",
+                "path": "items[0].amount",
+                "value": 1000
+              },
+              {
+                "$variant": "Input",
+                "path": "items[1].amount",
+                "value": 300
+              }
+            ],
+            "value": 1300
+          },
+          "carried": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:49",
+              "rule": "carried_over",
+              "section": "tax"
+            },
+            "from": [
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_rules.runa:43",
+                "paragraphs": [
+                  "§ 1"
+                ],
+                "rule": "base_of",
+                "section": "tax",
+                "value": 1300
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "rule": "share",
+                "section": "tax",
+                "value": 130
+              }
+            ],
+            "value": 1170
+          },
+          "name": {
+            "by": {
+              "$variant": "Input",
+              "path": "name"
+            },
+            "value": "A"
+          },
+          "rate_bp": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "paragraph": "§ 2",
+                  "source": "sources/tax-law.txt",
+                  "text": "§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct."
+                }
+              ],
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:45",
+              "rule": "rate_bp",
+              "section": "tax"
+            },
+            "value": 2700
+          },
+          "tax": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "paragraph": "§ 2",
+                  "source": "sources/tax-law.txt",
+                  "text": "§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct."
+                }
+              ],
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:39",
+              "rule": "tax",
+              "scope": "Year",
+              "section": "tax"
+            },
+            "from": [
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "rule": "share",
+                "section": "tax",
+                "value": 351
+              }
+            ],
+            "value": 351
+          }
+        }
+      }
+    },
+    {
+      "case_id": "2019",
+      "result": {
+        "base": 2000,
+        "carried": 1800,
+        "name": "B",
+        "rate_bp": 1500,
+        "tax": 300
+      },
+      "explanation": {
+        "sections": {
+          "tax": {
+            "attachments": [
+              {
+                "binding": "tax_law",
+                "role": "Source",
+                "value": {
+                  "file": "sources/tax-law.txt"
+                }
+              }
+            ],
+            "location": "tests/expect/run/explain/explain_rules.runa:24",
+            "quote": "[sources/tax-law.txt]\n\n§ 1. Skatten beregnes af summen af posterne.\n\n§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct.",
+            "sources": [
+              "sources/tax-law.txt"
+            ]
+          }
+        },
+        "values": {
+          "base": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "paragraph": "§ 1",
+                  "source": "sources/tax-law.txt",
+                  "text": "§ 1. Skatten beregnes af summen af posterne."
+                }
+              ],
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:43",
+              "rule": "base_of",
+              "section": "tax"
+            },
+            "from": [
+              {
+                "$variant": "Input",
+                "path": "items[0].amount",
+                "value": 2000
+              }
+            ],
+            "value": 2000
+          },
+          "carried": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:49",
+              "rule": "carried_over",
+              "section": "tax"
+            },
+            "from": [
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_rules.runa:43",
+                "paragraphs": [
+                  "§ 1"
+                ],
+                "rule": "base_of",
+                "section": "tax",
+                "value": 2000
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "rule": "share",
+                "section": "tax",
+                "value": 200
+              }
+            ],
+            "value": 1800
+          },
+          "name": {
+            "by": {
+              "$variant": "Input",
+              "path": "name"
+            },
+            "value": "B"
+          },
+          "rate_bp": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "paragraph": "§ 2, stk. 2",
+                  "source": "sources/tax-law.txt",
+                  "text": "Stk. 2. For indkomstår før 2020 er skatten 15 pct."
+                }
+              ],
+              "clause": "exception",
+              "exception": "before_2020",
+              "location": "tests/expect/run/explain/explain_rules.runa:47",
+              "rule": "rate_bp",
+              "section": "tax"
+            },
+            "value": 1500
+          },
+          "tax": {
+            "by": {
+              "$variant": "Rule",
+              "cites": [
+                {
+                  "paragraph": "§ 2",
+                  "source": "sources/tax-law.txt",
+                  "text": "§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct."
+                }
+              ],
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_rules.runa:39",
+              "rule": "tax",
+              "scope": "Year",
+              "section": "tax"
+            },
+            "from": [
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "rule": "share",
+                "section": "tax",
+                "value": 300
+              }
+            ],
+            "value": 300
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": []
+}

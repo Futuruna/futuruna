@@ -1,0 +1,53 @@
+-- An explanation names, for every leaf of the result, the clause that
+-- produced it (default or the exception that won), its section and cited
+-- paragraph with the quoted text, the input path of a value passed on
+-- unchanged, and what each value was computed from: nested rule calls, a list
+-- fold and a RuleScope member.
+-- expect-command: call
+-- expect-input: explain_rules.json
+-- expect-args: --explain
+-- expect-stdout-file: explain_rules.stdout
+
+# SourceInfo(file: String)
+# LawRole(a) = Source(value: a)
+# Metadata(a) = Metadata(attachments: a)
+# impl MetaRole for LawRole {}
+# impl Meta for Metadata {}
+
+= tax_law = SourceInfo(file = "sources/tax-law.txt")
+= tax_meta = Metadata(attachments = (Source(value = tax_law),))
+
+# Item(amount: Int)
+# Case(name: String, year: Int, items: List(Item))
+# Result(name: String, base: Int, rate_bp: Int, tax: Int, carried: Int)
+
+--@label:tax::meta:tax_meta--
+----
+[sources/tax-law.txt]
+
+§ 1. Skatten beregnes af summen af posterne.
+
+§ 2. Skatten er 27 pct.
+
+Stk. 2. For indkomstår før 2020 er skatten 15 pct.
+----
+
+--@begin:tax--
+-- The tax of the year from its rate.
+# Year(base: Int, year: Int) {
+    --@cite:§ 2--
+    | tax() -> share(base, rate_bp(year))
+}
+
+--@cite:§ 1--
+| base_of(items: List(Item)) -> foldl(items, 0, |sum, item| sum + item.amount)
+--@cite:§ 2--
+| rate_bp(year: Int) -> 2700
+--@cite:§ 2, stk. 2--
+| exception before_2020 rate_bp(year: Int) -> 1500 under year < 2020
+| share(amount: Int, bp: Int) -> amount * bp / 10000
+| carried_over(base: Int) -> base - share(base, 1000)
+--@end:tax--
+
+@ calculate
+| explain_rules(c: Case) -> Result(name = c.name, base = base_of(c.items), rate_bp = rate_bp(c.year), tax = Year(base = base_of(c.items), year = c.year).tax(), carried = carried_over(base_of(c.items)))

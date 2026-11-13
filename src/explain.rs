@@ -638,18 +638,17 @@ impl Interpreter {
         }
         let clause = state.borrow_mut().clause_id(rule, family);
         // A clause that returns one value produced it. A clause that returns a
-        // structure produced the leaves it computed; a leaf it passes on
-        // unchanged from another rule keeps that rule.
+        // structure produced the leaves it computed.
         let structure = Leaf::of(untraced(&value)).is_none();
         let mut tag = |leaf: &Value| -> Value {
             let from = node_of(leaf);
-            // A value passed on unchanged from the input stays the input's:
-            // the explanation names its input path, not the rule.
-            let kept = from.is_some_and(|node| match state.borrow().node(node) {
-                Node::Input { .. } => true,
-                Node::Rule { .. } => structure,
-                Node::Computed { .. } => false,
-            });
+            // A member a structure passes on unchanged from the input or
+            // another rule keeps that provenance; a single value the clause
+            // returns is the clause's, with the input or rule in `from`.
+            let kept = structure
+                && from.is_some_and(|node| {
+                    !matches!(state.borrow().node(node), Node::Computed { .. })
+                });
             if kept {
                 return leaf.clone();
             }
