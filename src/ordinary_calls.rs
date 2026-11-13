@@ -783,7 +783,7 @@ impl TypeChecker {
 
     pub(super) fn pattern_variant_name(pattern: &Pat) -> Option<&str> {
         match pattern {
-            Pat::Con(name, _) | Pat::NamedCon(name, _) => Some(name),
+            Pat::Con(name, _) | Pat::NamedCon(name, _) => Some(bare_constructor_name(name)),
             Pat::As(inner, _) => Self::pattern_variant_name(inner),
             Pat::Var(_) | Pat::Wild | Pat::Lit(_) => None,
         }
@@ -831,7 +831,7 @@ impl TypeChecker {
         }
     }
 
-    fn ordinary_argument_matches(
+    pub(super) fn ordinary_argument_matches(
         actual: &Ty,
         expected: &Ty,
         substitutions: &mut BTreeMap<String, Ty>,

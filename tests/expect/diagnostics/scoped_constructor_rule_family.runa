@@ -1,0 +1,9 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor `Closed` belongs to `Event` and `AskYearEvent`; the clauses of rule `label` take `Event` and `AskYearEvent` here, so write `Event.Closed` or `AskYearEvent.Closed`
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+| label(e: Event) -> "event"
+| label(e: AskYearEvent) -> "ask"
+= l: String = label(Closed)

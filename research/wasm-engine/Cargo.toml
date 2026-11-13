@@ -1,6 +1,6 @@
 [package]
 name = "futuruna-wasm-engine"
-version = "0.2.5"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.94"
 description = "The Futuruna interpreter as a WebAssembly module: model sources and a calculation input in, the `runa call` output out"

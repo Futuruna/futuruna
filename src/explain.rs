@@ -76,7 +76,10 @@ impl Leaf {
             Leaf::Str(text) => serde_json::Value::from(text.as_ref()),
             Leaf::Char(character) => serde_json::Value::from(character.to_string()),
             Leaf::Bool(boolean) => serde_json::Value::Bool(*boolean),
-            Leaf::Variant(name) => serde_json::Value::from(name.as_ref()),
+            // A shared constructor shows the name it was declared with.
+            Leaf::Variant(name) => {
+                serde_json::Value::from(crate::constructor_display_name(name).as_ref())
+            }
         }
     }
 }

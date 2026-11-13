@@ -69,6 +69,21 @@ class RepositoryHygieneTests(unittest.TestCase):
         self.assertTrue(self.check_files(files))
         self.assertEqual([], self.check_files({**files, "docs/new.md": "Moved record"}))
 
+    def test_wasm_engine_carries_the_compiler_version(self):
+        compiler = '[package]\nname = "futuruna"\nversion = "0.4.0"\n'
+        engine = ('[package]\nname = "futuruna-wasm-engine"\nversion = "{}"\n\n'
+                  '[dependencies]\nserde = {{ version = "1" }}\n')
+        errors = self.check_files({
+            "Cargo.toml": compiler,
+            "research/wasm-engine/Cargo.toml": engine.format("0.2.5"),
+        })
+        self.assertEqual(1, len(errors))
+        self.assertIn("0.2.5 differs from the compiler's 0.4.0", errors[0])
+        self.assertEqual([], self.check_files({
+            "Cargo.toml": compiler,
+            "research/wasm-engine/Cargo.toml": engine.format("0.4.0"),
+        }))
+
 
 if __name__ == "__main__":
     unittest.main()

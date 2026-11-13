@@ -2450,7 +2450,8 @@ fn readable_smt_value(value: &str) -> String {
         rest = &encoded[length..];
     }
     readable.push_str(rest);
-    readable
+    // A shared constructor reads as the name it was declared with.
+    futuruna::constructor_display_text(&readable).into_owned()
 }
 
 /// An SMT string literal's body (doubled quotes, `\u{..}` escapes) as a

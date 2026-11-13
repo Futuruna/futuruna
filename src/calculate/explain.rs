@@ -56,17 +56,20 @@ fn input_leaf(interpreter: &Interpreter, value: &Value, path: &str) -> Value {
     }
 }
 
+/// A shared constructor runs under its internal name; the contract keeps the
+/// declared one.
 fn find_variant<'a>(
     definition: &'a CalculationTypeDefinition,
     name: &str,
 ) -> Option<&'a CalculationVariant> {
+    let name = crate::constructor_display_name(name);
     product_variant(definition)
-        .filter(|variant| variant.name == name || definition.kind == "rule_scope")
+        .filter(|variant| variant.name == *name || definition.kind == "rule_scope")
         .or_else(|| {
             definition
                 .variants
                 .iter()
-                .find(|variant| variant.name == name)
+                .find(|variant| variant.name == *name)
         })
 }
 

@@ -1,0 +1,18 @@
+-- Two sum types in scope may declare the same constructor name; the type
+-- each context expects chooses the owner.
+
+# Event = Shared(value: Int) | EventOnly
+# Legacy = Shared(legacy_value: Int) | LegacyOnly
+
+> event_value(e: Event) -> Int {
+    match e {
+        | Shared(value) -> value
+        | EventOnly -> 0
+    }
+}
+
+= event: Event = Shared(value = 1)
+= legacy: Legacy = Shared(legacy_value = 2)
+@ print(event_value(event))
+@ print(show(legacy))
+@ print(legacy == Legacy.Shared(legacy_value = 2))

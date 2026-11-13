@@ -17,6 +17,22 @@ NATIVE_MAGIC = {
     b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca",
 }
 WIKI_SUPPORT = ("wiki/skills/", "wiki/_templates/", "wiki/.raw/", "wiki/_attachments/")
+# Crates released with the compiler and labelled with its version.
+VERSIONED_WITH_COMPILER = ("research/wasm-engine/Cargo.toml",)
+
+
+def package_version(manifest: str) -> str | None:
+    """The `version` of a Cargo manifest's `[package]` table."""
+    section = None
+    for line in manifest.splitlines():
+        line = line.strip()
+        if line.startswith("["):
+            section = line
+        elif section == "[package]":
+            match = re.match(r'version\s*=\s*"([^"]*)"', line)
+            if match:
+                return match.group(1)
+    return None
 
 
 def prose(text: str) -> str:
@@ -116,6 +132,17 @@ def validate(root: Path, files: set[str]) -> list[str]:
         for artifact in data["removed_artifacts"]:
             if artifact["path"] in files:
                 errors.append(f"{artifact['path']}: removed build artifact returned")
+
+    if "Cargo.toml" in files:
+        compiler = package_version((root / "Cargo.toml").read_text())
+        for name in VERSIONED_WITH_COMPILER:
+            if name in files and (root / name).is_file():
+                version = package_version((root / name).read_text())
+                if version != compiler:
+                    errors.append(
+                        f"{name}: version {version} differs from the compiler's {compiler}"
+                        " in Cargo.toml"
+                    )
     return errors
 
 

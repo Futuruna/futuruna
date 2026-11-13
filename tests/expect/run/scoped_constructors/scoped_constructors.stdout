@@ -1,0 +1,8 @@
+[event trade a 1, event closed]
+[ask trade b in 2026, ask closed]
+[Trade(id: b, amount: 2, year: 2026), Closed]
+true
+true
+true
+[Closed, Trade(id: b, amount: 2, year: 2026)]
+Some(Closed)
