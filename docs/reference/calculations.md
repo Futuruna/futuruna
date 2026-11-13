@@ -130,6 +130,10 @@ strings, optional strings, or omitted by a record type that does not declare the
 Role-bearing values such as `Source` attachments remain typed metadata and are
 copied into that field's source trace.
 
+When the field's type is a declared [unit](runes.md#unit), its `unit` text comes
+from the declaration's description; an authored `unit = Some(...)` for that
+field is an error. See [Unit types](#unit-types).
+
 Scale the same ordinary typed aggregate to any number of fields and attach that
 object once with the `meta` role. The calculation consumer finds field-shaped
 typed descendants recursively; other metadata consumers remain free to query
@@ -231,6 +235,27 @@ recursively reachable plain import. The contract includes stable metadata type
 and value data in its fingerprint. Definition file paths and line numbers stay
 in `runa meta --json` and do not make a portable calculation contract
 machine-dependent.
+
+### Unit types
+
+Experimental. A field, output or other type position whose type is a declared
+[unit](runes.md#unit) keeps its primitive type and gains an additive `unit`
+member naming the unit, and the contract lists the units it uses with their
+descriptions:
+
+```json
+"type": { "kind": "primitive", "name": "Int", "unit": "Ore" }
+```
+
+```json
+"units": [{ "name": "Ore", "description": "DKK øre" }]
+```
+
+Values on the wire stay JSON integers, so consumers that ignore unknown members
+read the same contract as before. The field metadata of a unit-typed field takes
+its `unit` text from the declaration (`"DKK øre"`); writing `unit = Some(...)`
+in the metadata of such a field states the unit a second time and is a check
+error.
 
 ### Inspect one input branch
 
