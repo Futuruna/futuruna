@@ -781,6 +781,7 @@ enum CatalogType {
         parameters: Vec<String>,
         variants: Vec<Variant>,
         except_from: Option<(String, Vec<String>)>,
+        field_meta: Option<Box<TypeFieldMeta>>,
     },
     RuleScope {
         parameters: Vec<Param>,
@@ -914,6 +915,17 @@ impl TypeCatalog {
         );
     }
 
+    /// The `@ field(...)` declarations of a data type.
+    fn field_meta(&self, name: &str) -> Option<&TypeFieldMeta> {
+        match self.types.get(name) {
+            Some(CatalogType::Adt {
+                field_meta: Some(field_meta),
+                ..
+            }) => Some(field_meta),
+            _ => None,
+        }
+    }
+
     fn collect_inner(
         &mut self,
         stmts: &[Stmt],
@@ -931,6 +943,7 @@ impl TypeCatalog {
                         params,
                         variants,
                         except_from,
+                        field_meta,
                         ..
                     },
                 ) => {
@@ -957,6 +970,7 @@ impl TypeCatalog {
                             parameters: params.iter().map(|param| param.name.clone()).collect(),
                             variants: variants.clone(),
                             except_from: except_from.clone(),
+                            field_meta: field_meta.clone(),
                         },
                     );
                 }
@@ -1750,8 +1764,22 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             ),
         );
     }
-    let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
+    let declared_field_meta = match resolve_declared_field_meta(
+        &catalog,
+        &metadata_labels,
+        source,
+        stmts,
+        source_dir.as_deref(),
+        checker,
+    ) {
+        Ok(declared) => declared,
+        Err(mut diagnostics) => {
+            metadata_diagnostics.append(&mut diagnostics);
+            DeclaredFieldMeta::default()
+        }
+    };
+    let mut contracts = Vec::new();
     for candidate in candidates {
         let input = ty_to_contract_ref(&candidate.input, false).expect("validated input type");
         let output = ty_to_contract_ref(&candidate.output, false).expect("validated output type");
@@ -1782,7 +1810,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             field_metadata: Vec::new(),
             schema_hash: String::new(),
         };
-        match contract_field_metadata(&meta_index, &contract) {
+        match contract_field_metadata(&meta_index, &contract, &declared_field_meta) {
             Ok(field_metadata) => contract.field_metadata = field_metadata,
             Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
         }
@@ -2534,9 +2562,41 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                     contract.entry, field.path, provider.entry
                 ))),
             }
+            // The provider runs on the value at the subject path: it must
+            // exist and have the provider's input type.
+            match contract_type_at_path(contract, &provider.subject).map(contained_value_type) {
+                Some(ty) if ty == providing.input => {}
+                Some(ty) => diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` is provided by `{}` for subject `{}` of type `{}`, but `{}` takes `{}`",
+                    contract.entry,
+                    field.path,
+                    provider.entry,
+                    provider.subject,
+                    ty.display_name(),
+                    provider.entry,
+                    providing.input.display_name()
+                ))),
+                None => diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` is provided by `{}` for subject `{}`, which is not an input path of `{}`",
+                    contract.entry, field.path, provider.entry, provider.subject, contract.entry
+                ))),
+            }
         }
     }
     diagnostics
+}
+
+/// The value inside optional, list, set and map wrappers.
+fn contained_value_type(mut ty: CalculationTypeRef) -> CalculationTypeRef {
+    loop {
+        match ty {
+            CalculationTypeRef::List { item }
+            | CalculationTypeRef::Set { item }
+            | CalculationTypeRef::Optional { item }
+            | CalculationTypeRef::Map { value: item, .. } => ty = *item,
+            other => return other,
+        }
+    }
 }
 
 /// The type of the input field at a canonical path (list, set, optional and
@@ -2584,6 +2644,7 @@ fn contract_type_at_path(contract: &CalculationContract, path: &str) -> Option<C
 fn contract_field_metadata(
     index: &MetaIndex,
     contract: &CalculationContract,
+    declared: &DeclaredFieldMeta,
 ) -> Result<Vec<CalculationFieldMetadata>, Vec<Diagnostic>> {
     let layout = contract.input_layout();
     let mut valid_paths = BTreeSet::new();
@@ -2603,6 +2664,11 @@ fn contract_field_metadata(
             .iter()
             .map(|table| table.path.clone()),
     );
+    // A required record field has no column: its members are spread into
+    // columns of their own. Metadata may still name it, for its label.
+    let group_paths = record_group_paths(contract);
+    let mut targets = valid_paths.clone();
+    targets.extend(group_paths.iter().cloned());
 
     let type_occurrence_paths = calculation_type_occurrence_paths(contract);
     let input_type_names = type_occurrence_paths
@@ -2682,6 +2748,7 @@ fn contract_field_metadata(
                     &binding,
                     value,
                     anchor,
+                    &targets,
                     &valid_paths,
                     &input_type_names,
                     &type_occurrence_paths,
@@ -2700,8 +2767,15 @@ fn contract_field_metadata(
             }
         }
     }
+    declared_field_metadata_candidates(
+        contract,
+        declared,
+        &type_occurrence_paths,
+        &targets,
+        &mut candidates_by_path,
+    );
 
-    let mut result = Vec::new();
+    let mut winners = BTreeMap::new();
     for (path, candidates) in candidates_by_path {
         let highest_specificity = candidates
             .iter()
@@ -2720,21 +2794,467 @@ fn contract_field_metadata(
                 contract.entry, path, first.metadata.binding, second.metadata.binding
             )));
         } else {
-            result.push(first.metadata);
+            winners.insert(path, first);
         }
     }
 
-    if diagnostics.is_empty() {
-        Ok(result)
-    } else {
-        Err(diagnostics)
+    if !diagnostics.is_empty() {
+        return Err(diagnostics);
     }
+    let labels = winners
+        .keys()
+        .map(|path| {
+            (
+                path.clone(),
+                composed_field_label(path, &winners, &group_paths),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    Ok(winners
+        .into_iter()
+        .filter(|(path, _)| valid_paths.contains(path))
+        .map(|(path, candidate)| CalculationFieldMetadata {
+            label: labels[&path].clone(),
+            ..candidate.metadata
+        })
+        .collect())
+}
+
+/// Precedence of field metadata for one input path, lowest first.
+const TYPE_DEFAULT_SPECIFICITY: u8 = 0;
+const MEMBER_SPECIFICITY: u8 = 1;
+const EXACT_PATH_SPECIFICITY: u8 = 2;
+
+/// The label a path's winning metadata gives it. Metadata written for a type
+/// or a type's member does not know where the type is used: when such a
+/// label sits below a record field that has a label, the record field's label
+/// comes first (`Trade date: year`). Metadata written for an exact path keeps
+/// its label as written.
+fn composed_field_label(
+    path: &str,
+    winners: &BTreeMap<String, CalculationFieldMetadataCandidate>,
+    group_paths: &BTreeSet<String>,
+) -> String {
+    let candidate = &winners[path];
+    let label = candidate.metadata.label.clone();
+    if candidate.specificity == EXACT_PATH_SPECIFICITY {
+        return label;
+    }
+    let mut ancestor = path;
+    while let Some((parent, _)) = ancestor.rsplit_once('.') {
+        ancestor = parent;
+        if group_paths.contains(parent) && winners.contains_key(parent) {
+            return format!(
+                "{}: {}",
+                composed_field_label(parent, winners, group_paths),
+                label
+            );
+        }
+    }
+    label
 }
 
 #[derive(Debug, Clone)]
 struct CalculationFieldMetadataCandidate {
     metadata: CalculationFieldMetadata,
     specificity: u8,
+}
+
+/// One resolved `@ field(...)` declaration.
+#[derive(Debug, Clone)]
+struct ResolvedFieldMeta {
+    /// The type that declares it.
+    anchor: String,
+    /// `Type` for a type default, `Type::field` or `Type::Variant::field`
+    /// for a field.
+    binding: String,
+    label: String,
+    question: Option<String>,
+    help: Option<String>,
+    unit: Option<String>,
+    sources: Vec<CalculationMetadataReference>,
+    provided_by: Option<CalculationFieldProvider>,
+}
+
+impl ResolvedFieldMeta {
+    fn metadata(&self, path: String) -> CalculationFieldMetadata {
+        CalculationFieldMetadata {
+            path,
+            label: self.label.clone(),
+            question: self.question.clone(),
+            help: self.help.clone(),
+            unit: self.unit.clone(),
+            anchor: self.anchor.clone(),
+            binding: self.binding.clone(),
+            sources: self.sources.clone(),
+            provided_by: self.provided_by.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedMemberFieldMeta {
+    variant: String,
+    field: String,
+    meta: ResolvedFieldMeta,
+}
+
+#[derive(Debug, Clone, Default)]
+struct ResolvedTypeFieldMeta {
+    type_default: Option<ResolvedFieldMeta>,
+    members: Vec<ResolvedMemberFieldMeta>,
+}
+
+/// The `@ field(...)` declarations of the types calculation inputs reach.
+#[derive(Debug, Default)]
+struct DeclaredFieldMeta {
+    types: BTreeMap<String, ResolvedTypeFieldMeta>,
+}
+
+/// Resolve the `@ field(...)` declarations of `type_names`. String literals
+/// are read directly; any other value is resolved like a metadata binding:
+/// pure ground data in the program's flat import scope.
+fn resolve_declared_field_meta(
+    catalog: &TypeCatalog,
+    type_names: &BTreeSet<String>,
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    checker: &TypeChecker,
+) -> Result<DeclaredFieldMeta, Vec<Diagnostic>> {
+    let mut declarations = Vec::new();
+    for type_name in type_names {
+        let Some(type_meta) = catalog.field_meta(type_name) else {
+            continue;
+        };
+        if let Some(default) = &type_meta.type_default {
+            declarations.push((type_name, None, type_name.clone(), default));
+        }
+        for member in &type_meta.members {
+            let binding = if &member.variant == type_name {
+                format!("{}::{}", type_name, member.field)
+            } else {
+                format!("{}::{}::{}", type_name, member.variant, member.field)
+            };
+            declarations.push((type_name, Some(member), binding, &member.meta));
+        }
+    }
+
+    let computed = declarations
+        .iter()
+        .flat_map(|(_, _, _, declaration)| declaration.entries.iter())
+        .map(|(_, value)| value)
+        .filter(|value| !matches!(value.kind, ExprKind::Lit(Literal::Str(_))))
+        .collect::<Vec<_>>();
+    let (mut computed_values, meta_role_types) = if computed.is_empty() {
+        (Vec::new().into_iter(), BTreeSet::new())
+    } else {
+        (
+            resolve_field_meta_exprs(source, stmts, source_dir, checker, &computed).into_iter(),
+            checker.implementations_for_trait("MetaRole"),
+        )
+    };
+
+    let mut declared = DeclaredFieldMeta::default();
+    let mut diagnostics = Vec::new();
+    for (type_name, member, binding, declaration) in declarations {
+        let mut values = BTreeMap::new();
+        for (key, value) in &declaration.entries {
+            let resolved = match &value.kind {
+                ExprKind::Lit(Literal::Str(text)) => Some(MetaValue::String(text.clone())),
+                _ => computed_values.next().flatten(),
+            };
+            values.insert(key.as_str(), resolved);
+        }
+        match resolved_field_meta(type_name, &binding, &values, &meta_role_types) {
+            Ok(meta) => {
+                let entry = declared.types.entry(type_name.clone()).or_default();
+                match member {
+                    None => entry.type_default = Some(meta),
+                    Some(member) => entry.members.push(ResolvedMemberFieldMeta {
+                        variant: member.variant.clone(),
+                        field: member.field.clone(),
+                        meta,
+                    }),
+                }
+            }
+            Err(diagnostic) => diagnostics.push(diagnostic),
+        }
+    }
+    if diagnostics.is_empty() {
+        Ok(declared)
+    } else {
+        Err(diagnostics)
+    }
+}
+
+fn resolve_field_meta_exprs(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    checker: &TypeChecker,
+    exprs: &[&Expr],
+) -> Vec<Option<MetaValue>> {
+    let mut bindings = BTreeMap::new();
+    collect_local_meta_bindings(source, stmts, None, &mut bindings);
+    collect_imported_meta_bindings(stmts, source_dir, &mut bindings, &mut BTreeSet::new());
+    let value_bindings = bindings
+        .iter()
+        .map(|(name, definition)| (name.clone(), &definition.expr))
+        .collect::<BTreeMap<_, _>>();
+    let mut evaluator = MetaGroundEvaluator::new(stmts, source_dir);
+    exprs
+        .iter()
+        .map(|expr| {
+            resolve_static_meta_expr(
+                expr,
+                &value_bindings,
+                &checker.constructors,
+                &mut BTreeSet::new(),
+                &mut evaluator,
+            )
+        })
+        .collect()
+}
+
+fn resolved_field_meta(
+    type_name: &str,
+    binding: &str,
+    values: &BTreeMap<&str, Option<MetaValue>>,
+    meta_role_types: &BTreeSet<String>,
+) -> Result<ResolvedFieldMeta, Diagnostic> {
+    let text = |key: &str| -> Result<Option<String>, Diagnostic> {
+        match values.get(key) {
+            None => Ok(None),
+            Some(Some(MetaValue::String(value))) => {
+                let value = value.trim();
+                Ok((!value.is_empty()).then(|| value.to_string()))
+            }
+            Some(_) => Err(Diagnostic::error(format!(
+                "`@ field` on `{}`: `{}` must be a pure ground `String`",
+                binding, key
+            ))),
+        }
+    };
+    let label = text("label")?.ok_or_else(|| {
+        Diagnostic::error(format!("`@ field` on `{}` has an empty label", binding))
+    })?;
+    let provided_by = match (text("entry")?, text("subject")?) {
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+        _ => None,
+    };
+    let sources = match values.get("sources") {
+        None => Vec::new(),
+        Some(Some(MetaValue::List(items))) => items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| declared_field_source(type_name, binding, index, item, meta_role_types))
+            .collect::<Result<Vec<_>, _>>()?,
+        Some(_) => {
+            return Err(Diagnostic::error(format!(
+                "`@ field` on `{}`: `sources` must be a pure ground list of source values such as `[Source(value = law)]`",
+                binding
+            )))
+        }
+    };
+    Ok(ResolvedFieldMeta {
+        anchor: type_name.to_string(),
+        binding: binding.to_string(),
+        label,
+        question: text("question")?,
+        help: text("help")?,
+        unit: text("unit")?,
+        sources,
+        provided_by,
+    })
+}
+
+/// One `sources` item: a value of a sum type implementing `MetaRole` whose
+/// variant names the role and whose sole `value` field is the source.
+fn declared_field_source(
+    type_name: &str,
+    binding: &str,
+    index: usize,
+    item: &MetaValue,
+    meta_role_types: &BTreeSet<String>,
+) -> Result<CalculationMetadataReference, Diagnostic> {
+    let attachment = item
+        .attachments_with_role_types(meta_role_types)
+        .into_iter()
+        .find(|attachment| attachment.attachment_path == "$")
+        .ok_or_else(|| {
+            Diagnostic::error(format!(
+                "`@ field` on `{}`: `sources` item {} must be a source value such as `Source(value = law)`, whose type implements `MetaRole` and has one named `value` field",
+                binding, index
+            ))
+        })?;
+    let attachment_path = format!("{}.sources[{}]", binding, index);
+    Ok(CalculationMetadataReference {
+        label: type_name.to_string(),
+        role: attachment.role,
+        binding: attachment
+            .binding_name
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{}.value", attachment_path)),
+        attachment_path: Some(attachment_path),
+        qualified_type: attachment.value.qualified_type().map(str::to_string),
+        value: Some(attachment.value.to_source()),
+        data: Some(calculation_meta_value_json(attachment.value)),
+        text: String::new(),
+        symbols: Vec::new(),
+    })
+}
+
+/// Candidates from `@ field(...)` declarations: a type's default at every
+/// field whose value has that type, and a field's metadata at every
+/// occurrence of its type.
+fn declared_field_metadata_candidates(
+    contract: &CalculationContract,
+    declared: &DeclaredFieldMeta,
+    type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
+    targets: &BTreeSet<String>,
+    candidates: &mut BTreeMap<String, Vec<CalculationFieldMetadataCandidate>>,
+) {
+    let mut push = |path: String, meta: &ResolvedFieldMeta, specificity: u8| {
+        candidates
+            .entry(path.clone())
+            .or_default()
+            .push(CalculationFieldMetadataCandidate {
+                metadata: meta.metadata(path),
+                specificity,
+            });
+    };
+    for (type_name, prefixes) in type_occurrence_paths {
+        let (Some(type_meta), Some(definition)) = (
+            declared.types.get(type_name),
+            contract.definition(type_name),
+        ) else {
+            continue;
+        };
+        if let Some(default) = &type_meta.type_default {
+            for prefix in prefixes.iter().filter(|prefix| !prefix.is_empty()) {
+                if let Some(path) = type_value_target(prefix, definition, targets) {
+                    push(path, default, TYPE_DEFAULT_SPECIFICITY);
+                }
+            }
+        }
+        let product = product_variant(definition).is_some();
+        for member in &type_meta.members {
+            for prefix in prefixes {
+                let base = if product {
+                    prefix.clone()
+                } else {
+                    joined_column_path(prefix, &member.variant)
+                };
+                let field_path = joined_column_path(&base, &member.field);
+                if let Some(path) = field_target(field_path, targets) {
+                    push(path, &member.meta, MEMBER_SPECIFICITY);
+                }
+            }
+        }
+    }
+}
+
+/// Where a field's metadata goes: the field's own path, or the `$variant`
+/// column of a required sum with payloads, which has no other column.
+fn field_target(path: String, targets: &BTreeSet<String>) -> Option<String> {
+    if targets.contains(&path) {
+        return Some(path);
+    }
+    let variant = format!("{}.$variant", path);
+    targets.contains(&variant).then_some(variant)
+}
+
+/// Where a type's default goes for a value of that type at `path`: the
+/// value's `$variant` column for a sum with payloads, the value's path
+/// otherwise.
+fn type_value_target(
+    path: &str,
+    definition: &CalculationTypeDefinition,
+    targets: &BTreeSet<String>,
+) -> Option<String> {
+    if is_payload_sum(definition) {
+        let variant = format!("{}.$variant", path);
+        if targets.contains(&variant) {
+            return Some(variant);
+        }
+    }
+    targets.contains(path).then(|| path.to_string())
+}
+
+/// Paths of required record fields. Such a field has no column of its own:
+/// its members are spread into columns.
+fn record_group_paths(contract: &CalculationContract) -> BTreeSet<String> {
+    let mut groups = BTreeSet::new();
+    collect_record_group_paths(
+        &contract.input,
+        contract,
+        &BTreeMap::new(),
+        "",
+        &mut BTreeSet::new(),
+        &mut groups,
+    );
+    groups
+}
+
+fn collect_record_group_paths(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    substitutions: &BTreeMap<String, CalculationTypeRef>,
+    path: &str,
+    active: &mut BTreeSet<String>,
+    groups: &mut BTreeSet<String>,
+) {
+    match substitute_contract_type(ty, substitutions) {
+        CalculationTypeRef::Optional { item }
+        | CalculationTypeRef::List { item }
+        | CalculationTypeRef::Set { item }
+        | CalculationTypeRef::Map { value: item, .. } => {
+            collect_record_group_paths(&item, contract, substitutions, path, active, groups)
+        }
+        CalculationTypeRef::Named { name, arguments } => {
+            let Some(definition) = contract.definition(&name) else {
+                return;
+            };
+            if !active.insert(name.clone()) {
+                return;
+            }
+            let local = definition_substitutions(definition, &arguments);
+            let product = product_variant(definition).is_some();
+            for variant in &definition.variants {
+                let base = if product {
+                    path.to_string()
+                } else {
+                    joined_column_path(path, &variant.name)
+                };
+                for field in &variant.fields {
+                    let field_path = joined_column_path(&base, &field.name);
+                    if let CalculationTypeRef::Named { name, .. } =
+                        substitute_contract_type(&field.ty, &local)
+                    {
+                        if contract
+                            .definition(&name)
+                            .is_some_and(|definition| product_variant(definition).is_some())
+                        {
+                            groups.insert(field_path.clone());
+                        }
+                    }
+                    collect_record_group_paths(
+                        &field.ty,
+                        contract,
+                        &local,
+                        &field_path,
+                        active,
+                        groups,
+                    );
+                }
+            }
+            active.remove(&name);
+        }
+        CalculationTypeRef::Primitive { .. }
+        | CalculationTypeRef::TypeParameter { .. }
+        | CalculationTypeRef::Unit => {}
+    }
 }
 
 fn calculation_field_values(reference: &MetaReference) -> Vec<(String, String, &MetaValue)> {
@@ -2827,6 +3347,7 @@ fn calculation_field_metadata_from_value(
     binding: &str,
     value: &MetaValue,
     anchor: &MetaAnchor,
+    targets: &BTreeSet<String>,
     valid_paths: &BTreeSet<String>,
     input_type_names: &BTreeSet<String>,
     type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
@@ -2883,6 +3404,7 @@ fn calculation_field_metadata_from_value(
             ))
         })?,
         anchor,
+        targets,
         valid_paths,
         input_type_names,
         type_occurrence_paths,
@@ -2927,16 +3449,16 @@ fn calculation_field_paths_from_value(
     binding: &str,
     value: &MetaValue,
     anchor: &MetaAnchor,
+    targets: &BTreeSet<String>,
     valid_paths: &BTreeSet<String>,
     input_type_names: &BTreeSet<String>,
     type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<(u8, Vec<String>), Diagnostic> {
     if let MetaValue::String(declared_path) = value {
-        let path = normalize_calculation_field_path(contract, declared_path, valid_paths)
-            .ok_or_else(|| {
-                unknown_calculation_field_path(contract, binding, declared_path, valid_paths)
-            })?;
-        return Ok((2, vec![path]));
+        let path = normalize_calculation_field_path(contract, declared_path, targets).ok_or_else(
+            || unknown_calculation_field_path(contract, binding, declared_path, valid_paths),
+        )?;
+        return Ok((EXACT_PATH_SPECIFICITY, vec![path]));
     }
 
     let (root_type, relative_path) = calculation_program_member_path(value).ok_or_else(|| {
@@ -2960,16 +3482,16 @@ fn calculation_field_paths_from_value(
         _ => None,
     };
     let specificity = if root_input_type == Some(root_type.as_str()) {
-        2
+        EXACT_PATH_SPECIFICITY
     } else {
-        1
+        MEMBER_SPECIFICITY
     };
     let paths = type_occurrence_paths
         .get(&root_type)
         .into_iter()
         .flat_map(|paths| paths.iter())
         .map(|prefix| joined_column_path(&prefix, &relative_path))
-        .filter_map(|path| canonical_calculation_field_path(&path, valid_paths))
+        .filter_map(|path| canonical_calculation_field_path(&path, targets))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();

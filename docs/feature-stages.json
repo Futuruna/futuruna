@@ -274,6 +274,18 @@
       ]
     },
     {
+      "id": "calculation-field-declarations",
+      "kind": "tooling",
+      "name": "Calculation field metadata on declarations (`@ field(...)`)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/reference/calculations.md",
+        "docs/reference/runes.md",
+        "docs/rfcs/field-metadata.md"
+      ]
+    },
+    {
       "id": "calculation-needs",
       "kind": "tooling",
       "name": "Partial calculation cases and needs (`runa call --partial`)",
@@ -518,6 +530,13 @@
       ]
     },
     {
+      "path": "docs/rfcs/field-metadata.md",
+      "stage": "experimental",
+      "surfaces": [
+        "calculation-field-declarations"
+      ]
+    },
+    {
       "path": "docs/rfcs/calculation-needs.md",
       "stage": "experimental",
       "surfaces": [
@@ -591,6 +610,7 @@
       "stage": "mixed",
       "surfaces": [
         "typed-calculation-contracts",
+        "calculation-field-declarations",
         "calculation-needs",
         "typescript-sdk"
       ]
@@ -601,6 +621,7 @@
       "surfaces": [
         "core-language-syntax",
         "typed-calculation-contracts",
+        "calculation-field-declarations",
         "rust-escape-hatches",
         "exploratory-audit-tooling"
       ]

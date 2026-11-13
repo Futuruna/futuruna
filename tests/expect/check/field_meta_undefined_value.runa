@@ -1,0 +1,13 @@
+-- Values are ordinary expressions whose names must resolve.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: missing_help
+
+# Input(
+    @ field(label = "Income", help = missing_help)
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

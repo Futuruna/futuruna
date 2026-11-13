@@ -1,0 +1,31 @@
+-- Field metadata on declarations: on fields, on a type, through a
+-- labelled record field, with sources and a providing entry.
+-- expect-command: check
+
+# SourceInfo(url: String)
+# FieldRole(a) = Source(value: a)
+# impl MetaRole for FieldRole {}
+= law = SourceInfo(url = "https://example.invalid/law")
+
+# Date(@ field(label = "year") year: Int, @ field(label = "month") month: Int, @ field(label = "day") day: Int)
+
+@ field(label = "Filing status", help = "Single or Married at the end of the year.")
+# Status = Single | Married
+
+# Spouse(@ field(label = "Income", unit = "DKK øre") income: Int)
+
+# Household(
+    @ field(label = "Moved in", sources = [Source(value = law)])
+    moved_in: Date,
+    status: Status,
+    spouse: Spouse,
+    @ field(label = "Spouse's income", unit = "DKK øre", entry = "spouse_income", subject = "spouse")
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

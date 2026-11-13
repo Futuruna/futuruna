@@ -1,0 +1,13 @@
+-- A provided field names the providing entry and the subject it runs for.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field` gives `entry` and `subject` together
+
+# Input(
+    @ field(label = "Income", entry = "income")
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

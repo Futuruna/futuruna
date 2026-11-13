@@ -1,0 +1,11 @@
+-- A positional field has no name for metadata to describe.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: a positional field has no name to describe
+
+# Amount = Kroner(@ field(label = "Kroner") Int) | Unknown
+# Input(amount: Amount)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = 0)

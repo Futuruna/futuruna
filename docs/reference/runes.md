@@ -3,6 +3,7 @@ feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
   - typed-calculation-contracts
+  - calculation-field-declarations
   - rust-escape-hatches
   - exploratory-audit-tooling
 ---
@@ -623,6 +624,24 @@ Marks one typed rule or function as a discoverable calculation boundary for
 an effect or change rule semantics. Its optional single string labels the whole
 calculation; nested input labels and questions remain field metadata. See
 [calculations.md](calculations.md).
+
+### Field (calculation field metadata)
+```runa
+@ field(label = "Filing status")
+# FilingStatus = Single | Joint
+
+# TaxInput(
+    @ field(label = "Monthly income", question = "What do you earn before tax each month?", unit = "DKK")
+    monthly_income: Int,
+    status: FilingStatus
+)
+```
+
+Gives a calculation input field its label, question, help, unit, sources and
+providing entry. Before a named field it describes that field wherever its type
+is used; before a `#` data type it describes every input field of that type.
+It does not change the type. See
+[calculations.md](calculations.md#describe-human-input).
 
 ### Comptime (compile-time evaluation)
 ```runa

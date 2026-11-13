@@ -1,0 +1,13 @@
+-- Two declarations on one type conflict at the same precedence.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: a type takes one `@ field(...)`; write all its keys in that one declaration
+
+@ field(label = "Filing status")
+@ field(label = "Status")
+# Status = Single | Married
+# Input(status: Status)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = 0)

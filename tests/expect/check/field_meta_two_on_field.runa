@@ -1,0 +1,14 @@
+-- Two declarations on one field conflict at the same precedence.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: a field takes one `@ field(...)`; write all its keys in that one declaration
+
+# Input(
+    @ field(label = "Income")
+    @ field(label = "Gross income")
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

@@ -1,0 +1,11 @@
+-- Type parameters are not fields.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(...)` describes a named field `name: Type`; `a` has no type
+
+# Box(@ field(label = "Content") a) = Full(value: a) | Empty
+# Input(box: Box(Int))
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = 0)

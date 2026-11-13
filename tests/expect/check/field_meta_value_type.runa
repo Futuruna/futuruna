@@ -1,0 +1,13 @@
+-- Text keys take a `String`, not an optional or a number.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field` key `help` must be a `String`, got `Option(String)`
+
+# Input(
+    @ field(label = "Income", help = Some("Before tax."))
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

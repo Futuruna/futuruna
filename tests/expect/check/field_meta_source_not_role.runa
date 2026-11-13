@@ -1,0 +1,16 @@
+-- A source is a role value, such as `Source(value = law)`.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field` on `Input::income`: `sources` item 0 must be a source value such as `Source(value = law)`
+
+# SourceInfo(url: String)
+= law = SourceInfo(url = "https://example.invalid/law")
+
+# Input(
+    @ field(label = "Income", sources = [law])
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)
