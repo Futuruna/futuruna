@@ -13,6 +13,9 @@ use std::cell::Cell;
 /// The input paths an unknown value depends on.
 pub type UnknownPaths = Rc<BTreeSet<String>>;
 
+/// The rule families evaluating when a path was first read, innermost last.
+pub(crate) type WaitingRules = Rc<[String]>;
+
 /// Evaluation steps a case may spend on speculation: everything evaluated
 /// only because a condition is unknown.
 pub(crate) const SPECULATION_STEP_BUDGET: usize = 100_000;
@@ -77,8 +80,9 @@ pub(crate) struct PartialState {
     /// Rules and named functions being evaluated, innermost last; `true`
     /// marks a rule family.
     pub(crate) call_stack: Vec<(String, bool)>,
-    /// The rule family that first read each unknown path.
-    pub(crate) waiting: BTreeMap<String, String>,
+    /// The rule families active when each unknown path was first read,
+    /// innermost last (the entry when no rule was).
+    pub(crate) waiting: BTreeMap<String, WaitingRules>,
     /// Paths whose unknown value fed an operation that can fail.
     pub(crate) fallible: BTreeSet<String>,
     /// Input records, variants and optionals by allocation, with their paths.
@@ -267,17 +271,25 @@ impl PartialState {
         };
     }
 
-    fn waiting_rule(&self) -> String {
-        self.call_stack
+    fn waiting_rules(&self) -> WaitingRules {
+        let rules: Vec<String> = self
+            .call_stack
             .iter()
-            .rev()
-            .find(|(_, is_rule)| *is_rule)
+            .filter(|(_, is_rule)| *is_rule)
             .map(|(name, _)| name.clone())
-            .unwrap_or_else(|| self.entry.clone())
+            .collect();
+        if rules.is_empty() {
+            Rc::from(vec![self.entry.clone()])
+        } else {
+            Rc::from(rules)
+        }
     }
 
     pub(crate) fn record_waiting(&mut self, paths: &BTreeSet<String>) {
-        let rule = self.waiting_rule();
+        if paths.iter().all(|path| self.waiting.contains_key(path)) {
+            return;
+        }
+        let rule = self.waiting_rules();
         for path in paths {
             self.waiting
                 .entry(path.clone())
@@ -690,7 +702,7 @@ pub(crate) enum PartialOutcome {
     },
     Needs {
         paths: BTreeSet<String>,
-        waiting: BTreeMap<String, String>,
+        waiting: BTreeMap<String, WaitingRules>,
     },
 }
 
@@ -720,7 +732,7 @@ impl Interpreter {
     }
 
     /// The waiting rules recorded so far (for a strict stop).
-    pub(crate) fn partial_waiting(&self) -> BTreeMap<String, String> {
+    pub(crate) fn partial_waiting(&self) -> BTreeMap<String, WaitingRules> {
         self.partial.borrow().waiting.clone()
     }
 }

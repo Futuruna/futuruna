@@ -609,7 +609,9 @@ Each case's `result` is one of:
 `unused_paths` lists the provided input paths evaluation never read. A
 need's `path` is concrete, with list indices; its `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
-without indices, and `waiting_rule` names the rule that first read it. The
+without indices, and `waiting_rule` names the rule that first read it: the
+innermost rule of a law section on the stack when there is one, with its
+`section` and cited `paragraphs`, else the innermost rule. The
 output envelope's schema is `futuruna.calculate.partial-output.v1`, and
 `runa schema --format partial-result` prints the JSON Schema of `result`.
 

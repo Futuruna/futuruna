@@ -1633,8 +1633,15 @@ type NeedMetadata = {
   help?: string | undefined;
   unit?: string | undefined;
   sources?: SourceReference[] | undefined;
-  /** The innermost rule family evaluating when the path was first read. */
+  /**
+   * The innermost rule family of a law section evaluating when the path was
+   * first read; without one, the innermost rule family (or the entry).
+   */
   waiting_rule: string;
+  /** The law section (anchor label) of `waiting_rule`. */
+  section?: string | undefined;
+  /** The paragraphs `waiting_rule` cites, as `§ 16`. */
+  paragraphs?: string[] | undefined;
 };
 
 /** A fact the client answers, at `path`. */
@@ -1666,6 +1673,8 @@ export function needSchema<P extends string>(path: z.ZodType<P>): z.ZodType<Need
     unit: z.string().optional(),
     sources: z.array(SourceReferenceSchema).optional(),
     waiting_rule: z.string(),
+    section: z.string().optional(),
+    paragraphs: z.array(z.string()).optional(),
   };
   return z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("fact"), path, ...metadata }).strict(),

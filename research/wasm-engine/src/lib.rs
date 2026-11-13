@@ -100,6 +100,7 @@ impl Model {
             .into_iter()
             .map(|contract| {
                 PreparedCalculation::new(contract, statements.clone(), source_dir.clone())
+                    .with_root_file(root.join(main))
             })
             .collect();
         Ok(Model {

@@ -2151,6 +2151,10 @@ fn run_calculation_command(
                 contract.clone(),
                 stmts.expect("calculation calls parse source").into(),
                 source_dir,
+            )
+            .with_root_file(
+                std::fs::canonicalize(filename)
+                    .unwrap_or_else(|_| std::path::PathBuf::from(filename)),
             );
             let explain_options = explain.map(|full| calculate::ExplainOptions {
                 full,

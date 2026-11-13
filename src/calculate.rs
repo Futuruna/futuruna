@@ -512,8 +512,15 @@ pub struct CalculationNeed {
     pub unit: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<CalculationMetadataReference>,
-    /// The innermost rule family evaluating when the path was first read.
+    /// The innermost rule family of a law section evaluating when the path
+    /// was first read; without one, the innermost rule family (or the entry).
     pub waiting_rule: String,
+    /// The law section (anchor label) of `waiting_rule`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// The paragraphs `waiting_rule` cites (`--@cite`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paragraphs: Vec<String>,
 }
 
 enum InputPathToken<'a> {
@@ -640,6 +647,8 @@ impl CalculationContract {
                 .map(|metadata| metadata.sources.clone())
                 .unwrap_or_default(),
             waiting_rule,
+            section: None,
+            paragraphs: Vec::new(),
         }
     }
 }
@@ -4933,17 +4942,25 @@ struct CalculationProgram {
     entry: String,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    /// The program's root file, where rules without a recorded file are.
+    root_file: Option<PathBuf>,
     rule_dispatch: Arc<RuleDispatchMetadata>,
 }
 
 impl CalculationProgram {
-    fn new(entry: &str, stmts: Arc<[Stmt]>, source_dir: Option<String>) -> Self {
+    fn new(
+        entry: &str,
+        stmts: Arc<[Stmt]>,
+        source_dir: Option<String>,
+        root_file: Option<PathBuf>,
+    ) -> Self {
         let (return_types, return_issues, runtime_boolean_miss_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
         Self {
             entry: entry.to_string(),
             stmts,
             source_dir,
+            root_file,
             rule_dispatch: Arc::new(RuleDispatchMetadata {
                 return_types,
                 return_issues,
@@ -4965,6 +4982,8 @@ struct CalculationWorker {
     partial: Option<partial::PartialMode>,
     /// Set for explained cases (`runa call --explain`).
     explain: Option<explain::ExplainRenderer>,
+    /// The law sections of rule families, for needs.
+    sections: Option<explain::ExplainRenderer>,
 }
 
 impl CalculationWorker {
@@ -5003,6 +5022,7 @@ impl CalculationWorker {
             needs_reinitialization: false,
             partial: None,
             explain: None,
+            sections: None,
         }
     }
 
@@ -5191,18 +5211,46 @@ impl CalculationWorker {
                     Err(error) => return diagnostic(error.path, error.message),
                 }
             }
-            partial::PartialOutcome::Needs { paths, waiting } => CalculationPartialResult::Needs {
-                needs: paths
-                    .into_iter()
-                    .map(|path| {
-                        let rule = waiting
-                            .get(&path)
-                            .cloned()
-                            .unwrap_or_else(|| contract.entry.clone());
-                        contract.need_for_path(&case.input, path, rule)
+            partial::PartialOutcome::Needs { paths, waiting } => {
+                let sections = self.sections.get_or_insert_with(|| {
+                    explain::ExplainRenderer::new(ExplainOptions {
+                        full: false,
+                        root_file: self.program.root_file.clone(),
+                        display_root: None,
                     })
-                    .collect(),
-            },
+                });
+                CalculationPartialResult::Needs {
+                    needs: paths
+                        .into_iter()
+                        .map(|path| {
+                            let rules = waiting.get(&path);
+                            // The innermost rule of a law section, else the
+                            // innermost rule (or the entry).
+                            let sectioned = rules.and_then(|rules| {
+                                rules.iter().rev().find_map(|rule| {
+                                    sections
+                                        .family_section(&self.interpreter, rule)
+                                        .map(|section| (rule.clone(), section))
+                                })
+                            });
+                            match sectioned {
+                                Some((rule, (section, paragraphs))) => {
+                                    let mut need = contract.need_for_path(&case.input, path, rule);
+                                    need.section = Some(section);
+                                    need.paragraphs = paragraphs;
+                                    need
+                                }
+                                None => {
+                                    let rule = rules
+                                        .and_then(|rules| rules.last().cloned())
+                                        .unwrap_or_else(|| contract.entry.clone());
+                                    contract.need_for_path(&case.input, path, rule)
+                                }
+                            }
+                        })
+                        .collect(),
+                }
+            }
         };
         CalculationCaseOutcome::Result(CalculationResultCase {
             case_id: case.case_id.clone(),
@@ -5317,6 +5365,7 @@ pub struct PreparedCalculation {
     contract: CalculationContract,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    root_file: Option<PathBuf>,
     worker: Option<CalculationWorker>,
 }
 
@@ -5333,8 +5382,16 @@ impl PreparedCalculation {
             contract,
             stmts,
             source_dir,
+            root_file: None,
             worker: None,
         }
+    }
+
+    /// Name the program's root file, so needs can name the law section of a
+    /// rule declared in it. Rules from imported files are found without it.
+    pub fn with_root_file(mut self, root_file: PathBuf) -> Self {
+        self.root_file = Some(root_file);
+        self
     }
 
     pub fn contract(&self) -> &CalculationContract {
@@ -5404,6 +5461,7 @@ impl PreparedCalculation {
             contract,
             stmts,
             source_dir,
+            root_file,
             worker,
         } = self;
         let contract = &*contract;
@@ -5462,6 +5520,7 @@ impl PreparedCalculation {
                 &contract.entry,
                 stmts.clone(),
                 source_dir.clone(),
+                root_file.clone(),
             ))
         });
         primary.partial = partial;
@@ -5865,7 +5924,9 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
                                 "help": string,
                                 "unit": string,
                                 "sources": { "type": "array", "items": { "type": "object" } },
-                                "waiting_rule": string
+                                "waiting_rule": string,
+                                "section": { "type": "string", "description": "The law section (anchor label) of `waiting_rule`." },
+                                "paragraphs": { "type": "array", "items": string, "description": "The paragraphs `waiting_rule` cites." }
                             }
                         }
                     }
@@ -7045,6 +7106,7 @@ mod calculation_execution_tests {
         let worker = CalculationWorker::new(CalculationProgram::new(
             "calculate_scenario",
             stmts.into(),
+            None,
             None,
         ));
 

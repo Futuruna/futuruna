@@ -214,8 +214,16 @@ variants.
   `taxpayer.spouse.cohabiting_at_year_end` has its own entry); each is omitted
   when the metadata does not give it. `sources` are the contract's source
   references, unchanged;
-- `waiting_rule`: the innermost rule family evaluating when the path was first
-  read; the calculation entry when the value reached the output unread;
+- `waiting_rule`: of the rule families evaluating when the path was first
+  read, the innermost one whose first clause sits in a law section (between
+  `--@begin:<section>--` and `--@end:<section>--`); without such a family the
+  innermost rule family, and the calculation entry when the value reached the
+  output unread. A validation helper or the entry itself tells a reader
+  little; the rule of the law the fact matters to does;
+- `section`, `paragraphs`: the law section of `waiting_rule` and the
+  paragraphs its first clause cites (`--@cite`, see
+  [Explanations](explanations.md)); omitted when `waiting_rule` is not in a
+  section or cites nothing;
 - `entry`, `subject` (entry needs only): the calculation entry that provides
   the value, and the input path of the subject it runs for.
 

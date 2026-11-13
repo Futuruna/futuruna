@@ -370,6 +370,7 @@ struct FileIndex {
 pub(super) struct ExplainRenderer {
     options: ExplainOptions,
     files: HashMap<String, Option<Rc<FileIndex>>>,
+    family_sections: HashMap<String, Option<(String, Vec<String>)>>,
 }
 
 impl ExplainRenderer {
@@ -377,6 +378,7 @@ impl ExplainRenderer {
         Self {
             options,
             files: HashMap::new(),
+            family_sections: HashMap::new(),
         }
     }
 
@@ -557,6 +559,64 @@ impl ExplainRenderer {
             .clone();
         let section = index.sections.get(&label)?.clone();
         Some((label, section))
+    }
+
+    /// The law section of the rule family `name` and the paragraphs its first
+    /// clause cites, when the family's first clause sits in a section.
+    pub(super) fn family_section(
+        &mut self,
+        interpreter: &Interpreter,
+        name: &str,
+    ) -> Option<(String, Vec<String>)> {
+        if let Some(cached) = self.family_sections.get(name) {
+            return cached.clone();
+        }
+        let found = self.find_family_section(interpreter, name);
+        self.family_sections.insert(name.to_string(), found.clone());
+        found
+    }
+
+    fn find_family_section(
+        &mut self,
+        interpreter: &Interpreter,
+        name: &str,
+    ) -> Option<(String, Vec<String>)> {
+        let rule = interpreter
+            .registered_rules()
+            .into_iter()
+            .find(|(rule_name, _)| rule_name == name)?
+            .1;
+        let file = interpreter
+            .rule_source_file(&rule)
+            .map(|file| file.to_string())
+            .or_else(|| {
+                self.options
+                    .root_file
+                    .as_ref()
+                    .map(|file| file.to_string_lossy().into_owned())
+            })?;
+        let index = self.file(&file)?;
+        let (line, _) = char_offset_to_line_col(&index.source, rule.head()?.span.start);
+        let label = index
+            .spans
+            .iter()
+            .filter(|(_, start, end)| *start <= line && line <= *end)
+            .max_by_key(|(_, start, _)| *start)?
+            .0
+            .clone();
+        let paragraphs = index
+            .citations
+            .by_clause_line
+            .get(&line)
+            .map(|citation| {
+                citation
+                    .paragraphs
+                    .iter()
+                    .map(|paragraph| paragraph.paragraph.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        Some((label, paragraphs))
     }
 
     /// The explanation of one case's result.
