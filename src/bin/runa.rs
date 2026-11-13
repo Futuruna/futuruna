@@ -2245,16 +2245,19 @@ fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> Stri
     }
 }
 
-/// `runa sdk ts FILE --out DIR`: write the TypeScript SDK for every
-/// calculation entry of FILE.
+/// `runa sdk ts FILE --out DIR [--runtime PATH]`: write the TypeScript SDK
+/// for every calculation entry of FILE, and the runtime it imports at PATH
+/// (relative to DIR; `runtime.ts` unless given).
 fn run_sdk_command(args: &[String]) {
-    const USAGE: &str = "usage: runa sdk ts <file.calculate.runa> --out <dir>";
+    const USAGE: &str =
+        "usage: runa sdk ts <file.calculate.runa> --out <dir> [--runtime <path relative to dir>]";
     let fail = |message: &str| -> ! {
         eprintln!("error: {message}\n{USAGE}");
         std::process::exit(1);
     };
     let mut positional = Vec::new();
     let mut out_dir = None;
+    let mut runtime = None;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -2267,6 +2270,13 @@ fn run_sdk_command(args: &[String]) {
                 _ => fail("--out requires a directory"),
             },
             arg if arg.starts_with("--out=") => out_dir = Some(arg["--out=".len()..].to_string()),
+            "--runtime" => match rest.next() {
+                Some(path) if !path.starts_with('-') => runtime = Some(path.clone()),
+                _ => fail("--runtime requires a path"),
+            },
+            arg if arg.starts_with("--runtime=") => {
+                runtime = Some(arg["--runtime=".len()..].to_string())
+            }
             arg if arg.starts_with('-') => fail(&format!("unknown option `{arg}`")),
             arg => positional.push(arg),
         }
@@ -2294,18 +2304,23 @@ fn run_sdk_command(args: &[String]) {
     let stmts = prepend_prelude(parse_prelude(), &user_stmts);
     let contracts = run_calculation_type_check(&stmts, &source, filename)
         .unwrap_or_else(|| std::process::exit(1));
-    let files =
-        calculate::sdk_ts::generate_typescript_sdk(&contracts, filename).unwrap_or_else(|error| {
+    let runtime = runtime
+        .as_deref()
+        .unwrap_or(calculate::sdk_ts::DEFAULT_RUNTIME_PATH);
+    let files = calculate::sdk_ts::generate_typescript_sdk(&contracts, filename, runtime)
+        .unwrap_or_else(|error| {
             eprintln!("error: {error}");
             std::process::exit(1);
         });
     let out_dir = Path::new(&out_dir);
-    if let Err(error) = std::fs::create_dir_all(out_dir) {
-        eprintln!("error: cannot create {}: {error}", out_dir.display());
-        std::process::exit(1);
-    }
     for file in &files {
-        let path = out_dir.join(file.name);
+        let path = out_dir.join(&file.name);
+        if let Some(parent) = path.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                eprintln!("error: cannot create {}: {error}", parent.display());
+                std::process::exit(1);
+            }
+        }
         if let Err(error) = write_file_if_changed(&path, file.contents.as_bytes()) {
             eprintln!("error: cannot write {}: {error}", path.display());
             std::process::exit(1);
@@ -2315,7 +2330,7 @@ fn run_sdk_command(args: &[String]) {
         "wrote {} for {} to {}",
         files
             .iter()
-            .map(|file| file.name)
+            .map(|file| file.name.as_str())
             .collect::<Vec<_>>()
             .join(", "),
         calculation_entry_names(&contracts),
