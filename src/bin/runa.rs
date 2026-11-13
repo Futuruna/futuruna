@@ -5611,11 +5611,7 @@ fn run_calculation_type_check(
 /// Replace checked statements with the ones the program runs: shared
 /// constructors under their internal names, `Type.Constructor` resolved.
 fn adopt_runtime_statements(stmts: &mut Vec<Stmt>, artifacts: &TypeCheckArtifacts) {
-    if let Some(root) = artifacts
-        .constructor_elaboration
-        .as_deref()
-        .and_then(ConstructorElaboration::root_statements)
-    {
+    if let Some(root) = artifacts.runtime_statements() {
         *stmts = root.to_vec();
     }
 }
@@ -5632,9 +5628,6 @@ fn backend_type_check_artifacts(
     type_check_artifacts_with_backend_metadata(stmts, source, filename, true)
 }
 
-/// Check a root program. Its imports are read as written, then a successful
-/// check installs its constructor elaboration for every consumer that runs
-/// the program in this process.
 fn type_check_artifacts_with_backend_metadata(
     stmts: &[Stmt],
     source: &str,
@@ -5642,21 +5635,14 @@ fn type_check_artifacts_with_backend_metadata(
     collect_backend_metadata: bool,
 ) -> TypeCheckArtifacts {
     let source_dir = source_dir_for(filename);
-    clear_constructor_elaboration();
     let mut artifacts = if collect_backend_metadata {
         TypeChecker::check_with_backend_artifacts(stmts, source_dir.clone(), source)
     } else {
         TypeChecker::check_with_artifacts(stmts, source_dir.clone(), source)
     };
     if artifacts.diagnostics.is_empty() {
-        let elaboration = artifacts.constructor_elaboration.clone();
-        if let Some(elaboration) = &elaboration {
-            elaboration.install();
-        }
-        let runtime = elaboration
-            .as_deref()
-            .and_then(ConstructorElaboration::root_statements)
-            .unwrap_or(stmts);
+        let runtime = artifacts.runtime_statements().map(<[Stmt]>::to_vec);
+        let runtime = runtime.as_deref().unwrap_or(stmts);
         artifacts
             .diagnostics
             .extend(compiler_validation_diagnostics(runtime, source_dir));
@@ -19109,11 +19095,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         std::process::exit(1);
     }
     // The prelude precedes the authored statements, which the solver reads.
-    if let Some(root) = checked
-        .constructor_elaboration
-        .as_deref()
-        .and_then(ConstructorElaboration::root_statements)
-    {
+    if let Some(root) = checked.runtime_statements() {
         stmts = root[root.len() - stmts.len()..].to_vec();
     }
     drop(checked_stmts);

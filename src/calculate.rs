@@ -3721,7 +3721,10 @@ fn decode_value(
                         bindings: Rc::new(fields.into_iter().collect()),
                     }
                 } else {
-                    Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
+                    Value::NamedConstructor(
+                        runtime_variant_name(definition, variant),
+                        fields.into(),
+                    )
                 };
                 Ok(partial_container(partial, decoded, path))
             } else {
@@ -4234,7 +4237,10 @@ fn encode_variant(
                     ));
                 }
                 let mut object = JsonMap::new();
-                object.insert("$variant".to_string(), JsonValue::String(variant.name.clone()));
+                object.insert(
+                    "$variant".to_string(),
+                    JsonValue::String(variant.name.clone()),
+                );
                 object.insert(
                     "$values".to_string(),
                     JsonValue::Array(
@@ -4257,7 +4263,10 @@ fn encode_variant(
                 Ok(JsonValue::Object(object))
             } else if values.is_empty() && variant.fields.is_empty() {
                 let mut object = JsonMap::new();
-                object.insert("$variant".to_string(), JsonValue::String(variant.name.clone()));
+                object.insert(
+                    "$variant".to_string(),
+                    JsonValue::String(variant.name.clone()),
+                );
                 Ok(JsonValue::Object(object))
             } else {
                 Err(runtime_type_error(path, &definition.name, value))
@@ -4267,7 +4276,9 @@ fn encode_variant(
             let variant = definition
                 .variants
                 .iter()
-                .find(|variant| variant.name == constructor_display_name(name) && !variant.positional)
+                .find(|variant| {
+                    variant.name == constructor_display_name(name) && !variant.positional
+                })
                 .ok_or_else(|| runtime_type_error(path, &definition.name, value))?;
             encode_named_fields(fields, variant, contract, substitutions, path, true)
         }

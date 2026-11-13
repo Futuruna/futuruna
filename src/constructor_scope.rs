@@ -32,6 +32,15 @@ pub fn split_qualified_constructor(name: &str) -> Option<(&str, &str)> {
     (upper(owner) && upper(constructor)).then_some((owner, constructor))
 }
 
+/// The type whose constructor a subset variant `A.X` reuses. A bare nullary
+/// variant the parser marks as a possible type inclusion is not one.
+pub(crate) fn variant_subset_source(variant: &Variant) -> Option<&str> {
+    variant
+        .from_type
+        .as_deref()
+        .filter(|source| *source != "__maybe_include")
+}
+
 /// The constructor a pattern name refers to, without its owner.
 pub fn bare_constructor_name(name: &str) -> &str {
     split_qualified_constructor(name).map_or(name, |(_, constructor)| constructor)
@@ -69,6 +78,29 @@ pub fn constructor_display_name(name: &str) -> Cow<'_, str> {
     }
 }
 
+/// `text` with every internal constructor name that stands as a whole
+/// identifier replaced by its declared name, for solver models and other
+/// rendered terms.
+pub fn constructor_display_text(text: &str) -> Cow<'_, str> {
+    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
+        return Cow::Borrowed(text);
+    }
+    let registry = registry();
+    let identifier = |c: char| c.is_alphanumeric() || c == '_';
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find(identifier) {
+        out.push_str(&rest[..start]);
+        let word = &rest[start..];
+        let end = word.find(|c: char| !identifier(c)).unwrap_or(word.len());
+        let token = &word[..end];
+        out.push_str(registry.display.get(token).map_or(token, String::as_str));
+        rest = &word[end..];
+    }
+    out.push_str(rest);
+    Cow::Owned(out)
+}
+
 /// The runtime name of `owner`'s constructor `constructor`.
 pub fn constructor_runtime_name<'a>(owner: &str, constructor: &'a str) -> Cow<'a, str> {
     if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
@@ -97,6 +129,27 @@ pub(crate) fn elaborated_source_module(
         .get(path)
         .filter(|module| module.content_hash() == content_hash)
         .cloned()
+}
+
+/// Start checking a root program. An installed elaboration stays when the
+/// program is an elaborated one (it names an internal constructor, so its
+/// imports must be read elaborated too); any other program is checked with its
+/// imports as written.
+pub(crate) fn begin_root_check(statements: &[Stmt]) {
+    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
+        return;
+    }
+    let elaborated = {
+        let registry = registry();
+        let text = format!("{statements:?}");
+        registry
+            .display
+            .keys()
+            .any(|internal| text.contains(&format!("\"{internal}\"")))
+    };
+    if !elaborated {
+        clear_constructor_elaboration();
+    }
 }
 
 /// Forget an installed elaboration. Checking a new root program starts here,
@@ -211,10 +264,7 @@ enum Unexpected {
     /// An element of a list literal with no element type.
     List,
     /// An argument of a rule whose clauses type the parameter differently.
-    RuleFamily {
-        rule: String,
-        types: Vec<String>,
-    },
+    RuleFamily { rule: String, types: Vec<String> },
 }
 
 #[derive(Debug, Clone)]
@@ -352,14 +402,22 @@ impl TypeChecker {
     }
 
     /// `X.C` where `X` is both a qualified import and a type declaring `C`.
-    pub(crate) fn ambiguous_type_qualifier(&self, base: &Expr, constructor: &str) -> Option<String> {
+    pub(crate) fn ambiguous_type_qualifier(
+        &self,
+        base: &Expr,
+        constructor: &str,
+    ) -> Option<String> {
         let ExprKind::Var(owner) = &base.kind else {
             return None;
         };
         let declares = self
             .constructor_signatures
             .get(constructor)
-            .is_some_and(|signatures| signatures.iter().any(|signature| &signature.parent == owner));
+            .is_some_and(|signatures| {
+                signatures
+                    .iter()
+                    .any(|signature| &signature.parent == owner)
+            });
         (self.module_exports.contains_key(owner) && self.types.contains(owner) && declares).then(
             || {
                 format!(
@@ -478,11 +536,9 @@ impl TypeChecker {
         let mut pending = root
             .iter()
             .filter_map(|statement| match statement {
-                Stmt::Import(path) | Stmt::HashImport(_, path) => Some((
-                    path.clone(),
-                    root_dir.clone(),
-                    self.import_path_span(path),
-                )),
+                Stmt::Import(path) | Stmt::HashImport(_, path) => {
+                    Some((path.clone(), root_dir.clone(), self.import_path_span(path)))
+                }
                 _ => None,
             })
             .collect::<VecDeque<_>>();
@@ -538,8 +594,12 @@ impl TypeChecker {
             let previous_source =
                 std::mem::replace(&mut self.source_text, module.source().to_string());
             let start = self.diagnostics.len();
-            let (statements, rewrites) =
-                self.elaborate_constructor_statements(module.statements(), &shared, &functions, &rules);
+            let (statements, rewrites) = self.elaborate_constructor_statements(
+                module.statements(),
+                &shared,
+                &functions,
+                &rules,
+            );
             self.locate_import_diagnostics(start, &path, Arc::from(module.source()), anchor);
             self.source_text = previous_source;
             if rewrites > 0 {
@@ -669,7 +729,9 @@ impl TypeChecker {
                 if !seen.insert(field.to_string()) {
                     errors.push((
                         argument.span,
-                        format!("constructor `{label}` field `{field}` was provided more than once"),
+                        format!(
+                            "constructor `{label}` field `{field}` was provided more than once"
+                        ),
                     ));
                 }
             }
@@ -733,7 +795,8 @@ impl ConstructorScopeWalk<'_> {
     }
 
     fn normalize(ty: &Ty) -> Ty {
-        parse_type_annotation(&TypeChecker::canonical_explore_ty_name(ty)).unwrap_or_else(|_| ty.clone())
+        parse_type_annotation(&TypeChecker::canonical_explore_ty_name(ty))
+            .unwrap_or_else(|_| ty.clone())
     }
 
     fn type_string(ty: &Ty) -> String {
@@ -796,9 +859,9 @@ impl ConstructorScopeWalk<'_> {
             Unexpected::Binding(name) => {
                 format!("{base}; write {choices}, or give `{name}` a type")
             }
-            Unexpected::Equality(op) => format!(
-                "{base}; neither side of `{op}` has a known type, so write {choices}"
-            ),
+            Unexpected::Equality(op) => {
+                format!("{base}; neither side of `{op}` has a known type, so write {choices}")
+            }
             Unexpected::Generic(callee) => {
                 format!("{base}; `{callee}` accepts a value of any type, so write {choices}")
             }
@@ -887,7 +950,8 @@ impl ConstructorScopeWalk<'_> {
     ) -> Vec<Option<Ty>> {
         let subject = match expect.ty() {
             Some(expected)
-                if TypeChecker::canonical_nominal_owner(&Self::type_string(expected)).as_deref()
+                if TypeChecker::canonical_nominal_owner(&Self::type_string(expected))
+                    .as_deref()
                     == Some(owner) =>
             {
                 Self::type_string(expected)
@@ -900,7 +964,9 @@ impl ConstructorScopeWalk<'_> {
             .map(|field| {
                 let field = parse_type_annotation(field.as_deref()?).ok()?;
                 let ty = parse_type_annotation(
-                    &self.checker.canonical_instantiate_nominal_type(&subject, &field),
+                    &self
+                        .checker
+                        .canonical_instantiate_nominal_type(&subject, &field),
                 )
                 .ok()?;
                 (!Self::is_unknown(&ty)).then_some(ty)
@@ -908,7 +974,12 @@ impl ConstructorScopeWalk<'_> {
             .collect()
     }
 
-    fn statements(&mut self, statements: &mut [Stmt], locals: &mut Locals, result: Option<&Expect>) {
+    fn statements(
+        &mut self,
+        statements: &mut [Stmt],
+        locals: &mut Locals,
+        result: Option<&Expect>,
+    ) {
         let last = statements.len().saturating_sub(1);
         for (index, statement) in statements.iter_mut().enumerate() {
             let expect = (index == last).then_some(result).flatten();
@@ -990,7 +1061,10 @@ impl ConstructorScopeWalk<'_> {
             }
             Stmt::StreamBind(name, value) => {
                 self.expr(value, &Expect::none(), locals);
-                locals.insert(name.clone(), CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string());
+                locals.insert(
+                    name.clone(),
+                    CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
+                );
             }
             Stmt::StreamSub(stream, arms) => {
                 self.expr(stream, &Expect::none(), locals);
@@ -1064,7 +1138,12 @@ impl ConstructorScopeWalk<'_> {
                 .ty
                 .as_ref()
                 .map(Self::type_string)
-                .or_else(|| (index == 0).then_some(receiver).flatten().map(str::to_string))
+                .or_else(|| {
+                    (index == 0)
+                        .then_some(receiver)
+                        .flatten()
+                        .map(str::to_string)
+                })
                 .unwrap_or_else(|| CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string());
             inner.insert(param.name.clone(), ty);
         }
@@ -1134,7 +1213,7 @@ impl ConstructorScopeWalk<'_> {
             } => {
                 let owner = name.clone();
                 for variant in variants.iter_mut() {
-                    let source = variant.from_type.clone().unwrap_or_else(|| owner.clone());
+                    let source = variant_subset_source(variant).unwrap_or(&owner).to_string();
                     let renamed = self.rename(&source, &variant.name);
                     if renamed != variant.name {
                         variant.name = renamed;
@@ -1163,7 +1242,7 @@ impl ConstructorScopeWalk<'_> {
                 self.expr(condition, &Expect::none(), locals);
                 let owner = name.clone();
                 for variant in variants.iter_mut() {
-                    let source = variant.from_type.clone().unwrap_or_else(|| owner.clone());
+                    let source = variant_subset_source(variant).unwrap_or(&owner).to_string();
                     let renamed = self.rename(&source, &variant.name);
                     if renamed != variant.name {
                         variant.name = renamed;
@@ -1210,9 +1289,9 @@ impl ConstructorScopeWalk<'_> {
 
     fn rule(&mut self, rule: &mut Rule, locals: &mut Locals) {
         let head = match rule {
-            Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => {
-                head
-            }
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => head,
             Rule::ReactiveScope { body, .. } => {
                 let mut inner = locals.clone();
                 self.statements(body, &mut inner, None);
@@ -1225,7 +1304,10 @@ impl ConstructorScopeWalk<'_> {
             let arity = arguments.len();
             let family = self.rule_parameters.get(&(name.clone(), arity)).cloned();
             for (index, argument) in arguments.iter_mut().enumerate() {
-                let declared = family.as_ref().and_then(|family| family.get(index)).cloned();
+                let declared = family
+                    .as_ref()
+                    .and_then(|family| family.get(index))
+                    .cloned();
                 self.rule_head_argument(argument, &name, declared.unwrap_or_default(), &mut inner);
             }
         }
@@ -1268,14 +1350,26 @@ impl ConstructorScopeWalk<'_> {
 
     /// A rule head argument is a pattern written as an expression: a binder,
     /// a literal, a constructor applied to sub-patterns, or `x: Type`.
-    fn rule_head_argument(&mut self, argument: &mut Expr, rule: &str, declared: Vec<Ty>, locals: &mut Locals) {
+    fn rule_head_argument(
+        &mut self,
+        argument: &mut Expr,
+        rule: &str,
+        declared: Vec<Ty>,
+        locals: &mut Locals,
+    ) {
         if let ExprKind::App(function, arguments) = &mut argument.kind {
-            if matches!(&function.kind, ExprKind::Var(name) if name == "__typed") && arguments.len() == 2 {
+            if matches!(&function.kind, ExprKind::Var(name) if name == "__typed")
+                && arguments.len() == 2
+            {
                 let ty = match &arguments[1].kind {
                     ExprKind::Var(ty) => parse_type_annotation(ty).ok(),
                     _ => None,
                 };
-                self.head_pattern(&mut arguments[0], ty.map(Expect::Type).unwrap_or_else(Expect::none), locals);
+                self.head_pattern(
+                    &mut arguments[0],
+                    ty.map(Expect::Type).unwrap_or_else(Expect::none),
+                    locals,
+                );
                 return;
             }
         }
@@ -1303,7 +1397,11 @@ impl ConstructorScopeWalk<'_> {
                 );
             }
             ExprKind::Var(name) => {
-                if self.checker.constructor_signatures.contains_key(name.as_str()) {
+                if self
+                    .checker
+                    .constructor_signatures
+                    .contains_key(name.as_str())
+                {
                     let constructor = name.clone();
                     if let Some((owner, _)) = self.resolve(&constructor, None, &expect, span) {
                         let renamed = self.rename(&owner, &constructor);
@@ -1326,21 +1424,25 @@ impl ConstructorScopeWalk<'_> {
                 }
             }
             ExprKind::App(function, arguments) => {
-                let (constructor, qualified) = match &function.kind {
-                    ExprKind::Var(name)
-                        if self.checker.constructor_signatures.contains_key(name.as_str()) =>
-                    {
-                        (Some(name.clone()), None)
-                    }
-                    ExprKind::Field(base, field) => match self
-                        .checker
-                        .type_qualified_constructor(base, field, Some(locals))
-                    {
-                        Some(signature) => (Some(field.clone()), Some(signature.parent)),
-                        None => (None, None),
-                    },
-                    _ => (None, None),
-                };
+                let (constructor, qualified) =
+                    match &function.kind {
+                        ExprKind::Var(name)
+                            if self
+                                .checker
+                                .constructor_signatures
+                                .contains_key(name.as_str()) =>
+                        {
+                            (Some(name.clone()), None)
+                        }
+                        ExprKind::Field(base, field) => match self
+                            .checker
+                            .type_qualified_constructor(base, field, Some(locals))
+                        {
+                            Some(signature) => (Some(field.clone()), Some(signature.parent)),
+                            None => (None, None),
+                        },
+                        _ => (None, None),
+                    };
                 let Some(constructor) = constructor else {
                     return;
                 };
@@ -1361,9 +1463,9 @@ impl ConstructorScopeWalk<'_> {
                     let (value, field_index) = match named_arg_parts(argument) {
                         Some((field, _)) => (
                             1usize,
-                            signature
-                                .as_ref()
-                                .and_then(|signature| signature.fields.iter().position(|known| known == field)),
+                            signature.as_ref().and_then(|signature| {
+                                signature.fields.iter().position(|known| known == field)
+                            }),
                         ),
                         None => (0, Some(index)),
                     };
@@ -1387,7 +1489,8 @@ impl ConstructorScopeWalk<'_> {
     fn pattern(&mut self, pattern: &mut Pat, subject: Option<&Ty>) {
         match pattern {
             Pat::Con(name, arguments) => {
-                let Some((owner, signature, field_types)) = self.pattern_constructor(name, subject) else {
+                let Some((owner, signature, field_types)) = self.pattern_constructor(name, subject)
+                else {
                     for argument in arguments {
                         self.pattern(argument, None);
                     }
@@ -1424,7 +1527,11 @@ impl ConstructorScopeWalk<'_> {
             Some((owner, constructor)) => (Some(owner.to_string()), constructor.to_string()),
             None => (None, name.clone()),
         };
-        if !self.checker.constructor_signatures.contains_key(&constructor) {
+        if !self
+            .checker
+            .constructor_signatures
+            .contains_key(&constructor)
+        {
             return None;
         }
         let expect = match subject {
@@ -1487,7 +1594,9 @@ impl ConstructorScopeWalk<'_> {
                         .iter()
                         .map(|(name, ty)| {
                             let expect = match ty {
-                                Some(ty) if !Self::type_has_variable(ty) => Expect::Type(ty.clone()),
+                                Some(ty) if !Self::type_has_variable(ty) => {
+                                    Expect::Type(ty.clone())
+                                }
                                 Some(_) => Expect::Unknown(Unexpected::Generic(callee.to_string())),
                                 None => Expect::none(),
                             };
@@ -1526,7 +1635,8 @@ impl ConstructorScopeWalk<'_> {
         let span = expr.span;
         match &mut expr.kind {
             ExprKind::Var(name) => {
-                let Some(constructor) = self.constructor_name(name, locals).map(str::to_string) else {
+                let Some(constructor) = self.constructor_name(name, locals).map(str::to_string)
+                else {
                     return;
                 };
                 if let Some((owner, _)) = self.resolve(&constructor, None, expect, span) {
@@ -1561,10 +1671,11 @@ impl ConstructorScopeWalk<'_> {
                     _ => (Vec::new(), None),
                 };
                 for (index, param) in params.iter().enumerate() {
-                    let ty = param
-                        .ty
-                        .clone()
-                        .or_else(|| (params.len() == 1).then(|| inputs.get(index).cloned()).flatten());
+                    let ty = param.ty.clone().or_else(|| {
+                        (params.len() == 1)
+                            .then(|| inputs.get(index).cloned())
+                            .flatten()
+                    });
                     inner.insert(
                         param.name.clone(),
                         ty.map(|ty| Self::type_string(&ty))
@@ -1660,7 +1771,10 @@ impl ConstructorScopeWalk<'_> {
                 for handler in handlers {
                     let mut inner = locals.clone();
                     for param in &handler.params {
-                        inner.insert(param.clone(), CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string());
+                        inner.insert(
+                            param.clone(),
+                            CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
+                        );
                     }
                     self.expr(&mut handler.body, &Expect::none(), &inner);
                 }
@@ -1755,8 +1869,10 @@ impl ConstructorScopeWalk<'_> {
                     };
                     let owner_type = match expect.ty() {
                         Some(expected)
-                            if TypeChecker::canonical_nominal_owner(&Self::type_string(expected))
-                                .as_deref()
+                            if TypeChecker::canonical_nominal_owner(&Self::type_string(
+                                expected,
+                            ))
+                            .as_deref()
                                 == Some(owner.as_str()) =>
                         {
                             Self::type_string(expected)
@@ -1775,9 +1891,9 @@ impl ConstructorScopeWalk<'_> {
             }
             for (index, argument) in arguments.iter_mut().enumerate() {
                 let field_index = match named_arg_parts(argument) {
-                    Some((field, _)) => signature
-                        .as_ref()
-                        .and_then(|signature| signature.fields.iter().position(|known| known == field)),
+                    Some((field, _)) => signature.as_ref().and_then(|signature| {
+                        signature.fields.iter().position(|known| known == field)
+                    }),
                     None => Some(index),
                 };
                 let expect = field_index
@@ -1811,18 +1927,32 @@ impl ConstructorScopeWalk<'_> {
             match (callee.as_str(), index, count) {
                 ("map", 1, 2) => Some((
                     vec![collection_element.clone()],
-                    result_element.clone().map(Expect::Type).unwrap_or_else(Expect::none),
+                    result_element
+                        .clone()
+                        .map(Expect::Type)
+                        .unwrap_or_else(Expect::none),
                 )),
                 ("flat_map", 1, 2) => Some((
                     vec![collection_element.clone()],
-                    expect.ty().cloned().map(Expect::Type).unwrap_or_else(Expect::none),
+                    expect
+                        .ty()
+                        .cloned()
+                        .map(Expect::Type)
+                        .unwrap_or_else(Expect::none),
                 )),
-                ("filter" | "any" | "all" | "find" | "sort_by" | "count" | "partition" | "group_by" | "sum_by" | "each" | "for_each", 1, 2) => {
-                    Some((vec![collection_element.clone()], Expect::none()))
-                }
+                (
+                    "filter" | "any" | "all" | "find" | "sort_by" | "count" | "partition"
+                    | "group_by" | "sum_by" | "each" | "for_each",
+                    1,
+                    2,
+                ) => Some((vec![collection_element.clone()], Expect::none())),
                 ("foldl" | "fold", 2, 3) => Some((
                     vec![expect.ty().cloned(), collection_element.clone()],
-                    expect.ty().cloned().map(Expect::Type).unwrap_or_else(Expect::none),
+                    expect
+                        .ty()
+                        .cloned()
+                        .map(Expect::Type)
+                        .unwrap_or_else(Expect::none),
                 )),
                 _ => None,
             }
@@ -1835,7 +1965,10 @@ impl ConstructorScopeWalk<'_> {
             {
                 let mut inner = locals.clone();
                 for (position, param) in params.iter().enumerate() {
-                    let ty = param.ty.clone().or_else(|| inputs.get(position).cloned().flatten());
+                    let ty = param
+                        .ty
+                        .clone()
+                        .or_else(|| inputs.get(position).cloned().flatten());
                     inner.insert(
                         param.name.clone(),
                         ty.map(|ty| Self::type_string(&ty))

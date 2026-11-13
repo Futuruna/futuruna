@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor `AskYearEvent.Trade` is missing named field `year`
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+= t: AskYearEvent = Trade(id = "a", amount = 1)

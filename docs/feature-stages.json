@@ -104,6 +104,17 @@
       ]
     },
     {
+      "id": "scoped-constructor-names",
+      "kind": "language",
+      "name": "Constructor names shared between types",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: two types in one scope may share a constructor name, resolved by the expected type or written `Type.Constructor`; the resolution rules and diagnostics may change.",
+      "docs": [
+        "docs/rfcs/scoped-constructors.md",
+        "docs/reference/runes.md"
+      ]
+    },
+    {
       "id": "http-builtins",
       "kind": "runtime",
       "name": "HTTP client and server builtins",

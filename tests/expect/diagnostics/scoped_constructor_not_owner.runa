@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor `Trade` belongs to `Event` and `AskYearEvent`, not to `Other`
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+# Other = Nothing | Something
+= o: Other = Trade(id = "a", amount = 1)

@@ -92,7 +92,11 @@ impl Model {
                 .collect::<Vec<_>>();
             return Err(format!("{main}: {}", messages.join("\n")));
         }
-        let statements: Arc<[Stmt]> = statements.into();
+        // A model whose types share constructor names runs elaborated.
+        let statements: Arc<[Stmt]> = match artifacts.runtime_statements() {
+            Some(runtime) => runtime.into(),
+            None => statements.into(),
+        };
         let entries = artifacts
             .calculation_contracts
             .into_iter()

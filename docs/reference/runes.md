@@ -565,9 +565,14 @@ Top-level plain imports form one merged declaration scope. They are resolved
 in import order before the importing file's declarations, regardless of where
 the directives appear. Imported functions override injected prelude defaults;
 local functions override imported functions. A local type declaration likewise
-replaces an imported type with the same name, including its constructors. A
-constructor name belongs to one sum type: declaring it in two different types
-visible in one scope is a checker error that names both types.
+replaces an imported type with the same name, including its constructors.
+Two types in the merged scope may declare the same constructor name. A use of
+such a name takes its owner from the type the context expects (a pattern from
+the matched value, an argument, field or result from its declared type, one
+side of `==` from the other side), or names it as `Type.Constructor` in an
+expression or a pattern. A shared name with no expected type is an error that
+names both types; the owner is never chosen by arity or fields. Types inside
+one inline module keep distinct constructor names.
 Imported initializers and later
 calls use that same final function and rule context. Unique bindings across the
 merged scope follow the dependency order described above. A canonical source

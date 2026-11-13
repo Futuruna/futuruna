@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor `Closed` belongs to `Event` and `AskYearEvent`; neither side of `==` has a known type, so write `Event.Closed` or `AskYearEvent.Closed`
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+= same: Bool = Closed == Closed

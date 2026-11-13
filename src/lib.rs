@@ -40,8 +40,8 @@ mod checked_explore_source_events;
 mod constructor_scope;
 pub use constructor_scope::{
     bare_constructor_name, clear_constructor_elaboration, constructor_display_name,
-    constructor_runtime_name, qualified_constructor_name, split_qualified_constructor,
-    ConstructorElaboration,
+    constructor_display_text, constructor_runtime_name, qualified_constructor_name,
+    split_qualified_constructor, ConstructorElaboration,
 };
 mod danish;
 mod declaration_contracts;
@@ -8954,7 +8954,9 @@ pub fn content_hash_defn(defn: &Defn) -> String {
             )
         }
     };
-    hash_string(&canonical)
+    // A hash names a declaration as written, before shared constructors
+    // receive internal names.
+    hash_string(&constructor_display_text(&canonical))
 }
 
 /// Compute a canonical structural representation of a TypeDecl (excluding the name).
@@ -9022,7 +9024,7 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
             )
         }
     };
-    hash_string(&canonical)
+    hash_string(&constructor_display_text(&canonical))
 }
 
 /// SHA-256 of a string, truncated to 12 hex chars (48 bits — collision-safe for codebases).
@@ -29090,14 +29092,14 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                 constructor_display_name(left_name)
                     .cmp(&constructor_display_name(right_name))
                     .then_with(|| {
-                    for (left, right) in left.iter().zip(right.iter()) {
-                        let ordering = value_sort_cmp(left, right);
-                        if ordering != Ordering::Equal {
-                            return ordering;
+                        for (left, right) in left.iter().zip(right.iter()) {
+                            let ordering = value_sort_cmp(left, right);
+                            if ordering != Ordering::Equal {
+                                return ordering;
+                            }
                         }
-                    }
-                    left.len().cmp(&right.len())
-                })
+                        left.len().cmp(&right.len())
+                    })
             }
             _ => {
                 let (left, right) = (list_to_vec(a), list_to_vec(b));
@@ -32316,6 +32318,15 @@ fn checked_explore_classifier_backend_namespace_v1(statements: &[Stmt]) -> Resul
 }
 
 impl TypeCheckArtifacts {
+    /// The root statements the checked program runs: shared constructors
+    /// under their internal names and `Type.Constructor` resolved. `None`
+    /// when they are the checked statements themselves.
+    pub fn runtime_statements(&self) -> Option<&[Stmt]> {
+        self.constructor_elaboration
+            .as_deref()
+            .and_then(ConstructorElaboration::root_statements)
+    }
+
     /// Exact guarded runtime calls. This carries no total-value proof authority.
     pub fn runtime_guarded_rule_calls(&self) -> &RuntimeGuardedRuleCalls {
         &self.runtime_guarded_rule_calls
@@ -51006,6 +51017,7 @@ impl TypeChecker {
         }
 
         let mut current = Ty::Name(root.clone());
+        let mut selected_variant: Option<(String, String)> = None;
         for (index, argument) in arguments.iter().enumerate().skip(1) {
             let ExprKind::Lit(Literal::Str(segment)) = &argument.kind else {
                 self.error_at_expr(
@@ -51062,6 +51074,7 @@ impl TypeChecker {
                         }
                         return;
                     }
+                    selected_variant = Some((type_name.clone(), segment.clone()));
                     current = Ty::Name(segment.clone());
                     continue;
                 }
@@ -51076,11 +51089,22 @@ impl TypeChecker {
                 return;
             }
 
-            let field_ty = self
-                .type_field_tys
-                .get(&type_name)
-                .and_then(|fields| fields.get(segment))
-                .cloned();
+            // A selected variant's fields belong to its owner: a shared
+            // constructor name has no single variant-keyed field table.
+            let field_ty = match selected_variant.take() {
+                Some((owner, variant)) if self.constructor_is_shared(&variant) => self
+                    .constructor_signature_for_parent(&variant, Some(&owner))
+                    .and_then(|signature| {
+                        let index = signature.fields.iter().position(|field| field == segment)?;
+                        signature.field_tys.get(index).cloned().flatten()
+                    })
+                    .and_then(|ty| parse_type_annotation(&ty).ok()),
+                _ => self
+                    .type_field_tys
+                    .get(&type_name)
+                    .and_then(|fields| fields.get(segment))
+                    .cloned(),
+            };
             let Some(field_ty) = field_ty else {
                 let known_fields = self
                     .type_field_tys
@@ -52181,8 +52205,13 @@ impl TypeChecker {
                     {
                         let owner = signature.parent.clone();
                         return Some(
-                            self.applied_constructor_type(&signature, args, locals, active_rule_scope)
-                                .unwrap_or(owner),
+                            self.applied_constructor_type(
+                                &signature,
+                                args,
+                                locals,
+                                active_rule_scope,
+                            )
+                            .unwrap_or(owner),
                         );
                     }
                     if let ExprKind::Var(module) = &base.kind {
@@ -52220,7 +52249,8 @@ impl TypeChecker {
                 None
             }
             ExprKind::Field(base, field) => {
-                if let Some(signature) = self.type_qualified_constructor(base, field, Some(locals)) {
+                if let Some(signature) = self.type_qualified_constructor(base, field, Some(locals))
+                {
                     return Some(signature.parent);
                 }
                 let base_type = self.infer_expr_type_name_with_locals_in_scope(
@@ -56676,9 +56706,9 @@ impl TypeChecker {
                     for variant in variants {
                         let field_count = variant.fields.len();
                         self.record_explore_non_rule_runtime_name(&variant.name);
-                        if let Some(source) = &variant.from_type {
+                        if let Some(source) = constructor_scope::variant_subset_source(variant) {
                             self.constructor_subset_sources
-                                .insert((name.clone(), variant.name.clone()), source.clone());
+                                .insert((name.clone(), variant.name.clone()), source.to_string());
                         }
                         // Root types may share constructor names; context picks
                         // the owner. An inline module keeps one owner per name.
@@ -60298,7 +60328,9 @@ impl TypeChecker {
                         self.error_at_expr(func, message);
                     }
                     if qualifier_error.is_some()
-                        || self.type_qualified_constructor(base, method, None).is_some()
+                        || self
+                            .type_qualified_constructor(base, method, None)
+                            .is_some()
                     {
                         // The constructor scope pass checks the fields against
                         // this owner.
@@ -61323,6 +61355,16 @@ impl TypeChecker {
                     _ => None,
                 })
         });
+        // A shared constructor on a value of unknown type is reported by the
+        // constructor scope pass; coverage has no owner to enumerate.
+        if inferred.is_none()
+            && rows.iter().any(|row| {
+                matches!(Self::coverage_pattern(&row[0]),
+                    Pat::Con(name, _) | Pat::NamedCon(name, _) if self.constructor_is_shared(name))
+            })
+        {
+            return Some(true);
+        }
         let owner = inferred.as_deref().and_then(Self::canonical_nominal_owner);
         let variants = owner
             .as_ref()
@@ -61525,6 +61567,7 @@ impl TypeChecker {
         collect_all_imported_metadata_bindings: bool,
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
+        constructor_scope::begin_root_check(stmts);
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
@@ -61598,6 +61641,13 @@ impl TypeChecker {
             exploration_universes.clear();
             Vec::new()
         };
+        // Every consumer that runs this program in the process reads its
+        // imports and constructor names through the installed elaboration.
+        if tc.diagnostics.is_empty() {
+            if let Some(elaboration) = &constructor_elaboration {
+                elaboration.install();
+            }
+        }
         let runtime_root_statements: Arc<[Stmt]> = stmts.to_vec().into();
         let runtime_root_program = TypeChecker::checked_resolved_program_id(
             &tc.analysis_program,

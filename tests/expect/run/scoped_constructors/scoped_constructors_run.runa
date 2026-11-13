@@ -1,0 +1,41 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout-file: scoped_constructors.stdout
+-- Two types declare Trade and Closed; context and Type.Constructor choose the owner.
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+> describe(e: Event) -> String {
+    match e {
+        | Trade(id, amount) -> "event trade " + id + " " + show(amount)
+        | Closed -> "event closed"
+    }
+}
+
+> describe_ask(e: AskYearEvent) -> String {
+    match e {
+        | Trade -> "ask trade " + e.id + " in " + show(e.year)
+        | Closed -> "ask closed"
+    }
+}
+
+> to_event(e: AskYearEvent) -> Event {
+    match e {
+        | Trade -> Trade(id = e.id, amount = e.amount)
+        | Closed -> Closed
+    }
+}
+
+> last_ask() -> AskYearEvent? { Some(Closed) }
+
+= events: List(Event) = [Trade(id = "a", amount = 1), Closed]
+= asks: List(AskYearEvent) = [AskYearEvent.Trade(id = "b", amount = 2, year = 2026), AskYearEvent.Closed]
+@ print(show(map(events, |e| describe(e))))
+@ print(show(map(asks, |e| describe_ask(e))))
+@ print(show(asks))
+@ print(map(asks, |e| to_event(e)) == [Trade(id = "b", amount = 2), Closed])
+@ print(asks[1] == Closed)
+= mixed: List(Event) = [Trade(id = "z", amount = 9), Closed]
+@ print(sort(mixed) == [Closed, Trade(id = "z", amount = 9)])
+@ print(show(sort(asks)))
+@ print(show(last_ask()))

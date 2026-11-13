@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor `Trade` belongs to `Event` and `AskYearEvent`; this list has no element type, so write `Event.Trade` or `AskYearEvent.Trade`
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+= n = length([Trade(id = "a", amount = 1)])
