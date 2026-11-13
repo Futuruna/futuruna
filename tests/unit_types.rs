@@ -479,3 +479,285 @@ fn the_contract_names_units_and_takes_their_description() {
         stderr(&said_twice)
     );
 }
+
+#[test]
+fn a_fold_accumulator_has_the_type_of_its_start() {
+    rejected(
+        "# Holding(value_ore: Ore, quantity_micro: Micro)\n\
+         > total(xs: List(Holding)) -> Int { foldl(xs, 0, |t, x| t + x.value_ore + x.quantity_micro) }\n",
+        "`Ore` and `Micro` are different units",
+    );
+    rejected(
+        "> summed(xs: List(Int)) -> Ore { foldl(xs, Ore(0), |t, n| t + n) }\n",
+        "unsupported operands for operator `+`: `Ore` and a plain `Int`",
+    );
+    accepted(
+        "# Holding(value_ore: Ore, quantity_micro: Micro)\n\
+         > counted(xs: List(Holding)) -> Int { foldl(xs, 0, |n, x| n + 1) }\n\
+         > positive(xs: List(Holding)) -> Ore { foldl(xs, 0, |t, x| if x.value_ore > 0 { t + x.value_ore } else { t }) }\n\
+         > summed(xs: List(Int)) -> Ore { foldl(xs, Ore(0), |t, n| t + Ore(n)) }\n",
+    );
+}
+
+#[test]
+fn equality_compares_the_units_inside_values() {
+    rejected(
+        "> same(a: Ore, m: Micro) -> Bool { [a] == [m] }\n",
+        "unsupported operands for operator `==`: `List(Ore)` and `List(Micro)`: `Ore` and `Micro` are different units",
+    );
+    rejected(
+        "> same(a: Ore, n: Int) -> Bool { Some(a) != Some(n) }\n",
+        "unsupported operands for operator `!=`: `Option(Ore)` and `Option(Int)`: `Ore` and a plain `Int`",
+    );
+    accepted(
+        "> same(a: Ore, b: Ore) -> Bool { [a] == [b] && [a] != [0, 5] && Some(a) == Some(0) }\n",
+    );
+}
+
+#[test]
+fn a_named_closure_is_checked_with_the_types_of_its_arguments() {
+    let source =
+        format!("{UNITS}> add(a: Ore, m: Micro) -> Ore {{\n    = f = |x| x + a\n    f(m)\n}}\n");
+    let output = runa(&["check", "--frontend"], &source);
+    let errors = stderr(&output);
+    assert!(!output.status.success(), "accepted");
+    assert!(
+        errors.contains("`Micro` and `Ore` are different units"),
+        "{errors}"
+    );
+    assert!(
+        errors.contains("in closure `f` called with (Micro)"),
+        "{errors}"
+    );
+    accepted("> add(a: Ore, b: Ore) -> Ore {\n    = f = |x| x + a\n    f(b) + f(5)\n}\n");
+}
+
+const SCALED: &str = "# unit Ore \"DKK øre\" = DKK / 100
+# unit MicroDkk \"millionths of a krone\" = DKK / 1000000
+# unit Micro \"millionths of a unit\" = 1 / 1000000
+";
+
+fn scaled_rejected(body: &str, message: &str) {
+    let output = runa(&["check", "--frontend"], &format!("{SCALED}{body}"));
+    assert!(!output.status.success(), "{body}: accepted");
+    assert!(
+        stderr(&output).contains(message),
+        "{body}: expected `{message}` in\n{}",
+        stderr(&output)
+    );
+}
+
+const CONVERSIONS: &str = "# unit Ore \"DKK øre\" = DKK / 100
+# unit MicroDkk \"millionths of a krone\" = DKK / 1000000
+# Price(amount: MicroDkk)
+
+> nearest(m: MicroDkk) -> Ore { to_nearest(Ore, m) }
+> down(m: MicroDkk) -> Ore { to_floor(Ore, m) }
+> up(m: MicroDkk) -> Ore { to_ceiling(Ore, m) }
+> truncated(m: MicroDkk) -> Ore { to_toward_zero(Ore, m) }
+> finer(o: Ore) -> MicroDkk { to(MicroDkk, o) }
+> of_field(p: Price) -> Ore { to_nearest(Ore, p.amount) }
+> of_sum(a: MicroDkk, b: MicroDkk) -> Ore { to_nearest(Ore, a + b) }
+
+= amounts: List(MicroDkk) = [15000, 14999, -15000, -14999, 5000, -5000, 1, -1]
+@ print(show(map(amounts, |m| nearest(m))))
+@ print(show(map(amounts, |m| down(m))))
+@ print(show(map(amounts, |m| up(m))))
+@ print(show(map(amounts, |m| truncated(m))))
+@ print(show(finer(-123)))
+@ print(show(of_field(Price(amount = 125000)) + of_sum(10000, 5000)))
+@ print(show(map(amounts, |m| to_nearest(Ore, m))))
+";
+
+#[test]
+fn units_of_one_base_convert_with_a_stated_rounding() {
+    let output = runa(&["check", "--frontend"], CONVERSIONS);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let output = runa(&[], CONVERSIONS);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(
+        stdout(&output),
+        "[2, 1, -2, -1, 1, -1, 0, 0]\n\
+         [1, 1, -2, -2, 0, -1, 0, -1]\n\
+         [2, 2, -1, -1, 1, 0, 1, 0]\n\
+         [1, 1, -1, -1, 0, 0, 0, 0]\n\
+         -1230000\n\
+         15\n\
+         [2, 1, -2, -1, 1, -1, 0, 0]\n"
+    );
+    // Generated Rust runs the elaborated arithmetic and agrees.
+    let dir = temp_dir();
+    std::fs::write(dir.join("model.runa"), CONVERSIONS).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .args(["test", "--roundtrip"])
+        .arg(&dir)
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let errors = stderr(&output);
+    assert!(output.status.success(), "{errors}");
+    assert!(errors.contains("Roundtrip: 1 matched"), "{errors}");
+}
+
+#[test]
+fn a_conversion_states_exactly_the_rounding_it_does() {
+    scaled_rejected(
+        "> f(m: MicroDkk) -> Ore { to(Ore, m) }\n",
+        "`MicroDkk` to `Ore` divides by 10000; state how it rounds with `to_nearest` (halves away from zero), `to_floor`, `to_ceiling` or `to_toward_zero`",
+    );
+    scaled_rejected(
+        "> f(o: Ore) -> MicroDkk { to_nearest(MicroDkk, o) }\n",
+        "`Ore` to `MicroDkk` multiplies by 10000 and is exact, so it does not round; write `to(MicroDkk, ...)`",
+    );
+    scaled_rejected(
+        "> f(q: Micro) -> Ore { to(Ore, q) }\n",
+        "`Micro` is `1 / 1000000` and `Ore` is `DKK / 100`; units of different bases do not convert",
+    );
+    scaled_rejected(
+        "# unit Third \"thirds of a krone\" = DKK / 3\n> f(o: Ore) -> Third { to(Third, o) }\n",
+        "`Ore` is `DKK / 100` and `Third` is `DKK / 3`; neither is a whole multiple of the other",
+    );
+    scaled_rejected(
+        "> f(o: Ore) -> Ore { to(Ore, o) }\n",
+        "the amount is already `Ore`; remove the conversion",
+    );
+    scaled_rejected(
+        "> f(n: Int) -> Ore { to(Ore, n) }\n",
+        "`to` converts an amount of another unit, got `Int`; a plain `Int` becomes an amount with `Ore(n)`",
+    );
+    scaled_rejected(
+        "> f() -> Ore { to(Ore, 5) }\n",
+        "`to` converts an amount of another unit; a number written in the source has none, so write `Ore(n)`",
+    );
+    scaled_rejected(
+        "# unit Bp \"basis points\"\n> f(b: Bp) -> Ore { to(Ore, b) }\n",
+        "unit `Bp` declares no scale, so `to` cannot convert it",
+    );
+    scaled_rejected(
+        "> f(m: MicroDkk) -> Ore { to(m, Ore) }\n",
+        "the first argument of `to` is the unit to convert to",
+    );
+    // Mixing units of one base names the conversion that never rounds.
+    scaled_rejected(
+        "> f(o: Ore, m: MicroDkk) -> MicroDkk { m + o }\n",
+        "`MicroDkk` and `Ore` are different units; convert `Ore` with `to(MicroDkk, ...)`",
+    );
+    scaled_rejected(
+        "> f(m: MicroDkk) -> Ore { Ore(m) }\n",
+        "`Ore(...)` gives a plain `Int` the unit `Ore`, got `MicroDkk`; convert it with `to_nearest(Ore, ...)`",
+    );
+    // A program's own `to` keeps its meaning.
+    let output = runa(
+        &[],
+        &format!("{SCALED}> to(a: Int, b: Int) -> Int {{ a + b }}\n@ print(show(to(2, 3)))\n"),
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "5\n");
+}
+
+#[test]
+fn unit_scales_are_checked() {
+    scaled_rejected(
+        "# unit Cent \"cents\" = Ore / 100\n",
+        "the base of unit `Cent` is a name of its own, such as `DKK`, or `1`: `Ore` is a unit",
+    );
+    scaled_rejected(
+        "# Money(amount: Int)\n# unit Cent \"cents\" = Money / 100\n",
+        "`Money` is a declared type or constructor",
+    );
+    scaled_rejected(
+        "# unit Cent \"cents\" = Int / 100\n",
+        "`Int` is a built-in type; write `1` for a plain number",
+    );
+    scaled_rejected(
+        "# DKK(amount: Int)\n",
+        "`DKK` is the base of unit `MicroDkk`; choose another name",
+    );
+    scaled_rejected(
+        "# unit DKK \"kroner\"\n",
+        "`DKK` is the base of unit `MicroDkk`",
+    );
+    scaled_rejected(
+        "# unit Ore \"DKK øre\" = DKK / 1000\n",
+        "unit `Ore` is declared twice, as \"DKK øre\" = DKK / 100 and as \"DKK øre\" = DKK / 1000; declare it once",
+    );
+    let output = runa(
+        &["check", "--frontend"],
+        "# unit Ore \"DKK øre\" = DKK / 0\n",
+    );
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains(
+            "the scale of unit `Ore` divides its base by a whole number of at least 1, got `0`"
+        ),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn conversions_in_an_imported_file_run_and_prove() {
+    let dir = temp_dir();
+    std::fs::write(
+        dir.join("money.runa"),
+        "-- library-hygiene: importable\n\
+         # unit Ore \"DKK øre\" = DKK / 100\n\
+         # unit MicroDkk \"millionths of a krone\" = DKK / 1000000\n\
+         > nearest_ore(m: MicroDkk) -> Ore { to_nearest(Ore, m) }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("main.runa"),
+        "@ import ./money\n\
+         > in_micro(o: Ore) -> MicroDkk { to(MicroDkk, o) }\n\
+         @ print(show(nearest_ore(15000)))\n\
+         @ print(show(in_micro(nearest_ore(-15000))))\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("proofs.runa"),
+        "@ import ./money\n\
+         | nearest_mirror: m -> m < -9223372036854775807 || nearest_ore(0 - m) == 0 - nearest_ore(m)\n\
+         | nearest_exact: m -> Int(nearest_ore(m)) * 10000 == Int(m)\n",
+    )
+    .unwrap();
+    let run = |arguments: &[&str], file: &str| {
+        Command::new(env!("CARGO_BIN_EXE_runa"))
+            .args(arguments)
+            .arg(dir.join(file))
+            .output()
+            .unwrap()
+    };
+    let output = run(&[], "main.runa");
+    let check = run(&["check"], "main.runa");
+    let verify = run(&["verify"], "proofs.runa");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "2\n-20000\n");
+    assert!(check.status.success(), "{}", stderr(&check));
+    let report = stdout(&verify);
+    if !z3_available() {
+        assert!(report.contains("Z3 not found"), "{report}");
+        return;
+    }
+    assert!(report.contains("PROVED: |nearest_mirror|"), "{report}");
+    assert!(
+        report.contains("COUNTEREXAMPLE found for |nearest_exact|"),
+        "{report}"
+    );
+}
+
+#[test]
+fn the_contract_carries_unit_scales() {
+    let source = CALCULATION.replace("UNIT", "None").replace(
+        "# unit Ore \"DKK øre\"",
+        "# unit Ore \"DKK øre\" = DKK / 100",
+    );
+    let output = runa(&["schema"], &source);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let contract: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(
+        contract["units"],
+        serde_json::json!([{"name": "Ore", "description": "DKK øre", "scale": {"of": "DKK", "per": 100}}])
+    );
+}

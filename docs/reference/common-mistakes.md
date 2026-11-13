@@ -55,13 +55,20 @@ validate that separately.
 
 Mixing units is a type error. Adding `Ore` to `Micro` reports
 ``unsupported operands for operator `+`: `Ore` and `Micro` are different units; state the conversion in a function that uses `Int(...)` and `Ore(...)` or `Micro(...)` ``.
+When both units declare a scale of one base (`# unit Ore "DKK øre" = DKK / 100`,
+`# unit MicroDkk "millionths of a krone" = DKK / 1000000`), the message names the
+built-in conversion instead: ``convert `Ore` with `to(MicroDkk, ...)` ``.
 Adding a named plain `Int` to `Ore` reports
 ``unsupported operands for operator `+`: `Ore` and a plain `Int`; write `Ore(n)` when the number is an amount in `Ore`, or take the unit off with `Int(...)` ``.
 Multiplying two amounts reports
 ``unsupported operands for operator `*`: `Ore` times `Ore` has no unit; multiply by a plain `Int`, or take the unit off one side with `Int(...)` ``.
 A literal such as `0` or `100` takes the unit of its place and needs no
-conversion. Write a change of unit once, in a function that uses `Int(...)` and
-`Ore(...)`.
+conversion. Write a change between units of different bases once, in a
+function that uses `Int(...)` and `Ore(...)`.
+
+A conversion that divides states its rounding: `to(Ore, amount_micro_dkk)`
+reports
+``` `MicroDkk` to `Ore` divides by 10000; state how it rounds with `to_nearest` (halves away from zero), `to_floor`, `to_ceiling` or `to_toward_zero` ```.
 
 `foldl` with a literal start value takes a unit only from its step: in
 `foldl(items, 0, |total, item| total + item.amount)` with `item.amount: Ore`
@@ -69,7 +76,9 @@ the result is `Ore`. A step that adds no unit value keeps a literal start at
 `Int`, so `> count(xs: List(Int)) -> Ore { foldl(xs, 0, |t, n| t + n) }` fails
 with
 ``return type mismatch: function `count` expects `Ore` but expression has `Int` ``.
-Start from `Ore(0)` when that is meant: `foldl(xs, Ore(0), |t, n| t + n)`.
+The accumulator has the type of the start, so `foldl(xs, Ore(0), |t, n| t + n)`
+adds a plain `Int` to `Ore` and is an error too; give the elements the unit:
+`foldl(xs, Ore(0), |t, n| t + Ore(n))`.
 
 In calculation field metadata, a unit-typed field takes its `unit` text from
 the `# unit` declaration; writing `unit = Some(...)` for it is an error.

@@ -317,15 +317,20 @@ machine-dependent.
 Experimental. A field, output or other type position whose type is a declared
 [unit](runes.md#unit) keeps its primitive type and gains an additive `unit`
 member naming the unit, and the contract lists the units it uses with their
-descriptions:
+descriptions and, for a unit declared with a scale (`= DKK / 100`), the scale:
 
 ```json
 "type": { "kind": "primitive", "name": "Int", "unit": "Ore" }
 ```
 
 ```json
-"units": [{ "name": "Ore", "description": "DKK øre" }]
+"units": [{ "name": "Ore", "description": "DKK øre", "scale": { "of": "DKK", "per": 100 } }]
 ```
+
+`per` of the unit make one `of`: an `Ore` value of `12345` is `123.45` DKK.
+`of` is the base the declaration names, or `"1"` for a plain number
+(`= 1 / 1000000`); a unit without a scale has no `scale` member. Two units with
+the same `of` convert exactly by the ratio of their `per`.
 
 Values on the wire stay JSON integers, so consumers that ignore unknown members
 read the same contract as before. The field metadata of a unit-typed field takes

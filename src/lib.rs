@@ -6100,10 +6100,34 @@ pub enum TypeDecl {
         params: Vec<Param>,
         body: Vec<Stmt>,
     },
-    /// `# unit Ore "DKK øre"`: a unit of measure for whole numbers. A value of
-    /// the unit is an `Int` at runtime, on the wire and in proofs; the checker
-    /// keeps values of different units apart.
-    Unit { name: String, description: String },
+    /// `# unit Ore "DKK øre" = DKK / 100`: a unit of measure for whole
+    /// numbers. A value of the unit is an `Int` at runtime, on the wire and in
+    /// proofs; the checker keeps values of different units apart. The scale,
+    /// when declared, says how many of the unit make one of its base.
+    Unit {
+        name: String,
+        description: String,
+        scale: Option<UnitScale>,
+    },
+}
+
+/// `= DKK / 100`: 100 of the unit make one `DKK`. `of` is the base: a name
+/// that is not a declared type (a currency code, a quantity), or `1` for a
+/// plain number. Units of one base convert into each other by whole factors.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UnitScale {
+    pub of: String,
+    pub per: i64,
+}
+
+impl fmt::Display for UnitScale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.per == 1 {
+            write!(f, "{}", self.of)
+        } else {
+            write!(f, "{} / {}", self.of, self.per)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -8692,9 +8716,14 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             variants: variants.clone(),
             except_from: except_from.clone(),
         },
-        TypeDecl::Unit { name, description } => TypeDecl::Unit {
+        TypeDecl::Unit {
+            name,
+            description,
+            scale,
+        } => TypeDecl::Unit {
             name: name.clone(),
             description: description.clone(),
+            scale: scale.clone(),
         },
         TypeDecl::EffectDecl { name, ops } => TypeDecl::EffectDecl {
             name: name.clone(),
@@ -9110,7 +9139,12 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
                 body.iter().map(strip_spans_stmt).collect::<Vec<_>>()
             )
         }
-        TypeDecl::Unit { description, .. } => format!("UNIT({description:?})"),
+        TypeDecl::Unit {
+            description, scale, ..
+        } => match scale {
+            Some(scale) => format!("UNIT({description:?}={scale})"),
+            None => format!("UNIT({description:?})"),
+        },
     };
     hash_string(&constructor_display_text(&canonical))
 }
@@ -11760,7 +11794,17 @@ impl Parser {
                     p.line, p.col
                 ));
             }
-            return Ok(Stmt::TypeDecl(TypeDecl::Unit { name, description }));
+            let scale = if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
+                self.advance();
+                Some(self.parse_unit_scale(&name)?)
+            } else {
+                None
+            };
+            return Ok(Stmt::TypeDecl(TypeDecl::Unit {
+                name,
+                description,
+                scale,
+            }));
         }
 
         // # Name(params) = Variant1 | Variant2 | ...
@@ -11955,6 +11999,33 @@ impl Parser {
             except_from,
             field_meta,
         }))
+    }
+
+    /// `DKK / 100`, `1 / 1000000` or `DKK` after `# unit Name "description" =`.
+    fn parse_unit_scale(&mut self, name: &str) -> Result<UnitScale, String> {
+        let base = self.advance();
+        let of = match base.kind {
+            TokenKind::Type => base.text,
+            TokenKind::Int_ if base.text == "1" => "1".to_string(),
+            _ => {
+                return Err(format!(
+                    "{}:{}: the scale of unit `{name}` names its base: a name such as `DKK`, or `1` for a plain number.\n  Try: # unit {name} \"DKK øre\" = DKK / 100",
+                    base.line, base.col
+                ))
+            }
+        };
+        if !(self.peek_kind() == TokenKind::Op && self.peek().text == "/") {
+            return Ok(UnitScale { of, per: 1 });
+        }
+        self.advance();
+        let count = self.advance();
+        match (count.kind, count.text.replace('_', "").parse::<i64>()) {
+            (TokenKind::Int_, Ok(per)) if per >= 1 => Ok(UnitScale { of, per }),
+            _ => Err(format!(
+                "{}:{}: the scale of unit `{name}` divides its base by a whole number of at least 1, got `{}`.\n  Try: # unit {name} \"DKK øre\" = DKK / 100",
+                count.line, count.col, count.source_text
+            )),
+        }
     }
 
     /// Parse: # trait Display { > fmt(self) -> String }
@@ -31058,6 +31129,14 @@ pub struct TypeChecker {
     pub types: BTreeSet<String>,
     /// Units of measure (`# unit Ore "DKK øre"`) -> description.
     unit_types: BTreeMap<String, String>,
+    /// The declared scale of a unit (`Ore` -> `DKK / 100`).
+    unit_scales: BTreeMap<String, UnitScale>,
+    /// The imported file whose bodies are being checked; `None` for the root.
+    unit_conversion_module: Option<PathBuf>,
+    /// Checked conversions (`to_nearest(Ore, amount)`) by file and source
+    /// span. Elaboration rewrites each into the `Int` arithmetic it stands for.
+    unit_conversions:
+        BTreeMap<Option<PathBuf>, BTreeMap<(usize, usize), unit_types::UnitConversion>>,
     /// Functions declared by the standard prelude rather than the program.
     prelude_functions: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
@@ -47893,6 +47972,9 @@ impl TypeChecker {
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
             unit_types: BTreeMap::new(),
+            unit_scales: BTreeMap::new(),
+            unit_conversion_module: None,
+            unit_conversions: BTreeMap::new(),
             prelude_functions: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
@@ -48533,7 +48615,7 @@ impl TypeChecker {
         if let Some(scope) = self.ordinary_callable_scopes.last_mut() {
             let binding = scope.entry(name.into()).or_default();
             binding.is_value = true;
-            binding.closure_parameters = None;
+            binding.closure = None;
         }
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
@@ -49412,9 +49494,14 @@ impl TypeChecker {
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
                 Some(format!("rule-scope:{name};params={params:?}"))
             }
-            Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
-                Some(format!("unit:{name};description={description:?}"))
-            }
+            Stmt::TypeDecl(TypeDecl::Unit {
+                name,
+                description,
+                scale,
+            }) => Some(match scale {
+                Some(scale) => format!("unit:{name};description={description:?};scale={scale}"),
+                None => format!("unit:{name};description={description:?}"),
+            }),
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
                 condition,
@@ -52544,6 +52631,9 @@ impl TypeChecker {
                     if !locals.contains_key(name) {
                         if self.is_unit_conversion_name(name) && args.len() == 1 {
                             return Some(name.clone());
+                        }
+                        if let Some(unit) = self.scaled_conversion_target(name, args, locals) {
+                            return Some(unit);
                         }
                         if !self.unit_types.is_empty() {
                             let argument_types = args
@@ -57047,6 +57137,9 @@ impl TypeChecker {
                 ));
                 let previous_anchor = self.import_diagnostic_anchor;
                 self.import_diagnostic_anchor = unit.import_span;
+                let previous_module = self
+                    .unit_conversion_module
+                    .replace(canonical_source_path(&unit.path));
                 let start = self.diagnostics.len();
                 self.check_function_declarations(&unit.statements);
                 if unit.scope.is_some() {
@@ -57065,6 +57158,7 @@ impl TypeChecker {
                 self.source_text = previous_source;
                 self.source_dir = previous_dir;
                 self.import_diagnostic_anchor = previous_anchor;
+                self.unit_conversion_module = previous_module;
                 if let Some(scope) = previous_scope {
                     self.restore_import_body_scope(scope);
                 }
@@ -57595,8 +57689,12 @@ impl TypeChecker {
                         .insert(name.clone(), Self::rule_scope_value_method_params(body));
                     self.infer_rule_scope_member_return_types(name, params, body);
                 }
-                Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
-                    self.collect_unit_declaration(name, description);
+                Stmt::TypeDecl(TypeDecl::Unit {
+                    name,
+                    description,
+                    scale,
+                }) => {
+                    self.collect_unit_declaration(name, description, scale.as_ref());
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -72183,6 +72281,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 stmt: Stmt::TypeDecl(TypeDecl::Unit {
                     name: "UnitVisit".to_string(),
                     description: "units of a visit".to_string(),
+                    scale: None,
                 }),
                 coverage: ignored,
                 diagnostic_markers: vec![],

@@ -96,12 +96,26 @@ impl CalculationTypeRef {
     }
 }
 
-/// A unit of measure declared with `# unit Ore "DKK øre"` and used by a type
-/// in the contract.
+/// A unit of measure declared with `# unit Ore "DKK øre" = DKK / 100` and
+/// used by a type in the contract.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalculationUnit {
     pub name: String,
     pub description: String,
+    /// How many of the unit make one of its base, when the unit declares a
+    /// scale: `{"of": "DKK", "per": 100}` for øre.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale: Option<CalculationUnitScale>,
+}
+
+/// `per` of the unit make one `of`. `of` is the base the declaration names
+/// (a currency code such as `DKK`, or another quantity) or `"1"` for a plain
+/// number; `per` is a whole number of at least 1. Two units of one base
+/// convert exactly by the ratio of their `per`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationUnitScale {
+    pub of: String,
+    pub per: i64,
 }
 
 fn display_type_application(name: &str, arguments: &[CalculationTypeRef]) -> String {
@@ -829,6 +843,8 @@ pub(crate) struct TypeCatalog {
     exact_mode: bool,
     /// Units of measure (`# unit Ore "DKK øre"`) -> description.
     units: BTreeMap<String, String>,
+    /// The declared scale of a unit (`Ore` -> `DKK / 100`).
+    unit_scales: BTreeMap<String, UnitScale>,
 }
 
 impl TypeCatalog {
@@ -1025,8 +1041,15 @@ impl TypeCatalog {
                         },
                     );
                 }
-                Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                Stmt::TypeDecl(TypeDecl::Unit {
+                    name,
+                    description,
+                    scale,
+                }) => {
                     self.units.insert(name.clone(), description.clone());
+                    if let Some(scale) = scale {
+                        self.unit_scales.insert(name.clone(), scale.clone());
+                    }
                 }
                 Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                     if checked {
@@ -1845,7 +1868,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             field_metadata: Vec::new(),
             schema_hash: String::new(),
         };
-        contract.units = contract_units(&contract, &catalog.units);
+        contract.units = contract_units(&contract, &catalog.units, &catalog.unit_scales);
         match contract_field_metadata(&meta_index, &contract, &declared_field_meta) {
             Ok(field_metadata) => contract.field_metadata = field_metadata,
             Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
@@ -2696,6 +2719,7 @@ fn contract_type_at_path(contract: &CalculationContract, path: &str) -> Option<C
 fn contract_units(
     contract: &CalculationContract,
     declared: &BTreeMap<String, String>,
+    scales: &BTreeMap<String, UnitScale>,
 ) -> Vec<CalculationUnit> {
     fn collect(ty: &CalculationTypeRef, used: &mut BTreeSet<String>) {
         match ty {
@@ -2735,6 +2759,10 @@ fn contract_units(
         .filter_map(|name| {
             declared.get(&name).map(|description| CalculationUnit {
                 description: description.clone(),
+                scale: scales.get(&name).map(|scale| CalculationUnitScale {
+                    of: scale.of.clone(),
+                    per: scale.per,
+                }),
                 name,
             })
         })

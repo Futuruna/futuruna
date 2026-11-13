@@ -109,11 +109,13 @@ called the same way:
 
 Experimental. `# unit Name "description"` declares a unit of measure for
 whole numbers. The description says what the unit counts; the calculation
-contract repeats it wherever a field has the unit.
+contract repeats it wherever a field has the unit. `= Base / n` declares its
+scale: `n` of the unit make one `Base`.
 
 ```runa
-# unit Ore "DKK øre"
-# unit Micro "millionths of a share or unit"
+# unit Ore "DKK øre" = DKK / 100
+# unit MicroDkk "millionths of a krone" = DKK / 1000000
+# unit Micro "millionths of a share or unit" = 1 / 1000000
 # Account(name: String, balance: Ore)
 
 > market_value(quantity: Micro, price: Ore) -> Ore {
@@ -128,6 +130,8 @@ contract repeats it wherever a field has the unit.
 = accounts = [Account(name = "a", balance = 10000), Account(name = "b", balance = 2500)]
 @ print(show(Int(total(accounts) - fee))) -- 12250
 @ print(show(market_value(Micro(1500000), 200))) -- 300
+@ print(show(to_nearest(Ore, MicroDkk(1235000)))) -- 124
+@ print(show(to(MicroDkk, fee))) -- 2500000
 ```
 
 `unit` is contextual: it is an ordinary name everywhere else, and there is no
@@ -162,25 +166,41 @@ inside the callback is caught as it would be outside:
 fields have different units.
 
 `Ore(n)` gives a plain `Int` the unit and `Int(amount)` takes it off; both leave
-the value unchanged. `Ore(x)` of a value in another unit is an error. A rule
-that changes unit is a function that uses both conversions, as
-`market_value` does above, so the conversion is written down once.
+the value unchanged. `Ore(x)` of a value in another unit is an error.
+
+The base of a scale is a name of its own (a currency code such as `DKK`, or
+another quantity) or `1` for a plain number; it is never a declared type or
+unit, so every unit of one base names the base itself. Two units of one base
+convert when one scale is a whole multiple of the other: `to(MicroDkk, fee)`
+multiplies exactly, and a conversion that divides names its rounding:
+`to_nearest(Ore, m)` (halves away from zero), `to_floor`, `to_ceiling` or
+`to_toward_zero`. `to(Ore, m)` is an error that lists the roundings, and a
+rounding name on a conversion that multiplies is an error, so the rounding
+written is always the one that happens. A conversion between units of
+different bases, or from a unit without a scale, is a rule of the model: a
+function that uses `Int(...)` and the unit, as `market_value` does above. A
+program that declares its own `to` (or `to_nearest`, ...) keeps it.
 
 `abs`, `min_int`, `max_int`, `clamp`, `sum` and `sum_list` keep the unit of
-their arguments, and every argument must have the same unit. `foldl` with a
-literal start value takes the unit when its step adds a value of exactly one
-unit: above, `acc + a.balance` makes the accumulator `Ore`. When the step adds
-no unit value (only the accumulator and plain `Int`s), the result is `Int`;
-write `foldl(xs, Ore(0), ...)` there. A rule family may mix literal clauses with
-unit clauses: `| fee(x: Ore) -> 0 under x < 100` beside
-`| fee(x: Ore) -> x / 10` gives `fee` the type `Ore`.
+their arguments, and every argument must have the same unit. `foldl`'s
+accumulator has the type of its start value. A start written as a number takes
+the unit its step brings in: above, `acc + a.balance` makes the accumulator
+`Ore`. When the step brings in no unit (`n + 1`), the accumulator is a plain
+`Int`, so a step that adds two different units is an error; write
+`foldl(xs, Ore(0), ...)` to start from a unit explicitly. A closure bound to a
+name (`= f = |x| x + fee`) is checked again at each call with its argument
+types: `f(quantity)` adds `Micro` to `Ore` and is an error. `[a] == [m]` and
+`Some(a) == Some(m)` compare different units and are errors. A rule family
+may mix literal clauses with unit clauses: `| fee(x: Ore) -> 0 under x < 100`
+beside `| fee(x: Ore) -> x / 10` gives `fee` the type `Ore`.
 
 A unit value is an `Int` everywhere outside the checker: the interpreter,
 `runa call` JSON, `runa verify` and generated Rust (which declares
-`pub type Ore = i64;`) see plain `Int`. In a `runa schema` contract a
-unit-typed field keeps the type `{"kind": "primitive", "name": "Int"}` and gains
-`"unit": "Ore"`, and the contract lists its units with their descriptions; see
-[Calculations](calculations.md#unit-types). See also
+`pub type Ore = i64;`) see plain `Int`, and each `to...` conversion is the
+`Int` arithmetic it stands for. In a `runa schema` contract a unit-typed field
+keeps the type `{"kind": "primitive", "name": "Int"}` and gains
+`"unit": "Ore"`, and the contract lists its units with their descriptions and
+scales; see [Calculations](calculations.md#unit-types). See also
 [the design](../rfcs/unit-types.md).
 
 ### Product types with rule members
