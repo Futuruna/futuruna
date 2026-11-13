@@ -56854,8 +56854,10 @@ mod tests {
             input: calculate::CalculationTypeRef::Unit,
             output: calculate::CalculationTypeRef::Primitive {
                 name: "String".to_string(),
+                unit: None,
             },
             definitions: Vec::new(),
+            units: Vec::new(),
             metadata: Vec::new(),
             field_metadata: Vec::new(),
             schema_hash: "test-schema-hash".to_string(),

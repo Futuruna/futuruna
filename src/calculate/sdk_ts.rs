@@ -411,7 +411,9 @@ impl<'a> Sdk<'a> {
                 if !PRIMITIVES.contains(&name.as_str()) {
                     Err(format!("{context}: unsupported primitive type `{name}`"))
                 } else if unit.is_some() && name != "Int" {
-                    Err(format!("{context}: a unit of measure on `{name}`, not `Int`"))
+                    Err(format!(
+                        "{context}: a unit of measure on `{name}`, not `Int`"
+                    ))
                 } else {
                     Ok(())
                 }
@@ -4228,7 +4230,10 @@ mod tests {
             types,
             "/**\n * DKK øre.\n *\n * A Futuruna `Ore`: a safe integer of this unit, on the wire the same JSON number. Only `ore(n)` and the validators make one; a bare number or a value of another unit is not one.\n */\nexport type Ore = number & { readonly __unit: \"Ore\" };",
         );
-        assert_contains(types, "export type Micro = number & { readonly __unit: \"Micro\" };");
+        assert_contains(
+            types,
+            "export type Micro = number & { readonly __unit: \"Micro\" };",
+        );
         assert_contains(types, "  quantityMicro: Micro;");
         assert_contains(types, "  count: number;");
         assert_contains(types, "  history: Ore[] | null;");
