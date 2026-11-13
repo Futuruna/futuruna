@@ -175,14 +175,16 @@ pub struct ConstructorElaboration {
 }
 
 impl ConstructorElaboration {
-    /// The root statements to run, when elaboration changed them.
-    pub fn root_statements(&self) -> Option<&[Stmt]> {
-        self.root.as_deref()
+    /// The elaborated root statements, when elaboration changed them. The
+    /// checker moves them into [`TypeCheckArtifacts::program`].
+    pub(crate) fn take_root(&mut self) -> Option<Vec<Stmt>> {
+        self.root.take()
     }
 
-    /// Whether any constructor received an internal name.
-    pub fn renames_constructors(&self) -> bool {
-        !self.names.is_empty()
+    /// The paths whose rewritten modules this elaboration installs.
+    #[cfg(test)]
+    pub(crate) fn module_paths(&self) -> impl Iterator<Item = &Path> {
+        self.modules.keys().map(PathBuf::as_path)
     }
 
     /// Make the elaborated imports and the internal names visible to the
@@ -522,7 +524,7 @@ impl TypeChecker {
     pub(crate) fn elaborate_constructor_scope(
         &mut self,
         root: &[Stmt],
-    ) -> Option<Arc<ConstructorElaboration>> {
+    ) -> Option<ConstructorElaboration> {
         let shared = self.shared_constructor_plan();
         if shared.owners.is_empty() && !self.constructor_scope_used.get() {
             return None;
@@ -609,7 +611,7 @@ impl TypeChecker {
                 );
             }
         }
-        Some(Arc::new(elaboration))
+        Some(elaboration)
     }
 
     fn elaborate_constructor_statements(

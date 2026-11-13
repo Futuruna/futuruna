@@ -2013,14 +2013,16 @@ fn run_calculation_command(
             std::process::exit(1);
         })
     });
-    let mut stmts = user_stmts.as_ref().map(|user_stmts| {
+    let mut stmts: Option<std::sync::Arc<[Stmt]>> = user_stmts.as_ref().map(|user_stmts| {
         if use_prelude {
-            prepend_prelude(parse_prelude(), user_stmts)
+            prepend_prelude(parse_prelude(), user_stmts).into()
         } else {
-            user_stmts.clone()
+            user_stmts.as_slice().into()
         }
     });
     let contracts = if let Some(cached) = cached_contracts {
+        // A cached program was never elaborated: its parsed statements are
+        // the ones a check would hand back.
         trace_calculation_contract_cache("hit");
         cached
     } else {
@@ -2032,14 +2034,17 @@ fn run_calculation_command(
         let user_stmts = user_stmts.as_ref().expect("cache miss parses source");
         let source_graph = calculation_contract_cache_dir()
             .and_then(|_| build_source_graph_snapshot(filename, &source, user_stmts, use_prelude));
-        let (contracts, elaborated) = run_calculation_type_check(
-            stmts.as_mut().expect("cache miss prepares statements"),
+        let mut checked = run_type_check(
+            stmts.as_deref().expect("cache miss prepares statements"),
             &source,
             filename,
         )
         .unwrap_or_else(|| std::process::exit(1));
+        stmts = Some(checked.program().clone());
+        let contracts = std::mem::take(&mut checked.calculation_contracts);
         // An elaborated program must be checked on every run: the check
         // installs the internal constructor names its consumers need.
+        let elaborated = checked.constructor_elaboration.is_some();
         if let Some(source_graph) = source_graph.filter(|_| !elaborated) {
             store_calculation_contract_cache(filename, use_prelude, source_graph, &contracts);
         }
@@ -2120,7 +2125,7 @@ fn run_calculation_command(
             let input_format = calculation_format(None, Some(input_path), "json");
             let mut prepared = calculate::PreparedCalculation::new(
                 contract.clone(),
-                stmts.expect("calculation calls parse source").into(),
+                stmts.expect("calculation calls parse source"),
                 source_dir,
             );
             if let Some((mode, check)) = partial {
@@ -2293,9 +2298,10 @@ fn run_sdk_command(args: &[String]) {
             display_error_in(&source, &error, filename);
             std::process::exit(1);
         });
-    let mut stmts = prepend_prelude(parse_prelude(), &user_stmts);
-    let (contracts, _) = run_calculation_type_check(&mut stmts, &source, filename)
-        .unwrap_or_else(|| std::process::exit(1));
+    let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+    let contracts = run_type_check(&stmts, &source, filename)
+        .unwrap_or_else(|| std::process::exit(1))
+        .calculation_contracts;
     let files =
         calculate::sdk_ts::generate_typescript_sdk(&contracts, filename).unwrap_or_else(|error| {
             eprintln!("error: {error}");
@@ -5580,40 +5586,11 @@ fn compiler_validation_diagnostics(stmts: &[Stmt], source_dir: Option<String>) -
 }
 
 /// Run type checking and display any errors as structured diagnostics.
-/// Returns true if there were errors (and already printed them). A checked
-/// program's statements become the ones its consumers run.
-fn run_type_check(stmts: &mut Vec<Stmt>, source: &str, filename: &str) -> bool {
+/// Returns `None` if there were errors (and already printed them); otherwise
+/// the artifacts, whose [`TypeCheckArtifacts::program`] its consumers run.
+fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> Option<TypeCheckArtifacts> {
     let artifacts = type_check_artifacts(stmts, source, filename);
-    let failed = print_type_check_diagnostics(&artifacts.diagnostics, source, filename);
-    if !failed {
-        adopt_runtime_statements(stmts, &artifacts);
-    }
-    failed
-}
-
-/// The calculation contracts of a checked program, and whether its
-/// statements were elaborated (a contract cache cannot stand in for that).
-fn run_calculation_type_check(
-    stmts: &mut Vec<Stmt>,
-    source: &str,
-    filename: &str,
-) -> Option<(Vec<calculate::CalculationContract>, bool)> {
-    let artifacts = type_check_artifacts(stmts, source, filename);
-    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
-        None
-    } else {
-        adopt_runtime_statements(stmts, &artifacts);
-        let elaborated = artifacts.constructor_elaboration.is_some();
-        Some((artifacts.calculation_contracts, elaborated))
-    }
-}
-
-/// Replace checked statements with the ones the program runs: shared
-/// constructors under their internal names, `Type.Constructor` resolved.
-fn adopt_runtime_statements(stmts: &mut Vec<Stmt>, artifacts: &TypeCheckArtifacts) {
-    if let Some(root) = artifacts.runtime_statements() {
-        *stmts = root.to_vec();
-    }
+    (!print_type_check_diagnostics(&artifacts.diagnostics, source, filename)).then_some(artifacts)
 }
 
 fn type_check_artifacts(stmts: &[Stmt], source: &str, filename: &str) -> TypeCheckArtifacts {
@@ -5641,11 +5618,12 @@ fn type_check_artifacts_with_backend_metadata(
         TypeChecker::check_with_artifacts(stmts, source_dir.clone(), source)
     };
     if artifacts.diagnostics.is_empty() {
-        let runtime = artifacts.runtime_statements().map(<[Stmt]>::to_vec);
-        let runtime = runtime.as_deref().unwrap_or(stmts);
         artifacts
             .diagnostics
-            .extend(compiler_validation_diagnostics(runtime, source_dir));
+            .extend(compiler_validation_diagnostics(
+                artifacts.program(),
+                source_dir,
+            ));
     }
     artifacts
 }
@@ -5690,7 +5668,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             let source_graph = compiler_artifact_cache_dir().and_then(|_| {
                 build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
             });
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -5700,7 +5678,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
-            adopt_runtime_statements(&mut stmts, &type_check);
+            let stmts = type_check.program().clone();
 
             let mut cg = RustCodegen::new();
             cg.install_canonical_rule_metadata(&type_check);
@@ -5968,7 +5946,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -5981,7 +5959,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
-            adopt_runtime_statements(&mut stmts, &type_check);
+            let stmts = type_check.program().clone();
 
             let mut validation_cg = RustCodegen::new();
             validation_cg.lib_mode = true;
@@ -6739,7 +6717,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
     match parser.parse_program() {
         Ok(user_stmts) => {
             // Prepend standard prelude (types + utility functions)
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -6768,7 +6746,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
                 std::process::exit(1);
             }
-            adopt_runtime_statements(&mut stmts, &artifacts);
+            let stmts = artifacts.program().clone();
 
             // Evaluate
             let mut interp = Interpreter::new();
@@ -10971,7 +10949,7 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
         eprintln!("parse error in {filename}: {error}");
         std::process::exit(1);
     });
-    let mut stmts = if use_prelude {
+    let stmts = if use_prelude {
         prepend_prelude(parse_prelude(), &user_stmts)
     } else {
         user_stmts
@@ -10982,7 +10960,7 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
     if print_type_check_diagnostics(&artifacts.diagnostics, &source, filename) {
         std::process::exit(TEST_FILE_FRONTEND_FAILURE);
     }
-    adopt_runtime_statements(&mut stmts, &artifacts);
+    let stmts = artifacts.program().clone();
     let source_dir = Path::new(filename)
         .parent()
         .map(|parent| parent.to_string_lossy().to_string());
@@ -17748,7 +17726,7 @@ fn audit_calculation_reachability_source(
         display_error_in(source, &error, filename);
         std::process::exit(1);
     });
-    let mut stmts = if use_prelude {
+    let stmts = if use_prelude {
         prepend_prelude(parse_prelude(), &user_stmts)
     } else {
         user_stmts
@@ -17757,7 +17735,7 @@ fn audit_calculation_reachability_source(
     if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         std::process::exit(1);
     }
-    adopt_runtime_statements(&mut stmts, &artifacts);
+    let stmts = artifacts.program().clone();
     // A file without a calculation has no entry closure: its JSON report
     // keeps the same shape, with the entry sections null, and audits the
     // families with a clause in the file.
@@ -17905,7 +17883,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
-    let mut stmts = match parser.parse_program() {
+    let stmts = match parser.parse_program() {
         Ok(user_stmts) => {
             if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
@@ -17928,7 +17906,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         );
         std::process::exit(1);
     }
-    adopt_runtime_statements(&mut stmts, &frontend);
+    let stmts = frontend.program().clone();
 
     // An audit inspects the model: it registers declarations and evaluates
     // bindings and rules, but never runs top-level statements (effects,
@@ -17946,7 +17924,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
     let mut env = interp.default_env();
 
     let audit_stmts: Vec<Stmt> = stmts
-        .into_iter()
+        .iter()
         .filter(|s| {
             !matches!(
                 s,
@@ -17958,6 +17936,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
                     | Stmt::Prove { .. }
             )
         })
+        .cloned()
         .collect();
     if let Err(diagnostic) =
         interp.run_program_with_diagnostics(&audit_stmts, &mut env, Path::new(filename), source)
@@ -19074,7 +19053,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
-    let mut stmts = match parser.parse_program() {
+    let stmts = match parser.parse_program() {
         Ok(s) => s,
         Err(e) => {
             display_error_in(source, &e, filename);
@@ -19094,16 +19073,14 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         eprintln!("runa --verify: verification requires a type-correct program");
         std::process::exit(1);
     }
-    // The prelude precedes the authored statements, which the solver reads.
-    if let Some(root) = checked.runtime_statements() {
-        stmts = root[root.len() - stmts.len()..].to_vec();
-    }
     drop(checked_stmts);
+    // The solver reads the authored statements, which follow the prelude.
+    let stmts = checked.authored_program(stmts.len());
 
     // Imported declarations precede local declarations, matching interpreter
     // and codegen registration. Rule groups intentionally compose across this
     // graph, so a local exception can override an imported base clause.
-    let resolved_program = match resolve_smt_program(&stmts, filename) {
+    let resolved_program = match resolve_smt_program(stmts, filename) {
         Ok(program) => program,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
@@ -19256,7 +19233,6 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     let partial_dispatches = rule_lowerer.partial_dispatches.borrow().clone();
     let mut dispatch_gaps: BTreeMap<RuleDispatchKey, runa_rule_reachability::DispatchGap> =
         BTreeMap::new();
-    let mut audit_stmts: Option<Vec<Stmt>> = None;
     let mut print_dispatch_gaps = |reason: &str| {
         let keys = partial_dispatches
             .iter()
@@ -19264,13 +19240,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             .flat_map(|(_, keys)| keys)
             .collect::<BTreeSet<_>>();
         for key in keys {
-            let statements = audit_stmts.get_or_insert_with(|| {
-                if use_prelude {
-                    prepend_prelude(parse_prelude(), &stmts)
-                } else {
-                    stmts.clone()
-                }
-            });
+            let statements = checked.program();
             let gap = dispatch_gaps.entry(key.clone()).or_insert_with(|| {
                 runa_rule_reachability::dispatch_gap(statements, filename, source, key)
             });
@@ -19916,7 +19886,7 @@ fn check_source(
                 build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
             });
             trace_compiler_timing("source graph", source_graph_start.elapsed());
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -19958,7 +19928,7 @@ fn check_source(
                 return;
             }
 
-            adopt_runtime_statements(&mut stmts, &type_check);
+            let stmts = type_check.program().clone();
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             cg.source_dir = source_dir_for(filename);
@@ -20384,16 +20354,17 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
             };
 
             // Run type check
-            if run_type_check(&mut stmts, source, filename) {
+            let Some(type_check) = run_type_check(&stmts, source, filename) else {
                 std::process::exit(1);
-            }
+            };
+            let stmts = type_check.program();
 
             // Scan declarations to populate TypeRegistry (without emitting Rust)
             let mut cg = RustCodegen::new();
@@ -20513,15 +20484,16 @@ fn emit_import_normalization_source(source: &str, filename: &str, use_prelude: b
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
             };
 
-            if run_type_check(&mut stmts, source, filename) {
+            let Some(type_check) = run_type_check(&stmts, source, filename) else {
                 std::process::exit(1);
-            }
+            };
+            let stmts = type_check.program();
 
             let mut cg = RustCodegen::new();
             cg.source_dir = source_dir_for(filename);
@@ -20548,7 +20520,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let mut stmts = if use_prelude {
+            let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -20557,7 +20529,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
-            adopt_runtime_statements(&mut stmts, &type_check);
+            let stmts = type_check.program().clone();
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
@@ -25757,6 +25729,14 @@ enum StaticRuleParamRelation {
     UnsupportedStructuralAbi,
 }
 
+/// The Rust identifier of constructor `name` in its enum. Codegen looks a
+/// shared constructor up by its internal name (`AskYearEvent__Trade`); the
+/// enum declares the variant under the name its type wrote, so every
+/// variant path, pattern and constructor reads `AskYearEvent::Trade`.
+fn rust_variant_name(name: &str) -> std::borrow::Cow<'_, str> {
+    constructor_display_name(name)
+}
+
 #[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
@@ -26408,7 +26388,7 @@ impl TypeRegistry {
         if self.struct_types.contains(parent) {
             variant.to_string()
         } else {
-            format!("{}::{}", parent, variant)
+            format!("{}::{}", parent, rust_variant_name(variant))
         }
     }
 }
@@ -29595,9 +29575,16 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                         format!("{} {{ {} }}", parent, named_args.join(", "))
                     }
                 }
-                Some(parent) if args.is_empty() => format!("{}::{}", parent, name),
+                Some(parent) if args.is_empty() => {
+                    format!("{}::{}", parent, rust_variant_name(name))
+                }
                 Some(parent) if types.variant_positional_for_parent(&parent, name) => {
-                    format!("{}::{}({})", parent, name, arg_strs.join(", "))
+                    format!(
+                        "{}::{}({})",
+                        parent,
+                        rust_variant_name(name),
+                        arg_strs.join(", ")
+                    )
                 }
                 Some(parent) => {
                     let fields = types.variant_fields_for_parent(&parent, name);
@@ -29612,7 +29599,12 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                             format!("{}: {}", field, arg)
                         })
                         .collect::<Vec<_>>();
-                    format!("{}::{} {{ {} }}", parent, name, named_args.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        named_args.join(", ")
+                    )
                 }
                 None if args.is_empty() => name.clone(),
                 None => format!("{}({})", name, arg_strs.join(", ")),
@@ -29644,7 +29636,12 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                     format!("{} {{ {} }}", parent, field_strs.join(", "))
                 }
                 Some(parent) => {
-                    format!("{}::{} {{ {} }}", parent, name, field_strs.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        field_strs.join(", ")
+                    )
                 }
                 None => format!("{} {{ {} }}", name, field_strs.join(", ")),
             }
@@ -32225,10 +32222,18 @@ impl RustCodegen {
                         (format!("{}({})", name, items.join(", ")), parent_ty.clone())
                     }
                 } else if args.is_empty() {
-                    (format!("{}::{}", parent_ty, name), parent_ty.clone())
+                    (
+                        format!("{}::{}", parent_ty, rust_variant_name(name)),
+                        parent_ty.clone(),
+                    )
                 } else {
                     (
-                        format!("{}::{}({})", parent_ty, name, items.join(", ")),
+                        format!(
+                            "{}::{}({})",
+                            parent_ty,
+                            rust_variant_name(name),
+                            items.join(", ")
+                        ),
                         parent_ty.clone(),
                     )
                 }
@@ -32242,7 +32247,7 @@ impl RustCodegen {
                 let qualified = if parent_ty.is_empty() || parent_ty == *name {
                     name.clone() // Struct type (parent == name) or unknown
                 } else {
-                    format!("{}::{}", parent_ty, name) // Enum variant
+                    format!("{}::{}", parent_ty, rust_variant_name(name)) // Enum variant
                 };
                 if fields.is_empty() {
                     (
@@ -40609,8 +40614,9 @@ fn __futuruna_install_error_hook() {
                         } else {
                             ""
                         };
+                        let variant = rust_variant_name(&v.name);
                         if v.fields.is_empty() {
-                            out.push_str(&format!("{}    {},\n", default_attr, v.name));
+                            out.push_str(&format!("{}    {},\n", default_attr, variant));
                         } else if v.positional {
                             // Positional → Rust tuple variant
                             let fields_str: Vec<String> = v
@@ -40625,10 +40631,10 @@ fn __futuruna_install_error_hook() {
                                     }
                                 })
                                 .collect();
-                            out.push_str(&format!("    {}({}),\n", v.name, fields_str.join(", ")));
+                            out.push_str(&format!("    {}({}),\n", variant, fields_str.join(", ")));
                         } else {
                             // Named → Rust struct variant
-                            out.push_str(&format!("    {} {{\n", v.name));
+                            out.push_str(&format!("    {} {{\n", variant));
                             for f in &v.fields {
                                 let base = self.emit_type_with_params(&f.ty, params);
                                 let ty_str = if self.type_references_adt(&f.ty, name) {
@@ -40654,7 +40660,7 @@ fn __futuruna_install_error_hook() {
                     let head = if is_struct {
                         "Self".to_string()
                     } else {
-                        format!("Self::{}", v.name)
+                        format!("Self::{}", rust_variant_name(&v.name))
                     };
                     let pattern = if v.fields.is_empty() {
                         if is_struct && !v.positional {
@@ -43047,14 +43053,14 @@ fn __futuruna_install_error_hook() {
                     let owner = if is_struct {
                         parent
                     } else {
-                        format!("{parent}::{constructor}")
+                        format!("{parent}::{}", rust_variant_name(&constructor))
                     };
                     Ok(format!("{owner}({})", patterns.join(", ")))
                 } else {
                     let owner = if is_struct {
                         parent
                     } else {
-                        format!("{parent}::{constructor}")
+                        format!("{parent}::{}", rust_variant_name(&constructor))
                     };
                     let fields = fields
                         .iter()
@@ -44479,7 +44485,7 @@ fn __futuruna_install_error_hook() {
                     if let Some(variant_names) = self.finite_nullary_variants(&type_name) {
                         let items: Vec<String> = variant_names
                             .iter()
-                            .map(|variant| format!("{}::{}", type_name, variant))
+                            .map(|variant| format!("{}::{}", type_name, rust_variant_name(variant)))
                             .collect();
                         let call_args: Vec<String> = goal_args
                             .iter()
@@ -50626,7 +50632,11 @@ fn __futuruna_install_error_hook() {
         let constructor_path = if metadata.struct_type {
             parent_path
         } else {
-            format!("{}::{}", parent_path, sanitize_name(constructor))
+            format!(
+                "{}::{}",
+                parent_path,
+                sanitize_name(&rust_variant_name(constructor))
+            )
         };
         if metadata.positional {
             Some(format!("{}({})", constructor_path, emitted_args.join(", ")))
@@ -52470,7 +52480,12 @@ fn __futuruna_install_error_hook() {
                             if is_struct_type {
                                 return format!("{}({})", parent, wrapped.join(", "));
                             } else {
-                                return format!("{}::{}({})", parent, name, wrapped.join(", "));
+                                return format!(
+                                    "{}::{}({})",
+                                    parent,
+                                    rust_variant_name(name),
+                                    wrapped.join(", ")
+                                );
                             }
                         } else {
                             // Named/struct variant
@@ -52489,7 +52504,12 @@ fn __futuruna_install_error_hook() {
                             if is_struct_type {
                                 return format!("{} {{ {} }}", parent, pairs.join(", "));
                             } else {
-                                return format!("{}::{} {{ {} }}", parent, name, pairs.join(", "));
+                                return format!(
+                                    "{}::{} {{ {} }}",
+                                    parent,
+                                    rust_variant_name(name),
+                                    pairs.join(", ")
+                                );
                             }
                         }
                     }
@@ -53293,7 +53313,7 @@ fn __futuruna_install_error_hook() {
                                 arms.push(format!(
                                     "{}::{} {{ {}: ref __f, .. }} => {}",
                                     type_name,
-                                    sanitize_name(&constructor),
+                                    sanitize_name(&rust_variant_name(&constructor)),
                                     sanitize_name(field),
                                     clone_expr
                                 ));
@@ -53397,7 +53417,10 @@ fn __futuruna_install_error_hook() {
                                 };
                                 arms.push(format!(
                                     "{}::{} {{ {}: ref __f, .. }} => {}",
-                                    parent_name, variant_name, field, clone_expr
+                                    parent_name,
+                                    rust_variant_name(variant_name),
+                                    field,
+                                    clone_expr
                                 ));
                             }
                         }
@@ -56067,15 +56090,15 @@ fn __futuruna_install_error_hook() {
             if is_struct_type {
                 return name.to_string();
             }
-            return format!("{}::{}", parent, name);
+            return format!("{}::{}", parent, rust_variant_name(name));
         }
 
         let is_pos = self.types.variant_positional_for_parent(&parent, name);
         match (is_struct_type, is_pos) {
             (true, true) => format!("{}(..)", parent),
             (true, false) => format!("{} {{ .. }}", parent),
-            (false, true) => format!("{}::{}(..)", parent, name),
-            (false, false) => format!("{}::{} {{ .. }}", parent, name),
+            (false, true) => format!("{}::{}(..)", parent, rust_variant_name(name)),
+            (false, false) => format!("{}::{} {{ .. }}", parent, rust_variant_name(name)),
         }
     }
 
@@ -56175,7 +56198,7 @@ fn __futuruna_install_error_hook() {
             Pat::Wild => "_".to_string(),
             Pat::Con(name, args) if args.is_empty() => {
                 let parent = self.find_parent_type(name);
-                format!("{}::{}", parent, name)
+                format!("{}::{}", parent, rust_variant_name(name))
             }
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
@@ -56187,7 +56210,7 @@ fn __futuruna_install_error_hook() {
                     .unwrap_or(true);
                 let ps: Vec<String> = args.iter().map(|p| self.emit_pattern_binding(p)).collect();
                 if is_pos {
-                    format!("{}::{}({})", parent, name, ps.join(", "))
+                    format!("{}::{}({})", parent, rust_variant_name(name), ps.join(", "))
                 } else {
                     // Named variant: destructure with field names
                     let fields = self.types.variant_fields.get(name.as_str());
@@ -56202,7 +56225,12 @@ fn __futuruna_install_error_hook() {
                             format!("{}: {}", fname, p)
                         })
                         .collect();
-                    format!("{}::{} {{ {} }}", parent, name, named_ps.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        named_ps.join(", ")
+                    )
                 }
             }
             Pat::NamedCon(name, named_args) => {
@@ -56211,7 +56239,12 @@ fn __futuruna_install_error_hook() {
                     .iter()
                     .map(|(fname, p)| format!("{}: {}", fname, self.emit_pattern_binding(p)))
                     .collect();
-                format!("{}::{} {{ {} }}", parent, name, ps.join(", "))
+                format!(
+                    "{}::{} {{ {} }}",
+                    parent,
+                    rust_variant_name(name),
+                    ps.join(", ")
+                )
             }
             Pat::Lit(lit) => self.emit_literal(lit),
             Pat::As(inner, name) => {
@@ -56261,7 +56294,7 @@ fn __futuruna_install_error_hook() {
                 if self.types.struct_types.contains(&parent) {
                     name.clone()
                 } else {
-                    format!("{}::{}", parent, name)
+                    format!("{}::{}", parent, rust_variant_name(name))
                 }
             }
             Pat::Con(name, args) => {
@@ -56319,7 +56352,7 @@ fn __futuruna_install_error_hook() {
                     if is_struct_type {
                         format!("{}({})", parent, ps.join(", "))
                     } else {
-                        format!("{}::{}({})", parent, name, ps.join(", "))
+                        format!("{}::{}({})", parent, rust_variant_name(name), ps.join(", "))
                     }
                 } else {
                     let fields = self.types.variant_fields_for_parent(&parent, name);
@@ -56337,7 +56370,12 @@ fn __futuruna_install_error_hook() {
                     if is_struct_type {
                         format!("{} {{ {} }}", parent, named_ps.join(", "))
                     } else {
-                        format!("{}::{} {{ {} }}", parent, name, named_ps.join(", "))
+                        format!(
+                            "{}::{} {{ {} }}",
+                            parent,
+                            rust_variant_name(name),
+                            named_ps.join(", ")
+                        )
                     }
                 }
             }
@@ -56407,7 +56445,12 @@ fn __futuruna_install_error_hook() {
                 if is_struct_type {
                     format!("{} {{ {} }}", parent, ps.join(", "))
                 } else {
-                    format!("{}::{} {{ {} }}", parent, name, ps.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        ps.join(", ")
+                    )
                 }
             }
             Pat::Lit(lit) => self.emit_literal(lit),
@@ -56464,7 +56507,9 @@ fn __futuruna_install_error_hook() {
                     let parent = self.find_parent_type(sub_name);
                     guards.push(format!(
                         "matches!({}, {}::{})",
-                        deref_expr, parent, sub_name
+                        deref_expr,
+                        parent,
+                        rust_variant_name(sub_name)
                     ));
                 }
                 Pat::Con(sub_name, _) => {
@@ -56478,12 +56523,16 @@ fn __futuruna_install_error_hook() {
                     if is_positional {
                         guards.push(format!(
                             "matches!({}, {}::{}(..))",
-                            deref_expr, parent, sub_name
+                            deref_expr,
+                            parent,
+                            rust_variant_name(sub_name)
                         ));
                     } else {
                         guards.push(format!(
                             "matches!({}, {}::{} {{ .. }})",
-                            deref_expr, parent, sub_name
+                            deref_expr,
+                            parent,
+                            rust_variant_name(sub_name)
                         ));
                     }
                 }
@@ -56491,7 +56540,9 @@ fn __futuruna_install_error_hook() {
                     let parent = self.find_parent_type(sub_name);
                     guards.push(format!(
                         "matches!({}, {}::{} {{ .. }})",
-                        deref_expr, parent, sub_name
+                        deref_expr,
+                        parent,
+                        rust_variant_name(sub_name)
                     ));
                 }
                 _ => {}

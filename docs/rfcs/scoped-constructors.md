@@ -69,11 +69,17 @@ both are reported as errors.
 After checking, an elaboration pass gives every shared constructor except the
 first declared one an internal name, using the owner the checker chose for
 each occurrence, and writes `Type.Constructor` as the constructor alone. The
-interpreter, native code and the solver keep their name-keyed registries.
-Every place a constructor name leaves the program maps it back to the name its
-declaration wrote: displayed values and `show`, collection order, calculation
-JSON (`$variant` stays the declared name in each type's position), contracts
-and `runa schema`, solver models, and content hashes of declarations.
+checked artifacts own the elaborated root program; every consumer (run, test,
+build, emit, audit, verify, calculation calls, the WebAssembly engine) runs
+the program the artifacts hand back, never the statements it passed in.
+Elaborated imports are keyed by the same canonical source path the module
+cache and host-provided files use. The interpreter, native code and the
+solver keep their name-keyed registries. Every place a constructor name
+leaves the program maps it back to the name its declaration wrote: displayed
+values and `show`, collection order, calculation JSON (`$variant` stays the
+declared name in each type's position), contracts and `runa schema`, solver
+models, content hashes of declarations, and the variant identifiers of
+generated Rust enums.
 
 A program without shared names and without `Type.Constructor` is not
 elaborated; its outputs and schema hashes are unchanged.

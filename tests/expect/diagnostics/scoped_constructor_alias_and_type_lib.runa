@@ -1,0 +1,3 @@
+-- expect-skip: dependency-only fixture for the alias-and-type qualifier diagnostic
+@ export
+> answer() -> Int { 42 }

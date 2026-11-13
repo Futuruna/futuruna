@@ -7948,8 +7948,31 @@ fn parsed_source_content_hash(source: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn canonical_parsed_source_path(path: &Path) -> PathBuf {
-    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+/// The path a source file is known by: its canonical filesystem path, or,
+/// for a file that is not on disk (a host-provided file), the path with its
+/// `.` and `..` components resolved. Parsed-module caching, provided files
+/// and the shared-constructor rewrite of imports all key on it, so a module
+/// reached by any spelling of its path is the same module.
+pub(crate) fn canonical_source_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| lexically_normalized_path(path))
+}
+
+fn lexically_normalized_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => match normalized.components().next_back() {
+                Some(std::path::Component::Normal(_)) => {
+                    normalized.pop();
+                }
+                Some(std::path::Component::RootDir | std::path::Component::Prefix(_)) => {}
+                _ => normalized.push(".."),
+            },
+            component => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
 }
 
 /// Parse a module once per exact path/content pair and share its immutable AST
@@ -7960,7 +7983,7 @@ pub fn parse_source_module_cached(
     path: &Path,
     source: &str,
 ) -> Result<Arc<ParsedSourceModule>, String> {
-    let path = canonical_parsed_source_path(path);
+    let path = canonical_source_path(path);
     let content_hash = parsed_source_content_hash(source);
     if let Some(module) = constructor_scope::elaborated_source_module(&path, &content_hash) {
         return Ok(module);
@@ -7993,6 +8016,10 @@ pub fn parse_source_module_cached(
     Ok(module)
 }
 
+/// Serializes tests that replace the process-wide provided files.
+#[cfg(test)]
+pub(crate) static PROVIDED_SOURCE_FILES_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 static PROVIDED_SOURCE_FILES: std::sync::LazyLock<Mutex<BTreeMap<PathBuf, Arc<str>>>> =
     std::sync::LazyLock::new(|| Mutex::new(BTreeMap::new()));
 
@@ -8008,20 +8035,23 @@ pub fn provide_source_files(files: impl IntoIterator<Item = (PathBuf, String)>) 
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     *provided = files
         .into_iter()
-        .map(|(path, source)| (path, Arc::from(source)))
+        .map(|(path, source)| (lexically_normalized_path(&path), Arc::from(source)))
         .collect();
 }
 
 /// Read a Futuruna source file: a provided file (see [`provide_source_files`])
 /// or else the file on disk.
 pub fn read_source_file(path: &Path) -> std::io::Result<String> {
-    let provided = PROVIDED_SOURCE_FILES
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .get(path)
-        .map(|source| source.to_string());
+    let provided = {
+        let provided = PROVIDED_SOURCE_FILES
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        (!provided.is_empty())
+            .then(|| provided.get(&lexically_normalized_path(path)).cloned())
+            .flatten()
+    };
     match provided {
-        Some(source) => Ok(source),
+        Some(source) => Ok(source.to_string()),
         None => std::fs::read_to_string(path),
     }
 }
@@ -31797,9 +31827,13 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
-    /// The program with shared constructors given internal names, for every
-    /// consumer that runs it. `None` when no constructor needed one.
+    /// The shared-constructor elaboration this check installed for the
+    /// imports it reads, when the program needed one.
     pub constructor_elaboration: Option<Arc<ConstructorElaboration>>,
+    /// The statements every consumer runs: the checked root with shared
+    /// constructors under their internal names and `Type.Constructor`
+    /// resolved, or the input itself when nothing was renamed.
+    program: Arc<[Stmt]>,
     pub rule_return_types: BTreeMap<String, String>,
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
@@ -32318,13 +32352,17 @@ fn checked_explore_classifier_backend_namespace_v1(statements: &[Stmt]) -> Resul
 }
 
 impl TypeCheckArtifacts {
-    /// The root statements the checked program runs: shared constructors
-    /// under their internal names and `Type.Constructor` resolved. `None`
-    /// when they are the checked statements themselves.
-    pub fn runtime_statements(&self) -> Option<&[Stmt]> {
-        self.constructor_elaboration
-            .as_deref()
-            .and_then(ConstructorElaboration::root_statements)
+    /// The statements to run, emit, audit or verify. A consumer never runs
+    /// the statements it passed to the checker: shared constructors only
+    /// have their internal names here.
+    pub fn program(&self) -> &Arc<[Stmt]> {
+        &self.program
+    }
+
+    /// The authored part of [`Self::program`]: its last `authored_len`
+    /// statements, without the prelude the checked program begins with.
+    pub fn authored_program(&self, authored_len: usize) -> &[Stmt] {
+        &self.program[self.program.len() - authored_len..]
     }
 
     /// Exact guarded runtime calls. This carries no total-value proof authority.
@@ -48629,9 +48667,9 @@ impl TypeChecker {
 
     fn resolve_prepass_import(path: &str, dir: &str) -> Option<(String, String)> {
         let file_path = Self::resolve_tc_import(path, dir)?;
-        let canonical = std::fs::canonicalize(&file_path)
-            .map(|resolved| resolved.to_string_lossy().to_string())
-            .unwrap_or_else(|_| file_path.clone());
+        let canonical = canonical_source_path(Path::new(&file_path))
+            .to_string_lossy()
+            .into_owned();
         let imported_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|parent| parent.to_string_lossy().to_string())
@@ -56282,7 +56320,7 @@ impl TypeChecker {
                     self.checked_resolution_source_snapshot_coherent = false;
                 }
                 self.rule_contract_import_modules.insert(
-                    canonical_parsed_source_path(Path::new(file_path))
+                    canonical_source_path(Path::new(file_path))
                         .to_string_lossy()
                         .to_string(),
                     Arc::clone(&module),
@@ -61008,7 +61046,7 @@ impl TypeChecker {
                     else {
                         continue;
                     };
-                    if !visited.insert(canonical_parsed_source_path(Path::new(file))) {
+                    if !visited.insert(canonical_source_path(Path::new(file))) {
                         continue;
                     }
                     let imported_dir = Interpreter::imported_source_dir(file);
@@ -61066,7 +61104,7 @@ impl TypeChecker {
                     else {
                         continue; // Resolution/parsing diagnostics belong to the prepass.
                     };
-                    let canonical = canonical_parsed_source_path(Path::new(&file));
+                    let canonical = canonical_source_path(Path::new(&file));
                     if !visited.insert(canonical.clone()) {
                         continue;
                     }
@@ -61578,7 +61616,10 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
-        let constructor_elaboration = tc.elaborate_constructor_scope(stmts);
+        let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
+        let elaborated_root = constructor_elaboration
+            .as_mut()
+            .and_then(ConstructorElaboration::take_root);
         if collect_all_imported_metadata_bindings {
             // A Rust-emitting backend needs a signature for every function
             // and a Rust type for every record field.
@@ -61649,6 +61690,7 @@ impl TypeChecker {
             }
         }
         let runtime_root_statements: Arc<[Stmt]> = stmts.to_vec().into();
+        let program = elaborated_root.map_or_else(|| runtime_root_statements.clone(), Arc::from);
         let runtime_root_program = TypeChecker::checked_resolved_program_id(
             &tc.analysis_program,
             &runtime_root_statements,
@@ -61658,7 +61700,8 @@ impl TypeChecker {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
-            constructor_elaboration,
+            constructor_elaboration: constructor_elaboration.map(Arc::new),
+            program,
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,
@@ -70812,6 +70855,164 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "under-arity positional constructor patterns should be rejected before codegen, got: {:?}",
             diags
         );
+    }
+
+    // ── Constructor names scoped to their type ──────────────────────
+
+    const SCOPED_CONSTRUCTOR_TYPES: &str = "# Event = Trade(id: String, amount: Int) | Closed\n# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed\n";
+
+    /// The statements after the two type declarations, once the checker gave
+    /// every shared constructor its owner. `Event`, declared first, keeps the
+    /// declared names; `AskYearEvent`'s constructors run as
+    /// `AskYearEvent__Trade` and `AskYearEvent__Closed`.
+    fn scoped_constructor_program(body: &str) -> String {
+        let source = format!("{SCOPED_CONSTRUCTOR_TYPES}{body}\n");
+        let statements = parse_test_program(&source).expect("parse scoped constructors");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, &source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{body}: {:?}",
+            artifacts.diagnostics
+        );
+        format!("{:?}", &artifacts.program()[2..])
+    }
+
+    /// `body` names `internal` and never the declared name it stands for.
+    fn assert_scoped_constructor(body: &str, internal: &str, declared: &str) {
+        let program = scoped_constructor_program(body);
+        assert!(
+            program.contains(&format!("{internal:?}")),
+            "{body}: {program}"
+        );
+        assert!(
+            !program.contains(&format!("{declared:?}")),
+            "{body}: {program}"
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_argument() {
+        assert_scoped_constructor(
+            "> f(e: AskYearEvent) -> Int { 1 }\n= x: Int = f(Trade(id = \"a\", amount = 1, year = 2026))",
+            "AskYearEvent__Trade",
+            "Trade",
+        );
+        // The first declared owner keeps the declared name.
+        assert_scoped_constructor(
+            "> g(e: Event) -> Int { 1 }\n= y: Int = g(Trade(id = \"a\", amount = 1))",
+            "Trade",
+            "AskYearEvent__Trade",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_field() {
+        assert_scoped_constructor(
+            "# Holder(event: AskYearEvent)\n= h = Holder(event = Closed)",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_return_type() {
+        assert_scoped_constructor(
+            "> closing() -> AskYearEvent { Closed }",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_list_element() {
+        assert_scoped_constructor(
+            "= xs = [AskYearEvent.Closed, Closed]",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_other_side_of_equality() {
+        assert_scoped_constructor(
+            "> is_closed(e: AskYearEvent) -> Bool { e == Closed }",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_match_subject() {
+        let body = "> label(e: AskYearEvent) -> String {\n    match e {\n        | Trade -> e.id\n        | Closed -> \"closed\"\n    }\n}";
+        assert_scoped_constructor(body, "AskYearEvent__Trade", "Trade");
+        assert_scoped_constructor(body, "AskYearEvent__Closed", "Closed");
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_lambda_callback() {
+        assert_scoped_constructor(
+            "> ask_closings(n: List(Int)) -> List(AskYearEvent) { map(n, |k| Closed) }",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_rule_head() {
+        assert_scoped_constructor(
+            "| ask_label(Closed) -> \"closed\"\n| ask_label(e: AskYearEvent) -> \"ask\"",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_rewrite_of_provided_imports_keys_every_path_spelling() {
+        let _provided = PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        // No such directory exists: imports are served from provided files,
+        // as in the WebAssembly engine, where no path can be canonicalized.
+        let model = Path::new("/futuruna-provided-constructor-scope-test/model");
+        provide_source_files([
+            (
+                model.join("shared/events.runa"),
+                format!("{SCOPED_CONSTRUCTOR_TYPES}> ask_closed() -> AskYearEvent {{ Closed }}\n"),
+            ),
+            (
+                model.join("src/ledger.runa"),
+                "@ import ../shared/events\n> closing() -> AskYearEvent { ask_closed() }\n"
+                    .to_string(),
+            ),
+        ]);
+        let source = "@ import ./ledger\n= last: AskYearEvent = closing()\n";
+        let statements = parse_test_program(source).expect("parse provided model");
+        let source_dir = model.join("src").to_string_lossy().into_owned();
+        let artifacts = TypeChecker::check_with_artifacts(&statements, Some(source_dir), source);
+        provide_source_files([]);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let elaboration = artifacts
+            .constructor_elaboration
+            .expect("the shared constructor in events.runa is rewritten");
+        // However a reader spells the path, it reads the rewritten module
+        // under the key the checker stored it with.
+        for spelling in [
+            model.join("src/../shared/events.runa"),
+            model.join("shared/./events.runa"),
+            model.join("shared/events.runa"),
+        ] {
+            let key = canonical_source_path(&spelling);
+            assert!(
+                elaboration.module_paths().any(|path| path == key),
+                "{} is read as {}, which holds no rewritten module",
+                spelling.display(),
+                key.display()
+            );
+        }
     }
 
     #[test]

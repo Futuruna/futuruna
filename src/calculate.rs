@@ -6149,6 +6149,9 @@ mod calculation_execution_tests {
 
     #[test]
     fn calculation_imports_resolve_against_provided_source_files() {
+        let _provided = crate::PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         // No such directory exists: every import is served from the
         // host-provided files, as in the WebAssembly engine.
         let root = Path::new("/futuruna-provided-sources-test/model/src");

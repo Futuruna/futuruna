@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `Event` names both a qualified import and a type, so `Event.Closed` is ambiguous; rename the import
+@ import Event from ./scoped_constructor_alias_and_type_lib
+# Event = Trade(id: String, amount: Int) | Closed
+# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
+
+= e: Event = Event.Closed

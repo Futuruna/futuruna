@@ -46,7 +46,7 @@ impl PlainImportProgram {
             let directory = source.directory.as_deref().unwrap_or(".");
             let file = Interpreter::resolve_import_path_for_source(path, directory)
                 .ok_or_else(|| format!("Cannot resolve import {path}"))?;
-            let canonical = canonical_parsed_source_path(Path::new(&file));
+            let canonical = canonical_source_path(Path::new(&file));
             let canonical = canonical.to_string_lossy().into_owned();
             if namespace
                 .state

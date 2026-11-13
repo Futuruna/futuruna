@@ -14,12 +14,9 @@
 //! (`futuruna::calculate::PreparedCalculation`).
 
 use futuruna::calculate::{self, CalculationInputEnvelope, PreparedCalculation};
-use futuruna::{
-    parse_prelude, prepend_prelude, provide_source_files, Lexer, Parser, Stmt, TypeChecker,
-};
+use futuruna::{parse_prelude, prepend_prelude, provide_source_files, Lexer, Parser, TypeChecker};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 /// Every model file is placed under this directory, so imports resolve
@@ -92,11 +89,7 @@ impl Model {
                 .collect::<Vec<_>>();
             return Err(format!("{main}: {}", messages.join("\n")));
         }
-        // A model whose types share constructor names runs elaborated.
-        let statements: Arc<[Stmt]> = match artifacts.runtime_statements() {
-            Some(runtime) => runtime.into(),
-            None => statements.into(),
-        };
+        let statements = artifacts.program().clone();
         let entries = artifacts
             .calculation_contracts
             .into_iter()
