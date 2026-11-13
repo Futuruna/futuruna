@@ -140,6 +140,9 @@ pub struct CalculationTypeDefinition {
     pub parameters: Vec<String>,
     pub kind: String,
     pub variants: Vec<CalculationVariant>,
+    /// The field that identifies an element of this record type in a list (`@ field(key = True)`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2392,6 +2395,7 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
         parameters,
         kind,
         variants,
+        key: None,
     })
 }
 
