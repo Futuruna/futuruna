@@ -478,6 +478,7 @@ fn collect_type_interface(
             variants,
             methods,
             except_from,
+            ..
         } => {
             types.push(SemanticTypeDeclaration {
                 kind: "adt".to_string(),

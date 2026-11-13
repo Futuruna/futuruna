@@ -1,0 +1,13 @@
+-- An `@ field` key that a calculation does not read is reported with the keys it does.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: unknown `@ field` key `lable`; the keys are label, question, help, unit, sources, entry, subject
+
+# Input(
+    @ field(lable = "Income")
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

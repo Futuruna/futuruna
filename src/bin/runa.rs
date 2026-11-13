@@ -31997,6 +31997,7 @@ impl RustCodegen {
                     variants: vec![variant],
                     methods: vec![],
                     except_from: None,
+                    field_meta: None,
                 }
             }
             "enum" => {
@@ -32036,6 +32037,7 @@ impl RustCodegen {
                     variants,
                     methods: vec![],
                     except_from: None,
+                    field_meta: None,
                 }
             }
             _ => {
@@ -32051,6 +32053,7 @@ impl RustCodegen {
                     }],
                     methods: vec![],
                     except_from: None,
+                    field_meta: None,
                 }
             }
         }
@@ -40428,6 +40431,7 @@ fn __futuruna_install_error_hook() {
                 variants,
                 methods,
                 except_from: _,
+                ..
             } => {
                 if variants.is_empty() {
                     return format!("// type {} (opaque)\n", name);
@@ -58289,6 +58293,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     body: owned_expr("adt_method_body"),
                 }],
                 except_from: None,
+                field_meta: None,
             }),
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name: "WhenCarrier".to_string(),
@@ -59116,6 +59121,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                         body: coverage_expr("adt_method_body"),
                     }],
                     except_from: None,
+                    field_meta: None,
                 }),
                 ownership_markers: vec!["adt_method_body"],
                 import_expansion: retained,
@@ -61163,6 +61169,7 @@ module Local
                 variants: vec![],
                 methods: vec![],
                 except_from: None,
+                field_meta: None,
             }),
             Stmt::Rule(Rule::Clause {
                 head: ExprKind::Var("allowed".to_string()).into(),

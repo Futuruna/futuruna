@@ -2,6 +2,7 @@
 feature_stage: mixed
 feature_stage_surfaces:
   - typed-calculation-contracts
+  - calculation-field-declarations
   - calculation-needs
   - typescript-sdk
 ---
@@ -35,15 +36,75 @@ Use plain `@ calculate` when the rule name is sufficient, or provide one
 human-readable title with `@ calculate("Household tax calculation")`. The title
 names the whole calculation and appears in its schema and generated workbook.
 It does not label every nested input field. Field labels, interview questions,
-help, units, and sources belong in typed field metadata.
+help, units, and sources belong in field metadata.
 
 ## Describe Human Input
 
-Keep the calculation boundary machine-stable and attach presentation metadata to
-individual canonical input paths. A field binding is an ordinary pure ground
-record. Its typed field shape and canonical `path` give it calculation meaning;
-the anchor label names the calculation entry and its single `meta` binding
-contains the fields and their provenance.
+Keep the calculation boundary machine-stable and give each input field its
+human presentation: a label, an interview question, help, a unit, sources, and
+the calculation that provides it. Write it with `@ field(...)` on the
+declaration of the field it describes:
+
+```runa
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# impl MetaRole for CalculationMetaRole {}
+
+= tax_source = SourceInfo(url = "https://example.invalid/tax", section = "income")
+
+# Input(
+    @ field(label = "Monthly income before tax", question = "What do you earn before tax each month?", help = "Use the gross amount before deductions.", unit = "currency/month", sources = [Source(value = tax_source)])
+    monthly_income: Int,
+    status: FilingStatus
+)
+
+@ field(label = "Filing status", question = "Do you file alone or jointly?")
+# FilingStatus = Single | Joint
+```
+
+`@ field(...)` before a named field, in a record or in a variant payload,
+describes that field wherever its type occurs in a calculation input. Before a
+`#` data type it describes every input field whose value has that type: the
+field of an enum such as `status`, the `$variant` column of a sum with
+payloads, the collection or optional column of a record. List, set, optional
+and map wrappers are transparent, as in `pathof`.
+
+| Key | Value |
+|---|---|
+| `label` | required `String` |
+| `question`, `help`, `unit` | `String` |
+| `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
+| `entry`, `subject` | `String`, together: the calculation that provides the field and the input path it runs for |
+
+A key that does not apply is left out; values are plain strings, not
+`Some(...)`. A value may be any pure ground expression, resolved like a
+metadata binding. `runa check` reports an unknown or repeated key, a missing
+label, `entry` without `subject`, two `@ field` on one field or type, an
+`@ field` that no field or data type follows, and a value that is not a
+`String` (or, for `sources`, not a list). Declarations are presentation only:
+they do not change a type's meaning, content hash or semantic interface.
+
+A required record field has no column of its own; its members are spread into
+columns. Its `@ field` label gives those members context: a label written for a
+type or for a type's field reads `<record field label>: <member label>` below a
+labelled record field.
+
+```runa
+# Date(@ field(label = "year") year: Int, @ field(label = "month") month: Int, @ field(label = "day") day: Int)
+# Trade(@ field(label = "Trade date") date: Date, @ field(label = "Event id") id: String)
+```
+
+For `trades: List(Trade)`, `trades.date.year` is labelled `Trade date: year`.
+Only the label of a record field without a column is used.
+
+### Metadata for one calculation
+
+When metadata depends on where a type is used, such as help that holds for one
+calculation only, attach typed field records to the calculation's label. A
+field binding is an ordinary pure ground record. Its typed field shape and
+canonical `path` give it calculation meaning; the anchor label names the
+calculation entry and its single `meta` binding contains the fields and their
+provenance.
 
 ```runa
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
@@ -79,9 +140,10 @@ fields use paths such as `monthly_income`; a field in a related list table uses
 a path such as `children.age`, while `children` can describe the collection
 itself. `input.monthly_income` and `TaxInput.monthly_income` are accepted and
 normalized to the canonical path. Unknown paths and duplicate metadata for one
-path are errors.
+path are errors. A required record field such as `trades.date` is a valid path
+too; only its label is used, as context for its members.
 
-Prefer `pathof(InputType::field::nested_field)` for new metadata. It is checked
+Prefer `pathof(InputType::field::nested_field)` for these paths. It is checked
 against the declared or plainly imported type graph during `runa check`, has
 type `String`, and lowers to the same canonical string stored in the contract.
 `List`, `Set`, optional, and string-keyed `Map` value traversal is transparent:
@@ -92,9 +154,11 @@ terminal form `pathof(Input::income::$variant)`. A misspelled segment is
 reported at that segment. Literal paths remain supported for generated data and
 backward compatibility.
 
-When metadata belongs to a nested domain type and should be reusable wherever
-that type occurs, declare its `path` field as `ProgramReference` and use
-`refof(Type::member)`:
+Typed records can also follow a nested domain type wherever it occurs: declare
+the record's `path` field as `ProgramReference`, use `refof(Type::member)`, and
+anchor the metadata to the type's label. This is the form for metadata kept
+apart from a type, for example in a separate module; next to the type, prefer
+`@ field`.
 
 ```runa
 # ChildField(path: ProgramReference, label: String)
@@ -111,17 +175,29 @@ that type occurs, declare its `path` field as `ProgramReference` and use
 For an input containing `primary: Child` and `children: List(Child)`, this one
 declaration produces `primary.age` and `children.age`. Projection crosses
 records, alternatives, lists, sets, and string-keyed map values.
-Exact `String`/`pathof(...)` metadata and `refof(...)` rooted at the calculation
-input override projected metadata. Duplicate declarations at the winning
-specificity are errors.
+
+For each input path the most specific metadata wins, whole; keys are not
+merged:
+
+1. an exact path for this calculation: a `String` or `pathof(...)` path, or
+   `refof(...)` rooted at the calculation input;
+2. a type's field wherever the type occurs: `@ field` on the field, or
+   `refof(Type::field)` projected metadata;
+3. a type's default: `@ field` on the type.
+
+Two declarations at the winning level for one path are an error naming both;
+`@ field` on a field and `refof` metadata for that field are the same level.
+The design and its reasons are in [Field metadata on
+declarations](../rfcs/field-metadata.md).
 
 Members of optional composites are metadata targets too, at any depth:
 `taxpayer.spouse.cohabiting_at_year_end`,
-`pathof(TaxCase::taxpayer::spouse::cohabiting_at_year_end)`, and
-`refof(Spouse::cohabiting_at_year_end)` projected through `spouse: Spouse?` name
-the same member, with the same precedence and duplicate rules. A path into a
-member the type does not declare is an error. The optional field itself stays
-one input field and can carry its own metadata.
+`pathof(TaxCase::taxpayer::spouse::cohabiting_at_year_end)`,
+`refof(Spouse::cohabiting_at_year_end)` projected through `spouse: Spouse?`, and
+`@ field` on `Spouse`'s `cohabiting_at_year_end` name the same member, with the
+same precedence and duplicate rules. A path into a member the type does not
+declare is an error. The optional field itself stays one input field and can
+carry its own metadata.
 
 The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
 `path` is a `String` for exact metadata or a structural `ProgramReference` for
@@ -624,11 +700,14 @@ that may fail for some answer (division by an unknown, a rule that might
 match no clause) keeps the case from completing until its facts are known.
 
 A field another calculation provides carries `entry` and `subject` in its
-metadata (`entry = Some("share_income")`, `subject =
-Some("taxpayer.spouse")`). Its need has kind `entry`: the client runs that
-entry for the subject and writes the entry's result at `path`. The field's
-type must be the entry's result type; `runa check` reports a missing entry or
-a different type.
+metadata (`@ field(label = "Spouse's share income", entry = "share_income",
+subject = "taxpayer.spouse")`, or `entry = Some(...)` and `subject = Some(...)`
+in a field record). Its need has kind `entry`: the client runs that entry for
+the subject and writes the entry's result at `path`. The field's type must be
+the entry's result type, and the subject must be an input path whose value
+(through optional, list, set and map wrappers) has the entry's input type;
+`runa check` reports a missing entry, a different type or a subject that does
+not fit.
 
 `--partial=strict` stops each case at the first unknown value it reads. Its
 `Complete(r)` holds by construction and serves as the test oracle.

@@ -569,7 +569,7 @@ fn is_known_annotation(name: &str) -> bool {
 }
 
 fn unknown_annotation_message(name: &str) -> String {
-    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime` and `@ calculate`, and effects are called as `@ name(...)`")
+    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime`, `@ calculate` and `@ field(...)`, and effects are called as `@ name(...)`")
 }
 
 fn unknown_effect_message(name: &str) -> String {
@@ -6058,6 +6058,10 @@ pub enum TypeDecl {
         methods: Vec<Defn>,
         /// EXCEPT clause: include all variants from this type minus the listed ones
         except_from: Option<(String, Vec<String>)>,
+        /// Calculation field metadata written with `@ field(...)` on the type
+        /// or its named fields. Presentation only: not part of the type's
+        /// meaning, content hash or semantic interface.
+        field_meta: Option<Box<TypeFieldMeta>>,
     },
     /// Conditional type evolution: # Type WHEN condition = new_variants
     WhenType {
@@ -6107,6 +6111,44 @@ pub struct Variant {
 pub struct Field {
     pub name: String,
     pub ty: Ty,
+}
+
+/// The keys an `@ field(...)` declaration accepts, in documentation order.
+pub const FIELD_META_KEYS: [&str; 7] = [
+    "label", "question", "help", "unit", "sources", "entry", "subject",
+];
+
+/// One `@ field(key = value, ...)` declaration. Values are ordinary pure
+/// ground expressions; `runa schema` resolves them like metadata bindings.
+#[derive(Debug, Clone)]
+pub struct FieldMetaDecl {
+    pub entries: Vec<(String, Expr)>,
+    pub span: Span,
+}
+
+impl FieldMetaDecl {
+    pub fn value(&self, key: &str) -> Option<&Expr> {
+        self.entries
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value)
+    }
+}
+
+/// `@ field(...)` written on a named field of a type's variant.
+#[derive(Debug, Clone)]
+pub struct MemberFieldMeta {
+    pub variant: String,
+    pub field: String,
+    pub meta: FieldMetaDecl,
+}
+
+/// The calculation field metadata a data type declares: a default for every
+/// field whose value has this type, and metadata for its own named fields.
+#[derive(Debug, Clone, Default)]
+pub struct TypeFieldMeta {
+    pub type_default: Option<FieldMetaDecl>,
+    pub members: Vec<MemberFieldMeta>,
 }
 
 #[derive(Debug, Clone)]
@@ -8582,12 +8624,14 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             variants,
             methods,
             except_from,
+            field_meta,
         } => TypeDecl::ADT {
             name: name.clone(),
             params: params.clone(),
             variants: variants.clone(),
             methods: methods.iter().map(strip_spans_defn).collect(),
             except_from: except_from.clone(),
+            field_meta: field_meta.clone(),
         },
         TypeDecl::WhenType {
             name,
@@ -9237,6 +9281,9 @@ pub struct Parser {
     language: SourceLanguage,
     source_path: Option<PathBuf>,
     declaration_name_spans: Option<Vec<(String, Span)>>,
+    /// `@ field(...)` declarations read inside the field list being parsed;
+    /// the enclosing type declaration takes them.
+    pending_member_field_meta: Vec<MemberFieldMeta>,
 }
 
 impl Parser {
@@ -9259,6 +9306,7 @@ impl Parser {
             language: detect_source_language(source),
             source_path: None,
             declaration_name_spans: None,
+            pending_member_field_meta: Vec::new(),
         }
     }
 
@@ -11645,7 +11693,15 @@ impl Parser {
                 return Err(format!("{}:{}: expected `->` after WHEN condition, got `{}`\n  Syntax: # Type WHEN condition -> NewVariants",
                     p.line, p.col, p.text));
             }
+            let pending_before_variants = self.pending_member_field_meta.len();
             let (variants, except_from) = self.parse_variants()?;
+            let members = self
+                .pending_member_field_meta
+                .split_off(pending_before_variants);
+            self.reject_member_field_meta(
+                &members,
+                "a conditional type evolution (`WHEN`) has no calculation input fields",
+            )?;
             return Ok(Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
                 condition,
@@ -11663,14 +11719,22 @@ impl Parser {
             ));
         }
 
+        let pending_before_params = self.pending_member_field_meta.len();
         let params = if self.peek_kind() == TokenKind::LParen {
             let preserve_typed_field_names = self.type_decl_params_form_product();
             self.parse_type_params(preserve_typed_field_names)?
         } else {
             Vec::new()
         };
+        let param_field_meta = self
+            .pending_member_field_meta
+            .split_off(pending_before_params);
 
         if self.peek_kind() == TokenKind::LBrace {
+            self.reject_member_field_meta(
+                &param_field_meta,
+                "a rule-scope type has no calculation input fields",
+            )?;
             self.advance();
             self.skip_semis();
             let mut body = Vec::new();
@@ -11683,6 +11747,14 @@ impl Parser {
         }
 
         // Check for = (ADT definition) vs standalone declaration
+        if (self.peek_kind() == TokenKind::Op && self.peek().text == "=")
+            || self.peek_kind() == TokenKind::Eq
+        {
+            self.reject_member_field_meta(
+                &param_field_meta,
+                "these are type parameters; write `@ field(...)` before a field of a variant",
+            )?;
+        }
         if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
             self.advance();
         } else if self.peek_kind() == TokenKind::Eq {
@@ -11706,25 +11778,54 @@ impl Parser {
                     positional: false,
                     from_type: None,
                 };
+                let members = param_field_meta
+                    .into_iter()
+                    .map(|member| MemberFieldMeta {
+                        variant: name.clone(),
+                        ..member
+                    })
+                    .collect::<Vec<_>>();
+                let field_meta = (!members.is_empty()).then(|| {
+                    Box::new(TypeFieldMeta {
+                        type_default: None,
+                        members,
+                    })
+                });
                 return Ok(Stmt::TypeDecl(TypeDecl::ADT {
                     name,
                     params: Vec::new(),
                     variants: vec![variant],
                     methods: Vec::new(),
                     except_from: None,
+                    field_meta,
                 }));
             }
             // Truly opaque type declaration
+            self.reject_member_field_meta(
+                &param_field_meta,
+                "an opaque type declaration has no typed fields",
+            )?;
             return Ok(Stmt::TypeDecl(TypeDecl::ADT {
                 name,
                 params,
                 variants: Vec::new(),
                 methods: Vec::new(),
                 except_from: None,
+                field_meta: None,
             }));
         }
 
+        let pending_before_variants = self.pending_member_field_meta.len();
         let (variants, except_from) = self.parse_variants()?;
+        let members = self
+            .pending_member_field_meta
+            .split_off(pending_before_variants);
+        let field_meta = (!members.is_empty()).then(|| {
+            Box::new(TypeFieldMeta {
+                type_default: None,
+                members,
+            })
+        });
 
         // Check for method block: # Type = ... { > method(self) -> ... { } }
         let methods = if self.peek_kind() == TokenKind::LBrace {
@@ -11765,6 +11866,7 @@ impl Parser {
             variants,
             methods,
             except_from,
+            field_meta,
         }))
     }
 
@@ -11903,6 +12005,7 @@ impl Parser {
     ) -> Result<Vec<Param>, String> {
         self.expect(TokenKind::LParen)?;
         self.parse_comma_separated(TokenKind::RParen, "type parameter or field", |parser| {
+            let field_meta = parser.parse_member_field_meta()?;
             let token = parser.advance();
             if !matches!(
                 token.kind,
@@ -11925,6 +12028,19 @@ impl Parser {
             } else {
                 None
             };
+            if let Some(meta) = field_meta {
+                if ty.is_none() {
+                    return Err(format!(
+                        "{}:{}: `@ field(...)` describes a named field `name: Type`; `{}` has no type",
+                        token.line, token.col, name
+                    ));
+                }
+                parser.pending_member_field_meta.push(MemberFieldMeta {
+                    variant: String::new(),
+                    field: name.clone(),
+                    meta,
+                });
+            }
             Ok(Param {
                 name,
                 ty,
@@ -11984,11 +12100,15 @@ impl Parser {
                 except_from = Some((name, excluded));
                 break; // EXCEPT always ends the variant list
             } else {
+                let pending_before_fields = self.pending_member_field_meta.len();
                 let (fields, positional) = if self.peek_kind() == TokenKind::LParen {
                     self.parse_field_list()?
                 } else {
                     (Vec::new(), false)
                 };
+                for member in &mut self.pending_member_field_meta[pending_before_fields..] {
+                    member.variant = name.clone();
+                }
                 // If this is an uppercase name with no fields and no dot,
                 // it MIGHT be a type inclusion (# A = Kristendom | Islam).
                 // We can't resolve at parse time — mark with from_type = Some("__include")
@@ -12047,9 +12167,11 @@ impl Parser {
             return Ok((Vec::new(), false));
         }
 
-        // Detect positional vs named by peeking at first field
+        // Detect positional vs named by peeking at first field, past a
+        // leading `@ field(...)`.
         let is_positional = {
             let saved = self.pos;
+            self.pos = self.skip_member_field_meta_tokens(self.pos);
             let is_ident = matches!(
                 self.peek_kind(),
                 TokenKind::Ident | TokenKind::Type | TokenKind::KW
@@ -12069,7 +12191,15 @@ impl Parser {
             TokenKind::RParen,
             "constructor field",
             |parser| {
+            let field_meta = parser.parse_member_field_meta()?;
             if is_positional {
+                if let Some(meta) = field_meta {
+                    let (line, col) = parser.line_col_of(meta.span.start);
+                    return Err(format!(
+                        "{}:{}: `@ field(...)` describes a named field; a positional field has no name to describe",
+                        line, col
+                    ));
+                }
                 let ty = parser.parse_type()?;
                 let field = Field {
                     name: format!("_{}", index),
@@ -12080,6 +12210,13 @@ impl Parser {
             } else {
                 let tok = parser.peek().clone();
                 let field_name = parser.expect_field_name()?;
+                if let Some(meta) = field_meta {
+                    parser.pending_member_field_meta.push(MemberFieldMeta {
+                        variant: String::new(),
+                        field: field_name.clone(),
+                        meta,
+                    });
+                }
                 if parser.peek_kind() != TokenKind::Colon {
                     return Err(format!(
                         "{}:{}: constructor fields must be named — write `{}: Type` instead of just a type",
@@ -12096,6 +12233,174 @@ impl Parser {
         },
         )?;
         Ok((fields, is_positional))
+    }
+
+    /// The 1-based line and column of a character offset in this source.
+    fn line_col_of(&self, offset: usize) -> (usize, usize) {
+        let line = self
+            .line_starts
+            .partition_point(|start| *start <= offset)
+            .max(1);
+        (line, offset - self.line_starts[line - 1] + 1)
+    }
+
+    /// The token position after an `@ field(...)` that starts at `pos`, or
+    /// `pos` itself when no such declaration starts there.
+    fn skip_member_field_meta_tokens(&self, pos: usize) -> usize {
+        let is_field_meta = self
+            .tokens
+            .get(pos)
+            .is_some_and(|tok| tok.kind == TokenKind::At)
+            && self
+                .tokens
+                .get(pos + 1)
+                .is_some_and(|tok| tok.text == "field")
+            && self
+                .tokens
+                .get(pos + 2)
+                .is_some_and(|tok| tok.kind == TokenKind::LParen);
+        if !is_field_meta {
+            return pos;
+        }
+        let mut depth = 0usize;
+        let mut index = pos + 2;
+        while let Some(token) = self.tokens.get(index) {
+            match token.kind {
+                TokenKind::LParen => depth += 1,
+                TokenKind::RParen => {
+                    depth -= 1;
+                    if depth == 0 {
+                        index += 1;
+                        break;
+                    }
+                }
+                TokenKind::Eof => return index,
+                _ => {}
+            }
+            index += 1;
+        }
+        while self
+            .tokens
+            .get(index)
+            .is_some_and(|token| token.kind == TokenKind::Semi)
+        {
+            index += 1;
+        }
+        index
+    }
+
+    /// An `@ field(...)` written before a field inside a type declaration.
+    fn parse_member_field_meta(&mut self) -> Result<Option<FieldMetaDecl>, String> {
+        if self.peek_kind() != TokenKind::At {
+            return Ok(None);
+        }
+        self.advance();
+        let name = self.advance();
+        if name.text != "field" {
+            return Err(format!(
+                "{}:{}: a field takes calculation metadata as `@ field(...)`, not `@ {}`",
+                name.line, name.col, name.source_text
+            ));
+        }
+        let meta = self.parse_field_meta_args(&name)?;
+        self.skip_semis();
+        if self.peek_kind() == TokenKind::At {
+            let at = self.peek().clone();
+            let next = self.tokens.get(self.pos + 1).unwrap_or(&at);
+            return Err(if next.text == "field" {
+                format!(
+                    "{}:{}: a field takes one `@ field(...)`; write all its keys in that one declaration",
+                    at.line, at.col
+                )
+            } else {
+                format!(
+                    "{}:{}: a field takes calculation metadata as `@ field(...)`, not `@ {}`",
+                    next.line, next.col, next.source_text
+                )
+            });
+        }
+        if matches!(
+            self.peek_kind(),
+            TokenKind::RParen | TokenKind::Comma | TokenKind::Eof
+        ) {
+            return Err(format!(
+                "{}:{}: `@ field(...)` must be followed by the field it describes",
+                name.line, name.col
+            ));
+        }
+        Ok(Some(meta))
+    }
+
+    /// The parenthesized `key = value` list of `@ field`, after its name.
+    fn parse_field_meta_args(&mut self, name: &Token) -> Result<FieldMetaDecl, String> {
+        if self.peek_kind() != TokenKind::LParen {
+            return Err(format!(
+                "{}:{}: `@ field` takes its metadata in parentheses, such as `@ field(label = \"Income\")`",
+                name.line, name.col
+            ));
+        }
+        let start = self.token_span(name).start;
+        let arguments = self.parse_arg_list()?;
+        let end = self
+            .tokens
+            .get(self.pos.saturating_sub(1))
+            .map(|token| self.token_span(token).end)
+            .unwrap_or(start);
+        let mut entries: Vec<(String, Expr)> = Vec::with_capacity(arguments.len());
+        for argument in &arguments {
+            let (line, col) = self.line_col_of(argument.span.start);
+            let Some((key, value)) = named_arg_parts(argument) else {
+                return Err(format!(
+                    "{}:{}: `@ field` arguments are named, such as `label = \"Income\"`",
+                    line, col
+                ));
+            };
+            if !FIELD_META_KEYS.contains(&key) {
+                return Err(format!(
+                    "{}:{}: unknown `@ field` key `{}`; the keys are {}",
+                    line,
+                    col,
+                    key,
+                    FIELD_META_KEYS.join(", ")
+                ));
+            }
+            if entries.iter().any(|(existing, _)| existing == key) {
+                return Err(format!("{}:{}: `@ field` gives `{}` twice", line, col, key));
+            }
+            entries.push((key.to_string(), value.clone()));
+        }
+        let has = |key: &str| entries.iter().any(|(existing, _)| existing == key);
+        if !has("label") {
+            return Err(format!(
+                "{}:{}: `@ field` needs a `label`",
+                name.line, name.col
+            ));
+        }
+        if has("entry") != has("subject") {
+            return Err(format!(
+                "{}:{}: `@ field` gives `entry` and `subject` together: the entry that provides the field and the input path it runs for",
+                name.line, name.col
+            ));
+        }
+        Ok(FieldMetaDecl {
+            entries,
+            span: Span::new(start, end),
+        })
+    }
+
+    fn reject_member_field_meta(
+        &self,
+        members: &[MemberFieldMeta],
+        reason: &str,
+    ) -> Result<(), String> {
+        let Some(member) = members.first() else {
+            return Ok(());
+        };
+        let (line, col) = self.line_col_of(member.meta.span.start);
+        Err(format!(
+            "{}:{}: `@ field(...)` on `{}` describes a field of a data type; {}",
+            line, col, member.field, reason
+        ))
     }
 
     pub fn parse_type_list(&mut self) -> Result<Vec<Ty>, String> {
@@ -12168,6 +12473,49 @@ impl Parser {
             return Ok(Stmt::Expr(
                 self.spanned(ExprKind::Effect(name, vec![]), &tok),
             ));
+        }
+
+        // `@ field(...)` before a `#` data type declaration: calculation field
+        // metadata for every field whose value has that type.
+        if name == "field" {
+            let meta = self.parse_field_meta_args(&tok)?;
+            self.skip_semis();
+            if self.peek_kind() == TokenKind::At
+                && self
+                    .tokens
+                    .get(self.pos + 1)
+                    .is_some_and(|next| next.text == "field")
+            {
+                let next = self.peek();
+                return Err(format!(
+                    "{}:{}: a type takes one `@ field(...)`; write all its keys in that one declaration",
+                    next.line, next.col
+                ));
+            }
+            if self.peek_kind() != TokenKind::Hash {
+                return Err(format!(
+                    "{}:{}: `@ field(...)` must be followed by the `#` data type it describes, or written before a field inside one; metadata for one calculation's input path is a field record anchored to that calculation",
+                    tok.line, tok.col
+                ));
+            }
+            self.advance();
+            let mut declaration = self.parse_type_decl()?;
+            match &mut declaration {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    variants,
+                    field_meta,
+                    ..
+                }) if !variants.is_empty() => {
+                    field_meta.get_or_insert_with(Default::default).type_default = Some(meta);
+                }
+                _ => {
+                    return Err(format!(
+                        "{}:{}: `@ field(...)` describes a data type with variants or fields; the declaration after it is not one",
+                        tok.line, tok.col
+                    ))
+                }
+            }
+            return Ok(declaration);
         }
 
         // `@ calculate` is a declaration marker, even when it carries the
@@ -15384,6 +15732,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
                 variants: vec![variant],
                 methods: vec![],
                 except_from: None,
+                field_meta: None,
             }
         }
         "enum" => {
@@ -15422,6 +15771,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
                 variants,
                 methods: vec![],
                 except_from: None,
+                field_meta: None,
             }
         }
         _ => TypeDecl::ADT {
@@ -15435,6 +15785,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
             }],
             methods: vec![],
             except_from: None,
+            field_meta: None,
         },
     }
 }
@@ -20891,6 +21242,7 @@ impl Interpreter {
                                 variants: variants.clone(),
                                 methods: vec![],
                                 except_from: except_from.clone(),
+                                field_meta: None,
                             };
                             self.register_runtime_type_decl(&adt, env);
                         }
@@ -32565,6 +32917,7 @@ impl TypeCheckArtifacts {
                         variants: variants.clone(),
                         methods: Vec::new(),
                         except_from: except_from.clone(),
+                        field_meta: None,
                     })
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body })
@@ -57193,6 +57546,53 @@ impl TypeChecker {
         self.check_imported_bodies();
         // Check trait impl completeness
         self.check_trait_impls();
+        self.check_field_meta_declarations(stmts);
+    }
+
+    /// `@ field(...)` values are ordinary expressions: their names must
+    /// resolve, the text keys are strings and `sources` is a list. Whether a
+    /// value is pure ground data is decided where `runa schema` reads it.
+    fn check_field_meta_declarations(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            let Stmt::TypeDecl(TypeDecl::ADT {
+                field_meta: Some(field_meta),
+                ..
+            }) = stmt
+            else {
+                continue;
+            };
+            let declarations = field_meta
+                .type_default
+                .iter()
+                .chain(field_meta.members.iter().map(|member| &member.meta));
+            for declaration in declarations {
+                for (key, value) in &declaration.entries {
+                    self.check_expr(value, None);
+                    let Some(type_name) = self.infer_expr_type_name(value) else {
+                        continue;
+                    };
+                    if key == "sources" {
+                        if !type_name.starts_with("List(") {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "`@ field` key `sources` is a list of source values such as `[Source(value = law)]`, got `{}`",
+                                    type_name
+                                ),
+                            );
+                        }
+                    } else if type_name != "String" {
+                        self.error_at_expr(
+                            value,
+                            format!(
+                                "`@ field` key `{}` must be a `String`, got `{}`",
+                                key, type_name
+                            ),
+                        );
+                    }
+                }
+            }
+        }
     }
 
     fn check_stmt_sequence(&mut self, stmts: &[Stmt]) {
@@ -71084,6 +71484,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                         body: typechecker_missing_expr("missing_adt_method_body"),
                     }],
                     except_from: None,
+                    field_meta: None,
                 }),
                 coverage: visits,
                 diagnostic_markers: vec!["missing_adt_method_body"],
@@ -73257,5 +73658,182 @@ handle <- Left
 
         assert!(error.contains("expected `|` before type variant `Second`"));
         assert!(error.contains("end the preceding variant line with `|`"));
+    }
+
+    fn declared_type<'a>(statements: &'a [Stmt], wanted: &str) -> &'a TypeDecl {
+        statements
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(declaration @ TypeDecl::ADT { name, .. }) if name == wanted => {
+                    Some(declaration)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("no type `{wanted}`"))
+    }
+
+    fn declared_field_meta<'a>(statements: &'a [Stmt], wanted: &str) -> Option<&'a TypeFieldMeta> {
+        match declared_type(statements, wanted) {
+            TypeDecl::ADT { field_meta, .. } => field_meta.as_deref(),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn field_meta_parses_on_fields_variants_and_types() {
+        let source = r#"
+@ field(label = "Filing status", help = "At the end of the year.")
+# Status = Single | Married
+
+# Payment =
+    Card(@ field(label = "Last digits") last_digits: String) |
+    Transfer(account: String, @ field(label = "Bank", unit = "registration number") bank: String)
+
+# Input(
+    @ field(label = "Income", question = "What do you earn?")
+    income: Int,
+    status: Status, @ field(label = "Payment") payment: Payment
+)
+# Plain(income: Int)
+"#;
+        let statements = parse_test_program(source).expect("field metadata parses");
+
+        let status = declared_field_meta(&statements, "Status").expect("type default");
+        let default = status.type_default.as_ref().expect("type default");
+        let keys = default
+            .entries
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(keys, ["label", "help"]);
+        assert!(status.members.is_empty());
+
+        let members = |name: &str| {
+            declared_field_meta(&statements, name)
+                .expect("member metadata")
+                .members
+                .iter()
+                .map(|member| (member.variant.clone(), member.field.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            members("Payment"),
+            [
+                ("Card".to_string(), "last_digits".to_string()),
+                ("Transfer".to_string(), "bank".to_string())
+            ]
+        );
+        assert_eq!(
+            members("Input"),
+            [
+                ("Input".to_string(), "income".to_string()),
+                ("Input".to_string(), "payment".to_string())
+            ]
+        );
+        let income = &declared_field_meta(&statements, "Input").unwrap().members[0].meta;
+        assert!(matches!(
+            &income.value("label").expect("label").kind,
+            ExprKind::Lit(Literal::Str(label)) if label == "Income"
+        ));
+        assert!(declared_field_meta(&statements, "Plain").is_none());
+
+        // The fields themselves are unchanged by their metadata.
+        let TypeDecl::ADT { variants, .. } = declared_type(&statements, "Input") else {
+            unreachable!()
+        };
+        let names = variants[0]
+            .fields
+            .iter()
+            .map(|field| field.name.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["income", "status", "payment"]);
+    }
+
+    #[test]
+    fn field_meta_is_not_part_of_a_type_content_hash() {
+        let plain = parse_test_program("# Input(income: Int)").expect("plain type parses");
+        let described = parse_test_program("# Input(@ field(label = \"Income\") income: Int)")
+            .expect("described type parses");
+        assert_eq!(
+            content_hash_type(declared_type(&plain, "Input")),
+            content_hash_type(declared_type(&described, "Input"))
+        );
+    }
+
+    #[test]
+    fn field_meta_parse_errors_name_the_problem() {
+        for (source, expected) in [
+            (
+                "# Input(@ field(lable = \"x\") income: Int)",
+                "unknown `@ field` key `lable`",
+            ),
+            (
+                "# Input(@ field(help = \"x\") income: Int)",
+                "`@ field` needs a `label`",
+            ),
+            (
+                "# Input(@ field(label = \"x\", label = \"y\") income: Int)",
+                "`@ field` gives `label` twice",
+            ),
+            (
+                "# Input(@ field(\"x\") income: Int)",
+                "`@ field` arguments are named",
+            ),
+            (
+                "# Input(@ field(label = \"x\") @ field(label = \"y\") income: Int)",
+                "a field takes one `@ field(...)`",
+            ),
+            (
+                "# Input(income: Int, @ field(label = \"x\"))",
+                "must be followed by the field it describes",
+            ),
+            (
+                "@ field(label = \"x\")\n= value = 1",
+                "must be followed by the `#` data type it describes",
+            ),
+            (
+                "@ field(label = \"x\")\n@ field(label = \"y\")\n# Status = A | B",
+                "a type takes one `@ field(...)`",
+            ),
+            (
+                "# Amount = Kroner(@ field(label = \"x\") Int) | Unknown",
+                "a positional field has no name to describe",
+            ),
+            (
+                "# Input(@ field(label = \"x\", entry = \"e\") income: Int)",
+                "gives `entry` and `subject` together",
+            ),
+        ] {
+            let error = parse_test_program(source).expect_err(source);
+            assert!(error.contains(expected), "{source}: {error}");
+        }
+    }
+
+    #[test]
+    fn field_meta_values_are_checked_as_expressions() {
+        let diagnostics = check_source_for_diagnostics(
+            "# Input(@ field(label = 5, help = missing_help) income: Int)",
+        );
+        let messages = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            messages
+                .iter()
+                .any(|message| message
+                    .contains("`@ field` key `label` must be a `String`, got `Int`")),
+            "{messages:?}"
+        );
+        assert!(
+            messages
+                .iter()
+                .any(|message| message.contains("missing_help")),
+            "{messages:?}"
+        );
+        assert!(check_source_for_diagnostics(
+            "= note = \"Before tax.\"\n# Input(@ field(label = \"Income\", help = note) income: Int)"
+        )
+        .is_empty());
     }
 }
