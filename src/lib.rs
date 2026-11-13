@@ -37,6 +37,12 @@ mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod constructor_scope;
+pub use constructor_scope::{
+    bare_constructor_name, clear_constructor_elaboration, constructor_display_name,
+    constructor_runtime_name, qualified_constructor_name, split_qualified_constructor,
+    ConstructorElaboration,
+};
 mod danish;
 mod declaration_contracts;
 mod editor_fields;
@@ -7956,6 +7962,9 @@ pub fn parse_source_module_cached(
 ) -> Result<Arc<ParsedSourceModule>, String> {
     let path = canonical_parsed_source_path(path);
     let content_hash = parsed_source_content_hash(source);
+    if let Some(module) = constructor_scope::elaborated_source_module(&path, &content_hash) {
+        return Ok(module);
+    }
     {
         let cache = parsed_source_modules()
             .lock()
@@ -12654,7 +12663,15 @@ impl Parser {
                 }
             }
             TokenKind::Type => {
-                let tok = self.advance();
+                let mut tok = self.advance();
+                // `Type.Constructor` names the constructor of one sum type.
+                if self.peek_kind() == TokenKind::Dot
+                    && self.tokens.get(self.pos + 1).map(|next| next.kind) == Some(TokenKind::Type)
+                {
+                    self.advance();
+                    let constructor = self.advance();
+                    tok.text = qualified_constructor_name(&tok.text, &constructor.text);
+                }
                 if self.peek_kind() == TokenKind::LParen {
                     self.advance();
                     // Check if first arg is named (ident: pattern)
@@ -14995,7 +15012,7 @@ impl fmt::Display for Value {
                 if name == "Nil" {
                     write!(f, "[]") // Empty list
                 } else {
-                    write!(f, "{}", name)
+                    write!(f, "{}", constructor_display_name(name))
                 }
             }
             Value::Constructor(name, args) if name == "Cons" && args.len() == 2 => {
@@ -15011,7 +15028,7 @@ impl fmt::Display for Value {
                 write!(f, "]")
             }
             Value::Constructor(name, args) => {
-                write!(f, "{}(", name)?;
+                write!(f, "{}(", constructor_display_name(name))?;
                 for (i, a) in args.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -15021,7 +15038,7 @@ impl fmt::Display for Value {
                 write!(f, ")")
             }
             Value::NamedConstructor(name, fields) if fields.is_empty() => {
-                write!(f, "{}", name)
+                write!(f, "{}", constructor_display_name(name))
             }
             // `Pair(a, b)` is the two-element tuple `(a, b)` and displays as one.
             Value::NamedConstructor(name, fields)
@@ -15031,7 +15048,7 @@ impl fmt::Display for Value {
                 write!(f, "({}, {})", fields[0].1, fields[1].1)
             }
             Value::NamedConstructor(name, fields) => {
-                write!(f, "{}(", name)?;
+                write!(f, "{}(", constructor_display_name(name))?;
                 for (i, (fname, val)) in fields.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -29068,7 +29085,11 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
         }
         _ => match (constructor_parts(a), constructor_parts(b)) {
             (Some((left_name, left)), Some((right_name, right))) => {
-                left_name.cmp(right_name).then_with(|| {
+                // Values order by the constructor names their declarations
+                // wrote, never by the internal name of a shared constructor.
+                constructor_display_name(left_name)
+                    .cmp(&constructor_display_name(right_name))
+                    .then_with(|| {
                     for (left, right) in left.iter().zip(right.iter()) {
                         let ordering = value_sort_cmp(left, right);
                         if ordering != Ordering::Equal {
@@ -30509,6 +30530,12 @@ pub struct TypeChecker {
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
     constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
+    /// (subset type, constructor) -> the type whose constructor a subset
+    /// declaration `# T = A.X` reuses.
+    constructor_subset_sources: BTreeMap<(String, String), String>,
+    /// Set when the program writes `Type.Constructor`, so checking elaborates
+    /// it even when no constructor name is shared.
+    constructor_scope_used: Cell<bool>,
     /// Type variables explicitly declared by an ADT owner. Unknown type names
     /// are never treated as generics without this declaration evidence.
     type_parameters_by_owner: BTreeMap<String, Vec<String>>,
@@ -31768,6 +31795,9 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    /// The program with shared constructors given internal names, for every
+    /// consumer that runs it. `None` when no constructor needed one.
+    pub constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     pub rule_return_types: BTreeMap<String, String>,
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
@@ -47305,6 +47335,8 @@ impl TypeChecker {
             variant_refinements: Vec::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
+            constructor_subset_sources: BTreeMap::new(),
+            constructor_scope_used: Cell::new(false),
             type_parameters_by_owner: BTreeMap::new(),
             actor_message_arities: BTreeMap::new(),
             top_level_constructor_names: BTreeSet::new(),
@@ -50466,6 +50498,10 @@ impl TypeChecker {
         constructor: &str,
         args: &[Expr],
     ) -> Option<TypeConstructorSignature> {
+        // A shared name never picks its owner by arguments.
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
         let matching = self
             .constructor_signatures
             .get(constructor)?
@@ -50487,6 +50523,9 @@ impl TypeChecker {
         constructor: &str,
         parent: Option<&str>,
     ) -> Option<TypeConstructorSignature> {
+        if let Some(signature) = self.qualified_pattern_signature(constructor) {
+            return Some(signature);
+        }
         let signatures = self.constructor_signatures.get(constructor)?;
         if let Some(parent) = parent.and_then(Self::canonical_nominal_owner) {
             if let Some(signature) = signatures
@@ -50496,14 +50535,11 @@ impl TypeChecker {
                 return Some(signature.clone());
             }
         }
-        let (fallback_parent, fallback_arity) = self.constructors.get(constructor)?;
-        signatures
-            .iter()
-            .find(|signature| {
-                signature.parent == *fallback_parent && signature.arity() == *fallback_arity
-            })
-            .cloned()
-            .or_else(|| signatures.last().cloned())
+        // Without its owner in view, a shared name has no signature.
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
+        signatures.last().cloned()
     }
 
     fn constructor_signature_for_named_validation(
@@ -50511,6 +50547,9 @@ impl TypeChecker {
         constructor: &str,
         args: &[Expr],
     ) -> Option<TypeConstructorSignature> {
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
         if let Some(signature) = self.constructor_signature_for_args(constructor, args) {
             return Some(signature);
         }
@@ -50540,6 +50579,9 @@ impl TypeChecker {
     }
 
     fn nullary_constructor_parent(&self, constructor: &str) -> Option<String> {
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
         let matching = self
             .constructor_signatures
             .get(constructor)?
@@ -52069,8 +52111,8 @@ impl TypeChecker {
                             .unwrap_or(signature.parent),
                         );
                     }
-                    if let Some((parent, _)) = self.constructors.get(name) {
-                        return Some(parent.clone());
+                    if let Some(parent) = self.unique_constructor_parent(name) {
+                        return Some(parent);
                     }
                     if let Some(scope) = active_rule_scope {
                         let key = RuleDispatchKey {
@@ -52134,6 +52176,15 @@ impl TypeChecker {
                 }
 
                 if let ExprKind::Field(base, member) = &func.as_ref().kind {
+                    if let Some(signature) =
+                        self.type_qualified_constructor(base, member, Some(locals))
+                    {
+                        let owner = signature.parent.clone();
+                        return Some(
+                            self.applied_constructor_type(&signature, args, locals, active_rule_scope)
+                                .unwrap_or(owner),
+                        );
+                    }
                     if let ExprKind::Var(module) = &base.kind {
                         if !locals.contains_key(module) && self.module_exports.contains_key(module)
                         {
@@ -52169,6 +52220,9 @@ impl TypeChecker {
                 None
             }
             ExprKind::Field(base, field) => {
+                if let Some(signature) = self.type_qualified_constructor(base, field, Some(locals)) {
+                    return Some(signature.parent);
+                }
                 let base_type = self.infer_expr_type_name_with_locals_in_scope(
                     base,
                     locals,
@@ -56622,14 +56676,21 @@ impl TypeChecker {
                     for variant in variants {
                         let field_count = variant.fields.len();
                         self.record_explore_non_rule_runtime_name(&variant.name);
+                        if let Some(source) = &variant.from_type {
+                            self.constructor_subset_sources
+                                .insert((name.clone(), variant.name.clone()), source.clone());
+                        }
+                        // Root types may share constructor names; context picks
+                        // the owner. An inline module keeps one owner per name.
+                        let identity = self.constructor_identity_owner(name, &variant.name);
                         if let Some(other) = self
-                            .constructor_signatures
-                            .get(&variant.name)
-                            .and_then(|known| known.iter().find(|sig| &sig.parent != name))
-                            .map(|sig| sig.parent.clone())
+                            .constructor_owners(&variant.name)
+                            .into_iter()
+                            .find(|owner| *owner != identity)
+                            .filter(|_| self.explore_inline_module_depth > 0)
                         {
                             self.error(format!(
-                                "constructor `{}` is declared in both type `{}` and type `{}`; constructor names must be unique among the types in scope",
+                                "constructor `{}` is declared in both type `{}` and type `{}`; types inside an inline module cannot share a constructor name",
                                 variant.name, other, name
                             ));
                         }
@@ -56683,17 +56744,27 @@ impl TypeChecker {
                                 .entry(field_name.clone())
                                 .or_insert_with(|| field_ty.clone());
                         }
-                        if !variant_field_names.is_empty() {
-                            self.type_fields
-                                .insert(variant.name.clone(), variant_field_names);
-                        }
-                        if !variant_field_types.is_empty() {
-                            self.type_field_types
-                                .insert(variant.name.clone(), variant_field_types);
-                        }
-                        if !variant_field_tys.is_empty() {
-                            self.type_field_tys
-                                .insert(variant.name.clone(), variant_field_tys);
+                        // Fields keyed by a variant name describe one owner's
+                        // variant; a shared name has no single such entry.
+                        if self.constructor_is_shared(&variant.name) {
+                            if !self.types.contains(&variant.name) {
+                                self.type_fields.remove(&variant.name);
+                                self.type_field_types.remove(&variant.name);
+                                self.type_field_tys.remove(&variant.name);
+                            }
+                        } else {
+                            if !variant_field_names.is_empty() {
+                                self.type_fields
+                                    .insert(variant.name.clone(), variant_field_names);
+                            }
+                            if !variant_field_types.is_empty() {
+                                self.type_field_types
+                                    .insert(variant.name.clone(), variant_field_types);
+                            }
+                            if !variant_field_tys.is_empty() {
+                                self.type_field_tys
+                                    .insert(variant.name.clone(), variant_field_tys);
+                            }
                         }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
@@ -60222,6 +60293,23 @@ impl TypeChecker {
                     return;
                 }
                 if let ExprKind::Field(base, method) = &func.as_ref().kind {
+                    let qualifier_error = self.ambiguous_type_qualifier(base, method);
+                    if let Some(message) = qualifier_error.clone() {
+                        self.error_at_expr(func, message);
+                    }
+                    if qualifier_error.is_some()
+                        || self.type_qualified_constructor(base, method, None).is_some()
+                    {
+                        // The constructor scope pass checks the fields against
+                        // this owner.
+                        for arg in args {
+                            self.check_expr(
+                                named_arg_parts(arg).map_or(arg, |(_, value)| value),
+                                _in_fn,
+                            );
+                        }
+                        return;
+                    }
                     self.check_expr(base, _in_fn);
                     if let ExprKind::Var(module_name) = &base.kind {
                         if let Some(exported) = self.module_exports.get(module_name) {
@@ -60357,7 +60445,16 @@ impl TypeChecker {
                     let actual_arity = args.len();
                     let lexical_call_checked = self.check_ordinary_call(expr, name, args);
                     if has_named_args(args) {
-                        if self.constructor_signatures.contains_key(name) {
+                        if self.constructor_is_shared(name) {
+                            // The constructor scope pass checks the fields
+                            // against the owner the context chooses.
+                            for arg in args {
+                                self.check_expr(
+                                    named_arg_parts(arg).map_or(arg, |(_, value)| value),
+                                    _in_fn,
+                                );
+                            }
+                        } else if self.constructor_signatures.contains_key(name) {
                             let signature = self
                                 .constructor_signature_for_named_validation(name, args)
                                 .expect("registered constructor has a validation signature");
@@ -60507,7 +60604,11 @@ impl TypeChecker {
                             }
                         }
                     } else if self.constructor_signatures.contains_key(name) {
-                        if self.constructor_signature_for_args(name, args).is_none() {
+                        // A shared name is checked against the owner its
+                        // context chooses, by the constructor scope pass.
+                        if !self.constructor_is_shared(name)
+                            && self.constructor_signature_for_args(name, args).is_none()
+                        {
                             let expected = self
                                 .constructor_signature_for_parent(name, None)
                                 .map(|signature| signature.arity())
@@ -60678,6 +60779,13 @@ impl TypeChecker {
                 self.pop_scope();
             }
             ExprKind::Field(base, field) => {
+                if let Some(message) = self.ambiguous_type_qualifier(base, field) {
+                    self.error_at_expr(expr, message);
+                    return;
+                }
+                if self.type_qualified_constructor(base, field, None).is_some() {
+                    return;
+                }
                 self.check_expr(base, _in_fn);
                 if let ExprKind::Var(module_name) = &base.kind {
                     if let Some(exported) = self.module_exports.get(module_name) {
@@ -61205,10 +61313,12 @@ impl TypeChecker {
         let inferred = types[0].clone().or_else(|| {
             rows.iter()
                 .find_map(|row| match Self::coverage_pattern(&row[0]) {
-                    Pat::Con(name, _) | Pat::NamedCon(name, _) => self
-                        .constructors
-                        .get(name)
-                        .map(|(parent, _)| parent.clone()),
+                    Pat::Con(name, _) | Pat::NamedCon(name, _) => {
+                        match split_qualified_constructor(name) {
+                            Some((owner, _)) => Some(owner.to_string()),
+                            None => self.unique_constructor_parent(name),
+                        }
+                    }
                     Pat::Lit(Literal::Bool(_)) => Some("Bool".to_string()),
                     _ => None,
                 })
@@ -61243,7 +61353,7 @@ impl TypeChecker {
             for row in rows {
                 let fields = match Self::coverage_pattern(&row[0]) {
                     Pat::Wild | Pat::Var(_) => vec![Pat::Wild; signature.arity()],
-                    Pat::Con(name, fields) if name == constructor => {
+                    Pat::Con(name, fields) if bare_constructor_name(name) == constructor => {
                         if fields.len() == signature.arity() {
                             fields.clone()
                         } else if depth == 0 && fields.is_empty() {
@@ -61254,7 +61364,7 @@ impl TypeChecker {
                             continue;
                         }
                     }
-                    Pat::NamedCon(name, fields) if name == constructor => {
+                    Pat::NamedCon(name, fields) if bare_constructor_name(name) == constructor => {
                         if fields
                             .iter()
                             .any(|(name, _)| !signature.fields.contains(name))
@@ -61425,6 +61535,7 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        let constructor_elaboration = tc.elaborate_constructor_scope(stmts);
         if collect_all_imported_metadata_bindings {
             // A Rust-emitting backend needs a signature for every function
             // and a Rust type for every record field.
@@ -61497,6 +61608,7 @@ impl TypeChecker {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
+            constructor_elaboration,
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,

@@ -3541,7 +3541,7 @@ fn decode_missing(
             bindings: Rc::new(fields.into_iter().collect()),
         }
     } else {
-        Value::NamedConstructor(variant.name.clone(), fields.into())
+        Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
     };
     partial_container(Some(partial), value, path)
 }
@@ -3721,7 +3721,7 @@ fn decode_value(
                         bindings: Rc::new(fields.into_iter().collect()),
                     }
                 } else {
-                    Value::NamedConstructor(variant.name.clone(), fields.into())
+                    Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
                 };
                 Ok(partial_container(partial, decoded, path))
             } else {
@@ -3943,7 +3943,7 @@ fn decode_variant(
         match decoded {
             Ok(values) if errors.is_empty() => Ok(partial_container(
                 partial,
-                Value::Constructor(variant.name.clone(), values.into()),
+                Value::Constructor(runtime_variant_name(definition, variant), values.into()),
                 path,
             )),
             Ok(_) => Err(errors),
@@ -3956,9 +3956,9 @@ fn decode_variant(
         let fields =
             decode_named_fields(value, variant, contract, substitutions, path, true, partial)?;
         let decoded = if fields.is_empty() {
-            Value::Constructor(variant.name.clone(), Vec::new().into())
+            Value::Constructor(runtime_variant_name(definition, variant), Vec::new().into())
         } else {
-            Value::NamedConstructor(variant.name.clone(), fields.into())
+            Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
         };
         Ok(partial_container(partial, decoded, path))
     }
@@ -4143,7 +4143,9 @@ fn runtime_named_fields<'a>(
     path: &str,
 ) -> Result<&'a [(String, Value)], CalculationValueError> {
     match value {
-        Value::NamedConstructor(name, fields) if name == &variant.name => Ok(fields),
+        Value::NamedConstructor(name, fields) if constructor_display_name(name) == variant.name => {
+            Ok(fields)
+        }
         Value::RuleScopeInstance { name, bindings } if name == &definition.name => {
             // Rule-scope results are intentionally not a v1 output surface. Keeping
             // this branch explicit produces a useful diagnostic instead of a panic.
@@ -4217,7 +4219,7 @@ fn encode_variant(
             let variant = definition
                 .variants
                 .iter()
-                .find(|variant| &variant.name == name)
+                .find(|variant| variant.name == constructor_display_name(name))
                 .ok_or_else(|| runtime_type_error(path, &definition.name, value))?;
             if variant.positional {
                 if variant.fields.len() != values.len() {
@@ -4232,7 +4234,7 @@ fn encode_variant(
                     ));
                 }
                 let mut object = JsonMap::new();
-                object.insert("$variant".to_string(), JsonValue::String(name.clone()));
+                object.insert("$variant".to_string(), JsonValue::String(variant.name.clone()));
                 object.insert(
                     "$values".to_string(),
                     JsonValue::Array(
@@ -4255,7 +4257,7 @@ fn encode_variant(
                 Ok(JsonValue::Object(object))
             } else if values.is_empty() && variant.fields.is_empty() {
                 let mut object = JsonMap::new();
-                object.insert("$variant".to_string(), JsonValue::String(name.clone()));
+                object.insert("$variant".to_string(), JsonValue::String(variant.name.clone()));
                 Ok(JsonValue::Object(object))
             } else {
                 Err(runtime_type_error(path, &definition.name, value))
@@ -4265,12 +4267,21 @@ fn encode_variant(
             let variant = definition
                 .variants
                 .iter()
-                .find(|variant| &variant.name == name && !variant.positional)
+                .find(|variant| variant.name == constructor_display_name(name) && !variant.positional)
                 .ok_or_else(|| runtime_type_error(path, &definition.name, value))?;
             encode_named_fields(fields, variant, contract, substitutions, path, true)
         }
         _ => Err(runtime_type_error(path, &definition.name, value)),
     }
+}
+
+/// The runtime name of a contract variant: a shared constructor carries its
+/// internal name while the program runs, and its declared name in data.
+fn runtime_variant_name(
+    definition: &CalculationTypeDefinition,
+    variant: &CalculationVariant,
+) -> String {
+    constructor_runtime_name(&definition.name, &variant.name).into_owned()
 }
 
 fn field_path(parent: &str, field: &str) -> String {

@@ -2013,7 +2013,7 @@ fn run_calculation_command(
             std::process::exit(1);
         })
     });
-    let stmts = user_stmts.as_ref().map(|user_stmts| {
+    let mut stmts = user_stmts.as_ref().map(|user_stmts| {
         if use_prelude {
             prepend_prelude(parse_prelude(), user_stmts)
         } else {
@@ -2032,13 +2032,15 @@ fn run_calculation_command(
         let user_stmts = user_stmts.as_ref().expect("cache miss parses source");
         let source_graph = calculation_contract_cache_dir()
             .and_then(|_| build_source_graph_snapshot(filename, &source, user_stmts, use_prelude));
-        let contracts = run_calculation_type_check(
-            stmts.as_ref().expect("cache miss prepares statements"),
+        let (contracts, elaborated) = run_calculation_type_check(
+            stmts.as_mut().expect("cache miss prepares statements"),
             &source,
             filename,
         )
         .unwrap_or_else(|| std::process::exit(1));
-        if let Some(source_graph) = source_graph {
+        // An elaborated program must be checked on every run: the check
+        // installs the internal constructor names its consumers need.
+        if let Some(source_graph) = source_graph.filter(|_| !elaborated) {
             store_calculation_contract_cache(filename, use_prelude, source_graph, &contracts);
         }
         contracts
@@ -2291,8 +2293,8 @@ fn run_sdk_command(args: &[String]) {
             display_error_in(&source, &error, filename);
             std::process::exit(1);
         });
-    let stmts = prepend_prelude(parse_prelude(), &user_stmts);
-    let contracts = run_calculation_type_check(&stmts, &source, filename)
+    let mut stmts = prepend_prelude(parse_prelude(), &user_stmts);
+    let (contracts, _) = run_calculation_type_check(&mut stmts, &source, filename)
         .unwrap_or_else(|| std::process::exit(1));
     let files =
         calculate::sdk_ts::generate_typescript_sdk(&contracts, filename).unwrap_or_else(|error| {
@@ -5578,22 +5580,43 @@ fn compiler_validation_diagnostics(stmts: &[Stmt], source_dir: Option<String>) -
 }
 
 /// Run type checking and display any errors as structured diagnostics.
-/// Returns true if there were errors (and already printed them).
-fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
+/// Returns true if there were errors (and already printed them). A checked
+/// program's statements become the ones its consumers run.
+fn run_type_check(stmts: &mut Vec<Stmt>, source: &str, filename: &str) -> bool {
     let artifacts = type_check_artifacts(stmts, source, filename);
-    print_type_check_diagnostics(&artifacts.diagnostics, source, filename)
+    let failed = print_type_check_diagnostics(&artifacts.diagnostics, source, filename);
+    if !failed {
+        adopt_runtime_statements(stmts, &artifacts);
+    }
+    failed
 }
 
+/// The calculation contracts of a checked program, and whether its
+/// statements were elaborated (a contract cache cannot stand in for that).
 fn run_calculation_type_check(
-    stmts: &[Stmt],
+    stmts: &mut Vec<Stmt>,
     source: &str,
     filename: &str,
-) -> Option<Vec<calculate::CalculationContract>> {
+) -> Option<(Vec<calculate::CalculationContract>, bool)> {
     let artifacts = type_check_artifacts(stmts, source, filename);
     if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         None
     } else {
-        Some(artifacts.calculation_contracts)
+        adopt_runtime_statements(stmts, &artifacts);
+        let elaborated = artifacts.constructor_elaboration.is_some();
+        Some((artifacts.calculation_contracts, elaborated))
+    }
+}
+
+/// Replace checked statements with the ones the program runs: shared
+/// constructors under their internal names, `Type.Constructor` resolved.
+fn adopt_runtime_statements(stmts: &mut Vec<Stmt>, artifacts: &TypeCheckArtifacts) {
+    if let Some(root) = artifacts
+        .constructor_elaboration
+        .as_deref()
+        .and_then(ConstructorElaboration::root_statements)
+    {
+        *stmts = root.to_vec();
     }
 }
 
@@ -5609,6 +5632,9 @@ fn backend_type_check_artifacts(
     type_check_artifacts_with_backend_metadata(stmts, source, filename, true)
 }
 
+/// Check a root program. Its imports are read as written, then a successful
+/// check installs its constructor elaboration for every consumer that runs
+/// the program in this process.
 fn type_check_artifacts_with_backend_metadata(
     stmts: &[Stmt],
     source: &str,
@@ -5616,15 +5642,24 @@ fn type_check_artifacts_with_backend_metadata(
     collect_backend_metadata: bool,
 ) -> TypeCheckArtifacts {
     let source_dir = source_dir_for(filename);
+    clear_constructor_elaboration();
     let mut artifacts = if collect_backend_metadata {
         TypeChecker::check_with_backend_artifacts(stmts, source_dir.clone(), source)
     } else {
         TypeChecker::check_with_artifacts(stmts, source_dir.clone(), source)
     };
     if artifacts.diagnostics.is_empty() {
+        let elaboration = artifacts.constructor_elaboration.clone();
+        if let Some(elaboration) = &elaboration {
+            elaboration.install();
+        }
+        let runtime = elaboration
+            .as_deref()
+            .and_then(ConstructorElaboration::root_statements)
+            .unwrap_or(stmts);
         artifacts
             .diagnostics
-            .extend(compiler_validation_diagnostics(stmts, source_dir));
+            .extend(compiler_validation_diagnostics(runtime, source_dir));
     }
     artifacts
 }
@@ -5669,7 +5704,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             let source_graph = compiler_artifact_cache_dir().and_then(|_| {
                 build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
             });
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -5679,6 +5714,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            adopt_runtime_statements(&mut stmts, &type_check);
 
             let mut cg = RustCodegen::new();
             cg.install_canonical_rule_metadata(&type_check);
@@ -5946,7 +5982,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -5959,6 +5995,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            adopt_runtime_statements(&mut stmts, &type_check);
 
             let mut validation_cg = RustCodegen::new();
             validation_cg.lib_mode = true;
@@ -6716,7 +6753,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
     match parser.parse_program() {
         Ok(user_stmts) => {
             // Prepend standard prelude (types + utility functions)
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -6745,6 +6782,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            adopt_runtime_statements(&mut stmts, &artifacts);
 
             // Evaluate
             let mut interp = Interpreter::new();
@@ -10947,7 +10985,7 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
         eprintln!("parse error in {filename}: {error}");
         std::process::exit(1);
     });
-    let stmts = if use_prelude {
+    let mut stmts = if use_prelude {
         prepend_prelude(parse_prelude(), &user_stmts)
     } else {
         user_stmts
@@ -10958,6 +10996,7 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
     if print_type_check_diagnostics(&artifacts.diagnostics, &source, filename) {
         std::process::exit(TEST_FILE_FRONTEND_FAILURE);
     }
+    adopt_runtime_statements(&mut stmts, &artifacts);
     let source_dir = Path::new(filename)
         .parent()
         .map(|parent| parent.to_string_lossy().to_string());
@@ -17723,7 +17762,7 @@ fn audit_calculation_reachability_source(
         display_error_in(source, &error, filename);
         std::process::exit(1);
     });
-    let stmts = if use_prelude {
+    let mut stmts = if use_prelude {
         prepend_prelude(parse_prelude(), &user_stmts)
     } else {
         user_stmts
@@ -17732,6 +17771,7 @@ fn audit_calculation_reachability_source(
     if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         std::process::exit(1);
     }
+    adopt_runtime_statements(&mut stmts, &artifacts);
     // A file without a calculation has no entry closure: its JSON report
     // keeps the same shape, with the entry sections null, and audits the
     // families with a clause in the file.
@@ -17879,7 +17919,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
-    let stmts = match parser.parse_program() {
+    let mut stmts = match parser.parse_program() {
         Ok(user_stmts) => {
             if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
@@ -17902,6 +17942,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         );
         std::process::exit(1);
     }
+    adopt_runtime_statements(&mut stmts, &frontend);
 
     // An audit inspects the model: it registers declarations and evaluates
     // bindings and rules, but never runs top-level statements (effects,
@@ -19047,7 +19088,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
-    let stmts = match parser.parse_program() {
+    let mut stmts = match parser.parse_program() {
         Ok(s) => s,
         Err(e) => {
             display_error_in(source, &e, filename);
@@ -19062,13 +19103,18 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     } else {
         stmts.clone()
     };
-    if print_type_check_diagnostics(
-        &type_check_artifacts(&checked_stmts, source, filename).diagnostics,
-        source,
-        filename,
-    ) {
+    let checked = type_check_artifacts(&checked_stmts, source, filename);
+    if print_type_check_diagnostics(&checked.diagnostics, source, filename) {
         eprintln!("runa --verify: verification requires a type-correct program");
         std::process::exit(1);
+    }
+    // The prelude precedes the authored statements, which the solver reads.
+    if let Some(root) = checked
+        .constructor_elaboration
+        .as_deref()
+        .and_then(ConstructorElaboration::root_statements)
+    {
+        stmts = root[root.len() - stmts.len()..].to_vec();
     }
     drop(checked_stmts);
 
@@ -19888,7 +19934,7 @@ fn check_source(
                 build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
             });
             trace_compiler_timing("source graph", source_graph_start.elapsed());
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -19930,6 +19976,7 @@ fn check_source(
                 return;
             }
 
+            adopt_runtime_statements(&mut stmts, &type_check);
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             cg.source_dir = source_dir_for(filename);
@@ -20355,14 +20402,14 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
             };
 
             // Run type check
-            if run_type_check(&stmts, source, filename) {
+            if run_type_check(&mut stmts, source, filename) {
                 std::process::exit(1);
             }
 
@@ -20484,13 +20531,13 @@ fn emit_import_normalization_source(source: &str, filename: &str, use_prelude: b
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
             };
 
-            if run_type_check(&stmts, source, filename) {
+            if run_type_check(&mut stmts, source, filename) {
                 std::process::exit(1);
             }
 
@@ -20519,7 +20566,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
-            let stmts = if use_prelude {
+            let mut stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
                 user_stmts
@@ -20528,6 +20575,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            adopt_runtime_statements(&mut stmts, &type_check);
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
@@ -40651,7 +40699,8 @@ fn __futuruna_install_error_hook() {
                     if is_struct {
                         name.clone()
                     } else {
-                        v.name.clone()
+                        // A shared constructor shows the name it was declared with.
+                        constructor_display_name(&v.name).into_owned()
                     }
                 };
                 // `Nil`/`Cons(head, tail)` values display and order as lists.
