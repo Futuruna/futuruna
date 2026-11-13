@@ -52043,6 +52043,11 @@ impl TypeChecker {
                     // from the callback body, and lets Explore validate pure
                     // corpus helpers without expanding their finite inputs.
                     if name == "foldl" && args.len() == 3 {
+                        if let Some(unit) =
+                            self.unit_of_literal_fold(args, locals, active_rule_scope)
+                        {
+                            return Some(unit);
+                        }
                         if let Some(initial_type) = self.infer_expr_type_name_with_locals_in_scope(
                             &args[1],
                             locals,
@@ -54771,7 +54776,7 @@ impl TypeChecker {
                            captures: &BTreeMap<String, String>,
                            rules: &[&Rule],
                            expected: Option<&str>| {
-            rules
+            let mut inferred = rules
                 .iter()
                 .map(|rule| match rule {
                     Rule::Clause { head, body } => match body {
@@ -54790,12 +54795,14 @@ impl TypeChecker {
                     }
                     Rule::ReactiveScope { .. } => None,
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            checker.adopt_unit_for_literal_clauses(rules, &mut inferred);
+            inferred
         };
 
         let infer_group_provisionally =
             |checker: &TypeChecker, captures: &BTreeMap<String, String>, rules: &[&Rule]| {
-                rules
+                let mut inferred = rules
                     .iter()
                     .map(|rule| match rule {
                         Rule::Clause { head, body } => match body {
@@ -54813,7 +54820,9 @@ impl TypeChecker {
                         }
                         Rule::ReactiveScope { .. } => None,
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+                checker.adopt_unit_for_literal_clauses(rules, &mut inferred);
+                inferred
             };
 
         // A known base candidate can seed recursive references. Every result is
@@ -57450,7 +57459,9 @@ impl TypeChecker {
             return;
         };
         let expected_ty = ty.to_string();
-        if expected_ty != actual_ty {
+        if expected_ty != actual_ty
+            && !(Self::is_unitless_literal(expr) && self.is_unit_type(&expected_ty))
+        {
             self.error_at_expr(
                 expr,
                 format!(
@@ -60953,6 +60964,21 @@ impl TypeChecker {
             Rule::Clause { head, body } => (head, body.as_ref()),
             Rule::ReactiveScope { .. } => return None,
         };
+        // A number written in the source takes the unit of the family's other
+        // clauses; it conflicts only with a non-numeric result.
+        if !self.unit_types.is_empty()
+            && result.is_some_and(|value| Self::is_unitless_literal(value))
+        {
+            let candidates = known.entry((name.clone(), arity)).or_default();
+            return candidates
+                .iter()
+                .find(|candidate| candidate.as_str() != "Int" && !self.is_unit_type(candidate))
+                .map(|previous| {
+                    format!(
+                        "rule `{name}` with arity {arity} has conflicting return types `{previous}` and `Int`"
+                    )
+                });
+        }
         let actual = match result {
             Some(result) => self
                 .infer_expr_type_name_with_locals(result, &self.rule_contract_local_types(head))

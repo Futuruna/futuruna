@@ -449,6 +449,86 @@ impl TypeChecker {
         }
     }
 
+    /// `foldl(items, 0, |total, item| total + item.amount)`: a start written as
+    /// a number takes the unit `U` that the step itself brings in: with the
+    /// accumulator a `U` the step is a `U`, and with the accumulator a plain
+    /// `Int` it is still a `U` (so `total + n` for a plain `n` does not
+    /// qualify). One such unit is required; otherwise the fold is a plain `Int`.
+    pub(super) fn unit_of_literal_fold(
+        &self,
+        args: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_rule_scope: Option<&str>,
+    ) -> Option<String> {
+        if self.unit_types.is_empty() || !Self::is_unitless_literal(&args[1]) {
+            return None;
+        }
+        let ExprKind::Lambda(params, body) = &args[2].kind else {
+            return None;
+        };
+        let [accumulator, item] = params.as_slice() else {
+            return None;
+        };
+        if accumulator.ty.is_some() {
+            return None;
+        }
+        let item_type = match &item.ty {
+            Some(ty) => Self::type_name_from_ty(ty),
+            None => self
+                .infer_expr_type_name_with_locals_in_scope(&args[0], locals, active_rule_scope)
+                .and_then(|collection| Self::applied_type_argument(&collection, "List", 0)),
+        }
+        .unwrap_or_else(|| CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string());
+        let step_type = |accumulator_type: &str| {
+            let mut step_locals = locals.clone();
+            step_locals.insert(accumulator.name.clone(), accumulator_type.to_string());
+            step_locals.insert(item.name.clone(), item_type.clone());
+            self.infer_expr_type_name_with_locals_in_scope(body, &step_locals, active_rule_scope)
+        };
+        let mut found = self.unit_types.keys().filter(|unit| {
+            step_type(unit).as_deref() == Some(unit.as_str())
+                && step_type("Int").as_deref() == Some(unit.as_str())
+        });
+        let unit = found.next()?;
+        found.next().is_none().then(|| unit.clone())
+    }
+
+    /// In a rule family, a clause whose result is a number written in the
+    /// source has the unit of the family's other clauses (`| fee(x: Ore) ->
+    /// 0 under x < 100` beside `| fee(x: Ore) -> x / 10`).
+    pub(super) fn adopt_unit_for_literal_clauses(
+        &self,
+        rules: &[&Rule],
+        inferred: &mut [Option<String>],
+    ) {
+        if self.unit_types.is_empty() {
+            return;
+        }
+        let literal = |rule: &Rule| match rule {
+            Rule::Clause {
+                body: Some(value), ..
+            }
+            | Rule::Default { value, .. }
+            | Rule::Exception { value, .. } => Self::is_unitless_literal(value),
+            _ => false,
+        };
+        let units = rules
+            .iter()
+            .zip(inferred.iter())
+            .filter(|(rule, _)| !literal(rule))
+            .filter_map(|(_, ty)| ty.as_deref().filter(|ty| self.is_unit_type(ty)))
+            .collect::<BTreeSet<_>>();
+        let [unit] = units.into_iter().collect::<Vec<_>>()[..] else {
+            return;
+        };
+        let unit = unit.to_string();
+        for (rule, ty) in rules.iter().zip(inferred.iter_mut()) {
+            if literal(rule) && ty.as_deref() == Some("Int") {
+                *ty = Some(unit.clone());
+            }
+        }
+    }
+
     /// The type of a branching expression whose branches are a unit and a
     /// number written in the source (`if c { 0 } else { amount }`).
     pub(super) fn merge_unit_branch(
@@ -689,16 +769,44 @@ fn erase_stmt(stmt: &mut Stmt, units: &BTreeSet<String>) {
                 erase_expr(argument, units);
             }
         }
-        // Exploration declarations name their domains through ordinary
-        // functions and types, which are erased where they are declared.
-        Stmt::Explore(_)
-        | Stmt::PreludeBoundary
+        Stmt::Explore(query) => erase_explore(query, units),
+        Stmt::PreludeBoundary
         | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
         | Stmt::HashImport(_, _)
         | Stmt::Depend(_, _)
         | Stmt::RustBlock(_) => {}
+    }
+}
+
+fn erase_explore(query: &mut ExploreQuery, units: &BTreeSet<String>) {
+    for binding in &mut query.source.bindings {
+        match &mut binding.kind {
+            ExploreSourceBindingKind::Singleton { value }
+            | ExploreSourceBindingKind::Finite { domain: value } => erase_expr(value, units),
+        }
+    }
+    match &mut query.successor.kind {
+        ExploreSuccessorKind::Singleton { value }
+        | ExploreSuccessorKind::Finite { domain: value } => erase_expr(value, units),
+    }
+    for admission in &mut query.admissions {
+        erase_expr(&mut admission.predicate, units);
+    }
+    for find in &mut query.finds {
+        match &mut find.selection {
+            ExploreSelection::Matches { predicate, .. }
+            | ExploreSelection::Violations { predicate, .. } => erase_expr(predicate, units),
+            ExploreSelection::All { .. } => {}
+        }
+    }
+    for node in &mut query.analysis {
+        if let ExploreAnalysisNode::Result(view) = node {
+            for field in view.measures.iter_mut().chain(view.select.iter_mut()) {
+                erase_expr(&mut field.value, units);
+            }
+        }
     }
 }
 
