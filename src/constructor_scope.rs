@@ -684,6 +684,11 @@ impl TypeChecker {
             else {
                 return;
             };
+            // A whole-number literal takes the unit of its field, as in the
+            // ordinary constructor check.
+            if self.unit_literal_fits(value, &expected) {
+                return;
+            }
             let Some(actual) = self.infer_expr_type_name_with_locals_in_scope(value, locals, None)
             else {
                 return;
@@ -695,8 +700,9 @@ impl TypeChecker {
                 errors.push((
                     value.span,
                     format!(
-                        "constructor `{label}` field `{field}` expects `{}`, got `{actual}`",
-                        Self::canonical_explore_ty_name(&expected)
+                        "constructor `{label}` field `{field}` expects `{}`, got `{actual}`{}",
+                        Self::canonical_explore_ty_name(&expected),
+                        self.numeric_conversion_hint(&actual_ty, &expected)
                     ),
                 ));
             }

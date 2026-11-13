@@ -318,6 +318,71 @@ fn compiled_and_interpreted_runs_agree() {
     assert!(errors.contains("Roundtrip: 1 matched"), "{errors}");
 }
 
+/// `Trade` is declared by two types, so every use below is resolved through
+/// its owner: from a declared binding, written `AskEvent.Trade`, or from a
+/// builder's return type. A literal in a unit field takes the field's unit
+/// in each form, as it does for an unshared constructor.
+const SHARED_CONSTRUCTORS: &str = "# unit Ore \"DKK øre\"
+# unit Micro \"millionths of a share\"
+# Event = Trade(quantity: Micro, amount: Ore) | Closed
+# AskEvent = Trade(quantity: Micro, amount: Ore, fee: Ore) | Closed
+
+> ask_trade(quantity: Micro) -> AskEvent { Trade(quantity = quantity, amount = 990, fee = 0) }
+> event_trade() -> Event { Trade(quantity = 3000000, amount = 0) }
+
+> paid(e: AskEvent) -> Ore {
+    match e {
+        | Trade -> e.amount + e.fee
+        | Closed -> 0
+    }
+}
+
+> traded(e: Event) -> Micro {
+    match e {
+        | Trade -> e.quantity
+        | Closed -> Micro(0)
+    }
+}
+
+= declared: AskEvent = Trade(quantity = 10000000, amount = 9900, fee = 0)
+= qualified = AskEvent.Trade(quantity = 5, amount = 0, fee = 25)
+= built = ask_trade(Micro(7))
+= positional: Event = Trade(2000000, 100)
+@ print(show(paid(declared) + paid(qualified) + paid(built)))
+@ print(show(traded(positional) + traded(event_trade())))
+";
+
+#[test]
+fn literals_take_the_unit_of_a_shared_constructor_field() {
+    let output = runa(&["check", "--frontend"], SHARED_CONSTRUCTORS);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let output = runa(&[], SHARED_CONSTRUCTORS);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "10915\n5000000\n");
+    let dir = temp_dir();
+    std::fs::write(dir.join("model.runa"), SHARED_CONSTRUCTORS).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .args(["test", "--roundtrip"])
+        .arg(&dir)
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let errors = stderr(&output);
+    assert!(output.status.success(), "{errors}");
+    assert!(errors.contains("Roundtrip: 1 matched"), "{errors}");
+}
+
+#[test]
+fn a_wrong_unit_in_a_shared_constructor_field_is_rejected() {
+    rejected(
+        "# Event = Trade(quantity: Micro, amount: Ore) | Closed\n\
+         # AskEvent = Trade(quantity: Micro, amount: Ore, fee: Ore) | Closed\n\
+         = cost: Ore = 5\n\
+         = trade = AskEvent.Trade(quantity = cost, amount = 0, fee = 0)\n",
+        "constructor `AskEvent.Trade` field `quantity` expects `Micro`, got `Ore`",
+    );
+}
+
 fn z3_available() -> bool {
     Command::new("z3")
         .arg("--version")
