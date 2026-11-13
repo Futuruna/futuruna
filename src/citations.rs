@@ -429,7 +429,7 @@ pub(crate) fn file_citations(source: &str) -> FileCitations {
         };
         let Some(clause_line) = cited_clause_line(&lines, line) else {
             fail(format!(
-                "citation `{}` must stand directly above a rule clause (`| ...`), with only comments between",
+                "citation `{}` must stand directly above a rule clause (`| ...`) or function (`> ...`), with only comments between",
                 comment.label
             ));
             continue;
@@ -494,7 +494,7 @@ pub(crate) fn file_citations(source: &str) -> FileCitations {
     result
 }
 
-/// The line of the rule clause below a citation comment on `comment_line`,
+/// The line of the rule clause or function below a citation comment on `comment_line`,
 /// across blank lines and comments.
 fn cited_clause_line(lines: &[&str], comment_line: usize) -> Option<usize> {
     for (index, line) in lines.iter().enumerate().skip(comment_line) {
@@ -502,7 +502,7 @@ fn cited_clause_line(lines: &[&str], comment_line: usize) -> Option<usize> {
         if trimmed.is_empty() || trimmed.starts_with("--") {
             continue;
         }
-        return trimmed.starts_with('|').then_some(index + 1);
+        return (trimmed.starts_with('|') || trimmed.starts_with('>')).then_some(index + 1);
     }
     None
 }
@@ -621,6 +621,20 @@ Endvidere skal der betales en afgift på 3 pct. p.a.
         assert!(quote
             .resolve(&parse_citation("§ 1 in sources/a.txt").unwrap()[0])
             .is_err());
+    }
+
+    #[test]
+    fn a_function_in_a_section_can_be_cited() {
+        let source = CEILING.replace(
+            "--@cite:§ 9, stk. 4--\n| other(days: Int) -> days",
+            "--@cite:§ 9, stk. 2--\n> other(days: Int) -> Int {\n    days\n}",
+        );
+        let citations = file_citations(&source);
+        assert!(citations.errors.is_empty(), "{:?}", citations.errors);
+        assert_eq!(
+            citations.by_clause_line[&27].paragraphs[0].paragraph,
+            "§ 9, stk. 2"
+        );
     }
 
     #[test]

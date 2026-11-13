@@ -609,9 +609,10 @@ Each case's `result` is one of:
 `unused_paths` lists the provided input paths evaluation never read. A
 need's `path` is concrete, with list indices; its `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
-without indices, and `waiting_rule` names the rule that first read it: the
-innermost rule of a law section on the stack when there is one, with its
-`section` and cited `paragraphs`, else the innermost rule. The
+without indices, and `waiting_rule` names the rule or function it waits
+on: the innermost one on the stack declared in a law section (a section
+whose quote holds a `[sources/...]` document), else in any section with a quote, with its
+`section` and the `paragraphs` its clause cites; else the innermost rule. The
 output envelope's schema is `futuruna.calculate.partial-output.v1`, and
 `runa schema --format partial-result` prints the JSON Schema of `result`.
 
@@ -719,7 +720,8 @@ above it, inside the section:
 
 Paragraphs are separated by `;`; `nr. N` names a numbered item, and
 `in <source>` the quoted document when two hold the same number. A citation on
-a rule's first clause covers its other clauses that have none. `runa check`
+a rule's first clause covers its other clauses that have none; a function
+(`> f(...)`) in a section can be cited too. `runa check`
 finds each cited paragraph in the section's quote, where a line starting
 `§ N.` opens a paragraph, `Stk. N.` a subsection and `N)` an item, and rejects
 one the quote does not hold. Without a citation, an explanation shows the

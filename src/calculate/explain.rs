@@ -363,6 +363,8 @@ struct FileIndex {
     sections: BTreeMap<String, Rc<SectionInfo>>,
     /// The first clause line of every rule family, by `(scope, name)`.
     families: HashMap<(Option<String>, String), usize>,
+    /// The line where each top-level function's body starts.
+    functions: HashMap<String, usize>,
 }
 
 /// Renders explanations; caches what it reads from source files.
@@ -370,7 +372,6 @@ struct FileIndex {
 pub(super) struct ExplainRenderer {
     options: ExplainOptions,
     files: HashMap<String, Option<Rc<FileIndex>>>,
-    family_sections: HashMap<String, Option<(String, Vec<String>)>>,
 }
 
 impl ExplainRenderer {
@@ -378,7 +379,6 @@ impl ExplainRenderer {
         Self {
             options,
             files: HashMap::new(),
-            family_sections: HashMap::new(),
         }
     }
 
@@ -465,6 +465,15 @@ impl ExplainRenderer {
         }
         let mut families = HashMap::new();
         collect_rule_families(module.statements(), None, &source, &mut families);
+        let mut functions = HashMap::new();
+        for statement in module.statements() {
+            if let Stmt::Defn(Defn::Fn { name, body, .. }) = statement {
+                if !body.span.is_dummy() {
+                    let (line, _) = char_offset_to_line_col(&source, body.span.start);
+                    functions.entry(name.clone()).or_insert(line);
+                }
+            }
+        }
         Some(FileIndex {
             display,
             citations: crate::citations::file_citations(&source),
@@ -472,6 +481,7 @@ impl ExplainRenderer {
             spans,
             sections,
             families,
+            functions,
         })
     }
 
@@ -561,62 +571,115 @@ impl ExplainRenderer {
         Some((label, section))
     }
 
-    /// The law section of the rule family `name` and the paragraphs its first
-    /// clause cites, when the family's first clause sits in a section.
-    pub(super) fn family_section(
+    /// The frame a need names: of the rules and functions evaluating when
+    /// the path was first read (innermost last), the innermost one declared
+    /// in a law section, one whose quote holds a `[sources/...]` document;
+    /// failing that, the innermost one declared in any section with a quote. Returns its
+    /// name, section and the paragraphs the frame's clause cites (the rule's
+    /// first clause when the clause cites none).
+    pub(super) fn waiting_frame(
         &mut self,
         interpreter: &Interpreter,
-        name: &str,
-    ) -> Option<(String, Vec<String>)> {
-        if let Some(cached) = self.family_sections.get(name) {
-            return cached.clone();
+        frames: &[partial::CallFrame],
+    ) -> Option<(String, String, Vec<String>)> {
+        let mut any_section = None;
+        for frame in frames.iter().rev() {
+            let Some((index, line, family_line)) = self.frame_location(interpreter, frame) else {
+                continue;
+            };
+            let Some(label) = index
+                .spans
+                .iter()
+                .filter(|(_, start, end)| *start <= line && line <= *end)
+                .max_by_key(|(_, start, _)| *start)
+                .map(|(label, _, _)| label.clone())
+            else {
+                continue;
+            };
+            let paragraphs = index
+                .citations
+                .by_clause_line
+                .get(&line)
+                .or_else(|| {
+                    family_line.and_then(|first| index.citations.by_clause_line.get(&first))
+                })
+                .map(|citation| {
+                    citation
+                        .paragraphs
+                        .iter()
+                        .map(|paragraph| paragraph.paragraph.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
+            // Only a section with a `----` quote counts: the code span of an
+            // anchor that only carries metadata (an entry's input guide) is
+            // no section of law or checks.
+            let Some(section) = index.sections.get(&label) else {
+                continue;
+            };
+            let law = !section.sources.is_empty();
+            let found = (frame.name.clone(), label, paragraphs);
+            if law {
+                return Some(found);
+            }
+            any_section.get_or_insert(found);
         }
-        let found = self.find_family_section(interpreter, name);
-        self.family_sections.insert(name.to_string(), found.clone());
-        found
+        any_section
     }
 
-    fn find_family_section(
+    /// The file index, line and family first-clause line of a frame: the
+    /// clause being tried, else the family's first clause, else the function
+    /// of that name.
+    fn frame_location(
         &mut self,
         interpreter: &Interpreter,
-        name: &str,
-    ) -> Option<(String, Vec<String>)> {
-        let rule = interpreter
-            .registered_rules()
-            .into_iter()
-            .find(|(rule_name, _)| rule_name == name)?
-            .1;
-        let file = interpreter
-            .rule_source_file(&rule)
-            .map(|file| file.to_string())
-            .or_else(|| {
-                self.options
-                    .root_file
-                    .as_ref()
-                    .map(|file| file.to_string_lossy().into_owned())
-            })?;
-        let index = self.file(&file)?;
-        let (line, _) = char_offset_to_line_col(&index.source, rule.head()?.span.start);
-        let label = index
-            .spans
-            .iter()
-            .filter(|(_, start, end)| *start <= line && line <= *end)
-            .max_by_key(|(_, start, _)| *start)?
-            .0
-            .clone();
-        let paragraphs = index
-            .citations
-            .by_clause_line
-            .get(&line)
-            .map(|citation| {
-                citation
-                    .paragraphs
-                    .iter()
-                    .map(|paragraph| paragraph.paragraph.clone())
-                    .collect()
-            })
-            .unwrap_or_default();
-        Some((label, paragraphs))
+        frame: &partial::CallFrame,
+    ) -> Option<(Rc<FileIndex>, usize, Option<usize>)> {
+        if frame.is_rule {
+            let rule = match &frame.clause {
+                Some(rule) => rule.clone(),
+                None => {
+                    interpreter
+                        .registered_rules()
+                        .into_iter()
+                        .find(|(name, _)| *name == frame.name)?
+                        .1
+                }
+            };
+            let file = interpreter
+                .rule_source_file(&rule)
+                .map(|file| file.to_string())
+                .or_else(|| self.root_file_name())?;
+            let index = self.file(&file)?;
+            let (line, _) = char_offset_to_line_col(&index.source, rule.head()?.span.start);
+            // The family of this name (a RuleScope member's too) whose first
+            // clause is the nearest at or above this clause.
+            let family_line = index
+                .families
+                .iter()
+                .filter(|((_, name), first)| *name == frame.name && **first <= line)
+                .map(|(_, first)| *first)
+                .max();
+            return Some((index, line, family_line));
+        }
+        let mut files: Vec<String> = self.root_file_name().into_iter().collect();
+        files.extend(interpreter.loaded_runtime_sources());
+        for file in files {
+            let Some(index) = self.file(&file) else {
+                continue;
+            };
+            if let Some(line) = index.functions.get(&frame.name).copied() {
+                return Some((index, line, None));
+            }
+        }
+        None
+    }
+
+    fn root_file_name(&self) -> Option<String> {
+        self.options
+            .root_file
+            .as_ref()
+            .map(|file| file.to_string_lossy().into_owned())
     }
 
     /// The explanation of one case's result.

@@ -101,7 +101,10 @@ above it:
 Several paragraphs are separated by `;` (`§ 14; § 15, stk. 2`); `nr. N` names
 a numbered item; `in <source>` names the quoted document when two documents
 of one quote hold the same paragraph number. A citation on the first clause
-of a rule covers its other clauses unless they carry their own.
+of a rule covers its other clauses unless they carry their own; an exception
+with its own citation is cited by its own paragraphs, in explanations and in
+needs. A function (`> f(...)`) inside a section may carry a citation too; it
+is shown by needs that wait on the function.
 
 `runa check` reads a citation's paragraphs from the quote of the section
 around the clause, the way the quote marks them: a line starting `§ N.` opens

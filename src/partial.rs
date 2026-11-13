@@ -13,8 +13,18 @@ use std::cell::Cell;
 /// The input paths an unknown value depends on.
 pub type UnknownPaths = Rc<BTreeSet<String>>;
 
-/// The rule families evaluating when a path was first read, innermost last.
-pub(crate) type WaitingRules = Rc<[String]>;
+/// A rule family or named function being evaluated in a partial case.
+#[derive(Debug, Clone)]
+pub(crate) struct CallFrame {
+    pub(crate) name: String,
+    pub(crate) is_rule: bool,
+    /// For a rule family, the clause being tried.
+    pub(crate) clause: Option<Rc<Rule>>,
+}
+
+/// The rules and functions evaluating when a path was first read, innermost
+/// last; the entry alone when nothing was.
+pub(crate) type WaitingRules = Rc<[CallFrame]>;
 
 /// Evaluation steps a case may spend on speculation: everything evaluated
 /// only because a condition is unknown.
@@ -79,7 +89,7 @@ pub(crate) struct PartialState {
     pub(crate) entry: String,
     /// Rules and named functions being evaluated, innermost last; `true`
     /// marks a rule family.
-    pub(crate) call_stack: Vec<(String, bool)>,
+    pub(crate) call_stack: Vec<CallFrame>,
     /// The rule families active when each unknown path was first read,
     /// innermost last (the entry when no rule was).
     pub(crate) waiting: BTreeMap<String, WaitingRules>,
@@ -272,16 +282,14 @@ impl PartialState {
     }
 
     fn waiting_rules(&self) -> WaitingRules {
-        let rules: Vec<String> = self
-            .call_stack
-            .iter()
-            .filter(|(_, is_rule)| *is_rule)
-            .map(|(name, _)| name.clone())
-            .collect();
-        if rules.is_empty() {
-            Rc::from(vec![self.entry.clone()])
+        if self.call_stack.is_empty() {
+            Rc::from(vec![CallFrame {
+                name: self.entry.clone(),
+                is_rule: true,
+                clause: None,
+            }])
         } else {
-            Rc::from(rules)
+            Rc::from(self.call_stack.clone())
         }
     }
 
@@ -676,14 +684,17 @@ impl Interpreter {
     /// a recursive call under speculation is cut instead of evaluated.
     pub(crate) fn partial_enter_call(&self, name: &str, is_rule: bool) -> Result<(), Value> {
         let mut state = self.partial.borrow_mut();
-        if !state.speculation.is_empty()
-            && state.call_stack.iter().any(|(active, _)| active == name)
+        if !state.speculation.is_empty() && state.call_stack.iter().any(|frame| frame.name == name)
         {
             let paths: BTreeSet<String> = state.speculation.iter().flatten().cloned().collect();
             state.record_waiting(&paths);
             return Err(unknown(paths));
         }
-        state.call_stack.push((name.to_string(), is_rule));
+        state.call_stack.push(CallFrame {
+            name: name.to_string(),
+            is_rule,
+            clause: None,
+        });
         Ok(())
     }
 
@@ -1054,6 +1065,9 @@ impl Interpreter {
                     dispatch,
                 )?;
                 let rule = dispatch.matching[*index].0.clone();
+                if let Some(frame) = self.partial.borrow_mut().call_stack.last_mut() {
+                    frame.clause = Some(rule.clone());
+                }
                 match self.partial_rule_candidate(&rule, arguments, &base_env, &condition, family) {
                     Candidate::NoMatch => {}
                     Candidate::FalseClause => matched_false_clause = true,

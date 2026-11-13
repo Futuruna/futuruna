@@ -5223,26 +5223,24 @@ impl CalculationWorker {
                     needs: paths
                         .into_iter()
                         .map(|path| {
-                            let rules = waiting.get(&path);
-                            // The innermost rule of a law section, else the
-                            // innermost rule (or the entry).
-                            let sectioned = rules.and_then(|rules| {
-                                rules.iter().rev().find_map(|rule| {
-                                    sections
-                                        .family_section(&self.interpreter, rule)
-                                        .map(|section| (rule.clone(), section))
-                                })
+                            let frames = waiting.get(&path);
+                            let sectioned = frames.and_then(|frames| {
+                                sections.waiting_frame(&self.interpreter, frames)
                             });
                             match sectioned {
-                                Some((rule, (section, paragraphs))) => {
+                                Some((rule, section, paragraphs)) => {
                                     let mut need = contract.need_for_path(&case.input, path, rule);
                                     need.section = Some(section);
                                     need.paragraphs = paragraphs;
                                     need
                                 }
+                                // The innermost rule family, or the entry.
                                 None => {
-                                    let rule = rules
-                                        .and_then(|rules| rules.last().cloned())
+                                    let rule = frames
+                                        .and_then(|frames| {
+                                            frames.iter().rev().find(|frame| frame.is_rule)
+                                        })
+                                        .map(|frame| frame.name.clone())
                                         .unwrap_or_else(|| contract.entry.clone());
                                     contract.need_for_path(&case.input, path, rule)
                                 }

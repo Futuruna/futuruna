@@ -1,0 +1,37 @@
+-- A need prefers the innermost rule or function of a law section (a quote
+-- with a `[sources/...]` document) over a helper of a section without one.
+-- expect-command: call
+-- expect-input: needs_section_law.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_section_law.stdout
+
+# Owner(fully_liable: Bool, income: Int)
+# Result(tax: Int)
+
+--@label:checks--
+----
+Input checks; no law is quoted.
+----
+
+--@begin:checks--
+| checked(flag: Bool) -> flag == True
+--@end:checks--
+
+--@label:liability--
+----
+[sources/law.txt]
+
+§ 1. Personer, der er fuldt skattepligtige, beskattes af hele indkomsten.
+
+§ 2. Andre beskattes ikke.
+----
+
+--@begin:liability--
+--@cite:§ 1--
+> liable(o: Owner) -> Bool {
+    checked(o.fully_liable)
+}
+--@end:liability--
+
+@ calculate
+| needs_section_law(o: Owner) -> Result(tax = if liable(o) { o.income / 4 } else { 0 })
