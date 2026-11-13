@@ -55,6 +55,8 @@ the prelude. Their constructors (`None`, `Some`, `Ok`, `Err`), `Pair`, and the
 built-in list constructors `Nil` and `Cons` belong to those types: another type
 may not declare a variant with one of these names. A variant may also not reuse
 a built-in type name such as `Int` or `String`; Futuruna has no type aliases.
+To give a whole number a domain meaning such as an amount in øre, declare a
+[unit](#unit) instead.
 
 A field of a multi-variant type can be read directly only when every variant
 declares it with the same type. Otherwise, match on the variant first. Inside
@@ -102,6 +104,84 @@ called the same way:
   type has a `fee` method; `Case(1).fee()` still calls the method of `Case`.
 - A free call whose first argument's type has no such method is a runtime
   error naming the method and the type.
+
+### Unit
+
+Experimental. `# unit Name "description"` declares a unit of measure for
+whole numbers. The description says what the unit counts; the calculation
+contract repeats it wherever a field has the unit.
+
+```runa
+# unit Ore "DKK øre"
+# unit Micro "millionths of a share or unit"
+# Account(name: String, balance: Ore)
+
+> market_value(quantity: Micro, price: Ore) -> Ore {
+    price * (Int(quantity) / 1000000) + price * (Int(quantity) % 1000000) / 1000000
+}
+
+> total(accounts: List(Account)) -> Ore {
+    foldl(accounts, 0, |acc, a| acc + a.balance)
+}
+
+= fee: Ore = Ore(250)
+= accounts = [Account(name = "a", balance = 10000), Account(name = "b", balance = 2500)]
+@ print(show(Int(total(accounts) - fee))) -- 12250
+@ print(show(market_value(Micro(1500000), 200))) -- 300
+```
+
+`unit` is contextual: it is an ordinary name everywhere else, and there is no
+Danish keyword for it. A unit may not reuse a built-in type name or the name of
+a declared type or constructor. Units exist for `Int` only; there are no
+`Float` units.
+
+For a unit `U`, another unit `V` and a plain `Int` value `n`:
+
+| Expression | Type |
+|---|---|
+| `U + U`, `U - U`, `U % U`, `-U` | `U` |
+| `U * n`, `n * U`, `U / n`, `U % n` | `U` |
+| `U / U` | `Int` (a ratio) |
+| `U` compared with `U` | `Bool` |
+| `U * U`, `n / U`, `n % U` | error: no squared or inverse units |
+| `U` with `V` in any operator | error |
+| `U + n`, `U - n`, `U` compared with `n` | error |
+
+A number written in the source (`0`, `-5`, `100 * 100`) has no unit of its own:
+it takes the unit its place requires. `amount > 0`, `amount + 100`, an `Ore`
+field given `0`, a function returning `0` for `-> Ore`,
+`if c { 0 } else { amount }`, a match arm `| None -> 0` beside an `Ore` arm,
+and `= amounts: List(Ore) = [0, 100]` need no conversion. A named value has the
+unit it was given: `= counts = [0, 1]` is a `List(Int)`, so passing an element
+to an `Ore` parameter is an error.
+
+The parameter of a callback given to `map`, `filter`, `foldl` and the other
+collection functions has the type of the collection's elements, so a mistake
+inside the callback is caught as it would be outside:
+`map(prices, |p| Out(price_ore = p.price_micro))` is an error when the two
+fields have different units.
+
+`Ore(n)` gives a plain `Int` the unit and `Int(amount)` takes it off; both leave
+the value unchanged. `Ore(x)` of a value in another unit is an error. A rule
+that changes unit is a function that uses both conversions, as
+`market_value` does above, so the conversion is written down once.
+
+`abs`, `min_int`, `max_int`, `clamp`, `sum` and `sum_list` keep the unit of
+their arguments, and every argument must have the same unit. `foldl` with a
+literal start value takes the unit when its step adds a value of exactly one
+unit: above, `acc + a.balance` makes the accumulator `Ore`. When the step adds
+no unit value (only the accumulator and plain `Int`s), the result is `Int`;
+write `foldl(xs, Ore(0), ...)` there. A rule family may mix literal clauses with
+unit clauses: `| fee(x: Ore) -> 0 under x < 100` beside
+`| fee(x: Ore) -> x / 10` gives `fee` the type `Ore`.
+
+A unit value is an `Int` everywhere outside the checker: the interpreter,
+`runa call` JSON, `runa verify` and generated Rust (which declares
+`pub type Ore = i64;`) see plain `Int`. In a `runa schema` contract a
+unit-typed field keeps the type `{"kind": "primitive", "name": "Int"}` and gains
+`"unit": "Ore"`, and the contract lists its units with their descriptions; see
+[Calculations](calculations.md#unit-types). See also
+[the design](../rfcs/unit-types.md).
 
 ### Product types with rule members
 ```runa

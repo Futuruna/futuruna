@@ -362,3 +362,62 @@ test('generated SDKs validate a model\'s cases and expected results', modelOptio
     }
   }
 });
+
+const unitModel = `# unit Ore "DKK øre"
+# unit Micro "millionths of a share"
+# Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore))
+@ calculate
+> holding_value(input: Holding) -> Ore { input.value_ore }
+`;
+
+const unitUsage = `import {
+  holdingValue, holdingValueSetAt, micro, ore, OreSchema, resolve, answer, holdingValueQuery,
+  type EngineTransport, type Holding, type HoldingValueResolvers, type Micro, type Ore, type PartialHolding,
+} from "./sdk/index.js";
+
+export const holding: Holding = { quantityMicro: micro(2_000_000), valueOre: ore(1200), count: 3, history: [ore(1100)] };
+const shares: Micro = holding.quantityMicro;
+// @ts-expect-error a Micro is not an Ore
+export const wrongUnit: Holding = { ...holding, valueOre: shares };
+// @ts-expect-error a bare number is not an Ore
+export const bare: Holding = { ...holding, valueOre: 1200 };
+// @ts-expect-error a bare number is not an Ore in a list either
+export const bareItem: Holding = { ...holding, history: [1100] };
+export const plain: Holding = { ...holding, count: 4 };
+export const started: PartialHolding = {};
+export const written: PartialHolding = holdingValueSetAt(started, "valueOre", ore(5));
+// Type errors only; never called.
+export function wrongUnits(): void {
+  // @ts-expect-error setAt takes the path's unit
+  holdingValueSetAt(started, "valueOre", 5);
+  // @ts-expect-error a Micro is not an Ore at an Ore path
+  holdingValueSetAt({ history: [ore(1)] }, "history[0]", shares);
+}
+export const resolvers: HoldingValueResolvers = { valueOre: () => answer(ore(7)), quantityMicro: () => answer(micro(1)) };
+export const parsed: Ore = OreSchema.parse(1200);
+export const result = (transport: EngineTransport): Promise<Ore> => holdingValue(transport, holding);
+export const interview = (transport: EngineTransport) =>
+  resolve((c: PartialHolding) => holdingValueQuery(transport, c), started, resolvers);
+`;
+
+test('a unit of measure is a branded number type in the SDK', options, async () => {
+  const dir = project('units');
+  writeFileSync(join(dir, 'holding.calculate.runa'), unitModel);
+  run(binary, ['sdk', 'ts', 'holding.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), unitUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  assert.equal(sdk.ore(1200), 1200);
+  assert.throws(() => sdk.ore(1.5), RangeError);
+  assert.throws(() => sdk.micro(2 ** 53), RangeError);
+  assert.ok(!sdk.OreSchema.safeParse(0.5).success);
+  const cli = {
+    async call(entry, document) {
+      writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
+      return run(binary, ['call', 'holding.calculate.runa', '--entry', entry, '--input', 'call.json'], dir);
+    },
+    async callPartial() { throw new Error('not used'); },
+  };
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  assert.equal(await usage.result(cli), 1200);
+});

@@ -163,6 +163,16 @@ impl TypeChecker {
                         function_type_result(parse_type_annotation(local).ok()?, arguments.len())?;
                     return Some(Self::canonical_explore_ty_name(&result));
                 }
+                if !self.unit_types.is_empty() {
+                    // `clamp(min_int(a, b), 0, ...)` keeps the unit of `a`.
+                    let argument_types = arguments
+                        .iter()
+                        .map(|argument| self.infer_return_type(argument, locals))
+                        .collect::<Vec<_>>();
+                    if let Some(unit) = self.unit_preserving_call_result(name, &argument_types) {
+                        return Some(unit);
+                    }
+                }
                 if let Some(inferred) = self
                     .function_inferred_return_types
                     .get(&(name.clone(), arguments.len()))
@@ -445,12 +455,20 @@ impl TypeChecker {
                     {
                         let field = self.canonical_instantiate_nominal_type(&parent, &field);
                         if let Ok(field) = parse_type_annotation(&field) {
+                            if named_arg_parts(argument).is_some()
+                                && self.constructor_check_judges_field(&field, value, locals)
+                            {
+                                continue;
+                            }
                             self.check_return_expression(name, &field, value, locals);
                         }
                     }
                 }
                 return;
             }
+        }
+        if self.unit_literal_fits(expr, &expected) {
+            return;
         }
         if let Some(actual) = self.infer_return_type(expr, locals) {
             if let Ok(actual_ty) = parse_type_annotation(&actual) {
@@ -459,6 +477,42 @@ impl TypeChecker {
                 }
             }
         }
+    }
+
+    /// A named constructor field whose value is a plain expression of a named
+    /// type is judged by the ordinary constructor check, which names the
+    /// constructor and field; the return walk would repeat it as a return
+    /// mismatch. Branches, blocks, lists and closures are still walked.
+    fn constructor_check_judges_field(
+        &self,
+        field: &Ty,
+        value: &Expr,
+        locals: &ReturnLocals<'_>,
+    ) -> bool {
+        let Ty::Name(expected) = field else {
+            return false;
+        };
+        if !self.types.contains(expected)
+            || matches!(
+                value.kind,
+                ExprKind::If(..)
+                    | ExprKind::Match(..)
+                    | ExprKind::Block(_)
+                    | ExprKind::List(_)
+                    | ExprKind::Lambda(..)
+            )
+        {
+            return false;
+        }
+        if let ExprKind::App(callee, _) = &value.kind {
+            if matches!(&callee.kind, ExprKind::Var(constructor) if self.constructor_signatures.contains_key(constructor))
+            {
+                return false;
+            }
+        }
+        self.infer_return_type(value, locals).is_some_and(|actual| {
+            matches!(parse_type_annotation(&actual), Ok(Ty::Name(actual)) if self.types.contains(&actual))
+        })
     }
 
     /// Infer the result of every ordinary function that omits `-> Type`.

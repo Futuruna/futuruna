@@ -222,7 +222,7 @@ fn is_date(definition: &CalculationTypeDefinition) -> bool {
                     .zip(&variant.fields)
                     .all(|(name, field)| {
                         field.name == *name
-                            && matches!(&field.ty, CalculationTypeRef::Primitive { name } if name == "Int")
+                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None } if name == "Int")
                     })
         })
 }
@@ -253,6 +253,9 @@ struct Sdk<'a> {
     entries: Vec<Entry<'a>>,
     definitions: BTreeMap<&'a str, &'a CalculationTypeDefinition>,
     input_definitions: BTreeSet<&'a str>,
+    /// The units of measure (`# unit Ore "DKK øre"`) the contracts use, by
+    /// name, with their descriptions: each is a branded number type.
+    units: BTreeMap<&'a str, &'a str>,
     /// (type, variant, field) → the field metadata of every input path the
     /// field occurs at, including the metadata of its `$variant` tag, and for
     /// a `Date` field without its own metadata, the metadata its parts share.
@@ -302,12 +305,28 @@ impl<'a> Sdk<'a> {
             }
         }
 
+        let mut units: BTreeMap<&str, &str> = BTreeMap::new();
+        for contract in &contracts {
+            for unit in &contract.units {
+                match units.insert(&unit.name, &unit.description) {
+                    Some(other) if other != unit.description => {
+                        return Err(format!(
+                            "unit `{}` is described both as {other:?} and as {:?}",
+                            unit.name, unit.description
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         let mut sdk = Sdk {
             source,
             runtime,
             entries: Vec::new(),
             definitions,
             input_definitions: BTreeSet::new(),
+            units,
             field_metadata: BTreeMap::new(),
         };
         for definition in sdk.definitions.values() {
@@ -388,11 +407,13 @@ impl<'a> Sdk<'a> {
         context: &str,
     ) -> Result<(), String> {
         match ty {
-            CalculationTypeRef::Primitive { name } => {
-                if PRIMITIVES.contains(&name.as_str()) {
-                    Ok(())
-                } else {
+            CalculationTypeRef::Primitive { name, unit } => {
+                if !PRIMITIVES.contains(&name.as_str()) {
                     Err(format!("{context}: unsupported primitive type `{name}`"))
+                } else if unit.is_some() && name != "Int" {
+                    Err(format!("{context}: a unit of measure on `{name}`, not `Int`"))
+                } else {
+                    Ok(())
                 }
             }
             CalculationTypeRef::Unit => Ok(()),
@@ -400,7 +421,7 @@ impl<'a> Sdk<'a> {
             | CalculationTypeRef::List { item }
             | CalculationTypeRef::Set { item } => self.validate_type(item, parameters, context),
             CalculationTypeRef::Map { key, value } => {
-                if !matches!(key.as_ref(), CalculationTypeRef::Primitive { name } if name == "String")
+                if !matches!(key.as_ref(), CalculationTypeRef::Primitive { name, .. } if name == "String")
                 {
                     return Err(format!("{context}: only `Map(String, T)` is supported"));
                 }
@@ -669,6 +690,11 @@ impl<'a> Sdk<'a> {
             names.push((name.to_string(), "the runtime"));
         }
         names.push(("SCHEMA_HASH".to_string(), "schema.ts"));
+        for unit in self.units.keys() {
+            names.push((unit.to_string(), "types.ts"));
+            names.push((format!("{unit}Schema"), "schema.ts"));
+            names.push((value_identifier(unit), "schema.ts"));
+        }
         for (name, definition) in &self.definitions {
             match shape(definition) {
                 Shape::Date => {}
@@ -733,7 +759,13 @@ impl<'a> Sdk<'a> {
 
     fn ts_type(&self, ty: &CalculationTypeRef, side: Side) -> String {
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                unit: Some(unit), ..
+            } => match side {
+                Side::Local => unit.clone(),
+                Side::Qualified | Side::Partial => format!("types.{unit}"),
+            },
+            CalculationTypeRef::Primitive { name, unit: None } => match name.as_str() {
                 "Int" | "Float" => "number",
                 "Bool" => "boolean",
                 _ => "string",
@@ -800,7 +832,13 @@ impl<'a> Sdk<'a> {
     /// The Zod expression for `ty`; `Local` means inside `schema.ts`.
     fn zod(&self, ty: &CalculationTypeRef, side: Side) -> String {
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                unit: Some(unit), ..
+            } => match side {
+                Side::Local => format!("{unit}Schema"),
+                Side::Qualified | Side::Partial => format!("schema.{unit}Schema"),
+            },
+            CalculationTypeRef::Primitive { name, unit: None } => match name.as_str() {
                 "Int" => "IntSchema",
                 "Float" => "FloatSchema",
                 "Char" => "CharSchema",
@@ -975,6 +1013,25 @@ impl<'a> Sdk<'a> {
 
     fn types_module(&self) -> String {
         let mut body = String::new();
+        for (unit, description) in &self.units {
+            write_doc(
+                &mut body,
+                "",
+                &[
+                    sentence(description),
+                    String::new(),
+                    format!(
+                        "A Futuruna `{unit}`: a safe integer of this unit, on the wire the same JSON number. Only `{}(n)` and the validators make one; a bare number or a value of another unit is not one.",
+                        value_identifier(unit)
+                    ),
+                ],
+            );
+            let _ = writeln!(
+                body,
+                "export type {unit} = number & {{ readonly __unit: {} }};\n",
+                string_literal(unit)
+            );
+        }
         for definition in self.definitions.values() {
             if matches!(shape(definition), Shape::Date) {
                 continue;
@@ -988,7 +1045,7 @@ impl<'a> Sdk<'a> {
             "Types of every calculation input and result. The SDK writes them in runa call's JSON on the wire.",
         );
         out.push_str(
-            "// Field names are camelCase (snake_case on the wire). A sum type whose variants carry\n// no fields is its variant's name; other sum types are unions tagged by `$variant`.\n// A `Date` is an ISO `YYYY-MM-DD` string. Int is `number` and holds safe integers\n// only; the validators in schema.ts reject anything else. An optional value is `T | null`.\n\n",
+            "// Field names are camelCase (snake_case on the wire). A sum type whose variants carry\n// no fields is its variant's name; other sum types are unions tagged by `$variant`.\n// A `Date` is an ISO `YYYY-MM-DD` string. Int is `number` and holds safe integers\n// only; the validators in schema.ts reject anything else. An optional value is `T | null`.\n// An Int with a unit of measure (`# unit Ore \"DKK øre\"`) is the branded number type `Ore`.\n\n",
         );
         out.push_str(&self.imports(&body, &[], true));
         out.push_str(&body);
@@ -1149,7 +1206,7 @@ impl<'a> Sdk<'a> {
         if self.mentions_date(&field.ty) {
             notes.push("a `Date` is an ISO `YYYY-MM-DD` string");
         }
-        let mut type_line = format!("Futuruna type: `{}`", field.ty.display_name());
+        let mut type_line = format!("Futuruna type: `{}`", futuruna_type(&field.ty));
         for note in notes {
             type_line.push_str("; ");
             type_line.push_str(note);
@@ -1189,6 +1246,19 @@ impl<'a> Sdk<'a> {
             );
         }
         body.push_str("} as const;\n");
+        for (unit, description) in &self.units {
+            let _ = writeln!(
+                body,
+                "\n/** Validates a `{unit}` ({}): a safe integer, typed `{unit}` once parsed. */\nexport const {unit}Schema: z.ZodType<types.{unit}> = unitSchema<types.{unit}>();\n",
+                escape_doc(description)
+            );
+            let _ = writeln!(
+                body,
+                "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
+                value_identifier(unit),
+                string_literal(unit)
+            );
+        }
         for definition in self.definitions.values() {
             if matches!(shape(definition), Shape::Date) {
                 continue;
@@ -1967,9 +2037,33 @@ fn sentence(text: &str) -> String {
     }
 }
 
+/// The Futuruna type as the model writes it: an `Int` with a unit is the unit.
+fn futuruna_type(ty: &CalculationTypeRef) -> String {
+    match ty {
+        CalculationTypeRef::Primitive {
+            unit: Some(unit), ..
+        } => unit.clone(),
+        CalculationTypeRef::Optional { item } => format!("{}?", futuruna_type(item)),
+        CalculationTypeRef::List { item } => format!("List({})", futuruna_type(item)),
+        CalculationTypeRef::Set { item } => format!("Set({})", futuruna_type(item)),
+        CalculationTypeRef::Map { key, value } => {
+            format!("Map({}, {})", futuruna_type(key), futuruna_type(value))
+        }
+        CalculationTypeRef::Named { name, arguments } if !arguments.is_empty() => format!(
+            "{name}({})",
+            arguments
+                .iter()
+                .map(futuruna_type)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        _ => ty.display_name(),
+    }
+}
+
 fn mentions_int(ty: &CalculationTypeRef) -> bool {
     match ty {
-        CalculationTypeRef::Primitive { name } => name == "Int",
+        CalculationTypeRef::Primitive { name, .. } => name == "Int",
         CalculationTypeRef::Optional { item }
         | CalculationTypeRef::List { item }
         | CalculationTypeRef::Set { item } => mentions_int(item),
@@ -2126,7 +2220,7 @@ fn value_identifier(name: &str) -> String {
 }
 
 /// Every name the runtime exports, and whether it is a type only.
-const RUNTIME_EXPORTS: [(&str, bool); 80] = [
+const RUNTIME_EXPORTS: [(&str, bool); 82] = [
     ("INPUT_SCHEMA", false),
     ("OUTPUT_SCHEMA", false),
     ("PARTIAL_OUTPUT_SCHEMA", false),
@@ -2156,6 +2250,8 @@ const RUNTIME_EXPORTS: [(&str, bool); 80] = [
     ("SourceReferenceSchema", false),
     ("needSchema", false),
     ("queryResultSchema", false),
+    ("unitSchema", false),
+    ("unitValue", false),
     ("CalculationError", false),
     ("callEntry", false),
     ("queryEntry", false),
@@ -2695,6 +2791,19 @@ export function inputPathSchema<P extends string>(patterns: readonly string[]): 
     (value) => typeof value === "string" && patterns.some((pattern) => matchesPathPattern(value, pattern)),
     "not an input path of this calculation",
   );
+}
+
+// Units of measure
+
+/** The validator of a unit of measure: a safe integer, typed `U` once parsed. */
+export function unitSchema<U extends number>(): z.ZodType<U> {
+  return IntSchema as unknown as z.ZodType<U>;
+}
+
+/** `value` as a `U` of the unit `unit`; throws a `RangeError` unless it is a safe integer. */
+export function unitValue<U extends number>(unit: string, value: number): U {
+  if (!Number.isSafeInteger(value)) throw new RangeError(`${unit}: expected a safe integer, got ${value}`);
+  return value as U;
 }
 
 // Needs and the result of a partial call
@@ -4103,6 +4212,53 @@ mod tests {
                 .expect_err("the name collides with a runtime export");
             assert!(error.contains(name), "{error}");
         }
+    }
+
+    #[test]
+    fn units_of_measure_are_branded_number_types() {
+        let source = r#"# unit Ore "DKK øre"
+# unit Micro "millionths of a share"
+# Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore)?)
+@ calculate
+> holding_value(input: Holding) -> Ore { input.value_ore }
+"#;
+        let files = generate(source);
+        let types = &files["types.ts"];
+        assert_contains(
+            types,
+            "/**\n * DKK øre.\n *\n * A Futuruna `Ore`: a safe integer of this unit, on the wire the same JSON number. Only `ore(n)` and the validators make one; a bare number or a value of another unit is not one.\n */\nexport type Ore = number & { readonly __unit: \"Ore\" };",
+        );
+        assert_contains(types, "export type Micro = number & { readonly __unit: \"Micro\" };");
+        assert_contains(types, "  quantityMicro: Micro;");
+        assert_contains(types, "  count: number;");
+        assert_contains(types, "  history: Ore[] | null;");
+        assert_contains(types, "Futuruna type: `List(Ore)?`");
+        let schema = &files["schema.ts"];
+        assert_contains(
+            schema,
+            "export const OreSchema: z.ZodType<types.Ore> = unitSchema<types.Ore>();",
+        );
+        assert_contains(
+            schema,
+            "export function ore(value: number): types.Ore {\n  return unitValue<types.Ore>(\"Ore\", value);\n}",
+        );
+        assert_contains(schema, "      valueOre: OreSchema,");
+        assert_contains(schema, "      count: IntSchema,");
+        let partial = &files["partial.ts"];
+        assert_contains(partial, "  \"valueOre\": types.Ore;");
+        assert_contains(partial, "  [path: `history[${number}]`]: types.Ore;");
+        assert_contains(partial, "      valueOre: schema.OreSchema.optional(),");
+        assert_contains(
+            &files["client.ts"],
+            "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<types.Ore> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
+        );
+        let error = generate_typescript_sdk(
+            &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ calculate\n> f(input: In) -> Int { 0 }\n"),
+            "model.calculate.runa",
+            DEFAULT_RUNTIME_PATH,
+        )
+        .expect_err("`answer` is a runtime export");
+        assert!(error.contains("`answer`"), "{error}");
     }
 
     #[test]

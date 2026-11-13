@@ -71,6 +71,8 @@ mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
+mod unit_types;
+pub use unit_types::erase_unit_types;
 
 pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
 
@@ -6092,6 +6094,10 @@ pub enum TypeDecl {
         params: Vec<Param>,
         body: Vec<Stmt>,
     },
+    /// `# unit Ore "DKK øre"`: a unit of measure for whole numbers. A value of
+    /// the unit is an `Int` at runtime, on the wire and in proofs; the checker
+    /// keeps values of different units apart.
+    Unit { name: String, description: String },
 }
 
 #[derive(Debug, Clone)]
@@ -8258,7 +8264,7 @@ where
                 }
             }
         }
-        TypeDecl::EffectDecl { .. } => {}
+        TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {}
         TypeDecl::RuleScope { body, .. } => {
             for stmt in body {
                 visit(AstChild::Stmt(stmt));
@@ -8646,6 +8652,10 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             condition: strip_spans_expr(condition),
             variants: variants.clone(),
             except_from: except_from.clone(),
+        },
+        TypeDecl::Unit { name, description } => TypeDecl::Unit {
+            name: name.clone(),
+            description: description.clone(),
         },
         TypeDecl::EffectDecl { name, ops } => TypeDecl::EffectDecl {
             name: name.clone(),
@@ -9059,6 +9069,7 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
                 body.iter().map(strip_spans_stmt).collect::<Vec<_>>()
             )
         }
+        TypeDecl::Unit { description, .. } => format!("UNIT({description:?})"),
     };
     hash_string(&canonical)
 }
@@ -9100,6 +9111,7 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
         }
         TypeDecl::WhenType { name, .. } => name,
         TypeDecl::RuleScope { name, .. } => name,
+        TypeDecl::Unit { name, .. } => name,
     }
 }
 
@@ -9127,6 +9139,7 @@ pub fn print_hashes(stmts: &[Stmt]) {
                     TypeDecl::ImplBlock { .. } => "# impl",
                     TypeDecl::WhenType { .. } => "# WHEN",
                     TypeDecl::RuleScope { .. } => "# rulescope",
+                    TypeDecl::Unit { .. } => "# unit",
                 };
                 println!("  {} {} #{}", kind, type_decl_name(td), hash);
                 found = true;
@@ -11677,6 +11690,36 @@ impl Parser {
             }
             self.expect(TokenKind::RBrace)?;
             return Ok(Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }));
+        }
+
+        // # unit Name "description" — contextual: `unit` stays an ordinary name.
+        if self.peek_kind() == TokenKind::Ident
+            && self.peek().text == "unit"
+            && self
+                .tokens
+                .get(self.pos + 1)
+                .is_some_and(|token| token.kind == TokenKind::Type)
+        {
+            self.advance();
+            let name = self.expect_ident()?;
+            self.record_declaration_name_span(format!("unit:{name}"), self.pos - 1);
+            let description = if self.peek_kind() == TokenKind::String_ {
+                self.advance().text
+            } else {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: unit `{name}` needs a description of what it counts.\n  Try: # unit {name} \"DKK øre\"",
+                    p.line, p.col
+                ));
+            };
+            if description.trim().is_empty() {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: unit `{name}` needs a description of what it counts.\n  Try: # unit {name} \"DKK øre\"",
+                    p.line, p.col
+                ));
+            }
+            return Ok(Stmt::TypeDecl(TypeDecl::Unit { name, description }));
         }
 
         // # Name(params) = Variant1 | Variant2 | ...
@@ -16048,6 +16091,8 @@ struct RuntimeNamespaceState {
     constructor_sources: BTreeMap<String, Rc<str>>,
     field_names: BTreeMap<String, Vec<String>>,
     type_variants: BTreeMap<String, Vec<String>>,
+    /// Units of measure declared with `# unit`; their values are `Int`.
+    unit_types: BTreeSet<String>,
     ctor_to_type: BTreeMap<String, String>,
     functions: BTreeMap<String, FnDef>,
     function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
@@ -16114,6 +16159,7 @@ impl RuntimeNamespaceState {
             constructor_sources: BTreeMap::new(),
             field_names: BTreeMap::new(),
             type_variants: BTreeMap::new(),
+            unit_types: BTreeSet::new(),
             ctor_to_type: BTreeMap::new(),
             functions: BTreeMap::new(),
             function_declaration_envs: BTreeMap::new(),
@@ -19222,6 +19268,8 @@ impl Interpreter {
         env.set("head".into(), Value::Builtin("head".into()));
         env.set("tail".into(), Value::Builtin("tail".into()));
         env.set("abs".into(), Value::Builtin("abs".into()));
+        // `Int(amount)` takes the unit off a value; the value is unchanged.
+        env.set("Int".into(), Value::Builtin("unit:Int".into()));
         env.set("random_float".into(), Value::Builtin("random_float".into()));
         env.set(
             "random_choice".into(),
@@ -19795,6 +19843,9 @@ impl Interpreter {
                     .or_default()
                     .insert(for_type.clone());
                 self.install_trait_default_methods(namespace, trait_name, for_type);
+            }
+            TypeDecl::Unit { name, .. } => {
+                namespace.state.borrow_mut().unit_types.insert(name.clone());
             }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
@@ -22043,6 +22094,13 @@ impl Interpreter {
                 }
             }
             TypeDecl::EffectDecl { .. } => {}
+            // `Ore(100)` gives an Int the unit; the value is unchanged.
+            TypeDecl::Unit { name, .. } => {
+                env.set(
+                    name.clone(),
+                    self.runtime_registry_builtin(&namespace, format!("unit:{name}")),
+                );
+            }
             TypeDecl::TraitDecl { .. } => {} // no runtime values for traits
             TypeDecl::WhenType { .. } => {}  // handled in run_program
             TypeDecl::ImplBlock { .. } => {}
@@ -23298,6 +23356,10 @@ impl Interpreter {
                 scope_name.to_string(),
                 Rc::new(bindings),
             );
+        }
+        // A unit conversion (`Ore(n)`, `Int(amount)`) leaves the value as it is.
+        if name.starts_with("unit:") {
+            return args.into_iter().next().unwrap_or(Value::Unit);
         }
         // Constructor application
         if name.starts_with("nctor:") {
@@ -27540,6 +27602,13 @@ impl Interpreter {
             "String" => matches!(value, Value::Str(_)),
             "Bool" => matches!(value, Value::Bool(_)),
             "Char" => matches!(value, Value::Char(_)),
+            _ if Self::runtime_namespace_find(expected_namespace, |state| {
+                state.unit_types.contains(type_name).then_some(())
+            })
+            .is_some() =>
+            {
+                matches!(value, Value::Int(_))
+            }
             _ => {
                 let constructor_name = match value {
                     Value::Constructor(name, _)
@@ -29878,6 +29947,7 @@ pub(crate) enum DeclarationKind {
     Implementation,
     WhenType,
     RuleScope,
+    Unit,
     RuleClause,
     RuleDefault,
     RuleException,
@@ -29905,6 +29975,7 @@ impl DeclarationKind {
             Self::Implementation => "implementation",
             Self::WhenType => "when-type",
             Self::RuleScope => "rule-scope",
+            Self::Unit => "unit",
             Self::RuleClause => "rule-clause",
             Self::RuleDefault => "rule-default",
             Self::RuleException => "rule-exception",
@@ -30932,6 +31003,10 @@ pub struct TypeChecker {
     rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
     pub types: BTreeSet<String>,
+    /// Units of measure (`# unit Ore "DKK øre"`) -> description.
+    unit_types: BTreeMap<String, String>,
+    /// Functions declared by the standard prelude rather than the program.
+    prelude_functions: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
     annotation_source_spans: Option<(String, BTreeMap<String, Span>)>,
     declaration_source_spans: Option<(String, BTreeMap<String, Span>)>,
@@ -32202,6 +32277,10 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    /// Every declared unit of measure, including imported ones. A backend
+    /// that erases units reads the type metadata below with
+    /// `TypeCheckArtifacts::erase_units_for_backend`.
+    pub unit_names: BTreeSet<String>,
     pub rule_return_types: BTreeMap<String, String>,
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
@@ -46284,7 +46363,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope {
                 name, params, body, ..
             }) => {
@@ -47734,6 +47813,8 @@ impl TypeChecker {
             rule_call_site_param_types: BTreeMap::new(),
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
+            unit_types: BTreeMap::new(),
+            prelude_functions: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
             declaration_source_spans: None,
@@ -49072,6 +49153,9 @@ impl TypeChecker {
             Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                 Some((DeclarationKind::WhenType, None, name.clone(), None))
             }
+            Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+                Some((DeclarationKind::Unit, None, name.clone(), None))
+            }
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => Some((
                 DeclarationKind::RuleScope,
                 None,
@@ -49214,6 +49298,7 @@ impl TypeChecker {
                 | DeclarationKind::Trait
                 | DeclarationKind::WhenType
                 | DeclarationKind::RuleScope
+                | DeclarationKind::Unit
                 | DeclarationKind::InlineModule
                 | DeclarationKind::QualifiedModule
         )
@@ -49245,6 +49330,9 @@ impl TypeChecker {
             )),
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
                 Some(format!("rule-scope:{name};params={params:?}"))
+            }
+            Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                Some(format!("unit:{name};description={description:?}"))
             }
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
@@ -51065,12 +51153,18 @@ impl TypeChecker {
                         if self.types.contains(expected_type)
                             && self.types.contains(&actual_type)
                             && expected_type != &actual_type
+                            && !(self.is_unit_type(expected_type)
+                                && Self::is_unitless_literal(value))
                         {
+                            let hint = self.numeric_conversion_hint(
+                                &Ty::Name(actual_type.clone()),
+                                &Ty::Name(expected_type.clone()),
+                            );
                             self.error_at_expr(
                                 value,
                                 format!(
-                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`",
-                                    constructor, field, expected_type, actual_type
+                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`{}",
+                                    constructor, field, expected_type, actual_type, hint
                                 ),
                             );
                         }
@@ -52343,6 +52437,28 @@ impl TypeChecker {
                     if name == REFOF_MARKER {
                         return Some("ProgramReference".to_string());
                     }
+                    if !locals.contains_key(name) {
+                        if self.is_unit_conversion_name(name) && args.len() == 1 {
+                            return Some(name.clone());
+                        }
+                        if !self.unit_types.is_empty() {
+                            let argument_types = args
+                                .iter()
+                                .map(|argument| {
+                                    self.infer_expr_type_name_with_locals_in_scope(
+                                        argument,
+                                        locals,
+                                        active_rule_scope,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            if let Some(unit) =
+                                self.unit_preserving_call_result(name, &argument_types)
+                            {
+                                return Some(unit);
+                            }
+                        }
+                    }
                     if !locals.contains_key(name)
                         && !self.explore_contextual_intrinsic_is_shadowed(name, args.len())
                     {
@@ -52370,6 +52486,11 @@ impl TypeChecker {
                     // from the callback body, and lets Explore validate pure
                     // corpus helpers without expanding their finite inputs.
                     if name == "foldl" && args.len() == 3 {
+                        if let Some(unit) =
+                            self.unit_of_literal_fold(args, locals, active_rule_scope)
+                        {
+                            return Some(unit);
+                        }
                         if let Some(initial_type) = self.infer_expr_type_name_with_locals_in_scope(
                             &args[1],
                             locals,
@@ -52625,11 +52746,7 @@ impl TypeChecker {
                         locals,
                         active_rule_scope,
                     );
-                    Self::binary_expression_result_type(
-                        operator,
-                        left_type.as_deref(),
-                        right_type.as_deref(),
-                    )
+                    self.binary_result_type(operator, left_type.as_deref(), right_type.as_deref())
                 }
             }
             ExprKind::UnOp(operator, inner) => {
@@ -52659,9 +52776,12 @@ impl TypeChecker {
                     active_rule_scope,
                 );
                 match (then_ty, else_ty) {
-                    (Some(then_ty), Some(else_ty)) => {
-                        Self::merge_inferred_type_names(&then_ty, &else_ty)
-                    }
+                    (Some(then_ty), Some(else_ty)) => self.merge_branch_types(
+                        &then_ty,
+                        Self::is_unitless_literal(then_expr),
+                        &else_ty,
+                        Self::is_unitless_literal(else_expr),
+                    ),
                     (Some(then_ty), None) if Self::is_polymorphic_empty_list_expr(else_expr) => {
                         Some(then_ty)
                     }
@@ -52678,6 +52798,7 @@ impl TypeChecker {
                     active_rule_scope,
                 );
                 let mut result_type: Option<String> = None;
+                let mut result_is_literal = true;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
@@ -52696,10 +52817,17 @@ impl TypeChecker {
                         }
                         None => return None,
                     };
+                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
                     let merged = match result_type {
-                        Some(known) => Self::merge_inferred_type_names(&known, &arm_type),
+                        Some(known) => self.merge_branch_types(
+                            &known,
+                            result_is_literal,
+                            &arm_type,
+                            arm_is_literal,
+                        ),
                         None => Some(arm_type),
                     }?;
+                    result_is_literal &= arm_is_literal;
                     result_type = Some(merged);
                 }
                 result_type
@@ -52772,17 +52900,20 @@ impl TypeChecker {
             return Some(inferred);
         }
 
-        let merge_candidates = |left: Option<String>, right: Option<String>| match (left, right) {
-            (Some(left), Some(right)) => Self::merge_inferred_type_names(&left, &right),
-            (Some(known), None) | (None, Some(known)) => Some(known),
-            (None, None) => None,
-        };
-
         match &expr.kind {
-            ExprKind::If(_, then_expr, else_expr) => merge_candidates(
+            ExprKind::If(_, then_expr, else_expr) => match (
                 self.provisional_expr_type_name_with_locals(then_expr, locals),
                 self.provisional_expr_type_name_with_locals(else_expr, locals),
-            ),
+            ) {
+                (Some(then_type), Some(else_type)) => self.merge_branch_types(
+                    &then_type,
+                    Self::is_unitless_literal(then_expr),
+                    &else_type,
+                    Self::is_unitless_literal(else_expr),
+                ),
+                (Some(known), None) | (None, Some(known)) => Some(known),
+                (None, None) => None,
+            },
             ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == "concat") =>
             {
                 let mut candidate: Option<String> = None;
@@ -52804,7 +52935,7 @@ impl TypeChecker {
             }
             ExprKind::Match(scrutinee, arms) => {
                 let subject_type = self.infer_expr_type_name_with_locals(scrutinee, locals);
-                let mut candidate: Option<String> = None;
+                let mut candidate: Option<(String, bool)> = None;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
@@ -52814,14 +52945,21 @@ impl TypeChecker {
                     else {
                         continue;
                     };
-                    candidate = match candidate {
-                        Some(known) => {
-                            Some(Self::merge_inferred_type_names(&known, &arm_candidate)?)
-                        }
-                        None => Some(arm_candidate),
-                    };
+                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
+                    candidate = Some(match candidate {
+                        Some((known, known_is_literal)) => (
+                            self.merge_branch_types(
+                                &known,
+                                known_is_literal,
+                                &arm_candidate,
+                                arm_is_literal,
+                            )?,
+                            known_is_literal && arm_is_literal,
+                        ),
+                        None => (arm_candidate, arm_is_literal),
+                    });
                 }
-                candidate
+                candidate.map(|(candidate, _)| candidate)
             }
             ExprKind::Block(stmts) => {
                 let mut block_locals = locals.clone();
@@ -53225,11 +53363,15 @@ impl TypeChecker {
         }
     }
 
-    fn canonical_dispatch_types_match(actual: &str, expected: &Ty) -> bool {
-        let Ok(actual) = parse_type_annotation(actual) else {
+    fn canonical_dispatch_types_match(&self, actual: &str, expected: &Ty) -> bool {
+        let Ok(actual) = parse_type_annotation(&self.canonical_type_without_units(actual)) else {
             return false;
         };
-        Self::explore_tys_equivalent(&actual, expected)
+        let expected = parse_type_annotation(
+            &self.canonical_type_without_units(&Self::canonical_explore_ty_name(expected)),
+        )
+        .unwrap_or_else(|_| expected.clone());
+        Self::explore_tys_equivalent(&actual, &expected)
     }
 
     fn canonical_dispatch_type_error<T>(&self) -> Option<T> {
@@ -53485,7 +53627,7 @@ impl TypeChecker {
                     )
                 }),
             Ty::Arrow(_, _) | Ty::Hole => false,
-            _ => Self::canonical_dispatch_types_match(actual, expected),
+            _ => self.canonical_dispatch_types_match(actual, expected),
         }
     }
 
@@ -53798,7 +53940,7 @@ impl TypeChecker {
             visiting_functions.remove(&visiting_key);
             let actual = actual?;
             let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
-            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+            if !self.canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
                 return self.canonical_dispatch_type_error();
             }
         }
@@ -53899,7 +54041,7 @@ impl TypeChecker {
             visiting_functions.remove(key);
             let actual = actual?;
             let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
-            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+            if !self.canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
                 return self.canonical_dispatch_type_error();
             }
         }
@@ -54174,7 +54316,7 @@ impl TypeChecker {
             Pat::Lit(literal) => parse_type_annotation(Self::obvious_literal_ty(literal))
                 .ok()
                 .is_some_and(|expected| {
-                    Self::canonical_dispatch_types_match(subject_type, &expected)
+                    self.canonical_dispatch_types_match(subject_type, &expected)
                 }),
             Pat::As(inner, _) => self.canonical_pattern_is_well_typed(inner, subject_type),
             Pat::Con(constructor, fields) => {
@@ -54323,7 +54465,7 @@ impl TypeChecker {
         let value_type = |index: usize| {
             values
                 .get(index)
-                .map(|value| Self::canonical_explore_type_name(&value.type_name))
+                .map(|value| self.canonical_type_without_units(&value.type_name))
         };
         let exact = |index: usize, expected: &str| {
             value_type(index).is_some_and(|actual| actual == expected)
@@ -54351,7 +54493,7 @@ impl TypeChecker {
                 let Ok(expected) = parse_type_annotation(&element) else {
                     return self.canonical_dispatch_type_error();
                 };
-                Self::canonical_dispatch_types_match(&values[1].type_name, &expected)
+                self.canonical_dispatch_types_match(&values[1].type_name, &expected)
                     .then_some("Bool")
             }
             ("starts_with" | "ends_with", 2) if exact(0, "String") && exact(1, "String") => {
@@ -54419,7 +54561,7 @@ impl TypeChecker {
                     let mut value = value?;
                     if let Some(declared) = declared {
                         let declared_type = parse_type_annotation(&declared).ok()?;
-                        if !Self::canonical_dispatch_types_match(&value.type_name, &declared_type) {
+                        if !self.canonical_dispatch_types_match(&value.type_name, &declared_type) {
                             return self.canonical_dispatch_type_error();
                         }
                         value.type_name = declared;
@@ -54508,6 +54650,24 @@ impl TypeChecker {
                     }
                     if matches!(name.as_str(), PATHOF_MARKER | REFOF_MARKER) {
                         return inferred();
+                    }
+                    // `Ore(n)` and `Int(amount)` leave the value unchanged.
+                    if self.is_unit_conversion_name(name)
+                        && arguments.len() == 1
+                        && !locals.contains_key(name)
+                        && !self.constructor_signatures.contains_key(name)
+                    {
+                        let argument = self.canonical_dispatch_expr_type(
+                            &arguments[0],
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                            None,
+                        )?;
+                        if self.canonical_type_without_units(&argument.type_name) != "Int" {
+                            return self.canonical_dispatch_type_error();
+                        }
+                        return Some(CanonicalDispatchValue::plain(name));
                     }
                     // Match the interpreter's bare-call interception order.
                     // An effect operation or nested logic search wins before
@@ -54694,8 +54854,8 @@ impl TypeChecker {
                     visiting_functions,
                     right_expected.as_deref(),
                 )?;
-                let left_type = Self::canonical_explore_type_name(&left.type_name);
-                let right_type = Self::canonical_explore_type_name(&right.type_name);
+                let left_type = self.canonical_type_without_units(&left.type_name);
+                let right_type = self.canonical_type_without_units(&right.type_name);
                 let numeric = |ty: &str| matches!(ty, "Int" | "Float");
                 match operator.as_str() {
                     "&&" | "||" if left_type == "Bool" && right_type == "Bool" => inferred(),
@@ -54726,7 +54886,7 @@ impl TypeChecker {
                     visiting_functions,
                     None,
                 )?;
-                let inner_type = Self::canonical_explore_type_name(&inner.type_name);
+                let inner_type = self.canonical_type_without_units(&inner.type_name);
                 match operator.as_str() {
                     "!" if inner_type == "Bool" => inferred(),
                     "-" if matches!(inner_type.as_str(), "Int" | "Float") => None,
@@ -54782,8 +54942,8 @@ impl TypeChecker {
                     visiting_functions,
                     expected,
                 )?;
-                let type_name =
-                    Self::merge_inferred_type_names(&then_value.type_name, &else_value.type_name)?;
+                let type_name = self
+                    .canonical_merge_branch_types(&then_value.type_name, &else_value.type_name)?;
                 let exact_constructor = (then_value.exact_constructor
                     == else_value.exact_constructor)
                     .then_some(then_value.exact_constructor)
@@ -54833,7 +54993,7 @@ impl TypeChecker {
                     )?;
                     result = Some(match result {
                         Some(known) => CanonicalDispatchValue {
-                            type_name: Self::merge_inferred_type_names(
+                            type_name: self.canonical_merge_branch_types(
                                 &known.type_name,
                                 &arm_value.type_name,
                             )?,
@@ -54866,7 +55026,7 @@ impl TypeChecker {
                                 annotation_name.as_deref().or(statement_expected),
                             )?;
                             if annotation.as_ref().is_some_and(|annotation| {
-                                !Self::canonical_dispatch_types_match(&value.type_name, annotation)
+                                !self.canonical_dispatch_types_match(&value.type_name, annotation)
                             }) {
                                 return self.canonical_dispatch_type_error();
                             }
@@ -55083,7 +55243,7 @@ impl TypeChecker {
                            captures: &BTreeMap<String, String>,
                            rules: &[&Rule],
                            expected: Option<&str>| {
-            rules
+            let mut inferred = rules
                 .iter()
                 .map(|rule| match rule {
                     Rule::Clause { head, body } => match body {
@@ -55102,12 +55262,14 @@ impl TypeChecker {
                     }
                     Rule::ReactiveScope { .. } => None,
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            checker.adopt_unit_for_literal_clauses(rules, &mut inferred);
+            inferred
         };
 
         let infer_group_provisionally =
             |checker: &TypeChecker, captures: &BTreeMap<String, String>, rules: &[&Rule]| {
-                rules
+                let mut inferred = rules
                     .iter()
                     .map(|rule| match rule {
                         Rule::Clause { head, body } => match body {
@@ -55125,7 +55287,9 @@ impl TypeChecker {
                         }
                         Rule::ReactiveScope { .. } => None,
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+                checker.adopt_unit_for_literal_clauses(rules, &mut inferred);
+                inferred
             };
 
         // A known base candidate can seed recursive references. Every result is
@@ -55440,8 +55604,8 @@ impl TypeChecker {
                                 Some(&expected),
                             )
                             .is_some_and(|actual| {
-                                let matches = Self::canonical_explore_type_name(&actual.type_name)
-                                    == Self::canonical_explore_type_name(&expected);
+                                let matches = self.canonical_type_without_units(&actual.type_name)
+                                    == self.canonical_type_without_units(&expected);
                                 if !matches {
                                     self.canonical_dispatch_definite_error.set(true);
                                 }
@@ -56491,7 +56655,9 @@ impl TypeChecker {
                             exported.insert(variant.name.clone());
                         }
                     }
-                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    Stmt::TypeDecl(
+                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                    ) => {
                         exported.insert(name.clone());
                     }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
@@ -56985,6 +57151,15 @@ impl TypeChecker {
     pub fn collect_declarations(&mut self, stmts: &[Stmt]) {
         self.rule_dispatch_has_opaque_runtime_graph |=
             Self::rule_dispatch_program_has_opaque_runtime_graph(stmts);
+        let prelude_end = stmts
+            .iter()
+            .position(|stmt| matches!(stmt, Stmt::PreludeBoundary))
+            .unwrap_or(0);
+        for stmt in &stmts[..prelude_end] {
+            if let Stmt::Defn(Defn::Fn { name, .. }) = stmt {
+                self.prelude_functions.insert(name.clone());
+            }
+        }
         for stmt in stmts {
             self.record_explore_top_level_binding_initializer(stmt);
             match stmt {
@@ -57042,6 +57217,7 @@ impl TypeChecker {
                     methods,
                     ..
                 }) => {
+                    self.check_name_against_units(name);
                     self.clear_constructor_owner(name);
                     self.types.insert(name.clone());
                     self.type_parameters_by_owner.insert(
@@ -57279,6 +57455,9 @@ impl TypeChecker {
                     self.rule_scope_value_method_params
                         .insert(name.clone(), Self::rule_scope_value_method_params(body));
                     self.infer_rule_scope_member_return_types(name, params, body);
+                }
+                Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
+                    self.collect_unit_declaration(name, description);
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -57796,7 +57975,7 @@ impl TypeChecker {
             return;
         };
         let expected_ty = ty.to_string();
-        if expected_ty != actual_ty {
+        if expected_ty != actual_ty && !self.unit_literal_fits(expr, ty) {
             self.error_at_expr(
                 expr,
                 format!(
@@ -60369,6 +60548,7 @@ impl TypeChecker {
                 }
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::Unit { .. }) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                 self.check_rule_scope_decl(name, params, body);
             }
@@ -60683,6 +60863,11 @@ impl TypeChecker {
                 if matches!(&func.kind, ExprKind::Var(name) if name == REFOF_MARKER) {
                     self.check_refof_expr(expr, args);
                     return;
+                }
+                if let ExprKind::Var(name) = &func.kind {
+                    if self.check_unit_conversion_call(expr, name, args, _in_fn) {
+                        return;
+                    }
                 }
                 if matches!(&func.kind, ExprKind::Var(name) if self.actor_message_arities.contains_key(name))
                     && self.check_actor_message(None, expr)
@@ -61056,8 +61241,17 @@ impl TypeChecker {
                         return;
                     }
                 }
-                for arg in args {
-                    self.check_expr(arg, _in_fn);
+                let callback = match &func.kind {
+                    ExprKind::Var(name) => self.collection_callback_parameter_types(name, args),
+                    _ => None,
+                };
+                for (index, arg) in args.iter().enumerate() {
+                    match &callback {
+                        Some((callback_index, parameter_types)) if *callback_index == index => {
+                            self.check_callback_lambda(arg, parameter_types, _in_fn);
+                        }
+                        _ => self.check_expr(arg, _in_fn),
+                    }
                 }
                 self.check_collection_key_not_float(func, args);
             }
@@ -61077,6 +61271,7 @@ impl TypeChecker {
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type: Option<String> = None;
+                let mut arms_are_literal = false;
                 let refinement_subject = match &scrutinee.kind {
                     ExprKind::Var(subject) => subject_type
                         .as_deref()
@@ -61117,11 +61312,16 @@ impl TypeChecker {
                     }
                     self.check_expr(&arm.body, _in_fn);
                     if let Some(arm_type) = self.infer_expr_type_name(&arm.body) {
+                        let arm_is_literal = Self::is_unitless_literal(&arm.body);
                         if let Some(expected) = first_arm_type.take() {
-                            if let Some(merged) =
-                                Self::merge_inferred_type_names(&expected, &arm_type)
-                            {
+                            if let Some(merged) = self.merge_branch_types(
+                                &expected,
+                                arms_are_literal,
+                                &arm_type,
+                                arm_is_literal,
+                            ) {
                                 first_arm_type = Some(merged);
+                                arms_are_literal &= arm_is_literal;
                             } else {
                                 self.error_at_expr(
                                     &arm.body,
@@ -61136,6 +61336,7 @@ impl TypeChecker {
                             }
                         } else {
                             first_arm_type = Some(arm_type);
+                            arms_are_literal = arm_is_literal;
                         }
                     }
                     self.pop_scope();
@@ -61293,6 +61494,21 @@ impl TypeChecker {
             Rule::Clause { head, body } => (head, body.as_ref()),
             Rule::ReactiveScope { .. } => return None,
         };
+        // A number written in the source takes the unit of the family's other
+        // clauses; it conflicts only with a non-numeric result.
+        if !self.unit_types.is_empty()
+            && result.is_some_and(|value| Self::is_unitless_literal(value))
+        {
+            let candidates = known.entry((name.clone(), arity)).or_default();
+            return candidates
+                .iter()
+                .find(|candidate| candidate.as_str() != "Int" && !self.is_unit_type(candidate))
+                .map(|previous| {
+                    format!(
+                        "rule `{name}` with arity {arity} has conflicting return types `{previous}` and `Int`"
+                    )
+                });
+        }
         let actual = match result {
             Some(result) => self
                 .infer_expr_type_name_with_locals(result, &self.rule_contract_local_types(head))
@@ -61983,6 +62199,7 @@ impl TypeChecker {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
+            unit_names: tc.unit_types.keys().cloned().collect(),
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,
@@ -71476,6 +71693,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
+            TypeDecl::Unit { .. } => "Unit",
         }
     }
 
@@ -71486,7 +71704,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
             | TypeDecl::TraitDecl { .. }
             | TypeDecl::ImplBlock { .. }
             | TypeDecl::RuleScope { .. } => TypecheckerPassCoverage::VisitsExpressions,
-            TypeDecl::EffectDecl { .. } => TypecheckerPassCoverage::IntentionallyIgnored,
+            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {
+                TypecheckerPassCoverage::IntentionallyIgnored
+            }
         }
     }
 
@@ -71591,6 +71811,15 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
                     name: "EffectVisit".to_string(),
                     ops: vec![("op".to_string(), vec![], None)],
+                }),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::Unit",
+                stmt: Stmt::TypeDecl(TypeDecl::Unit {
+                    name: "UnitVisit".to_string(),
+                    description: "units of a visit".to_string(),
                 }),
                 coverage: ignored,
                 diagnostic_markers: vec![],
@@ -72007,6 +72236,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "TraitDecl",
             "ImplBlock",
             "RuleScope",
+            "Unit",
         ]
         .into_iter()
         .collect();

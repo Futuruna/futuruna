@@ -274,6 +274,12 @@ result needs a `Float` value such as `25.0` or `to_float(n)`, so `Rates(25)`
 for `# Rates(percent: Float)` is a type error. `+` also concatenates when
 either operand is a `String`; use `concat` to combine lists.
 
+Whole numbers can carry a declared unit (`# unit Ore "DKK øre"`, Experimental).
+`Ore + Ore` is `Ore`, `Ore * 3` is `Ore` and `Ore / Ore` is a plain `Int`;
+adding `Ore` to another unit or to a named plain `Int` is a type error, while a
+literal such as `0` takes the unit its place requires. Convert with `Ore(n)` and
+`Int(amount)`. See [Unit](runes.md#unit) for the full rules.
+
 ### Comparison
 | Op | Meaning |
 |----|---------|

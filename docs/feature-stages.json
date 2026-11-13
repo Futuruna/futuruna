@@ -114,6 +114,17 @@
       ]
     },
     {
+      "id": "unit-types",
+      "kind": "language",
+      "name": "Unit types for whole numbers (`# unit`)",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: declaration syntax, arithmetic rules, error texts and the contract's `unit`/`units` members may change.",
+      "docs": [
+        "docs/reference/runes.md",
+        "docs/rfcs/unit-types.md"
+      ]
+    },
+    {
       "id": "rust-interop",
       "kind": "integration",
       "name": "Rust interop and Rust-facing library integration behavior",
@@ -544,6 +555,13 @@
       ]
     },
     {
+      "path": "docs/rfcs/unit-types.md",
+      "stage": "experimental",
+      "surfaces": [
+        "unit-types"
+      ]
+    },
+    {
       "path": "docs/library-hygiene.md",
       "stage": "stable",
       "surfaces": [
@@ -623,7 +641,8 @@
         "typed-calculation-contracts",
         "calculation-field-declarations",
         "rust-escape-hatches",
-        "exploratory-audit-tooling"
+        "exploratory-audit-tooling",
+        "unit-types"
       ]
     },
     {

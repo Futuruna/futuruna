@@ -206,6 +206,10 @@ strings, optional strings, or omitted by a record type that does not declare the
 Role-bearing values such as `Source` attachments remain typed metadata and are
 copied into that field's source trace.
 
+When the field's type is a declared [unit](runes.md#unit), its `unit` text comes
+from the declaration's description; an authored `unit = Some(...)` for that
+field is an error. See [Unit types](#unit-types).
+
 Scale the same ordinary typed aggregate to any number of fields and attach that
 object once with the `meta` role. The calculation consumer finds field-shaped
 typed descendants recursively; other metadata consumers remain free to query
@@ -307,6 +311,27 @@ recursively reachable plain import. The contract includes stable metadata type
 and value data in its fingerprint. Definition file paths and line numbers stay
 in `runa meta --json` and do not make a portable calculation contract
 machine-dependent.
+
+### Unit types
+
+Experimental. A field, output or other type position whose type is a declared
+[unit](runes.md#unit) keeps its primitive type and gains an additive `unit`
+member naming the unit, and the contract lists the units it uses with their
+descriptions:
+
+```json
+"type": { "kind": "primitive", "name": "Int", "unit": "Ore" }
+```
+
+```json
+"units": [{ "name": "Ore", "description": "DKK øre" }]
+```
+
+Values on the wire stay JSON integers, so consumers that ignore unknown members
+read the same contract as before. The field metadata of a unit-typed field takes
+its `unit` text from the declaration (`"DKK øre"`); writing `unit = Some(...)`
+in the metadata of such a field states the unit a second time and is a check
+error.
 
 ### Inspect one input branch
 
@@ -861,6 +886,7 @@ the SDK converts between them on every call:
 | `# CashDirection = Deposit \| Withdrawal` (no variant carries fields) | `"Deposit" \| "Withdrawal"` | `{ "$variant": "Deposit" }` |
 | `# Event = Trade(…) \| CashMovement(…)` (payload variants) | a union tagged by `$variant`, positional payloads in `$values` | the same, with snake_case fields |
 | `Date` | an ISO date `"2026-03-01"` (`IsoDate`) | `{ "year": 2026, "month": 3, "day": 1 }` |
+| `Ore`, an `Int` with a [unit](runes.md#unit) | `Ore`, a branded number: `number & { readonly __unit: "Ore" }` | the same number |
 | `T?` | `T \| null` | the same |
 | `List(T)`, `Set(T)` | arrays | the same |
 | `Map(String, T)` | an object; keys are kept as they are | the same |
@@ -872,6 +898,13 @@ ordinary); narrowing works on it as on any literal property, and it is the
 name the engine's paths and results use (`Complete`, `Needs`). A date is
 validated as a day on the calendar from 0000 to 9999: `2026-02-30` is
 rejected.
+
+A unit is declared once in `types.ts`, with its description as TSDoc, and
+`schema.ts` holds its validator (`OreSchema`, typed `Ore` once parsed) and its
+constructor `ore(n)`, which throws a `RangeError` unless `n` is a safe
+integer. Wherever the contract says `Ore` (fields, results, the path tables of
+`setAt` and the resolvers) a bare number or a `Micro` is a type error, while a
+plain `Int` stays `number`.
 
 `toWire(codec, value)` and `fromWire(codec, value)` convert a value either way
 with a codec from `schema.ts` (or `<entry>Entry.input` and `.output`), for
