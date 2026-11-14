@@ -1,0 +1,13 @@
+-- A variant declares one key field.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: variant `Deposit` of `Event` declares more than one key field (`id` and `reference`); an element has one key
+
+# Event =
+    Deposit(@ field(label = "Event id", key = True) id: String, @ field(label = "Reference", key = True) reference: String) |
+    Withdrawal(@ field(label = "Event id", key = True) id: String)
+# Case(events: List(Event))
+# Result(count: Int)
+
+@ calculate
+| needs_variant_key_twice(c: Case) -> Result(count = length(c.events))

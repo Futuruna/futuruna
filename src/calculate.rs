@@ -154,7 +154,7 @@ pub struct CalculationTypeDefinition {
     pub parameters: Vec<String>,
     pub kind: String,
     pub variants: Vec<CalculationVariant>,
-    /// The field that identifies an element of this record type in a list (`@ field(key = True)`).
+    /// The field that identifies an element of this type in a list (`@ field(key = True)`): a record's field, or the field every variant of a sum type declares.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
 }
@@ -758,7 +758,7 @@ impl CalculationContract {
     }
 
     /// The keys of the list elements `path` lies in, outermost first: for
-    /// each element whose record type declares a key field that the case
+    /// each element whose type declares a key field that the case
     /// gives, the element's path and the key's value.
     pub(crate) fn need_keys(&self, input: &JsonValue, path: &str) -> Vec<CalculationNeedKey> {
         let mut keys = Vec::new();
@@ -2976,10 +2976,11 @@ fn contract_units(
         .collect()
 }
 
-/// A record type whose field is declared `@ field(key = True)` names that
-/// field as its `key`: what identifies an element of the type in a list, so
-/// a need inside the element can carry it. The key is one field of a record
-/// (not of a sum type's variant) and holds a `String` or an `Int`.
+/// A type whose field is declared `@ field(key = True)` names that field as
+/// its `key`: what identifies an element of the type in a list, so a need
+/// inside the element can carry it. A key holds a `String` or an `Int`; a
+/// record declares one, and a sum type one in every variant, of the same name
+/// and type, so that every element has it whatever its variant.
 fn apply_declared_keys(
     contract: &mut CalculationContract,
     declared: &DeclaredFieldMeta,
@@ -2994,47 +2995,106 @@ fn apply_declared_keys(
             .iter()
             .filter(|member| member.meta.key)
             .collect();
-        let Some(first) = keys.first() else {
-            continue;
-        };
-        if keys.len() > 1 {
-            diagnostics.push(Diagnostic::error(format!(
-                "type `{}` declares more than one key field (`{}` and `{}`); a record has one key",
-                definition.name, first.field, keys[1].field
-            )));
+        if keys.is_empty() {
             continue;
         }
-        let Some(variant) = product_variant(definition) else {
-            diagnostics.push(Diagnostic::error(format!(
-                "`@ field(key = True)` on `{}`: a key identifies an element of a record type, and `{}` is not a record",
-                first.meta.binding, definition.name
-            )));
-            continue;
-        };
-        let scalar = variant
-            .fields
-            .iter()
-            .find(|field| field.name == first.field)
-            .is_some_and(|field| {
-                matches!(
-                    &field.ty,
-                    CalculationTypeRef::Primitive { name, .. } if matches!(name.as_str(), "String" | "Int")
-                )
-            });
-        if !scalar {
-            diagnostics.push(Diagnostic::error(format!(
-                "`@ field(key = True)` on `{}`: a key field holds a `String` or an `Int`",
-                first.meta.binding
-            )));
-            continue;
+        match declared_key(definition, &keys) {
+            Ok(field) => definition.key = Some(field),
+            Err(diagnostic) => diagnostics.push(diagnostic),
         }
-        definition.key = Some(first.field.clone());
     }
     if diagnostics.is_empty() {
         Ok(())
     } else {
         Err(diagnostics)
     }
+}
+
+/// The key field of `definition`, from its non-empty `keys` declarations.
+fn declared_key(
+    definition: &CalculationTypeDefinition,
+    keys: &[&ResolvedMemberFieldMeta],
+) -> Result<String, Diagnostic> {
+    let record = product_variant(definition).is_some();
+    // Each variant's key and its type, in the type's variant order.
+    let mut variant_keys = Vec::new();
+    for variant in &definition.variants {
+        let declared: Vec<&ResolvedMemberFieldMeta> = keys
+            .iter()
+            .copied()
+            .filter(|key| key.variant == variant.name)
+            .collect();
+        let Some(key) = declared.first() else {
+            variant_keys.push((variant, None));
+            continue;
+        };
+        if let Some(other) = declared.get(1) {
+            return Err(Diagnostic::error(if record {
+                format!(
+                    "type `{}` declares more than one key field (`{}` and `{}`); a record has one key",
+                    definition.name, key.field, other.field
+                )
+            } else {
+                format!(
+                    "variant `{}` of `{}` declares more than one key field (`{}` and `{}`); an element has one key",
+                    variant.name, definition.name, key.field, other.field
+                )
+            }));
+        }
+        let ty = variant
+            .fields
+            .iter()
+            .find(|field| field.name == key.field)
+            .map(|field| &field.ty)
+            .filter(|ty| {
+                matches!(
+                    ty,
+                    CalculationTypeRef::Primitive { name, .. } if matches!(name.as_str(), "String" | "Int")
+                )
+            });
+        let Some(ty) = ty else {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: a key field holds a `String` or an `Int`",
+                key.meta.binding
+            )));
+        };
+        variant_keys.push((variant, Some((*key, ty))));
+    }
+    let Some((first_variant, (first, first_ty))) = variant_keys
+        .iter()
+        .find_map(|(variant, key)| key.map(|key| (variant, key)))
+    else {
+        // Declarations on variants the contract does not have.
+        return Err(Diagnostic::error(format!(
+            "`@ field(key = True)` on `{}`: `{}` has no such field",
+            keys[0].meta.binding, definition.name
+        )));
+    };
+    for (variant, key) in &variant_keys {
+        let Some((key, ty)) = *key else {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares the key `{}`, and `{}` declares none",
+                first.meta.binding, definition.name, first.field, variant.name
+            )));
+        };
+        if key.field != first.field {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares the same key field, and `{}` keys `{}` where `{}` keys `{}`",
+                key.meta.binding, definition.name, variant.name, key.field, first_variant.name, first.field
+            )));
+        }
+        if ty != first_ty {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares a key of the same type, and it holds `{}` where `{}` holds `{}`",
+                key.meta.binding,
+                definition.name,
+                ty.display_name(),
+                first.meta.binding,
+                first_ty.display_name()
+            )));
+        }
+    }
+    Ok(first.field.clone())
 }
 
 /// A field whose type has a unit takes the `unit` of its field metadata from
@@ -3326,7 +3386,7 @@ struct ResolvedFieldMeta {
     unit: Option<String>,
     sources: Vec<CalculationMetadataReference>,
     provided_by: Option<CalculationFieldProvider>,
-    /// `key = True`: the field identifies an element of its record type.
+    /// `key = True`: the field identifies an element of its type.
     key: bool,
 }
 
@@ -5954,16 +6014,20 @@ struct CalculationProgram {
     entry: String,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    /// The program's internal constructor names and rewritten imports.
+    constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     /// The program's root file, where rules without a recorded file are.
     root_file: Option<PathBuf>,
     rule_dispatch: Arc<RuleDispatchMetadata>,
 }
 
 impl CalculationProgram {
+    /// Runs under `constructor_elaboration`, which must be current.
     fn new(
         entry: &str,
         stmts: Arc<[Stmt]>,
         source_dir: Option<String>,
+        constructor_elaboration: Option<Arc<ConstructorElaboration>>,
         root_file: Option<PathBuf>,
     ) -> Self {
         let (return_types, return_issues, runtime_boolean_miss_keys) =
@@ -5972,6 +6036,7 @@ impl CalculationProgram {
             entry: entry.to_string(),
             stmts,
             source_dir,
+            constructor_elaboration,
             root_file,
             rule_dispatch: Arc::new(RuleDispatchMetadata {
                 return_types,
@@ -6393,27 +6458,39 @@ fn invoke_calculation_case_queue(
 /// A batch with four or more ready cases also runs on further workers, each
 /// initializing its own interpreter for that batch (natively; WebAssembly runs
 /// one worker).
+///
+/// The program's constructor elaboration (its internal constructor names and
+/// rewritten imports) is part of the program: every batch, and every worker of
+/// a batch, runs under it, whatever other program this thread or process has
+/// checked or run since.
 pub struct PreparedCalculation {
     contract: CalculationContract,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     root_file: Option<PathBuf>,
     worker: Option<CalculationWorker>,
 }
 
 impl PreparedCalculation {
     /// Prepare `contract`'s entry of the program `stmts` (with the prelude
-    /// already prepended when the program uses it). Nothing runs until the
-    /// first batch with a ready case.
+    /// already prepended when the program uses it) and its
+    /// `constructor_elaboration`, both as its check returned them
+    /// ([`TypeCheckArtifacts::program`] and
+    /// [`TypeCheckArtifacts::constructor_elaboration`]); `None` for a
+    /// program that renames no constructor. Nothing runs until the first
+    /// batch with a ready case.
     pub fn new(
         contract: CalculationContract,
         stmts: Arc<[Stmt]>,
         source_dir: Option<String>,
+        constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     ) -> Self {
         Self {
             contract,
             stmts,
             source_dir,
+            constructor_elaboration,
             root_file: None,
             worker: None,
         }
@@ -6482,7 +6559,21 @@ impl PreparedCalculation {
         self.run_batch(envelope, requested_jobs, partial, None)
     }
 
+    /// Run a batch under the program's own constructor elaboration.
     fn run_batch(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+        explain_options: Option<&ExplainOptions>,
+    ) -> CalculationOutputEnvelope {
+        let elaboration = self.constructor_elaboration.clone();
+        with_constructor_elaboration(elaboration.as_ref(), || {
+            self.run_batch_in_program(envelope, requested_jobs, partial, explain_options)
+        })
+    }
+
+    fn run_batch_in_program(
         &mut self,
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
@@ -6493,6 +6584,7 @@ impl PreparedCalculation {
             contract,
             stmts,
             source_dir,
+            constructor_elaboration,
             root_file,
             worker,
         } = self;
@@ -6552,6 +6644,7 @@ impl PreparedCalculation {
                 &contract.entry,
                 stmts.clone(),
                 source_dir.clone(),
+                constructor_elaboration.clone(),
                 root_file.clone(),
             ))
         });
@@ -6575,16 +6668,22 @@ impl PreparedCalculation {
                                 .name(format!("futuruna-calculation-{worker_index}"))
                                 .stack_size(CALCULATION_WORKER_STACK_BYTES)
                                 .spawn_scoped(scope, move || {
-                                    let mut worker = CalculationWorker::new(program.clone());
-                                    worker.partial = partial;
-                                    worker.explain =
-                                        explain_options.cloned().map(explain::ExplainRenderer::new);
-                                    invoke_calculation_case_queue(
-                                        &mut worker,
-                                        contract,
-                                        cases,
-                                        next_case,
-                                    )
+                                    // A worker thread starts with no
+                                    // elaboration current: give it the program's.
+                                    let elaboration = program.constructor_elaboration.as_ref();
+                                    with_constructor_elaboration(elaboration, || {
+                                        let mut worker = CalculationWorker::new(program.clone());
+                                        worker.partial = partial;
+                                        worker.explain = explain_options
+                                            .cloned()
+                                            .map(explain::ExplainRenderer::new);
+                                        invoke_calculation_case_queue(
+                                            &mut worker,
+                                            contract,
+                                            cases,
+                                            next_case,
+                                        )
+                                    })
                                 })
                                 .expect("start calculation worker"),
                         );
@@ -6965,7 +7064,7 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
             "path": string,
             "keys": {
                 "type": "array",
-                "description": "The list elements the path lies in whose record type declares a key field, outermost first, each with the key's value in the case.",
+                "description": "The list elements the path lies in whose type declares a key field, outermost first, each with the key's value in the case.",
                 "items": {
                     "type": "object",
                     "required": ["path", "field", "value"],
@@ -7159,7 +7258,7 @@ mod calculation_execution_tests {
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
     ) -> CalculationOutputEnvelope {
-        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir).invoke_batch(
+        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir, None).invoke_batch(
             envelope,
             requested_jobs,
             None,
@@ -7286,7 +7385,7 @@ mod calculation_execution_tests {
         let (stmts, contract) = needs_fixture();
         let envelope = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
         let checked =
-            PreparedCalculation::new(contract, stmts.into(), None).check_partial(&envelope);
+            PreparedCalculation::new(contract, stmts.into(), None, None).check_partial(&envelope);
         assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
         assert_eq!(
             checked.results[0].result,
@@ -7417,11 +7516,141 @@ mod calculation_execution_tests {
                 input: serde_json::json!({"amount": 100000}),
             }],
         };
-        let output =
-            PreparedCalculation::new(contract, statements.into(), source_dir).invoke(&envelope);
+        let output = PreparedCalculation::new(contract, statements.into(), source_dir, None)
+            .invoke(&envelope);
         crate::provide_source_files([]);
         assert!(output.diagnostics.is_empty(), "{output:?}");
         assert_eq!(output.results[0].result, serde_json::json!(27000));
+    }
+
+    /// Two programs checked and prepared in one thread, then run alternately,
+    /// as two WebAssembly `Model`s in one instance are. Each shares
+    /// constructor names between two of its types, so each runs elaborated
+    /// under its own internal names; neither may decode, match or encode a
+    /// constructor by the other's names. Before constructor names belonged to
+    /// their program, the account program run after the door program was
+    /// checked decoded `AccountState`'s `Closed` as `Event`'s: an entry
+    /// prepared before found no arm in `account_label`, and one prepared after
+    /// took the wildcard arm of `status` and answered "open" without an error.
+    #[test]
+    fn programs_checked_in_one_thread_run_with_their_own_constructor_names() {
+        let _provided = crate::PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let root = Path::new("/futuruna-two-programs-test/model/src");
+        let files = [
+            (
+                "events.runa",
+                "# Event = Opened | Closed\n# AccountState = Active | Closed\n> account_label(state: AccountState) -> String {\n    match state {\n        | Active -> \"account open\"\n        | Closed -> \"account closed\"\n    }\n}\n",
+            ),
+            (
+                "account.calculate.runa",
+                "@ import ./events\n# Input(state: AccountState, event: Event)\n# Output(label: String, status: String, state: AccountState, event: Event)\n> status(state: AccountState) -> String {\n    match state {\n        | Closed -> \"closed\"\n        | _ -> \"open\"\n    }\n}\n@ calculate\n> account(input: Input) -> Output { Output(account_label(input.state), status(input.state), input.state, input.event) }\n",
+            ),
+            (
+                "door.calculate.runa",
+                "# Door = Open | Shut\n# Valve = Shut | Leak\n# Input(valve: Valve)\n@ calculate\n> door(input: Input) -> String {\n    match input.valve {\n        | Shut -> \"valve shut\"\n        | _ -> \"valve leaking\"\n    }\n}\n",
+            ),
+        ];
+        crate::provide_source_files(
+            files
+                .iter()
+                .map(|(name, source)| (root.join(name), source.to_string())),
+        );
+        let source_dir = Some(root.to_string_lossy().into_owned());
+        // What `Model::new` does: check the root, prepare its entry.
+        let load = |name: &str| {
+            let source = files.iter().find(|(file, _)| *file == name).unwrap().1;
+            let statements = Parser::new(Lexer::new(source).tokenize(), source)
+                .parse_program()
+                .expect("parse root");
+            let mut artifacts =
+                TypeChecker::check_with_artifacts(&statements, source_dir.clone(), source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{name}: {:?}",
+                artifacts.diagnostics
+            );
+            assert!(
+                artifacts.constructor_elaboration.is_some(),
+                "{name} shares a constructor name"
+            );
+            PreparedCalculation::new(
+                artifacts.calculation_contracts.pop().expect("one entry"),
+                artifacts.program().clone(),
+                source_dir.clone(),
+                artifacts.constructor_elaboration.clone(),
+            )
+            .with_root_file(root.join(name))
+        };
+        let call = |prepared: &mut PreparedCalculation, input: serde_json::Value| {
+            let envelope = CalculationInputEnvelope {
+                futuruna: CalculationEnvelopeMetadata {
+                    schema: INPUT_SCHEMA.to_string(),
+                    schema_hash: prepared.contract().schema_hash.clone(),
+                    entry: prepared.contract().entry.clone(),
+                },
+                cases: vec![CalculationInputCase {
+                    case_id: "case".to_string(),
+                    input_status: Some(CalculationInputStatus::Ready),
+                    input,
+                }],
+            };
+            let output = prepared.invoke(&envelope);
+            assert!(output.diagnostics.is_empty(), "{output:?}");
+            output.results[0].result.clone()
+        };
+        let account_input = |state: &str| {
+            serde_json::json!({
+                "state": {"$variant": state},
+                "event": {"$variant": "Closed"},
+            })
+        };
+        let account_output = |label: &str, status: &str, state: &str| {
+            serde_json::json!({
+                "label": label,
+                "status": status,
+                "state": {"$variant": state},
+                "event": {"$variant": "Closed"},
+            })
+        };
+        let check_account = |prepared: &mut PreparedCalculation| {
+            assert_eq!(
+                call(prepared, account_input("Closed")),
+                account_output("account closed", "closed", "Closed")
+            );
+            assert_eq!(
+                call(prepared, account_input("Active")),
+                account_output("account open", "open", "Active")
+            );
+        };
+        let check_door = |prepared: &mut PreparedCalculation| {
+            assert_eq!(
+                call(prepared, serde_json::json!({"valve": {"$variant": "Shut"}})),
+                "valve shut"
+            );
+            assert_eq!(
+                call(prepared, serde_json::json!({"valve": {"$variant": "Leak"}})),
+                "valve leaking"
+            );
+        };
+
+        // Prepared (on its first call) before another program is checked.
+        let mut early = load("account.calculate.runa");
+        check_account(&mut early);
+        // Prepared after another program is checked.
+        let mut late = load("account.calculate.runa");
+        let mut door = load("door.calculate.runa");
+        check_account(&mut late);
+        check_account(&mut early);
+        check_door(&mut door);
+        check_account(&mut late);
+        check_account(&mut early);
+        let mut door_again = load("door.calculate.runa");
+        check_account(&mut early);
+        check_door(&mut door_again);
+        check_door(&mut door);
+        crate::provide_source_files([]);
     }
 
     #[test]
@@ -8215,6 +8444,7 @@ mod calculation_execution_tests {
             stmts.into(),
             None,
             None,
+            None,
         ));
 
         assert!(worker.interpreter.output.is_empty());
@@ -8498,7 +8728,7 @@ mod calculation_execution_tests {
                 .collect(),
         );
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None);
+            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None, None);
         let first = prepared.invoke_batch(&envelope, Some(1), None);
         assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
         let shuffled = &first.results[0].result["shuffled"];
@@ -8533,7 +8763,7 @@ mod calculation_execution_tests {
     fn a_prepared_calculation_is_initialized_once_for_every_call() {
         let (stmts, contract, envelope) = batch_fixture();
         let fresh = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
         for _ in 0..3 {
             let output = prepared.invoke_batch(&envelope, Some(1), None);
             assert_eq!(document(&output), document(&fresh));
@@ -8556,7 +8786,7 @@ mod calculation_execution_tests {
         );
         let fresh = |envelope: &CalculationInputEnvelope, partial| {
             document(
-                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None)
+                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None)
                     .invoke_batch(envelope, Some(1), partial),
             )
         };
@@ -8570,7 +8800,7 @@ mod calculation_execution_tests {
         assert!(expected[1].contains("Needs"), "{}", expected[1]);
 
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None);
+            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None);
         for _ in 0..2 {
             for (envelope, partial, expected) in [
                 (&decided, propagate, &expected[0]),
@@ -8626,7 +8856,7 @@ mod calculation_execution_tests {
                 }),
             }],
         };
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
         let before = crate::explain::tracing_counts();
         let off = prepared.invoke_batch(&envelope, Some(1), None);
         assert_eq!(

@@ -1,0 +1,14 @@
+-- A sum type's key is declared in every variant: a variant without it would
+-- leave its elements unkeyed.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(key = True)` on `Event::Deposit::id`: every variant of `Event` declares the key `id`, and `Withdrawal` declares none
+
+# Event =
+    Deposit(@ field(label = "Event id", key = True) id: String, amount: Int) |
+    Withdrawal(id: String, amount: Int)
+# Case(events: List(Event))
+# Result(count: Int)
+
+@ calculate
+| needs_variant_key_missing(c: Case) -> Result(count = length(c.events))

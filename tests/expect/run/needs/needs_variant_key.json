@@ -1,0 +1,26 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "69f6f6caa9f5fe124850dc98c1acfa70e0e70d3ecc56b3be002f1c6304fb2fa8",
+    "entry": "needs_variant_key"
+  },
+  "cases": [
+    {
+      "case_id": "skeletons",
+      "input_status": "ready",
+      "input": {
+        "events": [
+          {
+            "$variant": "Deposit",
+            "id": "e1"
+          },
+          {
+            "$variant": "Withdrawal",
+            "id": "e2",
+            "amount": 30
+          }
+        ]
+      }
+    }
+  ]
+}
