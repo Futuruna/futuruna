@@ -86,27 +86,20 @@ impl CitationRef {
         if !same_number(&self.section, &other.section) || self.passage() == other.passage() {
             return false;
         }
+        // A paragraph's first subsection is its unnumbered opening: `§ 5,
+        // nr. 2` is `§ 5, stk. 1, nr. 2`, and `§ 5` alone is the whole.
         let path = |reference: &CitationRef| {
+            let deeper = reference.item.is_some() || reference.sentence.is_some();
             [
-                reference.subsection,
+                reference.subsection.or(deeper.then_some(1)),
                 reference.item,
                 reference.sentence,
             ]
         };
-        let (mine, theirs) = (path(self), path(other));
-        // A paragraph's first subsection is its unnumbered opening.
-        let mine_subsection = mine[0];
-        let theirs_subsection = theirs[0];
-        match mine_subsection {
-            None => true,
-            Some(subsection) => {
-                theirs_subsection.unwrap_or(1) == subsection
-                    && mine[1..]
-                        .iter()
-                        .zip(&theirs[1..])
-                        .all(|(mine, theirs)| mine.is_none() || mine == theirs)
-            }
-        }
+        path(self)
+            .iter()
+            .zip(&path(other))
+            .all(|(mine, theirs)| mine.is_none() || mine == theirs)
     }
 }
 
@@ -1305,6 +1298,20 @@ Endvidere skal der betales en afgift på 3 pct. p.a.
         );
         let siblings = CEILING.replace("@ cite(§ 9, stk. 4)", "@ cite(§ 9, stk. 1; § 9, stk. 2)");
         assert!(citations_of(&siblings).errors.is_empty());
+    }
+
+    #[test]
+    fn containment_follows_the_paragraph_structure() {
+        let cite = |text: &str| parse_citation(text).unwrap().remove(0);
+        let contains = |whole: &str, part: &str| contains_passage(&cite(whole), &cite(part));
+        assert!(!contains("§ 5, nr. 2", "§ 5, nr. 3"));
+        assert!(!contains("§ 5, stk. 2", "§ 5, nr. 3"));
+        assert!(!contains("§ 5, 1. pkt.", "§ 5, 2. pkt."));
+        assert!(contains("§ 5", "§ 5, nr. 3"));
+        assert!(contains("§ 5, stk. 1", "§ 5, nr. 3"));
+        assert!(contains("§ 5, stk. 2", "§ 5, stk. 2, nr. 1"));
+        assert!(contains("§ 8 a", "§ 8 A, stk. 1, 1. pkt."));
+        assert!(!contains("§ 5", "§ 5"));
     }
 
     #[test]

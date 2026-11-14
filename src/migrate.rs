@@ -418,8 +418,12 @@ fn migrate_citation(
     let mut kept = Vec::new();
     let mut dropped = Vec::new();
     for (index, reference) in references.iter().enumerate() {
+        // Of two parts that name the same passage (`§ 5, nr. 2` and
+        // `§ 5, stk. 1, nr. 2`) the first is kept.
         let contained = references.iter().enumerate().any(|(other_index, other)| {
-            other_index != index && crate::citations::contains_passage(other, reference)
+            other_index != index
+                && crate::citations::contains_passage(other, reference)
+                && !(other_index > index && crate::citations::contains_passage(reference, other))
         });
         if contained {
             dropped.push(parts[index].clone());
