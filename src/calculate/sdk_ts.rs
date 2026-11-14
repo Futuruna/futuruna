@@ -1880,12 +1880,12 @@ impl<'a> Sdk<'a> {
             );
             let _ = writeln!(
                 body,
-                "/** Resolvers for the needs of `{}`, keyed by pattern; each is called once per round with that round's needs of its pattern. */",
+                "/** Resolvers for the needs of `{}`, keyed by pattern; each is called once per round with that round's needs at and below its pattern, its replies typed by each need's pattern. */",
                 contract.entry
             );
             let _ = writeln!(
                 body,
-                "export type {types}Resolvers = {{\n  readonly [P in partial.{types}InputPattern]?: Resolver<\n    {partial_input},\n    partial.{types}InputPatterns[P],\n    Extract<partial.{types}Need, {{ pattern: P }}>\n  >;\n}};"
+                "export type {types}Resolvers = Resolvers<{partial_input}, partial.{types}Need, partial.{types}InputPatterns>;"
             );
         }
         let mut out = String::new();
@@ -2693,13 +2693,13 @@ mod tests {
             "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n): Promise<partial.CoupleTaxQueryResult> {",
         );
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
-        assert_contains(client, "export type PersonTaxResolvers = {");
+        assert_contains(client, "export type PersonTaxResolvers = Resolvers<");
         for expected in [
             "export function personTaxExplained(\n  transport: ExplainingTransport,\n  input: types.Person,\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<number>> {\n  return explainEntry(transport, personTaxEntry, depth, schema.PersonSchema, IntSchema, input);",
             "export function coupleTaxQueryExplained(\n  transport: ExplainingTransport,\n  input: partial.PartialCouple,\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.CoupleTaxQueryResult>> {",
             "export function personTax(transport: EngineTransport, input: types.Person)",
             "  patterns: partial.PersonTaxInputPatternList,\n};",
-            "export type CoupleTaxResolvers = {\n  readonly [P in partial.CoupleTaxInputPattern]?: Resolver<\n    partial.PartialCouple,\n    partial.CoupleTaxInputPatterns[P],\n    Extract<partial.CoupleTaxNeed, { pattern: P }>\n  >;\n};",
+            "export type CoupleTaxResolvers = Resolvers<partial.PartialCouple, partial.CoupleTaxNeed, partial.CoupleTaxInputPatterns>;",
             "type ExplainDepth",
             "type Explained,",
             "type ExplainedQuery",

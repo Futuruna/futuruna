@@ -1348,21 +1348,26 @@ export async function explainQueryEntry<I, R, N extends Need>(
 export type EntryFrame = { readonly entry: string; readonly subject: string };
 
 /**
- * What a resolver gives for one need: an answer to write at the need's path,
- * `ask` when only the customer knows, or the resolution of another entry
- * ({@link ResolverContext.runEntry}).
+ * What a resolver gives for a need at a path of `P`: an answer to write at the
+ * need's path, `ask` when only the customer knows, or the resolution of
+ * another entry ({@link ResolverContext.runEntry}). An answer names the path
+ * it is for, so it is checked against the need it answers.
  */
-export type ResolverAnswer<V = unknown> =
-  | { readonly kind: "answer"; readonly value: V }
+export type ResolverAnswer<V = unknown, P extends string = string> =
+  | { readonly kind: "answer"; readonly path: InputPath<P>; readonly value: V }
   | { readonly kind: "ask" }
-  | { readonly kind: "entry"; readonly resolution: Resolution<unknown, V> };
+  | { readonly kind: "entry"; readonly path: InputPath<P>; readonly resolution: Resolution<unknown, V> };
 
 /** The resolver reply for a need only the customer can answer. */
 export const ask: { readonly kind: "ask" } = Object.freeze({ kind: "ask" });
 
-/** The resolver reply that answers a need with `value`. */
-export function answer<V>(value: V): ResolverAnswer<V> {
-  return { kind: "answer", value };
+/**
+ * The resolver reply that answers `need` with `value`. In a resolver the value
+ * is checked against the type at the need's pattern, so a resolver of several
+ * patterns narrows `need.pattern` first.
+ */
+export function answer<P extends string, V>(need: { readonly path: InputPath<P> }, value: V): ResolverAnswer<V, P> {
+  return { kind: "answer", path: need.path, value };
 }
 
 export interface ResolverContext<C> {
@@ -1371,58 +1376,98 @@ export interface ResolverContext<C> {
   /** The entries running above this loop, outermost first. */
   readonly frames: readonly EntryFrame[];
   /**
-   * Resolve another entry through the same loop, as the entry `frame` runs
-   * for its subject. An entry need is its own frame:
-   * `context.runEntry(query, initialCase, resolvers, need)`. A frame already
-   * on the stack is a cycle and throws {@link ResolveCycleError}.
+   * Resolve another entry through the same loop for `need`, as the entry
+   * `need.entry` running for `need.subject`: an entry need names them, a fact
+   * need is given them (`{ ...need, entry, subject }`). A frame already on the
+   * stack is a cycle and throws {@link ResolveCycleError}.
    */
-  runEntry<C2, R2, N2 extends Need>(
+  runEntry<P extends string, C2, R2, N2 extends Need, Patterns2>(
+    need: { readonly path: InputPath<P> } & EntryFrame,
     query: Query<C2, R2, N2>,
     initialCase: C2,
-    resolvers: Resolvers<C2, N2>,
-    frame: EntryFrame,
-  ): Promise<ResolverAnswer<R2>>;
+    resolvers: Resolvers<C2, N2, Patterns2>,
+  ): Promise<ResolverAnswer<R2, P>>;
 }
 
 /** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
 export type Query<C, R, N extends Need = Need> = (partialCase: C) => Promise<QueryResult<R, N>>;
 
-/** Answers one need of a resolver's batch with a value `V`, asks, or resolves another entry. */
-export type AnswerEach<V, N extends Need = Need> = (need: N) => ResolverAnswer<V> | Promise<ResolverAnswer<V>>;
+/** The value types of an entry's input patterns, when not known: any value at any pattern. */
+export type AnyPatterns = { readonly [pattern: string]: unknown };
+
+/** A reply to a need of the pattern `P`, its value of the type `Patterns` gives `P`. */
+export type Reply<Patterns, P extends string> = P extends keyof Patterns ? ResolverAnswer<Patterns[P], P> : never;
+
+/** Answers one need of a resolver's batch, with a reply typed by the need's own pattern. */
+export type AnswerEach<Patterns, N extends Need = Need> = (
+  need: N,
+) => Reply<Patterns, N["pattern"]> | Promise<Reply<Patterns, N["pattern"]>>;
 
 /**
- * Resolves the needs `N` of one pattern, a round's at a time: the loop calls
- * it once per round with every need of its pattern in that round, so it can
+ * Resolves the needs `N` at a pattern and below it, a round's at a time: the
+ * loop calls it once per round with every such need of that round, so it can
  * fetch what they ask for in one batch (by `need.keys` or `need.path`), and
  * it returns the function that answers each need, which the loop calls once
- * per need:
+ * per need. Registered on a list's elements (`events[]`), it receives the
+ * needs of every field of the elements:
  *
  * ```ts
  * async (needs) => {
  *   const rows = await backend.events(needs.map(eventId));
- *   return (need) => answer(rows.get(eventId(need)).foreignTaxOre);
+ *   return (need) => {
+ *     const row = rows.get(eventId(need));
+ *     switch (need.pattern) {
+ *       case "events[].amountOre":
+ *         return answer(need, row.amountOre);
+ *       case "events[].foreignTaxOre":
+ *         return answer(need, row.foreignTaxOre);
+ *       default:
+ *         return ask;
+ *     }
+ *   };
  * }
  * ```
  *
  * It returns a function rather than a list of answers so that each answer is
- * made from its own need: an answer cannot land at another need's path, as
- * one from a list in another order (the backend's rows, say) would, and no
- * need can be left without one.
+ * made from its own need: no need is left without a reply, and a reply names
+ * the need's path, typed by its pattern, so an answer cannot land at another
+ * need's path, as one from a list in another order (the backend's rows, say)
+ * would. A reply for another path throws {@link ResolveError}.
  */
-export type Resolver<C, V, N extends Need = Need> = (
+export type Resolver<C, Patterns = AnyPatterns, N extends Need = Need> = (
   needs: readonly N[],
   context: ResolverContext<C>,
-) => AnswerEach<V, N> | Promise<AnswerEach<V, N>>;
+) => AnswerEach<Patterns, N> | Promise<AnswerEach<Patterns, N>>;
+
+/** The needs `N` at the pattern `P` or below it: its fields, its list elements and its map values. */
+export type NeedsBelow<N extends Need, P extends string> = Extract<
+  N,
+  { readonly pattern: P | `${P}.${string}` | `${P}[]${string}` }
+>;
+
+declare const resolversPatterns: unique symbol;
 
 /**
- * Resolvers keyed by a need's pattern, with `[]` for any list index
- * (`accounts[].closingCashOre`) and `*` for any map key; each receives a
- * round's needs of its pattern at once. A need no resolver matches is a
- * question.
+ * Resolvers keyed by an input pattern, with `[]` for any list index
+ * (`accounts[].closingCashOre`) and `*` for any map key. A resolver receives a
+ * round's needs at its pattern and below it, such as every field of a list's
+ * elements (`accounts[]`) or of a record (`owner`); each need goes to the
+ * resolver of the most specific pattern registered for it, and a need no
+ * resolver's pattern covers is a question. `Patterns` types the replies; the
+ * type-only member that holds it lets {@link resolve} infer it.
  */
-export type Resolvers<C, N extends Need = Need> = {
-  readonly [P in N["pattern"]]?: Resolver<C, unknown, Extract<N, { pattern: P }>>;
-};
+export type Resolvers<C, N extends Need = Need, Patterns = AnyPatterns> = {
+  readonly [P in N["pattern"]]?: Resolver<C, Patterns, NeedsBelow<N, P>>;
+} & { readonly [resolversPatterns]?: Patterns };
+
+/** The most specific pattern of `byPattern` at or above `pattern`: itself, or the nearest record, element or map value pattern holding it. */
+function resolverPattern(byPattern: { readonly [pattern: string]: unknown }, pattern: string): string | undefined {
+  for (let end = pattern.length; end > 0; end = Math.max(pattern.lastIndexOf(".", end - 1), pattern.lastIndexOf("[", end - 1))) {
+    const prefix = pattern.slice(0, end);
+    if (hasOwn(byPattern, prefix) && byPattern[prefix] !== undefined) return prefix;
+  }
+  return undefined;
+}
 
 /** An entry need whose own loop stopped at questions about its subject. */
 export type PendingEntry = { readonly need: Need; readonly resolution: Resolution<unknown, unknown> };
@@ -1476,23 +1521,24 @@ export class ResolveCycleError extends ResolveError {
 }
 
 /**
- * Resolve a partial case: query it, call the resolver of each pattern once
- * with all of the round's needs of that pattern (the resolvers of different
- * patterns at the same time), write their answers into the case with
- * {@link setAt}, and query again. Stops with `Complete`, or with `Questions`
- * when a round adds no answer. A path that is still needed after it was
- * answered is a {@link ResolveError}; an entry that needs itself for the same
- * subject is a {@link ResolveCycleError}.
+ * Resolve a partial case: query it, call each resolver once with all of the
+ * round's needs at and below its pattern (each need going to the most
+ * specific pattern registered for it; the resolvers at the same time), write
+ * their answers into the case with {@link setAt}, and query again. Stops with
+ * `Complete`, or with `Questions` when a round adds no answer. A reply for
+ * another need's path, or a path that is still needed after it was answered,
+ * is a {@link ResolveError}; an entry that needs itself for the same subject
+ * is a {@link ResolveCycleError}.
  */
-export async function resolve<C, R, N extends Need>(
+export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(
   query: Query<C, R, N>,
   initialCase: C,
-  resolvers: Resolvers<C, N>,
+  resolvers: Resolvers<C, N, Patterns>,
   options: ResolveOptions = {},
 ): Promise<Resolution<C, R, N>> {
   const frames = options.frames ?? [];
-  // Each resolver is keyed by the pattern of the needs it receives.
-  const byPattern = resolvers as { readonly [pattern: string]: Resolver<C, unknown, N> | undefined };
+  // Each resolver is keyed by the pattern its needs lie at or below.
+  const byPattern = resolvers as { readonly [pattern: string]: Resolver<C, AnyPatterns, N> | undefined };
   const answered = new Set<string>();
   let partialCase = initialCase;
   for (let rounds = 1; ; rounds += 1) {
@@ -1500,37 +1546,43 @@ export async function resolve<C, R, N extends Need>(
     if (result.$variant === "Complete") {
       return { $variant: "Complete", result: result.result, unusedPaths: result.unusedPaths, partialCase, rounds };
     }
-    // The round's needs of each pattern, in the engine's order.
+    // The round's needs of each registered pattern, in the engine's order.
     const batches = new Map<string, N[]>();
     for (const need of result.needs) {
       if (answered.has(need.path)) {
         throw new ResolveError(`the engine still needs \`${need.path}\` after it was answered`);
       }
-      const batch = batches.get(need.pattern);
-      if (batch === undefined) batches.set(need.pattern, [need]);
+      const pattern = resolverPattern(byPattern, need.pattern);
+      if (pattern === undefined) continue;
+      const batch = batches.get(pattern);
+      if (batch === undefined) batches.set(pattern, [need]);
       else batch.push(need);
     }
     const context: ResolverContext<C> = {
       partialCase,
       frames,
-      async runEntry(nestedQuery, nestedCase, nestedResolvers, frame) {
-        const stack = [...frames, { entry: frame.entry, subject: frame.subject }];
-        if (frames.some((active) => active.entry === frame.entry && active.subject === frame.subject)) {
+      async runEntry(need, nestedQuery, nestedCase, nestedResolvers) {
+        const stack = [...frames, { entry: need.entry, subject: need.subject }];
+        if (frames.some((active) => active.entry === need.entry && active.subject === need.subject)) {
           throw new ResolveCycleError(stack);
         }
         const resolution = await resolve(nestedQuery, nestedCase, nestedResolvers, { frames: stack });
-        return { kind: "entry", resolution };
+        return { kind: "entry", path: need.path, resolution };
       },
     };
     const replies = new Map<N, ResolverAnswer>();
     await Promise.all(
       Array.from(batches, async ([pattern, needs]) => {
-        const resolver = hasOwn(byPattern, pattern) ? byPattern[pattern] : undefined;
+        const resolver = byPattern[pattern];
         if (resolver === undefined) return;
         const answerEach = await resolver(needs, context);
         await Promise.all(
           needs.map(async (need) => {
-            replies.set(need, await answerEach(need));
+            const reply: ResolverAnswer = await answerEach(need);
+            if (reply.kind !== "ask" && reply.path !== need.path) {
+              throw new ResolveError(`a resolver replied to \`${need.path}\` with a reply for \`${reply.path}\``);
+            }
+            replies.set(need, reply);
           }),
         );
       }),

@@ -114,16 +114,37 @@ export function wrongAnswers(partialCase: PartialTaxInput, need: CalculateTaxNee
   void forged;
 }
 export const resolvers: CalculateTaxResolvers = {
-  "children[].age": () => () => answer(4),
-  filingStatus: () => () => answer("Married" as const),
+  "children[].age": () => (need) => answer(need, 4),
+  filingStatus: () => (need) => answer(need, "Married" as const),
   monthlyIncome: () => () => ask,
 };
 // @ts-expect-error resolvers are keyed by pattern, not by concrete path
-export const concrete: CalculateTaxResolvers = { "children[0].age": () => () => answer(4) };
+export const concrete: CalculateTaxResolvers = { "children[0].age": () => (need) => answer(need, 4) };
 // @ts-expect-error a resolver answers each need with a function, not with a list that could be in another order
-export const listed: CalculateTaxResolvers = { "children[].age": (needs) => needs.map(() => answer(4)) };
+export const listed: CalculateTaxResolvers = { "children[].age": (needs) => needs.map((need) => answer(need, 4)) };
 // @ts-expect-error an age is a number
-export const wrongAge: CalculateTaxResolvers = { "children[].age": () => () => answer("four") };
+export const wrongAge: CalculateTaxResolvers = { "children[].age": () => (need) => answer(need, "four") };
+/** One resolver for every field of a child: each need's pattern types its answer. */
+export const children: CalculateTaxResolvers = {
+  "children[]": () => (need) => {
+    switch (need.pattern) {
+      case "children[].age":
+        return answer(need, 4);
+      case "children[].name":
+        return answer(need, "Ada");
+      default:
+        return ask;
+    }
+  },
+};
+export const swapped: CalculateTaxResolvers = {
+  // @ts-expect-error a name is a string, whatever another field below \`children[]\` holds
+  "children[]": () => (need) => (need.pattern === "children[].name" ? answer(need, 4) : ask),
+};
+// @ts-expect-error a need of several patterns is answered once its pattern is narrowed
+export const unnarrowed: CalculateTaxResolvers = { "children[]": () => (need) => answer(need, 4) };
+export const interviewChildren = (transport: EngineTransport, partialCase: PartialTaxInput) =>
+  resolve((c: PartialTaxInput) => calculateTaxQuery(transport, c), partialCase, children);
 export const interview = (transport: EngineTransport, partialCase: PartialTaxInput) =>
   resolve((c: PartialTaxInput) => calculateTaxQuery(transport, c), partialCase, resolvers);
 `;
@@ -358,7 +379,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     await Promise.race([together, new Promise((_, reject) => {
       setTimeout(() => reject(new Error(`${pattern} waited for the other resolvers alone`)), 2000).unref();
     })]);
-    return () => sdk.answer(value);
+    return (need) => sdk.answer(need, value);
   };
   const three = { children: [{ name: 'Ada' }, { name: 'Bo' }, { name: 'Cy' }] };
   const all = await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
@@ -375,6 +396,27 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   ]);
   assert.ok(batches.every(([, , partialCase]) => partialCase === three), 'every resolver sees the case of its round');
   assert.deepEqual(all.partialCase.children.map((child) => child.age), [4, 4, 4]);
+
+  // A resolver on a list's elements receives every need below them, in one call per round; each need
+  // goes to the most specific pattern registered for it, never to two resolvers.
+  const below = [];
+  const elements = await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
+    'children[]': (needs) => { below.push(['children[]', needs.map((need) => need.path)]); return (need) => sdk.answer(need, 5); },
+    filingStatus: () => (need) => sdk.answer(need, 'Married'),
+    monthlyIncome: () => (need) => sdk.answer(need, 50000),
+  });
+  assert.equal(elements.$variant, 'Complete');
+  assert.deepEqual(below, [['children[]', ['children[0].age', 'children[1].age', 'children[2].age']]]);
+  below.length = 0;
+  await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
+    'children[]': (needs) => { below.push(['children[]', needs.length]); return () => sdk.ask; },
+    'children[].age': (needs) => { below.push(['children[].age', needs.length]); return (need) => sdk.answer(need, 5); },
+  });
+  assert.deepEqual(below, [['children[].age', 3]]);
+  // A reply names the path it is for: one for another need is an error, not an answer in the wrong place.
+  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three,
+    { 'children[]': (needs) => () => sdk.answer(needs[0], 5) }),
+  (error) => error.name === 'ResolveError' && /replied to `children\[1\]\.age` with a reply for `children\[0\]\.age`/.test(error.message));
 
   // Partial inputs and Needs results are validated too.
   await assert.rejects(sdk.calculateTaxQuery(transport, { children: [{ age: 2 ** 53 }] }), (error) => error.kind === 'input');
@@ -395,7 +437,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     keys: [{ path: 'children[0]', field: 'name', value: 'Ada' }] }]), {}),
   (error) => error.kind === 'output', 'a key no list declares');
   const stuck = needing([{ kind: 'fact', path: 'children[0].age', waiting }]);
-  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(stuck, c), { children: [{}] }, { 'children[].age': () => () => sdk.answer(1) }),
+  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(stuck, c), { children: [{}] }, { 'children[].age': () => (need) => sdk.answer(need, 1) }),
     (error) => error.name === 'ResolveError' && /still needs `children\[0\]\.age`/.test(error.message));
 
   // A need is tagged with its pattern; a date is needed whole; a list element's key comes at TypeScript paths.
@@ -474,7 +516,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   // An entry that needs itself for the same subject is a cycle.
   const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting }]);
   const query = (c) => sdk.calculateTaxQuery(spouse, c);
-  const resolvers = { deduction: (_needs, context) => (need) => context.runEntry(query, {}, resolvers, need) };
+  const resolvers = { deduction: (_needs, context) => (need) => context.runEntry(need, query, {}, resolvers) };
   await assert.rejects(sdk.resolve(query, {}, resolvers), (error) => error.name === 'ResolveCycleError'
     && error.frames.length === 2 && error.frames.every((frame) => frame.subject === 'spouse'));
 });
@@ -561,7 +603,10 @@ export function answerNeed(partialCase: PartialHolding, need: HoldingValueNeed):
   }
   return partialCase;
 }
-export const resolvers: HoldingValueResolvers = { valueOre: () => () => answer(ore(7)), quantityMicro: () => () => answer(micro(1)) };
+export const resolvers: HoldingValueResolvers = {
+  valueOre: () => (need) => answer(need, ore(7)),
+  quantityMicro: () => (need) => answer(need, micro(1)),
+};
 export const parsed: Ore = OreSchema.parse(1200);
 export const result = (transport: EngineTransport): Promise<Ore> => holdingValue(transport, holding);
 export const interview = (transport: EngineTransport) =>
@@ -643,22 +688,25 @@ export function eventId(need: BalanceNeed): string {
 
 export function resolvers(backend: Backend): BalanceResolvers {
   return {
+    // The list, as skeletons: each event's variant, id and date, its details left out.
     events: async () => {
       const skeletons = await backend.skeletons();
-      return () => answer(skeletons);
+      return (need) => (need.pattern === "events" ? answer(need, skeletons) : ask);
     },
-    "events[].amount": async (needs) => {
-      const rows = await backend.details(needs.map(eventId));
+    // Every field of the events, from one lookup of their ids.
+    "events[]": async (needs) => {
+      const rows = await backend.details([...new Set(needs.map(eventId))]);
       return (need) => {
         const row = rows.get(eventId(need));
-        return row === undefined ? ask : answer(row.amount);
-      };
-    },
-    "events[].fee": async (needs) => {
-      const rows = await backend.details(needs.map(eventId));
-      return (need) => {
-        const row = rows.get(eventId(need));
-        return row === undefined ? ask : answer(row.fee);
+        if (row === undefined) return ask;
+        switch (need.pattern) {
+          case "events[].amount":
+            return answer(need, row.amount);
+          case "events[].fee":
+            return answer(need, row.fee);
+          default:
+            return ask;
+        }
       };
     },
   };
@@ -701,7 +749,7 @@ test('second-order resolution: a list of skeletons, then the fields the law read
     ['events[2].amount', 'events[].amount', [{ path: 'events[2]', field: 'id', value: 'e3' }]],
   ]);
 
-  // Round 1 asks for the list, round 2 for each event's fields by its id: one backend call per pattern per round.
+  // Round 1 asks for the list, round 2 for every field of the events by their ids: one backend call per round.
   queried.length = 0;
   const rows = new Map([['e1', { amount: 100, fee: 0 }], ['e2', { amount: 30, fee: 2 }], ['e3', { amount: 7, fee: 0 }]]);
   const backend = { skeletons: 0, details: [] };
@@ -722,7 +770,7 @@ test('second-order resolution: a list of skeletons, then the fields the law read
     { $variant: 'Deposit', id: 'e1', amount: 100 }, { $variant: 'Withdrawal', id: 'e2', amount: 30, fee: 2 },
     { $variant: 'Deposit', id: 'e3', amount: 7 }] }]);
   assert.equal(backend.skeletons, 1);
-  assert.deepEqual(backend.details.sort(), [['e1', 'e2', 'e3'], ['e2']]);
+  assert.deepEqual(backend.details, [['e1', 'e2', 'e3']]);
 });
 
 test('the generated SDK passes typescript-eslint strictTypeChecked', {
