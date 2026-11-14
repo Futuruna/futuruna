@@ -152,6 +152,7 @@ Experimental. Four annotations attach facts to the code below them:
 | `@ quote(<document>)` | a `----` block inside a section | the block is verbatim text of a saved document |
 | `@ cite(<paragraphs>)` | a rule clause, an exception, a RuleScope member or a function | the clause implements these paragraphs of its section's quotes |
 | `@ meta(<value>)` | a section, a data type, a binding, a rule clause, a RuleScope member or a function | attaches a typed metadata value |
+| `@ meta(<value>) for <name>` | nothing: it stands alone at top level | attaches the value to the declaration `<name>`, written apart from it |
 
 Each annotation stands on its own line directly above its item. Comments may
 stand between them; a blank line may not. Several annotations on one item are
@@ -368,6 +369,41 @@ or by domain type.
 - `@ meta` cannot stand above a `----` block: a quoted document's role is
   written on the quote.
 
+**Metadata written apart.** A model may keep the metadata of declarations in a
+file of its own, for example one that describes the input types the domain
+files declare:
+
+```runa
+@ import ./domain
+
+= age_note = AgeNote(text = "Age at the end of the year.")
+@ meta(age_note) for Child
+```
+
+`@ meta(<value>) for <name>` stands alone at top level and attaches to nothing
+below it. `<name>` is a checked name, never a string: a type, rule, function
+or section declared in the file or a file it imports. A name that names
+nothing in scope is an error (`` `@ meta(...) for Chlid`: no type, rule,
+function or section named `Chlid` is declared in this file or a file it
+imports ``), and so is a name that names two things, such as a section and
+the rule it holds. It means exactly what `@ meta(<value>)` on the declaration
+means: the value is resolved where the line is written and indexed under the
+declaration's name, so field metadata, entry metadata, needs and the contract
+read it unchanged.
+
+A declaration's metadata is written in one place: on the declaration, or in
+one `for` (consecutive `for` lines for one name, with only comments between,
+are one place). Metadata written on a declaration and in a `for`, or in two
+`for`s anywhere in the program, is an error that names both places, so a
+reader always finds all of a declaration's metadata in one place.
+`runa meta --json` says where each value is written (`target.declared_in`,
+`written`: `on_declaration` or `for`, and `written_line`), and an editor hover
+on a declaration lists its metadata and where each value is written.
+
+Known gap: a `for` gives a rule or function no code span, so explanations do
+not attach its metadata to the rule's clauses. Metadata that explanations
+should attach to a clause is written with `@ meta` on the clause.
+
 When one item needs many related metadata values, attach one typed aggregate.
 Every constructor nested inside a pure ground aggregate retains its Futuruna
 type and a stable value path. Tools can therefore select the values they
@@ -507,7 +543,9 @@ Audit and indexing tools should use `runa meta --json file.runa`. The versioned
 and per item with `@ meta`, code spans and their declared types, rules,
 bindings, and functions, plus metadata diagnostics. Every anchor names its
 `target`: `kind` (`section`, `type`, `binding`, `function`, `rule` or
-`member`) and `name`. A section is a code span; so is a function, rule clause
+`member`), `name` and `declared_in` (the file that declares it), and says
+where its metadata is written: `written` (`on_declaration` or `for`) and
+`written_line`. A section is a code span; so is a function, rule clause
 or member with `@ meta`. Each ground reference retains its Futuruna rendering
 in `value` and exposes a structural `data` tree. Constructors include their
 parent Futuruna type. Constructors, named arguments, lists, tuples, and
@@ -558,8 +596,10 @@ directory of the nearest `runa.toml`, else the file's own directory):
    `value` is a quoted document, those values move onto the quotes
    (`@ quote(Guidance(value = ...))`) and leave `B`. A `B` left with one value
    is written inline as `@ meta(<value>)`; an empty `B` is removed.
-3. `--@label:X::meta:B--` before the declaration `X` (with or without a span
-   around that declaration only) becomes `@ meta(B)` on `X`.
+3. `--@label:X::meta:B--` naming the declaration `X` (with or without a span
+   around that declaration only) becomes `@ meta(B)` on `X` when `X` is
+   declared in the same file, and `@ meta(B) for X` in place when it is
+   declared in another file.
 4. `--@cite:...--` becomes `@ cite(...)` at the clause's indentation;
    `in sources/<file>` becomes `in <binding>`. A citation naming a paragraph
    and a part of it keeps the paragraph and drops the part; each drop is

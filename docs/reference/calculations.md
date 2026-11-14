@@ -164,9 +164,9 @@ backward compatibility.
 
 Typed records can also follow a nested domain type wherever it occurs: declare
 the record's `path` field as `ProgramReference`, use `refof(Type::member)`, and
-write `@ meta` on the type. This is the form for metadata whose value is kept
-apart from the type, for example in a separate module; next to the type,
-prefer `@ field`.
+write `@ meta` on the type, or `@ meta(child_meta) for Child` in a file of its
+own when the metadata is kept apart from the type (see [Metadata written
+apart](style.md#metadata)); next to the type, prefer `@ field`.
 
 ```runa
 # ChildField(path: ProgramReference, label: String)
@@ -247,8 +247,8 @@ attachment inside a nested aggregate applies only to fields below that nested
 aggregate. This lets a calculation attach one root metadata object while each
 domain component retains its own source, warning, and guidance trace.
 
-The metadata value may live in a recursively imported metadata module; the
-`@ meta` line stands on the calculation entry or type it describes. Calculation
+The metadata value may live in a recursively imported metadata module, and
+`@ meta(<value>) for <name>` may attach it from such a module. Calculation
 tooling collects only imported metadata on an actual calculation entry or a
 reachable input type, so unrelated dependency metadata cannot alter the
 contract. Imported fields use the same exact-path validation and duplicate

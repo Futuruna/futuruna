@@ -99,7 +99,7 @@ after `@ section`, a declaration by its own name.
 - `runa fmt` does not indent a section's body. A section groups declarations
   around a passage of law; indenting would move every line of a model one
   level right and suggest a scope that does not exist.
-- Section names have their own namespace, unique per program. A section may
+- Section names have their own namespace, unique per file. A section may
   share its name with a rule it holds (tax-service's `ask_eligible` section
   holds the rule `ask_eligible`). `refof(section ask_ceiling)` is a
   `ProgramReference` to it.
