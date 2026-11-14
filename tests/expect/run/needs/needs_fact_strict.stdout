@@ -1,7 +1,7 @@
 {
   "$futuruna": {
     "schema": "futuruna.calculate.partial-output.v1",
-    "schema_hash": "730ef3750785b9638602793874563876d1bcc020ec31684fd7ae0af32e70545e",
+    "schema_hash": "2e4ae6bb2b13112f4b8e257e8081b317bf6aa66ba1f90c0ba131d3c85a56cbb2",
     "entry": "household_tax"
   },
   "results": [
@@ -18,7 +18,6 @@
             "question": "Were you married at the end of the year?",
             "sources": [
               {
-                "attachment_path": "household_meta.attachments[0]",
                 "binding": "law",
                 "data": {
                   "applied": true,

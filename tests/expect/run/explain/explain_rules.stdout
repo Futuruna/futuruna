@@ -26,7 +26,14 @@
                 }
               }
             ],
-            "location": "tests/expect/run/explain/explain_rules.runa:24",
+            "documents": [
+              {
+                "binding": "tax_law",
+                "file": "sources/tax-law.txt",
+                "role": "Source"
+              }
+            ],
+            "location": "tests/expect/run/explain/explain_rules.runa:23",
             "quote": "[sources/tax-law.txt]\n\n§ 1. Skatten beregnes af summen af posterne.\n\n§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct.",
             "sources": [
               "sources/tax-law.txt"
@@ -45,7 +52,7 @@
                 }
               ],
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:43",
+              "location": "tests/expect/run/explain/explain_rules.runa:41",
               "rule": "base_of",
               "section": "tax"
             },
@@ -67,7 +74,7 @@
             "by": {
               "$variant": "Rule",
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:49",
+              "location": "tests/expect/run/explain/explain_rules.runa:47",
               "rule": "carried_over",
               "section": "tax"
             },
@@ -75,7 +82,7 @@
               {
                 "$variant": "Rule",
                 "clause": "default",
-                "location": "tests/expect/run/explain/explain_rules.runa:43",
+                "location": "tests/expect/run/explain/explain_rules.runa:41",
                 "paragraphs": [
                   {
                     "paragraph": "§ 1",
@@ -89,7 +96,7 @@
               {
                 "$variant": "Rule",
                 "clause": "default",
-                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "location": "tests/expect/run/explain/explain_rules.runa:46",
                 "rule": "share",
                 "section": "tax",
                 "value": 130
@@ -122,7 +129,7 @@
                 }
               ],
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:45",
+              "location": "tests/expect/run/explain/explain_rules.runa:43",
               "rule": "rate_bp",
               "section": "tax"
             },
@@ -139,7 +146,7 @@
                 }
               ],
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:39",
+              "location": "tests/expect/run/explain/explain_rules.runa:37",
               "rule": "tax",
               "scope": "Year",
               "section": "tax"
@@ -148,7 +155,7 @@
               {
                 "$variant": "Rule",
                 "clause": "default",
-                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "location": "tests/expect/run/explain/explain_rules.runa:46",
                 "rule": "share",
                 "section": "tax",
                 "value": 351
@@ -180,7 +187,14 @@
                 }
               }
             ],
-            "location": "tests/expect/run/explain/explain_rules.runa:24",
+            "documents": [
+              {
+                "binding": "tax_law",
+                "file": "sources/tax-law.txt",
+                "role": "Source"
+              }
+            ],
+            "location": "tests/expect/run/explain/explain_rules.runa:23",
             "quote": "[sources/tax-law.txt]\n\n§ 1. Skatten beregnes af summen af posterne.\n\n§ 2. Skatten er 27 pct.\n\nStk. 2. For indkomstår før 2020 er skatten 15 pct.",
             "sources": [
               "sources/tax-law.txt"
@@ -199,7 +213,7 @@
                 }
               ],
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:43",
+              "location": "tests/expect/run/explain/explain_rules.runa:41",
               "rule": "base_of",
               "section": "tax"
             },
@@ -216,7 +230,7 @@
             "by": {
               "$variant": "Rule",
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:49",
+              "location": "tests/expect/run/explain/explain_rules.runa:47",
               "rule": "carried_over",
               "section": "tax"
             },
@@ -224,7 +238,7 @@
               {
                 "$variant": "Rule",
                 "clause": "default",
-                "location": "tests/expect/run/explain/explain_rules.runa:43",
+                "location": "tests/expect/run/explain/explain_rules.runa:41",
                 "paragraphs": [
                   {
                     "paragraph": "§ 1",
@@ -238,7 +252,7 @@
               {
                 "$variant": "Rule",
                 "clause": "default",
-                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "location": "tests/expect/run/explain/explain_rules.runa:46",
                 "rule": "share",
                 "section": "tax",
                 "value": 200
@@ -272,7 +286,7 @@
               ],
               "clause": "exception",
               "exception": "before_2020",
-              "location": "tests/expect/run/explain/explain_rules.runa:47",
+              "location": "tests/expect/run/explain/explain_rules.runa:45",
               "rule": "rate_bp",
               "section": "tax"
             },
@@ -289,7 +303,7 @@
                 }
               ],
               "clause": "default",
-              "location": "tests/expect/run/explain/explain_rules.runa:39",
+              "location": "tests/expect/run/explain/explain_rules.runa:37",
               "rule": "tax",
               "scope": "Year",
               "section": "tax"
@@ -298,7 +312,7 @@
               {
                 "$variant": "Rule",
                 "clause": "default",
-                "location": "tests/expect/run/explain/explain_rules.runa:48",
+                "location": "tests/expect/run/explain/explain_rules.runa:46",
                 "rule": "share",
                 "section": "tax",
                 "value": 300
