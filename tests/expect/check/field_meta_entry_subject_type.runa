@@ -1,0 +1,19 @@
+-- The value at a field's `subject` has the providing entry's input type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation `household_tax` field `spouse_income` is provided by `spouse_income` for subject `pathof(Household::spouse::income)` of type `Int`, but `spouse_income` takes `Spouse`
+
+# Spouse(income: Int)
+
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = refof(spouse_income), subject = pathof(Household::spouse::income))
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

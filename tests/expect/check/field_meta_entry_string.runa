@@ -1,0 +1,20 @@
+-- The string form of a providing entry is still read: `entry` names the
+-- calculation, `subject` is the input path it runs for. `runa fmt --migrate`
+-- rewrites it as `entry = refof(spouse_income)`, `subject =
+-- pathof(Household::spouse)`.
+-- expect-command: check
+
+# Spouse(@ field(label = "Income", unit = "DKK øre") income: Int)
+
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", unit = "DKK øre", entry = "spouse_income", subject = "spouse")
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

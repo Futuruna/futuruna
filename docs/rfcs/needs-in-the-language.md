@@ -478,3 +478,31 @@ Taken while implementing this RFC for 0.5:
 - **`refof(section ...)` in tests.** `refof(section name)` resolves sections
   of the file it is written in, so a test names a model's section by its
   value, `ProgramSectionReference(name = "share_income")`.
+
+## Decisions: typed entry metadata
+
+- **Where the checks run.** `entry`, `subject` and the field's type are
+  checked per calculation that reads the field, where contract extraction
+  checked the strings; the errors are `runa check` errors naming the
+  calculation and the field. `entry` must be an `@ calculate` entry of the
+  program; `refof` of a type, field or section is an error.
+- **The subject's root.** A `pathof` subject must be rooted at the input type
+  of each calculation that reads the field. The contract keeps the path
+  without its root (`provided_by.subject`), so for `@ field` the contract
+  JSON and schema hash do not change. A field record's `@ meta` value is
+  carried in the contract as written, so rewriting `Some("e")` as
+  `Some(refof(e))` changes that value and the schema hash; its field
+  metadata and needs stay the same.
+- **A subject through a binding** (`subject = Some(spouse_path)`) is read as
+  its string, without the root check.
+- **The migration's calculations** are the file's own and those of the
+  program's files (the nearest `runa.toml` directory, else the file's) that
+  import it. A pair is rewritten whole or not at all; a field record's
+  `entry: String?` becomes `ProgramReference?` only when the record is
+  declared in the file and every string value of it there is rewritten. A
+  file without retired directives is not reformatted.
+- **`unknown` as a name.** A program that uses `unknown` as a name anywhere
+  (by its place: `x.unknown`, `unknown: T`, `unknown = ...`, `unknown(...)`,
+  `T::unknown`) has every `unknown` token renamed; a program without such a
+  use keeps a bare `unknown` (its 0.5 meaning). When `unknown_` is already a
+  name, the uses are listed instead.

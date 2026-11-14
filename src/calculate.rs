@@ -203,10 +203,34 @@ pub struct CalculationFieldMetadata {
 
 /// The calculation entry that provides a field, and the input path of the
 /// subject it runs for (`taxpayer.spouse`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalculationFieldProvider {
     pub entry: String,
     pub subject: String,
+    /// The type a typed subject (`pathof(TaxCase::taxpayer::spouse)`) is
+    /// rooted at. The contract carries only the path, so a contract read
+    /// back equals the one extracted.
+    #[serde(skip)]
+    pub subject_root: Option<String>,
+}
+
+impl PartialEq for CalculationFieldProvider {
+    fn eq(&self, other: &Self) -> bool {
+        self.entry == other.entry && self.subject == other.subject
+    }
+}
+
+impl Eq for CalculationFieldProvider {}
+
+impl CalculationFieldProvider {
+    /// The subject as written: `pathof(TaxCase::taxpayer::spouse)` for a
+    /// typed subject, else its JSON path.
+    fn subject_source(&self) -> String {
+        match &self.subject_root {
+            Some(root) => format!("pathof({}::{})", root, self.subject.replace('.', "::")),
+            None => self.subject.clone(),
+        }
+    }
 }
 
 /// Field metadata record members a calculation reads.
@@ -2887,7 +2911,7 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                 .find(|candidate| candidate.entry == provider.entry)
             else {
                 diagnostics.push(Diagnostic::error(format!(
-                    "calculation `{}` field `{}` is provided by `{}`, which is not a calculation entry of this program",
+                    "calculation `{}` field `{}` is provided by `{}`, which is not a calculation entry of this program; `entry` names an `@ calculate` function",
                     contract.entry, field.path, provider.entry
                 )));
                 continue;
@@ -2907,6 +2931,26 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                     contract.entry, field.path, provider.entry
                 ))),
             }
+            // A typed subject is rooted at the calculation's input type.
+            if let Some(root) = &provider.subject_root {
+                let input = match &contract.input {
+                    CalculationTypeRef::Named { name, .. } => Some(name.as_str()),
+                    _ => None,
+                };
+                if input != Some(root.as_str()) {
+                    diagnostics.push(Diagnostic::error(format!(
+                        "calculation `{}` field `{}` is provided by `{}` for subject `{}`, which is rooted at `{}`, not at `{}`'s input type `{}`",
+                        contract.entry,
+                        field.path,
+                        provider.entry,
+                        provider.subject_source(),
+                        root,
+                        contract.entry,
+                        contract.input.display_name()
+                    )));
+                    continue;
+                }
+            }
             // The provider runs on the value at the subject path: it must
             // exist and have the provider's input type.
             match contract_type_at_path(contract, &provider.subject).map(contained_value_type) {
@@ -2916,14 +2960,14 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                     contract.entry,
                     field.path,
                     provider.entry,
-                    provider.subject,
+                    provider.subject_source(),
                     ty.display_name(),
                     provider.entry,
                     providing.input.display_name()
                 ))),
                 None => diagnostics.push(Diagnostic::error(format!(
                     "calculation `{}` field `{}` is provided by `{}` for subject `{}`, which is not an input path of `{}`",
-                    contract.entry, field.path, provider.entry, provider.subject, contract.entry
+                    contract.entry, field.path, provider.entry, provider.subject_source(), contract.entry
                 ))),
             }
         }
@@ -3544,7 +3588,12 @@ fn resolve_declared_field_meta(
             };
             values.insert(key.as_str(), resolved);
         }
-        match resolved_field_meta(type_name, &binding, &values, &meta_role_types) {
+        let subject_root = declaration
+            .entries
+            .iter()
+            .find(|(key, _)| key == "subject")
+            .and_then(|(_, value)| pathof_root(value).map(str::to_string));
+        match resolved_field_meta(type_name, &binding, &values, subject_root, &meta_role_types) {
             Ok(meta) => {
                 let entry = declared.types.entry(type_name.clone()).or_default();
                 match member {
@@ -3599,6 +3648,7 @@ fn resolved_field_meta(
     type_name: &str,
     binding: &str,
     values: &BTreeMap<&str, Option<MetaValue>>,
+    subject_root: Option<String>,
     meta_role_types: &BTreeSet<String>,
 ) -> Result<ResolvedFieldMeta, Diagnostic> {
     let text = |key: &str| -> Result<Option<String>, Diagnostic> {
@@ -3617,8 +3667,22 @@ fn resolved_field_meta(
     let label = text("label")?.ok_or_else(|| {
         Diagnostic::error(format!("`@ field` on `{}` has an empty label", binding))
     })?;
-    let provided_by = match (text("entry")?, text("subject")?) {
-        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+    let entry = match values.get("entry") {
+        None => None,
+        Some(value) => Some(value.as_ref().and_then(meta_entry_name).ok_or_else(|| {
+            Diagnostic::error(format!(
+                "`@ field` on `{}`: `entry` names the calculation that provides the field, as `refof(<calculation>)`",
+                binding
+            ))
+        })?),
+    }
+    .filter(|entry| !entry.is_empty());
+    let provided_by = match (entry, text("subject")?) {
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider {
+            entry,
+            subject,
+            subject_root,
+        }),
         _ => None,
     };
     let sources = match values.get("sources") {
@@ -3995,10 +4059,14 @@ fn calculation_field_metadata_from_value(
     let help = optional_meta_string(&fields, "help", binding)?;
     let unit = optional_meta_string(&fields, "unit", binding)?;
     let provided_by = match (
-        optional_meta_string(&fields, "entry", binding)?,
+        optional_meta_entry(&fields, binding)?,
         optional_meta_string(&fields, "subject", binding)?,
     ) {
-        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider {
+            entry,
+            subject,
+            subject_root: meta_subject_root(arguments),
+        }),
         (None, None) => None,
         _ => {
             return Err(Diagnostic::error(format!(
@@ -4406,6 +4474,58 @@ fn optional_meta_string(
         let trimmed = value.trim();
         (!trimmed.is_empty()).then(|| trimmed.to_string())
     }))
+}
+
+/// A field record's optional `entry`: `Some(refof(<calculation>))`, or the
+/// older `Some("<calculation>")`.
+fn optional_meta_entry(
+    fields: &BTreeMap<&str, &MetaValue>,
+    binding: &str,
+) -> Result<Option<String>, Diagnostic> {
+    let Some(value) = fields.get("entry") else {
+        return Ok(None);
+    };
+    let value = match value {
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "None" && arguments.is_empty() => return Ok(None),
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "Some" && arguments.len() == 1 => &arguments[0].value,
+        value => value,
+    };
+    let entry = meta_entry_name(value).ok_or_else(|| {
+        Diagnostic::error(format!(
+            "calculation field metadata binding `{}` field `entry` names the calculation that provides the field, as `Some(refof(<calculation>))`",
+            binding
+        ))
+    })?;
+    Ok((!entry.is_empty()).then_some(entry))
+}
+
+/// The calculation an `entry` value names: `refof(<calculation>)` or the
+/// older string.
+fn meta_entry_name(value: &MetaValue) -> Option<String> {
+    match value {
+        MetaValue::String(name) => Some(name.trim().to_string()),
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "ProgramSymbolReference" => meta_named_string_argument(arguments, "name"),
+        _ => None,
+    }
+}
+
+/// The root type of a field record's `subject = Some(pathof(Root::...))`.
+fn meta_subject_root(arguments: &[MetaValueArgument]) -> Option<String> {
+    let argument = arguments
+        .iter()
+        .find(|argument| argument.field.as_deref() == Some("subject"))?;
+    match &argument.value {
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "Some" && arguments.len() == 1 => arguments[0].path_root.clone(),
+        _ => argument.path_root.clone(),
+    }
 }
 
 fn definition_substitutions(

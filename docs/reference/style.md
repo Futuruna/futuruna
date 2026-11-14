@@ -611,6 +611,23 @@ Quoted text with no `[sources/...]` document stays a `----` block comment
 directly above the section. A type whose values are quoted documents gains
 `# impl Document for <Type> {}` after its declaration.
 
+For 0.5 (docs/rfcs/needs-in-the-language.md) the migration also rewrites,
+without reformatting a file that has no directives:
+
+6. A providing entry written as strings, `@ field(entry = "share_income",
+   subject = "taxpayer.spouse")` or a field record's `entry =
+   Some("share_income")`, `subject = Some("taxpayer.spouse")`, becomes
+   `entry = refof(share_income)`, `subject =
+   pathof(TaxCase::taxpayer::spouse)` when exactly one calculation input type
+   reaches the field (the file's own calculations and those of the program's
+   files that import it); a field record's `entry: String?` becomes
+   `entry: ProgramReference?`. Each one it cannot root is left and listed as
+   `file:line: left ...` with the reason.
+7. `unknown`, a reserved word in 0.5, is renamed `unknown_` wherever the
+   program uses it as a name (a binding, parameter, function or field), on the
+   tokens, so a file that no longer parses is still renamed. Each rename is
+   reported.
+
 Spans around the same code (nested `--@begin`/`--@end` pairs with only
 directives between them, as models wrote for a consolidated act and the acts
 that amended it) become one section, named by the innermost label (the

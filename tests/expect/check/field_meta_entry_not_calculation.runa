@@ -1,0 +1,19 @@
+-- A field's providing `entry` is a calculation: a function marked
+-- `@ calculate`, not any function.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation `household_tax` field `spouse_income` is provided by `spouse_income`, which is not a calculation entry of this program; `entry` names an `@ calculate` function
+
+# Spouse(income: Int)
+
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = refof(spouse_income), subject = pathof(Household::spouse))
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

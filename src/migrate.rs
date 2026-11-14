@@ -43,6 +43,13 @@ pub struct MigrationProgram {
     meta_role_types: BTreeSet<String>,
     /// The constructors each declared type has.
     constructors: BTreeMap<String, Vec<String>>,
+    /// Files with an `@ calculate` entry: the calculations whose inputs may
+    /// reach a field another file declares.
+    calculation_files: Vec<PathBuf>,
+    /// Some file uses `unknown` as a name, which 0.5 reserves.
+    names_unknown: bool,
+    /// Some file has the identifier `unknown_`, the name `unknown` would get.
+    has_unknown_: bool,
 }
 
 fn identifiers(text: &str) -> impl Iterator<Item = &str> {
@@ -136,6 +143,14 @@ impl MigrationProgram {
         for word in identifiers(source) {
             *self.words.entry(word.to_string()).or_default() += 1;
         }
+        if source
+            .lines()
+            .any(|line| line.trim_start().starts_with("@ calculate"))
+        {
+            self.calculation_files.push(path.to_path_buf());
+        }
+        self.names_unknown |= unknown_tokens(source).iter().any(|token| token.named);
+        self.has_unknown_ |= lexes_identifier(source, "unknown_");
         for (index, line) in lines.iter().enumerate() {
             if let Some((name, constructor)) = binding_head(line) {
                 let (text, _) = balanced_text(&lines, index);
@@ -1154,6 +1169,610 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
     })
 }
 
+// ── 0.5: needs in the language ───────────────────────────────────────────
+
+/// A file's rewrites for docs/rfcs/needs-in-the-language.md, "Migration":
+/// the new source, what was rewritten and what was left for the writer,
+/// each as `line: message`.
+#[derive(Debug)]
+pub struct NeedsMigration {
+    pub source: String,
+    pub rewritten: Vec<String>,
+    pub listed: Vec<String>,
+}
+
+/// One `unknown` identifier: its character offset and line, and whether its
+/// place shows it is a name (`= unknown =`, `unknown: Int`, `unknown(...)`,
+/// `x.unknown`, `R(unknown = 1)`, `pathof(R::unknown)`).
+struct UnknownToken {
+    offset: usize,
+    line: usize,
+    named: bool,
+}
+
+fn source_line_starts(chars: &[char]) -> Vec<usize> {
+    let mut starts = vec![0];
+    starts.extend(
+        chars
+            .iter()
+            .enumerate()
+            .filter(|(_, character)| **character == '\n')
+            .map(|(index, _)| index + 1),
+    );
+    starts
+}
+
+fn is_word_char(character: char) -> bool {
+    character == '_' || character.is_alphanumeric()
+}
+
+/// The `unknown` identifier tokens of `source`. Lexed, so text in strings
+/// and comments is not one, and the source need not parse.
+fn unknown_tokens(source: &str) -> Vec<UnknownToken> {
+    if !source.contains("unknown") {
+        return Vec::new();
+    }
+    let tokens = crate::Lexer::new(source).tokenize();
+    let chars: Vec<char> = source.chars().collect();
+    let starts = source_line_starts(&chars);
+    let bom = usize::from(chars.first() == Some(&'\u{feff}'));
+    let text = |index: Option<usize>| {
+        index
+            .and_then(|index| tokens.get(index))
+            .map_or("", |token| token.text.as_str())
+    };
+    let mut found = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.source_text != "unknown"
+            || !matches!(token.kind, crate::TokenKind::Ident | crate::TokenKind::KW)
+        {
+            continue;
+        }
+        let Some(start) = token.line.checked_sub(1).and_then(|line| starts.get(line)) else {
+            continue;
+        };
+        let offset = start + token.col.saturating_sub(1) + if token.line == 1 { bom } else { 0 };
+        let spelled = chars
+            .get(offset..offset + "unknown".len())
+            .is_some_and(|word| word.iter().copied().eq("unknown".chars()));
+        let bounded = (offset == 0 || !is_word_char(chars[offset - 1]))
+            && !chars
+                .get(offset + "unknown".len())
+                .is_some_and(|character| is_word_char(*character));
+        if !spelled || !bounded {
+            continue;
+        }
+        let before = text(index.checked_sub(1));
+        let after = text(Some(index + 1));
+        found.push(UnknownToken {
+            offset,
+            line: token.line,
+            named: matches!(before, "." | ":") || matches!(after, ":" | "=" | "("),
+        });
+    }
+    found
+}
+
+/// A field provided by another entry, in the string form: `@ field(entry =
+/// "e", subject = "a.b")` or a field record's `entry = Some("e"), subject =
+/// Some("a.b")`.
+struct ProvidedField {
+    /// `Type::field` for `@ field`; the binding holding the field record.
+    binding: String,
+    /// The field record's constructor; `None` for `@ field`.
+    record: Option<String>,
+    entry: String,
+    subject: String,
+    /// The character ranges of the two string literals, quotes included.
+    entry_range: (usize, usize),
+    subject_range: (usize, usize),
+}
+
+/// The character range of the string literal `value` that the expression
+/// at `span` writes, quotes included.
+fn literal_range(chars: &[char], span: crate::Span, value: &str) -> Option<(usize, usize)> {
+    let open =
+        (span.start..span.end.max(span.start + 1)).find(|index| chars.get(*index) == Some(&'"'))?;
+    let mut close = open + 1;
+    while *chars.get(close)? != '"' {
+        close += if chars[close] == '\\' { 2 } else { 1 };
+    }
+    chars[open + 1..close]
+        .iter()
+        .copied()
+        .eq(value.chars())
+        .then_some((open, close + 1))
+}
+
+/// The string literal `expr` is, or with `optional` the one in `Some("...")`.
+fn provided_literal<'a>(expr: &'a crate::Expr, optional: bool) -> Option<(&'a str, crate::Span)> {
+    let expr = if optional {
+        let crate::ExprKind::App(function, arguments) = &expr.kind else {
+            return None;
+        };
+        if !matches!(&function.kind, crate::ExprKind::Var(name) if name == "Some")
+            || arguments.len() != 1
+        {
+            return None;
+        }
+        &arguments[0]
+    } else {
+        expr
+    };
+    match &expr.kind {
+        crate::ExprKind::Lit(crate::Literal::Str(value)) => Some((value.as_str(), expr.span)),
+        _ => None,
+    }
+}
+
+fn push_provided_field(
+    binding: String,
+    record: Option<String>,
+    entry: &crate::Expr,
+    subject: &crate::Expr,
+    chars: &[char],
+    fields: &mut Vec<ProvidedField>,
+) {
+    let optional = record.is_some();
+    let (Some((entry, entry_span)), Some((subject, subject_span))) = (
+        provided_literal(entry, optional),
+        provided_literal(subject, optional),
+    ) else {
+        return;
+    };
+    let (Some(entry_range), Some(subject_range)) = (
+        literal_range(chars, entry_span, entry),
+        literal_range(chars, subject_span, subject),
+    ) else {
+        return;
+    };
+    fields.push(ProvidedField {
+        binding,
+        record,
+        entry: entry.to_string(),
+        subject: subject.to_string(),
+        entry_range,
+        subject_range,
+    });
+}
+
+/// The field records in a binding's value with string `entry` and `subject`.
+fn record_provided_fields(
+    binding: &str,
+    expr: &crate::Expr,
+    chars: &[char],
+    fields: &mut Vec<ProvidedField>,
+) {
+    match &expr.kind {
+        crate::ExprKind::App(function, arguments) => {
+            if let crate::ExprKind::Var(constructor) = &function.kind {
+                let named = |key: &str| {
+                    arguments
+                        .iter()
+                        .filter_map(crate::named_arg_parts)
+                        .find(|(field, _)| *field == key)
+                        .map(|(_, value)| value)
+                };
+                if constructor.starts_with(char::is_uppercase) {
+                    if let (Some(entry), Some(subject)) = (named("entry"), named("subject")) {
+                        push_provided_field(
+                            binding.to_string(),
+                            Some(constructor.clone()),
+                            entry,
+                            subject,
+                            chars,
+                            fields,
+                        );
+                    }
+                }
+            }
+            for argument in arguments {
+                record_provided_fields(binding, argument, chars, fields);
+            }
+        }
+        crate::ExprKind::List(items) | crate::ExprKind::Tuple(items) => {
+            for item in items {
+                record_provided_fields(binding, item, chars, fields);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn provided_fields(stmts: &[crate::Stmt], chars: &[char]) -> Vec<ProvidedField> {
+    let mut fields = Vec::new();
+    for stmt in stmts {
+        match stmt {
+            crate::Stmt::TypeDecl(crate::TypeDecl::ADT {
+                name,
+                field_meta: Some(meta),
+                ..
+            }) => {
+                let members = meta.members.iter().map(|member| {
+                    let binding = if &member.variant == name {
+                        format!("{name}::{}", member.field)
+                    } else {
+                        format!("{name}::{}::{}", member.variant, member.field)
+                    };
+                    (binding, &member.meta)
+                });
+                for (binding, declaration) in meta
+                    .type_default
+                    .iter()
+                    .map(|declaration| (name.clone(), declaration))
+                    .chain(members)
+                {
+                    if let (Some(entry), Some(subject)) =
+                        (declaration.value("entry"), declaration.value("subject"))
+                    {
+                        push_provided_field(binding, None, entry, subject, chars, &mut fields);
+                    }
+                }
+            }
+            crate::Stmt::Bind(crate::Pat::Var(binding), _, expr) => {
+                record_provided_fields(binding, expr, chars, &mut fields)
+            }
+            _ => {}
+        }
+    }
+    fields
+}
+
+/// Whether `stmts` (in `directory`) import `target`, directly or through
+/// another import.
+fn imports_file(
+    stmts: &[crate::Stmt],
+    directory: &str,
+    target: &Path,
+    visited: &mut BTreeSet<PathBuf>,
+) -> bool {
+    for stmt in stmts {
+        let crate::Stmt::Import(import) = stmt else {
+            continue;
+        };
+        let Some(file) = crate::Interpreter::resolve_import_path_for_source(import, directory)
+        else {
+            continue;
+        };
+        let canonical = std::fs::canonicalize(&file).unwrap_or_else(|_| PathBuf::from(&file));
+        if canonical == target {
+            return true;
+        }
+        if !visited.insert(canonical.clone()) {
+            continue;
+        }
+        let Ok(module) = crate::parse_source_module_file_cached(Path::new(&file)) else {
+            continue;
+        };
+        let nested = canonical.parent().map_or_else(
+            || ".".to_string(),
+            |parent| parent.to_string_lossy().to_string(),
+        );
+        if imports_file(module.statements(), &nested, target, visited) {
+            return true;
+        }
+    }
+    false
+}
+
+fn directory_of(path: &Path) -> String {
+    match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent.to_string_lossy().to_string(),
+        _ => ".".to_string(),
+    }
+}
+
+/// The calculations of the file and of the program's files importing it,
+/// and why those that do not check give none.
+fn reaching_contracts(
+    stmts: &[crate::Stmt],
+    source: &str,
+    path: &Path,
+    program: &MigrationProgram,
+) -> (Vec<crate::calculate::CalculationContract>, Vec<String>) {
+    let mut contracts = Vec::new();
+    let mut failures = Vec::new();
+    let mut extract = |stmts: &[crate::Stmt], source: &str, file: &Path| {
+        match crate::calculate::extract_calculation_contracts(
+            stmts,
+            source,
+            Some(directory_of(file)),
+        ) {
+            Ok(extracted) => contracts.extend(extracted),
+            Err(diagnostics) => failures.push(format!(
+                "the calculations of `{}` do not check ({})",
+                file.display(),
+                diagnostics
+                    .first()
+                    .map_or("no diagnostic", |diagnostic| diagnostic.message.as_str())
+            )),
+        }
+    };
+    extract(stmts, source, path);
+    let target = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    for file in &program.calculation_files {
+        if std::fs::canonicalize(file).unwrap_or_else(|_| file.clone()) == target {
+            continue;
+        }
+        let Ok(other) = std::fs::read_to_string(file) else {
+            continue;
+        };
+        let Ok(other_stmts) =
+            crate::Parser::new(crate::Lexer::new(&other).tokenize(), &other).parse_program()
+        else {
+            continue;
+        };
+        if imports_file(
+            &other_stmts,
+            &directory_of(file),
+            &target,
+            &mut BTreeSet::new(),
+        ) {
+            extract(&other_stmts, &other, file);
+        }
+    }
+    (contracts, failures)
+}
+
+/// The character range of `Record`'s `entry` field type (`String?` or
+/// `Option(String)`) in its declaration in `source`.
+fn record_entry_type_range(source: &str, record: &str) -> Option<(usize, usize)> {
+    let lines: Vec<&str> = source.lines().collect();
+    let line = lines
+        .iter()
+        .position(|line| line.starts_with(&format!("# {record}(")))?;
+    let line_start: usize = source.split_inclusive('\n').take(line).map(str::len).sum();
+    let (text, _) = balanced_text(&lines, line);
+    for (position, _) in text.match_indices("entry") {
+        if text[..position]
+            .chars()
+            .next_back()
+            .is_some_and(is_word_char)
+        {
+            continue;
+        }
+        let after = &text[position + "entry".len()..];
+        let Some(ty) = after.trim_start().strip_prefix(':') else {
+            continue;
+        };
+        let ty = ty.trim_start();
+        let Some(spelled) = ["String?", "Option(String)"]
+            .into_iter()
+            .find(|spelled| ty.starts_with(spelled))
+        else {
+            continue;
+        };
+        let start = line_start + text.len() - ty.len();
+        let start = source[..start].chars().count();
+        return Some((start, start + spelled.len()));
+    }
+    None
+}
+
+/// Rewrite the string `entry`/`subject` forms as `refof`/`pathof` where
+/// exactly one calculation input reaches the field; list the others.
+fn migrate_provided_fields(
+    source: &str,
+    path: &Path,
+    program: &MigrationProgram,
+    chars: &[char],
+    line_of: &dyn Fn(usize) -> usize,
+    edits: &mut Vec<(usize, usize, String)>,
+    rewritten: &mut Vec<String>,
+    listed: &mut Vec<String>,
+) {
+    let Ok(stmts) =
+        crate::Parser::new(crate::Lexer::new(source).tokenize(), source).parse_program()
+    else {
+        return;
+    };
+    let fields = provided_fields(&stmts, chars);
+    if fields.is_empty() {
+        return;
+    }
+    let (contracts, failures) = reaching_contracts(&stmts, source, path, program);
+    let provides = |field: &ProvidedField,
+                    metadata: &crate::calculate::CalculationFieldMetadata| {
+        metadata.provided_by.as_ref().is_some_and(|provider| {
+            provider.entry == field.entry && provider.subject == field.subject
+        }) && (metadata.binding == field.binding
+            || field.record.is_some()
+                && (metadata.binding.starts_with(&format!("{}.", field.binding))
+                    || metadata.binding.starts_with(&format!("{}[", field.binding))))
+    };
+    let root = |field: &ProvidedField| -> Result<String, String> {
+        if !field.entry.chars().all(is_word_char) || field.entry.is_empty() {
+            return Err(format!(
+                "`{}` is not the name of a calculation",
+                field.entry
+            ));
+        }
+        if field.subject.is_empty()
+            || !field.subject.split('.').all(|segment| {
+                !segment.is_empty() && segment.chars().all(|c| is_word_char(c) || c == '$')
+            })
+        {
+            return Err(format!("`{}` is not a field path", field.subject));
+        }
+        let roots: BTreeSet<&str> = contracts
+            .iter()
+            .filter(|contract| {
+                contract
+                    .field_metadata
+                    .iter()
+                    .any(|metadata| provides(field, metadata))
+            })
+            .filter_map(|contract| match &contract.input {
+                crate::calculate::CalculationTypeRef::Named { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        match roots.into_iter().collect::<Vec<_>>().as_slice() {
+            [one] => Ok(one.to_string()),
+            [] if !failures.is_empty() => Err(failures.join("; ")),
+            [] => Err(format!(
+                "no calculation's input reaches `{}`, so its subject has no root type",
+                field.binding
+            )),
+            several => Err(format!(
+                "the inputs of several calculations reach `{}` ({}); a subject is rooted at one of them",
+                field.binding,
+                several.iter().map(|name| format!("`{name}`")).collect::<Vec<_>>().join(", ")
+            )),
+        }
+    };
+    let mut resolved: Vec<(&ProvidedField, Result<String, String>)> =
+        fields.iter().map(|field| (field, root(field))).collect();
+    // A record's `entry` type changes with its values: every string value of
+    // the record in this file is rewritten, and the record is declared here.
+    let records: BTreeSet<&str> = fields
+        .iter()
+        .filter_map(|field| field.record.as_deref())
+        .collect();
+    let mut record_types = Vec::new();
+    for record in records {
+        let failed = resolved
+            .iter()
+            .filter(|(field, result)| field.record.as_deref() == Some(record) && result.is_err())
+            .map(|(field, _)| line_of(field.entry_range.0))
+            .collect::<Vec<_>>();
+        let reason = if !failed.is_empty() {
+            Some(format!(
+                "another `{record}` value of this file cannot be rewritten (line {}), and `{record}`'s `entry` has one type",
+                failed.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
+            ))
+        } else {
+            match record_entry_type_range(source, record) {
+                Some(range) => {
+                    record_types.push((record, range));
+                    None
+                }
+                None => Some(format!(
+                    "`{record}` is not declared in this file with `entry: String?`; declare `entry: ProgramReference?` and migrate again"
+                )),
+            }
+        };
+        if let Some(reason) = reason {
+            for (field, result) in resolved.iter_mut() {
+                if field.record.as_deref() == Some(record) && result.is_ok() {
+                    *result = Err(reason.clone());
+                }
+            }
+        }
+    }
+    for (field, result) in resolved {
+        let line = line_of(field.entry_range.0);
+        let (open, close) = if field.record.is_some() {
+            ("Some(", ")")
+        } else {
+            ("", "")
+        };
+        let old = format!(
+            "`entry = {open}\"{}\"{close}`, `subject = {open}\"{}\"{close}`",
+            field.entry, field.subject
+        );
+        match result {
+            Ok(root) => {
+                let entry = format!("refof({})", field.entry);
+                let subject = format!("pathof({root}::{})", field.subject.replace('.', "::"));
+                rewritten.push(format!(
+                    "{line}: `{}`: {old} are now `entry = {open}{entry}{close}`, `subject = {open}{subject}{close}`",
+                    field.binding
+                ));
+                edits.push((field.entry_range.0, field.entry_range.1, entry));
+                edits.push((field.subject_range.0, field.subject_range.1, subject));
+            }
+            Err(reason) => listed.push(format!(
+                "{line}: left {old} on `{}`: {reason}; write `entry = {open}refof(<calculation>){close}`, `subject = {open}pathof(<Input>::...){close}` by hand",
+                field.binding
+            )),
+        }
+    }
+    for (record, (start, end)) in record_types {
+        rewritten.push(format!(
+            "{}: `{record}` field `entry` is now `ProgramReference?`, the type of `Some(refof(...))`",
+            line_of(start)
+        ));
+        edits.push((start, end, "ProgramReference?".to_string()));
+    }
+}
+
+/// Whether `name` is an identifier token of `source`, not text in a string
+/// or a comment.
+fn lexes_identifier(source: &str, name: &str) -> bool {
+    source.contains(name)
+        && crate::Lexer::new(source)
+            .tokenize()
+            .iter()
+            .any(|token| token.source_text == name && token.kind == crate::TokenKind::Ident)
+}
+
+/// The 0.5 rewrites of the file at `path` (whose text is `source`): string
+/// `entry`/`subject` field metadata becomes `refof`/`pathof`, and `unknown`,
+/// a reserved word in 0.5, is renamed `unknown_` where the program uses it
+/// as a name.
+pub fn migrate_needs(source: &str, path: &Path, program: &MigrationProgram) -> NeedsMigration {
+    let chars: Vec<char> = source.chars().collect();
+    let starts = source_line_starts(&chars);
+    let line_of = |offset: usize| starts.partition_point(|start| *start <= offset);
+    let mut edits = Vec::new();
+    let mut rewritten = Vec::new();
+    let mut listed = Vec::new();
+    if source.contains("entry") && source.contains("subject") {
+        migrate_provided_fields(
+            source,
+            path,
+            program,
+            &chars,
+            &line_of,
+            &mut edits,
+            &mut rewritten,
+            &mut listed,
+        );
+    }
+    let unknowns = unknown_tokens(source);
+    if program.names_unknown || unknowns.iter().any(|token| token.named) {
+        let taken = program.has_unknown_ || lexes_identifier(source, "unknown_");
+        for token in &unknowns {
+            if taken {
+                listed.push(format!(
+                    "{}: left `unknown`: it is a reserved word in 0.5, and `unknown_` is already a name; rename it by hand",
+                    token.line
+                ));
+            } else {
+                rewritten.push(format!(
+                    "{}: renamed `unknown` to `unknown_`: `unknown` is a reserved word in 0.5",
+                    token.line
+                ));
+                edits.push((
+                    token.offset,
+                    token.offset + "unknown".len(),
+                    "unknown_".to_string(),
+                ));
+            }
+        }
+    }
+    let mut output = chars;
+    edits.sort_by(|left, right| right.0.cmp(&left.0));
+    for (start, end, replacement) in edits {
+        output.splice(start..end, replacement.chars());
+    }
+    let line_number = |message: &String| {
+        message
+            .split(':')
+            .next()
+            .and_then(|line| line.parse::<usize>().ok())
+            .unwrap_or(0)
+    };
+    rewritten.sort_by_key(line_number);
+    listed.sort_by_key(line_number);
+    NeedsMigration {
+        source: output.into_iter().collect(),
+        rewritten,
+        listed,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1353,5 +1972,137 @@ Guide text.
             "{}",
             errors[0]
         );
+    }
+
+    fn needs_program(source: &str) -> MigrationProgram {
+        let mut program = MigrationProgram::default();
+        program.add_source(Path::new("model.runa"), source);
+        program
+    }
+
+    #[test]
+    fn unknown_used_as_a_name_is_renamed_on_its_tokens() {
+        // `@ field(` without a key does not parse; the rename does not need it.
+        let source = "# Reading(unknown: Int)\n= unknown = 3 -- the unknown default\n| scaled(r: Reading) -> r.unknown + unknown\n= text = \"unknown\"\n@ field(\n";
+        let migrated = migrate_needs(source, Path::new("model.runa"), &needs_program(source));
+        assert_eq!(
+            migrated.source,
+            "# Reading(unknown_: Int)\n= unknown_ = 3 -- the unknown default\n| scaled(r: Reading) -> r.unknown_ + unknown_\n= text = \"unknown\"\n@ field(\n"
+        );
+        assert_eq!(migrated.rewritten.len(), 4, "{:?}", migrated.rewritten);
+        assert_eq!(
+            migrated.rewritten[0],
+            "1: renamed `unknown` to `unknown_`: `unknown` is a reserved word in 0.5"
+        );
+        assert!(migrated.listed.is_empty(), "{:?}", migrated.listed);
+    }
+
+    #[test]
+    fn unknown_as_a_value_is_kept() {
+        let source = "| f(x: Int) -> x\n= case = f(unknown)\n";
+        let migrated = migrate_needs(source, Path::new("model.runa"), &needs_program(source));
+        assert_eq!(migrated.source, source);
+        assert!(migrated.rewritten.is_empty() && migrated.listed.is_empty());
+    }
+
+    #[test]
+    fn unknown_is_left_when_unknown_underscore_is_taken() {
+        let source = "= unknown = 3\n= unknown_ = 4\n";
+        let migrated = migrate_needs(source, Path::new("model.runa"), &needs_program(source));
+        assert_eq!(migrated.source, source);
+        assert_eq!(
+            migrated.listed,
+            vec!["1: left `unknown`: it is a reserved word in 0.5, and `unknown_` is already a name; rename it by hand"]
+        );
+    }
+
+    const PROVIDED: &str = "# Spouse(income: Int)
+# Household(
+    spouse: Spouse,
+    @ field(label = \"Spouse's income\", entry = \"spouse_income\", subject = \"spouse\")
+    spouse_income: Int,
+    spouse_tax: Int
+)
+# TaxResult(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: String?, subject: String?)
+# CalculationMeta = CalculationMeta(fields: List(CalculationField))
+# impl Meta for CalculationMeta {}
+= household_meta = CalculationMeta(fields = [
+    CalculationField(path = pathof(Household::spouse_tax), label = \"Spouse's tax\", question = None, help = None, unit = None, entry = Some(\"spouse_tax\"), subject = Some(\"spouse\"))
+])
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+@ calculate
+| spouse_tax(s: Spouse) -> s.income / 4
+@ meta(household_meta)
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income - h.spouse_tax)
+";
+
+    #[test]
+    fn string_entry_and_subject_become_refof_and_pathof() {
+        let migrated = migrate_needs(PROVIDED, Path::new("model.runa"), &needs_program(PROVIDED));
+        let expected = PROVIDED
+            .replace(
+                "entry = \"spouse_income\", subject = \"spouse\"",
+                "entry = refof(spouse_income), subject = pathof(Household::spouse)",
+            )
+            .replace(
+                "entry = Some(\"spouse_tax\"), subject = Some(\"spouse\")",
+                "entry = Some(refof(spouse_tax)), subject = Some(pathof(Household::spouse))",
+            )
+            .replace(
+                "entry: String?, subject",
+                "entry: ProgramReference?, subject",
+            );
+        assert_eq!(migrated.source, expected);
+        assert!(migrated.listed.is_empty(), "{:?}", migrated.listed);
+        assert_eq!(
+            migrated.rewritten,
+            vec![
+                "4: `Household::spouse_income`: `entry = \"spouse_income\"`, `subject = \"spouse\"` are now `entry = refof(spouse_income)`, `subject = pathof(Household::spouse)`",
+                "9: `CalculationField` field `entry` is now `ProgramReference?`, the type of `Some(refof(...))`",
+                "13: `household_meta`: `entry = Some(\"spouse_tax\")`, `subject = Some(\"spouse\")` are now `entry = Some(refof(spouse_tax))`, `subject = Some(pathof(Household::spouse))`",
+            ]
+        );
+        // The rewritten metadata gives the contract the same field metadata
+        // strings. (The hash changes with the `@ meta` value, which the
+        // contract carries as written.)
+        let contract = |source: &str| {
+            let stmts = crate::Parser::new(crate::Lexer::new(source).tokenize(), source)
+                .parse_program()
+                .expect("parses");
+            crate::calculate::extract_calculation_contracts(&stmts, source, None)
+                .expect("checks")
+                .into_iter()
+                .find(|contract| contract.entry == "household_tax")
+                .expect("household_tax")
+        };
+        let (before, after) = (contract(PROVIDED), contract(&migrated.source));
+        assert_eq!(
+            serde_json::to_value(&before.field_metadata).unwrap(),
+            serde_json::to_value(&after.field_metadata).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_field_record_with_a_value_that_cannot_be_rooted_is_listed() {
+        // `other_meta` describes no calculation, so its subject has no root;
+        // `CalculationField`'s `entry` keeps its type, and so does
+        // `household_meta`'s value. The `@ field` pair is still rewritten.
+        let source = format!(
+            "{PROVIDED}= other_meta = CalculationMeta(fields = [\n    CalculationField(path = pathof(Spouse::income), label = \"Income\", question = None, help = None, unit = None, entry = Some(\"spouse_tax\"), subject = Some(\"spouse\"))\n])\n"
+        );
+        let migrated = migrate_needs(&source, Path::new("model.runa"), &needs_program(&source));
+        assert_eq!(
+            migrated.listed,
+            vec![
+                "13: left `entry = Some(\"spouse_tax\")`, `subject = Some(\"spouse\")` on `household_meta`: another `CalculationField` value of this file cannot be rewritten (line 23), and `CalculationField`'s `entry` has one type; write `entry = Some(refof(<calculation>))`, `subject = Some(pathof(<Input>::...))` by hand",
+                "23: left `entry = Some(\"spouse_tax\")`, `subject = Some(\"spouse\")` on `other_meta`: no calculation's input reaches `other_meta`, so its subject has no root type; write `entry = Some(refof(<calculation>))`, `subject = Some(pathof(<Input>::...))` by hand",
+            ]
+        );
+        assert_eq!(migrated.rewritten.len(), 1, "{:?}", migrated.rewritten);
+        assert!(migrated.source.contains("entry: String?, subject"));
+        assert!(migrated.source.contains("entry = refof(spouse_income)"));
     }
 }

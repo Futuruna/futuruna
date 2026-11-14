@@ -1,0 +1,19 @@
+-- A provided field has its providing entry's result type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation `household_tax` field `spouse_income` has type `Int`, but its provider `spouse_tax` returns `TaxResult`
+
+# Spouse(income: Int)
+
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = refof(spouse_tax), subject = pathof(Household::spouse))
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| spouse_tax(s: Spouse) -> TaxResult(tax = s.income)
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

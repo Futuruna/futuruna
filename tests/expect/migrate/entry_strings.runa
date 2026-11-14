@@ -1,0 +1,46 @@
+-- `runa fmt --migrate` rewrites the string `entry`/`subject` forms as
+-- `refof`/`pathof` when one calculation input reaches the field: on
+-- `@ field`, and in a field record, whose `entry` type becomes
+-- `ProgramReference?`.
+-- expect-command: migrate
+-- expect-status: fail
+-- expect-stderr: :16: `Household::spouse_income`: `entry = "spouse_income"`, `subject = "spouse"` are now `entry = refof(spouse_income)`, `subject = pathof(Household::spouse)`
+-- expect-stderr: :22: `CalculationField` field `entry` is now `ProgramReference?`, the type of `Some(refof(...))`
+-- expect-stderr: :33: `household_meta`: `entry = Some("spouse_tax")`, `subject = Some("spouse")` are now `entry = Some(refof(spouse_tax))`, `subject = Some(pathof(Household::spouse))`
+-- expect-stderr: needs migration
+
+# Spouse(income: Int)
+# Household(
+    income: Int,
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = "spouse_income", subject = "spouse")
+    spouse_income: Int,
+    spouse_tax: Int
+)
+# TaxResult(tax: Int)
+
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: String?, subject: String?)
+# CalculationMeta = CalculationMeta(fields: List(CalculationField))
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(fields = [
+    CalculationField(
+        path = pathof(Household::spouse_tax),
+        label = "Spouse's tax",
+        question = None,
+        help = None,
+        unit = None,
+        entry = Some("spouse_tax"),
+        subject = Some("spouse")
+    )
+])
+
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| spouse_tax(s: Spouse) -> s.income / 4
+
+@ meta(household_meta)
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.income + h.spouse_income - h.spouse_tax)

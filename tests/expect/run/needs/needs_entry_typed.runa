@@ -1,0 +1,43 @@
+-- The typed field record: `entry = Some(refof(share_income))` and
+-- `subject = Some(pathof(Household::spouse))` give the need the strings of
+-- needs_entry.runa give. Only the schema hash differs: the contract carries
+-- the `@ meta` value as written, and `refof` is a `ProgramReference`.
+-- expect-command: call
+-- expect-input: needs_entry_typed.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout-file: needs_entry_typed.stdout
+
+# Spouse(income: Int)
+# Household(income: Int, spouse: Spouse, spouse_share_income: Int)
+# Result(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: ProgramReference?, subject: String?)
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::spouse_share_income),
+            label = "Spouse's share income",
+            question = None,
+            help = None,
+            unit = Some("øre"),
+            entry = Some(refof(share_income)),
+            subject = Some(pathof(Household::spouse))
+        )
+    ],
+    attachments = ()
+)
+
+@ calculate
+| share_income(s: Spouse) -> s.income
+
+| threshold(h: Household) -> 100
+| exception transferred threshold(h: Household) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
+
+@ meta(household_meta)
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))
