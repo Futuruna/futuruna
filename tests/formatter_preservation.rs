@@ -222,6 +222,7 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/errors/parse_bad_arrow.runa",
         "tests/errors/parse_missing_body.runa",
         "tests/errors/parse_unclosed_brace.runa",
+        "tests/expect/check/annotation_retired_directive.runa",
         "tests/expect/check/field_meta_entry_without_subject.runa",
         "tests/expect/check/field_meta_missing_label.runa",
         "tests/expect/check/field_meta_not_before_type.runa",
@@ -241,6 +242,9 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/expect/diagnostics/indented_operator_line.runa",
         "tests/expect/diagnostics/parse_bad_arrow.runa",
         "tests/expect/diagnostics/thousands_comma_in_list.runa",
+        // Old comment-directive syntax kept on purpose as `runa fmt --migrate` input.
+        "tests/fixtures/annotation-migration/domain_meta.runa",
+        "tests/fixtures/annotation-migration/model.calculate.runa",
     ];
     fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
         for entry in std::fs::read_dir(directory).unwrap() {
