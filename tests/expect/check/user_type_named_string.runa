@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `String` is a built-in type; give this type a different name
+-- expect-stderr: user_type_named_string.runa:9:3
+-- expect-stderr-not: Futuruna compiler bug
+-- roundtrip-skip: rejected by the frontend
+-- A record named like a built-in scalar made `-> String` accept both a string
+-- and the record, so `value("x")` passed the check and failed at run time.
+# String(value: Int)
+> value(s: String) -> Int { s.value }
+@ print(show(value("x")))

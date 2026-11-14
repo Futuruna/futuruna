@@ -40,7 +40,8 @@ const BUILTIN_IMPL_TYPES: &[&str] = &[
 
 impl TypeChecker {
     /// Span of a declaration name recorded by the parser, keyed as
-    /// `variant:Name`, `impl:Trait:Type` or `impl:Trait:Type:method`.
+    /// `type:Name`, `variant:Name`, `impl:Trait:Type` or
+    /// `impl:Trait:Type:method`.
     fn declaration_name_span(&mut self, key: &str) -> Option<Span> {
         if self
             .declaration_source_spans
@@ -114,17 +115,26 @@ impl TypeChecker {
         }
     }
 
-    /// `Tuple` names the built-in tuple type `(A, B)` and `Self` the
+    /// `Tuple` names the built-in tuple type `(A, B)`, the scalar types are
+    /// the types of literals and comparisons, and `Self` names the
     /// implementing type in a trait (and is a keyword in generated Rust): a
-    /// declaration of either name would make every annotation that uses it
-    /// ambiguous.
+    /// declaration of one of these names would make every annotation that
+    /// uses it ambiguous. `-> String` accepted both a string and a record
+    /// named `String`, so a program could pass the check and fail at run time.
     pub(super) fn check_reserved_type_name(&mut self, name: &str) {
         let message = match name {
-            "Tuple" => "`Tuple` is the built-in tuple type `(A, B)`; give this type a different name",
-            "Self" => "`Self` names the implementing type in a trait; give this type a different name",
+            "Tuple" => {
+                "`Tuple` is the built-in tuple type `(A, B)`; give this type a different name"
+                    .to_string()
+            }
+            "Int" | "Nat" | "Float" | "String" | "Bool" | "Char" | "Unit" => {
+                format!("`{name}` is a built-in type; give this type a different name")
+            }
+            "Self" => "`Self` names the implementing type in a trait; give this type a different name"
+                .to_string(),
             _ => return,
         };
-        self.declaration_error(&format!("variant:{name}"), message.to_string());
+        self.declaration_error(&format!("type:{name}"), message);
     }
 
     /// Variant names may not reuse a prelude or list constructor owned by a

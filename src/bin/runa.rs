@@ -32754,9 +32754,8 @@ impl RustCodegen {
 
     /// The Rust name of a declared type. A name the generated Rust already
     /// uses gets a `Futuruna` prefix: every type, trait and constructor of
-    /// Rust's 2021 prelude, everything the generated header imports, and
-    /// `Bool`, which generated code reserves for Rust's `bool`. The source
-    /// name stays what programs print and match on.
+    /// Rust's 2021 prelude and everything the generated header imports.
+    /// The source name stays what programs print and match on.
     fn declared_rust_type_name(source_name: &str) -> String {
         const RUST_NAMES: &[&str] = &[
             // std::prelude::rust_2021
@@ -32767,7 +32766,6 @@ impl RustCodegen {
             "String", "Sync", "ToOwned", "ToString", "TryFrom", "TryInto", "Unpin", "Vec",
             // the generated header's imports
             "Arc", "BTreeMap", "HashMap", "HashSet", "Rc",
-            "Bool",
         ];
         if RUST_NAMES.contains(&source_name) {
             format!("Futuruna{}", source_name)

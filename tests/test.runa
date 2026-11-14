@@ -2,7 +2,6 @@
 -- Testing all runes and core features
 
 -- # Type declarations (Axis 2)
-# Bool = True | False
 # Option(a) = None | Some(a)
 # Chain(a) = End | Link(a, Chain(a))
 

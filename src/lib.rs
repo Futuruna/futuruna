@@ -12236,6 +12236,7 @@ impl Parser {
 
         // # Name(params) = Variant1 | Variant2 | ...
         let name = self.expect_ident()?;
+        self.record_declaration_name_span(format!("type:{name}"), self.pos - 1);
 
         // # Type WHEN condition = new_variants (conditional type evolution)
         if self.peek_kind() == TokenKind::KW && self.peek().text == "WHEN"

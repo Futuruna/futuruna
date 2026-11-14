@@ -1,0 +1,9 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `Bool` is a built-in type; give this type a different name
+-- expect-stderr: user_type_named_bool.runa:7:3
+-- expect-stderr-not: Futuruna compiler bug
+-- roundtrip-skip: rejected by the frontend
+# Bool = Yes | No
+> positive(x: Int) -> Bool { x > 0 }
+@ print(show(positive(1)))
