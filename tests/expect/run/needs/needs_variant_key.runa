@@ -1,0 +1,24 @@
+-- A sum type keys its elements by a field every variant declares alike
+-- (`@ field(key = True)` in each variant, of the same name and type): a need
+-- inside a list element of the type carries the element's key, whatever its
+-- variant.
+-- expect-command: call
+-- expect-input: needs_variant_key.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_variant_key.stdout
+
+# Event =
+    Deposit(@ field(label = "Event id", key = True) id: String, @ field(label = "Amount") amount: Int) |
+    Withdrawal(@ field(label = "Event id", key = True) id: String, @ field(label = "Amount") amount: Int, @ field(label = "Fee") fee: Int)
+# Case(events: List(Event))
+# Result(total: Int)
+
+> signed(e: Event) -> Int {
+    match e {
+        | Deposit -> e.amount
+        | Withdrawal -> 0 - e.amount - e.fee
+    }
+}
+
+@ calculate
+| needs_variant_key(c: Case) -> Result(total = foldl(c.events, 0, |sum, e| sum + signed(e)))

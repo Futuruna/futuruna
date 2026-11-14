@@ -1,0 +1,52 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "69f6f6caa9f5fe124850dc98c1acfa70e0e70d3ecc56b3be002f1c6304fb2fa8",
+    "entry": "needs_variant_key"
+  },
+  "results": [
+    {
+      "case_id": "skeletons",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "keys": [
+              {
+                "field": "id",
+                "path": "events[0]",
+                "value": "e1"
+              }
+            ],
+            "kind": "fact",
+            "label": "Amount",
+            "path": "events[0].amount",
+            "waiting": [
+              {
+                "rule": "needs_variant_key"
+              }
+            ]
+          },
+          {
+            "keys": [
+              {
+                "field": "id",
+                "path": "events[1]",
+                "value": "e2"
+              }
+            ],
+            "kind": "fact",
+            "label": "Fee",
+            "path": "events[1].fee",
+            "waiting": [
+              {
+                "rule": "needs_variant_key"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}
