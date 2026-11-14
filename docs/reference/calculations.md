@@ -75,18 +75,20 @@ and map wrappers are transparent, as in `pathof`.
 | `label` | required `String` |
 | `question`, `help`, `unit` | `String` |
 | `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
-| `entry`, `subject` | `String`, together: the calculation that provides the field and the input path it runs for |
+| `entry`, `subject` | together: `entry = refof(<calculation>)`, the `@ calculate` entry that provides the field, and `subject = pathof(<Input>::...)`, the input path it runs for, rooted at the calculation's input type (see [Needs](#needs) below). The older strings (`entry = "share_income"`, `subject = "taxpayer.spouse"`) are still read; `runa fmt --migrate` rewrites them |
 | `key` | `Bool`: `True` makes this `String` or `Int` field of a record type the key that identifies an element of the type in a list (one per type); the contract's definition of the type names it as `key`, and a need inside such an element carries the element's key |
 
 A key that does not apply is left out; values are plain strings (`key` a
-plain `Bool`), not `Some(...)`. A value may be any pure ground expression,
-resolved like a metadata binding. `runa check` reports an unknown or repeated
-key, a missing label, `entry` without `subject`, two `@ field` on one field or
-type, an `@ field` that no field or data type follows, a value that is not a
-`String` (or, for `sources`, not a list; for `key`, not a `Bool`), and a `key`
-on a field that is not a `String` or `Int` of a record type, or a second one
-in a type. Declarations are presentation only: they do not change a type's
-meaning, content hash or semantic interface.
+plain `Bool`, `entry` a `refof`, `subject` a `pathof`), not `Some(...)`. A
+value may be any pure ground expression, resolved like a metadata binding.
+`runa check` reports an unknown or repeated key, a missing label, `entry`
+without `subject`, two `@ field` on one field or type, an `@ field` that no
+field or data type follows, a value that is not a `String` (or, for
+`sources`, not a list; for `key`, not a `Bool`; for `entry`, not a `refof` of
+a calculation), a providing entry that does not fit the field (see below),
+and a `key` on a field that is not a `String` or `Int` of a record type, or a
+second one in a type. Declarations are presentation only: they do not change a
+type's meaning, content hash or semantic interface.
 
 A required record field has no column of its own; its members are spread into
 columns. Its `@ field` label gives those members context: a label written for a
@@ -778,14 +780,35 @@ that may fail for some answer (division by an unknown, a rule that might
 match no clause) keeps the case from completing until its facts are known.
 
 A field another calculation provides carries `entry` and `subject` in its
-metadata (`@ field(label = "Spouse's share income", entry = "share_income",
-subject = "taxpayer.spouse")`, or `entry = Some(...)` and `subject = Some(...)`
-in a field record). Its need has kind `entry`: the client runs that entry for
-the subject and writes the entry's result at `path`. The field's type must be
-the entry's result type, and the subject must be an input path whose value
-(through optional, list, set and map wrappers) has the entry's input type;
-`runa check` reports a missing entry, a different type or a subject that does
-not fit.
+metadata:
+
+```runa
+# TaxCase(
+    taxpayer: Taxpayer,
+    @ field(label = "Spouse's share income", entry = refof(share_income), subject = pathof(TaxCase::taxpayer::spouse))
+    spouse_share_income_ore: Int
+)
+```
+
+In a field record, the record declares `entry: ProgramReference?` and gives
+`entry = Some(refof(share_income))`, `subject =
+Some(pathof(TaxCase::taxpayer::spouse))` (`pathof` in a `String?` place stays
+the path string). Its need has kind `entry`: the client runs that entry for
+the subject and writes the entry's result at `path`. The contract and the
+need carry the entry's name and the subject's input path
+(`"entry": "share_income"`, `"subject": "taxpayer.spouse"`). `runa check`
+reports, naming the field: an `entry` that is not an `@ calculate` entry of
+the program, a `subject` rooted at another type than the calculation's input,
+a subject whose value (through optional, list, set and map wrappers) does not
+have the entry's input type, and a field whose type is not the entry's result
+type.
+
+The string forms (`entry = "share_income"`, `subject = "taxpayer.spouse"`, and
+`Some("...")` in a field record whose `entry` is a `String?`) are still read,
+with the same checks. `runa fmt --migrate` rewrites them as `refof`/`pathof`
+when exactly one calculation input reaches the field (that type is the root
+of the `pathof`; a field record's `entry` type becomes `ProgramReference?`)
+and lists the others with the reason, as `file:line: left ...`.
 
 `--partial=strict` stops each case at the first unknown value it reads. Its
 `Complete(r)` holds by construction and serves as the test oracle.

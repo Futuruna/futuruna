@@ -1,0 +1,46 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "27c35004be34f942db9f801f640abb1023e0da59bcf77242cb54b9aab5012d24",
+    "entry": "household_tax"
+  },
+  "results": [
+    {
+      "case_id": "spouse-share-income-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "entry": "share_income",
+            "kind": "entry",
+            "label": "Spouse's share income",
+            "path": "spouse_share_income",
+            "subject": "spouse",
+            "unit": "øre",
+            "waiting": [
+              {
+                "rule": "threshold"
+              },
+              {
+                "rule": "household_tax"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "given",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "tax": 830
+        },
+        "unused_paths": [
+          "spouse.income"
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

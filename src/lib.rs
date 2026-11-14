@@ -2327,6 +2327,9 @@ pub struct MetaValueArgument {
     pub field: Option<String>,
     pub binding_name: Option<String>,
     pub value: MetaValue,
+    /// The root type of a `pathof(Root::...)` argument, whose value is only
+    /// the path below the root.
+    pub path_root: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3720,6 +3723,7 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
                     Some(MetaValueArgument {
                         field: None,
                         binding_name: None,
+                        path_root: None,
                         value: runtime_value_to_meta_value(argument, interpreter)?,
                     })
                 })
@@ -3746,6 +3750,7 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
                     Some(MetaValueArgument {
                         field: Some(field.clone()),
                         binding_name: None,
+                        path_root: None,
                         value: runtime_value_to_meta_value(value, interpreter)?,
                     })
                 })
@@ -4418,6 +4423,7 @@ fn resolve_static_meta_expr(
                     resolved_arguments.push(MetaValueArgument {
                         field: Some(field.to_string()),
                         binding_name: meta_binding_reference_name(value, bindings),
+                        path_root: pathof_root(value),
                         value: resolve_static_meta_expr(
                             value,
                             bindings,
@@ -4430,6 +4436,7 @@ fn resolve_static_meta_expr(
                     resolved_arguments.push(MetaValueArgument {
                         field: None,
                         binding_name: meta_binding_reference_name(arg, bindings),
+                        path_root: pathof_root(arg),
                         value: resolve_static_meta_expr(
                             arg,
                             bindings,
@@ -5503,6 +5510,21 @@ pub fn has_named_args(args: &[Expr]) -> bool {
 
 pub fn all_named_args(args: &[Expr]) -> bool {
     args.iter().all(is_named_arg_expr)
+}
+
+/// The root type of the parser's internal `pathof` call (`TaxCase` in
+/// `pathof(TaxCase::taxpayer::spouse)`).
+pub fn pathof_root(expr: &Expr) -> Option<String> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == PATHOF_MARKER) {
+        return None;
+    }
+    match &arguments.first()?.kind {
+        ExprKind::Lit(Literal::Str(root)) => Some(root.clone()),
+        _ => None,
+    }
 }
 
 /// Return the canonical path represented by the parser's internal `pathof`
@@ -58534,6 +58556,34 @@ impl TypeChecker {
                                 format!(
                                     "`@ field` key `key` must be a `Bool`, got `{}`",
                                     type_name
+                                ),
+                            );
+                        }
+                    } else if key == "entry" {
+                        let got = match refof_literal(value) {
+                            Some(ProgramReferenceLiteral::Symbol { .. }) | None => None,
+                            Some(ProgramReferenceLiteral::Type { name }) => {
+                                Some(format!("a reference to the type `{name}`"))
+                            }
+                            Some(ProgramReferenceLiteral::Member { root_type, path }) => {
+                                Some(format!(
+                                    "a reference to the field `{root_type}::{}`",
+                                    path.replace('.', "::")
+                                ))
+                            }
+                            Some(ProgramReferenceLiteral::Section { name }) => {
+                                Some(format!("a reference to the section `{name}`"))
+                            }
+                        }
+                        .or_else(|| {
+                            (type_name != "String" && type_name != "ProgramReference")
+                                .then(|| format!("`{type_name}`"))
+                        });
+                        if let Some(got) = got {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "`@ field` key `entry` names the calculation that provides the field, as `refof(<calculation>)`; got {got}"
                                 ),
                             );
                         }
