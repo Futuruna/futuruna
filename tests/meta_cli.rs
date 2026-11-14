@@ -50,7 +50,7 @@ fn directory_meta_json_sweeps_typed_sources_recursively() {
     assert_eq!(document["counts"]["diagnostics"], 0);
 
     let files = document["files"].as_array().expect("files array");
-    assert_eq!(files[0]["schema"], "futuruna.meta.v1");
+    assert_eq!(files[0]["schema"], "futuruna.meta.v2");
     assert!(files[0]["file"]
         .as_str()
         .expect("first file")

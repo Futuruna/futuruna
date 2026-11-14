@@ -938,7 +938,10 @@ fn collect_metadata(
     stmts: &[Stmt],
     source_dir: Option<String>,
 ) -> Result<Vec<SemanticMetaContract>, Vec<Diagnostic>> {
-    if !source.contains("--@") {
+    if !["@ meta", "@ section", "@ quote", "@ cite"]
+        .iter()
+        .any(|annotation| source.contains(annotation))
+    {
         return Ok(Vec::new());
     }
     let index = scan_meta_comments_with_dir_from_stmts(source, stmts, source_dir);
@@ -1541,15 +1544,20 @@ mod tests {
 # Input(amount: Int)
 # Result(amount: Int)
 # Shape = Circle | Triangle
+# impl Meta for Shape {}
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
 = source_shape = Circle
---@label:calculation::source:source_shape--
+= law = SourceInfo(file = "law.txt")
+@ meta(source_shape)
+@ section calculation {
+@ quote(law)
 ----
 Original source text
 ----
---@begin:calculation--
 @ calculate("Readable calculation")
 | calculate(input: Input) -> Result(amount = input.amount)
---@end:calculation--
+}
 "#,
         );
         let changed_text = interface(
@@ -1557,15 +1565,20 @@ Original source text
 # Input(amount: Int)
 # Result(amount: Int)
 # Shape = Circle | Triangle
+# impl Meta for Shape {}
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
 = source_shape = Circle
---@label:calculation::source:source_shape--
+= law = SourceInfo(file = "law.txt")
+@ meta(source_shape)
+@ section calculation {
+@ quote(law)
 ----
 Changed source text
 ----
---@begin:calculation--
 @ calculate("Readable calculation")
 | calculate(input: Input) -> Result(amount = input.amount)
---@end:calculation--
+}
 "#,
         );
         let changed_label = interface(
@@ -1573,15 +1586,20 @@ Changed source text
 # Input(amount: Int)
 # Result(amount: Int)
 # Shape = Circle | Triangle
+# impl Meta for Shape {}
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
 = source_shape = Circle
---@label:calculation::source:source_shape--
+= law = SourceInfo(file = "law.txt")
+@ meta(source_shape)
+@ section calculation {
+@ quote(law)
 ----
 Original source text
 ----
---@begin:calculation--
 @ calculate("Renamed calculation")
 | calculate(input: Input) -> Result(amount = input.amount)
---@end:calculation--
+}
 "#,
         );
 

@@ -583,10 +583,10 @@ pub struct CalculationNeedKey {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalculationWaiting {
     pub rule: String,
-    /// The section (anchor label) the rule's clause or function is in.
+    /// The `@ section` the rule's clause or function is in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,
-    /// The paragraphs the clause or function cites (`--@cite`).
+    /// The paragraphs the clause or function cites (`@ cite`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub paragraphs: Vec<CalculationParagraph>,
 }
@@ -596,11 +596,26 @@ pub struct CalculationWaiting {
 pub struct CalculationParagraph {
     /// `§ 9, stk. 3`.
     pub paragraph: String,
-    /// The `[sources/...]` document of the quote it was found in.
+    /// The file of the quoted document it was found in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub act: Option<CalculationAct>,
+    /// For a passage cited `as amended`, the instruction that gives its
+    /// wording.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub as_amended_by: Option<CalculationAmendment>,
+}
+
+/// The amending act's instruction behind a passage cited `as amended`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationAmendment {
+    /// The amending act: `LOV nr. 1691 af 30/12/2024`.
+    pub act: String,
+    /// Its paragraph and instruction: `§ 4, nr. 1`.
+    pub paragraph: String,
+    /// The instruction line: `1. § 8 a, stk. 1, 1. pkt., affattes således:`.
+    pub instruction: String,
 }
 
 /// The act a quoted document is, from the document's header.
@@ -6920,8 +6935,18 @@ fn paragraph_json_schema() -> JsonValue {
         "additionalProperties": false,
         "properties": {
             "paragraph": { "type": "string", "description": "The cited paragraph, as `§ 9, stk. 3`." },
-            "source": { "type": "string", "description": "The `[sources/...]` document of the quote it was found in." },
-            "act": act_json_schema()
+            "source": { "type": "string", "description": "The file of the quoted document it was found in." },
+            "act": act_json_schema(),
+            "as_amended_by": {
+                "type": "object",
+                "required": ["act", "paragraph", "instruction"],
+                "additionalProperties": false,
+                "properties": {
+                    "act": { "type": "string" },
+                    "paragraph": { "type": "string" },
+                    "instruction": { "type": "string" }
+                }
+            }
         }
     })
 }

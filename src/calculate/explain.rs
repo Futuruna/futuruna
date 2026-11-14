@@ -344,16 +344,22 @@ struct ClauseInfo {
     exception: Option<String>,
     location: Option<String>,
     section: Option<String>,
-    paragraphs: Vec<(CitedParagraph, Option<CalculationAct>)>,
+    /// Each cited paragraph, the act it was quoted from, and the
+    /// instruction that gives its wording (`as amended`).
+    paragraphs: Vec<(CitedParagraph, Option<CalculationAct>, Option<JsonValue>)>,
 }
 
-/// A law section: the anchor and quote the rules between its markers
-/// implement.
+/// A section: `@ section <name> { ... }`, its quotes and metadata.
 struct SectionInfo {
     location: String,
+    /// The files of the documents it quotes.
     sources: Vec<String>,
     attachments: Vec<JsonValue>,
     quote: String,
+    /// Each quoted document: binding, file and role.
+    documents: Vec<JsonValue>,
+    /// The quoted base passages an instruction quoted in the section amends.
+    superseded: Vec<JsonValue>,
 }
 
 /// What an explanation reads from one source file.
@@ -365,9 +371,15 @@ struct FileIndex {
     citations: FileCitations,
     /// `(label, first code line, last code line)` of every section.
     spans: Vec<(String, usize, usize)>,
+    /// `(name, first line, last line)` of every rule, member or function
+    /// with `@ meta`.
+    item_spans: Vec<(String, usize, usize)>,
     sections: BTreeMap<String, Rc<SectionInfo>>,
-    /// The metadata attachments of every anchor, with or without a quote.
+    /// The metadata attachments of every section.
     anchor_attachments: BTreeMap<String, Vec<JsonValue>>,
+    /// The metadata attachments of every rule, member, function or other
+    /// item with `@ meta`.
+    item_attachments: BTreeMap<String, Vec<JsonValue>>,
     /// The first clause line of every rule family, by `(scope, name)`.
     families: HashMap<(Option<String>, String), usize>,
     /// The line where each top-level function's body starts.
@@ -420,12 +432,23 @@ impl ExplainRenderer {
             .map(|parent| parent.to_string_lossy().into_owned());
         let display = self.display_path(Path::new(path));
         let meta = scan_meta_comments_with_dir(&source, directory);
-        let spans = meta
-            .spans
-            .iter()
-            .map(|span| (span.label.clone(), span.code_start_line, span.code_end_line))
-            .collect();
+        let annotations = crate::annotations::read(&source);
+        let documents =
+            crate::annotations::Documents::for_file(&source, module.statements(), path);
+        let mut spans = Vec::new();
+        let mut item_spans = Vec::new();
+        for span in &meta.spans {
+            let entry = (span.label.clone(), span.code_start_line, span.code_end_line);
+            if annotations.section(&span.label).is_some_and(|section| {
+                section.line == span.begin_marker_line
+            }) {
+                spans.push(entry);
+            } else {
+                item_spans.push(entry);
+            }
+        }
         let mut sections = BTreeMap::new();
+        let mut item_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
         let mut anchor_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
         for anchor in &meta.anchors {
             let mut attachments = Vec::new();
@@ -452,19 +475,47 @@ impl ExplainRenderer {
                     attachments.push(JsonValue::Object(attachment));
                 }
             }
+            if anchor.kind != "section" {
+                item_attachments
+                    .entry(anchor.label.clone())
+                    .or_insert(attachments);
+                continue;
+            }
             anchor_attachments
                 .entry(anchor.label.clone())
                 .or_insert_with(|| attachments.clone());
-            if anchor.text_start_line.is_none() || sections.contains_key(&anchor.label) {
+            if sections.contains_key(&anchor.label) {
                 continue;
             }
-            let sources = anchor
-                .text
-                .lines()
-                .filter_map(|line| {
-                    let line = line.trim();
-                    (line.len() > 2 && line.starts_with('[') && line.ends_with(']'))
-                        .then(|| line[1..line.len() - 1].trim().to_string())
+            let Some(section) = annotations.section(&anchor.label) else {
+                continue;
+            };
+            let mut sources: Vec<String> = Vec::new();
+            let mut quoted = Vec::new();
+            for quote in &section.quotes {
+                let file = documents.file(&quote.document).ok();
+                if let Some(file) = &file {
+                    if !sources.contains(file) {
+                        sources.push(file.clone());
+                    }
+                }
+                let document = serde_json::json!({
+                    "binding": quote.document,
+                    "file": file,
+                    "role": quote.role,
+                });
+                if !quoted.contains(&document) {
+                    quoted.push(document);
+                }
+            }
+            let superseded = crate::citations::section_quote(section, &documents)
+                .superseded()
+                .into_iter()
+                .map(|(paragraph, amendment)| {
+                    serde_json::json!({
+                        "paragraph": paragraph,
+                        "as_amended_by": amendment_json(&amendment, path),
+                    })
                 })
                 .collect();
             sections.insert(
@@ -474,6 +525,8 @@ impl ExplainRenderer {
                     sources,
                     attachments,
                     quote: anchor.text.clone(),
+                    documents: quoted,
+                    superseded,
                 }),
             );
         }
@@ -491,11 +544,13 @@ impl ExplainRenderer {
         Some(FileIndex {
             path: path.to_string(),
             display,
-            citations: crate::citations::file_citations(&source),
+            citations: crate::citations::file_citations_from(&annotations, &documents),
             source,
             spans,
+            item_spans,
             sections,
             anchor_attachments,
+            item_attachments,
             families,
             functions,
         })
@@ -557,7 +612,11 @@ impl ExplainRenderer {
                 .iter()
                 .map(|paragraph| {
                     let act = self.paragraph_act(&index.path, paragraph);
-                    (paragraph.clone(), act)
+                    let amendment = paragraph
+                        .as_amended_by
+                        .as_ref()
+                        .map(|amendment| amendment_json(amendment, &index.path));
+                    (paragraph.clone(), act, amendment)
                 })
                 .collect();
         }
@@ -662,6 +721,10 @@ impl ExplainRenderer {
                     paragraph: paragraph.paragraph.clone(),
                     source: paragraph.source.clone(),
                     act: self.paragraph_act(&file, paragraph),
+                    as_amended_by: paragraph
+                        .as_amended_by
+                        .as_ref()
+                        .map(|amendment| calculation_amendment(amendment, &file)),
                 })
                 .collect();
             let waiting = CalculationWaiting {
@@ -701,8 +764,8 @@ impl ExplainRenderer {
     }
 
     /// Whether a frame is cited in a law section: its clause (or its rule's
-    /// first clause) or its function carries a `--@cite`, and the section
-    /// around it quotes a `[sources/...]` document.
+    /// first clause) or its function carries an `@ cite`, and the section
+    /// around it quotes a document.
     pub(super) fn frame_cited(
         &mut self,
         interpreter: &Interpreter,
@@ -816,14 +879,54 @@ impl ExplainRenderer {
             )
         });
         let (index, line, _) = located?;
+        let innermost = |spans: &[(String, usize, usize)]| {
+            spans
+                .iter()
+                .filter(|(_, start, end)| *start <= line && line <= *end)
+                .max_by_key(|(_, start, _)| *start)
+                .cloned()
+        };
+        match (innermost(&index.item_spans), innermost(&index.spans)) {
+            (Some((label, item_start, _)), section)
+                if section.as_ref().is_none_or(|(_, start, _)| *start <= item_start) =>
+            {
+                let attachments = index.item_attachments.get(&label)?.clone();
+                Some((label, attachments))
+            }
+            (_, Some((label, _, _))) => {
+                let attachments = index.anchor_attachments.get(&label)?.clone();
+                Some((label, attachments))
+            }
+            _ => None,
+        }
+    }
+
+    /// The `@ meta` attachments written on a clause or member, with the
+    /// section it stands in (else the rule's name).
+    fn clause_attachments(
+        &mut self,
+        interpreter: &Interpreter,
+        state: &ExplainState,
+        clause: u32,
+    ) -> Option<(String, Vec<JsonValue>)> {
+        let record = state.clause(clause);
+        let file = interpreter
+            .rule_source_file(&record.rule)
+            .map(|file| file.to_string())
+            .or_else(|| self.root_file_name())?;
+        let index = self.file(&file)?;
+        let (line, _) = char_offset_to_line_col(&index.source, record.rule.head()?.span.start);
+        let (name, _, _) = index
+            .item_spans
+            .iter()
+            .find(|(name, start, end)| *name == record.name && *start <= line && line <= *end)?;
+        let attachments = index.item_attachments.get(name)?.clone();
         let label = index
             .spans
             .iter()
             .filter(|(_, start, end)| *start <= line && line <= *end)
-            .max_by_key(|(_, start, _)| *start)?
-            .0
-            .clone();
-        let attachments = index.anchor_attachments.get(&label)?.clone();
+            .max_by_key(|(_, start, _)| *start)
+            .map_or_else(|| name.clone(), |(label, _, _)| label.clone());
         Some((label, attachments))
     }
 
@@ -970,15 +1073,22 @@ impl ExplainRenderer {
                 sections
                     .into_iter()
                     .map(|(label, section)| {
-                        (
-                            label,
-                            serde_json::json!({
-                                "location": section.location,
-                                "sources": section.sources,
-                                "attachments": section.attachments,
-                                "quote": section.quote,
-                            }),
-                        )
+                        let mut object = JsonMap::new();
+                        object.insert("location".into(), JsonValue::from(section.location.clone()));
+                        object.insert("sources".into(), serde_json::json!(section.sources));
+                        object.insert("documents".into(), JsonValue::Array(section.documents.clone()));
+                        object.insert(
+                            "attachments".into(),
+                            JsonValue::Array(section.attachments.clone()),
+                        );
+                        object.insert("quote".into(), JsonValue::from(section.quote.clone()));
+                        if !section.superseded.is_empty() {
+                            object.insert(
+                                "superseded".into(),
+                                JsonValue::Array(section.superseded.clone()),
+                            );
+                        }
+                        (label, JsonValue::Object(object))
                     })
                     .collect(),
             ),
@@ -1039,7 +1149,7 @@ impl CaseRenderer<'_> {
             let paragraphs = info
                 .paragraphs
                 .iter()
-                .map(|(paragraph, act)| {
+                .map(|(paragraph, act, amendment)| {
                     let mut cited = JsonMap::new();
                     cited.insert(
                         "paragraph".into(),
@@ -1053,6 +1163,9 @@ impl CaseRenderer<'_> {
                             "act".into(),
                             serde_json::to_value(act).expect("an act is JSON"),
                         );
+                    }
+                    if let Some(amendment) = amendment {
+                        cited.insert("as_amended_by".into(), amendment.clone());
                     }
                     if with_text {
                         cited.insert("text".into(), JsonValue::from(paragraph.text.clone()));
@@ -1125,6 +1238,12 @@ impl CaseRenderer<'_> {
                     .section(self.interpreter, self.state, clause as u32)
             {
                 add(&mut found, &label, &section.attachments);
+            }
+            if let Some((label, attachments)) =
+                self.renderer
+                    .clause_attachments(self.interpreter, self.state, clause as u32)
+            {
+                add(&mut found, &label, &attachments);
             }
         }
         if let Some((label, attachments)) = self.renderer.entry_attachments(self.interpreter, entry)
@@ -1210,6 +1329,34 @@ fn collect_rule_families(
         }
     }
 }
+
+/// The amending act of a passage cited `as amended`, as needs report it:
+/// the act's identifier from its saved file's header, else from the
+/// document's `identifier`.
+fn calculation_amendment(
+    amendment: &crate::citations::CitedAmendment,
+    model_file: &str,
+) -> CalculationAmendment {
+    let act = amendment
+        .file
+        .as_deref()
+        .and_then(|file| read_act(model_file, file))
+        .and_then(|act| act.identifier)
+        .or_else(|| amendment.identifier.clone())
+        .unwrap_or_else(|| amendment.document.clone());
+    CalculationAmendment {
+        act,
+        paragraph: amendment.paragraph.clone(),
+        instruction: amendment.instruction.clone(),
+    }
+}
+
+/// [`calculation_amendment`] as explanations write it.
+fn amendment_json(amendment: &crate::citations::CitedAmendment, model_file: &str) -> JsonValue {
+    serde_json::to_value(calculation_amendment(amendment, model_file))
+        .expect("an amendment is JSON")
+}
+
 /// The act of the quoted document `source` (`sources/...`) of a model file:
 /// the document is looked up beside the file and in each directory above
 /// it, the first found counts; its header names the act.
@@ -1316,15 +1463,27 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
     let leaf = serde_json::json!({
         "description": "The canonical JSON of a scalar, or the name of a variant without fields."
     });
+    let amendment = serde_json::json!({
+        "type": "object",
+        "description": "The amending act's instruction that gives a passage cited `as amended` its wording.",
+        "required": ["act", "paragraph", "instruction"],
+        "additionalProperties": false,
+        "properties": {
+            "act": { "type": "string", "description": "The amending act, as `LOV nr. 1691 af 30/12/2024`." },
+            "paragraph": { "type": "string", "description": "Its paragraph and instruction, as `§ 4, nr. 1`." },
+            "instruction": { "type": "string", "description": "The instruction line, verbatim." }
+        }
+    });
     let paragraph = |with_text: bool| {
         let mut properties = serde_json::json!({
             "paragraph": { "type": "string", "description": "The cited paragraph, as `§ 9, stk. 3`." },
-            "source": { "type": "string", "description": "The `[sources/...]` document of the quote it was found in." },
-            "act": act_json_schema()
+            "source": { "type": "string", "description": "The file of the quoted document it was found in." },
+            "act": act_json_schema(),
+            "as_amended_by": amendment
         });
         let mut required = vec!["paragraph"];
         if with_text {
-            properties["text"] = serde_json::json!({ "type": "string", "description": "The quoted text of the paragraph, verbatim." });
+            properties["text"] = serde_json::json!({ "type": "string", "description": "The quoted text of the paragraph, verbatim; for a passage cited `as amended`, the wording in force." });
             required.push("text");
         }
         serde_json::json!({
@@ -1342,7 +1501,7 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
             "clause": { "enum": ["default", "exception", "clause"] },
             "exception": { "type": "string", "description": "The label of the exception that applied." },
             "location": { "type": "string", "description": "file:line of the clause." },
-            "section": { "type": "string", "description": "The law section (anchor label) around the clause; a key of `sections`." }
+            "section": { "type": "string", "description": "The `@ section` around the clause; a key of `sections`." }
         });
         if with_text {
             properties["cites"] = serde_json::json!({ "type": "array", "items": paragraph(true) });
@@ -1420,14 +1579,28 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
             },
             "sections": {
                 "type": "object",
-                "description": "The law sections the explained clauses sit in, by anchor label.",
+                "description": "The sections the explained clauses sit in, by name.",
                 "additionalProperties": {
                     "type": "object",
-                    "required": ["location", "sources", "attachments", "quote"],
+                    "required": ["location", "sources", "documents", "attachments", "quote"],
                     "additionalProperties": false,
                     "properties": {
                         "location": string,
-                        "sources": { "type": "array", "items": string },
+                        "sources": { "type": "array", "items": string, "description": "The files of the documents the section quotes." },
+                        "documents": {
+                            "type": "array",
+                            "description": "Each document the section quotes: its binding, file and role.",
+                            "items": {
+                                "type": "object",
+                                "required": ["binding", "file", "role"],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "binding": string,
+                                    "file": { "type": ["string", "null"] },
+                                    "role": { "type": ["string", "null"] }
+                                }
+                            }
+                        },
                         "attachments": {
                             "type": "array",
                             "items": {
@@ -1436,7 +1609,17 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
                                 "properties": { "role": string, "binding": string, "value": {} }
                             }
                         },
-                        "quote": string
+                        "quote": { "type": "string", "description": "The section's quotes in order, each document's text after a `[<file>]` line." },
+                        "superseded": {
+                            "type": "array",
+                            "description": "The quoted passages an instruction quoted in the same section amends.",
+                            "items": {
+                                "type": "object",
+                                "required": ["paragraph", "as_amended_by"],
+                                "additionalProperties": false,
+                                "properties": { "paragraph": string, "as_amended_by": amendment }
+                            }
+                        }
                     }
                 }
             },

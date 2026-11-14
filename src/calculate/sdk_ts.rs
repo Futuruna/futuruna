@@ -2344,8 +2344,7 @@ mod tests {
 = income_field = CalculationField(path = "income", label = "Yearly income", question = Some("What did you earn this year?"), help = Some("Before tax."), unit = Some("DKK øre"))
 = age_field = CalculationField(path = "children.age", label = "Child's age", question = None, help = None, unit = Some("years"))
 = household_meta = CalculationMeta(fields = [income_field, age_field], attachments = (Source(value = law),))
---@label:household_tax::meta:household_meta--
-
+@ meta(household_meta)
 @ calculate("Household tax")
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#
@@ -2366,8 +2365,7 @@ mod tests {
 = day_field = CalculationField(path = "movements.booked_on.day", label = "Booking date: day", question = None, help = None, unit = None)
 = direction_field = CalculationField(path = "movements.direction", label = "In or out", question = Some("Did the money go in or out?"), help = None, unit = None)
 = ledger_meta = CalculationMeta(fields = [year_field, month_field, day_field, direction_field], attachments = ())
---@label:ledger_balance::meta:ledger_meta--
-
+@ meta(ledger_meta)
 @ calculate
 > ledger_balance(input: Ledger) -> Summary {{ Summary(closing_cash_ore = input.opening_cash_ore, last_booked_on = Date(year = 2026, month = 1, day = 1)) }}
 "#
@@ -2384,8 +2382,7 @@ mod tests {
 
 = cohabiting_field = CalculationField(path = pathof(Household::spouse::cohabiting), label = "Spouse cohabiting", question = Some("Did you live together at the end of the year?"), help = None, unit = None)
 = household_meta = CalculationMeta(fields = [cohabiting_field], attachments = ())
---@label:household_tax::meta:household_meta--
-
+@ meta(household_meta)
 @ calculate
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#

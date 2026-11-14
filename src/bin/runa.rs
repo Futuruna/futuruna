@@ -198,6 +198,8 @@ fn main_inner() {
     let mut test_compile = false; // --run flag for `runa test --run`
     let mut verify_mode = false; // --verify flag for `runa from-rust --verify`
     let mut fmt_check = false; // --check flag for `runa fmt --check`
+    let mut fmt_migrate = false; // --migrate flag for `runa fmt --migrate`
+    let mut fmt_targets: Vec<String> = Vec::new(); // further `runa fmt` targets
     let mut check_frontend_only = false; // --frontend flag for `runa check --frontend`
     let mut check_json = false;
     let mut use_fir = false; // --fir flag for `runa emit --fir`
@@ -268,6 +270,10 @@ fn main_inner() {
             }
             "--check" if mode == "fmt" => {
                 fmt_check = true;
+                i += 1;
+            }
+            "--migrate" if mode == "fmt" => {
+                fmt_migrate = true;
                 i += 1;
             }
             "--frontend" if mode == "check" => {
@@ -998,6 +1004,8 @@ fn main_inner() {
                     std::process::exit(1);
                 } else if filename.is_none() {
                     filename = Some(args[i].clone());
+                } else if mode == "fmt" {
+                    fmt_targets.push(args[i].clone());
                 } else {
                     eprintln!("error: unexpected argument '{}'", other);
                     eprintln!("Run 'runa --help' for usage.");
@@ -1113,8 +1121,15 @@ fn main_inner() {
 
     // ── runa fmt [--check] [file|dir] — formatter ──
     if mode == "fmt" {
-        let target = filename.as_deref().unwrap_or(".");
-        format_target(target, fmt_check);
+        let mut targets = vec![filename.clone().unwrap_or_else(|| ".".to_string())];
+        targets.extend(fmt_targets.iter().cloned());
+        if fmt_migrate {
+            migrate_targets(&targets, fmt_check);
+            return;
+        }
+        for target in &targets {
+            format_target(target, fmt_check);
+        }
         return;
     }
 
@@ -6413,6 +6428,10 @@ fn meta_index_json_value(
                 .map(meta_reference_json)
                 .collect();
             serde_json::json!({
+                "target": {
+                    "kind": anchor.kind,
+                    "name": anchor.label,
+                },
                 "kind": anchor.kind,
                 "label": anchor.label,
                 "comment_line": anchor.comment_line,
@@ -6488,7 +6507,7 @@ fn meta_index_json_value(
         })
         .count();
     serde_json::json!({
-        "schema": "futuruna.meta.v1",
+        "schema": "futuruna.meta.v2",
         "file": filename,
         "filter": {
             "type": type_filter,
@@ -19939,6 +19958,12 @@ fn check_source(
         frontend_only,
         json,
     };
+    // Quoted law is compared with its saved documents on every check: the
+    // documents are not part of the artifact cache's key.
+    let quote_diagnostics = futuruna::check_quoted_documents(filename, source);
+    if check_output.frontend_errors(&quote_diagnostics) {
+        std::process::exit(1);
+    }
     if !frontend_only {
         if let Some(summary) = load_check_artifact_cache(filename, source, use_prelude) {
             trace_compiler_artifact_cache("check hit");
@@ -20734,6 +20759,114 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
 //   - Single newline at end of file
 //   - `@ rust { }` blocks: preserved verbatim
 //   - `----` source quotations and all string/character literals: verbatim
+
+/// The directory a migrated file's program lives in: the nearest directory
+/// at or above it with `runa.toml`, else the file's own directory.
+fn migration_root(file: &Path) -> PathBuf {
+    let file = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
+    let directory = file.parent().map(Path::to_path_buf).unwrap_or_default();
+    let mut current = Some(directory.as_path());
+    while let Some(candidate) = current {
+        if candidate.join("runa.toml").is_file() {
+            return candidate.to_path_buf();
+        }
+        current = candidate.parent();
+    }
+    directory
+}
+
+/// `runa fmt --migrate`: rewrite the retired comment directives of every
+/// file as annotations, then format it. A file the migration cannot rewrite
+/// is left unchanged and its reasons are listed.
+fn migrate_targets(targets: &[String], check: bool) {
+    use futuruna::migrate::{add_document_impl, migrate_source, MigrationProgram};
+    let mut files = Vec::new();
+    for target in targets {
+        if Path::new(target).is_dir() {
+            collect_runa_files(target, &mut files);
+        } else {
+            files.push(target.clone());
+        }
+    }
+    files.sort();
+    files.dedup();
+    let mut programs: BTreeMap<PathBuf, MigrationProgram> = BTreeMap::new();
+    let mut missing_impls: BTreeMap<String, PathBuf> = BTreeMap::new();
+    let (mut migrated, mut failed) = (0usize, 0usize);
+    for path in &files {
+        let source = match std::fs::read_to_string(path) {
+            Ok(source) => source,
+            Err(error) => {
+                eprintln!("{path}: {error}");
+                failed += 1;
+                continue;
+            }
+        };
+        if !source.lines().any(|line| line.trim_start().starts_with("--@")) {
+            continue;
+        }
+        let root = migration_root(Path::new(path));
+        let program = programs
+            .entry(root.clone())
+            .or_insert_with(|| MigrationProgram::scan(&root));
+        let result = match migrate_source(&source, program) {
+            Ok(result) => result,
+            Err(errors) => {
+                for error in errors {
+                    eprintln!("{path}:{error}");
+                }
+                failed += 1;
+                continue;
+            }
+        };
+        let formatted = match checked_format_runa_source(&result.source) {
+            Ok(formatted) => formatted,
+            Err(error) => {
+                eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
+                failed += 1;
+                continue;
+            }
+        };
+        for note in &result.notes {
+            eprintln!("{path}: {note}");
+        }
+        for (type_name, file) in program.missing_document_impls(&result.document_constructors) {
+            missing_impls.entry(type_name).or_insert(file);
+        }
+        migrated += 1;
+        if check {
+            eprintln!("{path} needs migration");
+        } else if let Err(error) = std::fs::write(path, formatted) {
+            eprintln!("{path}: {error}");
+            failed += 1;
+        } else {
+            eprintln!("migrated {path}");
+        }
+    }
+    for (type_name, file) in missing_impls {
+        let Ok(source) = std::fs::read_to_string(&file) else {
+            continue;
+        };
+        let Some(updated) = add_document_impl(&source, &type_name) else {
+            continue;
+        };
+        if updated == source {
+            continue;
+        }
+        if check {
+            eprintln!("{}: needs `# impl Document for {type_name} {{}}`", file.display());
+        } else if std::fs::write(&file, updated).is_ok() {
+            eprintln!(
+                "{}: added `# impl Document for {type_name} {{}}`: its values are quoted documents",
+                file.display()
+            );
+        }
+    }
+    eprintln!("{migrated} file(s) migrated, {failed} not migrated");
+    if failed > 0 || (check && migrated > 0) {
+        std::process::exit(1);
+    }
+}
 
 fn format_target(path: &str, check: bool) {
     let meta = std::fs::metadata(path);
@@ -21676,6 +21809,9 @@ fn fmt_layout_source(source: &str) -> String {
     // the parser requires those arms to sit past the `~`.
     let mut subscription_depth: Option<i32> = None;
     let mut prev_blank = false;
+    // A section opens no scope: `@ section <name> {` and its `}` stand at
+    // the left margin and its body is not indented.
+    let mut section_open = false;
     let mut i = 0;
 
     while i < lines.len() {
@@ -21695,6 +21831,37 @@ fn fmt_layout_source(source: &str) -> String {
         // Source quotation placeholders already contain their delimiters.
         if trimmed.starts_with("----") {
             result.push(format!("{}{}", fmt_indent(depth), trimmed));
+            i += 1;
+            continue;
+        }
+
+        if depth == 0 && continuation_stack.is_empty() {
+            let annotation = trimmed.strip_prefix('@').map(str::trim_start);
+            if !section_open
+                && annotation.is_some_and(|rest| rest.starts_with("section ") && rest.ends_with('{'))
+            {
+                result.push(fmt_normalize_line(trimmed));
+                section_open = true;
+                previous_line_requires_continuation = false;
+                i += 1;
+                continue;
+            }
+            if section_open && trimmed.starts_with('}') {
+                result.push(trimmed.to_string());
+                section_open = false;
+                i += 1;
+                continue;
+            }
+        }
+
+        // A citation is legal text; only its indentation is formatted.
+        if trimmed
+            .strip_prefix('@')
+            .is_some_and(|rest| rest.trim_start().starts_with("cite("))
+        {
+            let rest = trimmed[1..].trim_start();
+            result.push(format!("{}@ {}", fmt_indent(depth), rest));
+            previous_line_requires_continuation = false;
             i += 1;
             continue;
         }

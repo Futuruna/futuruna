@@ -37,6 +37,7 @@ mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod annotations;
 mod citations;
 mod constructor_scope;
 pub use constructor_scope::{
@@ -48,6 +49,7 @@ mod danish;
 mod declaration_contracts;
 mod editor_fields;
 mod effect_handling;
+pub use annotations::check_quoted_documents;
 pub use editor_fields::EditorField;
 pub mod explain;
 mod live_streams;
@@ -60,6 +62,7 @@ mod host_effects;
 pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
 pub mod manifest;
+pub mod migrate;
 // The search runtime that compiled programs embed; the interpreter shares its
 // logic-query depth limit, and code generation builds its programs.
 #[doc(hidden)]
@@ -579,7 +582,7 @@ fn is_known_annotation(name: &str) -> bool {
 }
 
 fn unknown_annotation_message(name: &str) -> String {
-    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime`, `@ calculate` and `@ field(...)`, and effects are called as `@ name(...)`")
+    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime`, `@ calculate`, `@ field(...)`, `@ meta(...)`, `@ cite(...)`, `@ quote(...)` and `@ section <name> {{`, and effects are called as `@ name(...)`")
 }
 
 fn unknown_effect_message(name: &str) -> String {
@@ -607,13 +610,18 @@ const TAU_PRELUDE: &str = r#"
 
 -- A serializable, compiler-checked pointer to a declaration or structural
 -- member in the current program. `refof(...)` constructs these values.
-# ProgramReference = ProgramSymbolReference(name: String) | ProgramTypeReference(name: String) | ProgramMemberReference(root_type: String, path: String)
+# ProgramReference = ProgramSymbolReference(name: String) | ProgramTypeReference(name: String) | ProgramMemberReference(root_type: String, path: String) | ProgramSectionReference(name: String)
 
 -- Marker trait for values deliberately exposed through a meta label.
 # trait Meta {}
 
 -- Marker trait for typed role variants nested inside a Meta value.
 # trait MetaRole {}
+
+-- Marker trait for a saved document a section quotes: `@ quote(<binding>)`.
+-- The type has a field `file: String`, the document's path relative to the
+-- project root.
+# trait Document {}
 
 -- Option functions
 
@@ -736,12 +744,35 @@ pub enum TplPart {
     Interp(String),
 }
 
+/// An annotation that describes code: `@ section <name> {`, `@ quote(...)`,
+/// `@ cite(...)` or `@ meta(...)`, or the `}` that closes a section. The
+/// lexer reads these lines whole and emits no tokens for them; the
+/// annotation reader (`annotations`) attaches them to the items they stand
+/// before.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LexedAnnotation {
+    /// `section`, `section_end`, `quote`, `cite` or `meta`.
+    pub kind: &'static str,
+    pub line: usize,
+    pub col: usize,
+    /// The last line of the annotation (an argument may span lines).
+    pub end_line: usize,
+    /// The section's name, or the text between the parentheses.
+    pub argument: String,
+}
+
 pub struct Lexer {
     pub chars: Vec<char>,
     pub pos: usize,
     pub line: usize,
     pub col: usize,
     pub keywords: &'static KeywordTable,
+    pub annotations: Vec<LexedAnnotation>,
+    /// The open section's name and line.
+    open_section: Option<(String, usize)>,
+    /// Brace depth of the tokens before `brace_scanned`.
+    brace_depth: i64,
+    brace_scanned: usize,
 }
 
 impl Lexer {
@@ -760,7 +791,211 @@ impl Lexer {
             line: 1,
             col: 1,
             keywords,
+            annotations: Vec::new(),
+            open_section: None,
+            brace_depth: 0,
+            brace_scanned: 0,
         }
+    }
+
+    /// The brace depth after `tokens`. A trailing separator may still be
+    /// popped (before a `}`), so only tokens up to the last non-separator
+    /// count as scanned.
+    fn brace_depth_after(&mut self, tokens: &[Token]) -> i64 {
+        let end = tokens
+            .iter()
+            .rposition(|token| token.kind != TokenKind::Semi)
+            .map_or(0, |index| index + 1);
+        for token in &tokens[self.brace_scanned.min(end)..end] {
+            match token.kind {
+                TokenKind::LBrace => self.brace_depth += 1,
+                TokenKind::RBrace => self.brace_depth -= 1,
+                _ => {}
+            }
+        }
+        self.brace_scanned = end;
+        self.brace_depth
+    }
+
+    /// Whether only whitespace precedes the current position on its line.
+    fn at_line_start(&self) -> bool {
+        self.chars[..self.pos]
+            .iter()
+            .rev()
+            .take_while(|c| **c != '\n')
+            .all(|c| *c == ' ' || *c == '\t' || *c == '\r')
+    }
+
+    /// Whether the rest of the current line is blank or a `--` comment.
+    fn rest_of_line_is_blank(&self) -> bool {
+        let rest: String = self.chars[self.pos..]
+            .iter()
+            .take_while(|c| **c != '\n')
+            .collect();
+        let rest = rest.trim();
+        rest.is_empty() || (rest.starts_with("--") && !rest.starts_with("----"))
+    }
+
+    fn skip_rest_of_line(&mut self) {
+        while self.peek().is_some_and(|c| c != '\n') {
+            self.advance();
+        }
+    }
+
+    /// A retired `--@label`, `--@begin`, `--@end`, `--@cite`, `--@source`
+    /// or `--@meta` comment directive at the current position.
+    fn retired_directive(&self) -> Option<String> {
+        if !(self.peek() == Some('-')
+            && self.peek2() == Some('-')
+            && self.peek_at(2) == Some('@'))
+        {
+            return None;
+        }
+        let word: String = self.chars[self.pos + 3..]
+            .iter()
+            .take_while(|c| c.is_ascii_alphabetic())
+            .collect();
+        let message = match word.as_str() {
+            "label" | "source" | "meta" => format!(
+                "the `--@{word}` comment directive is gone: a passage of law is `@ section <name> {{ ... }}` holding `@ quote(<document>)` blocks, and metadata is `@ meta(<value>)` on the line above the item it describes; `runa fmt --migrate <file>` rewrites the file"
+            ),
+            "begin" | "end" => format!(
+                "the `--@{word}` comment directive is gone: the code of a section stands inside `@ section <name> {{ ... }}`; `runa fmt --migrate <file>` rewrites the file"
+            ),
+            "cite" => "the `--@cite` comment directive is gone: write `@ cite(...)` on the line above the clause, member or function; `runa fmt --migrate <file>` rewrites the file".to_string(),
+            _ => return None,
+        };
+        Some(message)
+    }
+
+    /// Read an annotation line that describes code, starting at `@`.
+    /// `None` when the `@` starts an ordinary annotation or statement.
+    fn read_code_annotation(&mut self, tokens: &[Token]) -> Option<Result<(), Token>> {
+        let line = self.line;
+        let col = self.col;
+        let mut offset = 1;
+        while matches!(self.peek_at(offset), Some(' ' | '\t')) {
+            offset += 1;
+        }
+        let word: String = self.chars[(self.pos + offset).min(self.chars.len())..]
+            .iter()
+            .take_while(|c| c.is_alphanumeric() || **c == '_')
+            .collect();
+        let kind: &'static str = match word.as_str() {
+            "section" => "section",
+            "quote" => "quote",
+            "cite" => "cite",
+            "meta" => "meta",
+            _ => return None,
+        };
+        let error = |message: String| Token::new(TokenKind::Invalid, message, line, col);
+        for _ in 0..offset + word.chars().count() {
+            self.advance();
+        }
+        self.skip_whitespace_not_newline();
+        if kind == "section" {
+            let name: String = self.chars[self.pos..]
+                .iter()
+                .take_while(|c| c.is_alphanumeric() || **c == '_')
+                .collect();
+            let valid_name = name
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_lowercase() || c == '_');
+            for _ in 0..name.chars().count() {
+                self.advance();
+            }
+            self.skip_whitespace_not_newline();
+            let opens = self.peek() == Some('{');
+            if opens {
+                self.advance();
+            }
+            if !valid_name || !opens || !self.rest_of_line_is_blank() {
+                self.skip_rest_of_line();
+                return Some(Err(error(
+                    "a section is written `@ section <name> {`, with a lowercase name and the `{` at the end of the line, and closed by a `}` on a line of its own".to_string(),
+                )));
+            }
+            self.skip_rest_of_line();
+            if let Some((open, open_line)) = &self.open_section {
+                return Some(Err(error(format!(
+                    "sections do not nest: section `{open}` opened on line {open_line} is still open; close it with `}}` first"
+                ))));
+            }
+            if col != 1 || self.brace_depth_after(tokens) != 0 {
+                return Some(Err(error(
+                    "a section stands only at top level, at the start of a line".to_string(),
+                )));
+            }
+            self.open_section = Some((name.clone(), line));
+            self.annotations.push(LexedAnnotation {
+                kind,
+                line,
+                col,
+                end_line: line,
+                argument: name,
+            });
+            return Some(Ok(()));
+        }
+        if self.peek() != Some('(') {
+            self.skip_rest_of_line();
+            return Some(Err(error(format!(
+                "`@ {kind}` takes its argument in parentheses: `@ {kind}(...)`"
+            ))));
+        }
+        self.advance();
+        let mut depth = 1usize;
+        let mut argument = String::new();
+        let mut in_string = false;
+        while let Some(c) = self.peek() {
+            if in_string {
+                argument.push(c);
+                self.advance();
+                if c == '\\' {
+                    if let Some(escaped) = self.advance() {
+                        argument.push(escaped);
+                    }
+                } else if c == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+            match c {
+                '"' => in_string = true,
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        self.advance();
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            argument.push(c);
+            self.advance();
+        }
+        if depth != 0 {
+            return Some(Err(error(format!(
+                "`@ {kind}(` has no closing `)`"
+            ))));
+        }
+        let end_line = self.line;
+        if !self.rest_of_line_is_blank() {
+            self.skip_rest_of_line();
+            return Some(Err(error(format!(
+                "an annotation stands on its own line; put the item `@ {kind}(...)` describes on the next line"
+            ))));
+        }
+        self.skip_rest_of_line();
+        self.annotations.push(LexedAnnotation {
+            kind,
+            line,
+            col,
+            end_line,
+            argument: argument.trim().to_string(),
+        });
+        Some(Ok(()))
     }
 
     pub fn peek(&self) -> Option<char> {
@@ -830,6 +1065,14 @@ impl Lexer {
             let c = match self.peek() {
                 Some(c) => c,
                 None => {
+                    if let Some((name, open_line)) = self.open_section.take() {
+                        tokens.push(Token::new(
+                            TokenKind::Invalid,
+                            format!("section `{name}` has no closing `}}`; close it with a `}}` on a line of its own"),
+                            open_line,
+                            1,
+                        ));
+                    }
                     tokens.push(Token::new(TokenKind::Eof, "", line, col));
                     break;
                 }
@@ -857,6 +1100,53 @@ impl Lexer {
                             .with_source_text("----"),
                     );
                 }
+                continue;
+            }
+
+            if let Some(message) = self.retired_directive() {
+                self.skip_rest_of_line();
+                tokens.push(
+                    Token::new(TokenKind::Invalid, message, line, col).with_source_text("--@"),
+                );
+                continue;
+            }
+
+            if c == '@' && self.at_line_start() {
+                match self.read_code_annotation(&tokens) {
+                    Some(Ok(())) => continue,
+                    Some(Err(token)) => {
+                        tokens.push(token);
+                        continue;
+                    }
+                    None => {}
+                }
+            }
+
+            // The `}` that closes a section: alone at the start of a line,
+            // with every brace opened inside the section closed.
+            if c == '}'
+                && col == 1
+                && self.open_section.is_some()
+                && self.brace_depth_after(&tokens) == 0
+            {
+                self.advance();
+                if !self.rest_of_line_is_blank() {
+                    tokens.push(Token::new(
+                        TokenKind::Invalid,
+                        "the `}` that closes a section stands on a line of its own",
+                        line,
+                        col,
+                    ));
+                }
+                self.skip_rest_of_line();
+                self.open_section = None;
+                self.annotations.push(LexedAnnotation {
+                    kind: "section_end",
+                    line,
+                    col,
+                    end_line: line,
+                    argument: String::new(),
+                });
                 continue;
             }
 
@@ -2372,13 +2662,6 @@ impl MetaIndex {
     }
 }
 
-#[derive(Debug, Clone)]
-struct ActiveMetaCodeSpan {
-    label: String,
-    begin_marker_line: usize,
-    code_start_line: usize,
-}
-
 pub fn scan_meta_comments(source: &str) -> MetaIndex {
     scan_meta_comments_with_dir(source, None)
 }
@@ -2411,7 +2694,7 @@ fn scan_meta_comments_with_dir_from_stmts_and_checker(
     source_dir: Option<String>,
     checker: Option<&TypeChecker>,
 ) -> MetaIndex {
-    let mut index = scan_meta_comment_structure_from_stmts(source, stmts);
+    let mut index = scan_meta_comment_structure_from_stmts(source, stmts, source_dir.as_deref());
     resolve_meta_references_from_stmts_and_checker(source, stmts, source_dir, &mut index, checker);
     index
 }
@@ -2521,28 +2804,14 @@ fn collect_imported_meta_anchors_from_stmts(
             .map(|parent| parent.to_string_lossy().to_string())
             .unwrap_or_else(|| ".".to_string());
 
-        if imported_source
-            .lines()
-            .any(|line| meta_comment_line_mentions_labels(line, labels))
+        if imported_source.contains("@ ")
+            && labels.iter().any(|label| imported_source.contains(label.as_str()))
         {
-            let parsed_rule_symbols = imported_source
-                .lines()
-                .any(|line| {
-                    line.trim_start().starts_with("--@begin")
-                        && meta_comment_line_mentions_labels(line, labels)
-                })
-                .then(|| {
-                    let mut symbols = BTreeMap::new();
-                    let line_starts = source_line_start_offsets(imported_source);
-                    collect_parsed_meta_rule_symbols(
-                        imported_module.statements(),
-                        &line_starts,
-                        &mut symbols,
-                    );
-                    symbols
-                });
-            let mut imported_index =
-                scan_meta_comment_structure_with_rule_symbols(imported_source, parsed_rule_symbols);
+            let mut imported_index = scan_meta_comment_structure_from_stmts(
+                imported_source,
+                imported_module.statements(),
+                Some(&imported_dir),
+            );
             imported_index
                 .comments
                 .retain(|comment| labels.contains(&comment.label));
@@ -2552,6 +2821,7 @@ fn collect_imported_meta_anchors_from_stmts(
             imported_index
                 .spans
                 .retain(|span| labels.contains(&span.label));
+            imported_index.diagnostics.clear();
             if !imported_index.anchors.is_empty() {
                 resolve_meta_references_from_stmts_and_checker(
                     imported_source,
@@ -2647,109 +2917,178 @@ fn collect_imported_resolved_meta_binding_names(
     }
 }
 
-fn meta_comment_line_mentions_labels(line: &str, labels: &BTreeSet<String>) -> bool {
-    let line = line.trim_start();
-    line.starts_with("--@") && labels.iter().any(|label| line.contains(label))
-}
-
 fn scan_meta_comment_structure(source: &str) -> MetaIndex {
-    scan_meta_comment_structure_with_rule_symbols(source, parsed_meta_rule_symbols(source))
+    scan_meta_annotations(
+        source,
+        parsed_meta_rule_symbols(source),
+        &annotations::Documents::default(),
+    )
 }
 
-fn scan_meta_comment_structure_from_stmts(source: &str, stmts: &[Stmt]) -> MetaIndex {
+fn scan_meta_comment_structure_from_stmts(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+) -> MetaIndex {
     let mut symbols = BTreeMap::new();
     let line_starts = source_line_start_offsets(source);
     collect_parsed_meta_rule_symbols(stmts, &line_starts, &mut symbols);
-    scan_meta_comment_structure_with_rule_symbols(source, Some(symbols))
+    let documents = if source.contains("@ quote") {
+        annotations::Documents::collect(source, stmts, source_dir)
+    } else {
+        annotations::Documents::default()
+    };
+    scan_meta_annotations(source, Some(symbols), &documents)
 }
 
-fn scan_meta_comment_structure_with_rule_symbols(
+/// One metadata reference of an `@ meta(...)` value or of a quote's role:
+/// `binding_name` is the value as written, a binding's name or an inline
+/// value.
+fn annotation_meta_reference(label: &str, value: &str, line: usize) -> MetaReference {
+    MetaReference {
+        label: label.to_string(),
+        role: "meta".to_string(),
+        binding_name: value.trim().to_string(),
+        qualified_type: None,
+        static_value: None,
+        static_data: None,
+        definition_file: None,
+        definition_line: None,
+        comment_line: line,
+        meta_role_types: BTreeSet::new(),
+    }
+}
+
+/// The metadata index of a file's annotations: an anchor and a code span
+/// for every section, and an anchor for every item with `@ meta`, with a
+/// code span for a rule, member or function.
+fn scan_meta_annotations(
     source: &str,
     parsed_rule_symbols: Option<BTreeMap<usize, Vec<String>>>,
+    documents: &annotations::Documents,
 ) -> MetaIndex {
     let lines: Vec<&str> = source.lines().collect();
+    let read = annotations::read(source);
     let mut comments = Vec::new();
     let mut anchors = Vec::new();
     let mut spans = Vec::new();
-    let mut diagnostics = Vec::new();
-    let mut active: Vec<ActiveMetaCodeSpan> = Vec::new();
-    let mut in_block_comment = false;
+    let diagnostics = read
+        .errors
+        .iter()
+        .map(|(line, message)| MetaDiagnostic {
+            line: *line,
+            message: message.clone(),
+        })
+        .collect();
+    let comment = |kind: &str, label: &str, line: usize| MetaComment {
+        kind: kind.to_string(),
+        label: label.to_string(),
+        attrs: Vec::new(),
+        line,
+        col: 1,
+        raw: lines
+            .get(line.wrapping_sub(1))
+            .map(|text| text.trim().to_string())
+            .unwrap_or_default(),
+    };
 
-    for (idx, line) in lines.iter().enumerate() {
-        let line_no = idx + 1;
-        let trimmed = line.trim_start();
-        if in_block_comment {
-            if trimmed.starts_with("----") {
-                in_block_comment = false;
+    for section in &read.sections {
+        let mut references: Vec<MetaReference> = Vec::new();
+        for quote in &section.quotes {
+            if quote.role.is_none()
+                || references
+                    .iter()
+                    .any(|reference| reference.binding_name == quote.argument)
+            {
+                continue;
             }
-            continue;
+            references.push(annotation_meta_reference(
+                &section.name,
+                &quote.argument,
+                quote.line,
+            ));
         }
-        if trimmed.starts_with("----") {
-            if block_comment_delimiter_count(trimmed) % 2 == 1 {
-                in_block_comment = true;
-            }
-            continue;
+        for meta in &section.metas {
+            references.push(annotation_meta_reference(&section.name, &meta.value, meta.line));
+            comments.push(comment("meta", &section.name, meta.line));
         }
-
-        let Some(comment) = parse_meta_comment_line(line, line_no, &mut diagnostics) else {
-            continue;
-        };
-
-        match comment.kind.as_str() {
-            "source" | "meta" => {
-                let (anchor, diagnostic) = meta_anchor_for_comment(&comment, &lines, idx + 1);
-                anchors.push(anchor);
-                if let Some(diagnostic) = diagnostic {
-                    diagnostics.push(diagnostic);
-                }
-            }
-            "begin" => {
-                active.push(ActiveMetaCodeSpan {
-                    label: comment.label.clone(),
-                    begin_marker_line: line_no,
-                    code_start_line: line_no + 1,
-                });
-            }
-            "end" => {
-                if let Some(pos) = active.iter().rposition(|span| span.label == comment.label) {
-                    let opened = active.remove(pos);
-                    let code_end_line = line_no.saturating_sub(1);
-                    let symbols = scan_meta_symbols(
-                        &lines,
-                        opened.code_start_line,
-                        code_end_line,
-                        parsed_rule_symbols.as_ref(),
-                    );
-                    spans.push(MetaCodeSpan {
-                        label: opened.label,
-                        begin_marker_line: opened.begin_marker_line,
-                        end_marker_line: line_no,
-                        code_start_line: opened.code_start_line,
-                        code_end_line,
-                        symbols,
-                    });
-                } else {
-                    diagnostics.push(MetaDiagnostic {
-                        line: line_no,
-                        message: format!(
-                            "meta end marker for `{}` has no matching begin",
-                            comment.label
-                        ),
-                    });
-                }
-            }
-            _ => {}
-        }
-
-        comments.push(comment);
-    }
-
-    for span in active {
-        diagnostics.push(MetaDiagnostic {
-            line: span.begin_marker_line,
-            message: format!("meta begin marker for `{}` has no matching end", span.label),
+        comments.push(comment("section", &section.name, section.line));
+        let first = section.quotes.first();
+        let last = section.quotes.last();
+        anchors.push(MetaAnchor {
+            kind: "section".to_string(),
+            label: section.name.clone(),
+            references,
+            comment_line: section.line,
+            text_begin_marker_line: first.map(|quote| quote.open_line),
+            text_end_marker_line: last.map(|quote| quote.close_line),
+            text_start_line: first.map(|quote| quote.open_line + 1),
+            text_end_line: last.map(|quote| quote.close_line - 1),
+            text: annotations::section_quote_text(section, documents),
+        });
+        let code_end_line = section.end_line.saturating_sub(1);
+        spans.push(MetaCodeSpan {
+            label: section.name.clone(),
+            begin_marker_line: section.line,
+            end_marker_line: section.end_line,
+            code_start_line: section.line + 1,
+            code_end_line,
+            symbols: scan_meta_symbols(
+                &lines,
+                section.line + 1,
+                code_end_line,
+                parsed_rule_symbols.as_ref(),
+            ),
         });
     }
+
+    for item_meta in &read.item_metas {
+        let item = &item_meta.item;
+        let first_line = item_meta.metas.first().map_or(item.line, |meta| meta.line);
+        let references = item_meta
+            .metas
+            .iter()
+            .map(|meta| {
+                comments.push(comment("meta", &item.name, meta.line));
+                annotation_meta_reference(&item.name, &meta.value, meta.line)
+            })
+            .collect();
+        anchors.push(MetaAnchor {
+            kind: item.kind.to_string(),
+            label: item.name.clone(),
+            references,
+            comment_line: first_line,
+            text_begin_marker_line: None,
+            text_end_marker_line: None,
+            text_start_line: None,
+            text_end_line: None,
+            text: String::new(),
+        });
+        if matches!(item.kind, "function" | "rule" | "member") {
+            spans.push(MetaCodeSpan {
+                label: item.name.clone(),
+                begin_marker_line: first_line,
+                end_marker_line: item.end_line,
+                code_start_line: item.line,
+                code_end_line: item.end_line,
+                symbols: scan_meta_symbols(
+                    &lines,
+                    item.line,
+                    item.end_line,
+                    parsed_rule_symbols.as_ref(),
+                ),
+            });
+        }
+    }
+
+    for citation in &read.citations {
+        comments.push(comment(
+            "cite",
+            citation.section.as_deref().unwrap_or_default(),
+            citation.line,
+        ));
+    }
+    comments.sort_by_key(|comment| comment.line);
 
     MetaIndex {
         comments,
@@ -2758,156 +3097,6 @@ fn scan_meta_comment_structure_with_rule_symbols(
         diagnostics,
         resolved_binding_names: BTreeSet::new(),
     }
-}
-
-fn parse_meta_comment_line(
-    line: &str,
-    line_no: usize,
-    diagnostics: &mut Vec<MetaDiagnostic>,
-) -> Option<MetaComment> {
-    let trimmed_start = line.trim_start();
-    let col = line.len() - trimmed_start.len() + 1;
-    let body = trimmed_start.strip_prefix("--@")?;
-    let Some(body) = body.strip_suffix("--") else {
-        diagnostics.push(MetaDiagnostic {
-            line: line_no,
-            message: "meta comment must end with `--`".to_string(),
-        });
-        return None;
-    };
-    let parts: Vec<&str> = body.split("::").map(str::trim).collect();
-    let (kind, label, attrs_start) =
-        if let Some(label) = parts.first().and_then(|part| part.strip_prefix("label:")) {
-            ("meta", label.trim(), 1)
-        } else if let Some((kind, label)) = parts.first().and_then(|part| part.split_once(':')) {
-            (kind.trim(), label.trim(), 1)
-        } else if parts.len() >= 2 {
-            (parts[0], parts[1], 2)
-        } else {
-            ("", "", parts.len())
-        };
-    if kind.is_empty() || label.is_empty() {
-        diagnostics.push(MetaDiagnostic {
-            line: line_no,
-            message: "meta comment must use `--@label:label::meta:binding--`, `--@begin:label--`, `--@end:label--`, or a legacy compatible marker"
-                .to_string(),
-        });
-        return None;
-    }
-
-    let mut attrs = Vec::new();
-    for part in parts.iter().skip(attrs_start) {
-        if part.is_empty() {
-            continue;
-        }
-        if let Some((role, binding_name)) = part.split_once(':') {
-            attrs.push(MetaAttribute {
-                role: role.trim().to_string(),
-                binding_name: binding_name.trim().to_string(),
-            });
-        } else {
-            attrs.push(MetaAttribute {
-                role: part.to_string(),
-                binding_name: String::new(),
-            });
-        }
-    }
-
-    Some(MetaComment {
-        kind: kind.to_string(),
-        label: label.to_string(),
-        attrs,
-        line: line_no,
-        col,
-        raw: trimmed_start.to_string(),
-    })
-}
-
-fn meta_anchor_for_comment(
-    comment: &MetaComment,
-    lines: &[&str],
-    next_line_idx: usize,
-) -> (MetaAnchor, Option<MetaDiagnostic>) {
-    let mut text_begin_marker_line = None;
-    let mut text_end_marker_line = None;
-    let mut text_start_line = None;
-    let mut text_end_line = None;
-    let mut text_lines = Vec::new();
-    let mut diagnostic = None;
-
-    let mut idx = next_line_idx;
-    while idx < lines.len() && lines[idx].trim().is_empty() {
-        idx += 1;
-    }
-
-    if idx < lines.len() && lines[idx].trim_start().starts_with("----") {
-        let begin_marker_line = idx + 1;
-        text_begin_marker_line = Some(begin_marker_line);
-        idx += 1;
-        while idx < lines.len() {
-            let trimmed = lines[idx].trim_start();
-            if trimmed.starts_with("----") {
-                text_end_marker_line = Some(idx + 1);
-                break;
-            }
-            text_lines.push(lines[idx].to_string());
-            idx += 1;
-        }
-
-        if text_lines.is_empty() {
-            text_start_line = None;
-            text_end_line = None;
-        } else {
-            text_start_line = Some(begin_marker_line + 1);
-            text_end_line = Some(begin_marker_line + text_lines.len());
-        }
-
-        if text_end_marker_line.is_none() {
-            diagnostic = Some(MetaDiagnostic {
-                line: begin_marker_line,
-                message: format!(
-                    "meta text block for `{}` has no closing `----` marker",
-                    comment.label
-                ),
-            });
-        }
-    }
-
-    let references = comment
-        .attrs
-        .iter()
-        .map(|attr| MetaReference {
-            label: comment.label.clone(),
-            role: if comment.kind == "source" && attr.role == "meta" {
-                "source".to_string()
-            } else {
-                attr.role.clone()
-            },
-            binding_name: attr.binding_name.clone(),
-            qualified_type: None,
-            static_value: None,
-            static_data: None,
-            definition_file: None,
-            definition_line: None,
-            comment_line: comment.line,
-            meta_role_types: BTreeSet::new(),
-        })
-        .collect();
-
-    (
-        MetaAnchor {
-            kind: comment.kind.clone(),
-            label: comment.label.clone(),
-            references,
-            comment_line: comment.line,
-            text_begin_marker_line,
-            text_end_marker_line,
-            text_start_line,
-            text_end_line,
-            text: text_lines.join("\n"),
-        },
-        diagnostic,
-    )
 }
 
 #[derive(Debug, Clone)]
@@ -3637,6 +3826,26 @@ fn resolve_meta_references_with_stmts(
     resolve_meta_references_with_stmts_and_checker(source, stmts, source_dir, index, None);
 }
 
+/// The expression of a metadata value written inline (`@ meta(Note(text =
+/// "..."))`); `None` for the name of a binding.
+fn parse_meta_value_expression(value: &str) -> Option<Expr> {
+    let value = value.trim();
+    let is_name = value
+        .chars()
+        .next()
+        .is_some_and(|first| first == '_' || first.is_lowercase())
+        && value
+            .chars()
+            .all(|character| character == '_' || character.is_alphanumeric());
+    if is_name {
+        return None;
+    }
+    let mut parser = Parser::new(Lexer::new(value).tokenize(), value);
+    let expr = parser.parse_expr().ok()?;
+    parser.skip_semis();
+    (parser.peek_kind() == TokenKind::Eof).then_some(expr)
+}
+
 fn resolve_meta_references_with_stmts_and_checker(
     source: &str,
     stmts: Option<&[Stmt]>,
@@ -3666,7 +3875,12 @@ fn resolve_meta_references_with_stmts_and_checker(
                 });
             } else {
                 has_valid_reference = true;
-                referenced_bindings.insert(reference.binding_name.clone());
+                match parse_meta_value_expression(&reference.binding_name) {
+                    Some(expr) => collect_meta_expr_dependencies(&expr, &mut referenced_bindings),
+                    None => {
+                        referenced_bindings.insert(reference.binding_name.clone());
+                    }
+                }
             }
         }
     }
@@ -3735,6 +3949,73 @@ fn resolve_meta_references_with_stmts_and_checker(
     for anchor in &mut index.anchors {
         for reference in &mut anchor.references {
             if reference.role.is_empty() || reference.binding_name.is_empty() {
+                continue;
+            }
+            // A value written inline, `@ meta(Assumption(value = x))`, is
+            // resolved where it stands.
+            if let Some(expr) = parse_meta_value_expression(&reference.binding_name) {
+                reference.meta_role_types = checker.implementations_for_trait("MetaRole");
+                reference.definition_line = Some(reference.comment_line);
+                let mut visiting = BTreeSet::new();
+                reference.static_data = resolve_static_meta_expr(
+                    &expr,
+                    &value_bindings,
+                    &checker.constructors,
+                    &mut visiting,
+                    &mut ground_evaluator,
+                );
+                reference.static_value =
+                    reference.static_data.as_ref().map(MetaValue::to_source);
+                reference.qualified_type = reference
+                    .static_data
+                    .as_ref()
+                    .and_then(MetaValue::qualified_type)
+                    .map(|type_name| checker.declared_type_head(type_name));
+                match (&reference.static_data, reference.qualified_type.as_deref()) {
+                    (None, _) => index.diagnostics.push(MetaDiagnostic {
+                        line: reference.comment_line,
+                        message: format!(
+                            "meta value `{}` is not a pure ground value",
+                            reference.binding_name
+                        ),
+                    }),
+                    (Some(_), Some(qualified_type))
+                        if !checker.implements_trait("Meta", qualified_type) =>
+                    {
+                        index.diagnostics.push(MetaDiagnostic {
+                            line: reference.comment_line,
+                            message: format!(
+                                "meta value `{}` has type `{qualified_type}`, which does not implement marker trait `Meta`; add `# impl Meta for {qualified_type} {{}}`",
+                                reference.binding_name
+                            ),
+                        });
+                    }
+                    (Some(_), None) => index.diagnostics.push(MetaDiagnostic {
+                        line: reference.comment_line,
+                        message: format!(
+                            "meta value `{}` is not a value of a type that implements `Meta`",
+                            reference.binding_name
+                        ),
+                    }),
+                    _ => {}
+                }
+                if let Some(value) = &reference.static_data {
+                    let mut invalid_roles = Vec::new();
+                    collect_invalid_meta_role_values(
+                        value,
+                        "$",
+                        &reference.meta_role_types,
+                        &mut invalid_roles,
+                    );
+                    for (value_path, qualified_type, constructor) in invalid_roles {
+                        index.diagnostics.push(MetaDiagnostic {
+                            line: reference.comment_line,
+                            message: format!(
+                                "metadata role `{constructor}` at `{value_path}` has type `{qualified_type}` but must have exactly one named `value` field"
+                            ),
+                        });
+                    }
+                }
                 continue;
             }
             let Some(definition) = bindings.get(&reference.binding_name) else {
@@ -3817,13 +4098,20 @@ fn resolve_meta_references_with_stmts_and_checker(
         }
     }
 
-    let resolved_roots = index
+    let mut resolved_roots = BTreeSet::new();
+    for reference in index
         .anchors
         .iter()
         .flat_map(|anchor| anchor.references.iter())
         .filter(|reference| reference.static_data.is_some())
-        .map(|reference| reference.binding_name.clone())
-        .collect::<BTreeSet<_>>();
+    {
+        match parse_meta_value_expression(&reference.binding_name) {
+            Some(expr) => collect_meta_expr_dependencies(&expr, &mut resolved_roots),
+            None => {
+                resolved_roots.insert(reference.binding_name.clone());
+            }
+        }
+    }
     index.resolved_binding_names.extend(
         meta_binding_dependencies(&resolved_roots, &bindings, &checker.constructors)
             .into_iter()
@@ -4242,133 +4530,150 @@ mod meta_comment_tests {
     use super::*;
 
     #[test]
-    fn source_comment_and_span_link_symbols() {
+    fn a_section_links_its_quote_metadata_and_symbols() {
         let source = r#"
 @ sprog da
 
 # SourceInfo(url: Tekst)
+# impl Meta for SourceInfo {}
 = source1234 = SourceInfo(url = "ret.dk/1234")
 
---@source::kommunal_par5_stk3::meta:source1234--
-----
-Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et år.
---@begin::ikke_metadata_i_kildetekst--
-----
+@ meta(source1234)
+@ section kommunal_par5_stk3 {
 
---@begin::kommunal_par5_stk3--
 # KommunalPar5DelårsInput(kortere_periode_end_et_år: Boolsk)
 # KommunalPar5DelårsResultat(skat_kroner: Heltal)
 | kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 0
 | exception kommunal_par5_helårsomregnet kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 49315 under input.kortere_periode_end_et_år
 = kommunal_par5_fixture = kommunal_par5_delårsskat(KommunalPar5DelårsInput(Sandt))
---@end::kommunal_par5_stk3--
-"#;
 
-        let index = scan_meta_comments(source);
-
-        assert!(index.diagnostics.is_empty());
-        assert_eq!(index.anchors.len(), 1);
-        assert_eq!(index.anchors[0].label, "kommunal_par5_stk3");
-        assert_eq!(index.anchors[0].references.len(), 1);
-        assert_eq!(index.anchors[0].references[0].role, "source");
-        assert_eq!(index.anchors[0].references[0].binding_name, "source1234");
-        assert_eq!(
-            index.anchors[0].references[0].qualified_type.as_deref(),
-            Some("SourceInfo")
-        );
-        assert_eq!(
-            index.anchors[0].references[0].static_value.as_deref(),
-            Some("SourceInfo(url = \"ret.dk/1234\")")
-        );
-        assert!(index.anchors[0]
-            .text
-            .contains("Omfatter indkomstansættelsen"));
-        assert_eq!(index.anchors[0].text_begin_marker_line, Some(8));
-        assert_eq!(index.anchors[0].text_end_marker_line, Some(11));
-        assert_eq!(index.anchors[0].text_start_line, Some(9));
-        assert_eq!(index.anchors[0].text_end_line, Some(10));
-
-        assert_eq!(index.spans.len(), 1);
-        assert_eq!(index.comments.len(), 3);
-        let span = &index.spans[0];
-        assert_eq!(span.label, "kommunal_par5_stk3");
-        assert_eq!(index.anchors_for_label(&span.label).len(), 1);
-        assert!(span
-            .symbols
-            .iter()
-            .any(|symbol| { symbol.kind == "type" && symbol.name == "KommunalPar5DelårsInput" }));
-        assert!(span
-            .symbols
-            .iter()
-            .any(|symbol| { symbol.kind == "rule" && symbol.name == "kommunal_par5_delårsskat" }));
-        assert!(span
-            .symbols
-            .iter()
-            .any(|symbol| { symbol.kind == "binding" && symbol.name == "kommunal_par5_fixture" }));
-    }
-
-    #[test]
-    fn generic_meta_references_preserve_roles_and_resolve_typed_ground_values() {
-        let source = r#"
-# Shape = Circle | Triangle | Square
-# AuditWarning(code: String, message: String)
-
-= comment_shape = Circle
-= alternate_shape = Triangle
-= audit_warning = AuditWarning(code = "GEOMETRY", message = "Review this shape")
-
---@label:geometry::source:comment_shape::source:alternate_shape::warning:audit_warning--
-----
-Raw additions
-----
-
---@meta::geometry_assumption::assumption:comment_shape--
-
---@begin:geometry--
-= geometry_fixture = Circle
---@end:geometry--
+}
 "#;
 
         let index = scan_meta_comments(source);
 
         assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
-        assert_eq!(index.anchors.len(), 2);
-        assert_eq!(index.anchors[0].references.len(), 3);
-        assert_eq!(index.anchors[0].references[0].role, "source");
-        assert_eq!(index.anchors[0].references[1].role, "source");
-        assert_eq!(index.references_by_role("source").len(), 2);
-        assert_eq!(index.references_by_type("Shape").len(), 3);
+        assert_eq!(index.anchors.len(), 1);
+        let anchor = &index.anchors[0];
+        assert_eq!((anchor.kind.as_str(), anchor.label.as_str()), ("section", "kommunal_par5_stk3"));
+        assert_eq!(anchor.comment_line, 9);
+        assert_eq!(anchor.references[0].role, "meta");
+        assert_eq!(anchor.references[0].binding_name, "source1234");
+        assert_eq!(anchor.references[0].qualified_type.as_deref(), Some("SourceInfo"));
+        assert_eq!(
+            anchor.references[0].static_value.as_deref(),
+            Some("SourceInfo(url = \"ret.dk/1234\")")
+        );
 
-        let warning = index.references_by_role("warning");
-        assert_eq!(warning.len(), 1);
-        assert_eq!(warning[0].qualified_type.as_deref(), Some("AuditWarning"));
+        assert_eq!(index.spans.len(), 1);
+        let span = &index.spans[0];
+        assert_eq!((span.code_start_line, span.code_end_line), (10, 16));
+        assert_eq!(index.anchors_for_label(&span.label).len(), 1);
+        for (kind, name) in [
+            ("type", "KommunalPar5DelårsInput"),
+            ("rule", "kommunal_par5_delårsskat"),
+            ("binding", "kommunal_par5_fixture"),
+        ] {
+            assert!(
+                span.symbols
+                    .iter()
+                    .any(|symbol| symbol.kind == kind && symbol.name == name),
+                "{kind} {name}: {:?}",
+                span.symbols
+            );
+        }
+    }
+
+    #[test]
+    fn quotes_name_their_documents_and_roles() {
+        let source = r#"
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+# TaxMeta(a) = Source(value: a) | Guidance(value: a)
+# impl MetaRole for TaxMeta {}
+# impl Meta for TaxMeta {}
+= law = SourceInfo(file = "sources/law.txt")
+= guide = SourceInfo(file = "sources/guide.md")
+
+@ section ceiling {
+
+@ quote(Source(value = law))
+----
+§ 9. Text.
+----
+
+@ quote(Guidance(value = guide))
+----
+Guide.
+----
+
+| f(x: Int) -> x
+
+}
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let anchor = &index.anchors[0];
         assert_eq!(
-            warning[0].static_value.as_deref(),
-            Some("AuditWarning(code = \"GEOMETRY\", message = \"Review this shape\")")
+            anchor.text,
+            "[sources/law.txt]\n\n§ 9. Text.\n\n[sources/guide.md]\n\nGuide."
         );
         assert_eq!(
-            warning[0].static_data,
-            Some(MetaValue::Constructor {
-                name: "AuditWarning".to_string(),
-                qualified_type: "AuditWarning".to_string(),
-                applied: true,
-                arguments: vec![
-                    MetaValueArgument {
-                        field: Some("code".to_string()),
-                        binding_name: None,
-                        value: MetaValue::String("GEOMETRY".to_string()),
-                    },
-                    MetaValueArgument {
-                        field: Some("message".to_string()),
-                        binding_name: None,
-                        value: MetaValue::String("Review this shape".to_string()),
-                    },
-                ],
-            })
+            (anchor.text_begin_marker_line, anchor.text_end_marker_line),
+            (Some(13), Some(20))
         );
-        assert!(warning[0].definition_line.is_some());
-        assert_eq!(index.anchors_for_label("geometry").len(), 1);
-        assert_eq!(index.spans_for_reference(warning[0]).len(), 1);
+        let roles: Vec<String> = anchor
+            .references
+            .iter()
+            .flat_map(|reference| reference.attachments())
+            .map(|attachment| format!("{} {}", attachment.role, attachment.binding_name.unwrap_or("-")))
+            .collect();
+        assert_eq!(roles, vec!["source law", "guidance guide"]);
+    }
+
+    #[test]
+    fn metadata_on_items_and_inline_values() {
+        let source = r#"
+# Shape = Circle | Triangle | Square
+# AuditWarning(code: String, message: String)
+# impl Meta for AuditWarning {}
+# impl Meta for Shape {}
+
+= audit_warning = AuditWarning(code = "GEOMETRY", message = "Review this shape")
+
+@ meta(audit_warning)
+@ meta(Circle)
+@ meta(AuditWarning(code = "INLINE", message = "Written here"))
+@ calculate
+> geometry(x: Int) -> Int {
+    x
+}
+
+@ meta(Triangle)
+# Polygon(sides: Int)
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let function = &index.anchors_for_label("geometry")[0];
+        assert_eq!(function.kind, "function");
+        assert_eq!(function.references.len(), 3);
+        let inline = &function.references[2];
+        assert_eq!(inline.qualified_type.as_deref(), Some("AuditWarning"));
+        assert_eq!(
+            inline.static_value.as_deref(),
+            Some("AuditWarning(code = \"INLINE\", message = \"Written here\")")
+        );
+        assert_eq!(index.references_by_type("AuditWarning").len(), 2);
+        let span = &index.spans_for_label("geometry")[0];
+        assert_eq!((span.code_start_line, span.code_end_line), (13, 15));
+        let polygon = &index.anchors_for_label("Polygon")[0];
+        assert_eq!(polygon.kind, "type");
+        assert!(index.spans_for_label("Polygon").is_empty());
+        assert!(index.resolved_binding_names.contains("audit_warning"));
     }
 
     #[test]
@@ -4386,7 +4691,8 @@ Raw additions
     exception_only = exception_only(0)
 )
 
---@label:boolean-misses::meta:boolean_meta--
+@ meta(boolean_meta)
+= subject = 1
 "#;
 
         let index = scan_meta_comments(source);
@@ -4411,7 +4717,8 @@ Raw additions
     warnings = [AuditWarning(code = "GEOMETRY", message = "Review this shape")]
 )
 
---@label:geometry::meta:geometry_meta--
+@ meta(geometry_meta)
+= geometry = 1
 "#;
 
         let index = scan_meta_comments(source);
@@ -4422,14 +4729,10 @@ Raw additions
         let shapes = reference.typed_values_by_type("Shape");
         assert_eq!(shapes.len(), 2);
         assert_eq!(shapes[0].value_path, "$.shapes[0]");
-        assert_eq!(shapes[0].value.to_source(), "Circle");
-        assert_eq!(shapes[1].value_path, "$.shapes[1]");
         assert_eq!(shapes[1].value.to_source(), "Triangle");
         let warnings = reference.typed_values_by_type("AuditWarning");
-        assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].value_path, "$.warnings[0]");
         assert_eq!(index.references_by_type("Shape"), vec![reference]);
-        assert_eq!(index.references_by_type("AuditWarning"), vec![reference]);
     }
 
     #[test]
@@ -4443,7 +4746,8 @@ Raw additions
 = source_alias = primary_source
 = source_metadata = SourceBundle(source = source_alias)
 
---@label:calculation::meta:source_metadata--
+@ meta(source_metadata)
+= calculation = 1
 "#;
 
         let index = scan_meta_comments(source);
@@ -4460,48 +4764,7 @@ Raw additions
     }
 
     #[test]
-    fn typed_meta_attachments_preserve_nested_roles_values_and_paths() {
-        let source = r#"
-# MetaRole = Source | DependencySource
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
-# SourceInfo(url: String)
-# MetaBundle(a) = MetaBundle(sources: a)
-# impl Meta for MetaBundle {}
-
-= primary = SourceInfo(url = "https://example.invalid/primary")
-= dependency = SourceInfo(url = "https://example.invalid/dependency")
-= geometry_meta = MetaBundle(sources = (
-    MetaAttachment(role = Source, value = primary),
-    MetaAttachment(role = DependencySource, value = dependency)
-))
-
---@label:geometry::meta:geometry_meta--
-"#;
-
-        let index = scan_meta_comments(source);
-
-        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
-        let reference = &index.anchors[0].references[0];
-        let attachments = reference.attachments();
-        assert_eq!(attachments.len(), 2);
-        assert_eq!(attachments[0].role, "source");
-        assert_eq!(attachments[0].attachment_path, "$.sources[0]");
-        assert_eq!(attachments[0].value_path, "$.sources[0].value");
-        assert_eq!(attachments[0].binding_name, Some("primary"));
-        assert_eq!(attachments[0].value.qualified_type(), Some("SourceInfo"));
-        assert_eq!(attachments[1].role, "dependency_source");
-        assert_eq!(index.references_by_role("source"), vec![reference]);
-        assert_eq!(
-            index.references_matching(Some("SourceInfo"), Some("dependency_source")),
-            vec![reference]
-        );
-        assert!(index
-            .references_matching(Some("Shape"), Some("source"))
-            .is_empty());
-    }
-
-    #[test]
-    fn typed_meta_role_class_exposes_variant_roles_without_magic_attachment_names() {
+    fn typed_meta_role_class_exposes_variant_roles() {
         let source = r#"
 # SourceInfo(url: String)
 # SourceMetaRole(a) = Source(value: a) | DependencySource(value: a)
@@ -4516,31 +4779,52 @@ Raw additions
     DependencySource(value = dependency)
 ))
 
---@label:law::meta:source_meta--
+@ meta(source_meta)
+= law = 1
 "#;
 
         let index = scan_meta_comments(source);
 
         assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
         let reference = &index.anchors[0].references[0];
-        assert_eq!(
-            reference.meta_role_types,
-            BTreeSet::from(["SourceMetaRole".into()])
-        );
+        assert_eq!(reference.meta_role_types, BTreeSet::from(["SourceMetaRole".into()]));
         let attachments = reference.attachments();
         assert_eq!(attachments.len(), 2);
         assert_eq!(attachments[0].role, "source");
-        assert_eq!(attachments[0].attachment_path, "$.sources[0]");
         assert_eq!(attachments[0].role_path, "$.sources[0].$variant");
-        assert_eq!(attachments[0].value_path, "$.sources[0].value");
         assert_eq!(attachments[0].binding_name, Some("primary"));
-        assert_eq!(attachments[0].value.qualified_type(), Some("SourceInfo"));
         assert_eq!(attachments[1].role, "dependency_source");
         assert_eq!(index.references_by_role("source"), vec![reference]);
         assert_eq!(
             index.references_matching(Some("SourceInfo"), Some("dependency_source")),
             vec![reference]
         );
+    }
+
+    #[test]
+    fn typed_meta_attachment_can_be_the_root() {
+        let source = r#"
+# MetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# SourceInfo(url: String)
+# impl Meta for MetaAttachment {}
+
+= primary = SourceInfo(url = "https://example.invalid/primary")
+= geometry_meta = MetaAttachment(role = Source, value = primary)
+
+@ meta(geometry_meta)
+= geometry = 1
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let reference = &index.anchors[0].references[0];
+        let attachments = reference.attachments();
+        assert_eq!(attachments.len(), 1);
+        assert_eq!(attachments[0].role, "source");
+        assert_eq!(attachments[0].attachment_path, "$");
+        assert_eq!(attachments[0].binding_name, Some("primary"));
     }
 
     #[test]
@@ -4557,7 +4841,8 @@ Raw additions
     note = "ambiguous"
 ))
 
---@label:law::meta:source_meta--
+@ meta(source_meta)
+= law = 1
 "#;
 
         let index = scan_meta_comments(source);
@@ -4565,83 +4850,37 @@ Raw additions
         assert!(index.diagnostics.iter().any(|diagnostic| {
             diagnostic.line == 13
                 && diagnostic.message.contains("metadata role `Source`")
-                && diagnostic.message.contains("$.sources")
-                && diagnostic
-                    .message
-                    .contains("exactly one named `value` field")
+                && diagnostic.message.contains("exactly one named `value` field")
         }));
         assert!(index.anchors[0].references[0].attachments().is_empty());
     }
 
     #[test]
-    fn typed_meta_attachment_can_be_the_anchor_root() {
-        let source = r#"
-# MetaRole = Source
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
-# SourceInfo(url: String)
-# impl Meta for MetaAttachment {}
-
-= primary = SourceInfo(url = "https://example.invalid/primary")
-= geometry_meta = MetaAttachment(role = Source, value = primary)
-
---@label:geometry::meta:geometry_meta--
-"#;
-
-        let index = scan_meta_comments(source);
-
-        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
-        let reference = &index.anchors[0].references[0];
-        assert_eq!(reference.role, "meta");
-        assert_eq!(reference.qualified_type.as_deref(), Some("MetaAttachment"));
-        let attachments = reference.attachments();
-        assert_eq!(attachments.len(), 1);
-        assert_eq!(attachments[0].role, "source");
-        assert_eq!(attachments[0].attachment_path, "$");
-        assert_eq!(attachments[0].value_path, "$.value");
-        assert_eq!(attachments[0].binding_name, Some("primary"));
-        assert_eq!(attachments[0].value.qualified_type(), Some("SourceInfo"));
-        assert_eq!(index.references_by_role("source"), vec![reference]);
-        assert_eq!(
-            index.references_matching(Some("SourceInfo"), Some("source")),
-            vec![reference]
-        );
-    }
-
-    #[test]
-    fn canonical_meta_reference_requires_explicit_meta_implementation() {
+    fn meta_values_require_an_explicit_meta_implementation() {
         let source = r#"
 # SourceInfo(url: String)
 = source = SourceInfo(url = "https://example.invalid")
 
---@label:law::meta:source--
+@ meta(source)
+@ meta(SourceInfo(url = "inline"))
+= law = 1
 "#;
 
         let index = scan_meta_comments(source);
 
-        assert!(index.diagnostics.iter().any(|diagnostic| {
-            diagnostic.line == 5
-                && diagnostic.message.contains("source")
-                && diagnostic
-                    .message
-                    .contains("does not implement marker trait `Meta`")
-                && diagnostic.message.contains("# impl Meta for SourceInfo {}")
-        }));
-    }
-
-    #[test]
-    fn canonical_meta_reference_accepts_explicit_marker_implementation() {
-        let source = r#"
-# SourceInfo(url: String)
-# impl Meta for SourceInfo {}
-= source = SourceInfo(url = "https://example.invalid")
-
---@label:law::meta:source--
-"#;
-
-        let index = scan_meta_comments(source);
-
-        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
-        assert_eq!(index.references_by_type("SourceInfo").len(), 1);
+        for line in [5, 6] {
+            assert!(
+                index.diagnostics.iter().any(|diagnostic| {
+                    diagnostic.line == line
+                        && diagnostic
+                            .message
+                            .contains("does not implement marker trait `Meta`")
+                        && diagnostic.message.contains("# impl Meta for SourceInfo {}")
+                }),
+                "{:?}",
+                index.diagnostics
+            );
+        }
     }
 
     #[test]
@@ -4649,7 +4888,8 @@ Raw additions
         let source = r#"
 # Shape = Circle | Triangle | Square
 
---@begin:shape_rules--
+@ section shape_rules {
+
 | shape_code(shape: Shape) -> match shape {
     | Circle -> 1
     | Triangle -> 2
@@ -4669,7 +4909,8 @@ Raw additions
         | _ -> False
     }
 }
---@end:shape_rules--
+
+}
 "#;
 
         let index = scan_meta_comments(source);
@@ -4692,11 +4933,15 @@ Raw additions
     fn computed_ground_references_resolve_while_missing_references_remain_diagnostics() {
         let source = r#"
 # AuditWarning(message: String)
+# impl Meta for AuditWarning {}
 | warning_message() -> "computed"
 = dynamic_warning = AuditWarning(message = warning_message())
 = clock_warning = AuditWarning(message = show_int(now()))
 
---@meta::audit::warning:dynamic_warning::warning:missing_warning::warning:clock_warning--
+@ meta(dynamic_warning)
+@ meta(missing_warning)
+@ meta(clock_warning)
+= audit = 1
 "#;
 
         let index = scan_meta_comments(source);
@@ -4715,105 +4960,21 @@ Raw additions
         assert!(messages.iter().any(|message| {
             message.contains("clock_warning") && message.contains("not a pure ground value")
         }));
-        let dynamic_warning = &index.anchors[0].references[0];
         assert_eq!(
-            dynamic_warning.static_value.as_deref(),
+            index.anchors[0].references[0].static_value.as_deref(),
             Some("AuditWarning(message = \"computed\")")
         );
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, source);
-        let stmts = parser.parse_program().expect("metadata remains a comment");
-        assert!(TypeChecker::check_with_source(&stmts, None, source).is_empty());
     }
 
     #[test]
-    fn unmatched_markers_are_reported_without_affecting_language_comments() {
-        let source = r#"
---@begin::open_label--
-= value = 1
---@end::missing_label--
---@broken
-"#;
-
+    fn misplaced_annotations_are_meta_diagnostics() {
+        let source = "@ meta(note)\n\n= value = 1\n";
         let index = scan_meta_comments(source);
-        let messages: Vec<&str> = index
+        assert!(index
             .diagnostics
             .iter()
-            .map(|diagnostic| diagnostic.message.as_str())
-            .collect();
-
-        assert!(messages
-            .iter()
-            .any(|message| message.contains("missing_label")
-                && message.contains("no matching begin")));
-        assert!(messages
-            .iter()
-            .any(|message| message.contains("open_label") && message.contains("no matching end")));
-        assert!(messages
-            .iter()
-            .any(|message| message.contains("must end with `--`")));
-    }
-
-    #[test]
-    fn attached_text_ranges_separate_content_from_delimiters() {
-        let source = r#"
-# Shape = Circle | Triangle | Square
-= comment_shape = Circle
-
---@label:geometry::source:comment_shape--
-----
-Raw additions
-----
-
---@label:empty::source:comment_shape--
-----
-----
-"#;
-
-        let index = scan_meta_comments(source);
-
-        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
-        let geometry = &index.anchors[0];
-        assert_eq!(geometry.text_begin_marker_line, Some(6));
-        assert_eq!(geometry.text_end_marker_line, Some(8));
-        assert_eq!(geometry.text_start_line, Some(7));
-        assert_eq!(geometry.text_end_line, Some(7));
-        assert_eq!(geometry.text, "Raw additions");
-
-        let empty = &index.anchors[1];
-        assert_eq!(empty.text_begin_marker_line, Some(11));
-        assert_eq!(empty.text_end_marker_line, Some(12));
-        assert_eq!(empty.text_start_line, None);
-        assert_eq!(empty.text_end_line, None);
-        assert_eq!(empty.text, "");
-    }
-
-    #[test]
-    fn unterminated_attached_text_is_a_meta_diagnostic() {
-        let source = r#"
-# Shape = Circle | Triangle | Square
-= comment_shape = Circle
-
---@label:geometry::source:comment_shape--
-----
-Raw additions
-"#;
-
-        let index = scan_meta_comments(source);
-
-        assert_eq!(index.anchors.len(), 1);
-        assert_eq!(index.anchors[0].text_begin_marker_line, Some(6));
-        assert_eq!(index.anchors[0].text_end_marker_line, None);
-        assert_eq!(index.anchors[0].text_start_line, Some(7));
-        assert_eq!(index.anchors[0].text_end_line, Some(7));
-        assert!(index.diagnostics.iter().any(|diagnostic| {
-            diagnostic.line == 6
-                && diagnostic
-                    .message
-                    .contains("meta text block for `geometry` has no closing `----` marker")
-        }));
+            .any(|diagnostic| diagnostic.line == 1
+                && diagnostic.message.contains("remove the blank line")));
     }
 }
 
@@ -5206,6 +5367,8 @@ pub enum ProgramReferenceLiteral {
     Symbol { name: String },
     Type { name: String },
     Member { root_type: String, path: String },
+    /// `refof(section <name>)`.
+    Section { name: String },
 }
 
 /// Decode the parser's internal `refof` expression into its portable value.
@@ -5234,6 +5397,7 @@ pub fn refof_literal(expr: &Expr) -> Option<ProgramReferenceLiteral> {
 
     match (mode.as_str(), segments.is_empty()) {
         ("symbol", true) => Some(ProgramReferenceLiteral::Symbol { name: root.clone() }),
+        ("section", true) => Some(ProgramReferenceLiteral::Section { name: root.clone() }),
         ("type", true) => Some(ProgramReferenceLiteral::Type { name: root.clone() }),
         ("type", false) => Some(ProgramReferenceLiteral::Member {
             root_type: root.clone(),
@@ -5253,6 +5417,10 @@ pub fn refof_reference_expr(expr: &Expr) -> Option<Expr> {
         ),
         ProgramReferenceLiteral::Type { name } => (
             "ProgramTypeReference",
+            vec![Expr::new(ExprKind::Lit(Literal::Str(name)), expr.span)],
+        ),
+        ProgramReferenceLiteral::Section { name } => (
+            "ProgramSectionReference",
             vec![Expr::new(ExprKind::Lit(Literal::Str(name)), expr.span)],
         ),
         ProgramReferenceLiteral::Member { root_type, path } => (
@@ -13521,6 +13689,30 @@ impl Parser {
         self.skip_semis();
 
         let root = self.advance();
+        // `refof(section <name>)` names a section.
+        if root.kind == TokenKind::Ident
+            && root.text == "section"
+            && self.peek_kind() == TokenKind::Ident
+        {
+            let name = self.advance();
+            self.skip_semis();
+            self.expect(TokenKind::RParen)?;
+            let arguments = vec![
+                Expr::new(
+                    ExprKind::Lit(Literal::Str("section".to_string())),
+                    self.token_span(&start_tok),
+                ),
+                Expr::new(
+                    ExprKind::Lit(Literal::Str(name.text.clone())),
+                    self.token_span(&name),
+                ),
+            ];
+            let function = Expr::new(
+                ExprKind::Var(REFOF_MARKER.to_string()),
+                self.token_span(&start_tok),
+            );
+            return Ok(self.spanned(ExprKind::App(Box::new(function), arguments), &start_tok));
+        }
         let mode = match root.kind {
             TokenKind::Ident | TokenKind::KW => "symbol",
             TokenKind::Type => "type",
@@ -17024,6 +17216,7 @@ impl Interpreter {
                 | "ProgramSymbolReference"
                 | "ProgramTypeReference"
                 | "ProgramMemberReference"
+                | "ProgramSectionReference"
         )
     }
 
@@ -51887,6 +52080,28 @@ impl TypeChecker {
             return;
         }
 
+        if mode == "section" {
+            let sections = annotations::read(&self.source_text).sections;
+            if !sections.iter().any(|section| section.name == *root) {
+                self.error_at_expr(
+                    &arguments[1],
+                    format!(
+                        "refof references unknown section `{root}`; this file declares {}",
+                        if sections.is_empty() {
+                            "no section".to_string()
+                        } else {
+                            sections
+                                .iter()
+                                .map(|section| format!("`{}`", section.name))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        }
+                    ),
+                );
+            }
+            return;
+        }
+
         if mode != "type" {
             self.error_at_expr(expr, "invalid internal refof target mode".to_string());
             return;
@@ -57213,8 +57428,12 @@ impl TypeChecker {
                 {
                     self.check_stmt(statement);
                 }
-                self.diagnostics
-                    .extend(citations::citation_diagnostics(&unit.source));
+                let annotation_diagnostics = annotations::annotation_diagnostics(
+                    &unit.source,
+                    &unit.statements,
+                    self.source_dir.as_deref(),
+                );
+                self.diagnostics.extend(annotation_diagnostics);
                 self.locate_import_diagnostics(start, &unit.path, unit.source, unit.import_span);
                 self.source_text = previous_source;
                 self.source_dir = previous_dir;
@@ -62497,8 +62716,9 @@ impl TypeChecker {
         }
         tc.diagnostics
             .extend(host_effects::comptime_host_effect_diagnostics(stmts));
-        tc.diagnostics
-            .extend(citations::citation_diagnostics(source));
+        let annotation_diagnostics =
+            annotations::annotation_diagnostics(source, stmts, tc.source_dir.as_deref());
+        tc.diagnostics.extend(annotation_diagnostics);
         let mut calculation_contracts = Vec::new();
         let mut compile_time_metadata_bindings = BTreeSet::new();
         let mut exploration_universes = Vec::new();

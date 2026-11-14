@@ -19,7 +19,7 @@ test('refund mapping exposes typed law, warning and both source-linked helpers',
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
   const meta = JSON.parse(result.stdout);
-  assert.equal(meta.schema, 'futuruna.meta.v1');
+  assert.equal(meta.schema, 'futuruna.meta.v2');
   assert.deepEqual(meta.diagnostics, []);
   const label = 'personskat_aarsopgoerelse_tilbagebetaling';
   const anchors = meta.anchors.filter(anchor => anchor.label === label);

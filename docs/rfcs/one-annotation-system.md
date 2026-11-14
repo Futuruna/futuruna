@@ -1,6 +1,8 @@
 # RFC: One annotation system
 
-Status: Proposed (Futuruna 0.5). Replaces the `--@` comment directives.
+Status: Implemented (Futuruna 0.4, Experimental). Replaces the `--@` comment
+directives. The decisions the implementation took where this RFC left a
+detail open are listed under [Decisions](#decisions).
 
 ## Problem
 
@@ -491,6 +493,61 @@ RFCs) are migrated in the same change.
 - **Resolving amendments silently** (a plain `§ 8 a, stk. 1, 1. pkt.` shows
   the amended text when an instruction is quoted). The code reader would not
   see that the rule rests on two acts; `as amended` costs two words.
+
+## Decisions
+
+Details the design above leaves open, as implemented:
+
+- **Annotations are read whole.** The lexer reads an `@ section`,
+  `@ quote(...)`, `@ cite(...)` or `@ meta(...)` line (an argument may span
+  lines) and the `}` that closes a section, and emits no tokens for them: a
+  program's statements, content hashes and contracts are the same with or
+  without its annotations. The annotation reader then attaches each one to
+  the item on the line below it and reports any it cannot attach. The `}` of
+  a section is a `}` alone at the start of a line with every brace opened
+  inside the section closed.
+- **Every `@ section` is a section.** Explanations and needs report a
+  section whether it quotes or not. A section that quotes a document is a
+  law section (the rank `waiting` prefers); one that quotes nothing is a
+  section of checks.
+- **Text with no saved document is not a quote.** `runa fmt --migrate`
+  keeps a quote that names no `[sources/...]` document (Futuruna's own
+  examples quote law they have not saved) as a `----` block comment directly
+  above the section, since a quote must be compared with a file.
+- **Section names** are unique per file; a second `@ section` with a name
+  already used in the file is an error. `refof(section <name>)` is a
+  `ProgramSectionReference(name)` and is checked against the sections of the
+  file it stands in.
+- **`@ meta` on a function, rule clause or member** gives that item a code
+  span, as the `--@begin`/`--@end` pair around an entry did, so entry
+  metadata reaches explanations and the contract unchanged. On a data type
+  or a binding it describes the declaration and has no span.
+- **A value may be written inline.** `@ meta(<value>)` takes a binding's
+  name or any ground value; the role of a `MetaRole` value is its
+  constructor, as in a metadata binding. Direct role chains
+  (`::source:binding`) are gone: the migration writes `@ meta(binding)` and
+  reports the role it dropped.
+- **Paragraph numbers compare without case**: `§ 8 a` and `§ 8 A` are the
+  same paragraph; a citation is shown as written.
+- **Sentences.** Besides a capital letter, a sentence may open with an
+  ordinal (`1. og 2. pkt. gælder ...`). The abbreviations are `kr.`, `pct.`,
+  `stk.`, `nr.`, `pkt.`, `jf.`, `m.v.`, `f.eks.` and `bl.a.`; a `pct.` that
+  ends a sentence therefore does not split it.
+- **Amending acts as LexDania renders them.** `§ 9 Stk. 1. ...` opens
+  paragraph 9, subsection 1. An instruction may read `N. I <passage>,
+  ændres ...`. The act a cited passage `as_amended_by` names is the
+  `Document identifier` of the amending act's saved file, else the
+  document's `identifier` field.
+- **The quote check** runs at the start of `runa check`, on every check: the
+  saved documents are not part of the check cache's key. Document files are
+  relative to the project root of the checked model, for imported files too.
+- **Explanations** keep the `[<file>]` line before each document's text in
+  a section's `quote`, so the text reads as before; sections add `documents`
+  (binding, file, role) and, when an instruction amends a quoted base
+  passage, `superseded`.
+- **`runa meta --json`** writes `futuruna.meta.v2`: every anchor names its
+  `target` (`kind`: `section`, `type`, `binding`, `function`, `rule` or
+  `member`, and `name`).
 
 ## Open questions
 

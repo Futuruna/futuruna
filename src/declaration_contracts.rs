@@ -16,6 +16,7 @@ const RESERVED_CONSTRUCTORS: &[(&str, Option<&str>)] = &[
     ("ProgramSymbolReference", Some("ProgramReference")),
     ("ProgramTypeReference", Some("ProgramReference")),
     ("ProgramMemberReference", Some("ProgramReference")),
+    ("ProgramSectionReference", Some("ProgramReference")),
     ("Nil", None),
     ("Cons", None),
 ];
