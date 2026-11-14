@@ -193,13 +193,28 @@ impl MigrationProgram {
         }
     }
 
-    /// The types that quoted documents have but that do not implement
-    /// `Document`, with the file and line declaring each.
-    pub fn missing_document_impls(&self, constructors: &BTreeSet<String>) -> Vec<(String, PathBuf)> {
+    /// The types that quoted documents of `file` (whose text is `source`)
+    /// have but that do not implement `Document`, with the file declaring
+    /// each: `file` itself when it declares the type (independent models
+    /// may declare types of one name), else the program's declaration.
+    pub fn missing_document_impls(
+        &self,
+        constructors: &BTreeSet<String>,
+        file: &Path,
+        source: &str,
+    ) -> Vec<(String, PathBuf)> {
         constructors
             .iter()
-            .filter(|name| !self.document_types.contains(*name))
             .filter_map(|name| {
+                if source.lines().any(|line| line.starts_with(&format!("# {name}("))) {
+                    let implemented = source
+                        .lines()
+                        .any(|line| line.starts_with(&format!("# impl Document for {name} ")));
+                    return (!implemented).then(|| (name.clone(), file.to_path_buf()));
+                }
+                if self.document_types.contains(name) {
+                    return None;
+                }
                 self.types
                     .get(name)
                     .map(|(path, _)| (name.clone(), path.clone()))

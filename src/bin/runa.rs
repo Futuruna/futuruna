@@ -20802,7 +20802,7 @@ fn migrate_targets(targets: &[String], check: bool) {
     files.sort();
     files.dedup();
     let mut programs: BTreeMap<PathBuf, MigrationProgram> = BTreeMap::new();
-    let mut missing_impls: BTreeMap<String, PathBuf> = BTreeMap::new();
+    let mut missing_impls: BTreeSet<(String, PathBuf)> = BTreeSet::new();
     let (mut migrated, mut failed) = (0usize, 0usize);
     for path in &files {
         let source = match std::fs::read_to_string(path) {
@@ -20841,9 +20841,11 @@ fn migrate_targets(targets: &[String], check: bool) {
         for note in &result.notes {
             eprintln!("{path}: {note}");
         }
-        for (type_name, file) in program.missing_document_impls(&result.document_constructors) {
-            missing_impls.entry(type_name).or_insert(file);
-        }
+        missing_impls.extend(program.missing_document_impls(
+            &result.document_constructors,
+            Path::new(path),
+            &source,
+        ));
         migrated += 1;
         if check {
             eprintln!("{path} needs migration");

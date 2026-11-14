@@ -2060,7 +2060,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
 
         let mut relevant = reachable;
         relevant.insert(candidate.name.clone());
-        let metadata = contract_metadata(&meta_index, &relevant);
+        let metadata = contract_metadata(&meta_index, &relevant, &candidate.name);
         let mut contract = CalculationContract {
             schema: CONTRACT_SCHEMA.to_string(),
             schema_version: 1,
@@ -2630,13 +2630,15 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
 }
 
 /// The metadata of the targets (sections and declarations) a calculation
-/// reaches: a target whose code the calculation reaches, or one of whose
-/// values names a type it reaches, contributes all of its values. Each value
-/// is listed once, ordered by target, role, binding and value, so the list
-/// depends on what holds, not on how or where it is written.
+/// reaches: the entry itself, a section whose code holds the entry or a type
+/// it reaches, and a target one of whose values names a type it reaches
+/// contribute all of their values. Each value is listed once, ordered by
+/// target, role, binding and value, so the list depends on what holds, not
+/// on how or where it is written.
 fn contract_metadata(
     index: &MetaIndex,
     relevant_names: &BTreeSet<String>,
+    entry: &str,
 ) -> Vec<CalculationMetadataReference> {
     let mut relevant_labels: BTreeSet<&str> = index
         .spans
@@ -2648,6 +2650,7 @@ fn contract_metadata(
         })
         .map(|span| span.label.as_str())
         .collect();
+    relevant_labels.insert(entry);
     for anchor in &index.anchors {
         let type_relevant = anchor.references.iter().any(|reference| {
             reference

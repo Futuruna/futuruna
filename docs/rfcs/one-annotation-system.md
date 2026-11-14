@@ -588,8 +588,13 @@ Details the design above leaves open, as implemented:
   role, the value's binding (empty for a literal), its type, value and data,
   and the target's quoted text and symbols, ordered by target, role,
   binding and value, each once. A target contributes all its values when
-  its code is reached or any of its values names a reached type, so moving
-  a role from a metadata binding onto a quote cannot drop it.
+  it is the calculation entry, when it is a section whose code holds the
+  entry or a reached type, or when any of its values names a reached type,
+  so moving a role from a metadata binding onto a quote, or writing an
+  entry's metadata with `for`, cannot drop it. (The old scanner dropped an
+  entry's metadata whose `--@label` had no `--@begin` span around the
+  entry, and kept it with one; the migration writes both as `@ meta` on
+  the entry, which the contract now lists.)
   `attachment_path` (`ask_year_rounding_meta.attachments[0]`) said where a
   value was written; nothing but tooling read it, so it left the contract,
   field metadata sources and needs, and stays in `runa meta`
