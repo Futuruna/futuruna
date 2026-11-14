@@ -321,12 +321,26 @@
     {
       "id": "calculation-explanations",
       "kind": "tooling",
-      "name": "Explanations of calculation results (`runa call --explain`) and paragraph citations (`--@cite`)",
+      "name": "Explanations of calculation results (`runa call --explain`) and paragraph citations (`@ cite`)",
       "stage": "experimental",
       "commands": [],
       "docs": [
         "docs/reference/calculations.md",
         "docs/rfcs/explanations.md"
+      ]
+    },
+    {
+      "id": "annotations",
+      "kind": "language",
+      "name": "Annotations that describe code (`@ section`, `@ quote`, `@ cite`, `@ meta`), the quote check in `runa check`, and `runa fmt --migrate`",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: annotation placement rules, citation grammar (including `as amended`), the quote check's comparison, error texts and the migration may change. The retired `--@` comment directives are errors.",
+      "commands": [],
+      "docs": [
+        "docs/reference/style.md",
+        "docs/reference/calculations.md",
+        "docs/tutorial/README.md",
+        "docs/rfcs/one-annotation-system.md"
       ]
     },
     {
@@ -566,6 +580,13 @@
       ]
     },
     {
+      "path": "docs/rfcs/one-annotation-system.md",
+      "stage": "experimental",
+      "surfaces": [
+        "annotations"
+      ]
+    },
+    {
       "path": "docs/rfcs/unit-types.md",
       "stage": "experimental",
       "surfaces": [
@@ -641,7 +662,8 @@
         "typed-calculation-contracts",
         "calculation-field-declarations",
         "calculation-needs",
-        "typescript-sdk"
+        "typescript-sdk",
+        "annotations"
       ]
     },
     {
@@ -690,12 +712,13 @@
     },
     {
       "path": "docs/reference/style.md",
-      "stage": "preview",
+      "stage": "mixed",
       "surfaces": [
         "style-and-modeling-guidance",
         "source-meta-comment-tooling",
         "typed-program-references",
-        "exploratory-audit-tooling"
+        "exploratory-audit-tooling",
+        "annotations"
       ]
     },
     {
@@ -705,7 +728,8 @@
         "core-language-syntax",
         "source-meta-comment-tooling",
         "typed-program-references",
-        "exploratory-audit-tooling"
+        "exploratory-audit-tooling",
+        "annotations"
       ]
     },
     {

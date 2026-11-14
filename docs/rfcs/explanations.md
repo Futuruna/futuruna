@@ -2,6 +2,12 @@
 
 Status: Experimental (`runa call --explain`, Futuruna 0.4.0).
 
+This RFC was written for the `--@` comment directives (`--@label`,
+`--@begin`/`--@end`, `--@cite`). They were replaced by the annotations of
+[One annotation system](one-annotation-system.md); the examples and rules
+below are updated to that syntax (`@ section`, `@ quote`, `@ cite`), and the
+Problem section still describes the model as it was.
+
 ## Problem
 
 An auditor reading a Futuruna result, or a backend storing it, must be able
@@ -39,9 +45,14 @@ cite.
   each with its value. `deposit_room_ore = 0` by the exception `closed` is
   there because the account's ending (its date and cause) made `closed`
   true.
-- `sections`: each law section an explained clause sits in, with its
-  location, its `[sources/...]` documents, its metadata attachments
-  (`Source`, `Guidance`, `Assumption`, ...) and the whole quote.
+- `sections`: each section an explained clause sits in, by name, with the
+  location of its `@ section` line, the files of its quoted documents
+  (`sources`), each quoted document's binding, file and role (`documents`),
+  its attachments (the roles of its quotes and its `@ meta` values:
+  `Source`, `Guidance`, `Assumption`, ...), the whole quote (its `@ quote`
+  blocks in order, each document's text after a `[<file>]` line) and, when
+  an amending act quoted in the section amends a quoted base passage,
+  `superseded`.
 - `assumptions`: the `Assumption` attachments of the sections whose rule
   clauses fired in the case (in the order they first fired), then those of
   the entry's own section, each once. An assumption is what a result rests
@@ -49,8 +60,9 @@ cite.
   count: a function runs whenever it is called, so a section of functions
   says nothing about which law applied. A model therefore attaches an
   assumption to the section of the rules that apply only when it matters
-  (the rules of a transfer, of a closing), and need not list assumptions in
-  its result type.
+  (the rules of a transfer, of a closing), or with `@ meta` to the clause it
+  qualifies, where it is listed only when that clause fires, and need not
+  list assumptions in its result type.
 - `--explain=full` adds `derivation`: every rule node a reported value was
   computed from, by node number, each with its own clause, contributors and
   `because`. The default reports at most 32 direct contributors per value
@@ -122,46 +134,51 @@ interpreter's creation sites test one `Option`, and the sites that read
 values have one more `match` arm. A test build counts traced values and
 nodes; a test shows an unexplained case creates none.
 
-## Paragraph citations: `--@cite`
+## Paragraph citations: `@ cite`
 
-A rule clause names the paragraphs it implements in a comment on the lines
-above it:
+A rule clause names the paragraphs it implements with an annotation on the
+line above it:
 
 ```runa
---@cite:§ 9, stk. 3--
+@ cite(§ 9, stk. 3)
 | excess_levy_ore(excess_days_ore: Int, levy_bp: Int) -> share_of(positive_part(excess_days_ore), levy_bp) / levy_days_per_year()
 ```
 
 Several paragraphs are separated by `;` (`§ 14; § 15, stk. 2`); `nr. N` names
-a numbered item; `in <source>` names the quoted document when two documents
-of one quote hold the same paragraph number. A citation on the first clause
-of a rule covers its other clauses unless they carry their own; an exception
-with its own citation is cited by its own paragraphs, in explanations and in
-needs. A function (`> f(...)`) inside a section may carry a citation too; it
-is shown by needs that wait on the function.
+a numbered item and `N. pkt.` a sentence; `in <document>` names the quoted
+document by its binding when two documents of one section hold the same
+paragraph number. A citation on the first clause of a rule covers its other
+clauses unless they carry their own; an exception with its own citation is
+cited by its own paragraphs, in explanations and in needs. A RuleScope member
+and a function (`> f(...)`) inside a section may carry a citation too; a
+function's is shown by needs that wait on the function.
 
-`runa check` reads a citation's paragraphs from the quote of the section
-around the clause, the way the quote marks them: a line starting `§ N.` opens
-a paragraph (its first subsection), `Stk. N.` a later subsection, `N)` a
-numbered item, and a `[sources/...]` line the next document. A citation
-naming a paragraph the quote does not hold is an error that lists what the
-quote holds:
+`runa check` reads a citation's paragraphs from the `@ quote` blocks of the
+section around the clause, the way the quote marks them: a line starting
+`§ N.` opens a paragraph (its first subsection), `Stk. N.` a later
+subsection, `N)` a numbered item. A citation naming a paragraph the quotes do
+not hold is an error that lists what they hold:
 
 ```text
 citation `§ 9, stk. 4`: § 9, stk. 4 does not appear in the quote of this section; the quote holds § 9, stk. 1, 2, 3 (section `ask_ceiling`)
 ```
 
-A citation outside a law section, not directly above a rule clause (comments
-may come between), or twice on one clause is an error too. An explanation
-shows a cited paragraph's quoted lines verbatim; a clause without a citation
-shows its section.
+A citation outside a section, in a section that quotes no document, not
+directly above a rule clause, member or function (comments may come between),
+twice on one clause, or naming a paragraph and a part of it
+(`§ 13; § 13, stk. 2`) is an error too. A passage an amending act quoted in
+the section rewords is cited `as amended` and a plain citation of it is an
+error ([Citing a passage as amended](one-annotation-system.md#citing-a-passage-as-amended)).
+An explanation shows a cited paragraph's quoted lines verbatim (for a passage
+cited `as amended`, the wording in force, with `as_amended_by`); a clause
+without a citation shows its section.
 
-Why a comment marker: the section, its quote and its code span are already
-`--@` comments, so the citation sits in the same annotation layer, is read by
-the same scanner, and changes neither the grammar, the formatter nor
-evaluation. It attaches to any clause form, exceptions and RuleScope members
-included, which an `@` annotation (a statement before a declaration) does not
-reach. Metadata bindings (`Metadata(attachments = ...)`) describe a whole
+Why an annotation: `@ cite` is read with the clause it stands above, so it
+reaches every clause form, exceptions and RuleScope members included, and it
+emits no tokens, so it changes neither the program, its hashes nor
+evaluation. (The first version was a `--@cite:...--` comment, for the reason
+that the section, its quote and its code span were `--@` comments too.)
+Metadata values (`@ meta(...)`, the roles of `@ quote`) describe a whole
 section; a paragraph is a property of one clause.
 
 ## Engine and SDK

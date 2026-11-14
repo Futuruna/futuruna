@@ -268,15 +268,17 @@ large results; no result is truncated to fit Excel's cell limit.
 
 ## Metadata
 
-Meta comments remain comments. For a contract, tooling includes resolved
-references and spans whose symbols intersect the entry or reachable type names.
-Roles such as `source`, `warning`, `label`, `unit`, and `help` remain general
-conventions.
+Metadata annotations change no program. For a contract, tooling includes
+resolved references and spans whose symbols intersect the entry or reachable
+type names. Roles such as `source`, `warning`, `label`, `unit`, and `help`
+remain general conventions.
 
-The calculation adapter additionally recognizes a `field` reference when its
-meta-anchor label is the calculation entry or a reachable input type, or when
-its code span contains either kind of symbol. The referenced pure ground record
-uses named fields:
+The calculation adapter additionally recognizes field records in a `@ meta`
+value written on the calculation entry or a reachable input type, or on an
+item whose code span contains either kind of symbol. (This RFC first described
+them as `field` references of a `--@label` meta comment; see
+[One annotation system](one-annotation-system.md).) The referenced pure ground
+record uses named fields:
 
 - `path: String | ProgramReference` and `label: String` are required;
 - `question`, `help`, and `unit` are optional string values;
@@ -286,7 +288,7 @@ The path is normalized to the exact layout path. Root columns, collection paths,
 and columns inside related tables are valid targets. Parameter-prefixed and input
 type-prefixed spellings are accepted, but the schema emits only the canonical
 path. Unknown targets and duplicate metadata for one path fail contract
-extraction. Non-`field` references on the same anchor are retained as typed
+extraction. Other values of the same `@ meta` are retained as typed
 source/context links for that field.
 
 New source should author paths with
@@ -302,12 +304,11 @@ Reusable metadata for a nested domain type may instead declare `path` as a
 reference retains its checked root type. Contract extraction projects the
 relative member path onto every layout-reachable occurrence of that root type
 in the calculation input, including occurrences under records, alternatives,
-and normalized collections. Metadata attached to the domain type's
-label is imported whenever that type is reachable, so the domain module does
+and normalized collections. Metadata written with `@ meta` on the domain
+type is imported whenever that type is reachable, so the domain module does
 not need to know the outer calculation entry:
 
 ```runa
-# Child(age: Int)
 # Household(primary: Child, dependents: List(Child))
 # TaxInput(household: Household)
 # RelativeField(path: ProgramReference, label: String)
@@ -318,7 +319,8 @@ not need to know the outer calculation entry:
     RelativeField(path = refof(Child::age), label = "Child age")
 ])
 
---@label:Child::meta:child_meta--
+@ meta(child_meta)
+# Child(age: Int)
 ```
 
 The example produces metadata for both `household.primary.age` and

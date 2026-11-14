@@ -5,6 +5,7 @@ feature_stage_surfaces:
   - calculation-field-declarations
   - calculation-needs
   - typescript-sdk
+  - annotations
 ---
 
 # Typed Calculations
@@ -106,11 +107,10 @@ asked.
 ### Metadata for one calculation
 
 When metadata depends on where a type is used, such as help that holds for one
-calculation only, attach typed field records to the calculation's label. A
-field binding is an ordinary pure ground record. Its typed field shape and
-canonical `path` give it calculation meaning; the anchor label names the
-calculation entry and its single `meta` binding contains the fields and their
-provenance.
+calculation only, attach typed field records to the calculation entry with
+`@ meta`. A field binding is an ordinary pure ground record. Its typed field
+shape and canonical `path` give it calculation meaning; `@ meta` stands on the
+calculation entry, and its value contains the fields and their provenance.
 
 ```runa
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
@@ -138,7 +138,9 @@ provenance.
     )
 )
 
---@label:calculate_tax::meta:monthly_income_meta--
+@ meta(monthly_income_meta)
+@ calculate
+> calculate_tax(input: Input) -> Int { ... }
 ```
 
 `path` uses the exact canonical path emitted by the calculation layout. Root
@@ -162,9 +164,9 @@ backward compatibility.
 
 Typed records can also follow a nested domain type wherever it occurs: declare
 the record's `path` field as `ProgramReference`, use `refof(Type::member)`, and
-anchor the metadata to the type's label. This is the form for metadata kept
-apart from a type, for example in a separate module; next to the type, prefer
-`@ field`.
+write `@ meta` on the type, or `@ meta(child_meta) for Child` in a file of its
+own when the metadata is kept apart from the type (see [Metadata written
+apart](style.md#metadata)); next to the type, prefer `@ field`.
 
 ```runa
 # ChildField(path: ProgramReference, label: String)
@@ -175,7 +177,8 @@ apart from a type, for example in a separate module; next to the type, prefer
     ChildField(path = refof(Child::age), label = "Child age")
 ])
 
---@label:Child::meta:child_meta--
+@ meta(child_meta)
+# Child(age: Int)
 ```
 
 For an input containing `primary: Child` and `children: List(Child)`, this one
@@ -233,7 +236,9 @@ the same object by its own nested types.
     )
 )
 
---@label:calculate_tax::meta:tax_input_meta--
+@ meta(tax_input_meta)
+@ calculate
+> calculate_tax(input: Input) -> Int { ... }
 ```
 
 Typed metadata aggregates compose hierarchically. A role-bearing attachment on
@@ -242,21 +247,21 @@ attachment inside a nested aggregate applies only to fields below that nested
 aggregate. This lets a calculation attach one root metadata object while each
 domain component retains its own source, warning, and guidance trace.
 
-The anchor and its typed aggregate may live in a recursively imported metadata
-module. Calculation tooling collects only imported anchors whose label names an
-actual calculation entry or its source span, so unrelated dependency metadata
-cannot alter the contract. Imported fields use the same exact-path validation
-and duplicate checks as local fields.
+The metadata value may live in a recursively imported metadata module, and
+`@ meta(<value>) for <name>` may attach it from such a module. Calculation
+tooling collects only imported metadata on an actual calculation entry or a
+reachable input type, so unrelated dependency metadata cannot alter the
+contract. Imported fields use the same exact-path validation and duplicate
+checks as local fields.
 
 The emitted field binding names include stable aggregate paths such as
-`tax_input_meta.fields[0]`. Direct `field` references remain accepted for source
-compatibility; new code should attach one typed `meta` object. A `field`
-reference that is neither a field record nor an aggregate containing field
-records is an error; a generic `meta` object without calculation fields is
+`tax_input_meta.fields[0]`. A `@ meta` value without calculation fields is
 simply ignored by the calculation field consumer. Nested variants of types
 implementing `MetaRole` are copied into the calculation and field source traces.
-Each trace keeps
-the canonical source `binding` and adds the aggregate `attachment_path`.
+Each trace keeps the canonical source `binding` (`""` for a value written
+inline). The calculation's `metadata` list is sorted by label, role, binding
+and value, without duplicates. Where in an aggregate a value sits is
+reported by `runa meta` (`path`), not by the contract.
 
 Field metadata appears structurally in `runa schema` and participates in the
 schema fingerprint. In XLSX, the human label is the visible column header; the
@@ -740,14 +745,18 @@ element is keyed whatever its variant.
 
 `waiting` lists the rules that wait for the value: of every rule and function
 evaluation was in when it read the value (or a value computed from it), the
-innermost one declared in a law section (a section whose quote holds a
-`[sources/...]` document) that cites paragraphs; when none cites, the
-innermost of a law section; else of any section with a quote; else the
-innermost rule. Cited rules are listed alone when there are any, each with
-its `section` and its `paragraphs`; a paragraph names its quoted document
-(`source`) and that document's `act`, read from the header block at the top
-of the document (`Title:`, `Document identifier:`, `Human-readable URL:` or
-`URL:` between `---` lines).
+innermost one declared in a law section (an `@ section` that quotes a
+document) that cites paragraphs; when none cites, the innermost of a law
+section; else of any section (one that quotes nothing, such as a section of
+input checks); else the innermost rule. Cited rules are listed alone when
+there are any, each with its `section` and its `paragraphs`; a paragraph names
+the file of its quoted document (`source`) and that document's `act`, read
+from the header block at the top of the file (`Title:`, `Document
+identifier:`, `Human-readable URL:` or `URL:` between `---` lines). A passage
+cited `as amended` also carries `as_amended_by` (`act`, `paragraph`,
+`instruction`): the amending act (its file's `Document identifier`, else the
+document's `identifier`), its paragraph and instruction number, and the
+instruction line.
 
 `needs` are the facts that block the result as it stands; answering them can
 reveal more, since evaluation does not look past an unknown condition it
@@ -829,8 +838,11 @@ runa schema model.calculate.runa --format explanation
     "sections": {
       "ask_ceiling": { "location": "src/ask.runa:167",
                        "sources": ["sources/01-aktiesparekontoloven-LBK-281-2025.txt", "..."],
+                       "documents": [ { "binding": "aktiesparekontoloven",
+                                        "file": "sources/01-aktiesparekontoloven-LBK-281-2025.txt",
+                                        "role": "Source" }, "..." ],
                        "attachments": [ { "role": "Source", "binding": "aktiesparekontoloven", "value": { "...": "..." } } ],
-                       "quote": "..." } } } }
+                       "quote": "[sources/01-aktiesparekontoloven-LBK-281-2025.txt]\n\n§ 9. Personer, ..." } } } }
 ```
 
 `values` holds every leaf (number, string, Bool, or the tag of a variant
@@ -851,10 +863,18 @@ what produced it:
 with its value. `--explain` lists at most 32 and counts the rest in
 `from_omitted`; `--explain=full` lists all and adds `derivation`, every rule
 node reached with its own clause and contributors, so the whole tree can be
-walked from any value. `sections` holds each law section an explained clause
-sits in: its anchor's location, its `[sources/...]` documents, its metadata
-attachments and the quote. A cited paragraph carries its document's `act`
-(`title`, `identifier`, `url`), read from the document's header as for needs.
+walked from any value. `sections` holds each section an explained clause
+sits in, by name: the location of its `@ section` line, the files of the
+documents it quotes (`sources`), each quoted document with its binding, file
+and role (`documents`), its attachments (the roles of its quotes and its
+`@ meta` values, sorted by role, binding and value) and its `quote`: its
+`@ quote` blocks in order, each
+document's text after a `[<file>]` line. When an amending act quoted in the
+section amends a quoted base passage, `superseded` lists that passage with the
+instruction (`as_amended_by`), so the replaced wording is shown as replaced. A
+cited paragraph carries its document's `act` (`title`, `identifier`, `url`),
+read from the document's header as for needs, and `as_amended_by` when it is
+cited `as amended`; its `text` is then the wording in force.
 
 A value a rule clause produced also says `because`: what the guards that
 chose the clause were computed from, the guard of the clause that applied and
@@ -870,23 +890,29 @@ clauses fired in the case, in the order they first fired, then those of the
 entry's own section, each once: a section of rules that never fired adds
 none. A function (`> f(...)`) firing does not count, so an assumption a model
 wants only under a condition sits in a section of rules that fire only then.
+An `Assumption` written with `@ meta` on a rule clause or RuleScope member is
+listed only when that clause fires.
 
-A rule clause names the paragraphs it implements with a citation comment
+A rule clause names the paragraphs it implements with `@ cite` on the line
 above it, inside the section:
 
 ```runa
---@cite:§ 9, stk. 3--
+@ cite(§ 9, stk. 3)
 | excess_levy_ore(excess_days_ore: Int, levy_bp: Int) -> share_of(positive_part(excess_days_ore), levy_bp) / levy_days_per_year()
 ```
 
-Paragraphs are separated by `;`; `nr. N` names a numbered item, and
-`in <source>` the quoted document when two hold the same number. A citation on
-a rule's first clause covers its other clauses that have none; a function
-(`> f(...)`) in a section can be cited too. `runa check`
-finds each cited paragraph in the section's quote, where a line starting
-`§ N.` opens a paragraph, `Stk. N.` a subsection and `N)` an item, and rejects
-one the quote does not hold. Without a citation, an explanation shows the
-section.
+Paragraphs are separated by `;`; `nr. N` names a numbered item, `N. pkt.` a
+sentence, and `in <document>` the quoted document's binding when two hold the
+same number. A citation on a rule's first clause covers its other clauses that
+have none; an exception, a RuleScope member and a function (`> f(...)`) in a
+section can be cited too. `runa check` finds each cited paragraph in the
+section's quotes, where a line starting `§ N.` opens a paragraph, `Stk. N.` a
+subsection and `N)` an item, and rejects one the quotes do not hold, a
+citation that names a paragraph and a part of it, and a plain citation of a
+passage that an amending act quoted in the section rewords (cite it
+`§ 8 a, stk. 1, 1. pkt. as amended`). Without a citation, an explanation shows
+the section. Sections, quotes, the quote check and citations are described in
+[Annotations describe code](style.md#annotations-describe-code).
 
 Explaining never changes a result: the `result` of every case is the one
 `runa call` gives without `--explain`. `--explain` writes JSON only, and is

@@ -1,3 +1,9 @@
+---
+feature_stage: experimental
+feature_stage_surfaces:
+  - annotations
+---
+
 # RFC: One annotation system
 
 Status: Implemented (Futuruna 0.4, Experimental). Replaces the `--@` comment
@@ -16,7 +22,7 @@ Futuruna attaches facts about code in two ways that do not know each other.
   that name's quote, `[sources/<file>]` lines inside the quote name its
   documents, `--@begin:<name>--` and `--@end:<name>--` mark the code that
   implements it, and `--@cite:§ 9, stk. 3--` names the paragraphs one clause
-  implements ([Explanations](explanations.md#paragraph-citations-cite)).
+  implements ([Explanations](explanations.md#paragraph-citations--cite)).
 
 Because the second layer is made of strings and adjacency, the language cannot
 check most of what it says:
@@ -93,7 +99,7 @@ after `@ section`, a declaration by its own name.
 - `runa fmt` does not indent a section's body. A section groups declarations
   around a passage of law; indenting would move every line of a model one
   level right and suggest a scope that does not exist.
-- Section names have their own namespace, unique per program. A section may
+- Section names have their own namespace, unique per file. A section may
   share its name with a rule it holds (tax-service's `ask_eligible` section
   holds the rule `ask_eligible`). `refof(section ask_ceiling)` is a
   `ProgramReference` to it.
