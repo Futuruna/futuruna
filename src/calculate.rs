@@ -7215,7 +7215,11 @@ mod calculation_execution_tests {
         let need = contract.need_for_path(
             &serde_json::json!({ "spouse": {} }),
             "spouse.income".to_string(),
-            "rate".to_string(),
+            vec![CalculationWaiting {
+                rule: "rate".to_string(),
+                section: None,
+                paragraphs: Vec::new(),
+            }],
         );
         assert_eq!(
             need.question.as_deref(),

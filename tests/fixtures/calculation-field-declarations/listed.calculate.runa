@@ -32,6 +32,7 @@
         CalculationField(path = pathof(Household::income_year), label = "Income year", question = None, help = None, unit = Some("year"), entry = None, subject = None),
         CalculationField(path = pathof(Household::trades), label = "Trades", question = None, help = None, unit = None, entry = None, subject = None),
         CalculationField(path = pathof(Household::trades::id), label = "Trade id", question = None, help = Some("Unique within the case."), unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::date), label = "Trade date", question = None, help = None, unit = None, entry = None, subject = None),
         CalculationField(path = pathof(Household::trades::date::year), label = "Trade date: year", question = None, help = None, unit = None, entry = None, subject = None),
         CalculationField(path = pathof(Household::trades::date::month), label = "Trade date: month", question = None, help = None, unit = None, entry = None, subject = None),
         CalculationField(path = pathof(Household::trades::date::day), label = "Trade date: day", question = None, help = None, unit = None, entry = None, subject = None),
