@@ -13,7 +13,7 @@ fn collect_runa_files(root: &Path, files: &mut Vec<PathBuf>) {
 }
 
 #[test]
-fn example_metadata_uses_thin_typed_anchors() {
+fn example_metadata_uses_thin_typed_annotations() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples");
     let mut files = Vec::new();
     collect_runa_files(&root, &mut files);
@@ -22,25 +22,26 @@ fn example_metadata_uses_thin_typed_anchors() {
     for path in files {
         let source = fs::read_to_string(&path).expect("read Futuruna source");
         for (index, line) in source.lines().enumerate() {
-            let is_metadata_anchor = line.starts_with("--@label:")
-                || line.starts_with("--@meta:")
-                || line.starts_with("--@source:");
-            if !is_metadata_anchor {
+            if line.trim_start().starts_with("--@") {
+                violations.push(format!("{}:{}: {line}", path.display(), index + 1));
                 continue;
             }
-            let canonical = line
-                .strip_prefix("--@label:")
-                .and_then(|body| body.strip_suffix("--"))
-                .and_then(|body| body.split_once("::meta:"))
-                .is_some_and(|(label, binding)| {
-                    !label.is_empty()
-                        && !binding.is_empty()
-                        && !label.contains("::")
-                        && !binding.contains("::")
-                        && !binding.contains(':')
+            let Some(body) = line.strip_prefix("@ meta(") else {
+                continue;
+            };
+            // `@ meta(binding)` or `@ meta(binding) for Name`: one line that
+            // names a typed metadata binding.
+            let thin = body
+                .split_once(')')
+                .is_some_and(|(binding, rest)| {
+                    !binding.is_empty()
+                        && binding.chars().all(|c| c == '_' || c.is_alphanumeric())
+                        && (rest.is_empty()
+                            || rest
+                                .strip_prefix(" for ")
+                                .is_some_and(|name| !name.is_empty() && !name.contains(' ')))
                 });
-
-            if !canonical || line.chars().count() > 160 {
+            if !thin || line.chars().count() > 160 {
                 violations.push(format!("{}:{}: {line}", path.display(), index + 1));
             }
         }
@@ -48,7 +49,7 @@ fn example_metadata_uses_thin_typed_anchors() {
 
     assert!(
         violations.is_empty(),
-        "Example metadata comments must be one thin --@label:LABEL::meta:BINDING-- anchor:\n{}",
+        "Example metadata must be one thin `@ meta(BINDING)` line (optionally `for NAME`), and no `--@` directive may remain:\n{}",
         violations.join("\n")
     );
 }
@@ -86,15 +87,18 @@ fn personskat_calculation_uses_a_partitioned_typed_metadata_root() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/personskat.calculate.runa");
     let source = fs::read_to_string(path).expect("read Personskat calculation");
-    let anchors = source
-        .lines()
-        .filter(|line| line.starts_with("--@label:beregn_personskat::meta:"))
+    let lines = source.lines().collect::<Vec<_>>();
+    let entry = lines
+        .iter()
+        .position(|line| line.starts_with("| beregn_personskat(input: PersonskatInput)"))
+        .expect("beregn_personskat entry");
+    let metas = lines[..entry]
+        .iter()
+        .rev()
+        .take_while(|line| line.starts_with('@'))
+        .filter(|line| line.starts_with("@ meta("))
         .collect::<Vec<_>>();
-
-    assert_eq!(
-        anchors,
-        vec!["--@label:beregn_personskat::meta:personskat_beregningsmetadata--"]
-    );
+    assert_eq!(metas, vec![&"@ meta(personskat_beregningsmetadata)"]);
     assert!(source.contains("# impl Meta for PersonskatBeregningsmetadata {}"));
     assert!(source.contains("= personskat_beregningsmetadata = PersonskatBeregningsmetadata("));
     for field in [
@@ -113,6 +117,5 @@ fn personskat_calculation_uses_a_partitioned_typed_metadata_root() {
             "missing metadata partition `{field}`"
         );
     }
-    assert!(!source.contains("--@begin:personskat_lønmodtagerberegning--"));
-    assert!(!source.contains("--@end:personskat_lønmodtagerberegning--"));
+    assert!(!source.contains("@ section personskat_lønmodtagerberegning {"));
 }
