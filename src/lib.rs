@@ -712,7 +712,9 @@ pub fn prepend_prelude(prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
             _ => {}
         }
     }
-    // Only include prelude stmts whose name isn't shadowed by the user
+    let replaced = replaced_prelude_types(&prelude, user_stmts);
+    // Only include prelude stmts whose name isn't shadowed by the user, and
+    // no prelude function written for a prelude type the user replaced.
     let mut result: Vec<Stmt> = prelude
         .into_iter()
         .filter(|s| {
@@ -724,6 +726,7 @@ pub fn prepend_prelude(prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
                 _ => None,
             };
             name.map(|n| !user_names.contains(n)).unwrap_or(true)
+                && !is_prelude_function_over(s, &replaced)
         })
         .collect();
     // Preserve provenance through AST cloning and lowering. Source syntax
@@ -737,6 +740,67 @@ pub fn prepend_prelude(prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
     }
     result.extend_from_slice(user_stmts);
     result
+}
+
+/// The prelude types that `declarations` replace with a type of another
+/// shape: `# Option(value: Int)` replaces `Option`, while restating
+/// `# Option(a) = None | Some(a)` keeps the prelude's constructors.
+pub fn replaced_prelude_types<'a>(
+    prelude: &[Stmt],
+    declarations: impl IntoIterator<Item = &'a Stmt>,
+) -> BTreeSet<String> {
+    fn constructors(variants: &[Variant]) -> BTreeSet<&str> {
+        variants.iter().map(|variant| variant.name.as_str()).collect()
+    }
+    let prelude_types = prelude
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                Some((name.as_str(), constructors(variants)))
+            }
+            _ => None,
+        })
+        .collect::<BTreeMap<_, _>>();
+    declarations
+        .into_iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. })
+                if prelude_types
+                    .get(name.as_str())
+                    .is_some_and(|prelude| *prelude != constructors(variants)) =>
+            {
+                Some(name.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// Whether `stmt` is a prelude function written for one of the `replaced`
+/// prelude types (`unwrap_or` for `Option`): it is withdrawn with the type,
+/// since its body matches on constructors the replacement does not have.
+pub fn is_prelude_function_over(stmt: &Stmt, replaced: &BTreeSet<String>) -> bool {
+    fn mentions(ty: &Ty, replaced: &BTreeSet<String>) -> bool {
+        match ty {
+            Ty::Name(name) => replaced.contains(name),
+            Ty::App(head, arguments) => {
+                mentions(head, replaced) || arguments.iter().any(|ty| mentions(ty, replaced))
+            }
+            Ty::Arrow(from, to) => mentions(from, replaced) || mentions(to, replaced),
+            Ty::Optional(inner) => replaced.contains("Option") || mentions(inner, replaced),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => mentions(inner, replaced),
+            Ty::Var(_) | Ty::Unit | Ty::Hole => false,
+        }
+    }
+    let Stmt::Defn(Defn::Fn { params, ret_ty, .. }) = stmt else {
+        return false;
+    };
+    !replaced.is_empty()
+        && params
+            .iter()
+            .filter_map(|param| param.ty.as_ref())
+            .chain(ret_ty.as_ref())
+            .any(|ty| mentions(ty, replaced))
 }
 
 pub enum TplPart {
@@ -62884,6 +62948,66 @@ impl TypeChecker {
         Self::check_with_artifact_options(stmts, source_dir, source, false, false)
     }
 
+    /// The program whose bodies are checked, without the prelude functions
+    /// written for a prelude type that a plain import replaces (`unwrap_or`
+    /// when an imported file declares `# Option(value: Int)`), or `None`
+    /// when there are none.
+    /// `prepend_prelude` already leaves them out for a type the root file
+    /// replaces; a declaration further down the import graph is only known
+    /// here, where the imports resolve.
+    fn without_prelude_functions_over_imported_types(&self, stmts: &[Stmt]) -> Option<Vec<Stmt>> {
+        let boundary = stmts
+            .iter()
+            .position(|stmt| matches!(stmt, Stmt::PreludeBoundary))?;
+        let (prelude, program) = stmts.split_at(boundary);
+        let mut modules = Vec::new();
+        let mut visited = BTreeSet::new();
+        let mut pending = program
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Import(path) => Some((path.clone(), self.source_dir.clone()?)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        while let Some((path, dir)) = pending.pop() {
+            let Some(file) = Interpreter::resolve_import_path_for_source(&path, &dir) else {
+                continue;
+            };
+            if !visited.insert(canonical_source_path(Path::new(&file))) {
+                continue;
+            }
+            let Ok(module) = parse_source_module_file_cached(Path::new(&file)) else {
+                continue;
+            };
+            let module_dir = Interpreter::imported_source_dir(&file);
+            pending.extend(module.statements().iter().filter_map(|stmt| match stmt {
+                Stmt::Import(path) => Some((path.clone(), module_dir.clone())),
+                _ => None,
+            }));
+            modules.push(module);
+        }
+        let replaced = replaced_prelude_types(
+            prelude,
+            modules
+                .iter()
+                .flat_map(|module| module.statements())
+                .chain(program),
+        );
+        prelude
+            .iter()
+            .any(|stmt| is_prelude_function_over(stmt, &replaced))
+            .then(|| {
+                stmts
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, stmt)| {
+                        *index >= boundary || !is_prelude_function_over(stmt, &replaced)
+                    })
+                    .map(|(_, stmt)| stmt.clone())
+                    .collect()
+            })
+    }
+
     fn check_with_artifact_options(
         stmts: &[Stmt],
         source_dir: Option<String>,
@@ -62901,7 +63025,10 @@ impl TypeChecker {
         // neither path may infer a callable contract the other cannot prove.
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
-        tc.check_program(stmts);
+        match tc.without_prelude_functions_over_imported_types(stmts) {
+            Some(checked) => tc.check_program(&checked),
+            None => tc.check_program(stmts),
+        }
         let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
         let elaborated_root = constructor_elaboration
             .as_mut()

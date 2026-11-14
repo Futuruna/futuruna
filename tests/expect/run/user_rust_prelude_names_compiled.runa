@@ -1,0 +1,31 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: option=seven
+-- expect-stdout: default=Default(rate: 2)
+-- expect-stdout: eq=2
+-- expect-stdout: iterator=3
+-- expect-stdout: map=HashMap(size: 1)
+-- expect-stdout: shape=clone 2, send x
+
+-- A program's own types named like Rust's prelude types and traits, or the
+-- std types generated code imports, are types of the program's own.
+# Option(label: String)
+# Default(rate: Int)
+# Eq(left: Int, right: Int)
+# Iterator(step: Int)
+# HashMap(size: Int)
+# Shape = Clone(copies: Int) | Send(to: String)
+
+> describe(shape: Shape) -> String {
+    match shape {
+        | Clone(copies) -> "clone " + show(copies)
+        | Send(to) -> "send " + to
+    }
+}
+
+@ print("option=" + Option(label = "seven").label)
+@ print("default=" + show(Default(rate = 2)))
+@ print("eq=" + show(Eq(left = 1, right = 2).right))
+@ print("iterator=" + show(Iterator(step = 3).step))
+@ print("map=" + show(HashMap(size = 1)))
+@ print("shape=" + describe(Clone(copies = 2)) + ", " + describe(Send(to = "x")))

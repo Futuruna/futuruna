@@ -114,16 +114,17 @@ impl TypeChecker {
         }
     }
 
-    /// `Tuple` names the built-in tuple type `(A, B)`; a declaration of that
-    /// name would make every tuple annotation ambiguous.
+    /// `Tuple` names the built-in tuple type `(A, B)` and `Self` the
+    /// implementing type in a trait (and is a keyword in generated Rust): a
+    /// declaration of either name would make every annotation that uses it
+    /// ambiguous.
     pub(super) fn check_reserved_type_name(&mut self, name: &str) {
-        if name == "Tuple" {
-            self.declaration_error(
-                "variant:Tuple",
-                "`Tuple` is the built-in tuple type `(A, B)`; give this type a different name"
-                    .to_string(),
-            );
-        }
+        let message = match name {
+            "Tuple" => "`Tuple` is the built-in tuple type `(A, B)`; give this type a different name",
+            "Self" => "`Self` names the implementing type in a trait; give this type a different name",
+            _ => return,
+        };
+        self.declaration_error(&format!("variant:{name}"), message.to_string());
     }
 
     /// Variant names may not reuse a prelude or list constructor owned by a

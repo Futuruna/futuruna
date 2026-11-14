@@ -32752,13 +32752,24 @@ impl RustCodegen {
             .unwrap_or_else(|| tau_name.to_string())
     }
 
-    /// The Rust name of a declared type. Names that Rust's prelude or the
-    /// generated runtime already use get a `Futuruna` prefix.
+    /// The Rust name of a declared type. A name the generated Rust already
+    /// uses gets a `Futuruna` prefix: every type, trait and constructor of
+    /// Rust's 2021 prelude, everything the generated header imports, and
+    /// `Bool`, which generated code reserves for Rust's `bool`. The source
+    /// name stays what programs print and match on.
     fn declared_rust_type_name(source_name: &str) -> String {
-        if matches!(
-            source_name,
-            "Bool" | "Box" | "Vec" | "String" | "Option" | "Result"
-        ) {
+        const RUST_NAMES: &[&str] = &[
+            // std::prelude::rust_2021
+            "AsMut", "AsRef", "Box", "Clone", "Copy", "Default", "DoubleEndedIterator",
+            "Drop", "Eq", "Err", "ExactSizeIterator", "Extend", "Fn", "FnMut", "FnOnce",
+            "From", "FromIterator", "Into", "IntoIterator", "Iterator", "None", "Ok",
+            "Option", "Ord", "PartialEq", "PartialOrd", "Result", "Send", "Sized", "Some",
+            "String", "Sync", "ToOwned", "ToString", "TryFrom", "TryInto", "Unpin", "Vec",
+            // the generated header's imports
+            "Arc", "BTreeMap", "HashMap", "HashSet", "Rc",
+            "Bool",
+        ];
+        if RUST_NAMES.contains(&source_name) {
             format!("Futuruna{}", source_name)
         } else {
             source_name.to_string()
@@ -33183,7 +33194,8 @@ impl RustCodegen {
 
         // An imported declaration replaces the prelude's of the same name,
         // exactly as an authored one does in `prepend_prelude`: a library's
-        // own `Result` or `Option` is a type of its own, not Rust's.
+        // own `Result` or `Option` is a type of its own, not Rust's, and the
+        // prelude functions written for the replaced type go with it.
         let imported_functions = all_stmts
             .iter()
             .filter_map(|statement| {
@@ -33207,10 +33219,14 @@ impl RustCodegen {
             .iter()
             .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
             .map_or(0, |index| index + 1);
+        let replaced_types = replaced_prelude_types(&stmts[..prelude_len], &all_stmts);
         for (index, stmt) in stmts.iter().enumerate() {
             if index < prelude_len
                 && match stmt {
-                    Stmt::Defn(Defn::Fn { name, .. }) => imported_functions.contains(name),
+                    Stmt::Defn(Defn::Fn { name, .. }) => {
+                        imported_functions.contains(name)
+                            || is_prelude_function_over(stmt, &replaced_types)
+                    }
                     Stmt::TypeDecl(TypeDecl::ADT { name, .. })
                     | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => {

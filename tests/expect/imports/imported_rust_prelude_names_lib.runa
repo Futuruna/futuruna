@@ -1,0 +1,10 @@
+-- expect-skip: dependency-only fixture: an imported file's own types named like Rust's prelude and std types
+
+# Result(value: Int)
+# Option(label: String)
+# Vec(x: Int, y: Int)
+# Default(rate: Int)
+# Clone(copies: Int)
+# HashMap(size: Int)
+
+> total(v: Vec) -> Result { Result(value = v.x + v.y) }

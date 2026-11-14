@@ -257,3 +257,38 @@ fn imported_initializer_errors_keep_their_source_location() {
     assert!(stderr.contains("dependency.runa:1:"), "{stderr}");
     assert!(stderr.contains("division by zero"), "{stderr}");
 }
+
+/// An imported file's own `Result`, `Option`, `Vec` and other Rust names
+/// keep their meaning in native code, as they do in the root file: the
+/// prelude's `Result` must not replace the imported record, the prelude's
+/// `Option` functions go with the replaced type, and no name may clash with
+/// Rust's prelude or the generated header's imports.
+#[test]
+fn imported_types_named_like_rust_prelude_types_keep_their_meaning() {
+    let fixture = Fixture::new(&[
+        (
+            "dependency.runa",
+            "# Result(value: Int)\n# Option(label: String)\n# Vec(x: Int, y: Int)\n# Default(rate: Int)\n# HashMap(size: Int)\n> total(v: Vec) -> Result { Result(value = v.x + v.y) }\n",
+        ),
+        (
+            "main.runa",
+            "@ import ./dependency\n= vec = Vec(x = 3, y = 4)\n@ print(show(total(vec)))\n@ print(show(Result(value = 1).value))\n@ print(Option(label = \"seven\").label)\n@ print(show(vec))\n@ print(show(Default(rate = 2).rate + HashMap(size = 1).size))\n",
+        ),
+    ]);
+    fixture.agrees("Result(value: 7)\n1\nseven\nVec(x: 3, y: 4)\n3");
+    let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
+    let output = Command::new(binary)
+        .args(["test", "--roundtrip"])
+        .arg(&fixture.0)
+        .output()
+        .unwrap();
+    let report = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{output:?}");
+    assert!(
+        report
+            .lines()
+            .any(|line| line.contains("MATCH") && line.contains("main.runa")),
+        "{report}"
+    );
+}

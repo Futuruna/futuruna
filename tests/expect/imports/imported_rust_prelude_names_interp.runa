@@ -1,0 +1,26 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: result=7
+-- expect-stdout: direct=Result(value: 1)
+-- expect-stdout: option=seven
+-- expect-stdout: vec=Vec(x: 3, y: 4)
+-- expect-stdout: default=2
+-- expect-stdout: clone=Clone(copies: 3)
+-- expect-stdout: map=1
+
+@ import ./imported_rust_prelude_names_lib
+
+-- Types declared in an imported file keep their meaning in native code, as
+-- they do when the root file declares them: neither the prelude nor Rust may
+-- take `Result`, `Option`, `Vec` or another Rust name from them.
+= vec = Vec(x = 3, y = 4)
+= result = total(vec)
+= option = Option(label = "seven")
+
+@ print("result=" + show(result.value))
+@ print("direct=" + show(Result(value = 1)))
+@ print("option=" + option.label)
+@ print("vec=" + show(vec))
+@ print("default=" + show(Default(rate = 2).rate))
+@ print("clone=" + show(Clone(copies = 3)))
+@ print("map=" + show(HashMap(size = 1).size))

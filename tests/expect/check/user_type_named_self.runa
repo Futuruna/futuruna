@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `Self` names the implementing type in a trait; give this type a different name
+-- expect-stderr-not: Futuruna compiler bug
+-- roundtrip-skip: rejected by the frontend
+# Self(value: Int)
+> make(v: Int) -> Self { Self(value = v) }
+@ print(show(make(1).value))
