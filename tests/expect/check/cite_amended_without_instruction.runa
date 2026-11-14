@@ -2,7 +2,7 @@
 -- quoted in the same section; without one the wording in force is unknown.
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: § 8 a, stk. 2, 1. pkt. as amended: no instruction quoted in this section amends § 8 a, stk. 2, 1. pkt.
+-- expect-stderr: § 8 A, stk. 2, 1. pkt. as amended: no instruction quoted in this section amends § 8 A, stk. 2, 1. pkt.
 
 # SourceInfo(file: String, identifier: String)
 # impl Document for SourceInfo {}

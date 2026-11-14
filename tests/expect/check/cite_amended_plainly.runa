@@ -2,7 +2,7 @@
 -- amends is an error: the superseded wording must not be shown as the law.
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: citation `§ 8 a, stk. 1, 1. pkt.`: LOV nr. 1691 af 30/12/2024 § 4, nr. 1 (quoted in this section) rewords this passage; cite `§ 8 a, stk. 1, 1. pkt. as amended`
+-- expect-stderr: citation `§ 8 A, stk. 1, 1. pkt.`: LOV nr. 1691 af 30/12/2024 § 4, nr. 1 (quoted in this section) rewords this passage; cite `§ 8 A, stk. 1, 1. pkt. as amended`
 
 # SourceInfo(file: String, identifier: String)
 # impl Document for SourceInfo {}

@@ -4,5 +4,5 @@
 -- expect-status: fail
 -- expect-stderr: the `--@cite` comment directive is gone: write `@ cite(...)` on the line above the clause, member or function; `runa fmt --migrate <file>` rewrites the file
 
-@ cite(§ 2)
+--@cite:§ 2--
 | rate_bp(year: Int) -> 2700
