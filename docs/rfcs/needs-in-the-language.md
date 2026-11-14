@@ -419,3 +419,12 @@ from.
 - **List elements by key.** Paths index list elements; when needs carry an
   element's key (calculation-needs.md), `pathof` could address an element by
   key (`opening_positions[isin = "IE0000000003"]`) instead of position.
+- **`query` on any rule, not only an entry.** Today a calculation entry is
+  the only thing a case can ask, so a caseworker tool that wants one
+  intermediate legal concept ("does § 16 exclude this owner?") needs an entry
+  for it. The interpreter can evaluate any rule family with unknown
+  arguments, so `query` could take any rule (`query ask_taxed_on_whole_return(owner)`),
+  with the rule's parameters as the case and paths rooted at them. Open:
+  whether that rule's parameter types form a contract stable enough to ask
+  from outside the model (JSON, SDK), or whether such queries stay in tests
+  and a published question still needs an entry.
