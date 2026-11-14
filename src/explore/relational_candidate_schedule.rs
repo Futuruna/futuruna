@@ -1061,7 +1061,7 @@ mod tests {
         let statements = Parser::new(Lexer::new(source).tokenize(), source)
             .parse_program()
             .unwrap();
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -1117,7 +1117,8 @@ mod tests {
         let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
             .parse_program()
             .unwrap();
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+        let artifacts =
+            TypeChecker::check_without_calculation_contracts(&statements, None, &source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",

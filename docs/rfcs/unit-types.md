@@ -137,11 +137,13 @@ A unit value is an `Int` everywhere outside the checker:
 - the interpreter stores the number; `Ore(n)` and `Int(x)` return their
   argument, and a parameter or rule head typed `Ore` accepts an `Int` value;
 - `runa call` reads and writes the same JSON numbers;
-- `runa verify` and Rust generation erase units before encoding
-  (`erase_unit_types`): unit types become `Int` and `Ore(n)`/`Int(x)` become
-  their argument, so the solver and the generated Rust see exactly the checked
-  `Int` arithmetic the interpreter runs. Generated Rust also declares
-  `pub type Ore = i64;`.
+- every solver encoding (`runa verify`, the clause audit of `runa audit`) and
+  Rust generation erase units before encoding (`erase_unit_types`): unit
+  types become `Int` and `Ore(n)`/`Int(x)` become their argument, so the
+  solver and the generated Rust see exactly the checked `Int` arithmetic the
+  interpreter runs. The solver's program is erased where it is assembled from
+  the root and its imports, so no solver consumer sees a unit. Generated Rust
+  also declares `pub type Ore = i64;`.
 
 ## Contract
 

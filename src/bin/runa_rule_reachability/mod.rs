@@ -1349,7 +1349,7 @@ fn analyze(
         Ok(lowered) => lowered,
         Err(error) => return not_run(error),
     };
-    let type_artifacts = TypeChecker::check_with_artifacts(&all_stmts, None, "");
+    let type_artifacts = TypeChecker::check_without_calculation_contracts(&all_stmts, None, "");
     if let Some(diagnostic) = type_artifacts.diagnostics.first() {
         return not_run(format!(
             "the SMT encoding of this program does not type-check: {}",

@@ -1482,7 +1482,7 @@ pub fn prepare_checked_relational_stream(
     let started = Instant::now();
     trace_preparation_phase(started, "begin");
     let artifacts =
-        TypeChecker::check_with_explore_artifacts(statements, source_dir.clone(), source);
+        TypeChecker::check_without_calculation_contracts(statements, source_dir.clone(), source);
     trace_preparation_phase(started, "checked program");
     if !artifacts.diagnostics.is_empty() {
         return Err(ExploreStreamPreparationError::Diagnostics(

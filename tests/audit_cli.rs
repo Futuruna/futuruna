@@ -785,3 +785,41 @@ fn clause_audit_translates_not_string_length_option_results_and_arithmetic() {
     // An irrefutable predicate head answers False: no gap.
     assert!(!stdout.contains("Gap in in_bounds/1"), "{stdout}");
 }
+
+/// The clause audit re-checks the program it assembled for the solver, where
+/// a shared constructor carries its internal name (`AskEvent`'s `Trade`).
+/// The key declarations on its fields name the constructor as written; the
+/// solver's check reads no calculation contract, so they do not stop the
+/// audit ("does not type-check: `AskEvent` has no such field").
+#[test]
+fn clause_audit_runs_with_keys_on_shared_constructors() {
+    let dir = std::env::temp_dir().join(format!("runa-audit-keyed-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("fixture directory");
+    let path = dir.join("keyed.calculate.runa");
+    std::fs::write(
+        &path,
+        "# Event = Trade(@ field(label = \"Id\", key = True) id: String, amount: Int) | Fee(@ field(label = \"Id\", key = True) id: String)\n\
+         # AskEvent = Trade(@ field(label = \"Id\", key = True) id: String, amount: Int) | Fee(@ field(label = \"Id\", key = True) id: String)\n\
+         | sign(amount: Int) -> 1 under amount > 0\n\
+         | sign(amount: Int) -> 0 under amount <= 0\n\
+         # Input(events: List(AskEvent), amount: Int)\n\
+         @ calculate(\"Keyed shared constructors\")\n\
+         > count(input: Input) -> Int { length(input.events) + sign(input.amount) }\n",
+    )
+    .expect("write fixture");
+    let output = run(&["audit", path.to_str().expect("fixture path"), "--json"]);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let clauses = &parse_stdout(&output)["clause_reachability"];
+    if !z3_available() {
+        assert_eq!(clauses["status"], "not_run", "{clauses}");
+        return;
+    }
+    assert_eq!(clauses["status"], "ran", "{clauses}");
+    assert_eq!(clauses["summary"]["clauses"], 2, "{clauses}");
+    assert_eq!(clauses["summary"]["analyzed"], 2, "{clauses}");
+}

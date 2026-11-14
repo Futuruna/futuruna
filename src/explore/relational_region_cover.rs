@@ -858,7 +858,7 @@ mod tests {
             let parsed = Parser::new(lexer.tokenize(), source)
                 .parse_program()
                 .unwrap();
-            let artifacts = TypeChecker::check_with_explore_artifacts(&parsed, None, source);
+            let artifacts = TypeChecker::check_without_calculation_contracts(&parsed, None, source);
             assert!(
                 artifacts.diagnostics.is_empty(),
                 "{:?}",
@@ -1131,7 +1131,8 @@ mod tests {
             let parsed = Parser::new(lexer.tokenize(), &source)
                 .parse_program()
                 .unwrap();
-            let artifacts = TypeChecker::check_with_explore_artifacts(&parsed, None, &source);
+            let artifacts =
+                TypeChecker::check_without_calculation_contracts(&parsed, None, &source);
             assert!(
                 artifacts.diagnostics.is_empty(),
                 "{:?}",
@@ -1240,7 +1241,7 @@ mod tests {
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -1328,7 +1329,8 @@ mod tests {
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+        let artifacts =
+            TypeChecker::check_without_calculation_contracts(&statements, None, &source);
         assert!(artifacts.diagnostics.is_empty());
         let owned = Arc::new(
             artifacts

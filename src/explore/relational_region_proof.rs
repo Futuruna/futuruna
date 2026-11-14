@@ -3588,7 +3588,7 @@ mod tests {
         let statements = Parser::new(lexer.tokenize(), LIFTED_AFFINE_WRAPPER_SOURCE)
             .parse_program()
             .expect("parse lifted affine wrapper fixture");
-        let artifacts = TypeChecker::check_with_explore_artifacts(
+        let artifacts = TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             LIFTED_AFFINE_WRAPPER_SOURCE,
@@ -3691,7 +3691,7 @@ mod tests {
         let statements = Parser::new(lexer.tokenize(), UNSUPPORTED_AFTER_WRAPPER_SOURCE)
             .parse_program()
             .expect("parse unsupported After wrapper fixture");
-        let artifacts = TypeChecker::check_with_explore_artifacts(
+        let artifacts = TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             UNSUPPORTED_AFTER_WRAPPER_SOURCE,
@@ -3747,7 +3747,7 @@ mod tests {
         let statements = Parser::new(lexer.tokenize(), CAPSULE_EXACT_EMPTY_SOURCE)
             .parse_program()
             .expect("parse exact-empty capsule fixture");
-        let artifacts = TypeChecker::check_with_explore_artifacts(
+        let artifacts = TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             CAPSULE_EXACT_EMPTY_SOURCE,
@@ -3839,7 +3839,7 @@ mod tests {
         let statements = Parser::new(lexer.tokenize(), CAPSULE_VIOLATIONS_EMPTY_SOURCE)
             .parse_program()
             .expect("parse violations-polarity capsule fixture");
-        let artifacts = TypeChecker::check_with_explore_artifacts(
+        let artifacts = TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             CAPSULE_VIOLATIONS_EMPTY_SOURCE,
@@ -3975,7 +3975,7 @@ mod tests {
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -4019,7 +4019,7 @@ mod tests {
             )
         };
         let authority = make_authority(artifacts);
-        let cold = make_authority(TypeChecker::check_with_explore_artifacts(
+        let cold = make_authority(TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             source,
@@ -4125,7 +4125,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(&decoded, journal.entries());
-        let colder = make_authority(TypeChecker::check_with_explore_artifacts(
+        let colder = make_authority(TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             source,
@@ -4194,7 +4194,7 @@ mod tests {
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -4353,7 +4353,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(&decoded, journal.entries());
-        let cold = make_authority(TypeChecker::check_with_explore_artifacts(
+        let cold = make_authority(TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             source,
@@ -4388,7 +4388,7 @@ mod tests {
         } else {
             statements
         };
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",

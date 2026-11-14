@@ -745,6 +745,82 @@ fn conversions_in_an_imported_file_run_and_prove() {
     );
 }
 
+/// Every SMT consumer sees units as `Int`, in the root and in imported
+/// files: the clause audit analyses rule families and a RuleScope over `Ore`
+/// (it once left each such clause "not analyzed" and sent `Ore` to Z3 as an
+/// unknown sort), and verify proves a claim over an imported `Ore` function.
+#[test]
+fn the_clause_audit_and_verify_see_units_as_int() {
+    let dir = temp_dir();
+    std::fs::write(
+        dir.join("money.runa"),
+        "-- library-hygiene: importable\n\
+         # unit Ore \"DKK øre\"\n\
+         | bracket(amount: Ore) -> 0 under amount < 10000\n\
+         | bracket(amount: Ore) -> 1 under amount >= 10000\n\
+         # ShareTax(own_ore: Ore) {\n    \
+             | tax_ore() -> own_ore / 4 under own_ore > 0\n    \
+             | exception negative_share_income tax_ore() -> own_ore / 4 under own_ore < 0\n\
+         }\n\
+         > positive_part(a: Ore) -> Ore { if a > 0 { a } else { 0 } }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("tax.calculate.runa"),
+        "@ import ./money\n\
+         | band(x: Ore) -> 1 under x >= 0\n\
+         | band(x: Ore) -> 2 under x < 0\n\
+         # Input(own_ore: Ore)\n\
+         # Output(tax_ore: Ore, band: Int, bracket: Int)\n\
+         @ calculate(\"Units in the clause audit\")\n\
+         | share_tax(input: Input) -> Output(tax_ore = ShareTax(own_ore = input.own_ore).tax_ore(), band = band(input.own_ore), bracket = bracket(input.own_ore))\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("proofs.runa"),
+        "@ import ./money\n| never_negative: x -> positive_part(x) >= 0\n",
+    )
+    .unwrap();
+    let run = |arguments: &[&str], file: &str| {
+        Command::new(env!("CARGO_BIN_EXE_runa"))
+            .args(arguments)
+            .arg(dir.join(file))
+            .env("FUTURUNA_DISABLE_CALCULATION_CACHE", "1")
+            .output()
+            .unwrap()
+    };
+    let audit = run(&["audit", "--json"], "tax.calculate.runa");
+    let verify = run(&["verify"], "proofs.runa");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(audit.status.success(), "{}", stderr(&audit));
+    let report: serde_json::Value = serde_json::from_str(&stdout(&audit)).unwrap();
+    let clauses = &report["clause_reachability"];
+    let proofs = stdout(&verify);
+    if !z3_available() {
+        assert_eq!(clauses["status"], "not_run", "{clauses}");
+        assert!(proofs.contains("Z3 not found"), "{proofs}");
+        return;
+    }
+    assert_eq!(clauses["status"], "ran", "{clauses}");
+    assert_eq!(clauses["not_analyzed"], serde_json::json!([]), "{clauses}");
+    // band, bracket, ShareTax.tax_ore and the entry share_tax.
+    assert_eq!(clauses["summary"]["families"], 4, "{clauses}");
+    assert_eq!(clauses["summary"]["clauses"], 7, "{clauses}");
+    assert_eq!(clauses["summary"]["analyzed"], 7, "{clauses}");
+    // The analysis decides the RuleScope over `Ore`: nothing covers 0.
+    let findings = clauses["findings"].as_array().expect("findings");
+    assert_eq!(findings.len(), 1, "{clauses}");
+    assert_eq!(findings[0]["kind"], "gap", "{clauses}");
+    assert_eq!(findings[0]["family"], "ShareTax.tax_ore/0", "{clauses}");
+    assert_eq!(
+        findings[0]["witness"],
+        serde_json::json!({ "self.own_ore": "0" }),
+        "{clauses}"
+    );
+    assert!(verify.status.success(), "{proofs}\n{}", stderr(&verify));
+    assert!(proofs.contains("PROVED: |never_negative|"), "{proofs}");
+}
+
 #[test]
 fn the_contract_carries_unit_scales() {
     let source = CALCULATION.replace("UNIT", "None").replace(

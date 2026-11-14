@@ -13406,6 +13406,15 @@ impl SmtProgramResolver {
             true,
         )?;
         self.active_sources.clear();
+        // A unit of measure is an Int to the solver; the checker has kept the
+        // units apart. Every SMT consumer (verify, the clause audit) starts
+        // from this program, so none sees a unit.
+        let mut files = self
+            .namespaces
+            .values_mut()
+            .map(|namespace| &mut namespace.statements)
+            .collect::<Vec<_>>();
+        erase_unit_types_in_files(&mut files);
         Ok(SmtResolvedProgram {
             root_identity,
             namespaces: self.namespaces,
@@ -13613,6 +13622,8 @@ impl SmtProgramResolver {
 /// Origin recorded for statements contributed by the standard prelude.
 const SMT_PRELUDE_ORIGIN: &str = "<prelude>";
 
+/// The program `statements` reach, every import read and every unit erased:
+/// what each SMT encoding is built from.
 fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<SmtResolvedProgram, String> {
     SmtProgramResolver::default().resolve(statements, filename)
 }
@@ -19222,17 +19233,15 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             std::process::exit(1);
         }
     };
-    let mut all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
+    // Units are already erased: `resolve_smt_program` erases them.
+    let all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
         Ok((statements, _)) => statements,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
             std::process::exit(1);
         }
     };
-    // A unit of measure is an Int to the solver; the checker above has kept
-    // the units apart.
-    erase_unit_types(&mut all_stmts);
-    let type_artifacts = TypeChecker::check_with_artifacts(
+    let type_artifacts = TypeChecker::check_without_calculation_contracts(
         &if use_prelude {
             prepend_prelude(parse_prelude(), &all_stmts)
         } else {

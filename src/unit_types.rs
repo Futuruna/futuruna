@@ -1179,6 +1179,18 @@ pub fn erase_unit_types(stmts: &mut [Stmt]) {
     rewrite_stmts(stmts, &mut Erasure { units: &units });
 }
 
+/// [`erase_unit_types`] over the files of one program: a unit declared in
+/// any of them is erased in all of them.
+pub fn erase_unit_types_in_files(files: &mut [&mut Vec<Stmt>]) {
+    let mut units = BTreeSet::new();
+    for file in files.iter() {
+        collect_unit_names(file, &mut units);
+    }
+    for file in files.iter_mut() {
+        rewrite_stmts(file, &mut Erasure { units: &units });
+    }
+}
+
 fn collect_unit_names(stmts: &[Stmt], units: &mut BTreeSet<String>) {
     for stmt in stmts {
         match stmt {

@@ -1352,7 +1352,7 @@ fn personskat_endpoint_totality_certifies(
         .to_string_lossy()
         .into_owned();
     let artifacts =
-        TypeChecker::check_with_explore_artifacts(&statements, Some(source_dir), &source);
+        TypeChecker::check_without_calculation_contracts(&statements, Some(source_dir), &source);
     assert!(
         artifacts.diagnostics.is_empty(),
         "unexpected Personskat diagnostics for {filename}: {:?}",

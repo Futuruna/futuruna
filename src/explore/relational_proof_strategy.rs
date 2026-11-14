@@ -2380,7 +2380,7 @@ mod tests {
         let statements = Parser::new(lexer.tokenize(), FINITE_AXIS_WITH_CHECKED_CUT)
             .parse_program()
             .expect("parse the finite-axis proof-strategy fixture");
-        let artifacts = TypeChecker::check_with_explore_artifacts(
+        let artifacts = TypeChecker::check_without_calculation_contracts(
             &statements,
             None,
             FINITE_AXIS_WITH_CHECKED_CUT,

@@ -216,7 +216,7 @@ mod tests {
         let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
             .parse_program()
             .unwrap();
-        TypeChecker::check_with_explore_artifacts(&statements, None, &source)
+        TypeChecker::check_without_calculation_contracts(&statements, None, &source)
     }
 
     fn graph(definition: &str) -> std::sync::Arc<FrozenClassificationProgram> {

@@ -81,7 +81,7 @@ pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls}
 pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
 mod unit_types;
-pub use unit_types::erase_unit_types;
+pub use unit_types::{erase_unit_types, erase_unit_types_in_files};
 
 pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
 
@@ -62871,9 +62871,12 @@ impl TypeChecker {
         Self::check_with_artifact_options(stmts, source_dir, source, true, true)
     }
 
-    /// Check the complete runtime program while omitting calculation-contract
-    /// extraction that the relational Explore engine never consumes.
-    pub(crate) fn check_with_explore_artifacts(
+    /// Check the complete program while omitting calculation-contract
+    /// extraction, for consumers that never read the contracts: the
+    /// relational Explore engine, and the solver encodings (`runa verify`,
+    /// the clause audit), which re-check the flattened program they assembled
+    /// under its elaborated constructor names.
+    pub fn check_without_calculation_contracts(
         stmts: &[Stmt],
         source_dir: Option<String>,
         source: &str,

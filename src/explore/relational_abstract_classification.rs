@@ -889,7 +889,7 @@ mod tests {
                     .parse_program()
                     .unwrap();
                 let artifacts =
-                    TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+                    TypeChecker::check_without_calculation_contracts(&statements, None, &source);
                 assert!(
                     artifacts.diagnostics.is_empty(),
                     "{:?}",
@@ -980,7 +980,8 @@ mod tests {
             let statements = Parser::new(lexer.tokenize(), &source)
                 .parse_program()
                 .unwrap();
-            let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+            let artifacts =
+                TypeChecker::check_without_calculation_contracts(&statements, None, &source);
             assert!(
                 artifacts.diagnostics.is_empty(),
                 "{:?}",
@@ -1089,7 +1090,7 @@ EXTRA
                         .parse_program()
                         .unwrap();
                     let artifacts =
-                        TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+                        TypeChecker::check_without_calculation_contracts(&statements, None, &source);
                     assert!(
                         artifacts.diagnostics.is_empty(),
                         "{:?}",
@@ -1177,7 +1178,8 @@ EXTRA
             let statements = Parser::new(lexer.tokenize(), &source)
                 .parse_program()
                 .unwrap();
-            let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+            let artifacts =
+                TypeChecker::check_without_calculation_contracts(&statements, None, &source);
             assert!(
                 artifacts.diagnostics.is_empty(),
                 "{:?}",
@@ -1237,7 +1239,8 @@ EXTRA
             let statements = Parser::new(lexer.tokenize(), &source)
                 .parse_program()
                 .unwrap();
-            let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+            let artifacts =
+                TypeChecker::check_without_calculation_contracts(&statements, None, &source);
             assert!(
                 artifacts.diagnostics.is_empty(),
                 "{:?}",
@@ -1305,7 +1308,7 @@ DEFINITION
                     .parse_program()
                     .unwrap();
                 let artifacts =
-                    TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+                    TypeChecker::check_without_calculation_contracts(&statements, None, &source);
                 assert!(
                     artifacts.diagnostics.is_empty(),
                     "{:?}",
@@ -1338,7 +1341,8 @@ DEFINITION
         let statements = Parser::new(lexer.tokenize(), &source)
             .parse_program()
             .unwrap();
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+        let artifacts =
+            TypeChecker::check_without_calculation_contracts(&statements, None, &source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -1380,7 +1384,7 @@ DEFINITION
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -1433,7 +1437,7 @@ DEFINITION
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &statements);
-        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        let artifacts = TypeChecker::check_without_calculation_contracts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -1471,7 +1475,7 @@ DEFINITION
             .parse_program()
             .unwrap();
         let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
-        let artifacts = TypeChecker::check_with_explore_artifacts(
+        let artifacts = TypeChecker::check_without_calculation_contracts(
             &statements,
             Some(fixture.parent().unwrap().to_string_lossy().into_owned()),
             &source,
