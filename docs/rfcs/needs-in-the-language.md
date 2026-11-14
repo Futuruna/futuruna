@@ -1,6 +1,13 @@
+---
+feature_stage: experimental
+feature_stage_surfaces:
+  - needs-in-the-language
+---
+
 # RFC: Needs in the language
 
-Status: Proposed (Futuruna 0.5). Builds on [Calculation needs](calculation-needs.md).
+Status: Experimental (Futuruna 0.5). Builds on [Calculation needs](calculation-needs.md).
+Decisions made while implementing it are under *Decisions* at the end.
 
 ## Problem
 
@@ -428,3 +435,46 @@ from.
   whether that rule's parameter types form a contract stable enough to ask
   from outside the model (JSON, SDK), or whether such queries stay in tests
   and a published question still needs an entry.
+
+## Decisions
+
+Taken while implementing this RFC for 0.5:
+
+- **The path form.** A `Path(i)` value is the string `pathof` writes, in a
+  `Path` place and a `String` place alike: fields joined with `.`, list
+  indices kept, `$variant` for a tag, and the alternative of a sum type named
+  before its payload field
+  (`taxpayer.outside_endavu.OutsideDeclared.other_share_income_ore`). This is
+  the JSON path except for that alternative name, and the path field
+  metadata already uses; `show(path)` shows it. A query writes every path it
+  returns in this form, taking the alternative from the case. One runtime
+  form keeps `pathof` independent of its place.
+- **Typing by place.** The checker infers types; `unknown` and `pathof` fit
+  their place where literals with units do (arguments, field values, typed
+  bindings, list elements, results), and `==` holds a `pathof` to the
+  `Path(T)` on its other side. A path rooted at another type is an error
+  there; through a generic parameter (`fill`'s `List(Path(i))`) the root is
+  not checked.
+- **Where `unknown` has no place in a partial case.** A partial case leaves
+  out record fields. An `unknown` scalar as a list element, a map value or
+  the payload of `Some` cannot be written there and is an error when the
+  query runs (`Some(unknown)` of a record is the record with unknown fields).
+- **Which entry a query asks.** The entry is found in the asking file or the
+  files it imports, and checked and prepared as `runa call` prepares it, once
+  per run. Its result and needs cross into the asking program through their
+  JSON encoding, so a query returns exactly what `runa call --partial`
+  returns.
+- **`Need(i)` names.** The record types a need is made of are `NeedKind`
+  (`FactNeed | EntryNeed`), `NeedKey(i)`, `NeedSource`, `NeedWaiting`,
+  `NeedParagraph`, `NeedAct` and `NeedAmendment`: prefixed so that a model's
+  own `Entry` or `Act` does not share a constructor with them. A source's
+  `binding` is a `ProgramReference`. A key's `value` is its JSON text.
+  `later` stays out of `Needs` (open question above).
+- **The prelude.** The types and `fill`/`interview` join the prelude of a
+  program that asks a query, places an `unknown`, or calls `fill` or
+  `interview`; other programs are unchanged.
+- **Cost.** The completion test runs 32 completions per `Complete` query, as
+  `--partial=check` does; no per-query budget yet.
+- **`refof(section ...)` in tests.** `refof(section name)` resolves sections
+  of the file it is written in, so a test names a model's section by its
+  value, `ProgramSectionReference(name = "share_income")`.

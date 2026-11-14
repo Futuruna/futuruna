@@ -319,6 +319,16 @@
       ]
     },
     {
+      "id": "needs-in-the-language",
+      "kind": "language",
+      "name": "Needs in the language (`unknown`, `query`, `Path(i)`, `fill`, `interview`)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/rfcs/needs-in-the-language.md"
+      ]
+    },
+    {
       "id": "calculation-explanations",
       "kind": "tooling",
       "name": "Explanations of calculation results (`runa call --explain`) and paragraph citations (`@ cite`)",
@@ -577,6 +587,13 @@
       "stage": "experimental",
       "surfaces": [
         "calculation-needs"
+      ]
+    },
+    {
+      "path": "docs/rfcs/needs-in-the-language.md",
+      "stage": "experimental",
+      "surfaces": [
+        "needs-in-the-language"
       ]
     },
     {
