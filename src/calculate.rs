@@ -524,6 +524,11 @@ pub enum CalculationPartialResult {
     },
     Needs {
         needs: Vec<CalculationNeed>,
+        /// Facts evaluation read only behind an unknown condition, which do
+        /// not block the result as it stands; answering `needs` may make
+        /// them needs.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        later: Vec<CalculationNeed>,
     },
 }
 
@@ -542,6 +547,9 @@ pub struct CalculationNeed {
     pub kind: CalculationNeedKind,
     /// The concrete input path to answer, with list indices.
     pub path: String,
+    /// The keys of the list elements the path lies in, outermost first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keys: Vec<CalculationNeedKey>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -556,15 +564,53 @@ pub struct CalculationNeed {
     pub unit: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<CalculationMetadataReference>,
-    /// The innermost rule family of a law section evaluating when the path
-    /// was first read; without one, the innermost rule family (or the entry).
-    pub waiting_rule: String,
-    /// The law section (anchor label) of `waiting_rule`.
+    /// The rules that wait for the value: those of law sections that read
+    /// it, cited ones only when there are any. Never empty.
+    pub waiting: Vec<CalculationWaiting>,
+}
+
+/// A list element a need's path lies in, and the value of its key field.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalculationNeedKey {
+    /// The element's input path (`opening_positions[0]`).
+    pub path: String,
+    /// The element type's key field.
+    pub field: String,
+    pub value: JsonValue,
+}
+
+/// A rule or function a need waits on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationWaiting {
+    pub rule: String,
+    /// The section (anchor label) the rule's clause or function is in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,
-    /// The paragraphs `waiting_rule` cites (`--@cite`).
+    /// The paragraphs the clause or function cites (`--@cite`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub paragraphs: Vec<String>,
+    pub paragraphs: Vec<CalculationParagraph>,
+}
+
+/// A cited paragraph, the quoted document it is in and that document's act.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationParagraph {
+    /// `§ 9, stk. 3`.
+    pub paragraph: String,
+    /// The `[sources/...]` document of the quote it was found in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act: Option<CalculationAct>,
+}
+
+/// The act a quoted document is, from the document's header.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationAct {
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identifier: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 enum InputPathToken<'a> {
@@ -657,12 +703,13 @@ impl CalculationContract {
         Some(canonical.join("."))
     }
 
-    /// The need for a concrete input path, with the field's metadata.
+    /// The need for a concrete input path, with the field's metadata and
+    /// the keys of the list elements it lies in.
     pub(crate) fn need_for_path(
         &self,
         input: &JsonValue,
         path: String,
-        waiting_rule: String,
+        waiting: Vec<CalculationWaiting>,
     ) -> CalculationNeed {
         let metadata = self
             .canonical_input_path(input, &path)
@@ -680,6 +727,7 @@ impl CalculationContract {
             } else {
                 CalculationNeedKind::Fact
             },
+            keys: self.need_keys(input, &path),
             path,
             entry: provider.map(|provider| provider.entry.clone()),
             subject: provider.map(|provider| provider.subject.clone()),
@@ -690,11 +738,148 @@ impl CalculationContract {
             sources: metadata
                 .map(|metadata| metadata.sources.clone())
                 .unwrap_or_default(),
-            waiting_rule,
-            section: None,
-            paragraphs: Vec::new(),
+            waiting,
         }
     }
+
+    /// The keys of the list elements `path` lies in, outermost first: for
+    /// each element whose record type declares a key field that the case
+    /// gives, the element's path and the key's value.
+    pub(crate) fn need_keys(&self, input: &JsonValue, path: &str) -> Vec<CalculationNeedKey> {
+        let mut keys = Vec::new();
+        let Some(tokens) = input_path_tokens(path) else {
+            return keys;
+        };
+        let mut ty = self.input.clone();
+        let mut substitutions = BTreeMap::new();
+        let mut json = Some(input);
+        let mut concrete = String::new();
+        for token in tokens {
+            loop {
+                ty = substitute_contract_type(&ty, &substitutions);
+                match ty {
+                    CalculationTypeRef::Optional { item } => ty = *item,
+                    _ => break,
+                }
+            }
+            match token {
+                InputPathToken::Index(index) => {
+                    let (CalculationTypeRef::List { item } | CalculationTypeRef::Set { item }) =
+                        &ty
+                    else {
+                        return keys;
+                    };
+                    let mut element = substitute_contract_type(item, &substitutions);
+                    while let CalculationTypeRef::Optional { item } = element {
+                        element = *item;
+                    }
+                    concrete = format!("{concrete}[{index}]");
+                    json = json.and_then(|json| json.get(index));
+                    if let CalculationTypeRef::Named { name, .. } = &element {
+                        let key = self
+                            .definition(name)
+                            .and_then(|definition| definition.key.as_ref());
+                        if let Some(field) = key {
+                            if let Some(value) = json
+                                .and_then(|json| json.get(field))
+                                .filter(|value| !value.is_null())
+                            {
+                                keys.push(CalculationNeedKey {
+                                    path: concrete.clone(),
+                                    field: field.clone(),
+                                    value: value.clone(),
+                                });
+                            }
+                        }
+                    }
+                    ty = element;
+                }
+                InputPathToken::Field(name) => {
+                    concrete = partial::join_path(&concrete, name);
+                    match &ty {
+                        CalculationTypeRef::Map { value, .. } => {
+                            json = json.and_then(|json| json.get(name));
+                            ty = (**value).clone();
+                        }
+                        CalculationTypeRef::Named {
+                            name: type_name,
+                            arguments,
+                        } => {
+                            let Some(definition) = self.definition(type_name) else {
+                                return keys;
+                            };
+                            substitutions = definition_substitutions(definition, arguments);
+                            let field = match product_variant(definition) {
+                                Some(variant) => variant.fields.iter().find(|f| f.name == name),
+                                None => {
+                                    let chosen = json
+                                        .and_then(|json| json.get("$variant"))
+                                        .and_then(JsonValue::as_str);
+                                    definition
+                                        .variants
+                                        .iter()
+                                        .filter(|variant| {
+                                            chosen.map_or(true, |chosen| variant.name == chosen)
+                                        })
+                                        .find_map(|variant| {
+                                            variant.fields.iter().find(|f| f.name == name)
+                                        })
+                                }
+                            };
+                            let Some(field) = field else {
+                                return keys;
+                            };
+                            ty = field.ty.clone();
+                            json = json.and_then(|json| json.get(name));
+                        }
+                        _ => return keys,
+                    }
+                }
+            }
+        }
+        keys
+    }
+
+    /// The fact a concrete input path belongs to: a part of a `Date`
+    /// (`year`, `month`, `day`) is the date's; any other path is its own.
+    pub(crate) fn fact_path(&self, input: &JsonValue, path: &str) -> String {
+        let Some((parent, part)) = path.rsplit_once('.') else {
+            return path.to_string();
+        };
+        if !matches!(part, "year" | "month" | "day") {
+            return path.to_string();
+        }
+        let is_date = self
+            .canonical_input_path(input, parent)
+            .and_then(|canonical| contract_type_at_path(self, &canonical))
+            .is_some_and(|ty| match ty {
+                CalculationTypeRef::Named { name, .. } => {
+                    self.definition(&name).is_some_and(is_date_definition)
+                }
+                _ => false,
+            });
+        if is_date {
+            parent.to_string()
+        } else {
+            path.to_string()
+        }
+    }
+}
+
+/// The standard `Date` record: one fact, though its year, month and day are
+/// separate fields.
+pub(crate) fn is_date_definition(definition: &CalculationTypeDefinition) -> bool {
+    definition.name == "Date"
+        && definition.parameters.is_empty()
+        && product_variant(definition).is_some_and(|variant| {
+            variant.fields.len() == 3
+                && ["year", "month", "day"].iter().all(|part| {
+                    variant.fields.iter().any(|field| {
+                        field.name == *part
+                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, .. } if name == "Int")
+                    })
+                })
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1876,6 +2061,9 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             Ok(field_metadata) => contract.field_metadata = field_metadata,
             Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
         }
+        if let Err(mut diagnostics) = apply_declared_keys(&mut contract, &declared_field_meta) {
+            metadata_diagnostics.append(&mut diagnostics);
+        }
         if let Err(mut diagnostics) = apply_unit_field_metadata(&mut contract) {
             metadata_diagnostics.append(&mut diagnostics);
         }
@@ -2773,6 +2961,67 @@ fn contract_units(
         .collect()
 }
 
+/// A record type whose field is declared `@ field(key = True)` names that
+/// field as its `key`: what identifies an element of the type in a list, so
+/// a need inside the element can carry it. The key is one field of a record
+/// (not of a sum type's variant) and holds a `String` or an `Int`.
+fn apply_declared_keys(
+    contract: &mut CalculationContract,
+    declared: &DeclaredFieldMeta,
+) -> Result<(), Vec<Diagnostic>> {
+    let mut diagnostics = Vec::new();
+    for definition in &mut contract.definitions {
+        let Some(type_meta) = declared.types.get(&definition.name) else {
+            continue;
+        };
+        let keys: Vec<&ResolvedMemberFieldMeta> = type_meta
+            .members
+            .iter()
+            .filter(|member| member.meta.key)
+            .collect();
+        let Some(first) = keys.first() else {
+            continue;
+        };
+        if keys.len() > 1 {
+            diagnostics.push(Diagnostic::error(format!(
+                "type `{}` declares more than one key field (`{}` and `{}`); a record has one key",
+                definition.name, first.field, keys[1].field
+            )));
+            continue;
+        }
+        let Some(variant) = product_variant(definition) else {
+            diagnostics.push(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: a key identifies an element of a record type, and `{}` is not a record",
+                first.meta.binding, definition.name
+            )));
+            continue;
+        };
+        let scalar = variant
+            .fields
+            .iter()
+            .find(|field| field.name == first.field)
+            .is_some_and(|field| {
+                matches!(
+                    &field.ty,
+                    CalculationTypeRef::Primitive { name, .. } if matches!(name.as_str(), "String" | "Int")
+                )
+            });
+        if !scalar {
+            diagnostics.push(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: a key field holds a `String` or an `Int`",
+                first.meta.binding
+            )));
+            continue;
+        }
+        definition.key = Some(first.field.clone());
+    }
+    if diagnostics.is_empty() {
+        Ok(())
+    } else {
+        Err(diagnostics)
+    }
+}
+
 /// A field whose type has a unit takes the `unit` of its field metadata from
 /// the unit's declaration. An authored `unit` on such a field would say the
 /// unit a second time, so it is an error.
@@ -2844,6 +3093,19 @@ fn contract_field_metadata(
     let group_paths = record_group_paths(contract);
     let mut targets = valid_paths.clone();
     targets.extend(group_paths.iter().cloned());
+    // A date is one fact: a required `Date` field keeps its own metadata at
+    // its path, where a need for any of its parts is asked.
+    valid_paths.extend(
+        group_paths
+            .iter()
+            .filter(|path| {
+                contract_type_at_path(contract, path).is_some_and(|ty| {
+                    matches!(&ty, CalculationTypeRef::Named { name, .. }
+                        if contract.definition(name).is_some_and(is_date_definition))
+                })
+            })
+            .cloned(),
+    );
 
     let type_occurrence_paths = calculation_type_occurrence_paths(contract);
     let input_type_names = type_occurrence_paths
@@ -3049,6 +3311,8 @@ struct ResolvedFieldMeta {
     unit: Option<String>,
     sources: Vec<CalculationMetadataReference>,
     provided_by: Option<CalculationFieldProvider>,
+    /// `key = True`: the field identifies an element of its record type.
+    key: bool,
 }
 
 impl ResolvedFieldMeta {
@@ -3232,6 +3496,19 @@ fn resolved_field_meta(
             )))
         }
     };
+    let key = match values.get("key") {
+        None => false,
+        Some(Some(MetaValue::Constructor {
+            name, arguments, ..
+        })) if arguments.is_empty() && matches!(name.as_str(), "True" | "False") => name == "True",
+        Some(Some(MetaValue::Boolean(key))) => *key,
+        Some(_) => {
+            return Err(Diagnostic::error(format!(
+                "`@ field` on `{}`: `key` must be `True` or `False`",
+                binding
+            )))
+        }
+    };
     Ok(ResolvedFieldMeta {
         anchor: type_name.to_string(),
         binding: binding.to_string(),
@@ -3241,6 +3518,7 @@ fn resolved_field_meta(
         unit: text("unit")?,
         sources,
         provided_by,
+        key,
     })
 }
 
@@ -5799,6 +6077,19 @@ impl CalculationWorker {
                 .begin_partial_case(self.partial, &contract.entry);
             self.interpreter.partial.borrow_mut().containers =
                 decoder.containers.iter().cloned().collect();
+            if self.interpreter.partial_cited.is_none() {
+                let mut renderer = explain::ExplainRenderer::new(ExplainOptions {
+                    full: false,
+                    root_file: self.program.root_file.clone(),
+                    display_root: None,
+                });
+                let hook: partial::CitedFrames = Rc::new(RefCell::new(
+                    move |interpreter: &Interpreter, frame: &partial::CallFrame| {
+                        renderer.frame_cited(interpreter, frame)
+                    },
+                ));
+                self.interpreter.partial_cited = Some(hook);
+            }
         }
 
         let mut runtime_env = self.base_env.clone();
@@ -5889,10 +6180,9 @@ impl CalculationWorker {
         };
         let outcome = match evaluated {
             Ok(result) => self.interpreter.finish_partial_case(result),
-            Err(CalculationRuntimeFailure::NeedsInput(paths)) => partial::PartialOutcome::Needs {
-                paths,
-                waiting: self.interpreter.partial_waiting(),
-            },
+            Err(CalculationRuntimeFailure::NeedsInput(paths)) => {
+                self.interpreter.partial_needs(paths)
+            }
             Err(error) => {
                 return diagnostic(
                     "$".to_string(),
@@ -5930,42 +6220,52 @@ impl CalculationWorker {
                     Err(error) => return diagnostic(error.path, error.message),
                 }
             }
-            partial::PartialOutcome::Needs { paths, waiting } => {
-                let sections = self.sections.get_or_insert_with(|| {
+            partial::PartialOutcome::Needs {
+                paths,
+                waiting,
+                later,
+            } => {
+                let renderer = self.sections.get_or_insert_with(|| {
                     explain::ExplainRenderer::new(ExplainOptions {
                         full: false,
                         root_file: self.program.root_file.clone(),
                         display_root: None,
                     })
                 });
-                CalculationPartialResult::Needs {
-                    needs: paths
-                        .into_iter()
-                        .map(|path| {
-                            let frames = waiting.get(&path);
-                            let sectioned = frames.and_then(|frames| {
-                                sections.waiting_frame(&self.interpreter, frames)
-                            });
-                            match sectioned {
-                                Some((rule, section, paragraphs)) => {
-                                    let mut need = contract.need_for_path(&case.input, path, rule);
-                                    need.section = Some(section);
-                                    need.paragraphs = paragraphs;
-                                    need
-                                }
-                                // The innermost rule family, or the entry.
-                                None => {
-                                    let rule = frames
-                                        .and_then(|frames| {
-                                            frames.iter().rev().find(|frame| frame.is_rule)
-                                        })
-                                        .map(|frame| frame.name.clone())
-                                        .unwrap_or_else(|| contract.entry.clone());
-                                    contract.need_for_path(&case.input, path, rule)
-                                }
+                // A part of a date is the date's need; stacks of merged parts
+                // are joined.
+                let facts = |paths: &BTreeSet<String>| {
+                    let mut facts: BTreeMap<String, Vec<partial::WaitingRules>> = BTreeMap::new();
+                    for path in paths {
+                        let stacks = facts
+                            .entry(contract.fact_path(&case.input, path))
+                            .or_default();
+                        for stack in waiting.get(path).into_iter().flatten() {
+                            if !stacks.iter().any(|known| Rc::ptr_eq(known, stack)) {
+                                stacks.push(stack.clone());
                             }
+                        }
+                    }
+                    facts
+                };
+                let needed = facts(&paths);
+                let mut needs_for = |facts: BTreeMap<String, Vec<partial::WaitingRules>>| {
+                    facts
+                        .into_iter()
+                        .map(|(path, stacks)| {
+                            let waiting =
+                                renderer.consumers(&self.interpreter, &stacks, &contract.entry);
+                            contract.need_for_path(&case.input, path, waiting)
                         })
-                        .collect(),
+                        .collect::<Vec<_>>()
+                };
+                let later = facts(&later)
+                    .into_iter()
+                    .filter(|(path, _)| !needed.contains_key(path))
+                    .collect();
+                CalculationPartialResult::Needs {
+                    needs: needs_for(needed),
+                    later: needs_for(later),
                 }
             }
         };
@@ -6597,15 +6897,89 @@ impl CalculationContract {
     }
 }
 
+/// JSON Schema of the act a quoted document is (`CalculationAct`).
+pub(crate) fn act_json_schema() -> JsonValue {
+    serde_json::json!({
+        "type": "object",
+        "description": "The act a quoted document is, from the header of the document under sources/: its `Title:`, `Document identifier:` and `Human-readable URL:` (or `URL:`) lines.",
+        "required": ["title"],
+        "additionalProperties": false,
+        "properties": {
+            "title": { "type": "string" },
+            "identifier": { "type": "string" },
+            "url": { "type": "string" }
+        }
+    })
+}
+
+/// JSON Schema of a cited paragraph in a need (`CalculationParagraph`).
+fn paragraph_json_schema() -> JsonValue {
+    serde_json::json!({
+        "type": "object",
+        "required": ["paragraph"],
+        "additionalProperties": false,
+        "properties": {
+            "paragraph": { "type": "string", "description": "The cited paragraph, as `§ 9, stk. 3`." },
+            "source": { "type": "string", "description": "The `[sources/...]` document of the quote it was found in." },
+            "act": act_json_schema()
+        }
+    })
+}
+
 /// JSON Schema of one case's `result` in a partial output envelope
 /// (`futuruna.calculate.partial-output.v1`). The calculation's own output
 /// type is the contract's `output`.
 pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
     let string = serde_json::json!({ "type": "string" });
+    let need = serde_json::json!({
+        "type": "object",
+        "required": ["kind", "path", "waiting"],
+        "additionalProperties": false,
+        "properties": {
+            "kind": { "enum": ["fact", "entry"] },
+            "path": string,
+            "keys": {
+                "type": "array",
+                "description": "The list elements the path lies in whose record type declares a key field, outermost first, each with the key's value in the case.",
+                "items": {
+                    "type": "object",
+                    "required": ["path", "field", "value"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "path": { "type": "string", "description": "The element's input path." },
+                        "field": { "type": "string", "description": "The element type's key field." },
+                        "value": { "description": "The key's canonical JSON value." }
+                    }
+                }
+            },
+            "entry": string,
+            "subject": string,
+            "label": string,
+            "question": string,
+            "help": string,
+            "unit": string,
+            "sources": { "type": "array", "items": { "type": "object" } },
+            "waiting": {
+                "type": "array",
+                "minItems": 1,
+                "description": "The rules that wait for the value: every rule or function of a law section that read it, the cited ones only when there are any.",
+                "items": {
+                    "type": "object",
+                    "required": ["rule"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "rule": string,
+                        "section": { "type": "string", "description": "The section (anchor label) of the rule's clause or function." },
+                        "paragraphs": { "type": "array", "items": paragraph_json_schema(), "description": "The paragraphs the clause or function cites." }
+                    }
+                }
+            }
+        }
+    });
     serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": format!("Partial result of `{}`", contract.entry),
-        "description": "A partial case answers Complete with its result, or Needs with the facts and entries that block it. See docs/rfcs/calculation-needs.md.",
+        "description": "A partial case answers Complete with its result, or Needs with the facts and entries that block it as it stands. See docs/rfcs/calculation-needs.md.",
         "x-futuruna-output-schema": PARTIAL_OUTPUT_SCHEMA,
         "x-futuruna-schema-hash": contract.schema_hash,
         "oneOf": [
@@ -6625,27 +6999,11 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
                 "additionalProperties": false,
                 "properties": {
                     "$variant": { "const": "Needs" },
-                    "needs": {
+                    "needs": { "type": "array", "items": need.clone() },
+                    "later": {
                         "type": "array",
-                        "items": {
-                            "type": "object",
-                            "required": ["kind", "path", "waiting_rule"],
-                            "additionalProperties": false,
-                            "properties": {
-                                "kind": { "enum": ["fact", "entry"] },
-                                "path": string,
-                                "entry": string,
-                                "subject": string,
-                                "label": string,
-                                "question": string,
-                                "help": string,
-                                "unit": string,
-                                "sources": { "type": "array", "items": { "type": "object" } },
-                                "waiting_rule": string,
-                                "section": { "type": "string", "description": "The law section (anchor label) of `waiting_rule`." },
-                                "paragraphs": { "type": "array", "items": string, "description": "The paragraphs `waiting_rule` cites." }
-                            }
-                        }
+                        "items": need,
+                        "description": "Facts evaluation read only behind an unknown condition, which do not block the result as it stands; answering `needs` may make them needs."
                     }
                 }
             }
@@ -6885,7 +7243,11 @@ mod calculation_execution_tests {
         let need = contract.need_for_path(
             &serde_json::json!({ "spouse": {} }),
             "spouse.income".to_string(),
-            "rate".to_string(),
+            vec![CalculationWaiting {
+                rule: "rate".to_string(),
+                section: None,
+                paragraphs: Vec::new(),
+            }],
         );
         assert_eq!(
             need.question.as_deref(),

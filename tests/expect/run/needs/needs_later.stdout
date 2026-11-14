@@ -1,0 +1,47 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "37324728d9be0dc183d0451d37a973bcfd577ceb28ebdcc0a71a3eb195392404",
+    "entry": "needs_later"
+  },
+  "results": [
+    {
+      "case_id": "kind-left-out",
+      "result": {
+        "$variant": "Needs",
+        "later": [
+          {
+            "kind": "fact",
+            "path": "pension",
+            "waiting": [
+              {
+                "rule": "needs_later"
+              }
+            ]
+          },
+          {
+            "kind": "fact",
+            "path": "salary",
+            "waiting": [
+              {
+                "rule": "needs_later"
+              }
+            ]
+          }
+        ],
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "kind.$variant",
+            "waiting": [
+              {
+                "rule": "needs_later"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

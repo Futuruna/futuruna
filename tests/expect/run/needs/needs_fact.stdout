@@ -51,7 +51,14 @@
               }
             ],
             "unit": "yes/no",
-            "waiting_rule": "rate"
+            "waiting": [
+              {
+                "rule": "rate"
+              },
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }

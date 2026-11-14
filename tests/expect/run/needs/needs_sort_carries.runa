@@ -1,0 +1,22 @@
+-- `sort` reads what its comparisons reach. Items ordered by a known key and
+-- position sort into a known list that carries their unknown fields, so a
+-- function over the sorted list still runs: a fact it reads is a need
+-- together with the unknown field, not hidden behind it.
+-- expect-command: call
+-- expect-input: needs_sort_carries.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_sort_carries.stdout
+
+# Account(id: String, opening_ore: Int)
+# Case(owner_liable: Bool, accounts: List(Account))
+# Checked(issues: Int, total: Int)
+
+> account_issue(liable: Bool, a: Account) -> List(String) {
+    if liable { [] } else { [a.id] }
+}
+
+@ calculate
+| needs_sort_carries(c: Case) -> Checked(
+    issues = length(flat_map(sort(map(enumerate(c.accounts), |p| (snd(p).id, fst(p), snd(p)))), |t| account_issue(c.owner_liable, trd(t)))),
+    total = foldl(map(c.accounts, |a| a.opening_ore), 0, |sum, x| sum + x)
+)

@@ -14,8 +14,10 @@ A calculation case may leave facts out. `runa call --partial` evaluates such a
 case and answers either with the result, or with the facts it still needs:
 
 - `Complete`: the result, and the provided input paths evaluation never read;
-- `Needs`: every fact and entry that blocks the result, each with its concrete
-  input path, the field's interview metadata and the rule waiting for it.
+- `Needs`: the facts and entries that block the result as it stands, each
+  with its concrete input path, the field's interview metadata and the rules
+  of the law waiting for it; and, as `later`, the facts evaluation read only
+  behind an unknown condition, which answering the needs may make needs.
 
 A client answers some of the needs, writes the answers into the same case at
 their paths, and calls again. The engine keeps no state between rounds: the
@@ -105,13 +107,24 @@ or function, storing it in a record or list. Reading it propagates:
 - builtins follow a strictness table: each argument is either needed whole
   (`show`, arithmetic helpers, string functions), needed only as a structure
   (`length` needs the list, not its elements), or passed through (the elements
-  given to a higher-order builtin's function). A builtin with an unknown needed
+  given to a higher-order builtin's function). The map builtins (`map_from`,
+  `map_get`, `map_get_or`, `map_contains`, `map_len`) need the keys whole and
+  carry the values. A builtin with an unknown needed
   argument gives an unknown result. A higher-order builtin over a list of
   unknown length gives an unknown result with the list's path. What a
   builtin's function returns is read the same way: `map` and `foldl` carry
-  it, `flat_map` needs its list structure, and every other builtin (a
-  predicate's Bool, a sort key) needs it whole; an unknown answer makes the
-  builtin's result unknown;
+  it, `flat_map` needs its list structure, `any`, `all` and `find` read its
+  answers in Kleene logic, and every other builtin (`filter`'s Bool, a sort
+  key) needs it whole; an unknown answer makes the builtin's result unknown;
+- `any` and `all` scan past an unknown answer: a `True` answer decides `any`
+  and a `False` answer decides `all` even after unknown ones, otherwise the
+  result is unknown with every unknown answer's paths. `find` is decided by a
+  match with no unknown answer before it; a match after unknown answers gives
+  an unknown result with their paths, since one of them might be the first;
+- `sort` reads what its comparisons reach: items ordered by known parts (a
+  key and a position before a record with unknown fields) sort into a known
+  list that carries the unknown parts. A comparison that reaches an unknown
+  part makes the result unknown with every unknown path of the list;
 - a loop (`for`, `while`) over an unknown list or condition stops the case
   with that need;
 - field access on a record reads only that field; field access on an unknown
@@ -140,10 +153,13 @@ terminates and cannot grow exponentially:
   evaluation of the case gives an unknown result with its condition's paths
   without exploring further;
 - a call to a rule or named function that is already on the call stack,
-  entered while a speculative evaluation is active, is not evaluated: its
-  result is unknown with the paths of every active speculation's condition.
-  `| f(n) -> f(n - 1) under n > 0` with `n` unknown therefore needs `n`
-  instead of recursing forever.
+  entered under a speculative evaluation that began inside the activation it
+  recurs from, is not evaluated: the recursion depends on an unknown
+  condition, and its result is unknown with the paths of every active
+  speculation's condition. `| f(n) -> f(n - 1) under n > 0` with `n` unknown
+  therefore needs `n` instead of recursing forever. A recursion whose own
+  conditions are known (a helper that splits a known list) runs as it would
+  in every completion, also under an outer speculation, within the budget.
 
 Both cuts are conservative: they may ask a fact that deeper exploration would
 have shown irrelevant, and they never turn a `Needs` into a wrong `Complete`.
@@ -182,13 +198,24 @@ variants.
         "help": "Cohabiting spouses only.",
         "unit": "yes/no",
         "sources": [ { "label": "...", "role": "Source", "binding": "pskl_8a" } ],
-        "waiting_rule": "transferable_threshold" },
+        "waiting": [
+          { "rule": "transferable_threshold", "section": "pskl_8a",
+            "paragraphs": [ { "paragraph": "§ 8 a, stk. 1",
+                              "source": "sources/04-personskatteloven.txt",
+                              "act": { "title": "Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)",
+                                       "identifier": "LBK nr. 1284 af 14/06/2021",
+                                       "url": "https://www.retsinformation.dk/eli/lta/2021/1284" } } ] } ] },
       { "kind": "entry",
         "path": "taxpayer.spouse_share_income_ore",
         "entry": "share_income",
         "subject": "taxpayer.spouse",
         "label": "Spouse's share income",
-        "waiting_rule": "transferable_threshold" } ] } }
+        "waiting": [ { "rule": "transferable_threshold", "section": "pskl_8a" } ] } ],
+    "later": [
+      { "kind": "fact",
+        "path": "taxpayer.spouse.cohabiting_at_year_end",
+        "label": "Cohabiting at year end",
+        "waiting": [ { "rule": "spouse_transfer", "section": "pskl_8a" } ] } ] } }
 ```
 
 `Complete`:
@@ -202,36 +229,69 @@ variants.
 
 `Needs`:
 
-- `needs`: every fact and entry that blocks the result, sorted by `path`, each
-  path once;
+- `needs`: the facts and entries that block the result as it stands, sorted
+  by `path`, each path once. They are not every fact the case will need:
+  evaluation does not see past an unknown condition it cannot finish (see
+  `later`), so answering the needs can reveal more, as round 2 above does;
+- `later`: the facts evaluation read only behind an unknown condition, in a
+  speculation (see Bounded speculation) whose branching site ended undecided
+  because a branch failed, was cut, or another branch was undecided, and that
+  are not among `needs`; sorted by `path`, each with the fields of a need.
+  They may become needs once the needs are answered; a client may ask them
+  in the same round. `later` is what bounded speculation reached, not every
+  fact behind the condition, and is omitted when empty;
 - `kind`: `fact` when the client answers the path itself, `entry` when the
   field's metadata says another calculation entry provides it;
-- `path`: the concrete input path to answer, with list indices;
+- `path`: the concrete input path to answer, with list indices. A `Date`
+  (the standard record of `year`, `month` and `day`) is one fact: an unknown
+  year, month or day is a need at the date's path, answered with the whole
+  date, and the needs of its parts are one;
+- `keys`: for each list element the path lies in whose record type has a key
+  field (a `String` or `Int` field declared `@ field(..., key = True)`, which
+  the contract's definition of the type names as `key`) and whose key the
+  case gives, outermost first: the element's `path`, the key `field` and its
+  `value`. A backend maps `opening_positions[0]` to its ISIN without relying
+  on positions; omitted when there is none;
 - `label`, `question`, `help`, `unit`, `sources`: the contract's
   `field_metadata` for the path with list indices removed
   (`accounts[2].closing_cash_ore` takes the metadata of
   `accounts.closing_cash_ore`; a member of an optional record such as
-  `taxpayer.spouse.cohabiting_at_year_end` has its own entry); each is omitted
-  when the metadata does not give it. `sources` are the contract's source
-  references, unchanged;
-- `waiting_rule`: the rule or function the fact matters to. When the path is
-  first read, the rule families and named functions being evaluated form a
-  stack (for a rule family, the clause being tried). A frame's *section* is
-  the section (between `--@begin:<section>--` and `--@end:<section>--`) its
-  clause, or function body, is declared in, when the section's
-  `--@label:<section>` anchor has a `----` quote (an anchor that only carries
-  metadata, such as an entry's input guide, makes no section here); a *law
-  section* is one whose quote holds a `[sources/...]` document. `waiting_rule` is the
-  innermost frame in a law section; without one, the innermost frame in any
-  section (a section of input checks, say); without one, the innermost rule
-  family, and the calculation entry when no rule was evaluating (a value
-  that reached the output unread). A validation helper or the entry itself
-  tells a reader little; the rule of the law the fact matters to does;
-- `section`, `paragraphs`: the section of `waiting_rule`'s frame and the
-  paragraphs cited (`--@cite`, see [Explanations](explanations.md)) on the
-  clause being tried, or on the rule's first clause when that clause cites
-  none, or on the function; omitted when the frame has no section or nothing
-  is cited;
+  `taxpayer.spouse.cohabiting_at_year_end` has its own entry; a date takes
+  the metadata of the date field); each is omitted when the metadata does not
+  give it. `sources` are the contract's source references, unchanged;
+- `waiting`: the rules of the law that wait for the fact, never empty. Every
+  time evaluation reads the unknown value, or a value computed from it, the
+  rule families and named functions being evaluated form a stack (for a rule
+  family, the clause being tried); every such stack counts, also inside
+  speculation. A frame's *section* is the section (between
+  `--@begin:<section>--` and `--@end:<section>--`) its clause, or function
+  body, is declared in, when the section's `--@label:<section>` anchor has a
+  `----` quote (an anchor that only carries metadata, such as an entry's
+  input guide, makes no section here); a *law section* is one whose quote
+  holds a `[sources/...]` document; a frame is *cited* when its clause, or the
+  rule's first clause when that clause cites none, or its function carries a
+  `--@cite` (see [Explanations](explanations.md)). Each stack names one
+  consumer: its innermost cited frame of a law section; without one, its
+  innermost frame of a law section; then of any section (a section of input
+  checks, say); then its innermost rule family. `waiting` lists the consumers
+  of the best of these kinds any stack gives, each once, in the order the
+  stacks were first seen: when some rule of the law cites paragraphs, an
+  uncited helper (a rounding function, a validation check) that also read
+  the value is not listed. Without any, it is the calculation entry (a value
+  that reached the output unread). Each consumer has:
+  - `rule`: the rule or function;
+  - `section`: its section, omitted for a frame in no section;
+  - `paragraphs`: the paragraphs its clause or function cites, each with its
+    `paragraph` label (`§ 9, stk. 3`), the quoted `source` document it was
+    found in, and that document's `act`; omitted when nothing is cited;
+- `act`: the act a quoted document is, read from the document's header: a
+  block of `Key: value` lines between a first line `---` and the next `---`,
+  whose `Title:` gives `title` (required), `Document identifier:` gives
+  `identifier` and `Human-readable URL:` (else `URL:`) gives `url`. The
+  document is found at its `[sources/...]` path beside the model file, or in
+  the nearest directory above it that holds it; a document without such a
+  header has no `act`. In the WebAssembly engine the document must be among
+  the model's provided sources (its header suffices);
 - `entry`, `subject` (entry needs only): the calculation entry that provides
   the value, and the input path of the subject it runs for.
 
@@ -319,8 +379,34 @@ that use them.
   it exists is the first question.
 - **Sources.** Needs carry the contract's structured source references, not
   rendered citation strings; the client renders them.
-- **Waiting rule.** It is the rule family that first read the path, which for
-  a path read in several rules is the first in evaluation order.
 - **Speculative failure.** A branch that fails while its condition is unknown
   makes the result unknown and its condition's paths fallible; the failure
-  itself is not reported until the condition is known.
+  itself is not reported until the condition is known. What the failed
+  branch read is reported in `later`.
+
+## Decisions
+
+- **`later` rather than a narrower promise alone.** A need is what blocks the
+  result as it stands; that much is a promise evaluation keeps. The facts
+  behind an unknown condition that evaluation did reach are already known to
+  the engine when the case ends, at no extra cost, so they are reported
+  separately instead of dropped: a client may ask them in the same round, and
+  the separate list keeps `needs` exact. `later` claims only that a fact was
+  read behind the condition, never that it will be needed.
+- **Every consumer, not the first reader.** A fact read by a rounding helper
+  first and by the rule of § 13 later is waited on by § 13; which rule reads
+  it first is an accident of evaluation order. Listing every cited consumer
+  names each paragraph the answer feeds (the owner's tax liability feeds § 1,
+  § 9 and § 16), and dropping the uncited ones when a cited one exists keeps
+  helpers out of what a reader is shown.
+- **A date is one fact; other records are not.** Only the standard `Date` is
+  merged: its parts are meaningless alone (a day without its month), a client
+  answers them together, and SDKs already encode it as one ISO date. A general
+  marker (`@ field(atomic = True)`) would add a language surface without a
+  second record that needs it; a record of separately answerable facts (an
+  address) is better asked field by field. A marker can follow when a second
+  record needs the merge.
+- **Keys are declared, not guessed.** The first `String` field, or a field
+  named `id`, would often be right and sometimes silently wrong (a name
+  before an ISIN); `@ field(key = True)` says it once, where the field is
+  declared, and the checker holds it to one scalar field per record type.

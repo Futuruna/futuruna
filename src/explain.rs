@@ -89,11 +89,13 @@ impl Leaf {
 pub(crate) enum Node {
     /// Passed in at an input path.
     Input { path: Rc<str>, value: Leaf },
-    /// Returned by a rule clause; `from` is what the clause's body computed.
+    /// Returned by a rule clause; `from` is what the clause's body computed,
+    /// `because` what the guards that chose the clause were computed from.
     Rule {
         clause: u32,
         from: Option<NodeId>,
         value: Leaf,
+        because: Box<[NodeId]>,
     },
     /// Computed outside any clause (an operator, a builtin) from these.
     Computed { from: Box<[NodeId]> },
@@ -116,6 +118,9 @@ pub struct ExplainState {
     clause_ids: HashMap<usize, u32>,
     /// Per active builtin: whether it reads its callbacks' results whole.
     callback_whole: Vec<bool>,
+    /// Per active rule dispatch, innermost last: the nodes of the guard
+    /// values evaluated so far (the guards that chose or refuted a clause).
+    guards: Vec<Vec<NodeId>>,
 }
 
 impl ExplainState {
@@ -137,6 +142,12 @@ impl ExplainState {
 
     pub(crate) fn clause(&self, id: u32) -> &ClauseRecord {
         &self.clauses[id as usize]
+    }
+
+    /// How many distinct rule clauses fired; their ids are `0..` in the
+    /// order they first fired.
+    pub(crate) fn clause_count(&self) -> usize {
+        self.clauses.len()
     }
 
     pub(crate) fn node_count(&self) -> usize {
@@ -301,10 +312,11 @@ pub fn strip_deep(value: &Value) -> Value {
     map_leaves(value, &mut |leaf| strip(leaf.clone()))
 }
 
-/// Rebuild `value` with `leaf` applied to every scalar and nullary variant,
-/// traced or not. Nil and None, closures, maps and sets are kept as they are.
-fn map_leaves(value: &Value, leaf: &mut dyn FnMut(&Value) -> Value) -> Value {
-    if matches!(value, Value::Traced(_)) || Leaf::of(value).is_some() {
+/// Rebuild `value` with `leaf` applied to every scalar, nullary variant and
+/// unknown value, traced or not. Nil and None, closures, maps and sets are
+/// kept as they are.
+pub(crate) fn map_leaves(value: &Value, leaf: &mut dyn FnMut(&Value) -> Value) -> Value {
+    if matches!(value, Value::Traced(_) | Value::Unknown(_)) || Leaf::of(value).is_some() {
         return leaf(value);
     }
     match value {
@@ -484,6 +496,17 @@ impl Interpreter {
         }
     }
 
+    /// A `match` arm chose `result`: a scalar the arm gives without a trace
+    /// of its own (a literal) is computed from the matched value.
+    pub(crate) fn explain_decided(&self, result: Value, matched: &Value) -> Value {
+        if node_of(&result).is_some() || Leaf::of(&result).is_none() {
+            return result;
+        }
+        let mut from = Vec::new();
+        collect_nodes(matched, &mut from);
+        self.explain_computed(result, from)
+    }
+
     /// A leaf computed from traced operands.
     fn explain_computed(&self, result: Value, from: Vec<NodeId>) -> Value {
         if Leaf::of(&result).is_none() || from.is_empty() {
@@ -626,7 +649,39 @@ impl Interpreter {
         }
     }
 
-    /// Tag the value a rule clause produced with the clause.
+    /// Begin a rule dispatch: collect the guard values it reads.
+    #[inline]
+    pub(crate) fn explain_begin_dispatch(&self) {
+        if let Some(state) = &self.explain {
+            state.borrow_mut().guards.push(Vec::new());
+        }
+    }
+
+    /// End a rule dispatch begun with [`Self::explain_begin_dispatch`].
+    #[inline]
+    pub(crate) fn explain_end_dispatch(&self) {
+        if let Some(state) = &self.explain {
+            state.borrow_mut().guards.pop();
+        }
+    }
+
+    /// A rule guard evaluated to `value`: the dispatch records what it was
+    /// computed from, before the guard is read untraced.
+    #[inline]
+    pub(crate) fn explain_guard_read(&self, value: &Value) {
+        let (Some(state), Some(node)) = (&self.explain, node_of(value)) else {
+            return;
+        };
+        let mut state = state.borrow_mut();
+        if let Some(guards) = state.guards.last_mut() {
+            if !guards.contains(&node) {
+                guards.push(node);
+            }
+        }
+    }
+
+    /// Tag the value a rule clause produced with the clause, and with the
+    /// guards its dispatch read to choose it.
     pub(crate) fn explain_rule_result(
         &self,
         rule: &Rc<Rule>,
@@ -640,6 +695,12 @@ impl Interpreter {
             return value;
         }
         let clause = state.borrow_mut().clause_id(rule, family);
+        let because: Box<[NodeId]> = state
+            .borrow()
+            .guards
+            .last()
+            .map(|guards| guards.clone().into_boxed_slice())
+            .unwrap_or_default();
         // A clause that returns one value produced it. A clause that returns a
         // structure produced the leaves it computed.
         let structure = Leaf::of(untraced(&value)).is_none();
@@ -663,6 +724,7 @@ impl Interpreter {
                 clause,
                 from,
                 value,
+                because: because.clone(),
             });
             traced(inner, node)
         };

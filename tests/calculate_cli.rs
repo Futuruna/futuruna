@@ -24790,7 +24790,7 @@ fn schema_declared_field_metadata_equals_listed_field_metadata() {
     let declared = household_tax_schema("declared.calculate.runa");
     let listed_fields = field_metadata_without_provenance(&listed);
     let declared_fields = field_metadata_without_provenance(&declared);
-    assert_eq!(listed_fields.len(), 14);
+    assert_eq!(listed_fields.len(), 15);
     assert_eq!(listed_fields, declared_fields);
 
     let fields = declared["field_metadata"]

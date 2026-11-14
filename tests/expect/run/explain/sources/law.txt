@@ -1,0 +1,10 @@
+---
+Title: Lov om prøvekonti
+Document identifier: LOV nr. 2 af 01/01/2026
+URL: https://example.invalid/lov/2
+---
+§ 1. Der kan indskydes op til 1000.
+
+§ 2. Lukkes kontoen, kan der ikke indskydes.
+
+§ 3. Ved overførsel modtages kontoens værdi.

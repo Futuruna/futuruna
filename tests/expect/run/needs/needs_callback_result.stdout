@@ -13,7 +13,14 @@
           {
             "kind": "fact",
             "path": "liable",
-            "waiting_rule": "taxed_on_whole_return"
+            "waiting": [
+              {
+                "rule": "taxed_on_whole_return"
+              },
+              {
+                "rule": "check_case"
+              }
+            ]
           }
         ]
       }

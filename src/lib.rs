@@ -6153,8 +6153,8 @@ pub struct Field {
 }
 
 /// The keys an `@ field(...)` declaration accepts, in documentation order.
-pub const FIELD_META_KEYS: [&str; 7] = [
-    "label", "question", "help", "unit", "sources", "entry", "subject",
+pub const FIELD_META_KEYS: [&str; 8] = [
+    "label", "question", "help", "unit", "sources", "entry", "subject", "key",
 ];
 
 /// One `@ field(key = value, ...)` declaration. Values are ordinary pure
@@ -16750,6 +16750,10 @@ pub struct Interpreter {
     /// Set while a partial calculation case runs; see `partial`.
     partial_mode: Option<partial::PartialMode>,
     partial: RefCell<partial::PartialState>,
+    /// Whether a rule clause or function being evaluated in a partial case
+    /// is cited in a law section: the value it returns is then that rule's,
+    /// and a later read of it waits on the rule, not on the fact.
+    pub(crate) partial_cited: Option<partial::CitedFrames>,
     /// Set while an explained case runs; see `explain`.
     explain: Option<RefCell<explain::ExplainState>>,
     /// The file each rule declared outside the root file came from, by the
@@ -16848,6 +16852,7 @@ impl Interpreter {
             calculation_error: RefCell::new(None),
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
+            partial_cited: None,
             explain: None,
             rule_source_files: HashMap::new(),
             runtime_source_file: None,
@@ -22675,7 +22680,9 @@ impl Interpreter {
 
     /// A malformed guard is an evaluation error, never a rejected candidate.
     fn eval_rule_guard(&mut self, condition: &Expr, env: &Env, family: &str) -> Option<bool> {
-        let value = explain::strip(self.eval(condition, env));
+        let value = self.eval(condition, env);
+        self.explain_guard_read(&value);
+        let value = explain::strip(value);
         if self.calculation_failed() || self.ground_error.borrow().is_some() {
             return None;
         }
@@ -23943,6 +23950,9 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     let mut items = list_to_vec(list);
+                    if self.partial_mode.is_some() {
+                        return self.partial_sort(list, items);
+                    }
                     items.sort_by(value_sort_cmp);
                     Value::List(items)
                 }
@@ -24001,6 +24011,13 @@ impl Interpreter {
                     Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
+                if self.partial_mode.is_some() {
+                    return match self.partial_predicate_scan("any", &items, &func, env, true, true)
+                    {
+                        Ok(decided) => Value::Bool(decided.is_some()),
+                        Err(unknown) => unknown,
+                    };
+                }
                 Value::Bool(items.into_iter().any(|item| {
                     let result =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
@@ -24015,6 +24032,13 @@ impl Interpreter {
                     Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
+                if self.partial_mode.is_some() {
+                    return match self.partial_predicate_scan("all", &items, &func, env, false, true)
+                    {
+                        Ok(decided) => Value::Bool(decided.is_none()),
+                        Err(unknown) => unknown,
+                    };
+                }
                 Value::Bool(items.into_iter().all(|item| {
                     let result =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
@@ -24024,6 +24048,17 @@ impl Interpreter {
             "find" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
                     let items = list_to_vec(list);
+                    if self.partial_mode.is_some() {
+                        return match self
+                            .partial_predicate_scan("find", &items, func, env, true, false)
+                        {
+                            Ok(Some(index)) => {
+                                Value::Constructor("Some".into(), vec![items[index].clone()].into())
+                            }
+                            Ok(None) => Value::Constructor("None".into(), vec![].into()),
+                            Err(unknown) => unknown,
+                        };
+                    }
                     for item in items {
                         let result = self.apply_checked_builtin_callback(
                             1,
@@ -26273,7 +26308,15 @@ impl Interpreter {
                         }
                     }
                 }
-                return (self.eval(&arm.body, &arm_env), Some(arm_index));
+                let result = self.eval(&arm.body, &arm_env);
+                // A literal an arm gives was chosen by the matched value.
+                let decided = arm_index > 0 || !matches!(arm.pat, Pat::Wild | Pat::Var(_));
+                let result = if decided && self.explain.is_some() {
+                    self.explain_decided(result, &val)
+                } else {
+                    result
+                };
+                return (result, Some(arm_index));
             }
         }
         (
@@ -27295,6 +27338,7 @@ impl Interpreter {
         let mut selected = None;
         // The clause that produced the value, for explanations.
         let mut produced_by = None;
+        self.explain_begin_dispatch();
 
         let result = 'dispatch: {
             // Check exceptions first — they override the default.
@@ -27555,6 +27599,7 @@ impl Interpreter {
             }
             (result, _) => result,
         };
+        self.explain_end_dispatch();
 
         let cold_selection_event = traced_activation
             .then(|| self.checked_mechanism_record_rule_selection(family, selected))
@@ -29611,14 +29656,30 @@ fn runtime_numeric_is_zero(value: &Value) -> bool {
 }
 
 pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
+    let mut unknown = BTreeSet::new();
+    let ordering = value_sort_cmp_reading(a, b, &mut unknown);
+    if !unknown.is_empty() {
+        partial::report_unknown_leak("ordering");
+    }
+    ordering
+}
+
+/// The order of `a` and `b`, reading only the parts the comparison reaches:
+/// an unknown part compares equal and its paths go to `unknown`.
+pub(crate) fn value_sort_cmp_reading(
+    a: &Value,
+    b: &Value,
+    unknown: &mut BTreeSet<String>,
+) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let (a, b) = (explain::untraced(a), explain::untraced(b));
     if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
-        partial::report_unknown_leak("ordering");
+        partial::collect_unknown_paths(a, false, unknown);
+        partial::collect_unknown_paths(b, false, unknown);
         return Ordering::Equal;
     }
     if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
-        return value_sort_cmp(&a, &b);
+        return value_sort_cmp_reading(&a, &b, unknown);
     }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {
@@ -29629,9 +29690,9 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
             value
         }
     }
-    fn seq_cmp(a: &[Value], b: &[Value]) -> Ordering {
+    fn seq_cmp(a: &[Value], b: &[Value], unknown: &mut BTreeSet<String>) -> Ordering {
         for (left, right) in a.iter().zip(b.iter()) {
-            let ordering = value_sort_cmp(left, right);
+            let ordering = value_sort_cmp_reading(left, right, unknown);
             if ordering != Ordering::Equal {
                 return ordering;
             }
@@ -29665,7 +29726,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
         (Value::Unit, Value::Unit) => Ordering::Equal,
         (Value::List(a), Value::List(b))
         | (Value::Tuple(a), Value::Tuple(b))
-        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b),
+        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b, unknown),
         (Value::Map(a), Value::Map(b)) => {
             let flatten = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
                 runtime_map_ordered_entries(entries)
@@ -29678,7 +29739,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     })
                     .collect()
             };
-            seq_cmp(&flatten(a), &flatten(b))
+            seq_cmp(&flatten(a), &flatten(b), unknown)
         }
         (Value::Set(a), Value::Set(b)) => {
             let ordered = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
@@ -29687,7 +29748,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     .cloned()
                     .collect()
             };
-            seq_cmp(&ordered(a), &ordered(b))
+            seq_cmp(&ordered(a), &ordered(b), unknown)
         }
         _ => match (constructor_parts(a), constructor_parts(b)) {
             (Some((left_name, left)), Some((right_name, right))) => {
@@ -29697,7 +29758,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     .cmp(&constructor_display_name(right_name))
                     .then_with(|| {
                         for (left, right) in left.iter().zip(right.iter()) {
-                            let ordering = value_sort_cmp(left, right);
+                            let ordering = value_sort_cmp_reading(left, right, unknown);
                             if ordering != Ordering::Equal {
                                 return ordering;
                             }
@@ -29708,7 +29769,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
             _ => {
                 let (left, right) = (list_to_vec(a), list_to_vec(b));
                 if matches!(a, Value::Constructor(..)) && matches!(b, Value::Constructor(..)) {
-                    seq_cmp(&left, &right)
+                    seq_cmp(&left, &right, unknown)
                 } else {
                     format!("{}", a).cmp(&format!("{}", b))
                 }
@@ -58077,6 +58138,16 @@ impl TypeChecker {
                                 value,
                                 format!(
                                     "`@ field` key `sources` is a list of source values such as `[Source(value = law)]`, got `{}`",
+                                    type_name
+                                ),
+                            );
+                        }
+                    } else if key == "key" {
+                        if type_name != "Bool" {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "`@ field` key `key` must be a `Bool`, got `{}`",
                                     type_name
                                 ),
                             );

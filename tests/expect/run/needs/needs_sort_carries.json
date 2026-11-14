@@ -1,0 +1,40 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "e4fd3f9c1f02625f5d5109470bb730afc05be66419a33523267e167b20e2f318",
+    "entry": "needs_sort_carries"
+  },
+  "cases": [
+    {
+      "case_id": "owner-and-amount-left-out",
+      "input_status": "ready",
+      "input": {
+        "accounts": [
+          {
+            "id": "b"
+          },
+          {
+            "id": "a",
+            "opening_ore": 5
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "amount-left-out",
+      "input_status": "ready",
+      "input": {
+        "owner_liable": false,
+        "accounts": [
+          {
+            "id": "b"
+          },
+          {
+            "id": "a",
+            "opening_ore": 5
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -19,6 +19,13 @@
         "sections": {},
         "values": {
           "allowance": {
+            "because": [
+              {
+                "$variant": "Input",
+                "path": "married",
+                "value": true
+              }
+            ],
             "by": {
               "$variant": "Rule",
               "clause": "exception",

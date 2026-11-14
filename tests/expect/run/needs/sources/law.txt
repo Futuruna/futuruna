@@ -1,0 +1,8 @@
+---
+Title: Lov om prøveskat
+Document identifier: LOV nr. 1 af 01/01/2026
+Human-readable URL: https://example.invalid/lov/1
+---
+§ 1. Skatten er 10 pct. af beløbet.
+
+§ 2. Resten af beløbet beholdes.

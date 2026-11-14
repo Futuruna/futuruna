@@ -23,7 +23,11 @@
           {
             "kind": "fact",
             "path": "married",
-            "waiting_rule": "base_tax"
+            "waiting": [
+              {
+                "rule": "base_tax"
+              }
+            ]
           }
         ]
       }

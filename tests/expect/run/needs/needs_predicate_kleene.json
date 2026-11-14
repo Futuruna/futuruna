@@ -1,0 +1,27 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "31b12d4f0902101ebf88fc68eb86cfff0b4169af91bb684858f96cc94c89ad74",
+    "entry": "needs_predicate_kleene"
+  },
+  "cases": [
+    {
+      "case_id": "every-unknown-answer-is-a-need",
+      "input_status": "ready",
+      "input": {
+        "third": false,
+        "d": true,
+        "e": true,
+        "sixth": false
+      }
+    },
+    {
+      "case_id": "a-known-answer-decides-past-unknown-ones",
+      "input_status": "ready",
+      "input": {
+        "third": true,
+        "sixth": false
+      }
+    }
+  ]
+}

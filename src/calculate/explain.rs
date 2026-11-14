@@ -344,7 +344,7 @@ struct ClauseInfo {
     exception: Option<String>,
     location: Option<String>,
     section: Option<String>,
-    paragraphs: Vec<CitedParagraph>,
+    paragraphs: Vec<(CitedParagraph, Option<CalculationAct>)>,
 }
 
 /// A law section: the anchor and quote the rules between its markers
@@ -358,12 +358,16 @@ struct SectionInfo {
 
 /// What an explanation reads from one source file.
 struct FileIndex {
+    /// The file's path, as read.
+    path: String,
     display: String,
     source: String,
     citations: FileCitations,
     /// `(label, first code line, last code line)` of every section.
     spans: Vec<(String, usize, usize)>,
     sections: BTreeMap<String, Rc<SectionInfo>>,
+    /// The metadata attachments of every anchor, with or without a quote.
+    anchor_attachments: BTreeMap<String, Vec<JsonValue>>,
     /// The first clause line of every rule family, by `(scope, name)`.
     families: HashMap<(Option<String>, String), usize>,
     /// The line where each top-level function's body starts.
@@ -375,6 +379,8 @@ struct FileIndex {
 pub(super) struct ExplainRenderer {
     options: ExplainOptions,
     files: HashMap<String, Option<Rc<FileIndex>>>,
+    /// The act of each quoted document, by `(model file, source)`.
+    acts: HashMap<(String, String), Option<CalculationAct>>,
 }
 
 impl ExplainRenderer {
@@ -382,6 +388,7 @@ impl ExplainRenderer {
         Self {
             options,
             files: HashMap::new(),
+            acts: HashMap::new(),
         }
     }
 
@@ -419,19 +426,8 @@ impl ExplainRenderer {
             .map(|span| (span.label.clone(), span.code_start_line, span.code_end_line))
             .collect();
         let mut sections = BTreeMap::new();
+        let mut anchor_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
         for anchor in &meta.anchors {
-            if anchor.text_start_line.is_none() || sections.contains_key(&anchor.label) {
-                continue;
-            }
-            let sources = anchor
-                .text
-                .lines()
-                .filter_map(|line| {
-                    let line = line.trim();
-                    (line.len() > 2 && line.starts_with('[') && line.ends_with(']'))
-                        .then(|| line[1..line.len() - 1].trim().to_string())
-                })
-                .collect();
             let mut attachments = Vec::new();
             for reference in &anchor.references {
                 let roles = reference.attachments();
@@ -456,6 +452,21 @@ impl ExplainRenderer {
                     attachments.push(JsonValue::Object(attachment));
                 }
             }
+            anchor_attachments
+                .entry(anchor.label.clone())
+                .or_insert_with(|| attachments.clone());
+            if anchor.text_start_line.is_none() || sections.contains_key(&anchor.label) {
+                continue;
+            }
+            let sources = anchor
+                .text
+                .lines()
+                .filter_map(|line| {
+                    let line = line.trim();
+                    (line.len() > 2 && line.starts_with('[') && line.ends_with(']'))
+                        .then(|| line[1..line.len() - 1].trim().to_string())
+                })
+                .collect();
             sections.insert(
                 anchor.label.clone(),
                 Rc::new(SectionInfo {
@@ -478,11 +489,13 @@ impl ExplainRenderer {
             }
         }
         Some(FileIndex {
+            path: path.to_string(),
             display,
             citations: crate::citations::file_citations(&source),
             source,
             spans,
             sections,
+            anchor_attachments,
             families,
             functions,
         })
@@ -539,9 +552,28 @@ impl ExplainRenderer {
                 .and_then(|first| index.citations.by_clause_line.get(first))
         };
         if let Some(citation) = own.or_else(inherited) {
-            info.paragraphs = citation.paragraphs.clone();
+            info.paragraphs = citation
+                .paragraphs
+                .iter()
+                .map(|paragraph| {
+                    let act = self.paragraph_act(&index.path, paragraph);
+                    (paragraph.clone(), act)
+                })
+                .collect();
         }
         info
+    }
+
+    /// The act of the document a cited paragraph was quoted from.
+    fn paragraph_act(&mut self, file: &str, paragraph: &CitedParagraph) -> Option<CalculationAct> {
+        let source = paragraph.source.as_ref()?;
+        let key = (file.to_string(), source.clone());
+        if let Some(act) = self.acts.get(&key) {
+            return act.clone();
+        }
+        let act = read_act(file, source);
+        self.acts.insert(key, act.clone());
+        act
     }
 
     fn section(
@@ -574,60 +606,141 @@ impl ExplainRenderer {
         Some((label, section))
     }
 
-    /// The frame a need names: of the rules and functions evaluating when
-    /// the path was first read (innermost last), the innermost one declared
-    /// in a law section, one whose quote holds a `[sources/...]` document;
-    /// failing that, the innermost one declared in any section with a quote. Returns its
-    /// name, section and the paragraphs the frame's clause cites (the rule's
-    /// first clause when the clause cites none).
-    pub(super) fn waiting_frame(
+    /// The rules a need waits on, given every call stack (innermost last)
+    /// its path was read under. From each stack: the innermost frame of a
+    /// law section (one whose quote holds a `[sources/...]` document) that
+    /// cites paragraphs; failing that, the innermost frame of a law
+    /// section; then of any section with a quote; then the innermost rule
+    /// family. Of what the stacks give, the best kind is kept (cited law
+    /// first), each rule once, in the order the stacks were first seen;
+    /// the entry when no stack gives one.
+    pub(super) fn consumers(
+        &mut self,
+        interpreter: &Interpreter,
+        stacks: &[partial::WaitingRules],
+        entry: &str,
+    ) -> Vec<CalculationWaiting> {
+        let mut found: Vec<(u8, CalculationWaiting)> = Vec::new();
+        for stack in stacks {
+            if let Some(consumer) = self.stack_consumer(interpreter, stack) {
+                if !found.contains(&consumer) {
+                    found.push(consumer);
+                }
+            }
+        }
+        let Some(best) = found.iter().map(|(rank, _)| *rank).min() else {
+            return vec![CalculationWaiting {
+                rule: entry.to_string(),
+                section: None,
+                paragraphs: Vec::new(),
+            }];
+        };
+        found
+            .into_iter()
+            .filter(|(rank, _)| *rank == best)
+            .map(|(_, waiting)| waiting)
+            .collect()
+    }
+
+    /// The consumer one call stack names, ranked: 0 a cited frame of a law
+    /// section, 1 an uncited one, 2 a frame of a section of checks, 3 the
+    /// innermost rule family.
+    fn stack_consumer(
         &mut self,
         interpreter: &Interpreter,
         frames: &[partial::CallFrame],
-    ) -> Option<(String, String, Vec<String>)> {
+    ) -> Option<(u8, CalculationWaiting)> {
+        let mut law = None;
         let mut any_section = None;
         for frame in frames.iter().rev() {
-            let Some((index, line, family_line)) = self.frame_location(interpreter, frame) else {
+            let Some((file, label, is_law, cited)) = self.frame_section(interpreter, frame) else {
                 continue;
             };
-            let Some(label) = index
-                .spans
+            let paragraphs: Vec<CalculationParagraph> = cited
                 .iter()
-                .filter(|(_, start, end)| *start <= line && line <= *end)
-                .max_by_key(|(_, start, _)| *start)
-                .map(|(label, _, _)| label.clone())
-            else {
-                continue;
-            };
-            let paragraphs = index
-                .citations
-                .by_clause_line
-                .get(&line)
-                .or_else(|| {
-                    family_line.and_then(|first| index.citations.by_clause_line.get(&first))
+                .map(|paragraph| CalculationParagraph {
+                    paragraph: paragraph.paragraph.clone(),
+                    source: paragraph.source.clone(),
+                    act: self.paragraph_act(&file, paragraph),
                 })
-                .map(|citation| {
-                    citation
-                        .paragraphs
-                        .iter()
-                        .map(|paragraph| paragraph.paragraph.clone())
-                        .collect()
-                })
-                .unwrap_or_default();
-            // Only a section with a `----` quote counts: the code span of an
-            // anchor that only carries metadata (an entry's input guide) is
-            // no section of law or checks.
-            let Some(section) = index.sections.get(&label) else {
-                continue;
+                .collect();
+            let waiting = CalculationWaiting {
+                rule: frame.name.to_string(),
+                section: Some(label),
+                paragraphs,
             };
-            let law = !section.sources.is_empty();
-            let found = (frame.name.clone(), label, paragraphs);
-            if law {
-                return Some(found);
+            if is_law && !waiting.paragraphs.is_empty() {
+                return Some((0, waiting));
             }
-            any_section.get_or_insert(found);
+            if is_law {
+                law.get_or_insert(waiting);
+            } else {
+                any_section.get_or_insert(waiting);
+            }
         }
-        any_section
+        if let Some(waiting) = law {
+            return Some((1, waiting));
+        }
+        if let Some(waiting) = any_section {
+            return Some((2, waiting));
+        }
+        frames
+            .iter()
+            .rev()
+            .find(|frame| frame.is_rule)
+            .map(|frame| {
+                (
+                    3,
+                    CalculationWaiting {
+                        rule: frame.name.to_string(),
+                        section: None,
+                        paragraphs: Vec::new(),
+                    },
+                )
+            })
+    }
+
+    /// Whether a frame is cited in a law section: its clause (or its rule's
+    /// first clause) or its function carries a `--@cite`, and the section
+    /// around it quotes a `[sources/...]` document.
+    pub(super) fn frame_cited(
+        &mut self,
+        interpreter: &Interpreter,
+        frame: &partial::CallFrame,
+    ) -> bool {
+        self.frame_section(interpreter, frame)
+            .is_some_and(|(_, _, is_law, cited)| is_law && !cited.is_empty())
+    }
+
+    /// A frame's file, the section (with a `----` quote) its clause or
+    /// function is declared in, whether that is a law section, and the
+    /// paragraphs the clause, else the rule's first clause, or the function
+    /// cites.
+    fn frame_section(
+        &mut self,
+        interpreter: &Interpreter,
+        frame: &partial::CallFrame,
+    ) -> Option<(String, String, bool, Vec<CitedParagraph>)> {
+        let (index, line, family_line) = self.frame_location(interpreter, frame)?;
+        let label = index
+            .spans
+            .iter()
+            .filter(|(_, start, end)| *start <= line && line <= *end)
+            .max_by_key(|(_, start, _)| *start)
+            .map(|(label, _, _)| label.clone())?;
+        // Only a section with a `----` quote counts: the code span of an
+        // anchor that only carries metadata (an entry's input guide) is no
+        // section of law or checks.
+        let section = index.sections.get(&label)?;
+        let is_law = !section.sources.is_empty();
+        let cited = index
+            .citations
+            .by_clause_line
+            .get(&line)
+            .or_else(|| family_line.and_then(|first| index.citations.by_clause_line.get(&first)))
+            .map(|citation| citation.paragraphs.clone())
+            .unwrap_or_default();
+        Some((index.path.clone(), label, is_law, cited))
     }
 
     /// The file index, line and family first-clause line of a frame: the
@@ -645,7 +758,7 @@ impl ExplainRenderer {
                     interpreter
                         .registered_rules()
                         .into_iter()
-                        .find(|(name, _)| *name == frame.name)?
+                        .find(|(name, _)| **name == *frame.name)?
                         .1
                 }
             };
@@ -660,7 +773,7 @@ impl ExplainRenderer {
             let family_line = index
                 .families
                 .iter()
-                .filter(|((_, name), first)| *name == frame.name && **first <= line)
+                .filter(|((_, name), first)| **name == *frame.name && **first <= line)
                 .map(|(_, first)| *first)
                 .max();
             return Some((index, line, family_line));
@@ -671,7 +784,7 @@ impl ExplainRenderer {
             let Some(index) = self.file(&file) else {
                 continue;
             };
-            if let Some(line) = index.functions.get(&frame.name).copied() {
+            if let Some(line) = index.functions.get(&*frame.name).copied() {
                 return Some((index, line, None));
             }
         }
@@ -683,6 +796,35 @@ impl ExplainRenderer {
             .root_file
             .as_ref()
             .map(|file| file.to_string_lossy().into_owned())
+    }
+
+    /// The section around the calculation entry and its anchor's metadata
+    /// attachments.
+    fn entry_attachments(
+        &mut self,
+        interpreter: &Interpreter,
+        entry: &str,
+    ) -> Option<(String, Vec<JsonValue>)> {
+        let located = [false, true].into_iter().find_map(|is_rule| {
+            self.frame_location(
+                interpreter,
+                &partial::CallFrame {
+                    name: Rc::from(entry),
+                    is_rule,
+                    clause: None,
+                },
+            )
+        });
+        let (index, line, _) = located?;
+        let label = index
+            .spans
+            .iter()
+            .filter(|(_, start, end)| *start <= line && line <= *end)
+            .max_by_key(|(_, start, _)| *start)?
+            .0
+            .clone();
+        let attachments = index.anchor_attachments.get(&label)?.clone();
+        Some((label, attachments))
     }
 
     /// The explanation of one case's result.
@@ -715,27 +857,38 @@ impl ExplainRenderer {
         for leaf in leaves {
             let mut entry = JsonMap::new();
             entry.insert("value".into(), leaf.value);
-            let from = match leaf.node.map(|node| (node, state.node(node))) {
+            let (from, because) = match leaf.node.map(|node| (node, state.node(node))) {
                 None => {
                     entry.insert("by".into(), serde_json::json!({ "$variant": "Constant" }));
-                    None
+                    (None, None)
                 }
                 Some((_, Node::Input { path, .. })) => {
                     entry.insert(
                         "by".into(),
                         serde_json::json!({ "$variant": "Input", "path": path.as_ref() }),
                     );
-                    None
+                    (None, None)
                 }
-                Some((_, Node::Rule { clause, from, .. })) => {
+                Some((
+                    _,
+                    Node::Rule {
+                        clause,
+                        from,
+                        because,
+                        ..
+                    },
+                )) => {
                     entry.insert("by".into(), case.clause_json(*clause, true));
-                    *from
+                    (*from, Some(because))
                 }
                 Some((node, Node::Computed { .. })) => {
                     entry.insert("by".into(), serde_json::json!({ "$variant": "Computed" }));
-                    Some(node)
+                    (Some(node), None)
                 }
             };
+            if let Some(because) = because.and_then(|because| case.because_json(because, limit)) {
+                entry.insert("because".into(), because);
+            }
             if let Some(from) = from {
                 let (contributors, omitted) = state.contributors(from, limit);
                 entry.insert(
@@ -766,6 +919,7 @@ impl ExplainRenderer {
                     clause,
                     from,
                     value,
+                    because,
                 } = state.node(node)
                 else {
                     continue;
@@ -785,6 +939,9 @@ impl ExplainRenderer {
                             .collect(),
                     ),
                 );
+                if let Some(because) = case.because_json(because, None) {
+                    entry.insert("because".into(), because);
+                }
                 derivation.insert(node.to_string(), JsonValue::Object(entry));
             }
             let mut ordered: Vec<(u64, JsonValue)> = derivation
@@ -801,6 +958,10 @@ impl ExplainRenderer {
                         .collect(),
                 ),
             );
+        }
+        let assumptions = case.assumptions(&contract.entry);
+        if !assumptions.is_empty() {
+            explanation.insert("assumptions".into(), JsonValue::Array(assumptions));
         }
         let sections = std::mem::take(&mut case.sections);
         explanation.insert(
@@ -875,41 +1036,102 @@ impl CaseRenderer<'_> {
             object.insert("section".into(), JsonValue::from(section.clone()));
         }
         if !info.paragraphs.is_empty() {
-            if with_text {
-                object.insert(
-                    "cites".into(),
-                    JsonValue::Array(
-                        info.paragraphs
-                            .iter()
-                            .map(|paragraph| {
-                                let mut cited = JsonMap::new();
-                                cited.insert(
-                                    "paragraph".into(),
-                                    JsonValue::from(paragraph.paragraph.clone()),
-                                );
-                                if let Some(source) = &paragraph.source {
-                                    cited.insert("source".into(), JsonValue::from(source.clone()));
-                                }
-                                cited
-                                    .insert("text".into(), JsonValue::from(paragraph.text.clone()));
-                                JsonValue::Object(cited)
-                            })
-                            .collect(),
-                    ),
-                );
-            } else {
-                object.insert(
-                    "paragraphs".into(),
-                    JsonValue::Array(
-                        info.paragraphs
-                            .iter()
-                            .map(|paragraph| JsonValue::from(paragraph.paragraph.clone()))
-                            .collect(),
-                    ),
-                );
-            }
+            let paragraphs = info
+                .paragraphs
+                .iter()
+                .map(|(paragraph, act)| {
+                    let mut cited = JsonMap::new();
+                    cited.insert(
+                        "paragraph".into(),
+                        JsonValue::from(paragraph.paragraph.clone()),
+                    );
+                    if let Some(source) = &paragraph.source {
+                        cited.insert("source".into(), JsonValue::from(source.clone()));
+                    }
+                    if let Some(act) = act {
+                        cited.insert(
+                            "act".into(),
+                            serde_json::to_value(act).expect("an act is JSON"),
+                        );
+                    }
+                    if with_text {
+                        cited.insert("text".into(), JsonValue::from(paragraph.text.clone()));
+                    }
+                    JsonValue::Object(cited)
+                })
+                .collect();
+            let key = if with_text { "cites" } else { "paragraphs" };
+            object.insert(key.into(), JsonValue::Array(paragraphs));
         }
         JsonValue::Object(object)
+    }
+
+    /// What the guards that chose a clause were computed from: the rules
+    /// and inputs behind each guard value, each once, at most `limit`.
+    fn because_json(&mut self, because: &[NodeId], limit: Option<usize>) -> Option<JsonValue> {
+        let mut nodes: Vec<NodeId> = Vec::new();
+        for guard in because {
+            for node in self.state.contributors(*guard, None).0 {
+                if !nodes.contains(&node) {
+                    nodes.push(node);
+                }
+            }
+        }
+        if let Some(limit) = limit {
+            nodes.truncate(limit);
+        }
+        (!nodes.is_empty()).then(|| {
+            JsonValue::Array(
+                nodes
+                    .into_iter()
+                    .map(|node| self.reference_json(node))
+                    .collect(),
+            )
+        })
+    }
+
+    /// The `Assumption` attachments of the sections whose rule clauses
+    /// fired, in the order the clauses first fired, then those of the
+    /// entry's own section; each once.
+    fn assumptions(&mut self, entry: &str) -> Vec<JsonValue> {
+        let mut found: Vec<JsonValue> = Vec::new();
+        let add = |found: &mut Vec<JsonValue>, label: &str, attachments: &[JsonValue]| {
+            for attachment in attachments {
+                if attachment.get("role").and_then(JsonValue::as_str) != Some("Assumption") {
+                    continue;
+                }
+                let mut item = JsonMap::new();
+                item.insert("section".into(), JsonValue::from(label));
+                if let Some(binding) = attachment.get("binding") {
+                    item.insert("binding".into(), binding.clone());
+                }
+                item.insert(
+                    "value".into(),
+                    attachment.get("value").cloned().unwrap_or(JsonValue::Null),
+                );
+                let item = JsonValue::Object(item);
+                let known = found.iter().any(|seen| {
+                    seen.get("binding") == item.get("binding")
+                        && seen.get("value") == item.get("value")
+                });
+                if !known {
+                    found.push(item);
+                }
+            }
+        };
+        for clause in 0..self.state.clause_count() {
+            if let Some((label, section)) =
+                self.renderer
+                    .section(self.interpreter, self.state, clause as u32)
+            {
+                add(&mut found, &label, &section.attachments);
+            }
+        }
+        if let Some((label, attachments)) = self.renderer.entry_attachments(self.interpreter, entry)
+        {
+            add(&mut found, &label, &attachments);
+        }
+        found
     }
 
     /// A contributor: a rule node or an input node, briefly.
@@ -988,6 +1210,48 @@ fn collect_rule_families(
         }
     }
 }
+/// The act of the quoted document `source` (`sources/...`) of a model file:
+/// the document is looked up beside the file and in each directory above
+/// it, the first found counts; its header names the act.
+pub(super) fn read_act(file: &str, source: &str) -> Option<CalculationAct> {
+    let file = std::fs::canonicalize(file).unwrap_or_else(|_| PathBuf::from(file));
+    let mut directory = file.parent();
+    while let Some(current) = directory {
+        if let Ok(text) = crate::read_source_file(&current.join(source)) {
+            return act_from_header(&text);
+        }
+        directory = current.parent();
+    }
+    None
+}
+
+/// The act a document's header names. The header is the block between a
+/// first line `---` and the next `---`, of `Key: value` lines: `Title`
+/// (required), `Document identifier`, and `Human-readable URL` or `URL`.
+pub(super) fn act_from_header(text: &str) -> Option<CalculationAct> {
+    let mut lines = text.lines();
+    if lines.next()?.trim() != "---" {
+        return None;
+    }
+    let mut fields: HashMap<&str, &str> = HashMap::new();
+    for line in lines {
+        if line.trim() == "---" {
+            break;
+        }
+        if let Some((key, value)) = line.split_once(':') {
+            let value = value.trim();
+            if !value.is_empty() {
+                fields.entry(key.trim()).or_insert(value);
+            }
+        }
+    }
+    let text = |key: &str| fields.get(key).map(|value| value.to_string());
+    Some(CalculationAct {
+        title: text("Title")?,
+        identifier: text("Document identifier"),
+        url: text("Human-readable URL").or_else(|| text("URL")),
+    })
+}
 
 /// A metadata value as plain JSON: a record's fields as an object, a list
 /// as an array, a variant without fields as its name.
@@ -1052,16 +1316,24 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
     let leaf = serde_json::json!({
         "description": "The canonical JSON of a scalar, or the name of a variant without fields."
     });
-    let paragraph = serde_json::json!({
-        "type": "object",
-        "required": ["paragraph", "text"],
-        "additionalProperties": false,
-        "properties": {
+    let paragraph = |with_text: bool| {
+        let mut properties = serde_json::json!({
             "paragraph": { "type": "string", "description": "The cited paragraph, as `§ 9, stk. 3`." },
             "source": { "type": "string", "description": "The `[sources/...]` document of the quote it was found in." },
-            "text": { "type": "string", "description": "The quoted text of the paragraph, verbatim." }
+            "act": act_json_schema()
+        });
+        let mut required = vec!["paragraph"];
+        if with_text {
+            properties["text"] = serde_json::json!({ "type": "string", "description": "The quoted text of the paragraph, verbatim." });
+            required.push("text");
         }
-    });
+        serde_json::json!({
+            "type": "object",
+            "required": required,
+            "additionalProperties": false,
+            "properties": properties
+        })
+    };
     let rule = |with_text: bool| {
         let mut properties = serde_json::json!({
             "$variant": { "const": "Rule" },
@@ -1073,9 +1345,10 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
             "section": { "type": "string", "description": "The law section (anchor label) around the clause; a key of `sections`." }
         });
         if with_text {
-            properties["cites"] = serde_json::json!({ "type": "array", "items": paragraph });
+            properties["cites"] = serde_json::json!({ "type": "array", "items": paragraph(true) });
         } else {
-            properties["paragraphs"] = serde_json::json!({ "type": "array", "items": string });
+            properties["paragraphs"] =
+                serde_json::json!({ "type": "array", "items": paragraph(false) });
             properties["value"] = leaf.clone();
             properties["node"] = serde_json::json!({ "type": "integer", "description": "The node in `derivation` (`--explain=full`)." });
         }
@@ -1115,6 +1388,11 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
         ]
     });
     let contributors = serde_json::json!({ "type": "array", "items": reference });
+    let because = serde_json::json!({
+        "type": "array",
+        "items": reference,
+        "description": "What the guards that chose the clause were computed from: the guard of the clause that applied and of every clause above it that was tried."
+    });
     serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": format!("Explanation of a `{}` result", contract.entry),
@@ -1135,7 +1413,8 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
                         "value": leaf,
                         "by": by,
                         "from": contributors,
-                        "from_omitted": { "type": "integer", "description": "Direct contributors beyond the first 32, with `--explain` (not `full`)." }
+                        "from_omitted": { "type": "integer", "description": "Direct contributors beyond the first 32, with `--explain` (not `full`)." },
+                        "because": because
                     }
                 }
             },
@@ -1161,6 +1440,16 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
                     }
                 }
             },
+            "assumptions": {
+                "type": "array",
+                "description": "The `Assumption` attachments of the sections whose rule clauses fired, and of the entry's own section, each once.",
+                "items": {
+                    "type": "object",
+                    "required": ["section", "value"],
+                    "additionalProperties": false,
+                    "properties": { "section": string, "binding": string, "value": {} }
+                }
+            },
             "derivation": {
                 "type": "object",
                 "description": "With `--explain=full`: every rule node a value was computed from, by node.",
@@ -1168,7 +1457,7 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
                     "type": "object",
                     "required": ["value", "by", "from"],
                     "additionalProperties": false,
-                    "properties": { "value": leaf, "by": rule(true), "from": contributors }
+                    "properties": { "value": leaf, "by": rule(true), "from": contributors, "because": because }
                 }
             }
         }

@@ -17,7 +17,11 @@
             "path": "spouse_share_income",
             "subject": "spouse",
             "unit": "øre",
-            "waiting_rule": "threshold"
+            "waiting": [
+              {
+                "rule": "threshold"
+              }
+            ]
           }
         ]
       }
