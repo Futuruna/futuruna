@@ -1,0 +1,14 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "23da0f9deaa3205ab4de8f243a7ea0fd0a5d5d49a4c31e1d81027532a78ea8da",
+    "entry": "needs_consumers"
+  },
+  "cases": [
+    {
+      "case_id": "amount-left-out",
+      "input_status": "ready",
+      "input": {}
+    }
+  ]
+}

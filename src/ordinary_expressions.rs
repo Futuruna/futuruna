@@ -48,7 +48,7 @@ impl TypeChecker {
                 );
                 // Retain the inferred list type so enclosing operators can
                 // still diagnose their operands after this local error.
-                return Self::binary_expression_result_type(
+                return self.binary_result_type(
                     operator,
                     left_type.as_deref(),
                     right_type.as_deref(),
@@ -63,7 +63,7 @@ impl TypeChecker {
             right,
             right_type.as_deref(),
         );
-        Self::binary_expression_result_type(operator, left_type.as_deref(), right_type.as_deref())
+        self.binary_result_type(operator, left_type.as_deref(), right_type.as_deref())
     }
 
     fn ordinary_operand_type(expression: &Expr, inferred: Option<&str>) -> Option<Ty> {
@@ -137,6 +137,7 @@ impl TypeChecker {
                 "String" | "Int" | "Float" | "Bool" | "Char" => false,
                 "Unit" | "List" | "Map" | "Set" | "Tuple" | "Option" | "Result" | "Stream"
                 | "Subject" => true,
+                other if self.is_unit_type(other) => false,
                 other => self.types.contains(other),
             },
             Ty::Unit | Ty::Optional(_) | Ty::Arrow(_, _) => true,
@@ -172,6 +173,13 @@ impl TypeChecker {
         right: &Expr,
         right_type: Option<&str>,
     ) {
+        if self.check_unit_operands(expression, operator, left, left_type, right, right_type)
+            || self.check_unit_element_equality(
+                expression, operator, left, left_type, right, right_type,
+            )
+        {
+            return;
+        }
         let left_ty = Self::ordinary_operand_type(left, left_type);
         let right_ty = Self::ordinary_operand_type(right, right_type);
         let left_kind = left_ty.as_ref().and_then(Self::ordinary_operand_kind);

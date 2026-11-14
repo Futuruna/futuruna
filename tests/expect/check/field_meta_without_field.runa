@@ -1,0 +1,14 @@
+-- `@ field` describes the field that follows it; at the end of a field list
+-- there is none.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(...)` must be followed by the field it describes
+
+# Input(
+    income: Int,
+    @ field(label = "Deduction")
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

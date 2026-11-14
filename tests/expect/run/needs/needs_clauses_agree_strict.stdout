@@ -13,7 +13,11 @@
           {
             "kind": "fact",
             "path": "income",
-            "waiting_rule": "allowance"
+            "waiting": [
+              {
+                "rule": "allowance"
+              }
+            ]
           }
         ]
       }

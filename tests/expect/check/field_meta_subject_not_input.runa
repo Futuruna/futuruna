@@ -1,0 +1,18 @@
+-- A provided field's subject is an input path holding the provider's input.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation `household_tax` field `spouse_income` is provided by `income` for subject `partner`, which is not an input path of `household_tax`
+
+# Spouse(income: Int)
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = "income", subject = "partner")
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

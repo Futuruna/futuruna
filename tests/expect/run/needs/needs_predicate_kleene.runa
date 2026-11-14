@@ -1,0 +1,26 @@
+-- `any` and `all` read their items in Kleene logic, as `&&`, `||` and logic
+-- goals do. When the items are known but the predicate's answer for some of
+-- them is unknown, the scan does not end at the first unknown answer: every
+-- unknown answer that could change the result is a need, and a known answer
+-- that decides (`True` for `any`, `False` for `all`) wins past unknown ones.
+-- expect-command: call
+-- expect-input: needs_predicate_kleene.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_predicate_kleene.stdout
+
+# Case(a: Bool, b: Bool, third: Bool, d: Bool, e: Bool, sixth: Bool)
+# Checked(any_holds: Bool, all_hold: Bool)
+
+> any_answer(c: Case, x: Int) -> Bool {
+    if x == 1 { c.a } else { if x == 2 { c.b } else { c.third } }
+}
+
+> all_answer(c: Case, x: Int) -> Bool {
+    if x == 1 { c.d } else { if x == 2 { c.e } else { c.sixth } }
+}
+
+@ calculate
+| needs_predicate_kleene(c: Case) -> Checked(
+    any_holds = any([1, 2, 3], |x| any_answer(c, x)),
+    all_hold = all([1, 2, 3], |x| all_answer(c, x))
+)

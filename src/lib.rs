@@ -37,11 +37,19 @@ mod annotation_types;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
+mod citations;
+mod constructor_scope;
+pub use constructor_scope::{
+    bare_constructor_name, clear_constructor_elaboration, constructor_display_name,
+    constructor_display_text, constructor_runtime_name, qualified_constructor_name,
+    split_qualified_constructor, with_constructor_elaboration, ConstructorElaboration,
+};
 mod danish;
 mod declaration_contracts;
 mod editor_fields;
 mod effect_handling;
 pub use editor_fields::EditorField;
+pub mod explain;
 mod live_streams;
 pub use live_streams::{
     finite_only_stream_operator_message, ActorRef, LiveStream, FINITE_ONLY_STREAM_OPERATORS,
@@ -69,6 +77,8 @@ mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
+mod unit_types;
+pub use unit_types::erase_unit_types;
 
 pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
 
@@ -569,7 +579,7 @@ fn is_known_annotation(name: &str) -> bool {
 }
 
 fn unknown_annotation_message(name: &str) -> String {
-    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime` and `@ calculate`, and effects are called as `@ name(...)`")
+    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime`, `@ calculate` and `@ field(...)`, and effects are called as `@ name(...)`")
 }
 
 fn unknown_effect_message(name: &str) -> String {
@@ -3357,7 +3367,7 @@ fn meta_impure_runtime_names() -> BTreeSet<String> {
 }
 
 fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Option<MetaValue> {
-    match value {
+    match explain::untraced(value) {
         Value::Int(value) => Some(MetaValue::Integer(*value)),
         Value::Float(value) => Some(MetaValue::Float(value.to_string())),
         Value::Str(value) => Some(MetaValue::String(value.clone())),
@@ -3454,7 +3464,8 @@ fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Opti
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
         | Value::TypeDef { .. }
-        | Value::Unknown(_) => None,
+        | Value::Unknown(_)
+        | Value::Traced(_) => None,
     }
 }
 
@@ -6058,6 +6069,10 @@ pub enum TypeDecl {
         methods: Vec<Defn>,
         /// EXCEPT clause: include all variants from this type minus the listed ones
         except_from: Option<(String, Vec<String>)>,
+        /// Calculation field metadata written with `@ field(...)` on the type
+        /// or its named fields. Presentation only: not part of the type's
+        /// meaning, content hash or semantic interface.
+        field_meta: Option<Box<TypeFieldMeta>>,
     },
     /// Conditional type evolution: # Type WHEN condition = new_variants
     WhenType {
@@ -6085,6 +6100,34 @@ pub enum TypeDecl {
         params: Vec<Param>,
         body: Vec<Stmt>,
     },
+    /// `# unit Ore "DKK øre" = DKK / 100`: a unit of measure for whole
+    /// numbers. A value of the unit is an `Int` at runtime, on the wire and in
+    /// proofs; the checker keeps values of different units apart. The scale,
+    /// when declared, says how many of the unit make one of its base.
+    Unit {
+        name: String,
+        description: String,
+        scale: Option<UnitScale>,
+    },
+}
+
+/// `= DKK / 100`: 100 of the unit make one `DKK`. `of` is the base: a name
+/// that is not a declared type (a currency code, a quantity), or `1` for a
+/// plain number. Units of one base convert into each other by whole factors.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UnitScale {
+    pub of: String,
+    pub per: i64,
+}
+
+impl fmt::Display for UnitScale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.per == 1 {
+            write!(f, "{}", self.of)
+        } else {
+            write!(f, "{} / {}", self.of, self.per)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -6107,6 +6150,44 @@ pub struct Variant {
 pub struct Field {
     pub name: String,
     pub ty: Ty,
+}
+
+/// The keys an `@ field(...)` declaration accepts, in documentation order.
+pub const FIELD_META_KEYS: [&str; 8] = [
+    "label", "question", "help", "unit", "sources", "entry", "subject", "key",
+];
+
+/// One `@ field(key = value, ...)` declaration. Values are ordinary pure
+/// ground expressions; `runa schema` resolves them like metadata bindings.
+#[derive(Debug, Clone)]
+pub struct FieldMetaDecl {
+    pub entries: Vec<(String, Expr)>,
+    pub span: Span,
+}
+
+impl FieldMetaDecl {
+    pub fn value(&self, key: &str) -> Option<&Expr> {
+        self.entries
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value)
+    }
+}
+
+/// `@ field(...)` written on a named field of a type's variant.
+#[derive(Debug, Clone)]
+pub struct MemberFieldMeta {
+    pub variant: String,
+    pub field: String,
+    pub meta: FieldMetaDecl,
+}
+
+/// The calculation field metadata a data type declares: a default for every
+/// field whose value has this type, and metadata for its own named fields.
+#[derive(Debug, Clone, Default)]
+pub struct TypeFieldMeta {
+    pub type_default: Option<FieldMetaDecl>,
+    pub members: Vec<MemberFieldMeta>,
 }
 
 #[derive(Debug, Clone)]
@@ -7942,8 +8023,31 @@ fn parsed_source_content_hash(source: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn canonical_parsed_source_path(path: &Path) -> PathBuf {
-    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+/// The path a source file is known by: its canonical filesystem path, or,
+/// for a file that is not on disk (a host-provided file), the path with its
+/// `.` and `..` components resolved. Parsed-module caching, provided files
+/// and the shared-constructor rewrite of imports all key on it, so a module
+/// reached by any spelling of its path is the same module.
+pub(crate) fn canonical_source_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| lexically_normalized_path(path))
+}
+
+fn lexically_normalized_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => match normalized.components().next_back() {
+                Some(std::path::Component::Normal(_)) => {
+                    normalized.pop();
+                }
+                Some(std::path::Component::RootDir | std::path::Component::Prefix(_)) => {}
+                _ => normalized.push(".."),
+            },
+            component => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
 }
 
 /// Parse a module once per exact path/content pair and share its immutable AST
@@ -7954,8 +8058,11 @@ pub fn parse_source_module_cached(
     path: &Path,
     source: &str,
 ) -> Result<Arc<ParsedSourceModule>, String> {
-    let path = canonical_parsed_source_path(path);
+    let path = canonical_source_path(path);
     let content_hash = parsed_source_content_hash(source);
+    if let Some(module) = constructor_scope::elaborated_source_module(&path, &content_hash) {
+        return Ok(module);
+    }
     {
         let cache = parsed_source_modules()
             .lock()
@@ -7984,6 +8091,10 @@ pub fn parse_source_module_cached(
     Ok(module)
 }
 
+/// Serializes tests that replace the process-wide provided files.
+#[cfg(test)]
+pub(crate) static PROVIDED_SOURCE_FILES_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 static PROVIDED_SOURCE_FILES: std::sync::LazyLock<Mutex<BTreeMap<PathBuf, Arc<str>>>> =
     std::sync::LazyLock::new(|| Mutex::new(BTreeMap::new()));
 
@@ -7999,20 +8110,23 @@ pub fn provide_source_files(files: impl IntoIterator<Item = (PathBuf, String)>) 
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     *provided = files
         .into_iter()
-        .map(|(path, source)| (path, Arc::from(source)))
+        .map(|(path, source)| (lexically_normalized_path(&path), Arc::from(source)))
         .collect();
 }
 
 /// Read a Futuruna source file: a provided file (see [`provide_source_files`])
 /// or else the file on disk.
 pub fn read_source_file(path: &Path) -> std::io::Result<String> {
-    let provided = PROVIDED_SOURCE_FILES
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .get(path)
-        .map(|source| source.to_string());
+    let provided = {
+        let provided = PROVIDED_SOURCE_FILES
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        (!provided.is_empty())
+            .then(|| provided.get(&lexically_normalized_path(path)).cloned())
+            .flatten()
+    };
     match provided {
-        Some(source) => Ok(source),
+        Some(source) => Ok(source.to_string()),
         None => std::fs::read_to_string(path),
     }
 }
@@ -8213,7 +8327,7 @@ where
                 }
             }
         }
-        TypeDecl::EffectDecl { .. } => {}
+        TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {}
         TypeDecl::RuleScope { body, .. } => {
             for stmt in body {
                 visit(AstChild::Stmt(stmt));
@@ -8582,12 +8696,14 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             variants,
             methods,
             except_from,
+            field_meta,
         } => TypeDecl::ADT {
             name: name.clone(),
             params: params.clone(),
             variants: variants.clone(),
             methods: methods.iter().map(strip_spans_defn).collect(),
             except_from: except_from.clone(),
+            field_meta: field_meta.clone(),
         },
         TypeDecl::WhenType {
             name,
@@ -8599,6 +8715,15 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             condition: strip_spans_expr(condition),
             variants: variants.clone(),
             except_from: except_from.clone(),
+        },
+        TypeDecl::Unit {
+            name,
+            description,
+            scale,
+        } => TypeDecl::Unit {
+            name: name.clone(),
+            description: description.clone(),
+            scale: scale.clone(),
         },
         TypeDecl::EffectDecl { name, ops } => TypeDecl::EffectDecl {
             name: name.clone(),
@@ -8945,7 +9070,9 @@ pub fn content_hash_defn(defn: &Defn) -> String {
             )
         }
     };
-    hash_string(&canonical)
+    // A hash names a declaration as written, before shared constructors
+    // receive internal names.
+    hash_string(&constructor_display_text(&canonical))
 }
 
 /// Compute a canonical structural representation of a TypeDecl (excluding the name).
@@ -9012,8 +9139,14 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
                 body.iter().map(strip_spans_stmt).collect::<Vec<_>>()
             )
         }
+        TypeDecl::Unit {
+            description, scale, ..
+        } => match scale {
+            Some(scale) => format!("UNIT({description:?}={scale})"),
+            None => format!("UNIT({description:?})"),
+        },
     };
-    hash_string(&canonical)
+    hash_string(&constructor_display_text(&canonical))
 }
 
 /// SHA-256 of a string, truncated to 12 hex chars (48 bits — collision-safe for codebases).
@@ -9053,6 +9186,7 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
         }
         TypeDecl::WhenType { name, .. } => name,
         TypeDecl::RuleScope { name, .. } => name,
+        TypeDecl::Unit { name, .. } => name,
     }
 }
 
@@ -9080,6 +9214,7 @@ pub fn print_hashes(stmts: &[Stmt]) {
                     TypeDecl::ImplBlock { .. } => "# impl",
                     TypeDecl::WhenType { .. } => "# WHEN",
                     TypeDecl::RuleScope { .. } => "# rulescope",
+                    TypeDecl::Unit { .. } => "# unit",
                 };
                 println!("  {} {} #{}", kind, type_decl_name(td), hash);
                 found = true;
@@ -9237,6 +9372,9 @@ pub struct Parser {
     language: SourceLanguage,
     source_path: Option<PathBuf>,
     declaration_name_spans: Option<Vec<(String, Span)>>,
+    /// `@ field(...)` declarations read inside the field list being parsed;
+    /// the enclosing type declaration takes them.
+    pending_member_field_meta: Vec<MemberFieldMeta>,
 }
 
 impl Parser {
@@ -9259,6 +9397,7 @@ impl Parser {
             language: detect_source_language(source),
             source_path: None,
             declaration_name_spans: None,
+            pending_member_field_meta: Vec::new(),
         }
     }
 
@@ -11628,6 +11767,46 @@ impl Parser {
             return Ok(Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }));
         }
 
+        // # unit Name "description" — contextual: `unit` stays an ordinary name.
+        if self.peek_kind() == TokenKind::Ident
+            && self.peek().text == "unit"
+            && self
+                .tokens
+                .get(self.pos + 1)
+                .is_some_and(|token| token.kind == TokenKind::Type)
+        {
+            self.advance();
+            let name = self.expect_ident()?;
+            self.record_declaration_name_span(format!("unit:{name}"), self.pos - 1);
+            let description = if self.peek_kind() == TokenKind::String_ {
+                self.advance().text
+            } else {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: unit `{name}` needs a description of what it counts.\n  Try: # unit {name} \"DKK øre\"",
+                    p.line, p.col
+                ));
+            };
+            if description.trim().is_empty() {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: unit `{name}` needs a description of what it counts.\n  Try: # unit {name} \"DKK øre\"",
+                    p.line, p.col
+                ));
+            }
+            let scale = if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
+                self.advance();
+                Some(self.parse_unit_scale(&name)?)
+            } else {
+                None
+            };
+            return Ok(Stmt::TypeDecl(TypeDecl::Unit {
+                name,
+                description,
+                scale,
+            }));
+        }
+
         // # Name(params) = Variant1 | Variant2 | ...
         let name = self.expect_ident()?;
 
@@ -11645,7 +11824,15 @@ impl Parser {
                 return Err(format!("{}:{}: expected `->` after WHEN condition, got `{}`\n  Syntax: # Type WHEN condition -> NewVariants",
                     p.line, p.col, p.text));
             }
+            let pending_before_variants = self.pending_member_field_meta.len();
             let (variants, except_from) = self.parse_variants()?;
+            let members = self
+                .pending_member_field_meta
+                .split_off(pending_before_variants);
+            self.reject_member_field_meta(
+                &members,
+                "a conditional type evolution (`WHEN`) has no calculation input fields",
+            )?;
             return Ok(Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
                 condition,
@@ -11663,14 +11850,22 @@ impl Parser {
             ));
         }
 
+        let pending_before_params = self.pending_member_field_meta.len();
         let params = if self.peek_kind() == TokenKind::LParen {
             let preserve_typed_field_names = self.type_decl_params_form_product();
             self.parse_type_params(preserve_typed_field_names)?
         } else {
             Vec::new()
         };
+        let param_field_meta = self
+            .pending_member_field_meta
+            .split_off(pending_before_params);
 
         if self.peek_kind() == TokenKind::LBrace {
+            self.reject_member_field_meta(
+                &param_field_meta,
+                "a rule-scope type has no calculation input fields",
+            )?;
             self.advance();
             self.skip_semis();
             let mut body = Vec::new();
@@ -11683,6 +11878,14 @@ impl Parser {
         }
 
         // Check for = (ADT definition) vs standalone declaration
+        if (self.peek_kind() == TokenKind::Op && self.peek().text == "=")
+            || self.peek_kind() == TokenKind::Eq
+        {
+            self.reject_member_field_meta(
+                &param_field_meta,
+                "these are type parameters; write `@ field(...)` before a field of a variant",
+            )?;
+        }
         if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
             self.advance();
         } else if self.peek_kind() == TokenKind::Eq {
@@ -11706,25 +11909,54 @@ impl Parser {
                     positional: false,
                     from_type: None,
                 };
+                let members = param_field_meta
+                    .into_iter()
+                    .map(|member| MemberFieldMeta {
+                        variant: name.clone(),
+                        ..member
+                    })
+                    .collect::<Vec<_>>();
+                let field_meta = (!members.is_empty()).then(|| {
+                    Box::new(TypeFieldMeta {
+                        type_default: None,
+                        members,
+                    })
+                });
                 return Ok(Stmt::TypeDecl(TypeDecl::ADT {
                     name,
                     params: Vec::new(),
                     variants: vec![variant],
                     methods: Vec::new(),
                     except_from: None,
+                    field_meta,
                 }));
             }
             // Truly opaque type declaration
+            self.reject_member_field_meta(
+                &param_field_meta,
+                "an opaque type declaration has no typed fields",
+            )?;
             return Ok(Stmt::TypeDecl(TypeDecl::ADT {
                 name,
                 params,
                 variants: Vec::new(),
                 methods: Vec::new(),
                 except_from: None,
+                field_meta: None,
             }));
         }
 
+        let pending_before_variants = self.pending_member_field_meta.len();
         let (variants, except_from) = self.parse_variants()?;
+        let members = self
+            .pending_member_field_meta
+            .split_off(pending_before_variants);
+        let field_meta = (!members.is_empty()).then(|| {
+            Box::new(TypeFieldMeta {
+                type_default: None,
+                members,
+            })
+        });
 
         // Check for method block: # Type = ... { > method(self) -> ... { } }
         let methods = if self.peek_kind() == TokenKind::LBrace {
@@ -11765,7 +11997,35 @@ impl Parser {
             variants,
             methods,
             except_from,
+            field_meta,
         }))
+    }
+
+    /// `DKK / 100`, `1 / 1000000` or `DKK` after `# unit Name "description" =`.
+    fn parse_unit_scale(&mut self, name: &str) -> Result<UnitScale, String> {
+        let base = self.advance();
+        let of = match base.kind {
+            TokenKind::Type => base.text,
+            TokenKind::Int_ if base.text == "1" => "1".to_string(),
+            _ => {
+                return Err(format!(
+                    "{}:{}: the scale of unit `{name}` names its base: a name such as `DKK`, or `1` for a plain number.\n  Try: # unit {name} \"DKK øre\" = DKK / 100",
+                    base.line, base.col
+                ))
+            }
+        };
+        if !(self.peek_kind() == TokenKind::Op && self.peek().text == "/") {
+            return Ok(UnitScale { of, per: 1 });
+        }
+        self.advance();
+        let count = self.advance();
+        match (count.kind, count.text.replace('_', "").parse::<i64>()) {
+            (TokenKind::Int_, Ok(per)) if per >= 1 => Ok(UnitScale { of, per }),
+            _ => Err(format!(
+                "{}:{}: the scale of unit `{name}` divides its base by a whole number of at least 1, got `{}`.\n  Try: # unit {name} \"DKK øre\" = DKK / 100",
+                count.line, count.col, count.source_text
+            )),
+        }
     }
 
     /// Parse: # trait Display { > fmt(self) -> String }
@@ -11903,6 +12163,7 @@ impl Parser {
     ) -> Result<Vec<Param>, String> {
         self.expect(TokenKind::LParen)?;
         self.parse_comma_separated(TokenKind::RParen, "type parameter or field", |parser| {
+            let field_meta = parser.parse_member_field_meta()?;
             let token = parser.advance();
             if !matches!(
                 token.kind,
@@ -11925,6 +12186,19 @@ impl Parser {
             } else {
                 None
             };
+            if let Some(meta) = field_meta {
+                if ty.is_none() {
+                    return Err(format!(
+                        "{}:{}: `@ field(...)` describes a named field `name: Type`; `{}` has no type",
+                        token.line, token.col, name
+                    ));
+                }
+                parser.pending_member_field_meta.push(MemberFieldMeta {
+                    variant: String::new(),
+                    field: name.clone(),
+                    meta,
+                });
+            }
             Ok(Param {
                 name,
                 ty,
@@ -11984,11 +12258,15 @@ impl Parser {
                 except_from = Some((name, excluded));
                 break; // EXCEPT always ends the variant list
             } else {
+                let pending_before_fields = self.pending_member_field_meta.len();
                 let (fields, positional) = if self.peek_kind() == TokenKind::LParen {
                     self.parse_field_list()?
                 } else {
                     (Vec::new(), false)
                 };
+                for member in &mut self.pending_member_field_meta[pending_before_fields..] {
+                    member.variant = name.clone();
+                }
                 // If this is an uppercase name with no fields and no dot,
                 // it MIGHT be a type inclusion (# A = Kristendom | Islam).
                 // We can't resolve at parse time — mark with from_type = Some("__include")
@@ -12047,9 +12325,11 @@ impl Parser {
             return Ok((Vec::new(), false));
         }
 
-        // Detect positional vs named by peeking at first field
+        // Detect positional vs named by peeking at first field, past a
+        // leading `@ field(...)`.
         let is_positional = {
             let saved = self.pos;
+            self.pos = self.skip_member_field_meta_tokens(self.pos);
             let is_ident = matches!(
                 self.peek_kind(),
                 TokenKind::Ident | TokenKind::Type | TokenKind::KW
@@ -12069,7 +12349,15 @@ impl Parser {
             TokenKind::RParen,
             "constructor field",
             |parser| {
+            let field_meta = parser.parse_member_field_meta()?;
             if is_positional {
+                if let Some(meta) = field_meta {
+                    let (line, col) = parser.line_col_of(meta.span.start);
+                    return Err(format!(
+                        "{}:{}: `@ field(...)` describes a named field; a positional field has no name to describe",
+                        line, col
+                    ));
+                }
                 let ty = parser.parse_type()?;
                 let field = Field {
                     name: format!("_{}", index),
@@ -12080,6 +12368,13 @@ impl Parser {
             } else {
                 let tok = parser.peek().clone();
                 let field_name = parser.expect_field_name()?;
+                if let Some(meta) = field_meta {
+                    parser.pending_member_field_meta.push(MemberFieldMeta {
+                        variant: String::new(),
+                        field: field_name.clone(),
+                        meta,
+                    });
+                }
                 if parser.peek_kind() != TokenKind::Colon {
                     return Err(format!(
                         "{}:{}: constructor fields must be named — write `{}: Type` instead of just a type",
@@ -12096,6 +12391,174 @@ impl Parser {
         },
         )?;
         Ok((fields, is_positional))
+    }
+
+    /// The 1-based line and column of a character offset in this source.
+    fn line_col_of(&self, offset: usize) -> (usize, usize) {
+        let line = self
+            .line_starts
+            .partition_point(|start| *start <= offset)
+            .max(1);
+        (line, offset - self.line_starts[line - 1] + 1)
+    }
+
+    /// The token position after an `@ field(...)` that starts at `pos`, or
+    /// `pos` itself when no such declaration starts there.
+    fn skip_member_field_meta_tokens(&self, pos: usize) -> usize {
+        let is_field_meta = self
+            .tokens
+            .get(pos)
+            .is_some_and(|tok| tok.kind == TokenKind::At)
+            && self
+                .tokens
+                .get(pos + 1)
+                .is_some_and(|tok| tok.text == "field")
+            && self
+                .tokens
+                .get(pos + 2)
+                .is_some_and(|tok| tok.kind == TokenKind::LParen);
+        if !is_field_meta {
+            return pos;
+        }
+        let mut depth = 0usize;
+        let mut index = pos + 2;
+        while let Some(token) = self.tokens.get(index) {
+            match token.kind {
+                TokenKind::LParen => depth += 1,
+                TokenKind::RParen => {
+                    depth -= 1;
+                    if depth == 0 {
+                        index += 1;
+                        break;
+                    }
+                }
+                TokenKind::Eof => return index,
+                _ => {}
+            }
+            index += 1;
+        }
+        while self
+            .tokens
+            .get(index)
+            .is_some_and(|token| token.kind == TokenKind::Semi)
+        {
+            index += 1;
+        }
+        index
+    }
+
+    /// An `@ field(...)` written before a field inside a type declaration.
+    fn parse_member_field_meta(&mut self) -> Result<Option<FieldMetaDecl>, String> {
+        if self.peek_kind() != TokenKind::At {
+            return Ok(None);
+        }
+        self.advance();
+        let name = self.advance();
+        if name.text != "field" {
+            return Err(format!(
+                "{}:{}: a field takes calculation metadata as `@ field(...)`, not `@ {}`",
+                name.line, name.col, name.source_text
+            ));
+        }
+        let meta = self.parse_field_meta_args(&name)?;
+        self.skip_semis();
+        if self.peek_kind() == TokenKind::At {
+            let at = self.peek().clone();
+            let next = self.tokens.get(self.pos + 1).unwrap_or(&at);
+            return Err(if next.text == "field" {
+                format!(
+                    "{}:{}: a field takes one `@ field(...)`; write all its keys in that one declaration",
+                    at.line, at.col
+                )
+            } else {
+                format!(
+                    "{}:{}: a field takes calculation metadata as `@ field(...)`, not `@ {}`",
+                    next.line, next.col, next.source_text
+                )
+            });
+        }
+        if matches!(
+            self.peek_kind(),
+            TokenKind::RParen | TokenKind::Comma | TokenKind::Eof
+        ) {
+            return Err(format!(
+                "{}:{}: `@ field(...)` must be followed by the field it describes",
+                name.line, name.col
+            ));
+        }
+        Ok(Some(meta))
+    }
+
+    /// The parenthesized `key = value` list of `@ field`, after its name.
+    fn parse_field_meta_args(&mut self, name: &Token) -> Result<FieldMetaDecl, String> {
+        if self.peek_kind() != TokenKind::LParen {
+            return Err(format!(
+                "{}:{}: `@ field` takes its metadata in parentheses, such as `@ field(label = \"Income\")`",
+                name.line, name.col
+            ));
+        }
+        let start = self.token_span(name).start;
+        let arguments = self.parse_arg_list()?;
+        let end = self
+            .tokens
+            .get(self.pos.saturating_sub(1))
+            .map(|token| self.token_span(token).end)
+            .unwrap_or(start);
+        let mut entries: Vec<(String, Expr)> = Vec::with_capacity(arguments.len());
+        for argument in &arguments {
+            let (line, col) = self.line_col_of(argument.span.start);
+            let Some((key, value)) = named_arg_parts(argument) else {
+                return Err(format!(
+                    "{}:{}: `@ field` arguments are named, such as `label = \"Income\"`",
+                    line, col
+                ));
+            };
+            if !FIELD_META_KEYS.contains(&key) {
+                return Err(format!(
+                    "{}:{}: unknown `@ field` key `{}`; the keys are {}",
+                    line,
+                    col,
+                    key,
+                    FIELD_META_KEYS.join(", ")
+                ));
+            }
+            if entries.iter().any(|(existing, _)| existing == key) {
+                return Err(format!("{}:{}: `@ field` gives `{}` twice", line, col, key));
+            }
+            entries.push((key.to_string(), value.clone()));
+        }
+        let has = |key: &str| entries.iter().any(|(existing, _)| existing == key);
+        if !has("label") {
+            return Err(format!(
+                "{}:{}: `@ field` needs a `label`",
+                name.line, name.col
+            ));
+        }
+        if has("entry") != has("subject") {
+            return Err(format!(
+                "{}:{}: `@ field` gives `entry` and `subject` together: the entry that provides the field and the input path it runs for",
+                name.line, name.col
+            ));
+        }
+        Ok(FieldMetaDecl {
+            entries,
+            span: Span::new(start, end),
+        })
+    }
+
+    fn reject_member_field_meta(
+        &self,
+        members: &[MemberFieldMeta],
+        reason: &str,
+    ) -> Result<(), String> {
+        let Some(member) = members.first() else {
+            return Ok(());
+        };
+        let (line, col) = self.line_col_of(member.meta.span.start);
+        Err(format!(
+            "{}:{}: `@ field(...)` on `{}` describes a field of a data type; {}",
+            line, col, member.field, reason
+        ))
     }
 
     pub fn parse_type_list(&mut self) -> Result<Vec<Ty>, String> {
@@ -12168,6 +12631,49 @@ impl Parser {
             return Ok(Stmt::Expr(
                 self.spanned(ExprKind::Effect(name, vec![]), &tok),
             ));
+        }
+
+        // `@ field(...)` before a `#` data type declaration: calculation field
+        // metadata for every field whose value has that type.
+        if name == "field" {
+            let meta = self.parse_field_meta_args(&tok)?;
+            self.skip_semis();
+            if self.peek_kind() == TokenKind::At
+                && self
+                    .tokens
+                    .get(self.pos + 1)
+                    .is_some_and(|next| next.text == "field")
+            {
+                let next = self.peek();
+                return Err(format!(
+                    "{}:{}: a type takes one `@ field(...)`; write all its keys in that one declaration",
+                    next.line, next.col
+                ));
+            }
+            if self.peek_kind() != TokenKind::Hash {
+                return Err(format!(
+                    "{}:{}: `@ field(...)` must be followed by the `#` data type it describes, or written before a field inside one; metadata for one calculation's input path is a field record anchored to that calculation",
+                    tok.line, tok.col
+                ));
+            }
+            self.advance();
+            let mut declaration = self.parse_type_decl()?;
+            match &mut declaration {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    variants,
+                    field_meta,
+                    ..
+                }) if !variants.is_empty() => {
+                    field_meta.get_or_insert_with(Default::default).type_default = Some(meta);
+                }
+                _ => {
+                    return Err(format!(
+                        "{}:{}: `@ field(...)` describes a data type with variants or fields; the declaration after it is not one",
+                        tok.line, tok.col
+                    ))
+                }
+            }
+            return Ok(declaration);
         }
 
         // `@ calculate` is a declaration marker, even when it carries the
@@ -12654,7 +13160,15 @@ impl Parser {
                 }
             }
             TokenKind::Type => {
-                let tok = self.advance();
+                let mut tok = self.advance();
+                // `Type.Constructor` names the constructor of one sum type.
+                if self.peek_kind() == TokenKind::Dot
+                    && self.tokens.get(self.pos + 1).map(|next| next.kind) == Some(TokenKind::Type)
+                {
+                    self.advance();
+                    let constructor = self.advance();
+                    tok.text = qualified_constructor_name(&tok.text, &constructor.text);
+                }
                 if self.peek_kind() == TokenKind::LParen {
                     self.advance();
                     // Check if first arg is named (ident: pattern)
@@ -13762,6 +14276,10 @@ pub enum Value {
     /// input paths it depends on. It may be carried but never shown,
     /// compared, hashed or encoded; see `partial`.
     Unknown(partial::UnknownPaths),
+    /// A value of an explained case (`runa call --explain`) with where it
+    /// came from. Wraps a scalar or a nullary variant only, and reads as that
+    /// value everywhere; see `explain`.
+    Traced(Rc<explain::TracedValue>),
 }
 
 const CHECKED_EXACT_OBSERVER_MEMO_ENTRY_LIMIT: usize = 2_048;
@@ -14187,7 +14705,8 @@ fn checked_exact_observer_memo_encode_value(value: &Value, output: &mut Vec<u8>)
         | Value::RuleScopeInstance { .. }
         | Value::NamespacedRuleScopeInstance { .. }
         | Value::TypeDef { .. }
-        | Value::Unknown(_) => None,
+        | Value::Unknown(_)
+        | Value::Traced(_) => None,
     }
 }
 
@@ -14316,6 +14835,7 @@ fn runtime_pair_tuple_operands(left: &Value, right: &Value) -> Option<(Value, Va
 }
 
 fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
+    let value = explain::untraced(value);
     if let Some((fst, snd)) = runtime_pair_fields(value) {
         // Hash as the tuple `(fst, snd)`, as `runtime_hash_sequence` does.
         hasher.update([7]);
@@ -14523,6 +15043,7 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
             partial::report_unknown_leak("hashing");
             hasher.update([24]);
         }
+        Value::Traced(_) => unreachable!("hashing reads a traced value as its value"),
     }
 }
 
@@ -14623,6 +15144,7 @@ fn runtime_constructor_values_equal(
 }
 
 fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
+    let (left, right) = (explain::untraced(left), explain::untraced(right));
     if matches!(left, Value::Unknown(_)) || matches!(right, Value::Unknown(_)) {
         partial::report_unknown_leak("equality");
         return false;
@@ -14995,7 +15517,7 @@ impl fmt::Display for Value {
                 if name == "Nil" {
                     write!(f, "[]") // Empty list
                 } else {
-                    write!(f, "{}", name)
+                    write!(f, "{}", constructor_display_name(name))
                 }
             }
             Value::Constructor(name, args) if name == "Cons" && args.len() == 2 => {
@@ -15011,7 +15533,7 @@ impl fmt::Display for Value {
                 write!(f, "]")
             }
             Value::Constructor(name, args) => {
-                write!(f, "{}(", name)?;
+                write!(f, "{}(", constructor_display_name(name))?;
                 for (i, a) in args.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -15021,7 +15543,7 @@ impl fmt::Display for Value {
                 write!(f, ")")
             }
             Value::NamedConstructor(name, fields) if fields.is_empty() => {
-                write!(f, "{}", name)
+                write!(f, "{}", constructor_display_name(name))
             }
             // `Pair(a, b)` is the two-element tuple `(a, b)` and displays as one.
             Value::NamedConstructor(name, fields)
@@ -15031,7 +15553,7 @@ impl fmt::Display for Value {
                 write!(f, "({}, {})", fields[0].1, fields[1].1)
             }
             Value::NamedConstructor(name, fields) => {
-                write!(f, "{}(", name)?;
+                write!(f, "{}(", constructor_display_name(name))?;
                 for (i, (fname, val)) in fields.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -15132,6 +15654,7 @@ impl fmt::Display for Value {
                 partial::report_unknown_leak("display");
                 write!(f, "<unknown>")
             }
+            Value::Traced(traced) => write!(f, "{}", traced.value),
         }
     }
 }
@@ -15384,6 +15907,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
                 variants: vec![variant],
                 methods: vec![],
                 except_from: None,
+                field_meta: None,
             }
         }
         "enum" => {
@@ -15422,6 +15946,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
                 variants,
                 methods: vec![],
                 except_from: None,
+                field_meta: None,
             }
         }
         _ => TypeDecl::ADT {
@@ -15435,6 +15960,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
             }],
             methods: vec![],
             except_from: None,
+            field_meta: None,
         },
     }
 }
@@ -15685,6 +16211,8 @@ struct RuntimeNamespaceState {
     constructor_sources: BTreeMap<String, Rc<str>>,
     field_names: BTreeMap<String, Vec<String>>,
     type_variants: BTreeMap<String, Vec<String>>,
+    /// Units of measure declared with `# unit`; their values are `Int`.
+    unit_types: BTreeSet<String>,
     ctor_to_type: BTreeMap<String, String>,
     functions: BTreeMap<String, FnDef>,
     function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
@@ -15751,6 +16279,7 @@ impl RuntimeNamespaceState {
             constructor_sources: BTreeMap::new(),
             field_names: BTreeMap::new(),
             type_variants: BTreeMap::new(),
+            unit_types: BTreeSet::new(),
             ctor_to_type: BTreeMap::new(),
             functions: BTreeMap::new(),
             function_declaration_envs: BTreeMap::new(),
@@ -16221,6 +16750,17 @@ pub struct Interpreter {
     /// Set while a partial calculation case runs; see `partial`.
     partial_mode: Option<partial::PartialMode>,
     partial: RefCell<partial::PartialState>,
+    /// Whether a rule clause or function being evaluated in a partial case
+    /// is cited in a law section: the value it returns is then that rule's,
+    /// and a later read of it waits on the rule, not on the fact.
+    pub(crate) partial_cited: Option<partial::CitedFrames>,
+    /// Set while an explained case runs; see `explain`.
+    explain: Option<RefCell<explain::ExplainState>>,
+    /// The file each rule declared outside the root file came from, by the
+    /// rule's allocation, for explanations.
+    rule_source_files: HashMap<usize, Rc<str>>,
+    /// The file whose statements are being installed (`None`: the root).
+    runtime_source_file: Option<Rc<str>>,
     runtime_diagnostic_context: Option<runtime_diagnostics::RuntimeDiagnosticContext>,
     /// Runtime symbols reachable from the active calculation boundary.
     calculation_runtime_symbols: BTreeSet<String>,
@@ -16312,6 +16852,10 @@ impl Interpreter {
             calculation_error: RefCell::new(None),
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
+            partial_cited: None,
+            explain: None,
+            rule_source_files: HashMap::new(),
+            runtime_source_file: None,
             runtime_diagnostic_context: None,
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
@@ -16896,7 +17440,7 @@ impl Interpreter {
             if self.calculation_failed() {
                 return Value::Unit;
             }
-            if matches!(&value, Value::Float(number) if !number.is_finite()) {
+            if matches!(explain::untraced(&value), Value::Float(number) if !number.is_finite()) {
                 return self.calculation_fail("non-finite floating-point result in calculation");
             }
         }
@@ -17047,7 +17591,7 @@ impl Interpreter {
 
     /// A collection predicate must answer with a Bool.
     fn builtin_predicate_holds(&self, builtin: &str, result: Value) -> bool {
-        match result {
+        match explain::strip(result) {
             Value::Bool(holds) => holds,
             // The builtin's result is unknown; `partial_builtin` collects the
             // paths, and the value returned here is discarded.
@@ -17746,6 +18290,9 @@ impl Interpreter {
                 return stand_in;
             }
         }
+        if self.explain.is_some() {
+            return self.explain_callback_result(result);
+        }
         result
     }
 
@@ -18015,9 +18562,12 @@ impl Interpreter {
             state.rule_dispatch_keys.insert(dispatch_key);
         }
         let index = state.rules.len();
-        state
-            .rules
-            .push((name.clone(), Rc::new(rule), declaration_env));
+        let rule = Rc::new(rule);
+        if let Some(file) = &self.runtime_source_file {
+            self.rule_source_files
+                .insert(Rc::as_ptr(&rule) as usize, file.clone());
+        }
+        state.rules.push((name.clone(), rule, declaration_env));
         state.rules_by_name.entry(name).or_default().push(index);
     }
 
@@ -18348,9 +18898,11 @@ impl Interpreter {
             .then(|| self.diagnostic_source_context(Path::new(path), source));
         let previous_diagnostics =
             std::mem::replace(&mut self.runtime_diagnostic_context, diagnostic_context);
+        let previous_file = self.runtime_source_file.replace(Rc::from(path));
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
         self.source_dir = previous;
         self.runtime_diagnostic_context = previous_diagnostics;
+        self.runtime_source_file = previous_file;
         match result {
             Ok(value) => value,
             Err(payload) => std::panic::resume_unwind(payload),
@@ -18841,6 +19393,8 @@ impl Interpreter {
         env.set("head".into(), Value::Builtin("head".into()));
         env.set("tail".into(), Value::Builtin("tail".into()));
         env.set("abs".into(), Value::Builtin("abs".into()));
+        // `Int(amount)` takes the unit off a value; the value is unchanged.
+        env.set("Int".into(), Value::Builtin("unit:Int".into()));
         env.set("random_float".into(), Value::Builtin("random_float".into()));
         env.set(
             "random_choice".into(),
@@ -19415,6 +19969,9 @@ impl Interpreter {
                     .insert(for_type.clone());
                 self.install_trait_default_methods(namespace, trait_name, for_type);
             }
+            TypeDecl::Unit { name, .. } => {
+                namespace.state.borrow_mut().unit_types.insert(name.clone());
+            }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
             }
@@ -19452,10 +20009,12 @@ impl Interpreter {
                 for stmt in body {
                     if let Stmt::Rule(rule) = stmt {
                         if !matches!(rule, Rule::ReactiveScope { .. }) {
+                            let rule = Rc::new(rule.clone());
+                            self.record_rule_source(&rule);
                             rules_by_name
-                                .entry(self.rule_name(rule))
+                                .entry(self.rule_name(&rule))
                                 .or_default()
-                                .push(Rc::new(rule.clone()));
+                                .push(rule);
                         }
                     }
                 }
@@ -20891,6 +21450,7 @@ impl Interpreter {
                                 variants: variants.clone(),
                                 methods: vec![],
                                 except_from: except_from.clone(),
+                                field_meta: None,
                             };
                             self.register_runtime_type_decl(&adt, env);
                         }
@@ -21200,7 +21760,7 @@ impl Interpreter {
                 }
                 Stmt::While(cond, body_stmts) => {
                     loop {
-                        let cond_val = self.eval(cond, env);
+                        let cond_val = explain::strip(self.eval(cond, env));
                         if let Value::Unknown(paths) = &cond_val {
                             self.partial_stop((**paths).clone());
                             return Value::Unit;
@@ -21659,6 +22219,13 @@ impl Interpreter {
                 }
             }
             TypeDecl::EffectDecl { .. } => {}
+            // `Ore(100)` gives an Int the unit; the value is unchanged.
+            TypeDecl::Unit { name, .. } => {
+                env.set(
+                    name.clone(),
+                    self.runtime_registry_builtin(&namespace, format!("unit:{name}")),
+                );
+            }
             TypeDecl::TraitDecl { .. } => {} // no runtime values for traits
             TypeDecl::WhenType { .. } => {}  // handled in run_program
             TypeDecl::ImplBlock { .. } => {}
@@ -22058,7 +22625,7 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let left_value = self.eval(left, env);
+        let left_value = explain::strip(self.eval(left, env));
         if let Value::Unknown(paths) = &left_value {
             return self.partial_short_circuit(operator, (**paths).clone(), right, env);
         }
@@ -22072,7 +22639,7 @@ impl Interpreter {
                 CheckedInterpreterShortCircuitOutcome::SkippedRight { result: true },
             ),
             ("&&" | "||", _) => {
-                let result = self.eval(right, env);
+                let result = explain::strip(self.eval(right, env));
                 let boolean = match &result {
                     Value::Bool(value) => *value,
                     _ => {
@@ -22114,6 +22681,8 @@ impl Interpreter {
     /// A malformed guard is an evaluation error, never a rejected candidate.
     fn eval_rule_guard(&mut self, condition: &Expr, env: &Env, family: &str) -> Option<bool> {
         let value = self.eval(condition, env);
+        self.explain_guard_read(&value);
+        let value = explain::strip(value);
         if self.calculation_failed() || self.ground_error.borrow().is_some() {
             return None;
         }
@@ -22143,7 +22712,7 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let condition_value = self.eval(condition, env);
+        let condition_value = explain::strip(self.eval(condition, env));
         if let Value::Unknown(paths) = &condition_value {
             return self.partial_if((**paths).clone(), then_expression, else_expression, env);
         }
@@ -22365,7 +22934,14 @@ impl Interpreter {
                         return result;
                     }
                 }
-                match (op.as_str(), v) {
+                let operand_node =
+                    explain::node_of(&v).filter(|_| !matches!(op.as_str(), "&" | "&mut"));
+                let v = if operand_node.is_some() {
+                    explain::strip(v)
+                } else {
+                    v
+                };
+                let result = match (op.as_str(), v) {
                     ("!", Value::Bool(b)) => Value::Bool(!b),
                     ("-", Value::Int(n)) => n.checked_neg().map(Value::Int).unwrap_or_else(|| {
                         self.checked_arithmetic_fail(
@@ -22378,7 +22954,8 @@ impl Interpreter {
                         "unsupported operand for operator `{op}`: `{}`",
                         self.runtime_value_type_label(&v)
                     )),
-                }
+                };
+                self.explain_unop(operand_node, result)
             }
             ExprKind::If(condition, then_expression, else_expression) => {
                 self.eval_checked_if(expr, condition, then_expression, else_expression, env)
@@ -22389,7 +22966,7 @@ impl Interpreter {
                 self.run_statement_block(stmts, &mut block_env)
             }
             ExprKind::Field(obj, field) => {
-                let obj_val = self.eval(obj, env);
+                let obj_val = explain::strip(self.eval(obj, env));
                 if self.partial_mode.is_some() {
                     if let Some(paths) = partial::unknown_paths(&obj_val, false) {
                         // A variant whose tag is unknown may lack the field.
@@ -22525,8 +23102,8 @@ impl Interpreter {
                 }
             }
             ExprKind::Index(arr, idx) => {
-                let arr_val = self.eval(arr, env);
-                let idx_val = self.eval(idx, env);
+                let arr_val = explain::strip(self.eval(arr, env));
+                let idx_val = explain::strip(self.eval(idx, env));
                 if self.partial_mode.is_some() {
                     let mut paths = BTreeSet::new();
                     partial::collect_unknown_paths(&arr_val, false, &mut paths);
@@ -22672,7 +23249,7 @@ impl Interpreter {
                 }
                 // Evaluate all conjuncts; return true if all are true
                 for e in exprs {
-                    if let Value::Bool(false) = self.eval(e, env) {
+                    if let Value::Bool(false) = explain::strip(self.eval(e, env)) {
                         return Value::Bool(false);
                     }
                 }
@@ -22685,7 +23262,7 @@ impl Interpreter {
                 // Evaluate alternatives; return true if ANY succeeds
                 for alt in alternatives {
                     let result = self.eval(alt, env);
-                    if !matches!(result, Value::Bool(false)) {
+                    if !matches!(explain::untraced(&result), Value::Bool(false)) {
                         return result;
                     }
                 }
@@ -22873,7 +23450,7 @@ impl Interpreter {
             // An exported type-body or impl method dispatches on its receiver,
             // exactly like a free call of the method name.
             let mut args = args.into_iter();
-            let Some(receiver) = args.next() else {
+            let Some(receiver) = args.next().map(explain::strip) else {
                 return self
                     .panic_or_ground_fail(format!("method `{method}` needs a receiver argument"));
             };
@@ -22907,6 +23484,10 @@ impl Interpreter {
                 Rc::new(bindings),
             );
         }
+        // A unit conversion (`Ore(n)`, `Int(amount)`) leaves the value as it is.
+        if name.starts_with("unit:") {
+            return args.into_iter().next().unwrap_or(Value::Unit);
+        }
         // Constructor application
         if name.starts_with("nctor:") {
             let parts: Vec<&str> = name[6..].split('/').collect();
@@ -22930,6 +23511,9 @@ impl Interpreter {
             let parts: Vec<&str> = name[5..].split('/').collect();
             let ctor_name = parts[0];
             return self.runtime_constructor_value(namespace, ctor_name.to_string(), args);
+        }
+        if self.explain.is_some() {
+            return self.explain_builtin(namespace, name, args, env);
         }
         if self.partial_mode.is_some() {
             return self.partial_builtin(namespace, name, args, env);
@@ -23366,6 +23950,9 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     let mut items = list_to_vec(list);
+                    if self.partial_mode.is_some() {
+                        return self.partial_sort(list, items);
+                    }
                     items.sort_by(value_sort_cmp);
                     Value::List(items)
                 }
@@ -23424,6 +24011,13 @@ impl Interpreter {
                     Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
+                if self.partial_mode.is_some() {
+                    return match self.partial_predicate_scan("any", &items, &func, env, true, true)
+                    {
+                        Ok(decided) => Value::Bool(decided.is_some()),
+                        Err(unknown) => unknown,
+                    };
+                }
                 Value::Bool(items.into_iter().any(|item| {
                     let result =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
@@ -23438,6 +24032,13 @@ impl Interpreter {
                     Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
+                if self.partial_mode.is_some() {
+                    return match self.partial_predicate_scan("all", &items, &func, env, false, true)
+                    {
+                        Ok(decided) => Value::Bool(decided.is_none()),
+                        Err(unknown) => unknown,
+                    };
+                }
                 Value::Bool(items.into_iter().all(|item| {
                     let result =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
@@ -23447,6 +24048,17 @@ impl Interpreter {
             "find" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
                     let items = list_to_vec(list);
+                    if self.partial_mode.is_some() {
+                        return match self
+                            .partial_predicate_scan("find", &items, func, env, true, false)
+                        {
+                            Ok(Some(index)) => {
+                                Value::Constructor("Some".into(), vec![items[index].clone()].into())
+                            }
+                            Ok(None) => Value::Constructor("None".into(), vec![].into()),
+                            Err(unknown) => unknown,
+                        };
+                    }
                     for item in items {
                         let result = self.apply_checked_builtin_callback(
                             1,
@@ -25475,6 +26087,9 @@ impl Interpreter {
     }
 
     pub fn eval_binop(&self, op: &str, l: Value, r: Value) -> Value {
+        if matches!(l, Value::Traced(_)) || matches!(r, Value::Traced(_)) {
+            return self.explain_binop(op, l, r);
+        }
         if self.ground_collection_limit.is_some() {
             if matches!(op, "==" | "!=")
                 && (!ground_equality_value_within_limit(&l, 512)
@@ -25589,7 +26204,7 @@ impl Interpreter {
                 left.len() == right.len()
                     && left.iter().zip(right).all(|(left, right)| {
                         matches!(
-                            self.eval_binop("==", left.clone(), right.clone()),
+                            explain::strip(self.eval_binop("==", left.clone(), right.clone())),
                             Value::Bool(true)
                         )
                     }),
@@ -25605,7 +26220,7 @@ impl Interpreter {
                     && af.len() == bf.len()
                     && af.iter().zip(bf.iter()).all(|(x, y)| {
                         matches!(
-                            self.eval_binop("==", x.clone(), y.clone()),
+                            explain::strip(self.eval_binop("==", x.clone(), y.clone())),
                             Value::Bool(true)
                         )
                     }),
@@ -25677,7 +26292,7 @@ impl Interpreter {
             {
                 // Check guard
                 if let Some(guard) = &arm.guard {
-                    match self.eval(guard, &arm_env) {
+                    match explain::strip(self.eval(guard, &arm_env)) {
                         Value::Bool(true) => {}
                         Value::Bool(false) => continue,
                         other => {
@@ -25693,7 +26308,15 @@ impl Interpreter {
                         }
                     }
                 }
-                return (self.eval(&arm.body, &arm_env), Some(arm_index));
+                let result = self.eval(&arm.body, &arm_env);
+                // A literal an arm gives was chosen by the matched value.
+                let decided = arm_index > 0 || !matches!(arm.pat, Pat::Wild | Pat::Var(_));
+                let result = if decided && self.explain.is_some() {
+                    self.explain_decided(result, &val)
+                } else {
+                    result
+                };
+                return (result, Some(arm_index));
             }
         }
         (
@@ -25721,6 +26344,18 @@ impl Interpreter {
         env: &mut Env,
         allow_bare_fielded_tag: bool,
     ) -> bool {
+        if let Value::Traced(traced) = val {
+            // A pattern that reads the value reads it untraced; a variable
+            // binds it with its trace.
+            if !matches!(pat, Pat::Wild | Pat::Var(_) | Pat::As(..)) {
+                return self.match_pattern_with_options(
+                    pat,
+                    &traced.value,
+                    env,
+                    allow_bare_fielded_tag,
+                );
+            }
+        }
         match (pat, val) {
             (Pat::Wild, _) => true,
             (Pat::Var(name), _) => {
@@ -26701,6 +27336,9 @@ impl Interpreter {
             self.checked_mechanism_begin_dependency_scope();
         }
         let mut selected = None;
+        // The clause that produced the value, for explanations.
+        let mut produced_by = None;
+        self.explain_begin_dispatch();
 
         let result = 'dispatch: {
             // Check exceptions first — they override the default.
@@ -26765,6 +27403,7 @@ impl Interpreter {
                             CheckedInterpreterRuleAttemptOutcome::Applicable,
                         );
                     }
+                    produced_by = Some(*index);
                     break 'dispatch Some(value);
                 }
             }
@@ -26824,6 +27463,7 @@ impl Interpreter {
                             CheckedInterpreterRuleAttemptOutcome::Applicable,
                         );
                     }
+                    produced_by = Some(*index);
                     break 'dispatch Some(value);
                 }
             }
@@ -26879,7 +27519,8 @@ impl Interpreter {
                                     .then_some(Value::Bool(true))
                             } else {
                                 let value = self.eval(body_expression, &rule_env);
-                                (!matches!(value, Value::Bool(false))).then_some(value)
+                                (!matches!(explain::untraced(&value), Value::Bool(false)))
+                                    .then_some(value)
                             }
                         }
                     };
@@ -26891,6 +27532,7 @@ impl Interpreter {
                                 CheckedInterpreterRuleAttemptOutcome::Applicable,
                             );
                         }
+                        produced_by = Some(*index);
                         break 'dispatch Some(value);
                     }
                     matched_false_clause = true;
@@ -26944,12 +27586,20 @@ impl Interpreter {
                             CheckedInterpreterRuleAttemptOutcome::Applicable,
                         );
                     }
+                    produced_by = Some(*index);
                     break 'dispatch Some(value);
                 }
             }
 
             break 'dispatch matched_false_clause.then_some(Value::Bool(false));
         };
+        let result = match (result, produced_by) {
+            (Some(value), Some(index)) if self.explain.is_some() => {
+                Some(self.explain_rule_result(&dispatch.matching[index].0, family, value))
+            }
+            (result, _) => result,
+        };
+        self.explain_end_dispatch();
 
         let cold_selection_event = traced_activation
             .then(|| self.checked_mechanism_record_rule_selection(family, selected))
@@ -27117,6 +27767,13 @@ impl Interpreter {
             "String" => matches!(value, Value::Str(_)),
             "Bool" => matches!(value, Value::Bool(_)),
             "Char" => matches!(value, Value::Char(_)),
+            _ if Self::runtime_namespace_find(expected_namespace, |state| {
+                state.unit_types.contains(type_name).then_some(())
+            })
+            .is_some() =>
+            {
+                matches!(value, Value::Int(_))
+            }
             _ => {
                 let constructor_name = match value {
                     Value::Constructor(name, _)
@@ -27202,6 +27859,7 @@ impl Interpreter {
     ) -> bool {
         // A partial case decodes every unknown value at its declared type,
         // and propagation keeps it there.
+        let value = explain::untraced(value);
         if matches!(value, Value::Unknown(_)) {
             return true;
         }
@@ -27457,6 +28115,14 @@ impl Interpreter {
             let expected_namespace = self.namespace_for_env(env);
             return self.value_matches_type_in_namespace(val, type_name, &expected_namespace)
                 && self.match_rule_param(inner, val, env);
+        }
+        if let Value::Traced(traced) = val {
+            // A variable binds the value with its trace; a pattern reads it.
+            if !matches!(&param.kind, ExprKind::Var(name)
+                if !name.chars().next().is_some_and(char::is_uppercase))
+            {
+                return self.match_rule_param(param, &traced.value, env);
+            }
         }
         if let Value::Unknown(paths) = val {
             let binds = matches!(&param.kind, ExprKind::Var(name)
@@ -27738,7 +28404,7 @@ impl Interpreter {
         }
 
         // All variables are bound — evaluate the goal normally
-        let result = self.eval(goal, env);
+        let result = explain::strip(self.eval(goal, env));
         if let Value::Unknown(paths) = &result {
             return self.partial_possible_match(paths) && self.eval_conjunction(remaining, env);
         }
@@ -28755,6 +29421,7 @@ impl Interpreter {
 
 /// Compare two Values for structural equality (used in Prolog-style fact matching)
 pub fn values_equal(a: &Value, b: &Value) -> bool {
+    let (a, b) = (explain::untraced(a), explain::untraced(b));
     if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
         partial::report_unknown_leak("equality");
         return false;
@@ -28989,13 +29656,30 @@ fn runtime_numeric_is_zero(value: &Value) -> bool {
 }
 
 pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
-    use std::cmp::Ordering;
-    if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
+    let mut unknown = BTreeSet::new();
+    let ordering = value_sort_cmp_reading(a, b, &mut unknown);
+    if !unknown.is_empty() {
         partial::report_unknown_leak("ordering");
+    }
+    ordering
+}
+
+/// The order of `a` and `b`, reading only the parts the comparison reaches:
+/// an unknown part compares equal and its paths go to `unknown`.
+pub(crate) fn value_sort_cmp_reading(
+    a: &Value,
+    b: &Value,
+    unknown: &mut BTreeSet<String>,
+) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    let (a, b) = (explain::untraced(a), explain::untraced(b));
+    if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
+        partial::collect_unknown_paths(a, false, unknown);
+        partial::collect_unknown_paths(b, false, unknown);
         return Ordering::Equal;
     }
     if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
-        return value_sort_cmp(&a, &b);
+        return value_sort_cmp_reading(&a, &b, unknown);
     }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {
@@ -29006,9 +29690,9 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
             value
         }
     }
-    fn seq_cmp(a: &[Value], b: &[Value]) -> Ordering {
+    fn seq_cmp(a: &[Value], b: &[Value], unknown: &mut BTreeSet<String>) -> Ordering {
         for (left, right) in a.iter().zip(b.iter()) {
-            let ordering = value_sort_cmp(left, right);
+            let ordering = value_sort_cmp_reading(left, right, unknown);
             if ordering != Ordering::Equal {
                 return ordering;
             }
@@ -29042,7 +29726,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
         (Value::Unit, Value::Unit) => Ordering::Equal,
         (Value::List(a), Value::List(b))
         | (Value::Tuple(a), Value::Tuple(b))
-        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b),
+        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b, unknown),
         (Value::Map(a), Value::Map(b)) => {
             let flatten = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
                 runtime_map_ordered_entries(entries)
@@ -29055,7 +29739,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     })
                     .collect()
             };
-            seq_cmp(&flatten(a), &flatten(b))
+            seq_cmp(&flatten(a), &flatten(b), unknown)
         }
         (Value::Set(a), Value::Set(b)) => {
             let ordered = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
@@ -29064,24 +29748,28 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     .cloned()
                     .collect()
             };
-            seq_cmp(&ordered(a), &ordered(b))
+            seq_cmp(&ordered(a), &ordered(b), unknown)
         }
         _ => match (constructor_parts(a), constructor_parts(b)) {
             (Some((left_name, left)), Some((right_name, right))) => {
-                left_name.cmp(right_name).then_with(|| {
-                    for (left, right) in left.iter().zip(right.iter()) {
-                        let ordering = value_sort_cmp(left, right);
-                        if ordering != Ordering::Equal {
-                            return ordering;
+                // Values order by the constructor names their declarations
+                // wrote, never by the internal name of a shared constructor.
+                constructor_display_name(left_name)
+                    .cmp(&constructor_display_name(right_name))
+                    .then_with(|| {
+                        for (left, right) in left.iter().zip(right.iter()) {
+                            let ordering = value_sort_cmp_reading(left, right, unknown);
+                            if ordering != Ordering::Equal {
+                                return ordering;
+                            }
                         }
-                    }
-                    left.len().cmp(&right.len())
-                })
+                        left.len().cmp(&right.len())
+                    })
             }
             _ => {
                 let (left, right) = (list_to_vec(a), list_to_vec(b));
                 if matches!(a, Value::Constructor(..)) && matches!(b, Value::Constructor(..)) {
-                    seq_cmp(&left, &right)
+                    seq_cmp(&left, &right, unknown)
                 } else {
                     format!("{}", a).cmp(&format!("{}", b))
                 }
@@ -29444,6 +30132,7 @@ pub(crate) enum DeclarationKind {
     Implementation,
     WhenType,
     RuleScope,
+    Unit,
     RuleClause,
     RuleDefault,
     RuleException,
@@ -29471,6 +30160,7 @@ impl DeclarationKind {
             Self::Implementation => "implementation",
             Self::WhenType => "when-type",
             Self::RuleScope => "rule-scope",
+            Self::Unit => "unit",
             Self::RuleClause => "rule-clause",
             Self::RuleDefault => "rule-default",
             Self::RuleException => "rule-exception",
@@ -30498,6 +31188,18 @@ pub struct TypeChecker {
     rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
     pub types: BTreeSet<String>,
+    /// Units of measure (`# unit Ore "DKK øre"`) -> description.
+    unit_types: BTreeMap<String, String>,
+    /// The declared scale of a unit (`Ore` -> `DKK / 100`).
+    unit_scales: BTreeMap<String, UnitScale>,
+    /// The imported file whose bodies are being checked; `None` for the root.
+    unit_conversion_module: Option<PathBuf>,
+    /// Checked conversions (`to_nearest(Ore, amount)`) by file and source
+    /// span. Elaboration rewrites each into the `Int` arithmetic it stands for.
+    unit_conversions:
+        BTreeMap<Option<PathBuf>, BTreeMap<(usize, usize), unit_types::UnitConversion>>,
+    /// Functions declared by the standard prelude rather than the program.
+    prelude_functions: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
     annotation_source_spans: Option<(String, BTreeMap<String, Span>)>,
     declaration_source_spans: Option<(String, BTreeMap<String, Span>)>,
@@ -30509,6 +31211,12 @@ pub struct TypeChecker {
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
     constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
+    /// (subset type, constructor) -> the type whose constructor a subset
+    /// declaration `# T = A.X` reuses.
+    constructor_subset_sources: BTreeMap<(String, String), String>,
+    /// Set when the program writes `Type.Constructor`, so checking elaborates
+    /// it even when no constructor name is shared.
+    constructor_scope_used: Cell<bool>,
     /// Type variables explicitly declared by an ADT owner. Unknown type names
     /// are never treated as generics without this declaration evidence.
     type_parameters_by_owner: BTreeMap<String, Vec<String>>,
@@ -31768,6 +32476,17 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    /// Every declared unit of measure, including imported ones. A backend
+    /// that erases units reads the type metadata below with
+    /// `TypeCheckArtifacts::erase_units_for_backend`.
+    pub unit_names: BTreeSet<String>,
+    /// The shared-constructor elaboration this check installed for the
+    /// imports it reads, when the program needed one.
+    pub constructor_elaboration: Option<Arc<ConstructorElaboration>>,
+    /// The statements every consumer runs: the checked root with shared
+    /// constructors under their internal names and `Type.Constructor`
+    /// resolved, or the input itself when nothing was renamed.
+    program: Arc<[Stmt]>,
     pub rule_return_types: BTreeMap<String, String>,
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
@@ -32286,6 +33005,19 @@ fn checked_explore_classifier_backend_namespace_v1(statements: &[Stmt]) -> Resul
 }
 
 impl TypeCheckArtifacts {
+    /// The statements to run, emit, audit or verify. A consumer never runs
+    /// the statements it passed to the checker: shared constructors only
+    /// have their internal names here.
+    pub fn program(&self) -> &Arc<[Stmt]> {
+        &self.program
+    }
+
+    /// The authored part of [`Self::program`]: its last `authored_len`
+    /// statements, without the prelude the checked program begins with.
+    pub fn authored_program(&self, authored_len: usize) -> &[Stmt] {
+        &self.program[self.program.len() - authored_len..]
+    }
+
     /// Exact guarded runtime calls. This carries no total-value proof authority.
     pub fn runtime_guarded_rule_calls(&self) -> &RuntimeGuardedRuleCalls {
         &self.runtime_guarded_rule_calls
@@ -32565,6 +33297,7 @@ impl TypeCheckArtifacts {
                         variants: variants.clone(),
                         methods: Vec::new(),
                         except_from: except_from.clone(),
+                        field_meta: None,
                     })
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body })
@@ -45849,7 +46582,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope {
                 name, params, body, ..
             }) => {
@@ -47299,12 +48032,19 @@ impl TypeChecker {
             rule_call_site_param_types: BTreeMap::new(),
             rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
+            unit_types: BTreeMap::new(),
+            unit_scales: BTreeMap::new(),
+            unit_conversion_module: None,
+            unit_conversions: BTreeMap::new(),
+            prelude_functions: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
             declaration_source_spans: None,
             variant_refinements: Vec::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
+            constructor_subset_sources: BTreeMap::new(),
+            constructor_scope_used: Cell::new(false),
             type_parameters_by_owner: BTreeMap::new(),
             actor_message_arities: BTreeMap::new(),
             top_level_constructor_names: BTreeSet::new(),
@@ -47936,7 +48676,7 @@ impl TypeChecker {
         if let Some(scope) = self.ordinary_callable_scopes.last_mut() {
             let binding = scope.entry(name.into()).or_default();
             binding.is_value = true;
-            binding.closure_parameters = None;
+            binding.closure = None;
         }
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
@@ -48586,9 +49326,9 @@ impl TypeChecker {
 
     fn resolve_prepass_import(path: &str, dir: &str) -> Option<(String, String)> {
         let file_path = Self::resolve_tc_import(path, dir)?;
-        let canonical = std::fs::canonicalize(&file_path)
-            .map(|resolved| resolved.to_string_lossy().to_string())
-            .unwrap_or_else(|_| file_path.clone());
+        let canonical = canonical_source_path(Path::new(&file_path))
+            .to_string_lossy()
+            .into_owned();
         let imported_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|parent| parent.to_string_lossy().to_string())
@@ -48636,6 +49376,9 @@ impl TypeChecker {
             )),
             Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                 Some((DeclarationKind::WhenType, None, name.clone(), None))
+            }
+            Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+                Some((DeclarationKind::Unit, None, name.clone(), None))
             }
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => Some((
                 DeclarationKind::RuleScope,
@@ -48779,6 +49522,7 @@ impl TypeChecker {
                 | DeclarationKind::Trait
                 | DeclarationKind::WhenType
                 | DeclarationKind::RuleScope
+                | DeclarationKind::Unit
                 | DeclarationKind::InlineModule
                 | DeclarationKind::QualifiedModule
         )
@@ -48811,6 +49555,14 @@ impl TypeChecker {
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
                 Some(format!("rule-scope:{name};params={params:?}"))
             }
+            Stmt::TypeDecl(TypeDecl::Unit {
+                name,
+                description,
+                scale,
+            }) => Some(match scale {
+                Some(scale) => format!("unit:{name};description={description:?};scale={scale}"),
+                None => format!("unit:{name};description={description:?}"),
+            }),
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
                 condition,
@@ -50466,6 +51218,10 @@ impl TypeChecker {
         constructor: &str,
         args: &[Expr],
     ) -> Option<TypeConstructorSignature> {
+        // A shared name never picks its owner by arguments.
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
         let matching = self
             .constructor_signatures
             .get(constructor)?
@@ -50487,6 +51243,9 @@ impl TypeChecker {
         constructor: &str,
         parent: Option<&str>,
     ) -> Option<TypeConstructorSignature> {
+        if let Some(signature) = self.qualified_pattern_signature(constructor) {
+            return Some(signature);
+        }
         let signatures = self.constructor_signatures.get(constructor)?;
         if let Some(parent) = parent.and_then(Self::canonical_nominal_owner) {
             if let Some(signature) = signatures
@@ -50496,14 +51255,11 @@ impl TypeChecker {
                 return Some(signature.clone());
             }
         }
-        let (fallback_parent, fallback_arity) = self.constructors.get(constructor)?;
-        signatures
-            .iter()
-            .find(|signature| {
-                signature.parent == *fallback_parent && signature.arity() == *fallback_arity
-            })
-            .cloned()
-            .or_else(|| signatures.last().cloned())
+        // Without its owner in view, a shared name has no signature.
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
+        signatures.last().cloned()
     }
 
     fn constructor_signature_for_named_validation(
@@ -50511,6 +51267,9 @@ impl TypeChecker {
         constructor: &str,
         args: &[Expr],
     ) -> Option<TypeConstructorSignature> {
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
         if let Some(signature) = self.constructor_signature_for_args(constructor, args) {
             return Some(signature);
         }
@@ -50540,6 +51299,9 @@ impl TypeChecker {
     }
 
     fn nullary_constructor_parent(&self, constructor: &str) -> Option<String> {
+        if self.constructor_is_shared(constructor) {
+            return None;
+        }
         let matching = self
             .constructor_signatures
             .get(constructor)?
@@ -50630,12 +51392,18 @@ impl TypeChecker {
                         if self.types.contains(expected_type)
                             && self.types.contains(&actual_type)
                             && expected_type != &actual_type
+                            && !(self.is_unit_type(expected_type)
+                                && Self::is_unitless_literal(value))
                         {
+                            let hint = self.numeric_conversion_hint(
+                                &Ty::Name(actual_type.clone()),
+                                &Ty::Name(expected_type.clone()),
+                            );
                             self.error_at_expr(
                                 value,
                                 format!(
-                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`",
-                                    constructor, field, expected_type, actual_type
+                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`{}",
+                                    constructor, field, expected_type, actual_type, hint
                                 ),
                             );
                         }
@@ -50964,6 +51732,7 @@ impl TypeChecker {
         }
 
         let mut current = Ty::Name(root.clone());
+        let mut selected_variant: Option<(String, String)> = None;
         for (index, argument) in arguments.iter().enumerate().skip(1) {
             let ExprKind::Lit(Literal::Str(segment)) = &argument.kind else {
                 self.error_at_expr(
@@ -51020,6 +51789,7 @@ impl TypeChecker {
                         }
                         return;
                     }
+                    selected_variant = Some((type_name.clone(), segment.clone()));
                     current = Ty::Name(segment.clone());
                     continue;
                 }
@@ -51034,11 +51804,22 @@ impl TypeChecker {
                 return;
             }
 
-            let field_ty = self
-                .type_field_tys
-                .get(&type_name)
-                .and_then(|fields| fields.get(segment))
-                .cloned();
+            // A selected variant's fields belong to its owner: a shared
+            // constructor name has no single variant-keyed field table.
+            let field_ty = match selected_variant.take() {
+                Some((owner, variant)) if self.constructor_is_shared(&variant) => self
+                    .constructor_signature_for_parent(&variant, Some(&owner))
+                    .and_then(|signature| {
+                        let index = signature.fields.iter().position(|field| field == segment)?;
+                        signature.field_tys.get(index).cloned().flatten()
+                    })
+                    .and_then(|ty| parse_type_annotation(&ty).ok()),
+                _ => self
+                    .type_field_tys
+                    .get(&type_name)
+                    .and_then(|fields| fields.get(segment))
+                    .cloned(),
+            };
             let Some(field_ty) = field_ty else {
                 let known_fields = self
                     .type_field_tys
@@ -51908,6 +52689,31 @@ impl TypeChecker {
                     if name == REFOF_MARKER {
                         return Some("ProgramReference".to_string());
                     }
+                    if !locals.contains_key(name) {
+                        if self.is_unit_conversion_name(name) && args.len() == 1 {
+                            return Some(name.clone());
+                        }
+                        if let Some(unit) = self.scaled_conversion_target(name, args, locals) {
+                            return Some(unit);
+                        }
+                        if !self.unit_types.is_empty() {
+                            let argument_types = args
+                                .iter()
+                                .map(|argument| {
+                                    self.infer_expr_type_name_with_locals_in_scope(
+                                        argument,
+                                        locals,
+                                        active_rule_scope,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            if let Some(unit) =
+                                self.unit_preserving_call_result(name, &argument_types)
+                            {
+                                return Some(unit);
+                            }
+                        }
+                    }
                     if !locals.contains_key(name)
                         && !self.explore_contextual_intrinsic_is_shadowed(name, args.len())
                     {
@@ -51935,6 +52741,11 @@ impl TypeChecker {
                     // from the callback body, and lets Explore validate pure
                     // corpus helpers without expanding their finite inputs.
                     if name == "foldl" && args.len() == 3 {
+                        if let Some(unit) =
+                            self.unit_of_literal_fold(args, locals, active_rule_scope)
+                        {
+                            return Some(unit);
+                        }
                         if let Some(initial_type) = self.infer_expr_type_name_with_locals_in_scope(
                             &args[1],
                             locals,
@@ -52069,8 +52880,8 @@ impl TypeChecker {
                             .unwrap_or(signature.parent),
                         );
                     }
-                    if let Some((parent, _)) = self.constructors.get(name) {
-                        return Some(parent.clone());
+                    if let Some(parent) = self.unique_constructor_parent(name) {
+                        return Some(parent);
                     }
                     if let Some(scope) = active_rule_scope {
                         let key = RuleDispatchKey {
@@ -52134,6 +52945,20 @@ impl TypeChecker {
                 }
 
                 if let ExprKind::Field(base, member) = &func.as_ref().kind {
+                    if let Some(signature) =
+                        self.type_qualified_constructor(base, member, Some(locals))
+                    {
+                        let owner = signature.parent.clone();
+                        return Some(
+                            self.applied_constructor_type(
+                                &signature,
+                                args,
+                                locals,
+                                active_rule_scope,
+                            )
+                            .unwrap_or(owner),
+                        );
+                    }
                     if let ExprKind::Var(module) = &base.kind {
                         if !locals.contains_key(module) && self.module_exports.contains_key(module)
                         {
@@ -52169,6 +52994,10 @@ impl TypeChecker {
                 None
             }
             ExprKind::Field(base, field) => {
+                if let Some(signature) = self.type_qualified_constructor(base, field, Some(locals))
+                {
+                    return Some(signature.parent);
+                }
                 let base_type = self.infer_expr_type_name_with_locals_in_scope(
                     base,
                     locals,
@@ -52190,11 +53019,7 @@ impl TypeChecker {
                         locals,
                         active_rule_scope,
                     );
-                    Self::binary_expression_result_type(
-                        operator,
-                        left_type.as_deref(),
-                        right_type.as_deref(),
-                    )
+                    self.binary_result_type(operator, left_type.as_deref(), right_type.as_deref())
                 }
             }
             ExprKind::UnOp(operator, inner) => {
@@ -52224,9 +53049,12 @@ impl TypeChecker {
                     active_rule_scope,
                 );
                 match (then_ty, else_ty) {
-                    (Some(then_ty), Some(else_ty)) => {
-                        Self::merge_inferred_type_names(&then_ty, &else_ty)
-                    }
+                    (Some(then_ty), Some(else_ty)) => self.merge_branch_types(
+                        &then_ty,
+                        Self::is_unitless_literal(then_expr),
+                        &else_ty,
+                        Self::is_unitless_literal(else_expr),
+                    ),
                     (Some(then_ty), None) if Self::is_polymorphic_empty_list_expr(else_expr) => {
                         Some(then_ty)
                     }
@@ -52243,6 +53071,7 @@ impl TypeChecker {
                     active_rule_scope,
                 );
                 let mut result_type: Option<String> = None;
+                let mut result_is_literal = true;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
@@ -52261,10 +53090,17 @@ impl TypeChecker {
                         }
                         None => return None,
                     };
+                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
                     let merged = match result_type {
-                        Some(known) => Self::merge_inferred_type_names(&known, &arm_type),
+                        Some(known) => self.merge_branch_types(
+                            &known,
+                            result_is_literal,
+                            &arm_type,
+                            arm_is_literal,
+                        ),
                         None => Some(arm_type),
                     }?;
+                    result_is_literal &= arm_is_literal;
                     result_type = Some(merged);
                 }
                 result_type
@@ -52337,17 +53173,20 @@ impl TypeChecker {
             return Some(inferred);
         }
 
-        let merge_candidates = |left: Option<String>, right: Option<String>| match (left, right) {
-            (Some(left), Some(right)) => Self::merge_inferred_type_names(&left, &right),
-            (Some(known), None) | (None, Some(known)) => Some(known),
-            (None, None) => None,
-        };
-
         match &expr.kind {
-            ExprKind::If(_, then_expr, else_expr) => merge_candidates(
+            ExprKind::If(_, then_expr, else_expr) => match (
                 self.provisional_expr_type_name_with_locals(then_expr, locals),
                 self.provisional_expr_type_name_with_locals(else_expr, locals),
-            ),
+            ) {
+                (Some(then_type), Some(else_type)) => self.merge_branch_types(
+                    &then_type,
+                    Self::is_unitless_literal(then_expr),
+                    &else_type,
+                    Self::is_unitless_literal(else_expr),
+                ),
+                (Some(known), None) | (None, Some(known)) => Some(known),
+                (None, None) => None,
+            },
             ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == "concat") =>
             {
                 let mut candidate: Option<String> = None;
@@ -52369,7 +53208,7 @@ impl TypeChecker {
             }
             ExprKind::Match(scrutinee, arms) => {
                 let subject_type = self.infer_expr_type_name_with_locals(scrutinee, locals);
-                let mut candidate: Option<String> = None;
+                let mut candidate: Option<(String, bool)> = None;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
@@ -52379,14 +53218,21 @@ impl TypeChecker {
                     else {
                         continue;
                     };
-                    candidate = match candidate {
-                        Some(known) => {
-                            Some(Self::merge_inferred_type_names(&known, &arm_candidate)?)
-                        }
-                        None => Some(arm_candidate),
-                    };
+                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
+                    candidate = Some(match candidate {
+                        Some((known, known_is_literal)) => (
+                            self.merge_branch_types(
+                                &known,
+                                known_is_literal,
+                                &arm_candidate,
+                                arm_is_literal,
+                            )?,
+                            known_is_literal && arm_is_literal,
+                        ),
+                        None => (arm_candidate, arm_is_literal),
+                    });
                 }
-                candidate
+                candidate.map(|(candidate, _)| candidate)
             }
             ExprKind::Block(stmts) => {
                 let mut block_locals = locals.clone();
@@ -52790,11 +53636,15 @@ impl TypeChecker {
         }
     }
 
-    fn canonical_dispatch_types_match(actual: &str, expected: &Ty) -> bool {
-        let Ok(actual) = parse_type_annotation(actual) else {
+    fn canonical_dispatch_types_match(&self, actual: &str, expected: &Ty) -> bool {
+        let Ok(actual) = parse_type_annotation(&self.canonical_type_without_units(actual)) else {
             return false;
         };
-        Self::explore_tys_equivalent(&actual, expected)
+        let expected = parse_type_annotation(
+            &self.canonical_type_without_units(&Self::canonical_explore_ty_name(expected)),
+        )
+        .unwrap_or_else(|_| expected.clone());
+        Self::explore_tys_equivalent(&actual, &expected)
     }
 
     fn canonical_dispatch_type_error<T>(&self) -> Option<T> {
@@ -53050,7 +53900,7 @@ impl TypeChecker {
                     )
                 }),
             Ty::Arrow(_, _) | Ty::Hole => false,
-            _ => Self::canonical_dispatch_types_match(actual, expected),
+            _ => self.canonical_dispatch_types_match(actual, expected),
         }
     }
 
@@ -53363,7 +54213,7 @@ impl TypeChecker {
             visiting_functions.remove(&visiting_key);
             let actual = actual?;
             let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
-            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+            if !self.canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
                 return self.canonical_dispatch_type_error();
             }
         }
@@ -53464,7 +54314,7 @@ impl TypeChecker {
             visiting_functions.remove(key);
             let actual = actual?;
             let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
-            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+            if !self.canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
                 return self.canonical_dispatch_type_error();
             }
         }
@@ -53739,7 +54589,7 @@ impl TypeChecker {
             Pat::Lit(literal) => parse_type_annotation(Self::obvious_literal_ty(literal))
                 .ok()
                 .is_some_and(|expected| {
-                    Self::canonical_dispatch_types_match(subject_type, &expected)
+                    self.canonical_dispatch_types_match(subject_type, &expected)
                 }),
             Pat::As(inner, _) => self.canonical_pattern_is_well_typed(inner, subject_type),
             Pat::Con(constructor, fields) => {
@@ -53888,7 +54738,7 @@ impl TypeChecker {
         let value_type = |index: usize| {
             values
                 .get(index)
-                .map(|value| Self::canonical_explore_type_name(&value.type_name))
+                .map(|value| self.canonical_type_without_units(&value.type_name))
         };
         let exact = |index: usize, expected: &str| {
             value_type(index).is_some_and(|actual| actual == expected)
@@ -53916,7 +54766,7 @@ impl TypeChecker {
                 let Ok(expected) = parse_type_annotation(&element) else {
                     return self.canonical_dispatch_type_error();
                 };
-                Self::canonical_dispatch_types_match(&values[1].type_name, &expected)
+                self.canonical_dispatch_types_match(&values[1].type_name, &expected)
                     .then_some("Bool")
             }
             ("starts_with" | "ends_with", 2) if exact(0, "String") && exact(1, "String") => {
@@ -53984,7 +54834,7 @@ impl TypeChecker {
                     let mut value = value?;
                     if let Some(declared) = declared {
                         let declared_type = parse_type_annotation(&declared).ok()?;
-                        if !Self::canonical_dispatch_types_match(&value.type_name, &declared_type) {
+                        if !self.canonical_dispatch_types_match(&value.type_name, &declared_type) {
                             return self.canonical_dispatch_type_error();
                         }
                         value.type_name = declared;
@@ -54073,6 +54923,24 @@ impl TypeChecker {
                     }
                     if matches!(name.as_str(), PATHOF_MARKER | REFOF_MARKER) {
                         return inferred();
+                    }
+                    // `Ore(n)` and `Int(amount)` leave the value unchanged.
+                    if self.is_unit_conversion_name(name)
+                        && arguments.len() == 1
+                        && !locals.contains_key(name)
+                        && !self.constructor_signatures.contains_key(name)
+                    {
+                        let argument = self.canonical_dispatch_expr_type(
+                            &arguments[0],
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                            None,
+                        )?;
+                        if self.canonical_type_without_units(&argument.type_name) != "Int" {
+                            return self.canonical_dispatch_type_error();
+                        }
+                        return Some(CanonicalDispatchValue::plain(name));
                     }
                     // Match the interpreter's bare-call interception order.
                     // An effect operation or nested logic search wins before
@@ -54259,8 +55127,8 @@ impl TypeChecker {
                     visiting_functions,
                     right_expected.as_deref(),
                 )?;
-                let left_type = Self::canonical_explore_type_name(&left.type_name);
-                let right_type = Self::canonical_explore_type_name(&right.type_name);
+                let left_type = self.canonical_type_without_units(&left.type_name);
+                let right_type = self.canonical_type_without_units(&right.type_name);
                 let numeric = |ty: &str| matches!(ty, "Int" | "Float");
                 match operator.as_str() {
                     "&&" | "||" if left_type == "Bool" && right_type == "Bool" => inferred(),
@@ -54291,7 +55159,7 @@ impl TypeChecker {
                     visiting_functions,
                     None,
                 )?;
-                let inner_type = Self::canonical_explore_type_name(&inner.type_name);
+                let inner_type = self.canonical_type_without_units(&inner.type_name);
                 match operator.as_str() {
                     "!" if inner_type == "Bool" => inferred(),
                     "-" if matches!(inner_type.as_str(), "Int" | "Float") => None,
@@ -54347,8 +55215,8 @@ impl TypeChecker {
                     visiting_functions,
                     expected,
                 )?;
-                let type_name =
-                    Self::merge_inferred_type_names(&then_value.type_name, &else_value.type_name)?;
+                let type_name = self
+                    .canonical_merge_branch_types(&then_value.type_name, &else_value.type_name)?;
                 let exact_constructor = (then_value.exact_constructor
                     == else_value.exact_constructor)
                     .then_some(then_value.exact_constructor)
@@ -54398,7 +55266,7 @@ impl TypeChecker {
                     )?;
                     result = Some(match result {
                         Some(known) => CanonicalDispatchValue {
-                            type_name: Self::merge_inferred_type_names(
+                            type_name: self.canonical_merge_branch_types(
                                 &known.type_name,
                                 &arm_value.type_name,
                             )?,
@@ -54431,7 +55299,7 @@ impl TypeChecker {
                                 annotation_name.as_deref().or(statement_expected),
                             )?;
                             if annotation.as_ref().is_some_and(|annotation| {
-                                !Self::canonical_dispatch_types_match(&value.type_name, annotation)
+                                !self.canonical_dispatch_types_match(&value.type_name, annotation)
                             }) {
                                 return self.canonical_dispatch_type_error();
                             }
@@ -54648,7 +55516,7 @@ impl TypeChecker {
                            captures: &BTreeMap<String, String>,
                            rules: &[&Rule],
                            expected: Option<&str>| {
-            rules
+            let mut inferred = rules
                 .iter()
                 .map(|rule| match rule {
                     Rule::Clause { head, body } => match body {
@@ -54667,12 +55535,14 @@ impl TypeChecker {
                     }
                     Rule::ReactiveScope { .. } => None,
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            checker.adopt_unit_for_literal_clauses(rules, &mut inferred);
+            inferred
         };
 
         let infer_group_provisionally =
             |checker: &TypeChecker, captures: &BTreeMap<String, String>, rules: &[&Rule]| {
-                rules
+                let mut inferred = rules
                     .iter()
                     .map(|rule| match rule {
                         Rule::Clause { head, body } => match body {
@@ -54690,7 +55560,9 @@ impl TypeChecker {
                         }
                         Rule::ReactiveScope { .. } => None,
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+                checker.adopt_unit_for_literal_clauses(rules, &mut inferred);
+                inferred
             };
 
         // A known base candidate can seed recursive references. Every result is
@@ -55005,8 +55877,8 @@ impl TypeChecker {
                                 Some(&expected),
                             )
                             .is_some_and(|actual| {
-                                let matches = Self::canonical_explore_type_name(&actual.type_name)
-                                    == Self::canonical_explore_type_name(&expected);
+                                let matches = self.canonical_type_without_units(&actual.type_name)
+                                    == self.canonical_type_without_units(&expected);
                                 if !matches {
                                     self.canonical_dispatch_definite_error.set(true);
                                 }
@@ -56056,7 +56928,9 @@ impl TypeChecker {
                             exported.insert(variant.name.clone());
                         }
                     }
-                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    Stmt::TypeDecl(
+                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                    ) => {
                         exported.insert(name.clone());
                     }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
@@ -56198,7 +57072,7 @@ impl TypeChecker {
                     self.checked_resolution_source_snapshot_coherent = false;
                 }
                 self.rule_contract_import_modules.insert(
-                    canonical_parsed_source_path(Path::new(file_path))
+                    canonical_source_path(Path::new(file_path))
                         .to_string_lossy()
                         .to_string(),
                     Arc::clone(&module),
@@ -56324,6 +57198,9 @@ impl TypeChecker {
                 ));
                 let previous_anchor = self.import_diagnostic_anchor;
                 self.import_diagnostic_anchor = unit.import_span;
+                let previous_module = self
+                    .unit_conversion_module
+                    .replace(canonical_source_path(&unit.path));
                 let start = self.diagnostics.len();
                 self.check_function_declarations(&unit.statements);
                 if unit.scope.is_some() {
@@ -56336,10 +57213,13 @@ impl TypeChecker {
                 {
                     self.check_stmt(statement);
                 }
+                self.diagnostics
+                    .extend(citations::citation_diagnostics(&unit.source));
                 self.locate_import_diagnostics(start, &unit.path, unit.source, unit.import_span);
                 self.source_text = previous_source;
                 self.source_dir = previous_dir;
                 self.import_diagnostic_anchor = previous_anchor;
+                self.unit_conversion_module = previous_module;
                 if let Some(scope) = previous_scope {
                     self.restore_import_body_scope(scope);
                 }
@@ -56548,6 +57428,15 @@ impl TypeChecker {
     pub fn collect_declarations(&mut self, stmts: &[Stmt]) {
         self.rule_dispatch_has_opaque_runtime_graph |=
             Self::rule_dispatch_program_has_opaque_runtime_graph(stmts);
+        let prelude_end = stmts
+            .iter()
+            .position(|stmt| matches!(stmt, Stmt::PreludeBoundary))
+            .unwrap_or(0);
+        for stmt in &stmts[..prelude_end] {
+            if let Stmt::Defn(Defn::Fn { name, .. }) = stmt {
+                self.prelude_functions.insert(name.clone());
+            }
+        }
         for stmt in stmts {
             self.record_explore_top_level_binding_initializer(stmt);
             match stmt {
@@ -56605,6 +57494,7 @@ impl TypeChecker {
                     methods,
                     ..
                 }) => {
+                    self.check_name_against_units(name);
                     self.clear_constructor_owner(name);
                     self.types.insert(name.clone());
                     self.type_parameters_by_owner.insert(
@@ -56622,14 +57512,21 @@ impl TypeChecker {
                     for variant in variants {
                         let field_count = variant.fields.len();
                         self.record_explore_non_rule_runtime_name(&variant.name);
+                        if let Some(source) = constructor_scope::variant_subset_source(variant) {
+                            self.constructor_subset_sources
+                                .insert((name.clone(), variant.name.clone()), source.to_string());
+                        }
+                        // Root types may share constructor names; context picks
+                        // the owner. An inline module keeps one owner per name.
+                        let identity = self.constructor_identity_owner(name, &variant.name);
                         if let Some(other) = self
-                            .constructor_signatures
-                            .get(&variant.name)
-                            .and_then(|known| known.iter().find(|sig| &sig.parent != name))
-                            .map(|sig| sig.parent.clone())
+                            .constructor_owners(&variant.name)
+                            .into_iter()
+                            .find(|owner| *owner != identity)
+                            .filter(|_| self.explore_inline_module_depth > 0)
                         {
                             self.error(format!(
-                                "constructor `{}` is declared in both type `{}` and type `{}`; constructor names must be unique among the types in scope",
+                                "constructor `{}` is declared in both type `{}` and type `{}`; types inside an inline module cannot share a constructor name",
                                 variant.name, other, name
                             ));
                         }
@@ -56683,17 +57580,27 @@ impl TypeChecker {
                                 .entry(field_name.clone())
                                 .or_insert_with(|| field_ty.clone());
                         }
-                        if !variant_field_names.is_empty() {
-                            self.type_fields
-                                .insert(variant.name.clone(), variant_field_names);
-                        }
-                        if !variant_field_types.is_empty() {
-                            self.type_field_types
-                                .insert(variant.name.clone(), variant_field_types);
-                        }
-                        if !variant_field_tys.is_empty() {
-                            self.type_field_tys
-                                .insert(variant.name.clone(), variant_field_tys);
+                        // Fields keyed by a variant name describe one owner's
+                        // variant; a shared name has no single such entry.
+                        if self.constructor_is_shared(&variant.name) {
+                            if !self.types.contains(&variant.name) {
+                                self.type_fields.remove(&variant.name);
+                                self.type_field_types.remove(&variant.name);
+                                self.type_field_tys.remove(&variant.name);
+                            }
+                        } else {
+                            if !variant_field_names.is_empty() {
+                                self.type_fields
+                                    .insert(variant.name.clone(), variant_field_names);
+                            }
+                            if !variant_field_types.is_empty() {
+                                self.type_field_types
+                                    .insert(variant.name.clone(), variant_field_types);
+                            }
+                            if !variant_field_tys.is_empty() {
+                                self.type_field_tys
+                                    .insert(variant.name.clone(), variant_field_tys);
+                            }
                         }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
@@ -56842,6 +57749,13 @@ impl TypeChecker {
                     self.rule_scope_value_method_params
                         .insert(name.clone(), Self::rule_scope_value_method_params(body));
                     self.infer_rule_scope_member_return_types(name, params, body);
+                }
+                Stmt::TypeDecl(TypeDecl::Unit {
+                    name,
+                    description,
+                    scale,
+                }) => {
+                    self.collect_unit_declaration(name, description, scale.as_ref());
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -57193,6 +58107,63 @@ impl TypeChecker {
         self.check_imported_bodies();
         // Check trait impl completeness
         self.check_trait_impls();
+        self.check_field_meta_declarations(stmts);
+    }
+
+    /// `@ field(...)` values are ordinary expressions: their names must
+    /// resolve, the text keys are strings and `sources` is a list. Whether a
+    /// value is pure ground data is decided where `runa schema` reads it.
+    fn check_field_meta_declarations(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            let Stmt::TypeDecl(TypeDecl::ADT {
+                field_meta: Some(field_meta),
+                ..
+            }) = stmt
+            else {
+                continue;
+            };
+            let declarations = field_meta
+                .type_default
+                .iter()
+                .chain(field_meta.members.iter().map(|member| &member.meta));
+            for declaration in declarations {
+                for (key, value) in &declaration.entries {
+                    self.check_expr(value, None);
+                    let Some(type_name) = self.infer_expr_type_name(value) else {
+                        continue;
+                    };
+                    if key == "sources" {
+                        if !type_name.starts_with("List(") {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "`@ field` key `sources` is a list of source values such as `[Source(value = law)]`, got `{}`",
+                                    type_name
+                                ),
+                            );
+                        }
+                    } else if key == "key" {
+                        if type_name != "Bool" {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "`@ field` key `key` must be a `Bool`, got `{}`",
+                                    type_name
+                                ),
+                            );
+                        }
+                    } else if type_name != "String" {
+                        self.error_at_expr(
+                            value,
+                            format!(
+                                "`@ field` key `{}` must be a `String`, got `{}`",
+                                key, type_name
+                            ),
+                        );
+                    }
+                }
+            }
+        }
     }
 
     fn check_stmt_sequence(&mut self, stmts: &[Stmt]) {
@@ -57312,7 +58283,7 @@ impl TypeChecker {
             return;
         };
         let expected_ty = ty.to_string();
-        if expected_ty != actual_ty {
+        if expected_ty != actual_ty && !self.unit_literal_fits(expr, ty) {
             self.error_at_expr(
                 expr,
                 format!(
@@ -59885,6 +60856,7 @@ impl TypeChecker {
                 }
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::Unit { .. }) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                 self.check_rule_scope_decl(name, params, body);
             }
@@ -60200,6 +61172,11 @@ impl TypeChecker {
                     self.check_refof_expr(expr, args);
                     return;
                 }
+                if let ExprKind::Var(name) = &func.kind {
+                    if self.check_unit_conversion_call(expr, name, args, _in_fn) {
+                        return;
+                    }
+                }
                 if matches!(&func.kind, ExprKind::Var(name) if self.actor_message_arities.contains_key(name))
                     && self.check_actor_message(None, expr)
                 {
@@ -60222,6 +61199,25 @@ impl TypeChecker {
                     return;
                 }
                 if let ExprKind::Field(base, method) = &func.as_ref().kind {
+                    let qualifier_error = self.ambiguous_type_qualifier(base, method);
+                    if let Some(message) = qualifier_error.clone() {
+                        self.error_at_expr(func, message);
+                    }
+                    if qualifier_error.is_some()
+                        || self
+                            .type_qualified_constructor(base, method, None)
+                            .is_some()
+                    {
+                        // The constructor scope pass checks the fields against
+                        // this owner.
+                        for arg in args {
+                            self.check_expr(
+                                named_arg_parts(arg).map_or(arg, |(_, value)| value),
+                                _in_fn,
+                            );
+                        }
+                        return;
+                    }
                     self.check_expr(base, _in_fn);
                     if let ExprKind::Var(module_name) = &base.kind {
                         if let Some(exported) = self.module_exports.get(module_name) {
@@ -60357,7 +61353,16 @@ impl TypeChecker {
                     let actual_arity = args.len();
                     let lexical_call_checked = self.check_ordinary_call(expr, name, args);
                     if has_named_args(args) {
-                        if self.constructor_signatures.contains_key(name) {
+                        if self.constructor_is_shared(name) {
+                            // The constructor scope pass checks the fields
+                            // against the owner the context chooses.
+                            for arg in args {
+                                self.check_expr(
+                                    named_arg_parts(arg).map_or(arg, |(_, value)| value),
+                                    _in_fn,
+                                );
+                            }
+                        } else if self.constructor_signatures.contains_key(name) {
                             let signature = self
                                 .constructor_signature_for_named_validation(name, args)
                                 .expect("registered constructor has a validation signature");
@@ -60507,7 +61512,11 @@ impl TypeChecker {
                             }
                         }
                     } else if self.constructor_signatures.contains_key(name) {
-                        if self.constructor_signature_for_args(name, args).is_none() {
+                        // A shared name is checked against the owner its
+                        // context chooses, by the constructor scope pass.
+                        if !self.constructor_is_shared(name)
+                            && self.constructor_signature_for_args(name, args).is_none()
+                        {
                             let expected = self
                                 .constructor_signature_for_parent(name, None)
                                 .map(|signature| signature.arity())
@@ -60572,8 +61581,17 @@ impl TypeChecker {
                         return;
                     }
                 }
-                for arg in args {
-                    self.check_expr(arg, _in_fn);
+                let callback = match &func.kind {
+                    ExprKind::Var(name) => self.collection_callback_parameter_types(name, args),
+                    _ => None,
+                };
+                for (index, arg) in args.iter().enumerate() {
+                    match &callback {
+                        Some((callback_index, parameter_types)) if *callback_index == index => {
+                            self.check_callback_lambda(arg, parameter_types, _in_fn);
+                        }
+                        _ => self.check_expr(arg, _in_fn),
+                    }
                 }
                 self.check_collection_key_not_float(func, args);
             }
@@ -60593,6 +61611,7 @@ impl TypeChecker {
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type: Option<String> = None;
+                let mut arms_are_literal = false;
                 let refinement_subject = match &scrutinee.kind {
                     ExprKind::Var(subject) => subject_type
                         .as_deref()
@@ -60633,11 +61652,16 @@ impl TypeChecker {
                     }
                     self.check_expr(&arm.body, _in_fn);
                     if let Some(arm_type) = self.infer_expr_type_name(&arm.body) {
+                        let arm_is_literal = Self::is_unitless_literal(&arm.body);
                         if let Some(expected) = first_arm_type.take() {
-                            if let Some(merged) =
-                                Self::merge_inferred_type_names(&expected, &arm_type)
-                            {
+                            if let Some(merged) = self.merge_branch_types(
+                                &expected,
+                                arms_are_literal,
+                                &arm_type,
+                                arm_is_literal,
+                            ) {
                                 first_arm_type = Some(merged);
+                                arms_are_literal &= arm_is_literal;
                             } else {
                                 self.error_at_expr(
                                     &arm.body,
@@ -60652,6 +61676,7 @@ impl TypeChecker {
                             }
                         } else {
                             first_arm_type = Some(arm_type);
+                            arms_are_literal = arm_is_literal;
                         }
                     }
                     self.pop_scope();
@@ -60678,6 +61703,13 @@ impl TypeChecker {
                 self.pop_scope();
             }
             ExprKind::Field(base, field) => {
+                if let Some(message) = self.ambiguous_type_qualifier(base, field) {
+                    self.error_at_expr(expr, message);
+                    return;
+                }
+                if self.type_qualified_constructor(base, field, None).is_some() {
+                    return;
+                }
                 self.check_expr(base, _in_fn);
                 if let ExprKind::Var(module_name) = &base.kind {
                     if let Some(exported) = self.module_exports.get(module_name) {
@@ -60809,6 +61841,21 @@ impl TypeChecker {
             Rule::Clause { head, body } => (head, body.as_ref()),
             Rule::ReactiveScope { .. } => return None,
         };
+        // A number written in the source takes the unit of the family's other
+        // clauses; it conflicts only with a non-numeric result.
+        if !self.unit_types.is_empty()
+            && result.is_some_and(|value| Self::is_unitless_literal(value))
+        {
+            let candidates = known.entry((name.clone(), arity)).or_default();
+            return candidates
+                .iter()
+                .find(|candidate| candidate.as_str() != "Int" && !self.is_unit_type(candidate))
+                .map(|previous| {
+                    format!(
+                        "rule `{name}` with arity {arity} has conflicting return types `{previous}` and `Int`"
+                    )
+                });
+        }
         let actual = match result {
             Some(result) => self
                 .infer_expr_type_name_with_locals(result, &self.rule_contract_local_types(head))
@@ -60868,7 +61915,7 @@ impl TypeChecker {
                     else {
                         continue;
                     };
-                    if !visited.insert(canonical_parsed_source_path(Path::new(file))) {
+                    if !visited.insert(canonical_source_path(Path::new(file))) {
                         continue;
                     }
                     let imported_dir = Interpreter::imported_source_dir(file);
@@ -60926,7 +61973,7 @@ impl TypeChecker {
                     else {
                         continue; // Resolution/parsing diagnostics belong to the prepass.
                     };
-                    let canonical = canonical_parsed_source_path(Path::new(&file));
+                    let canonical = canonical_source_path(Path::new(&file));
                     if !visited.insert(canonical.clone()) {
                         continue;
                     }
@@ -61205,14 +62252,26 @@ impl TypeChecker {
         let inferred = types[0].clone().or_else(|| {
             rows.iter()
                 .find_map(|row| match Self::coverage_pattern(&row[0]) {
-                    Pat::Con(name, _) | Pat::NamedCon(name, _) => self
-                        .constructors
-                        .get(name)
-                        .map(|(parent, _)| parent.clone()),
+                    Pat::Con(name, _) | Pat::NamedCon(name, _) => {
+                        match split_qualified_constructor(name) {
+                            Some((owner, _)) => Some(owner.to_string()),
+                            None => self.unique_constructor_parent(name),
+                        }
+                    }
                     Pat::Lit(Literal::Bool(_)) => Some("Bool".to_string()),
                     _ => None,
                 })
         });
+        // A shared constructor on a value of unknown type is reported by the
+        // constructor scope pass; coverage has no owner to enumerate.
+        if inferred.is_none()
+            && rows.iter().any(|row| {
+                matches!(Self::coverage_pattern(&row[0]),
+                    Pat::Con(name, _) | Pat::NamedCon(name, _) if self.constructor_is_shared(name))
+            })
+        {
+            return Some(true);
+        }
         let owner = inferred.as_deref().and_then(Self::canonical_nominal_owner);
         let variants = owner
             .as_ref()
@@ -61243,7 +62302,7 @@ impl TypeChecker {
             for row in rows {
                 let fields = match Self::coverage_pattern(&row[0]) {
                     Pat::Wild | Pat::Var(_) => vec![Pat::Wild; signature.arity()],
-                    Pat::Con(name, fields) if name == constructor => {
+                    Pat::Con(name, fields) if bare_constructor_name(name) == constructor => {
                         if fields.len() == signature.arity() {
                             fields.clone()
                         } else if depth == 0 && fields.is_empty() {
@@ -61254,7 +62313,7 @@ impl TypeChecker {
                             continue;
                         }
                     }
-                    Pat::NamedCon(name, fields) if name == constructor => {
+                    Pat::NamedCon(name, fields) if bare_constructor_name(name) == constructor => {
                         if fields
                             .iter()
                             .any(|(name, _)| !signature.fields.contains(name))
@@ -61415,6 +62474,7 @@ impl TypeChecker {
         collect_all_imported_metadata_bindings: bool,
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
+        constructor_scope::begin_root_check(stmts);
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
@@ -61425,6 +62485,10 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
+        let elaborated_root = constructor_elaboration
+            .as_mut()
+            .and_then(ConstructorElaboration::take_root);
         if collect_all_imported_metadata_bindings {
             // A Rust-emitting backend needs a signature for every function
             // and a Rust type for every record field.
@@ -61433,6 +62497,8 @@ impl TypeChecker {
         }
         tc.diagnostics
             .extend(host_effects::comptime_host_effect_diagnostics(stmts));
+        tc.diagnostics
+            .extend(citations::citation_diagnostics(source));
         let mut calculation_contracts = Vec::new();
         let mut compile_time_metadata_bindings = BTreeSet::new();
         let mut exploration_universes = Vec::new();
@@ -61487,7 +62553,18 @@ impl TypeChecker {
             exploration_universes.clear();
             Vec::new()
         };
+        // A consumer that runs this program on this thread reads its imports
+        // and constructor names through the current elaboration. A host that
+        // holds several programs passes each its own
+        // (`constructor_scope::with_constructor_elaboration`).
+        let constructor_elaboration = constructor_elaboration.map(Arc::new);
+        if tc.diagnostics.is_empty() {
+            if let Some(elaboration) = &constructor_elaboration {
+                elaboration.install();
+            }
+        }
         let runtime_root_statements: Arc<[Stmt]> = stmts.to_vec().into();
+        let program = elaborated_root.map_or_else(|| runtime_root_statements.clone(), Arc::from);
         let runtime_root_program = TypeChecker::checked_resolved_program_id(
             &tc.analysis_program,
             &runtime_root_statements,
@@ -61497,6 +62574,9 @@ impl TypeChecker {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
+            unit_names: tc.unit_types.keys().cloned().collect(),
+            constructor_elaboration,
+            program,
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,
@@ -70652,6 +71732,164 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
     }
 
+    // ── Constructor names scoped to their type ──────────────────────
+
+    const SCOPED_CONSTRUCTOR_TYPES: &str = "# Event = Trade(id: String, amount: Int) | Closed\n# AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed\n";
+
+    /// The statements after the two type declarations, once the checker gave
+    /// every shared constructor its owner. `Event`, declared first, keeps the
+    /// declared names; `AskYearEvent`'s constructors run as
+    /// `AskYearEvent__Trade` and `AskYearEvent__Closed`.
+    fn scoped_constructor_program(body: &str) -> String {
+        let source = format!("{SCOPED_CONSTRUCTOR_TYPES}{body}\n");
+        let statements = parse_test_program(&source).expect("parse scoped constructors");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, &source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{body}: {:?}",
+            artifacts.diagnostics
+        );
+        format!("{:?}", &artifacts.program()[2..])
+    }
+
+    /// `body` names `internal` and never the declared name it stands for.
+    fn assert_scoped_constructor(body: &str, internal: &str, declared: &str) {
+        let program = scoped_constructor_program(body);
+        assert!(
+            program.contains(&format!("{internal:?}")),
+            "{body}: {program}"
+        );
+        assert!(
+            !program.contains(&format!("{declared:?}")),
+            "{body}: {program}"
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_argument() {
+        assert_scoped_constructor(
+            "> f(e: AskYearEvent) -> Int { 1 }\n= x: Int = f(Trade(id = \"a\", amount = 1, year = 2026))",
+            "AskYearEvent__Trade",
+            "Trade",
+        );
+        // The first declared owner keeps the declared name.
+        assert_scoped_constructor(
+            "> g(e: Event) -> Int { 1 }\n= y: Int = g(Trade(id = \"a\", amount = 1))",
+            "Trade",
+            "AskYearEvent__Trade",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_field() {
+        assert_scoped_constructor(
+            "# Holder(event: AskYearEvent)\n= h = Holder(event = Closed)",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_return_type() {
+        assert_scoped_constructor(
+            "> closing() -> AskYearEvent { Closed }",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_list_element() {
+        assert_scoped_constructor(
+            "= xs = [AskYearEvent.Closed, Closed]",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_other_side_of_equality() {
+        assert_scoped_constructor(
+            "> is_closed(e: AskYearEvent) -> Bool { e == Closed }",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_match_subject() {
+        let body = "> label(e: AskYearEvent) -> String {\n    match e {\n        | Trade -> e.id\n        | Closed -> \"closed\"\n    }\n}";
+        assert_scoped_constructor(body, "AskYearEvent__Trade", "Trade");
+        assert_scoped_constructor(body, "AskYearEvent__Closed", "Closed");
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_lambda_callback() {
+        assert_scoped_constructor(
+            "> ask_closings(n: List(Int)) -> List(AskYearEvent) { map(n, |k| Closed) }",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_takes_owner_from_rule_head() {
+        assert_scoped_constructor(
+            "| ask_label(Closed) -> \"closed\"\n| ask_label(e: AskYearEvent) -> \"ask\"",
+            "AskYearEvent__Closed",
+            "Closed",
+        );
+    }
+
+    #[test]
+    fn typechecker_scoped_constructor_rewrite_of_provided_imports_keys_every_path_spelling() {
+        let _provided = PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        // No such directory exists: imports are served from provided files,
+        // as in the WebAssembly engine, where no path can be canonicalized.
+        let model = Path::new("/futuruna-provided-constructor-scope-test/model");
+        provide_source_files([
+            (
+                model.join("shared/events.runa"),
+                format!("{SCOPED_CONSTRUCTOR_TYPES}> ask_closed() -> AskYearEvent {{ Closed }}\n"),
+            ),
+            (
+                model.join("src/ledger.runa"),
+                "@ import ../shared/events\n> closing() -> AskYearEvent { ask_closed() }\n"
+                    .to_string(),
+            ),
+        ]);
+        let source = "@ import ./ledger\n= last: AskYearEvent = closing()\n";
+        let statements = parse_test_program(source).expect("parse provided model");
+        let source_dir = model.join("src").to_string_lossy().into_owned();
+        let artifacts = TypeChecker::check_with_artifacts(&statements, Some(source_dir), source);
+        provide_source_files([]);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let elaboration = artifacts
+            .constructor_elaboration
+            .expect("the shared constructor in events.runa is rewritten");
+        // However a reader spells the path, it reads the rewritten module
+        // under the key the checker stored it with.
+        for spelling in [
+            model.join("src/../shared/events.runa"),
+            model.join("shared/./events.runa"),
+            model.join("shared/events.runa"),
+        ] {
+            let key = canonical_source_path(&spelling);
+            assert!(
+                elaboration.module_paths().any(|path| path == key),
+                "{} is read as {}, which holds no rewritten module",
+                spelling.display(),
+                key.display()
+            );
+        }
+    }
+
     #[test]
     fn typechecker_preserves_generic_variant_field_type_in_match_binding() {
         let source = r#"
@@ -70990,6 +72228,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
+            TypeDecl::Unit { .. } => "Unit",
         }
     }
 
@@ -71000,7 +72239,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
             | TypeDecl::TraitDecl { .. }
             | TypeDecl::ImplBlock { .. }
             | TypeDecl::RuleScope { .. } => TypecheckerPassCoverage::VisitsExpressions,
-            TypeDecl::EffectDecl { .. } => TypecheckerPassCoverage::IntentionallyIgnored,
+            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {
+                TypecheckerPassCoverage::IntentionallyIgnored
+            }
         }
     }
 
@@ -71084,6 +72325,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                         body: typechecker_missing_expr("missing_adt_method_body"),
                     }],
                     except_from: None,
+                    field_meta: None,
                 }),
                 coverage: visits,
                 diagnostic_markers: vec!["missing_adt_method_body"],
@@ -71104,6 +72346,16 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
                     name: "EffectVisit".to_string(),
                     ops: vec![("op".to_string(), vec![], None)],
+                }),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::Unit",
+                stmt: Stmt::TypeDecl(TypeDecl::Unit {
+                    name: "UnitVisit".to_string(),
+                    description: "units of a visit".to_string(),
+                    scale: None,
                 }),
                 coverage: ignored,
                 diagnostic_markers: vec![],
@@ -71520,6 +72772,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "TraitDecl",
             "ImplBlock",
             "RuleScope",
+            "Unit",
         ]
         .into_iter()
         .collect();
@@ -73257,5 +74510,182 @@ handle <- Left
 
         assert!(error.contains("expected `|` before type variant `Second`"));
         assert!(error.contains("end the preceding variant line with `|`"));
+    }
+
+    fn declared_type<'a>(statements: &'a [Stmt], wanted: &str) -> &'a TypeDecl {
+        statements
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(declaration @ TypeDecl::ADT { name, .. }) if name == wanted => {
+                    Some(declaration)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("no type `{wanted}`"))
+    }
+
+    fn declared_field_meta<'a>(statements: &'a [Stmt], wanted: &str) -> Option<&'a TypeFieldMeta> {
+        match declared_type(statements, wanted) {
+            TypeDecl::ADT { field_meta, .. } => field_meta.as_deref(),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn field_meta_parses_on_fields_variants_and_types() {
+        let source = r#"
+@ field(label = "Filing status", help = "At the end of the year.")
+# Status = Single | Married
+
+# Payment =
+    Card(@ field(label = "Last digits") last_digits: String) |
+    Transfer(account: String, @ field(label = "Bank", unit = "registration number") bank: String)
+
+# Input(
+    @ field(label = "Income", question = "What do you earn?")
+    income: Int,
+    status: Status, @ field(label = "Payment") payment: Payment
+)
+# Plain(income: Int)
+"#;
+        let statements = parse_test_program(source).expect("field metadata parses");
+
+        let status = declared_field_meta(&statements, "Status").expect("type default");
+        let default = status.type_default.as_ref().expect("type default");
+        let keys = default
+            .entries
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(keys, ["label", "help"]);
+        assert!(status.members.is_empty());
+
+        let members = |name: &str| {
+            declared_field_meta(&statements, name)
+                .expect("member metadata")
+                .members
+                .iter()
+                .map(|member| (member.variant.clone(), member.field.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            members("Payment"),
+            [
+                ("Card".to_string(), "last_digits".to_string()),
+                ("Transfer".to_string(), "bank".to_string())
+            ]
+        );
+        assert_eq!(
+            members("Input"),
+            [
+                ("Input".to_string(), "income".to_string()),
+                ("Input".to_string(), "payment".to_string())
+            ]
+        );
+        let income = &declared_field_meta(&statements, "Input").unwrap().members[0].meta;
+        assert!(matches!(
+            &income.value("label").expect("label").kind,
+            ExprKind::Lit(Literal::Str(label)) if label == "Income"
+        ));
+        assert!(declared_field_meta(&statements, "Plain").is_none());
+
+        // The fields themselves are unchanged by their metadata.
+        let TypeDecl::ADT { variants, .. } = declared_type(&statements, "Input") else {
+            unreachable!()
+        };
+        let names = variants[0]
+            .fields
+            .iter()
+            .map(|field| field.name.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["income", "status", "payment"]);
+    }
+
+    #[test]
+    fn field_meta_is_not_part_of_a_type_content_hash() {
+        let plain = parse_test_program("# Input(income: Int)").expect("plain type parses");
+        let described = parse_test_program("# Input(@ field(label = \"Income\") income: Int)")
+            .expect("described type parses");
+        assert_eq!(
+            content_hash_type(declared_type(&plain, "Input")),
+            content_hash_type(declared_type(&described, "Input"))
+        );
+    }
+
+    #[test]
+    fn field_meta_parse_errors_name_the_problem() {
+        for (source, expected) in [
+            (
+                "# Input(@ field(lable = \"x\") income: Int)",
+                "unknown `@ field` key `lable`",
+            ),
+            (
+                "# Input(@ field(help = \"x\") income: Int)",
+                "`@ field` needs a `label`",
+            ),
+            (
+                "# Input(@ field(label = \"x\", label = \"y\") income: Int)",
+                "`@ field` gives `label` twice",
+            ),
+            (
+                "# Input(@ field(\"x\") income: Int)",
+                "`@ field` arguments are named",
+            ),
+            (
+                "# Input(@ field(label = \"x\") @ field(label = \"y\") income: Int)",
+                "a field takes one `@ field(...)`",
+            ),
+            (
+                "# Input(income: Int, @ field(label = \"x\"))",
+                "must be followed by the field it describes",
+            ),
+            (
+                "@ field(label = \"x\")\n= value = 1",
+                "must be followed by the `#` data type it describes",
+            ),
+            (
+                "@ field(label = \"x\")\n@ field(label = \"y\")\n# Status = A | B",
+                "a type takes one `@ field(...)`",
+            ),
+            (
+                "# Amount = Kroner(@ field(label = \"x\") Int) | Unknown",
+                "a positional field has no name to describe",
+            ),
+            (
+                "# Input(@ field(label = \"x\", entry = \"e\") income: Int)",
+                "gives `entry` and `subject` together",
+            ),
+        ] {
+            let error = parse_test_program(source).expect_err(source);
+            assert!(error.contains(expected), "{source}: {error}");
+        }
+    }
+
+    #[test]
+    fn field_meta_values_are_checked_as_expressions() {
+        let diagnostics = check_source_for_diagnostics(
+            "# Input(@ field(label = 5, help = missing_help) income: Int)",
+        );
+        let messages = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            messages
+                .iter()
+                .any(|message| message
+                    .contains("`@ field` key `label` must be a `String`, got `Int`")),
+            "{messages:?}"
+        );
+        assert!(
+            messages
+                .iter()
+                .any(|message| message.contains("missing_help")),
+            "{messages:?}"
+        );
+        assert!(check_source_for_diagnostics(
+            "= note = \"Before tax.\"\n# Input(@ field(label = \"Income\", help = note) income: Int)"
+        )
+        .is_empty());
     }
 }

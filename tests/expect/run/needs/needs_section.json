@@ -1,0 +1,10 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "29ea0878d67dc23ce29e001d4dc635f9f8ac5398250a86d8d0db077df503477b",
+    "entry": "needs_section"
+  },
+  "cases": [
+    { "case_id": "liability-left-out", "input_status": "ready", "input": { "income": 40000 } }
+  ]
+}

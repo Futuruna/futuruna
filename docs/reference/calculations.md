@@ -2,6 +2,7 @@
 feature_stage: mixed
 feature_stage_surfaces:
   - typed-calculation-contracts
+  - calculation-field-declarations
   - calculation-needs
   - typescript-sdk
 ---
@@ -35,15 +36,81 @@ Use plain `@ calculate` when the rule name is sufficient, or provide one
 human-readable title with `@ calculate("Household tax calculation")`. The title
 names the whole calculation and appears in its schema and generated workbook.
 It does not label every nested input field. Field labels, interview questions,
-help, units, and sources belong in typed field metadata.
+help, units, and sources belong in field metadata.
 
 ## Describe Human Input
 
-Keep the calculation boundary machine-stable and attach presentation metadata to
-individual canonical input paths. A field binding is an ordinary pure ground
-record. Its typed field shape and canonical `path` give it calculation meaning;
-the anchor label names the calculation entry and its single `meta` binding
-contains the fields and their provenance.
+Keep the calculation boundary machine-stable and give each input field its
+human presentation: a label, an interview question, help, a unit, sources, and
+the calculation that provides it. Write it with `@ field(...)` on the
+declaration of the field it describes:
+
+```runa
+# SourceInfo(url: String, section: String)
+# CalculationMetaRole(a) = Source(value: a)
+# impl MetaRole for CalculationMetaRole {}
+
+= tax_source = SourceInfo(url = "https://example.invalid/tax", section = "income")
+
+# Input(
+    @ field(label = "Monthly income before tax", question = "What do you earn before tax each month?", help = "Use the gross amount before deductions.", unit = "currency/month", sources = [Source(value = tax_source)])
+    monthly_income: Int,
+    status: FilingStatus
+)
+
+@ field(label = "Filing status", question = "Do you file alone or jointly?")
+# FilingStatus = Single | Joint
+```
+
+`@ field(...)` before a named field, in a record or in a variant payload,
+describes that field wherever its type occurs in a calculation input. Before a
+`#` data type it describes every input field whose value has that type: the
+field of an enum such as `status`, the `$variant` column of a sum with
+payloads, the collection or optional column of a record. List, set, optional
+and map wrappers are transparent, as in `pathof`.
+
+| Key | Value |
+|---|---|
+| `label` | required `String` |
+| `question`, `help`, `unit` | `String` |
+| `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
+| `entry`, `subject` | `String`, together: the calculation that provides the field and the input path it runs for |
+| `key` | `Bool`: `True` makes this `String` or `Int` field of a record type the key that identifies an element of the type in a list (one per type); the contract's definition of the type names it as `key`, and a need inside such an element carries the element's key |
+
+A key that does not apply is left out; values are plain strings (`key` a
+plain `Bool`), not `Some(...)`. A value may be any pure ground expression,
+resolved like a metadata binding. `runa check` reports an unknown or repeated
+key, a missing label, `entry` without `subject`, two `@ field` on one field or
+type, an `@ field` that no field or data type follows, a value that is not a
+`String` (or, for `sources`, not a list; for `key`, not a `Bool`), and a `key`
+on a field that is not a `String` or `Int` of a record type, or a second one
+in a type. Declarations are presentation only: they do not change a type's
+meaning, content hash or semantic interface.
+
+A required record field has no column of its own; its members are spread into
+columns. Its `@ field` label gives those members context: a label written for a
+type or for a type's field reads `<record field label>: <member label>` below a
+labelled record field.
+
+```runa
+# Date(@ field(label = "year") year: Int, @ field(label = "month") month: Int, @ field(label = "day") day: Int)
+# Trade(@ field(label = "Trade date") date: Date, @ field(label = "Event id") id: String)
+```
+
+For `trades: List(Trade)`, `trades.date.year` is labelled `Trade date: year`.
+Only the label of a record field without a column is used, except for a
+`Date`: a date is one fact, so the contract also keeps the date field's own
+metadata (label, question, help) at `trades.date`, where a need for it is
+asked.
+
+### Metadata for one calculation
+
+When metadata depends on where a type is used, such as help that holds for one
+calculation only, attach typed field records to the calculation's label. A
+field binding is an ordinary pure ground record. Its typed field shape and
+canonical `path` give it calculation meaning; the anchor label names the
+calculation entry and its single `meta` binding contains the fields and their
+provenance.
 
 ```runa
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
@@ -79,9 +146,10 @@ fields use paths such as `monthly_income`; a field in a related list table uses
 a path such as `children.age`, while `children` can describe the collection
 itself. `input.monthly_income` and `TaxInput.monthly_income` are accepted and
 normalized to the canonical path. Unknown paths and duplicate metadata for one
-path are errors.
+path are errors. A required record field such as `trades.date` is a valid path
+too; only its label is used, as context for its members.
 
-Prefer `pathof(InputType::field::nested_field)` for new metadata. It is checked
+Prefer `pathof(InputType::field::nested_field)` for these paths. It is checked
 against the declared or plainly imported type graph during `runa check`, has
 type `String`, and lowers to the same canonical string stored in the contract.
 `List`, `Set`, optional, and string-keyed `Map` value traversal is transparent:
@@ -92,9 +160,11 @@ terminal form `pathof(Input::income::$variant)`. A misspelled segment is
 reported at that segment. Literal paths remain supported for generated data and
 backward compatibility.
 
-When metadata belongs to a nested domain type and should be reusable wherever
-that type occurs, declare its `path` field as `ProgramReference` and use
-`refof(Type::member)`:
+Typed records can also follow a nested domain type wherever it occurs: declare
+the record's `path` field as `ProgramReference`, use `refof(Type::member)`, and
+anchor the metadata to the type's label. This is the form for metadata kept
+apart from a type, for example in a separate module; next to the type, prefer
+`@ field`.
 
 ```runa
 # ChildField(path: ProgramReference, label: String)
@@ -111,17 +181,29 @@ that type occurs, declare its `path` field as `ProgramReference` and use
 For an input containing `primary: Child` and `children: List(Child)`, this one
 declaration produces `primary.age` and `children.age`. Projection crosses
 records, alternatives, lists, sets, and string-keyed map values.
-Exact `String`/`pathof(...)` metadata and `refof(...)` rooted at the calculation
-input override projected metadata. Duplicate declarations at the winning
-specificity are errors.
+
+For each input path the most specific metadata wins, whole; keys are not
+merged:
+
+1. an exact path for this calculation: a `String` or `pathof(...)` path, or
+   `refof(...)` rooted at the calculation input;
+2. a type's field wherever the type occurs: `@ field` on the field, or
+   `refof(Type::field)` projected metadata;
+3. a type's default: `@ field` on the type.
+
+Two declarations at the winning level for one path are an error naming both;
+`@ field` on a field and `refof` metadata for that field are the same level.
+The design and its reasons are in [Field metadata on
+declarations](../rfcs/field-metadata.md).
 
 Members of optional composites are metadata targets too, at any depth:
 `taxpayer.spouse.cohabiting_at_year_end`,
-`pathof(TaxCase::taxpayer::spouse::cohabiting_at_year_end)`, and
-`refof(Spouse::cohabiting_at_year_end)` projected through `spouse: Spouse?` name
-the same member, with the same precedence and duplicate rules. A path into a
-member the type does not declare is an error. The optional field itself stays
-one input field and can carry its own metadata.
+`pathof(TaxCase::taxpayer::spouse::cohabiting_at_year_end)`,
+`refof(Spouse::cohabiting_at_year_end)` projected through `spouse: Spouse?`, and
+`@ field` on `Spouse`'s `cohabiting_at_year_end` name the same member, with the
+same precedence and duplicate rules. A path into a member the type does not
+declare is an error. The optional field itself stays one input field and can
+carry its own metadata.
 
 The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
 `path` is a `String` for exact metadata or a structural `ProgramReference` for
@@ -129,6 +211,10 @@ reusable metadata, and `label` is a required string. The other fields may be
 strings, optional strings, or omitted by a record type that does not declare them.
 Role-bearing values such as `Source` attachments remain typed metadata and are
 copied into that field's source trace.
+
+When the field's type is a declared [unit](runes.md#unit), its `unit` text comes
+from the declaration's description; an authored `unit = Some(...)` for that
+field is an error. See [Unit types](#unit-types).
 
 Scale the same ordinary typed aggregate to any number of fields and attach that
 object once with the `meta` role. The calculation consumer finds field-shaped
@@ -231,6 +317,32 @@ recursively reachable plain import. The contract includes stable metadata type
 and value data in its fingerprint. Definition file paths and line numbers stay
 in `runa meta --json` and do not make a portable calculation contract
 machine-dependent.
+
+### Unit types
+
+Experimental. A field, output or other type position whose type is a declared
+[unit](runes.md#unit) keeps its primitive type and gains an additive `unit`
+member naming the unit, and the contract lists the units it uses with their
+descriptions and, for a unit declared with a scale (`= DKK / 100`), the scale:
+
+```json
+"type": { "kind": "primitive", "name": "Int", "unit": "Ore" }
+```
+
+```json
+"units": [{ "name": "Ore", "description": "DKK øre", "scale": { "of": "DKK", "per": 100 } }]
+```
+
+`per` of the unit make one `of`: an `Ore` value of `12345` is `123.45` DKK.
+`of` is the base the declaration names, or `"1"` for a plain number
+(`= 1 / 1000000`); a unit without a scale has no `scale` member. Two units with
+the same `of` convert exactly by the ratio of their `per`.
+
+Values on the wire stay JSON integers, so consumers that ignore unknown members
+read the same contract as before. The field metadata of a unit-typed field takes
+its `unit` text from the declaration (`"DKK øre"`); writing `unit = Some(...)`
+in the metadata of such a field states the unit a second time and is a check
+error.
 
 ### Inspect one input branch
 
@@ -599,19 +711,52 @@ Each case's `result` is one of:
   "needs": [
     { "kind": "fact",
       "path": "accounts[1].closing_ore",
+      "keys": [ { "path": "accounts[1]", "field": "account_id", "value": "ASK-1" } ],
       "label": "Closing balance",
       "question": "What was the balance on the closing day?",
       "unit": "øre",
       "sources": [ { "label": "§ 1", "role": "Source", "binding": "law" } ],
-      "waiting_rule": "account_tax" } ] }
+      "waiting": [
+        { "rule": "account_tax", "section": "taxation",
+          "paragraphs": [ { "paragraph": "§ 13",
+                            "source": "sources/law.txt",
+                            "act": { "title": "Bekendtgørelse af aktiesparekontoloven",
+                                     "identifier": "LBK nr. 281 af 13/03/2025",
+                                     "url": "https://www.retsinformation.dk/eli/lta/2025/281" } } ] } ] } ],
+  "later": [ { "kind": "fact", "path": "accounts[1].closing_day", "waiting": [ "..." ] } ] }
 ```
 
 `unused_paths` lists the provided input paths evaluation never read. A
 need's `path` is concrete, with list indices; its `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
-without indices, and `waiting_rule` names the rule that first read it. The
-output envelope's schema is `futuruna.calculate.partial-output.v1`, and
-`runa schema --format partial-result` prints the JSON Schema of `result`.
+without indices. A `Date` is one fact: when its year, month or day is
+unknown, the need is at the date's path, with the date field's own metadata,
+and is answered with the whole date. `keys` names the list elements the path
+lies in by their key, outermost first, when the element's type has a key
+field (`@ field(label = "ISIN", key = True)`) that the case gives. A record
+declares one key field; a sum type declares it in every variant, with the
+same name and type (an event's `id` in each kind of event), so that an
+element is keyed whatever its variant.
+
+`waiting` lists the rules that wait for the value: of every rule and function
+evaluation was in when it read the value (or a value computed from it), the
+innermost one declared in a law section (a section whose quote holds a
+`[sources/...]` document) that cites paragraphs; when none cites, the
+innermost of a law section; else of any section with a quote; else the
+innermost rule. Cited rules are listed alone when there are any, each with
+its `section` and its `paragraphs`; a paragraph names its quoted document
+(`source`) and that document's `act`, read from the header block at the top
+of the document (`Title:`, `Document identifier:`, `Human-readable URL:` or
+`URL:` between `---` lines).
+
+`needs` are the facts that block the result as it stands; answering them can
+reveal more, since evaluation does not look past an unknown condition it
+cannot finish. `later` lists the facts evaluation did read behind such a
+condition (in a branch that failed, was cut, or was undecided because of
+another branch) and that are not needs: they may become needs once the needs
+are answered. The output envelope's schema is
+`futuruna.calculate.partial-output.v1`, and `runa schema --format
+partial-result` prints the JSON Schema of `result`.
 
 Evaluation carries unknown values freely and decides wherever the known part
 decides: `False && unknown` is `False`, an `if` or `match` whose possible
@@ -624,11 +769,14 @@ that may fail for some answer (division by an unknown, a rule that might
 match no clause) keeps the case from completing until its facts are known.
 
 A field another calculation provides carries `entry` and `subject` in its
-metadata (`entry = Some("share_income")`, `subject =
-Some("taxpayer.spouse")`). Its need has kind `entry`: the client runs that
-entry for the subject and writes the entry's result at `path`. The field's
-type must be the entry's result type; `runa check` reports a missing entry or
-a different type.
+metadata (`@ field(label = "Spouse's share income", entry = "share_income",
+subject = "taxpayer.spouse")`, or `entry = Some(...)` and `subject = Some(...)`
+in a field record). Its need has kind `entry`: the client runs that entry for
+the subject and writes the entry's result at `path`. The field's type must be
+the entry's result type, and the subject must be an input path whose value
+(through optional, list, set and map wrappers) has the entry's input type;
+`runa check` reports a missing entry, a different type or a subject that does
+not fit.
 
 `--partial=strict` stops each case at the first unknown value it reads. Its
 `Complete(r)` holds by construction and serves as the test oracle.
@@ -647,6 +795,105 @@ The full format and evolution contract is in
 cases and their needs are specified in
 [Calculation needs](../rfcs/calculation-needs.md).
 
+## Explanations
+
+Experimental. `runa call --explain` returns with every case result an
+`explanation`: for each leaf of the result, the rule clause that produced it,
+the law section and cited paragraphs of that clause, and the rules and inputs
+it was computed from.
+
+```sh
+runa call model.calculate.runa --input cases.json --explain
+runa call model.calculate.runa --input cases.json --explain=full
+runa call model.calculate.runa --input partial.json --partial --explain
+runa schema model.calculate.runa --format explanation
+```
+
+```json
+{ "case_id": "ask-over-ceiling-2026",
+  "result": { "...": "..." },
+  "explanation": {
+    "values": {
+      "outcome.statement.excess_levy_ore": {
+        "value": 31545,
+        "by": { "$variant": "Rule", "rule": "excess_levy_ore", "clause": "default",
+                "location": "src/ask.runa:268", "section": "ask_ceiling",
+                "cites": [ { "paragraph": "§ 9, stk. 3",
+                             "source": "sources/01-aktiesparekontoloven-LBK-281-2025.txt",
+                             "text": "Stk. 3. Foretages indskud i strid med stk. 1, ..." } ] },
+        "from": [
+          { "$variant": "Rule", "rule": "share_of", "clause": "default",
+            "location": "src/money.runa:17", "value": 11514000 },
+          { "$variant": "Rule", "rule": "levy_days_per_year", "clause": "default",
+            "section": "ask_ceiling", "paragraphs": ["§ 9, stk. 3"], "value": 365 } ] } },
+    "sections": {
+      "ask_ceiling": { "location": "src/ask.runa:167",
+                       "sources": ["sources/01-aktiesparekontoloven-LBK-281-2025.txt", "..."],
+                       "attachments": [ { "role": "Source", "binding": "aktiesparekontoloven", "value": { "...": "..." } } ],
+                       "quote": "..." } } } }
+```
+
+`values` holds every leaf (number, string, Bool, or the tag of a variant
+without fields) by its output path, in the path syntax of needs. `by` says
+what produced it:
+
+- `Rule`: the rule, its `scope` for a RuleScope member, `clause` (`default`,
+  or `exception` with the `exception` label that applied, or `clause` for a
+  logic clause), its `location`, its law `section`, and the paragraphs it
+  `cites` with their quoted text;
+- `Input`: the value is the input's at `path`, passed on unchanged into the
+  result by functions and as a member of the records rules build (a rule
+  that returns a single value claims it, with the input in `from`);
+- `Computed`: an operator or builtin outside any rule computed it;
+- `Constant`: a literal of the model.
+
+`from` lists the nearest rules and inputs the value was computed from, each
+with its value. `--explain` lists at most 32 and counts the rest in
+`from_omitted`; `--explain=full` lists all and adds `derivation`, every rule
+node reached with its own clause and contributors, so the whole tree can be
+walked from any value. `sections` holds each law section an explained clause
+sits in: its anchor's location, its `[sources/...]` documents, its metadata
+attachments and the quote. A cited paragraph carries its document's `act`
+(`title`, `identifier`, `url`), read from the document's header as for needs.
+
+A value a rule clause produced also says `because`: what the guards that
+chose the clause were computed from, the guard of the clause that applied and
+the guards of the clauses above it that were tried and did not. The guards are
+still read untraced, so `because` changes nothing in the result; it lists the
+rules and inputs behind the guard values, at most 32 without `full`. A
+literal a `match` arm chose is computed from the matched value, so a `Bool`
+from `is_some(x)` is computed from what `x` holds (a `None` has nothing to
+show).
+
+`assumptions` lists the `Assumption` attachments of the sections whose rule
+clauses fired in the case, in the order they first fired, then those of the
+entry's own section, each once: a section of rules that never fired adds
+none. A function (`> f(...)`) firing does not count, so an assumption a model
+wants only under a condition sits in a section of rules that fire only then.
+
+A rule clause names the paragraphs it implements with a citation comment
+above it, inside the section:
+
+```runa
+--@cite:§ 9, stk. 3--
+| excess_levy_ore(excess_days_ore: Int, levy_bp: Int) -> share_of(positive_part(excess_days_ore), levy_bp) / levy_days_per_year()
+```
+
+Paragraphs are separated by `;`; `nr. N` names a numbered item, and
+`in <source>` the quoted document when two hold the same number. A citation on
+a rule's first clause covers its other clauses that have none; a function
+(`> f(...)`) in a section can be cited too. `runa check`
+finds each cited paragraph in the section's quote, where a line starting
+`§ N.` opens a paragraph, `Stk. N.` a subsection and `N)` an item, and rejects
+one the quote does not hold. Without a citation, an explanation shows the
+section.
+
+Explaining never changes a result: the `result` of every case is the one
+`runa call` gives without `--explain`. `--explain` writes JSON only, and is
+refused with `--partial=check`; with `--partial` a `Complete` result is
+explained and a `Needs` result is not. Explanations are an interpreter
+feature. The design is [Explanations](../rfcs/explanations.md).
+
 ## TypeScript SDK
 
 Experimental. `runa sdk ts` generates a typed TypeScript client from the
@@ -656,89 +903,237 @@ contracts of every `@ calculate` entry in one file:
 runa sdk ts model.calculate.runa --out sdk/
 ```
 
-The output is five ES modules whose only runtime dependency is
-[`zod`](https://zod.dev):
+The output is five ES modules for the file's entries and one runtime module,
+whose only dependency is [`zod`](https://zod.dev):
 
 | File | Contents |
 |------|----------|
-| `types.ts` | One type per contract type, in the canonical JSON encoding: records as objects, sum types as unions tagged by `$variant` (positional payloads in `$values`), optional values as `T \| null`, lists and sets as arrays, `Map(String, T)` as an object. Every field carries its label, question, help, unit and source labels as TSDoc. |
-| `schema.ts` | A Zod validator for every type, and `SCHEMA_HASH` per entry. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. |
-| `partial.ts` | `Partial<Type>` for every input type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; the `Complete` and `Needs` results of a partial call; `Need` typed by the entry's input paths; and `setAt(case, path, value)`. |
-| `client.ts` | The `EngineTransport` interface, a call and a query function per entry, and the `resolve` loop. |
-| `index.ts` | Re-exports the other modules. |
+| `types.ts` | One type per contract type, as TypeScript writes it (see [Types](#types)). Every field carries its label, question, help, unit and source labels as TSDoc. |
+| `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. |
+| `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; each entry's input path patterns (`<Entry>InputPatterns`, with the value written at each), its `Need` tagged by pattern, the `Complete`/`Needs` result, and `<entry>SetAt`. |
+| `client.ts` | A call and a query function per entry, each also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns), and its resolver map type. |
+| `index.ts` | Re-exports the other modules and the runtime. |
+| `runtime.ts` | What every SDK shares: the value validators and `isoDate`, `none`, the wire codec, `setAt` and paths, needs, the calls through a transport, `resolve`, and the error classes. It depends on no model, and it passes typescript-eslint's `strictTypeChecked` as generated. |
 
-Each file starts with a header naming the source file and the schema hash of
-every entry. The output depends only on the contracts, so regenerating an
-unchanged model rewrites identical files. A contract type whose name collides
-with a generated name (`Need`, `Complete`, `Needs`, or `Partial`, `Schema` and
-entry-derived names) is an error; rename the type.
+`--runtime PATH` writes the runtime at `PATH`, relative to the output
+directory, and the entry modules import it from there. The SDKs of several
+source files then share one runtime, generated by the same `runa`:
+
+```sh
+runa sdk ts src/tax_report.calculate.runa --out sdk/tax_report --runtime ../runtime.ts
+runa sdk ts src/ekapital_ask.calculate.runa --out sdk/ekapital_ask --runtime ../runtime.ts
+```
+
+Each entry module starts with a header naming the source file and the schema
+hash of every entry. The output depends only on the contracts, so
+regenerating an unchanged model rewrites identical files. A contract type
+whose name collides with a generated name (a runtime name such as `Need`,
+`Complete`, `Needs` or `Unknown`, or a `Partial`, `Schema`, `Codec` or
+entry-derived name) is an error, and so are two fields of one record or
+variant with the same camelCase name; rename one.
+
+### Types
+
+The SDK speaks TypeScript; the engine keeps its canonical JSON encoding, and
+the SDK converts between them on every call:
+
+| Futuruna | TypeScript | On the wire |
+|----------|------------|-------------|
+| field `opening_cash_ore` | `openingCashOre` | `opening_cash_ore` |
+| `# CashDirection = Deposit \| Withdrawal` (no variant carries fields) | `"Deposit" \| "Withdrawal"` | `{ "$variant": "Deposit" }` |
+| `# Event = Trade(…) \| CashMovement(…)` (payload variants) | a union tagged by `$variant`, positional payloads in `$values` | the same, with snake_case fields |
+| `Date` | an ISO date `"2026-03-01"`, typed `IsoDate`: only `isoDate(text)` and the validators make one | `{ "year": 2026, "month": 3, "day": 1 }` |
+| `Ore`, an `Int` with a [unit](runes.md#unit) | `Ore`, a branded number: `number & { readonly __unit: "Ore" }` | the same number |
+| `T?` | `T \| null`; in a partial case `T \| None`, "none" written `none` | `null` |
+| `List(T)`, `Set(T)` | arrays | the same |
+| `Map(String, T)` | an object; keys are kept as they are | the same |
+
+A sum type with payload variants keeps `$variant` as its tag. No Futuruna
+field can be named `$variant`, so the tag never collides with a field, where
+`kind` or `type` would (an account charge with a `kind: ChargeKind` field is
+ordinary); narrowing works on it as on any literal property, and it is the
+name the engine's paths and results use (`Complete`, `Needs`). A date is
+validated as a day on the calendar from 0000 to 9999: `2026-02-30` is
+rejected, and `isoDate("2026-02-30")` throws a `RangeError`; a bare string
+such as `"yesterday"` is not an `IsoDate`.
+
+A unit is declared once in `types.ts`, with its description as TSDoc, and
+`schema.ts` holds its validator (`OreSchema`, typed `Ore` once parsed) and its
+constructor `ore(n)`, which throws a `RangeError` unless `n` is a safe
+integer. Wherever the contract says `Ore` (fields, results, the answers of
+`<entry>SetAt` and the resolvers) a bare number or a `Micro` is a type error,
+while a plain `Int` stays `number`.
+
+`toWire(codec, value)` and `fromWire(codec, value)` convert a value either way
+with a codec from `schema.ts` (or `<entry>Entry.input` and `.output`), for
+code that reads or writes `runa call` documents directly. A field the codec
+does not know (a camelCase name on the wire, a snake_case name in TypeScript)
+throws `WireError` with its path; in a call it is an `output` error. Any other
+mismatch stays as it is, for the validators to reject.
 
 ### Calls
 
-The SDK reaches an engine only through a transport. Both methods receive the
+The SDK reaches an engine only through a transport. Each method receives the
 JSON document `runa call --input` reads, holding one case marked ready, and
-return the document `runa call` writes, as an object or as JSON text:
+returns the document `runa call` writes, as an object or as JSON text:
 
 ```ts
 interface EngineTransport {
   call(entry: string, input: unknown): Promise<unknown>;
   callPartial(entry: string, input: unknown): Promise<unknown>;
 }
+interface ExplainingTransport extends EngineTransport {
+  callExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
+  callPartialExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
+}
 ```
 
 For an entry `tax_report` with input `TaxCase`:
 
-- `taxReport(transport, input: TaxCase)` validates the input, calls
-  `transport.call`, checks the envelope (schema hash, entry and output schema,
-  where the document has an envelope), and validates the result;
+- `taxReport(transport, input: TaxCase)` validates the input, encodes it,
+  calls `transport.call`, checks the envelope (schema hash, entry and output
+  schema, where the document has an envelope), and decodes and validates the
+  result;
 - `taxReportQuery(transport, input: PartialTaxCase)` does the same through
   `transport.callPartial` and returns `Complete` with `result` and
-  `unused_paths`, or `Needs` with `needs`.
+  `unusedPaths`, or `Needs` with `needs`;
+- `taxReportExplained(transport, input, depth?)` and
+  `taxReportQueryExplained(transport, input, depth?)` do the same through
+  `callExplained` and `callPartialExplained` (`--explain`, or
+  `--explain=full` for depth `"full"`) and return `{ result, explanation }`,
+  typed by `Explanation`. They take an `ExplainingTransport`: passing a
+  transport that cannot explain is a type error, not a runtime failure. The
+  explanation speaks TypeScript too: its values
+  are keyed by TypeScript paths of the result, an input it names is at its
+  TypeScript path in the case, and `from_omitted` is `fromOmitted`. Leaf values
+  are numbers, strings, booleans and an enum's variant name; a `Date` is one
+  value, its ISO date, unless its parts came from different places, when each
+  part is explained at `<date>.year`, `.month` and `.day`. The inputs and
+  rules a clause's guards read (`because`) are at TypeScript paths as `from`
+  is, and `assumptions` come as the engine reports them.
 
 A failure throws `CalculationError` with `kind` `input`, `output`, `envelope`
-or `diagnostics`, and the validation issues or the engine's diagnostics.
+or `diagnostics`, and the validation issues (at TypeScript paths) or the
+engine's diagnostics (at paths of the input document). The error classes come
+from the runtime, so `instanceof` holds across every SDK that shares it.
 
 ### Partial cases and needs
 
 In a partial case a value is the answer, `{}` is a record whose fields are not
-known yet, `null` is the answer "none", and a field left out is unknown. A sum
-type without `$variant` has an unknown variant.
+known yet, `none` is the answer "none" for an optional field, and a field left
+out (or `undefined`) is unknown. A bare `null` is not a partial value: it is a
+type error and fails validation, so "none" cannot come from a stray `?? null`.
+On the wire `none` is `null`. A sum type with payload variants whose variant
+is not known yet is `{}`, typed `Unknown<T>`, whose `$variant` is `undefined`:
+a `switch` on `$variant` that does not handle it is not exhaustive. An enum or
+a date is known whole or left out (inside a list or map, where nothing can be
+left out, it may also be `Unknown<T>`). At an optional position, an object
+whose only key is `$none` (with value `true`) is `none`.
 
-A need names a concrete input path: record fields join with `.`, list elements
-are `[index]`, map values are `.key`, and a sum type's tag is `.$variant`, as in
-`accounts[2].closing_cash_ore` or `taxpayer.outside_endavu.$variant`. Each
-need carries the field's `label`, `question`, `help`, `unit` and `sources`
-where the contract gives them, and the `waiting_rule`. A need of kind `entry`
-also names the `entry` that provides the value and the `subject` it runs for.
+A need names a concrete input path as TypeScript writes it: fields join with
+`.` under their camelCase names, list elements are `[index]`, map values are
+`.key`, and the tag of a sum type with payload variants is `.$variant`, as in
+`accounts[2].closingCashOre` or `taxpayer.outsideEndavu.$variant`. An enum is
+needed at its own path (`events[0].direction`) and a date as a whole
+(`events[0].date`). `unusedPaths` and an entry need's `subject` are TypeScript
+paths too; the engine's own paths (`runa call --partial`) stay snake_case.
 
-`setAt(case, path, value)` returns a new case with `value` written at a
-concrete path; `taxReportSetAt` is the same, with the value typed by the path.
-`TaxReportInputPaths` maps every concrete path to the type written there, and
-`TaxReportInputPatterns` the same by pattern, with `[]` for any list index and
-`*` for any map key.
+Each need is tagged with its `pattern`, the path with `[]` for every list
+index and `*` for every map key (`accounts[].closingCashOre`), and its `path`
+is an `InputPath` of that pattern: a branded string only the validators make,
+so a path such as `accounts[-1].closingCashOre` cannot be written by hand.
+`TaxReportInputPatterns` maps every pattern to the value an answer writes
+there; `TaxReportNeed` is the union of the needs of every pattern, so
+narrowing `need.pattern` narrows the need. Each need carries the field's
+`label`, `question`, `help`, `unit` and `sources` where the contract gives
+them; `waiting`, the rules and functions in a law section that wait for the
+value, the ones citing paragraphs first, each with its `section` and cited
+`paragraphs` (paragraph, quoted source and act); and, inside a list whose
+element type declares a key field (`@ field(key = True)`, on a record or on
+every variant of a sum type), `keys`: the element's path, key field and value,
+typed by the contract, so a need on `openingPositions[0].marketValue` names the
+ISIN it is about. A need of kind
+`entry` also names the `entry` that provides the value and the `subject` it
+runs for. Besides `needs`, a `Needs` result may hold `later`: needs of the same
+type for facts read only behind a condition not known yet, which answering
+`needs` may turn into needs.
+
+`taxReportSetAt(case, need, value)` returns a new case with `value` written at
+the need's path; the value's type is the one at the need's pattern, and a need
+not yet narrowed to one pattern takes no value. `setAt(case, path, value)` is
+the same, untyped. `fromWirePath(codec, wireCase, path)` turns an engine path
+into its TypeScript path.
+
+```ts
+function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCase {
+  switch (need.pattern) {
+    case "accounts[].closingCashOre":
+      return taxReportSetAt(c, need, ledger.closingCash(need.path));
+    case "taxpayer.spouse":
+      return taxReportSetAt(c, need, none);
+    default:
+      return c;
+  }
+}
+```
 
 ### Resolving needs
 
 `resolve(query, initialCase, resolvers)` runs the interview loop. It queries the
-case, gives each need to the resolver registered for its path pattern, writes
-the answers into the case and queries again:
+case, calls each registered resolver once with all of that round's needs at
+and below its pattern, the resolvers at the same time, writes the answers into
+the case and queries again. A resolver may be registered on a field
+(`accounts[].closingCashOre`), on a list's elements (`accounts[]`, every field
+of every account) or on a record (`taxpayer`, every field below it); each need
+goes to the most specific pattern registered for it, and never to two
+resolvers. A resolver fetches what its needs ask for in one batch and returns
+the function that answers each need:
 
 ```ts
+const accountId = (need: TaxReportNeed) => need.keys?.find((key) => key.field === "accountId")?.value;
 const resolvers: TaxReportResolvers = {
-  "accounts[].closing_cash_ore": (need) => answer(ledger.closingCash(need.path)),
-  "taxpayer.married": () => ask,
+  "accounts[]": async (needs) => {
+    const accounts = await ledger.accounts(needs.map(accountId));
+    return (need) => {
+      const account = accounts.get(accountId(need));
+      switch (need.pattern) {
+        case "accounts[].openingCashOre":
+          return answer(need, account.openingCashOre);
+        case "accounts[].closingCashOre":
+          return answer(need, account.closingCashOre);
+        default:
+          return ask;
+      }
+    };
+  },
+  "taxpayer.married": () => () => ask,
 };
 const outcome = await resolve((c) => taxReportQuery(transport, c), {}, resolvers);
 if (outcome.$variant === "Complete") report(outcome.result);
 else store(outcome.partialCase, outcome.questions);
 ```
 
-A resolver returns `answer(value)`, `ask` for a question only the customer can
-answer, or the resolution of another entry from `context.runEntry(query,
-case, resolvers)`. A need without a resolver is a question. The loop stops
+The loop calls the returned function once per need, so every need gets a
+reply made from that need, and none is left out. It returns
+`answer(need, value)`, `ask` for a question only the customer can answer, or
+the resolution of another entry from `context.runEntry(need, query, case,
+resolvers)`, which runs the entry an entry need names (a fact need is given
+one: `{ ...need, entry, subject }`). A reply names the need's path and its
+value is typed by the need's pattern, so a resolver of several patterns
+narrows `need.pattern` before it answers, and an answer cannot land at
+another need's path, as one from a list of answers in another order (the
+backend's rows) would: a reply for another path throws `ResolveError`.
+`context.partialCase` is the case of the round, with every answer so far. A
+need no registered pattern covers is a question. The loop stops
 with `Complete`, or with `Questions` (the questions, entry needs waiting on
 another case's questions, and the partial case) when a round adds no answer.
 It keeps the stack of `(entry, subject)` pairs it runs: a pair that repeats
 throws `ResolveCycleError`, since entries that need each other belong in one
 joint entry. A path the engine still needs after it was answered throws
 `ResolveError`.
+
+Batches make second-order resolution cheap: a resolver for a list
+(`events`) answers skeletons that give each element's key and variant and
+leave its details out; the next round needs only the fields the law reads,
+inside those elements, each need with the element's key in `keys`, and one
+resolver on the elements (`events[]`) fetches them all in one call.

@@ -13,6 +13,54 @@ use std::cell::Cell;
 /// The input paths an unknown value depends on.
 pub type UnknownPaths = Rc<BTreeSet<String>>;
 
+/// A rule family or named function being evaluated in a partial case.
+#[derive(Debug, Clone)]
+pub(crate) struct CallFrame {
+    pub(crate) name: Rc<str>,
+    pub(crate) is_rule: bool,
+    /// For a rule family, the clause being tried.
+    pub(crate) clause: Option<Rc<Rule>>,
+}
+
+/// The rules and functions evaluating when a path was read, innermost last;
+/// the entry alone when nothing was.
+pub(crate) type WaitingRules = Rc<[CallFrame]>;
+
+/// A call stack's identity: each frame's name and clause.
+type StackKey = Vec<(Rc<str>, bool, usize)>;
+
+/// Tells whether a rule clause or function, as a call frame, is cited in a
+/// law section. The calculation runtime installs it for partial cases.
+pub(crate) type CitedFrames = Rc<RefCell<dyn FnMut(&Interpreter, &CallFrame) -> bool>>;
+
+/// Marks an unknown path carried by a value a cited rule or function
+/// returned: a read of it waits on that rule, which already waits on the
+/// fact. Removed before paths leave the case.
+const THROUGH_RULE: char = '\u{1}';
+
+/// The input path an unknown path stands for.
+pub(crate) fn fact_of(path: &str) -> &str {
+    path.strip_suffix(THROUGH_RULE).unwrap_or(path)
+}
+
+/// Whether an unknown path was read from a cited rule's result.
+fn read_through_rule(path: &str) -> bool {
+    path.ends_with(THROUGH_RULE)
+}
+
+/// `value` with every unknown path in it marked as passed through a rule.
+fn through_rule(value: &Value) -> Value {
+    explain::map_leaves(value, &mut |leaf| match leaf {
+        Value::Unknown(paths) if paths.iter().any(|path| !read_through_rule(path)) => unknown(
+            paths
+                .iter()
+                .map(|path| format!("{}{THROUGH_RULE}", fact_of(path)))
+                .collect(),
+        ),
+        other => other.clone(),
+    })
+}
+
 /// Evaluation steps a case may spend on speculation: everything evaluated
 /// only because a condition is unknown.
 pub(crate) const SPECULATION_STEP_BUDGET: usize = 100_000;
@@ -76,9 +124,25 @@ pub(crate) struct PartialState {
     pub(crate) entry: String,
     /// Rules and named functions being evaluated, innermost last; `true`
     /// marks a rule family.
-    pub(crate) call_stack: Vec<(String, bool)>,
-    /// The rule family that first read each unknown path.
-    pub(crate) waiting: BTreeMap<String, String>,
+    pub(crate) call_stack: Vec<CallFrame>,
+    /// Every distinct call stack under which unknown paths were read, in
+    /// the order first seen, with the paths read under it.
+    pub(crate) reads: Vec<(WaitingRules, BTreeSet<String>)>,
+    /// The index in `reads` of each call stack seen.
+    read_stacks: HashMap<StackKey, usize>,
+    /// The index in `reads` of the current call stack, until it changes.
+    current_read: Option<usize>,
+    /// Paths read in each active speculation, innermost last.
+    speculation_reads: Vec<BTreeSet<String>>,
+    /// Paths read in a speculation whose site could not decide (it failed,
+    /// was cut, or a sibling branch did): facts behind an unknown condition.
+    pub(crate) behind: BTreeSet<String>,
+    /// Per active branching site, innermost last: the paths its finished
+    /// speculations read, and whether the site ended undecided because a
+    /// speculation failed or was cut.
+    sites: Vec<(BTreeSet<String>, bool)>,
+    /// Whether each frame (by name and clause) is cited in a law section.
+    cited: HashMap<(Rc<str>, usize), bool>,
     /// Paths whose unknown value fed an operation that can fail.
     pub(crate) fallible: BTreeSet<String>,
     /// Input records, variants and optionals by allocation, with their paths.
@@ -90,6 +154,8 @@ pub(crate) struct PartialState {
     pub(crate) read_subtree: BTreeSet<String>,
     /// Condition paths of each active speculation, innermost last.
     pub(crate) speculation: Vec<BTreeSet<String>>,
+    /// The call-stack depth at which each active speculation began.
+    pub(crate) speculation_depths: Vec<usize>,
     pub(crate) speculation_steps: usize,
     pub(crate) speculation_exhausted: bool,
     /// While rule dispatch matches a clause head or a logic body, the paths
@@ -108,12 +174,16 @@ pub(crate) enum CallbackRead {
     Structure,
     /// Read whole (a predicate's Bool, a sort key).
     Whole,
+    /// Read by the builtin's own Kleene scan (`partial_predicate_scan`):
+    /// the scan sees each unknown answer.
+    Scanned,
 }
 
 fn callback_read(name: &str) -> CallbackRead {
     match name {
         "map" | "foldl" | "scan" | "reduce" | "subscribe" => CallbackRead::Carries,
         "flat_map" => CallbackRead::Structure,
+        "any" | "all" | "find" => CallbackRead::Scanned,
         _ => CallbackRead::Whole,
     }
 }
@@ -125,6 +195,16 @@ pub(crate) enum Speculation<T> {
     Failed,
     /// The speculation budget is spent or a recursive call was cut.
     Cut,
+}
+
+impl Speculation<Value> {
+    /// The value read as a decision: without its explanation trace.
+    fn untraced(self) -> Self {
+        match self {
+            Speculation::Done(value) => Speculation::Done(explain::strip(value)),
+            other => other,
+        }
+    }
 }
 
 /// The allocation identity of an input container, if the value has one.
@@ -213,7 +293,7 @@ pub(crate) fn has_unknown(value: &Value) -> bool {
 /// Values that decide a branching evaluation: plain data whose equality
 /// means the same result.
 fn decidable_data(value: &Value) -> bool {
-    match value {
+    match explain::untraced(value) {
         Value::Int(_)
         | Value::Float(_)
         | Value::Str(_)
@@ -257,22 +337,95 @@ impl PartialState {
         };
     }
 
-    fn waiting_rule(&self) -> String {
-        self.call_stack
+    /// The index in `reads` of the current call stack.
+    fn current_read(&mut self) -> usize {
+        if let Some(index) = self.current_read {
+            return index;
+        }
+        let frames: Vec<CallFrame> = if self.call_stack.is_empty() {
+            vec![CallFrame {
+                name: Rc::from(self.entry.as_str()),
+                is_rule: true,
+                clause: None,
+            }]
+        } else {
+            self.call_stack.clone()
+        };
+        let key: StackKey = frames
             .iter()
-            .rev()
-            .find(|(_, is_rule)| *is_rule)
-            .map(|(name, _)| name.clone())
-            .unwrap_or_else(|| self.entry.clone())
+            .map(|frame| {
+                (
+                    frame.name.clone(),
+                    frame.is_rule,
+                    frame
+                        .clause
+                        .as_ref()
+                        .map_or(0, |rule| Rc::as_ptr(rule) as usize),
+                )
+            })
+            .collect();
+        let index = match self.read_stacks.get(&key) {
+            Some(index) => *index,
+            None => {
+                self.reads.push((Rc::from(frames), BTreeSet::new()));
+                self.read_stacks.insert(key, self.reads.len() - 1);
+                self.reads.len() - 1
+            }
+        };
+        self.current_read = Some(index);
+        index
     }
 
+    /// The call stack changed: the next read takes a fresh snapshot.
+    pub(crate) fn stack_changed(&mut self) {
+        self.current_read = None;
+    }
+
+    /// Record that `paths` were read under the current call stack (and in
+    /// the innermost active speculation).
     pub(crate) fn record_waiting(&mut self, paths: &BTreeSet<String>) {
-        let rule = self.waiting_rule();
-        for path in paths {
-            self.waiting
-                .entry(path.clone())
-                .or_insert_with(|| rule.clone());
+        if paths.is_empty() {
+            return;
         }
+        let index = self.current_read();
+        let read = &mut self.reads[index].1;
+        for path in paths {
+            if !read.contains(path) {
+                read.insert(path.clone());
+            }
+        }
+        if let Some(speculated) = self.speculation_reads.last_mut() {
+            for path in paths {
+                if !speculated.contains(path) {
+                    speculated.insert(path.clone());
+                }
+            }
+        }
+    }
+
+    /// Every call stack each fact was read under, in the order the stacks
+    /// were first seen: the stacks that read the fact itself, or, when
+    /// every read was of a cited rule's result carrying it, those.
+    pub(crate) fn waiting(&self) -> BTreeMap<String, Vec<WaitingRules>> {
+        let mut direct: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
+        let mut through: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
+        for (frames, paths) in &self.reads {
+            for path in paths {
+                let reads = if read_through_rule(path) {
+                    &mut through
+                } else {
+                    &mut direct
+                };
+                let stacks = reads.entry(fact_of(path).to_string()).or_default();
+                if !stacks.iter().any(|known| Rc::ptr_eq(known, frames)) {
+                    stacks.push(frames.clone());
+                }
+            }
+        }
+        for (fact, stacks) in through {
+            direct.entry(fact).or_insert(stacks);
+        }
+        direct
     }
 
     pub(crate) fn path_read(&self, path: &str) -> bool {
@@ -446,18 +599,44 @@ impl Interpreter {
         if self.partial_mode == Some(PartialMode::Strict) {
             return self.partial_unknown_read(paths);
         }
-        match self.speculate(&paths, |interpreter| interpreter.eval(right, env)) {
-            Speculation::Done(Value::Bool(false)) if operator == "&&" => Value::Bool(false),
-            Speculation::Done(Value::Bool(true)) if operator == "||" => Value::Bool(true),
-            Speculation::Done(right) => self.branching_unknown(paths, &[right]),
-            Speculation::Failed => self.speculation_unresolved(paths, true),
-            Speculation::Cut => self.speculation_unresolved(paths, false),
+        self.partial_site(|interpreter| {
+            match interpreter
+                .speculate(&paths, |interpreter| interpreter.eval(right, env))
+                .untraced()
+            {
+                Speculation::Done(Value::Bool(false)) if operator == "&&" => Value::Bool(false),
+                Speculation::Done(Value::Bool(true)) if operator == "||" => Value::Bool(true),
+                Speculation::Done(right) => interpreter.branching_unknown(paths, &[right]),
+                Speculation::Failed => interpreter.speculation_unresolved(paths, true),
+                Speculation::Cut => interpreter.speculation_unresolved(paths, false),
+            }
+        })
+    }
+
+    /// Run a branching site: when it ends undecided, what its speculations
+    /// read is behind its unknown condition.
+    fn partial_site<T>(&mut self, site: impl FnOnce(&mut Self) -> T) -> T {
+        self.partial
+            .borrow_mut()
+            .sites
+            .push((BTreeSet::new(), false));
+        let value = site(self);
+        let mut state = self.partial.borrow_mut();
+        if let Some((reads, undecided)) = state.sites.pop() {
+            if undecided {
+                state.behind.extend(reads);
+            }
         }
+        value
     }
 
     /// Conjunction (`all`) or disjunction of goals in Kleene logic: a false
     /// conjunct (a true alternative) decides even past unknown ones.
     pub(crate) fn partial_kleene(&mut self, items: &[Expr], env: &Env, all: bool) -> Value {
+        self.partial_site(|interpreter| interpreter.partial_kleene_site(items, env, all))
+    }
+
+    fn partial_kleene_site(&mut self, items: &[Expr], env: &Env, all: bool) -> Value {
         let mut condition = BTreeSet::new();
         for item in items {
             let value = if condition.is_empty() {
@@ -472,7 +651,7 @@ impl Interpreter {
             if self.calculation_failed() {
                 return Value::Unit;
             }
-            match value {
+            match explain::strip(value) {
                 Value::Unknown(paths) => {
                     if self.partial_mode == Some(PartialMode::Strict) {
                         return self.partial_unknown_read((*paths).clone());
@@ -497,6 +676,119 @@ impl Interpreter {
         } else {
             self.partial_unknown_read(condition)
         }
+    }
+
+    /// A collection predicate (`any`, `all`, `find`) over `items` in Kleene
+    /// logic, as `partial_kleene` evaluates goals: once an item's answer is
+    /// unknown, later items are evaluated speculatively under the unknown
+    /// answers so far and every unknown answer keeps its paths. An answer
+    /// equal to `decisive` decides the scan; past an unknown answer it decides
+    /// only when `decides_past_unknown` (`any`, `all`), not for `find`, whose
+    /// earlier unknown item might be the first match.
+    ///
+    /// `Ok(Some(index))`: the result is decided by item `index`.
+    /// `Ok(None)`: every answer is known and none is `decisive`.
+    /// `Err(value)`: the scan's unknown result.
+    pub(crate) fn partial_predicate_scan(
+        &mut self,
+        builtin: &str,
+        items: &[Value],
+        callback: &Value,
+        env: &Env,
+        decisive: bool,
+        decides_past_unknown: bool,
+    ) -> Result<Option<usize>, Value> {
+        self.partial_site(|interpreter| {
+            interpreter.partial_predicate_scan_site(
+                builtin,
+                items,
+                callback,
+                env,
+                decisive,
+                decides_past_unknown,
+            )
+        })
+    }
+
+    fn partial_predicate_scan_site(
+        &mut self,
+        builtin: &str,
+        items: &[Value],
+        callback: &Value,
+        env: &Env,
+        decisive: bool,
+        decides_past_unknown: bool,
+    ) -> Result<Option<usize>, Value> {
+        let mut condition = BTreeSet::new();
+        for (index, item) in items.iter().enumerate() {
+            let answer_for = |interpreter: &mut Self| {
+                interpreter.apply_checked_builtin_callback(
+                    1,
+                    callback.clone(),
+                    vec![item.clone()],
+                    env,
+                )
+            };
+            let answer = if condition.is_empty() {
+                answer_for(self)
+            } else {
+                match self.speculate(&condition, answer_for) {
+                    Speculation::Done(value) => value,
+                    Speculation::Failed => {
+                        return Err(self.speculation_unresolved(condition, true));
+                    }
+                    Speculation::Cut => return Err(self.speculation_unresolved(condition, false)),
+                }
+            };
+            if self.calculation_failed() {
+                return Err(Value::Unit);
+            }
+            match explain::strip(answer) {
+                Value::Unknown(paths) => {
+                    if self.partial_mode == Some(PartialMode::Strict) {
+                        return Err(self.partial_unknown_read((*paths).clone()));
+                    }
+                    condition.extend(paths.iter().cloned());
+                }
+                Value::Bool(holds) if holds == decisive => {
+                    return if condition.is_empty() || decides_past_unknown {
+                        Ok(Some(index))
+                    } else {
+                        Err(self.partial_unknown_read(condition))
+                    };
+                }
+                Value::Bool(_) => {}
+                other => {
+                    let _ = self.panic_or_ground_fail(format!(
+                        "{builtin} predicate must return Bool, got {}",
+                        self.runtime_value_type_label(&other)
+                    ));
+                    return Err(Value::Unit);
+                }
+            }
+        }
+        if condition.is_empty() {
+            Ok(None)
+        } else {
+            Err(self.partial_unknown_read(condition))
+        }
+    }
+
+    /// `sort` reads what its comparisons reach. Items ordered by known parts
+    /// (a key and a position before a record with unknown fields) sort into a
+    /// known list that carries the unknown parts; the order is unknown only
+    /// when a comparison reaches an unknown part, and then the result is
+    /// unknown with every unknown path of the list.
+    pub(crate) fn partial_sort(&self, list: &Value, mut items: Vec<Value>) -> Value {
+        let mut compared = BTreeSet::new();
+        items.sort_by(|a, b| crate::value_sort_cmp_reading(a, b, &mut compared));
+        // The order is computed from the items: their leaves are read.
+        self.partial_consume(list, true);
+        if compared.is_empty() {
+            return Value::List(items);
+        }
+        collect_unknown_paths(list, true, &mut compared);
+        self.partial_unknown_read(compared)
     }
 
     /// A binary operator reads both operands whole. A division or remainder
@@ -610,20 +902,33 @@ impl Interpreter {
         if self.partial.borrow().speculation_exhausted {
             return Speculation::Cut;
         }
-        self.partial
-            .borrow_mut()
-            .speculation
-            .push(condition.clone());
-        let value = operation(self);
-        let exhausted = {
+        {
             let mut state = self.partial.borrow_mut();
-            state.speculation.pop();
-            state.speculation_exhausted
-        };
+            state.speculation.push(condition.clone());
+            let depth = state.call_stack.len();
+            state.speculation_depths.push(depth);
+            state.speculation_reads.push(BTreeSet::new());
+        }
+        let value = operation(self);
         let failed = matches!(
             &*self.calculation_error.borrow(),
             Some(CalculationRuntimeFailure::InvalidValue(_))
         );
+        let exhausted = {
+            let mut state = self.partial.borrow_mut();
+            state.speculation.pop();
+            state.speculation_depths.pop();
+            let reads = state.speculation_reads.pop().unwrap_or_default();
+            if let Some(outer) = state.speculation_reads.last_mut() {
+                outer.extend(reads.iter().cloned());
+            }
+            if failed || state.speculation_exhausted {
+                state.behind.extend(reads);
+            } else if let Some((site, _)) = state.sites.last_mut() {
+                site.extend(reads);
+            }
+            state.speculation_exhausted
+        };
         if failed {
             *self.calculation_error.borrow_mut() = None;
             return Speculation::Failed;
@@ -635,12 +940,16 @@ impl Interpreter {
     }
 
     /// The unknown result of a branching site whose condition paths are
-    /// `condition`, after its speculation failed or was cut.
+    /// `condition`, after its speculation failed or was cut. What the site's
+    /// other speculations read is behind the condition too.
     pub(crate) fn speculation_unresolved(
         &self,
         condition: BTreeSet<String>,
         failed: bool,
     ) -> Value {
+        if let Some((_, undecided)) = self.partial.borrow_mut().sites.last_mut() {
+            *undecided = true;
+        }
         if failed {
             self.partial_fallible(&condition);
         }
@@ -648,22 +957,37 @@ impl Interpreter {
     }
 
     /// Enter a rule family or named function. Returns the call's value when
-    /// a recursive call under speculation is cut instead of evaluated.
+    /// a recursive call is cut instead of evaluated: one entered under a
+    /// speculation that began inside the activation it recurs from, so that
+    /// the recursion depends on an unknown condition. Recursion under a
+    /// speculation that began outside it is evaluated as it would be in every
+    /// completion, within the speculation budget.
     pub(crate) fn partial_enter_call(&self, name: &str, is_rule: bool) -> Result<(), Value> {
         let mut state = self.partial.borrow_mut();
-        if !state.speculation.is_empty()
-            && state.call_stack.iter().any(|(active, _)| active == name)
-        {
-            let paths: BTreeSet<String> = state.speculation.iter().flatten().cloned().collect();
-            state.record_waiting(&paths);
-            return Err(unknown(paths));
+        let recurs_from = state
+            .call_stack
+            .iter()
+            .rposition(|frame| &*frame.name == name);
+        if let Some(frame) = recurs_from {
+            if state.speculation_depths.iter().any(|&depth| depth > frame) {
+                let paths: BTreeSet<String> = state.speculation.iter().flatten().cloned().collect();
+                state.record_waiting(&paths);
+                return Err(unknown(paths));
+            }
         }
-        state.call_stack.push((name.to_string(), is_rule));
+        state.call_stack.push(CallFrame {
+            name: Rc::from(name),
+            is_rule,
+            clause: None,
+        });
+        state.stack_changed();
         Ok(())
     }
 
     pub(crate) fn partial_exit_call(&self) {
-        self.partial.borrow_mut().call_stack.pop();
+        let mut state = self.partial.borrow_mut();
+        state.call_stack.pop();
+        state.stack_changed();
     }
 }
 
@@ -677,14 +1001,17 @@ pub(crate) enum PartialOutcome {
     },
     Needs {
         paths: BTreeSet<String>,
-        waiting: BTreeMap<String, String>,
+        /// Every call stack each path was read under.
+        waiting: BTreeMap<String, Vec<WaitingRules>>,
+        /// Paths read only behind an unknown condition, not among `paths`.
+        later: BTreeSet<String>,
     },
 }
 
 impl Interpreter {
     /// Classify the value a partial case produced.
     pub(crate) fn finish_partial_case(&self, result: Value) -> PartialOutcome {
-        let mut state = self.partial.borrow_mut();
+        let state = self.partial.borrow();
         let mut paths = BTreeSet::new();
         collect_unknown_paths(&result, true, &mut paths);
         if paths.is_empty() && state.fallible.is_empty() {
@@ -699,16 +1026,85 @@ impl Interpreter {
             };
         }
         paths.extend(state.fallible.iter().cloned());
-        state.record_waiting(&paths);
+        drop(state);
+        self.partial_needs(paths)
+    }
+
+    /// The `Needs` outcome for `paths`: every call stack each fact was read
+    /// under (the entry for a fact no rule read), and the facts read only
+    /// behind an unknown condition.
+    pub(crate) fn partial_needs(&self, paths: BTreeSet<String>) -> PartialOutcome {
+        let mut state = self.partial.borrow_mut();
+        let facts: BTreeSet<String> = paths.iter().map(|path| fact_of(path).to_string()).collect();
+        let unread: BTreeSet<String> = {
+            let read: BTreeSet<&str> = state
+                .reads
+                .iter()
+                .flat_map(|(_, read)| read.iter().map(|path| fact_of(path)))
+                .collect();
+            facts
+                .iter()
+                .filter(|fact| !read.contains(fact.as_str()))
+                .cloned()
+                .collect()
+        };
+        if !unread.is_empty() {
+            state.call_stack.clear();
+            state.stack_changed();
+            state.record_waiting(&unread);
+        }
+        let later = state
+            .behind
+            .iter()
+            .map(|path| fact_of(path))
+            .filter(|fact| !facts.contains(*fact))
+            .map(str::to_string)
+            .collect();
         PartialOutcome::Needs {
-            paths,
-            waiting: state.waiting.clone(),
+            waiting: state.waiting(),
+            paths: facts,
+            later,
         }
     }
 
-    /// The waiting rules recorded so far (for a strict stop).
-    pub(crate) fn partial_waiting(&self) -> BTreeMap<String, String> {
-        self.partial.borrow().waiting.clone()
+    /// A rule clause or function returned `value`. When it is cited in a law
+    /// section, the unknown parts of the value are its result from now on: a
+    /// later read of them waits on this rule, which waits on the facts.
+    pub(crate) fn partial_returned(&self, value: Value) -> Value {
+        if self.partial_mode != Some(PartialMode::Propagate)
+            || self.partial_cited.is_none()
+            || !has_unknown(&value)
+        {
+            return value;
+        }
+        let Some(frame) = self.partial.borrow().call_stack.last().cloned() else {
+            return value;
+        };
+        let key = (
+            frame.name.clone(),
+            frame
+                .clause
+                .as_ref()
+                .map_or(0, |rule| Rc::as_ptr(rule) as usize),
+        );
+        let known = self.partial.borrow().cited.get(&key).copied();
+        let cited = match known {
+            Some(cited) => cited,
+            None => {
+                let cited = match &self.partial_cited {
+                    Some(hook) => (hook.borrow_mut())(self, &frame),
+                    None => false,
+                };
+                self.partial.borrow_mut().cited.insert(key, cited);
+                cited
+            }
+        };
+        if !cited {
+            return value;
+        }
+        let marked = through_rule(&value);
+        self.explain_keep_partial_containers(&value, &marked);
+        marked
     }
 }
 
@@ -795,6 +1191,18 @@ impl Interpreter {
         if self.partial_mode != Some(PartialMode::Propagate) {
             return self.partial_unknown_read(paths);
         }
+        self.partial_site(|interpreter| {
+            interpreter.partial_if_site(paths, then_expression, else_expression, env)
+        })
+    }
+
+    fn partial_if_site(
+        &mut self,
+        paths: BTreeSet<String>,
+        then_expression: &Expr,
+        else_expression: &Expr,
+        env: &Env,
+    ) -> Value {
         let mut outcomes = Vec::with_capacity(2);
         for branch in [then_expression, else_expression] {
             match self.speculate(&paths, |interpreter| interpreter.eval(branch, env)) {
@@ -898,6 +1306,18 @@ impl Interpreter {
         env: &Env,
         allow_bare: bool,
     ) -> Value {
+        self.partial_site(|interpreter| {
+            interpreter.partial_match_site(value, arms, env, allow_bare)
+        })
+    }
+
+    fn partial_match_site(
+        &mut self,
+        value: Value,
+        arms: &[MatchArm],
+        env: &Env,
+        allow_bare: bool,
+    ) -> Value {
         self.partial_consume(&value, true);
         let mut condition = BTreeSet::new();
         let mut outcomes = Vec::new();
@@ -924,7 +1344,7 @@ impl Interpreter {
             if let Some(guard) = &arm.guard {
                 let mut under = condition.clone();
                 under.extend(arm_paths.iter().cloned());
-                match self.partial_eval_under(&under, guard, &arm_env) {
+                match self.partial_eval_under(&under, guard, &arm_env).untraced() {
                     Speculation::Done(Value::Bool(true)) => {}
                     Speculation::Done(Value::Bool(false)) => continue,
                     Speculation::Done(Value::Unknown(paths)) => {
@@ -996,7 +1416,12 @@ impl Interpreter {
         if let Err(cut) = self.partial_enter_call(&family.name, true) {
             return Some(cut);
         }
-        let result = self.partial_rule_dispatch(namespace, family, dispatch, arguments, env);
+        self.explain_begin_dispatch();
+        let result = self.partial_site(|interpreter| {
+            interpreter.partial_rule_dispatch(namespace, family, dispatch, arguments, env)
+        });
+        self.explain_end_dispatch();
+        let result = result.map(|value| self.partial_returned(value));
         self.partial_exit_call();
         result
     }
@@ -1029,11 +1454,18 @@ impl Interpreter {
                     dispatch,
                 )?;
                 let rule = dispatch.matching[*index].0.clone();
+                {
+                    let mut state = self.partial.borrow_mut();
+                    if let Some(frame) = state.call_stack.last_mut() {
+                        frame.clause = Some(rule.clone());
+                    }
+                    state.stack_changed();
+                }
                 match self.partial_rule_candidate(&rule, arguments, &base_env, &condition, family) {
                     Candidate::NoMatch => {}
                     Candidate::FalseClause => matched_false_clause = true,
                     Candidate::Fires { value, paths } => {
-                        outcomes.push(value);
+                        outcomes.push(self.explain_rule_result(&rule, family, value));
                         if paths.is_empty() {
                             certain = true;
                             break 'tiers;
@@ -1118,7 +1550,11 @@ impl Interpreter {
                 ..
             } => {
                 if let Some(guard) = guard {
-                    match self.partial_eval_under(&under(&paths), guard, &rule_env) {
+                    let guard_value = self.partial_eval_under(&under(&paths), guard, &rule_env);
+                    if let Speculation::Done(value) = &guard_value {
+                        self.explain_guard_read(value);
+                    }
+                    match guard_value.untraced() {
                         Speculation::Done(Value::Bool(true)) => {}
                         Speculation::Done(Value::Bool(false)) => return Candidate::NoMatch,
                         Speculation::Done(Value::Unknown(more)) => {
@@ -1179,7 +1615,7 @@ impl Interpreter {
                             .then_some(Value::Bool(true))
                     } else {
                         let value = interpreter.eval(body, &rule_env);
-                        (!matches!(value, Value::Bool(false))).then_some(value)
+                        (!matches!(explain::untraced(&value), Value::Bool(false))).then_some(value)
                     }
                 };
                 let outcome = if spec.is_empty() {
@@ -1237,6 +1673,7 @@ impl Interpreter {
             return cut;
         }
         let value = self.apply_inner(func, args, call_env);
+        let value = self.partial_returned(value);
         self.partial_exit_call();
         value
     }
@@ -1252,6 +1689,10 @@ enum BuiltinStrictness {
     Structure,
     /// Every argument is needed whole.
     Whole,
+    /// A map's keys and a key argument are needed whole; the map's values
+    /// are carried (`map_from` builds a known map from pairs with known
+    /// keys, `map_get` returns the value stored under a known key).
+    Keys,
 }
 
 fn builtin_strictness(name: &str) -> BuiltinStrictness {
@@ -1260,8 +1701,10 @@ fn builtin_strictness(name: &str) -> BuiltinStrictness {
         "length" | "head" | "tail" | "nth" | "reverse" | "concat" | "map" | "filter" | "foldl"
         | "any" | "all" | "find" | "flat_map" | "zip" | "enumerate" | "take_while"
         | "drop_while" | "partition" | "chunked" | "is_some" | "is_none" | "unwrap_or" | "fst"
-        | "snd" | "trd" | "take" | "skip" | "first" | "last" | "count" | "reduce" | "scan" => {
-            BuiltinStrictness::Structure
+        | "snd" | "trd" | "take" | "skip" | "first" | "last" | "count" | "reduce" | "scan"
+        | "sort" => BuiltinStrictness::Structure,
+        "map_from" | "map_get" | "map_get_or" | "map_contains" | "map_len" => {
+            BuiltinStrictness::Keys
         }
         _ => BuiltinStrictness::Whole,
     }
@@ -1335,12 +1778,16 @@ impl Interpreter {
         if strictness != BuiltinStrictness::Carries {
             let deep = strictness == BuiltinStrictness::Whole;
             let mut paths = BTreeSet::new();
-            for arg in &args {
+            for (index, arg) in args.iter().enumerate() {
                 // A function argument is applied, not read.
                 if matches!(
                     arg,
                     Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. }
                 ) {
+                    continue;
+                }
+                if strictness == BuiltinStrictness::Keys {
+                    self.partial_key_reads(name, index, arg, &mut paths);
                     continue;
                 }
                 self.partial_consume(arg, deep);
@@ -1368,6 +1815,45 @@ impl Interpreter {
             self.partial_fallible(&probed);
         }
         self.partial_unknown_read(probed)
+    }
+
+    /// What argument `index` of a map builtin reads: a key whole, a map or a
+    /// list of pairs as a structure with each pair's key whole. A map's
+    /// values and `map_get_or`'s default are carried.
+    fn partial_key_reads(
+        &self,
+        name: &str,
+        index: usize,
+        arg: &Value,
+        paths: &mut BTreeSet<String>,
+    ) {
+        match (name, index) {
+            ("map_from", 0) => {
+                self.partial_consume(arg, false);
+                collect_unknown_paths(arg, false, paths);
+                if matches!(arg, Value::Unknown(_)) {
+                    return;
+                }
+                for pair in list_to_vec(arg) {
+                    collect_unknown_paths(&pair, false, paths);
+                    if let Value::Tuple(parts) = explain::untraced(&pair) {
+                        if let Some(key) = parts.first() {
+                            self.partial_consume(key, true);
+                            collect_unknown_paths(key, true, paths);
+                        }
+                    }
+                }
+            }
+            (_, 0) => {
+                self.partial_consume(arg, false);
+                collect_unknown_paths(arg, false, paths);
+            }
+            ("map_get_or", 2) => {}
+            _ => {
+                self.partial_consume(arg, true);
+                collect_unknown_paths(arg, true, paths);
+            }
+        }
     }
 }
 
@@ -1457,7 +1943,7 @@ impl Interpreter {
     pub(crate) fn partial_callback_result(&self, result: &Value) -> Option<Value> {
         let read = self.partial.borrow().callback_reads.last().copied();
         let (deep, stand_in) = match read {
-            None | Some(CallbackRead::Carries) => return None,
+            None | Some(CallbackRead::Carries | CallbackRead::Scanned) => return None,
             Some(CallbackRead::Structure) => (false, Value::List(Vec::new())),
             Some(CallbackRead::Whole) => (true, Value::Bool(false)),
         };

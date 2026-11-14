@@ -1,0 +1,13 @@
+-- One declaration gives each key once.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field` gives `help` twice
+
+# Input(
+    @ field(label = "Income", help = "Before tax.", help = "Per year.")
+    income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

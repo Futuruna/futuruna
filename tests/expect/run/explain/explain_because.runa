@@ -1,0 +1,56 @@
+-- `because` names what the guards that chose a clause were computed from: the
+-- exception `closed` applies because the account's ending is given (a Bool
+-- from `is_some` on the optional input). A cited paragraph carries the act
+-- its document's header names, and `assumptions` holds those of the
+-- sections whose rule clauses fired: the closing section's, not the transfer
+-- section's, whose rule never ran.
+-- expect-command: call
+-- expect-input: explain_because.json
+-- expect-args: --explain
+-- expect-stdout-file: explain_because.stdout
+
+# AssumptionInfo(id: String, statement: String)
+# LawRole(a) = Assumption(value: a)
+# Metadata(a) = Metadata(attachments: a)
+# impl MetaRole for LawRole {}
+# impl Meta for Metadata {}
+
+= closing_day = AssumptionInfo(id = "CLOSING-DAY", statement = "The value on the closing day is the custodian's.")
+= transfer_statement = AssumptionInfo(id = "TRANSFER", statement = "The giving institute's statement is complete.")
+= closing_meta = Metadata(attachments = (Assumption(value = closing_day),))
+= transfer_meta = Metadata(attachments = (Assumption(value = transfer_statement),))
+
+# Ending(day: Int)
+# Account(value: Int, ending: Ending?, transferred: Bool)
+# Result(room: Int, received: Int)
+
+--@label:closing::meta:closing_meta--
+----
+[sources/law.txt]
+
+§ 1. Der kan indskydes op til 1000.
+
+§ 2. Lukkes kontoen, kan der ikke indskydes.
+----
+
+--@begin:closing--
+--@cite:§ 1--
+| room(closed: Bool, value: Int) -> 1000 - value
+--@cite:§ 2--
+| exception closed room(closed: Bool, value: Int) -> 0 under closed
+--@end:closing--
+
+--@label:transfer::meta:transfer_meta--
+----
+[sources/law.txt]
+
+§ 3. Ved overførsel modtages kontoens værdi.
+----
+
+--@begin:transfer--
+--@cite:§ 3--
+| received(value: Int) -> value
+--@end:transfer--
+
+@ calculate
+| explain_because(a: Account) -> Result(room = room(is_some(a.ending), a.value), received = if a.transferred { received(a.value) } else { 0 })

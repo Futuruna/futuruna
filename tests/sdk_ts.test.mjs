@@ -2,14 +2,16 @@
 // TypeScript, and run its calls, validators and resolver loop under Node.
 //
 // FUTURUNA_SDK_TS_DEPS names a directory whose node_modules holds `typescript`
-// (5.x) and `zod`; the test installs nothing. With FUTURUNA_SDK_TS_SOURCES (a
-// directory of *.calculate.runa files) and FUTURUNA_SDK_TS_CASES (a directory
-// of NAME.json input documents with NAME.expected.json outputs), the generated
-// validators also check those cases and results, through a transport that
-// answers from the expected outputs.
+// (5.x) and `zod`; the test installs nothing. Where it also holds `eslint` (9.x)
+// and `typescript-eslint` (8.x), the generated SDK is linted with
+// strictTypeChecked. With FUTURUNA_SDK_TS_SOURCES (a directory of
+// *.calculate.runa files) and FUTURUNA_SDK_TS_CASES (a directory of NAME.json
+// input documents with NAME.expected.json outputs), the generated validators
+// also check those cases and results, through a transport that answers from
+// the expected outputs.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -61,29 +63,159 @@ const valueName = (entry) => {
 };
 
 const fixtureUsage = `import {
-  answer, ask, calculateTaxQuery, calculateTaxSetAt, resolve,
-  type CalculateTaxResolvers, type EngineTransport, type PartialTaxInput, type TaxInput,
+  answer, ask, calculateTaxQuery, calculateTaxSetAt, none, resolve,
+  type CalculateTaxNeed, type CalculateTaxResolvers, type EngineTransport, type PartialTaxInput, type TaxInput,
 } from "./sdk/index.js";
 
 export const sample: TaxInput = {
-  monthly_income: 50000,
-  filing_status: { $variant: "Married" },
+  monthlyIncome: 50000,
+  filingStatus: "Married",
   deduction: null,
   children: [{ name: "Ada", age: 4 }],
 };
 export const started: PartialTaxInput = { children: [{ name: "Ada" }] };
-export const answered: PartialTaxInput = calculateTaxSetAt(started, "children[0].age", 4);
-// @ts-expect-error the contract has no such path
-calculateTaxSetAt(started, "children[0].height", 4);
-// @ts-expect-error an age is a number
-calculateTaxSetAt(started, "children[0].age", "four");
+export const noDeduction: PartialTaxInput = { ...started, deduction: none };
+// @ts-expect-error a bare null is not "none" in a partial case
+export const bareNull: PartialTaxInput = { deduction: null };
+
+/** Each need's answer, typed by its pattern once the pattern is narrowed. */
+export function answerNeed(partialCase: PartialTaxInput, need: CalculateTaxNeed): PartialTaxInput {
+  switch (need.pattern) {
+    case "children[].age":
+      return calculateTaxSetAt(partialCase, need, 4);
+    case "monthlyIncome":
+      return calculateTaxSetAt(partialCase, need, 50000);
+    case "filingStatus":
+      return calculateTaxSetAt(partialCase, need, "Married");
+    case "deduction":
+      return calculateTaxSetAt(partialCase, need, none);
+    default:
+      return partialCase;
+  }
+}
+// Type errors only; never called.
+export function wrongAnswers(partialCase: PartialTaxInput, need: CalculateTaxNeed): void {
+  // @ts-expect-error a need of several patterns takes no value until its pattern is narrowed
+  calculateTaxSetAt(partialCase, need, 4);
+  if (need.pattern === "children[].age") {
+    // @ts-expect-error an age is a number
+    calculateTaxSetAt(partialCase, need, "four");
+  }
+  if (need.pattern === "filingStatus") {
+    // @ts-expect-error a filing status is one of its variants' names
+    calculateTaxSetAt(partialCase, need, "Divorced");
+  }
+  if (need.pattern === "deduction") {
+    // @ts-expect-error "none" is \`none\`, not null
+    calculateTaxSetAt(partialCase, need, null);
+  }
+  // @ts-expect-error a need's path comes from the engine: a string is not an input path
+  const forged: CalculateTaxNeed = { ...need, path: "children[-1].age" };
+  void forged;
+}
 export const resolvers: CalculateTaxResolvers = {
-  "children[].age": () => answer(4),
-  "filing_status.$variant": () => answer("Married" as const),
-  monthly_income: () => ask,
+  "children[].age": () => (need) => answer(need, 4),
+  filingStatus: () => (need) => answer(need, "Married" as const),
+  monthlyIncome: () => () => ask,
 };
+// @ts-expect-error resolvers are keyed by pattern, not by concrete path
+export const concrete: CalculateTaxResolvers = { "children[0].age": () => (need) => answer(need, 4) };
+// @ts-expect-error a resolver answers each need with a function, not with a list that could be in another order
+export const listed: CalculateTaxResolvers = { "children[].age": (needs) => needs.map((need) => answer(need, 4)) };
+// @ts-expect-error an age is a number
+export const wrongAge: CalculateTaxResolvers = { "children[].age": () => (need) => answer(need, "four") };
+/** One resolver for every field of a child: each need's pattern types its answer. */
+export const children: CalculateTaxResolvers = {
+  "children[]": () => (need) => {
+    switch (need.pattern) {
+      case "children[].age":
+        return answer(need, 4);
+      case "children[].name":
+        return answer(need, "Ada");
+      default:
+        return ask;
+    }
+  },
+};
+export const swapped: CalculateTaxResolvers = {
+  // @ts-expect-error a name is a string, whatever another field below \`children[]\` holds
+  "children[]": () => (need) => (need.pattern === "children[].name" ? answer(need, 4) : ask),
+};
+// @ts-expect-error a need of several patterns is answered once its pattern is narrowed
+export const unnarrowed: CalculateTaxResolvers = { "children[]": () => (need) => answer(need, 4) };
+export const interviewChildren = (transport: EngineTransport, partialCase: PartialTaxInput) =>
+  resolve((c: PartialTaxInput) => calculateTaxQuery(transport, c), partialCase, children);
 export const interview = (transport: EngineTransport, partialCase: PartialTaxInput) =>
   resolve((c: PartialTaxInput) => calculateTaxQuery(transport, c), partialCase, resolvers);
+`;
+
+/** The partial values and calls the reviews asked the types to check, on a small ledger model. */
+const ledgerModel = `# Date(year: Int, month: Int, day: Int)
+# Event = Deposit(amount: Int) | Withdrawal(amount: Int, reason: String?)
+# Ledger(events: List(Event), closed_on: Date?, note: String?)
+@ calculate
+> balance(input: Ledger) -> Int { 0 }
+`;
+
+const ledgerUsage = `import {
+  balanceExplained, isoDate, none,
+  type BalanceNeed, type EngineTransport, type ExplainingTransport, type IsoDate, type Ledger, type PartialEvent,
+  type PartialLedger,
+} from "./sdk/index.js";
+
+function assertNever(value: never): never {
+  throw new Error(JSON.stringify(value));
+}
+
+/** An exhaustive switch over a partial union handles \`{}\`, the variant not known yet. */
+export function describe(event: PartialEvent): string {
+  switch (event.$variant) {
+    case "Deposit":
+      return "in";
+    case "Withdrawal":
+      return "out";
+    case undefined:
+      return "not known yet";
+    default:
+      return assertNever(event);
+  }
+}
+export function forgetsUnknown(event: PartialEvent): string {
+  switch (event.$variant) {
+    case "Deposit":
+      return "in";
+    case "Withdrawal":
+      return "out";
+    default:
+      // @ts-expect-error \`{}\` is not handled
+      return assertNever(event);
+  }
+}
+export const unknownEvent: PartialEvent = {};
+// @ts-expect-error junk is not an event whose variant is unknown
+export const junk: PartialEvent = { amount: 1 };
+
+export const closed: PartialLedger = { closedOn: none, note: none, events: [{}, { $variant: "Withdrawal", reason: none }] };
+// @ts-expect-error a bare null is not "none" in a partial case
+export const bareNull: PartialLedger = { note: null };
+// @ts-expect-error neither is a bare null inside a variant
+export const bareNullReason: PartialLedger = { events: [{ $variant: "Withdrawal", reason: null }] };
+
+export const ledger: Ledger = { events: [], closedOn: isoDate("2026-03-01"), note: null };
+// @ts-expect-error a bare string is not an IsoDate
+export const looseDay: Ledger = { events: [], closedOn: "yesterday", note: null };
+export const day: IsoDate | null = ledger.closedOn;
+
+export const explain = (transport: ExplainingTransport) => balanceExplained(transport, ledger);
+export function plainTransport(transport: EngineTransport) {
+  // @ts-expect-error an explained call needs a transport that explains
+  return balanceExplained(transport, ledger);
+}
+
+export function forgeNeed(need: BalanceNeed): BalanceNeed {
+  // @ts-expect-error an input path comes from the engine, not from a string
+  return { ...need, path: "events[-1].amount" };
+}
 `;
 
 /** A partial engine for the fixture: it needs the income, the filing status and each child's age. */
@@ -95,14 +227,14 @@ function fixturePartialEngine(hash) {
     const needs = [];
     if (input.monthly_income === undefined) {
       needs.push({ kind: 'fact', path: 'monthly_income', label: 'Monthly income',
-        question: 'What is your income before tax each month?', waiting_rule: 'annual_income' });
+        question: 'What is your income before tax each month?', waiting: [{ rule: 'annual_income' }] });
     }
     if (input.filing_status?.$variant === undefined) {
-      needs.push({ kind: 'fact', path: 'filing_status.$variant', label: 'Filing status', waiting_rule: 'annual_tax' });
+      needs.push({ kind: 'fact', path: 'filing_status.$variant', label: 'Filing status', waiting: [{ rule: 'annual_tax' }] });
     }
     (input.children ?? []).forEach((child, index) => {
       if (child.age === undefined) {
-        needs.push({ kind: 'fact', path: `children[${index}].age`, label: 'Child age', unit: 'years', waiting_rule: 'annual_tax' });
+        needs.push({ kind: 'fact', path: `children[${index}].age`, label: 'Child age', unit: 'years', waiting: [{ rule: 'annual_tax' }] });
       }
     });
     needs.sort((left, right) => (left.path < right.path ? -1 : 1));
@@ -122,7 +254,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   run(binary, ['sdk', 'ts', fixture, '--out', join(dir, 'sdk')]);
   const again = project('fixture-again');
   run(binary, ['sdk', 'ts', fixture, '--out', join(again, 'sdk')]);
-  for (const name of ['types.ts', 'schema.ts', 'partial.ts', 'client.ts', 'index.ts']) {
+  for (const name of ['types.ts', 'schema.ts', 'partial.ts', 'client.ts', 'index.ts', 'runtime.ts']) {
     assert.equal(readFileSync(join(dir, 'sdk', name), 'utf8'), readFileSync(join(again, 'sdk', name), 'utf8'), name);
   }
   writeFileSync(join(dir, 'usage.ts'), fixtureUsage);
@@ -143,15 +275,18 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     async callPartial() { throw new Error('not used'); },
   };
   assert.deepEqual(await sdk.calculateTax(cli, usage.sample),
-    { annual_income: 600000, taxable_income: 600000, annual_tax: 120000 });
+    { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
 
   // Ints beyond ±(2^53 − 1) are rejected before the engine runs, and in results.
-  for (const monthly_income of [2 ** 53, -(2 ** 53), 2 ** 60, 1.5]) {
-    await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, monthly_income }),
+  for (const monthlyIncome of [2 ** 53, -(2 ** 53), 2 ** 60, 1.5]) {
+    await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, monthlyIncome }),
       (error) => error.name === 'CalculationError' && error.kind === 'input');
   }
+  await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, filingStatus: { $variant: 'Married' } }),
+    (error) => error.kind === 'input' && error.issues[0].path.join('.') === 'filingStatus');
   assert.equal(engineCalls, 1);
   await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, surprise: 1 }), (error) => error.kind === 'input');
+  await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, monthly_income: 1 }), (error) => error.kind === 'input');
   const answering = (result, meta = {}) => ({
     async call(entry) {
       return { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry, ...meta },
@@ -166,8 +301,40 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     (error) => error.kind === 'envelope' && /this SDK was generated for/.test(error.message));
   await assert.rejects(sdk.calculateTax(answering(undefined), usage.sample),
     (error) => error.kind === 'diagnostics' && error.diagnostics[0].message === 'boom');
+  await assert.rejects(sdk.calculateTax(answering({ annualIncome: 1, taxableIncome: 1, annualTax: 1 }), usage.sample),
+    (error) => error.kind === 'output', 'results arrive in the engine\'s snake_case');
   assert.deepEqual(await sdk.calculateTax({ call: async () => ({ annual_income: 1, taxable_income: 1, annual_tax: 1 }) }, usage.sample),
-    { annual_income: 1, taxable_income: 1, annual_tax: 1 }, 'a bare result has no envelope to check');
+    { annualIncome: 1, taxableIncome: 1, annualTax: 1 }, 'a bare result has no envelope to check');
+
+  // The wire codec: snake_case fields, an enum as { $variant }, a date as { year, month, day }.
+  const codec = sdk.calculateTaxEntry.input;
+  assert.deepEqual(sdk.toWire(codec, usage.sample),
+    { monthly_income: 50000, filing_status: { $variant: 'Married' }, deduction: null, children: [{ name: 'Ada', age: 4 }] });
+  assert.deepEqual(sdk.fromWire(codec, sdk.toWire(codec, usage.sample)), usage.sample);
+  assert.deepEqual(sdk.toWire(codec, { filingStatus: {}, children: [{}] }), { filing_status: {}, children: [{}] });
+  // "none" is null on the wire; a field left out stays out.
+  assert.deepEqual(sdk.toWire(codec, usage.noDeduction), { children: [{ name: 'Ada' }], deduction: null });
+  assert.deepEqual(sdk.toWire(codec, { deduction: sdk.none }), { deduction: null });
+  assert.equal(sdk.fromWirePath(codec, {}, 'filing_status.$variant'), 'filingStatus');
+  assert.equal(sdk.fromWirePath(codec, { children: [{}] }, 'children[0].age'), 'children[0].age');
+  assert.equal(sdk.fromWirePath(codec, {}, 'monthly_income'), 'monthlyIncome');
+  assert.equal(sdk.fromWirePath(codec, {}, 'nowhere.deep'), 'nowhere.deep');
+  assert.throws(() => sdk.fromWire(codec, { monthlyIncome: 1, children: [{ name: 'Ada', age_years: 4 }] }), (error) =>
+    error.name === 'WireError' && error.issues.map((issue) => issue.path.join('.')).join() === 'monthlyIncome,children.0.age_years');
+  assert.throws(() => sdk.toWire(codec, { monthly_income: 1 }), (error) => error.name === 'WireError');
+  const dated = sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] });
+  assert.deepEqual(sdk.toWire(dated, { bookedOn: '2026-03-01', kind: 'Deposit' }),
+    { booked_on: { year: 2026, month: 3, day: 1 }, kind: { $variant: 'Deposit' } });
+  assert.deepEqual(sdk.fromWire(dated, { booked_on: { year: 26, month: 3, day: 1 } }), { bookedOn: '0026-03-01' });
+  assert.equal(sdk.fromWirePath(dated, {}, 'booked_on.year'), 'bookedOn');
+  for (const valid of ['2024-02-29', '2026-12-31', '0001-01-01']) {
+    assert.ok(sdk.IsoDateSchema.safeParse(valid).success, valid);
+    assert.equal(sdk.isoDate(valid), valid);
+  }
+  for (const invalid of ['2026-02-29', '2026-13-01', '2026-1-01', '2026-04-31', '20260301', 'yesterday']) {
+    assert.ok(!sdk.IsoDateSchema.safeParse(invalid).success, invalid);
+    assert.throws(() => sdk.isoDate(invalid), RangeError);
+  }
 
   // setAt writes at concrete paths and never changes its argument.
   assert.deepEqual(sdk.setAt({ children: [{}, {}] }, 'children[1].age', 3), { children: [{}, { age: 3 }] });
@@ -177,6 +344,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   assert.deepEqual(usage.started, { children: [{ name: 'Ada' }] });
   assert.throws(() => sdk.setAt({ children: [] }, 'children[0].age', 1), (error) => error.name === 'PathError');
   assert.throws(() => sdk.setAt({ spouse: null }, 'spouse.income', 1), (error) => error.name === 'PathError');
+  assert.throws(() => sdk.setAt({ spouse: sdk.none }, 'spouse.income', 1), (error) => error.name === 'PathError');
   assert.throws(() => sdk.parsePath('a..b'), (error) => error.name === 'PathError');
   assert.equal(sdk.pathPattern('accounts[12].events[0].kind'), 'accounts[].events[].kind');
 
@@ -186,33 +354,169 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   const first = await usage.interview(transport, usage.started);
   assert.equal(first.$variant, 'Questions');
   assert.equal(first.rounds, 2);
-  assert.deepEqual(first.questions.map((need) => need.path), ['monthly_income']);
+  assert.deepEqual(first.questions.map((need) => [need.pattern, need.path]), [['monthlyIncome', 'monthlyIncome']]);
   assert.equal(first.questions[0].question, 'What is your income before tax each month?');
-  assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filing_status: { $variant: 'Married' } });
-  const second = await usage.interview(transport, sdk.calculateTaxSetAt(first.partialCase, 'monthly_income', 50000));
+  assert.deepEqual(first.questions[0].waiting, [{ rule: 'annual_income' }]);
+  assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filingStatus: 'Married' });
+  const second = await usage.interview(transport, usage.answerNeed(first.partialCase, first.questions[0]));
   assert.equal(second.$variant, 'Complete');
-  assert.deepEqual(second.result, { annual_income: 600000, taxable_income: 600000, annual_tax: 120000 });
-  assert.deepEqual(second.unused_paths, ['children[0].name']);
+  assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
+  assert.deepEqual(second.unusedPaths, ['children[0].name']);
   assert.equal(engine.calls.at(-1).$futuruna.schema_hash, hash);
+  assert.deepEqual(engine.calls.at(-1).cases[0].input,
+    { children: [{ name: 'Ada', age: 4 }], filing_status: { $variant: 'Married' }, monthly_income: 50000 });
+
+  // A resolver is called once per round with all of the round's needs of its pattern, and the
+  // resolvers of different patterns run at the same time: each waits here until all three have begun.
+  const batches = [];
+  let begun = 0;
+  let allBegun;
+  const together = new Promise((resolveTogether) => { allBegun = resolveTogether; });
+  const batched = (pattern, value) => async (needs, context) => {
+    batches.push([pattern, needs.map((need) => need.path), context.partialCase]);
+    begun += 1;
+    if (begun === 3) allBegun();
+    await Promise.race([together, new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${pattern} waited for the other resolvers alone`)), 2000).unref();
+    })]);
+    return (need) => sdk.answer(need, value);
+  };
+  const three = { children: [{ name: 'Ada' }, { name: 'Bo' }, { name: 'Cy' }] };
+  const all = await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
+    'children[].age': batched('children[].age', 4),
+    filingStatus: batched('filingStatus', 'Married'),
+    monthlyIncome: batched('monthlyIncome', 50000),
+  });
+  assert.equal(all.$variant, 'Complete');
+  assert.equal(all.rounds, 2);
+  assert.deepEqual(batches.map(([pattern, paths]) => [pattern, paths]).sort(), [
+    ['children[].age', ['children[0].age', 'children[1].age', 'children[2].age']],
+    ['filingStatus', ['filingStatus']],
+    ['monthlyIncome', ['monthlyIncome']],
+  ]);
+  assert.ok(batches.every(([, , partialCase]) => partialCase === three), 'every resolver sees the case of its round');
+  assert.deepEqual(all.partialCase.children.map((child) => child.age), [4, 4, 4]);
+
+  // A resolver on a list's elements receives every need below them, in one call per round; each need
+  // goes to the most specific pattern registered for it, never to two resolvers.
+  const below = [];
+  const elements = await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
+    'children[]': (needs) => { below.push(['children[]', needs.map((need) => need.path)]); return (need) => sdk.answer(need, 5); },
+    filingStatus: () => (need) => sdk.answer(need, 'Married'),
+    monthlyIncome: () => (need) => sdk.answer(need, 50000),
+  });
+  assert.equal(elements.$variant, 'Complete');
+  assert.deepEqual(below, [['children[]', ['children[0].age', 'children[1].age', 'children[2].age']]]);
+  below.length = 0;
+  await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
+    'children[]': (needs) => { below.push(['children[]', needs.length]); return () => sdk.ask; },
+    'children[].age': (needs) => { below.push(['children[].age', needs.length]); return (need) => sdk.answer(need, 5); },
+  });
+  assert.deepEqual(below, [['children[].age', 3]]);
+  // A reply names the path it is for: one for another need is an error, not an answer in the wrong place.
+  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three,
+    { 'children[]': (needs) => () => sdk.answer(needs[0], 5) }),
+  (error) => error.name === 'ResolveError' && /replied to `children\[1\]\.age` with a reply for `children\[0\]\.age`/.test(error.message));
 
   // Partial inputs and Needs results are validated too.
   await assert.rejects(sdk.calculateTaxQuery(transport, { children: [{ age: 2 ** 53 }] }), (error) => error.kind === 'input');
-  const needing = (needs) => ({
+  await assert.rejects(sdk.calculateTaxQuery(transport, { deduction: null }), (error) => error.kind === 'input'
+    && error.issues[0].path.join('.') === 'deduction', 'a bare null is not "none"');
+  const needing = (needs, later) => ({
     async callPartial(entry) {
       return { $futuruna: { schema: 'futuruna.calculate.partial-output.v1', schema_hash: hash, entry },
-        results: [{ case_id: 'case-1', result: { $variant: 'Needs', needs } }], diagnostics: [] };
+        results: [{ case_id: 'case-1', result: { $variant: 'Needs', needs, ...(later && { later }) } }], diagnostics: [] };
     },
   });
-  await assert.rejects(sdk.calculateTaxQuery(needing([{ kind: 'fact', path: 'nowhere', waiting_rule: 'r' }]), {}),
+  const waiting = [{ rule: 'annual_tax' }];
+  await assert.rejects(sdk.calculateTaxQuery(needing([{ kind: 'fact', path: 'nowhere', waiting }]), {}),
     (error) => error.kind === 'output');
-  const stuck = needing([{ kind: 'fact', path: 'children[0].age', waiting_rule: 'annual_tax' }]);
-  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(stuck, c), { children: [{}] }, { 'children[].age': () => sdk.answer(1) }),
+  await assert.rejects(sdk.calculateTaxQuery(needing([{ kind: 'fact', path: 'monthly_income', waiting: [] }]), {}),
+    (error) => error.kind === 'output', 'a need waits for at least one rule');
+  await assert.rejects(sdk.calculateTaxQuery(needing([{ kind: 'fact', path: 'monthly_income', waiting,
+    keys: [{ path: 'children[0]', field: 'name', value: 'Ada' }] }]), {}),
+  (error) => error.kind === 'output', 'a key no list declares');
+  const stuck = needing([{ kind: 'fact', path: 'children[0].age', waiting }]);
+  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(stuck, c), { children: [{}] }, { 'children[].age': () => (need) => sdk.answer(need, 1) }),
     (error) => error.name === 'ResolveError' && /still needs `children\[0\]\.age`/.test(error.message));
 
+  // A need is tagged with its pattern; a date is needed whole; a list element's key comes at TypeScript paths.
+  const passing = { safeParse: (data) => ({ success: true, data }) };
+  const positions = sdk.listCodec(sdk.recordCodec({ isin: ['isin', sdk.valueCodec], openedOn: ['opened_on', sdk.isoDateCodec],
+    valueOre: ['value_ore', sdk.valueCodec] }));
+  const dateEntry = { name: 'calculate_tax', schemaHash: hash, output: sdk.valueCodec,
+    input: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec],
+      openingPositions: ['opening_positions', positions] }),
+    patterns: ['bookedOn', 'openingPositions[]', 'openingPositions[].isin', 'openingPositions[].valueOre'] };
+  const sources = [{ label: 'law', role: 'source', binding: 'b', attachment_path: 'law.pdf' }];
+  const act = { title: 'aktiesparekontoloven', identifier: 'LBK nr. 281 af 2025' };
+  const cited = [{ rule: 'r', section: 'ask', paragraphs: [{ paragraph: '§ 16', source: 'sources/01.txt', act }] }];
+  const needsQuery = await sdk.queryEntry(needing([
+    { kind: 'fact', path: 'booked_on', label: 'Booking date', sources, waiting: cited },
+    { kind: 'fact', path: 'opening_positions[1].value_ore', waiting,
+      keys: [{ path: 'opening_positions[1]', field: 'isin', value: 'DK0060534915' }] },
+  ], [{ kind: 'fact', path: 'opening_positions[0].isin', waiting }]), dateEntry, passing, passing,
+  { openingPositions: [{}, { isin: 'DK0060534915' }] });
+  assert.deepEqual(needsQuery, { $variant: 'Needs', needs: [
+    { kind: 'fact', path: 'bookedOn', pattern: 'bookedOn', label: 'Booking date',
+      sources: [{ label: 'law', role: 'source', binding: 'b', attachmentPath: 'law.pdf' }], waiting: cited },
+    { kind: 'fact', path: 'openingPositions[1].valueOre', pattern: 'openingPositions[].valueOre', waiting,
+      keys: [{ path: 'openingPositions[1]', field: 'isin', value: 'DK0060534915' }] },
+  ], later: [{ kind: 'fact', path: 'openingPositions[0].isin', pattern: 'openingPositions[].isin', waiting }] });
+
+  // Explanations at TypeScript paths.
+  const explaining = {
+    ...cli,
+    async callExplained(entry, document, full) {
+      const path = join(dir, `explain-${full}.json`);
+      writeFileSync(path, JSON.stringify(document));
+      return run(binary, ['call', fixture, '--entry', entry, '--input', path, full ? '--explain=full' : '--explain']);
+    },
+  };
+  for (const depth of ['direct', 'full']) {
+    const explained = await sdk.calculateTaxExplained(explaining, usage.sample, depth);
+    assert.deepEqual(explained.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
+    assert.deepEqual(Object.keys(explained.explanation.values), ['annualIncome', 'annualTax', 'taxableIncome']);
+    const inputs = Object.values(explained.explanation.values).flatMap((value) => value.from ?? [])
+      .filter((item) => item.$variant === 'Input').map((item) => item.path);
+    assert.ok(inputs.includes('monthlyIncome'), JSON.stringify(explained.explanation));
+    assert.equal(explained.explanation.derivation !== undefined, depth === 'full');
+  }
+  const by = (path) => ({ $variant: 'Input', path });
+  const explanation = {
+    sections: {},
+    values: {
+      'booked_on.year': { value: 2026, by: by('booked_on.year'), from_omitted: 2 },
+      'booked_on.month': { value: 3, by: by('booked_on.month') },
+      'booked_on.day': { value: 1, by: by('booked_on.day') },
+      'paid_on.year': { value: 2026, by: by('booked_on.year') },
+      'paid_on.month': { value: 4, by: { $variant: 'Computed' } },
+      'paid_on.day': { value: 1, by: by('booked_on.day') },
+      'kind.$variant': { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
+        from: [by('booked_on.year'), by('booked_on.month'), by('booked_on.day'), by('kind.$variant')]
+          .map((item, at) => ({ ...item, value: [2026, 3, 1, 'Deposit'][at] })),
+        because: [{ ...by('kind.$variant'), value: 'Deposit' }] },
+    },
+  };
+  const explainedEntry = { ...dateEntry, output: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec],
+    paidOn: ['paid_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] }) };
+  const document = { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry: 'calculate_tax' },
+    results: [{ case_id: 'case-1', result: {}, explanation }], diagnostics: [] };
+  const decoded = await sdk.explainEntry({ callExplained: async () => document }, explainedEntry, 'direct', passing, passing, {});
+  assert.deepEqual(decoded.explanation.values, {
+    bookedOn: { value: '2026-03-01', by: by('bookedOn'), fromOmitted: 2 },
+    kind: { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
+      from: [{ $variant: 'Input', path: 'bookedOn', value: '2026-03-01' }, { $variant: 'Input', path: 'kind', value: 'Deposit' }],
+      because: [{ $variant: 'Input', path: 'kind', value: 'Deposit' }] },
+    'paidOn.day': { value: 1, by: by('bookedOn') },
+    'paidOn.month': { value: 4, by: { $variant: 'Computed' } },
+    'paidOn.year': { value: 2026, by: by('bookedOn') },
+  });
+
   // An entry that needs itself for the same subject is a cycle.
-  const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting_rule: 'taxable_income' }]);
+  const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting }]);
   const query = (c) => sdk.calculateTaxQuery(spouse, c);
-  const resolvers = { deduction: (_need, context) => context.runEntry(query, {}, resolvers) };
+  const resolvers = { deduction: (_needs, context) => (need) => context.runEntry(need, query, {}, resolvers) };
   await assert.rejects(sdk.resolve(query, {}, resolvers), (error) => error.name === 'ResolveCycleError'
     && error.frames.length === 2 && error.frames.every((frame) => frame.subject === 'spouse'));
 });
@@ -250,9 +554,13 @@ test('generated SDKs validate a model\'s cases and expected results', modelOptio
         },
         async callPartial() { throw new Error('not used'); },
       };
-      const call = sdk[valueName(entry)](transport, inputCase.input);
+      // The cases are runa call documents: decode them, and check that encoding gives them back.
+      const codecs = sdk[`${valueName(entry)}Entry`];
+      const tsInput = sdk.fromWire(codecs.input, inputCase.input);
+      assert.deepEqual(sdk.toWire(codecs.input, tsInput), inputCase.input, `${inputFile} ${inputCase.case_id} round trip`);
+      const call = sdk[valueName(entry)](transport, tsInput);
       if (result) {
-        assert.deepEqual(await call, result.result, `${inputFile} ${inputCase.case_id}`);
+        assert.deepEqual(sdk.toWire(codecs.output, await call), result.result, `${inputFile} ${inputCase.case_id}`);
         console.log(`${inputFile} ${inputCase.case_id}: input and ${expectedFile} result valid (${entry})`);
       } else {
         await assert.rejects(call, (error) => error.kind === 'diagnostics');
@@ -260,4 +568,228 @@ test('generated SDKs validate a model\'s cases and expected results', modelOptio
       }
     }
   }
+});
+
+const unitModel = `# unit Ore "DKK øre"
+# unit Micro "millionths of a share"
+# Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore))
+@ calculate
+> holding_value(input: Holding) -> Ore { input.value_ore }
+`;
+
+const unitUsage = `import {
+  holdingValue, holdingValueSetAt, micro, ore, OreSchema, resolve, answer, holdingValueQuery,
+  type EngineTransport, type Holding, type HoldingValueNeed, type HoldingValueResolvers, type Micro, type Ore,
+  type PartialHolding,
+} from "./sdk/index.js";
+
+export const holding: Holding = { quantityMicro: micro(2_000_000), valueOre: ore(1200), count: 3, history: [ore(1100)] };
+const shares: Micro = holding.quantityMicro;
+// @ts-expect-error a Micro is not an Ore
+export const wrongUnit: Holding = { ...holding, valueOre: shares };
+// @ts-expect-error a bare number is not an Ore
+export const bare: Holding = { ...holding, valueOre: 1200 };
+// @ts-expect-error a bare number is not an Ore in a list either
+export const bareItem: Holding = { ...holding, history: [1100] };
+export const plain: Holding = { ...holding, count: 4 };
+export const started: PartialHolding = {};
+export function answerNeed(partialCase: PartialHolding, need: HoldingValueNeed): PartialHolding {
+  if (need.pattern === "valueOre") return holdingValueSetAt(partialCase, need, ore(5));
+  if (need.pattern === "history[]") {
+    // @ts-expect-error a Micro is not an Ore at an Ore path
+    holdingValueSetAt(partialCase, need, shares);
+    // @ts-expect-error setAt takes the path's unit
+    holdingValueSetAt(partialCase, need, 5);
+  }
+  return partialCase;
+}
+export const resolvers: HoldingValueResolvers = {
+  valueOre: () => (need) => answer(need, ore(7)),
+  quantityMicro: () => (need) => answer(need, micro(1)),
+};
+export const parsed: Ore = OreSchema.parse(1200);
+export const result = (transport: EngineTransport): Promise<Ore> => holdingValue(transport, holding);
+export const interview = (transport: EngineTransport) =>
+  resolve((c: PartialHolding) => holdingValueQuery(transport, c), started, resolvers);
+`;
+
+test('a unit of measure is a branded number type in the SDK', options, async () => {
+  const dir = project('units');
+  writeFileSync(join(dir, 'holding.calculate.runa'), unitModel);
+  run(binary, ['sdk', 'ts', 'holding.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), unitUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  assert.equal(sdk.ore(1200), 1200);
+  assert.throws(() => sdk.ore(1.5), RangeError);
+  assert.throws(() => sdk.micro(2 ** 53), RangeError);
+  assert.ok(!sdk.OreSchema.safeParse(0.5).success);
+  const cli = {
+    async call(entry, document) {
+      writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
+      return run(binary, ['call', 'holding.calculate.runa', '--entry', entry, '--input', 'call.json'], dir);
+    },
+    async callPartial() { throw new Error('not used'); },
+  };
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  assert.equal(await usage.result(cli), 1200);
+});
+
+test('partial values, dates, paths and explained calls are checked by the types', options, async () => {
+  const dir = project('ledger');
+  writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);
+  run(binary, ['sdk', 'ts', 'ledger.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), ledgerUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  assert.equal(usage.describe({}), 'not known yet');
+  assert.deepEqual(sdk.toWire(sdk.balanceEntry.input, usage.closed),
+    { closed_on: null, note: null, events: [{}, { $variant: 'Withdrawal', reason: null }] });
+  assert.ok(sdk.PartialLedgerSchema.safeParse(usage.closed).success);
+  assert.ok(!sdk.PartialLedgerSchema.safeParse({ note: null }).success, 'a bare null is not "none"');
+  assert.ok(sdk.LedgerSchema.safeParse(usage.ledger).success);
+});
+
+/** Events keyed by their id in every variant, for second-order resolution. */
+const keyedModel = `# Event =
+    Deposit(@ field(label = "Event id", key = True) id: String, @ field(label = "Amount") amount: Int) |
+    Withdrawal(@ field(label = "Event id", key = True) id: String, @ field(label = "Amount") amount: Int, @ field(label = "Fee") fee: Int)
+# Ledger(events: List(Event))
+> signed(e: Event) -> Int {
+    match e {
+        | Deposit -> e.amount
+        | Withdrawal -> 0 - e.amount - e.fee
+    }
+}
+@ calculate
+> balance(input: Ledger) -> Int { foldl(input.events, 0, |sum, e| sum + signed(e)) }
+`;
+
+const keyedUsage = `import {
+  answer, ask, balanceQuery, resolve,
+  type BalanceElementKey, type BalanceNeed, type BalanceResolvers, type EngineTransport, type PartialEvent, type PartialLedger,
+} from "./sdk/index.js";
+
+export type Row = { readonly amount: number; readonly fee: number };
+/** A backend that answers in batches: the year's event skeletons, then the details of many events at once. */
+export interface Backend {
+  skeletons(): Promise<PartialEvent[]>;
+  details(ids: readonly string[]): Promise<ReadonlyMap<string, Row>>;
+}
+
+/** The id of the event a need lies in, from its element key. */
+export function eventId(need: BalanceNeed): string {
+  const key: BalanceElementKey | undefined = need.keys?.find((candidate) => candidate.field === "id");
+  if (key === undefined) throw new Error(\`\${need.path} lies in no keyed event\`);
+  const id: string = key.value;
+  return id;
+}
+
+export function resolvers(backend: Backend): BalanceResolvers {
+  return {
+    // The list, as skeletons: each event's variant, id and date, its details left out.
+    events: async () => {
+      const skeletons = await backend.skeletons();
+      return (need) => (need.pattern === "events" ? answer(need, skeletons) : ask);
+    },
+    // Every field of the events, from one lookup of their ids.
+    "events[]": async (needs) => {
+      const rows = await backend.details([...new Set(needs.map(eventId))]);
+      return (need) => {
+        const row = rows.get(eventId(need));
+        if (row === undefined) return ask;
+        switch (need.pattern) {
+          case "events[].amount":
+            return answer(need, row.amount);
+          case "events[].fee":
+            return answer(need, row.fee);
+          default:
+            return ask;
+        }
+      };
+    },
+  };
+}
+
+export const interview = (transport: EngineTransport, backend: Backend) =>
+  resolve((c: PartialLedger) => balanceQuery(transport, c), {}, resolvers(backend));
+`;
+
+test('second-order resolution: a list of skeletons, then the fields the law reads, by key', options, async () => {
+  const dir = project('keyed');
+  writeFileSync(join(dir, 'keyed.calculate.runa'), keyedModel);
+  run(binary, ['sdk', 'ts', 'keyed.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), keyedUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  assert.match(readFileSync(join(dir, 'sdk/partial.ts'), 'utf8'),
+    /export type BalanceElementKey =\n {2}\| ElementKey<"events\[\]", "id", string>;/);
+
+  const queried = [];
+  const transport = {
+    async call() { throw new Error('not used'); },
+    async callPartial(entry, document) {
+      const path = join(dir, `partial-${queried.length}.json`);
+      queried.push(document.cases[0].input);
+      writeFileSync(path, JSON.stringify(document));
+      return run(binary, ['call', 'keyed.calculate.runa', '--entry', entry, '--input', path, '--partial'], dir);
+    },
+  };
+  const skeletons = [{ $variant: 'Deposit', id: 'e1' }, { $variant: 'Withdrawal', id: 'e2' }, { $variant: 'Deposit', id: 'e3' }];
+
+  // The needs inside a skeleton carry its event's id.
+  const round2 = await sdk.balanceQuery(transport, { events: skeletons });
+  assert.equal(round2.$variant, 'Needs');
+  assert.deepEqual(round2.needs.map((need) => [need.path, need.pattern, need.keys]), [
+    ['events[0].amount', 'events[].amount', [{ path: 'events[0]', field: 'id', value: 'e1' }]],
+    ['events[1].amount', 'events[].amount', [{ path: 'events[1]', field: 'id', value: 'e2' }]],
+    ['events[1].fee', 'events[].fee', [{ path: 'events[1]', field: 'id', value: 'e2' }]],
+    ['events[2].amount', 'events[].amount', [{ path: 'events[2]', field: 'id', value: 'e3' }]],
+  ]);
+
+  // Round 1 asks for the list, round 2 for every field of the events by their ids: one backend call per round.
+  queried.length = 0;
+  const rows = new Map([['e1', { amount: 100, fee: 0 }], ['e2', { amount: 30, fee: 2 }], ['e3', { amount: 7, fee: 0 }]]);
+  const backend = { skeletons: 0, details: [] };
+  const resolution = await usage.interview(transport, {
+    async skeletons() {
+      backend.skeletons += 1;
+      return skeletons;
+    },
+    async details(ids) {
+      backend.details.push([...ids]);
+      return new Map(ids.map((id) => [id, rows.get(id)]));
+    },
+  });
+  assert.equal(resolution.$variant, 'Complete', JSON.stringify(resolution));
+  assert.equal(resolution.result, 100 - 30 - 2 + 7);
+  assert.equal(resolution.rounds, 3);
+  assert.deepEqual(queried, [{}, { events: skeletons }, { events: [
+    { $variant: 'Deposit', id: 'e1', amount: 100 }, { $variant: 'Withdrawal', id: 'e2', amount: 30, fee: 2 },
+    { $variant: 'Deposit', id: 'e3', amount: 7 }] }]);
+  assert.equal(backend.skeletons, 1);
+  assert.deepEqual(backend.details, [['e1', 'e2', 'e3']]);
+});
+
+test('the generated SDK passes typescript-eslint strictTypeChecked', {
+  skip: !(ready && existsSync(join(deps, 'node_modules/typescript-eslint')))
+    && 'Set FUTURUNA_SDK_TS_DEPS to node_modules that also hold eslint and typescript-eslint.',
+}, () => {
+  const dir = project('lint');
+  run(binary, ['sdk', 'ts', fixture, '--out', join(dir, 'sdk/tax'), '--runtime', '../runtime.ts']);
+  writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);
+  run(binary, ['sdk', 'ts', 'ledger.calculate.runa', '--out', 'sdk/ledger', '--runtime', '../runtime.ts'], dir);
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
+    compilerOptions: { target: 'es2023', module: 'nodenext', moduleResolution: 'nodenext', strict: true,
+      noUncheckedIndexedAccess: true, exactOptionalPropertyTypes: true, noEmit: true, types: [] },
+    include: ['sdk/**/*.ts'],
+  }));
+  writeFileSync(join(dir, 'eslint.config.mjs'), `import tseslint from "typescript-eslint";
+export default tseslint.config(...tseslint.configs.strictTypeChecked, {
+  languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } },
+});
+`);
+  run(process.execPath, [join(deps, 'node_modules/eslint/bin/eslint.js'), '--max-warnings', '0', 'sdk'], dir);
 });

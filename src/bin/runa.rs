@@ -228,6 +228,8 @@ fn main_inner() {
     let mut calculation_all_tables = false;
     let mut calculation_partial: Option<futuruna::partial::PartialMode> = None;
     let mut calculation_partial_check = false;
+    // `--explain` (direct contributors) or `--explain=full` (Some(true)).
+    let mut calculation_explain: Option<bool> = None;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
     let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
@@ -534,6 +536,29 @@ fn main_inner() {
             arg if arg == "--partial" || arg.starts_with("--partial=") => {
                 eprintln!(
                     "error: --partial applies only to `runa call`: partial cases run in the interpreter; native and compiled programs take complete input"
+                );
+                std::process::exit(1);
+            }
+            "--explain" if mode == "call" => {
+                calculation_explain = Some(false);
+                i += 1;
+            }
+            arg if mode == "call" && arg.starts_with("--explain=") => {
+                calculation_explain = Some(match &arg["--explain=".len()..] {
+                    "direct" => false,
+                    "full" => true,
+                    other => {
+                        eprintln!(
+                            "error: --explain={other} is not an explanation depth; use --explain (direct contributors) or --explain=full (the whole derivation)"
+                        );
+                        std::process::exit(1);
+                    }
+                });
+                i += 1;
+            }
+            arg if arg == "--explain" || arg.starts_with("--explain=") => {
+                eprintln!(
+                    "error: --explain applies only to `runa call`: explanations come from the interpreter's evaluation of each case"
                 );
                 std::process::exit(1);
             }
@@ -1177,6 +1202,7 @@ fn main_inner() {
             use_prelude,
             calculation_all_tables,
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
+            calculation_explain,
         );
         return;
     }
@@ -1423,7 +1449,7 @@ const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2"
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
 const CALCULATION_XLSX_STRING_HELP: &str = "For empty text, enter \"\" (two double quotes). Clearing a cell means no value. For text starting with a double quote, use JSON string quoting.";
 const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
-const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 2;
+const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 3;
 const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
 const NATIVE_ARTIFACT_CACHE_VERSION: u32 = 1;
 const COMPILER_FINGERPRINT_CACHE_VERSION: u32 = 1;
@@ -1997,6 +2023,7 @@ fn run_calculation_command(
     use_prelude: bool,
     all_tables: bool,
     partial: Option<(futuruna::partial::PartialMode, bool)>,
+    explain: Option<bool>,
 ) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
@@ -2013,16 +2040,18 @@ fn run_calculation_command(
             std::process::exit(1);
         })
     });
-    let stmts = user_stmts.as_ref().map(|user_stmts| {
+    let mut stmts: Option<std::sync::Arc<[Stmt]>> = user_stmts.as_ref().map(|user_stmts| {
         if use_prelude {
-            prepend_prelude(parse_prelude(), user_stmts)
+            prepend_prelude(parse_prelude(), user_stmts).into()
         } else {
-            user_stmts.clone()
+            user_stmts.as_slice().into()
         }
     });
-    let contracts = if let Some(cached) = cached_contracts {
+    let (contracts, constructor_elaboration) = if let Some(cached) = cached_contracts {
+        // A cached program was never elaborated: its parsed statements are
+        // the ones a check would hand back.
         trace_calculation_contract_cache("hit");
-        cached
+        (cached, None)
     } else {
         if calculation_contract_cache_dir().is_some() {
             trace_calculation_contract_cache("miss");
@@ -2032,16 +2061,21 @@ fn run_calculation_command(
         let user_stmts = user_stmts.as_ref().expect("cache miss parses source");
         let source_graph = calculation_contract_cache_dir()
             .and_then(|_| build_source_graph_snapshot(filename, &source, user_stmts, use_prelude));
-        let contracts = run_calculation_type_check(
-            stmts.as_ref().expect("cache miss prepares statements"),
+        let mut checked = run_type_check(
+            stmts.as_deref().expect("cache miss prepares statements"),
             &source,
             filename,
         )
         .unwrap_or_else(|| std::process::exit(1));
-        if let Some(source_graph) = source_graph {
+        stmts = Some(checked.program().clone());
+        let contracts = std::mem::take(&mut checked.calculation_contracts);
+        // An elaborated program must be checked on every run: its internal
+        // constructor names come from the check.
+        let elaborated = checked.constructor_elaboration.is_some();
+        if let Some(source_graph) = source_graph.filter(|_| !elaborated) {
             store_calculation_contract_cache(filename, use_prelude, source_graph, &contracts);
         }
-        contracts
+        (contracts, checked.constructor_elaboration.clone())
     };
     let source_dir = source_dir_for(filename);
     let contract =
@@ -2062,8 +2096,12 @@ fn run_calculation_command(
                     serde_json::to_string_pretty(&calculate::partial_result_json_schema(contract))
                         .expect("partial result schema is JSON")
                 }
+                "explanation" => {
+                    serde_json::to_string_pretty(&calculate::explanation_json_schema(contract))
+                        .expect("explanation schema is JSON")
+                }
                 format => {
-                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json or partial-result");
+                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json, partial-result or explanation");
                     std::process::exit(1);
                 }
             };
@@ -2118,9 +2156,28 @@ fn run_calculation_command(
             let input_format = calculation_format(None, Some(input_path), "json");
             let mut prepared = calculate::PreparedCalculation::new(
                 contract.clone(),
-                stmts.expect("calculation calls parse source").into(),
+                stmts.expect("calculation calls parse source"),
                 source_dir,
+                constructor_elaboration,
+            )
+            .with_root_file(
+                std::fs::canonicalize(filename)
+                    .unwrap_or_else(|_| std::path::PathBuf::from(filename)),
             );
+            let explain_options = explain.map(|full| calculate::ExplainOptions {
+                full,
+                root_file: Some(
+                    std::fs::canonicalize(filename)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(filename)),
+                ),
+                display_root: std::env::current_dir().ok(),
+            });
+            if explain_options.is_some()
+                && calculation_format(requested_format, output_path, "json") != "json"
+            {
+                eprintln!("error: --explain writes JSON only; an explanation has no TOML or workbook form");
+                std::process::exit(1);
+            }
             if let Some((mode, check)) = partial {
                 // A blank cell or an omitted TOML key cannot tell "none" from
                 // "not asked yet", so partial cases are JSON.
@@ -2133,10 +2190,16 @@ fn run_calculation_command(
                     eprintln!("error: cannot read calculation input: {}", error);
                     std::process::exit(1);
                 });
-                let result = if check {
-                    prepared.check_partial(&envelope)
-                } else {
-                    prepared.invoke_partial(&envelope, mode)
+                let result = match (&explain_options, check) {
+                    (Some(_), true) => {
+                        eprintln!("error: --explain does not combine with --partial=check; explain a --partial or --partial=strict call");
+                        std::process::exit(1);
+                    }
+                    (None, true) => prepared.check_partial(&envelope),
+                    (Some(options), false) => {
+                        prepared.invoke_partial_explained(&envelope, mode, options)
+                    }
+                    (None, false) => prepared.invoke_partial(&envelope, mode),
                 };
                 let document = serde_json::to_string_pretty(&result).expect("result is JSON");
                 write_calculation_text(&document, output_path);
@@ -2168,7 +2231,10 @@ fn run_calculation_command(
                 }
                 _ => calculation_unknown_format(&input_format),
             };
-            let mut result = prepared.invoke(&envelope);
+            let mut result = match &explain_options {
+                Some(options) => prepared.invoke_explained(&envelope, options),
+                None => prepared.invoke(&envelope),
+            };
             adapter_diagnostics.append(&mut result.diagnostics);
             result.diagnostics = adapter_diagnostics;
 
@@ -2245,16 +2311,19 @@ fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> Stri
     }
 }
 
-/// `runa sdk ts FILE --out DIR`: write the TypeScript SDK for every
-/// calculation entry of FILE.
+/// `runa sdk ts FILE --out DIR [--runtime PATH]`: write the TypeScript SDK
+/// for every calculation entry of FILE, and the runtime it imports at PATH
+/// (relative to DIR; `runtime.ts` unless given).
 fn run_sdk_command(args: &[String]) {
-    const USAGE: &str = "usage: runa sdk ts <file.calculate.runa> --out <dir>";
+    const USAGE: &str =
+        "usage: runa sdk ts <file.calculate.runa> --out <dir> [--runtime <path relative to dir>]";
     let fail = |message: &str| -> ! {
         eprintln!("error: {message}\n{USAGE}");
         std::process::exit(1);
     };
     let mut positional = Vec::new();
     let mut out_dir = None;
+    let mut runtime = None;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -2267,6 +2336,13 @@ fn run_sdk_command(args: &[String]) {
                 _ => fail("--out requires a directory"),
             },
             arg if arg.starts_with("--out=") => out_dir = Some(arg["--out=".len()..].to_string()),
+            "--runtime" => match rest.next() {
+                Some(path) if !path.starts_with('-') => runtime = Some(path.clone()),
+                _ => fail("--runtime requires a path"),
+            },
+            arg if arg.starts_with("--runtime=") => {
+                runtime = Some(arg["--runtime=".len()..].to_string())
+            }
             arg if arg.starts_with('-') => fail(&format!("unknown option `{arg}`")),
             arg => positional.push(arg),
         }
@@ -2292,20 +2368,26 @@ fn run_sdk_command(args: &[String]) {
             std::process::exit(1);
         });
     let stmts = prepend_prelude(parse_prelude(), &user_stmts);
-    let contracts = run_calculation_type_check(&stmts, &source, filename)
-        .unwrap_or_else(|| std::process::exit(1));
-    let files =
-        calculate::sdk_ts::generate_typescript_sdk(&contracts, filename).unwrap_or_else(|error| {
+    let contracts = run_type_check(&stmts, &source, filename)
+        .unwrap_or_else(|| std::process::exit(1))
+        .calculation_contracts;
+    let runtime = runtime
+        .as_deref()
+        .unwrap_or(calculate::sdk_ts::DEFAULT_RUNTIME_PATH);
+    let files = calculate::sdk_ts::generate_typescript_sdk(&contracts, filename, runtime)
+        .unwrap_or_else(|error| {
             eprintln!("error: {error}");
             std::process::exit(1);
         });
     let out_dir = Path::new(&out_dir);
-    if let Err(error) = std::fs::create_dir_all(out_dir) {
-        eprintln!("error: cannot create {}: {error}", out_dir.display());
-        std::process::exit(1);
-    }
     for file in &files {
-        let path = out_dir.join(file.name);
+        let path = out_dir.join(&file.name);
+        if let Some(parent) = path.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                eprintln!("error: cannot create {}: {error}", parent.display());
+                std::process::exit(1);
+            }
+        }
         if let Err(error) = write_file_if_changed(&path, file.contents.as_bytes()) {
             eprintln!("error: cannot write {}: {error}", path.display());
             std::process::exit(1);
@@ -2315,7 +2397,7 @@ fn run_sdk_command(args: &[String]) {
         "wrote {} for {} to {}",
         files
             .iter()
-            .map(|file| file.name)
+            .map(|file| file.name.as_str())
             .collect::<Vec<_>>()
             .join(", "),
         calculation_entry_names(&contracts),
@@ -5578,23 +5660,11 @@ fn compiler_validation_diagnostics(stmts: &[Stmt], source_dir: Option<String>) -
 }
 
 /// Run type checking and display any errors as structured diagnostics.
-/// Returns true if there were errors (and already printed them).
-fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
+/// Returns `None` if there were errors (and already printed them); otherwise
+/// the artifacts, whose [`TypeCheckArtifacts::program`] its consumers run.
+fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> Option<TypeCheckArtifacts> {
     let artifacts = type_check_artifacts(stmts, source, filename);
-    print_type_check_diagnostics(&artifacts.diagnostics, source, filename)
-}
-
-fn run_calculation_type_check(
-    stmts: &[Stmt],
-    source: &str,
-    filename: &str,
-) -> Option<Vec<calculate::CalculationContract>> {
-    let artifacts = type_check_artifacts(stmts, source, filename);
-    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
-        None
-    } else {
-        Some(artifacts.calculation_contracts)
-    }
+    (!print_type_check_diagnostics(&artifacts.diagnostics, source, filename)).then_some(artifacts)
 }
 
 fn type_check_artifacts(stmts: &[Stmt], source: &str, filename: &str) -> TypeCheckArtifacts {
@@ -5624,7 +5694,10 @@ fn type_check_artifacts_with_backend_metadata(
     if artifacts.diagnostics.is_empty() {
         artifacts
             .diagnostics
-            .extend(compiler_validation_diagnostics(stmts, source_dir));
+            .extend(compiler_validation_diagnostics(
+                artifacts.program(),
+                source_dir,
+            ));
     }
     artifacts
 }
@@ -5679,6 +5752,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            let stmts = type_check.program().clone();
 
             let mut cg = RustCodegen::new();
             cg.install_canonical_rule_metadata(&type_check);
@@ -5959,6 +6033,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            let stmts = type_check.program().clone();
 
             let mut validation_cg = RustCodegen::new();
             validation_cg.lib_mode = true;
@@ -6745,6 +6820,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            let stmts = artifacts.program().clone();
 
             // Evaluate
             let mut interp = Interpreter::new();
@@ -9170,6 +9246,9 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
                 }
             }
         }
+        Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+            names.insert(name.clone());
+        }
         Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
             names.insert(name.clone());
             names.extend(variants.iter().map(|variant| variant.name.clone()));
@@ -10958,6 +11037,7 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
     if print_type_check_diagnostics(&artifacts.diagnostics, &source, filename) {
         std::process::exit(TEST_FILE_FRONTEND_FAILURE);
     }
+    let stmts = artifacts.program().clone();
     let source_dir = Path::new(filename)
         .parent()
         .map(|parent| parent.to_string_lossy().to_string());
@@ -17732,6 +17812,7 @@ fn audit_calculation_reachability_source(
     if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         std::process::exit(1);
     }
+    let stmts = artifacts.program().clone();
     // A file without a calculation has no entry closure: its JSON report
     // keeps the same shape, with the entry sections null, and audits the
     // families with a clause in the file.
@@ -17902,6 +17983,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         );
         std::process::exit(1);
     }
+    let stmts = frontend.program().clone();
 
     // An audit inspects the model: it registers declarations and evaluates
     // bindings and rules, but never runs top-level statements (effects,
@@ -17919,7 +18001,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
     let mut env = interp.default_env();
 
     let audit_stmts: Vec<Stmt> = stmts
-        .into_iter()
+        .iter()
         .filter(|s| {
             !matches!(
                 s,
@@ -17931,6 +18013,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
                     | Stmt::Prove { .. }
             )
         })
+        .cloned()
         .collect();
     if let Err(diagnostic) =
         interp.run_program_with_diagnostics(&audit_stmts, &mut env, Path::new(filename), source)
@@ -19062,20 +19145,19 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     } else {
         stmts.clone()
     };
-    if print_type_check_diagnostics(
-        &type_check_artifacts(&checked_stmts, source, filename).diagnostics,
-        source,
-        filename,
-    ) {
+    let checked = type_check_artifacts(&checked_stmts, source, filename);
+    if print_type_check_diagnostics(&checked.diagnostics, source, filename) {
         eprintln!("runa --verify: verification requires a type-correct program");
         std::process::exit(1);
     }
     drop(checked_stmts);
+    // The solver reads the authored statements, which follow the prelude.
+    let stmts = checked.authored_program(stmts.len());
 
     // Imported declarations precede local declarations, matching interpreter
     // and codegen registration. Rule groups intentionally compose across this
     // graph, so a local exception can override an imported base clause.
-    let resolved_program = match resolve_smt_program(&stmts, filename) {
+    let resolved_program = match resolve_smt_program(stmts, filename) {
         Ok(program) => program,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
@@ -19089,13 +19171,16 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             std::process::exit(1);
         }
     };
-    let all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
+    let mut all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
         Ok((statements, _)) => statements,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
             std::process::exit(1);
         }
     };
+    // A unit of measure is an Int to the solver; the checker above has kept
+    // the units apart.
+    erase_unit_types(&mut all_stmts);
     let type_artifacts = TypeChecker::check_with_artifacts(
         &if use_prelude {
             prepend_prelude(parse_prelude(), &all_stmts)
@@ -19228,7 +19313,6 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
     let partial_dispatches = rule_lowerer.partial_dispatches.borrow().clone();
     let mut dispatch_gaps: BTreeMap<RuleDispatchKey, runa_rule_reachability::DispatchGap> =
         BTreeMap::new();
-    let mut audit_stmts: Option<Vec<Stmt>> = None;
     let mut print_dispatch_gaps = |reason: &str| {
         let keys = partial_dispatches
             .iter()
@@ -19236,13 +19320,7 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             .flat_map(|(_, keys)| keys)
             .collect::<BTreeSet<_>>();
         for key in keys {
-            let statements = audit_stmts.get_or_insert_with(|| {
-                if use_prelude {
-                    prepend_prelude(parse_prelude(), &stmts)
-                } else {
-                    stmts.clone()
-                }
-            });
+            let statements = checked.program();
             let gap = dispatch_gaps.entry(key.clone()).or_insert_with(|| {
                 runa_rule_reachability::dispatch_gap(statements, filename, source, key)
             });
@@ -19930,6 +20008,7 @@ fn check_source(
                 return;
             }
 
+            let stmts = type_check.program().clone();
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             cg.source_dir = source_dir_for(filename);
@@ -20362,9 +20441,10 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
             };
 
             // Run type check
-            if run_type_check(&stmts, source, filename) {
+            let Some(type_check) = run_type_check(&stmts, source, filename) else {
                 std::process::exit(1);
-            }
+            };
+            let stmts = type_check.program();
 
             // Scan declarations to populate TypeRegistry (without emitting Rust)
             let mut cg = RustCodegen::new();
@@ -20490,9 +20570,10 @@ fn emit_import_normalization_source(source: &str, filename: &str, use_prelude: b
                 user_stmts
             };
 
-            if run_type_check(&stmts, source, filename) {
+            let Some(type_check) = run_type_check(&stmts, source, filename) else {
                 std::process::exit(1);
-            }
+            };
+            let stmts = type_check.program();
 
             let mut cg = RustCodegen::new();
             cg.source_dir = source_dir_for(filename);
@@ -20528,6 +20609,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
+            let stmts = type_check.program().clone();
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
@@ -25727,6 +25809,14 @@ enum StaticRuleParamRelation {
     UnsupportedStructuralAbi,
 }
 
+/// The Rust identifier of constructor `name` in its enum. Codegen looks a
+/// shared constructor up by its internal name (`AskYearEvent__Trade`); the
+/// enum declares the variant under the name its type wrote, so every
+/// variant path, pattern and constructor reads `AskYearEvent::Trade`.
+fn rust_variant_name(name: &str) -> std::borrow::Cow<'_, str> {
+    constructor_display_name(name)
+}
+
 #[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
@@ -26378,7 +26468,7 @@ impl TypeRegistry {
         if self.struct_types.contains(parent) {
             variant.to_string()
         } else {
-            format!("{}::{}", parent, variant)
+            format!("{}::{}", parent, rust_variant_name(variant))
         }
     }
 }
@@ -29565,9 +29655,16 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                         format!("{} {{ {} }}", parent, named_args.join(", "))
                     }
                 }
-                Some(parent) if args.is_empty() => format!("{}::{}", parent, name),
+                Some(parent) if args.is_empty() => {
+                    format!("{}::{}", parent, rust_variant_name(name))
+                }
                 Some(parent) if types.variant_positional_for_parent(&parent, name) => {
-                    format!("{}::{}({})", parent, name, arg_strs.join(", "))
+                    format!(
+                        "{}::{}({})",
+                        parent,
+                        rust_variant_name(name),
+                        arg_strs.join(", ")
+                    )
                 }
                 Some(parent) => {
                     let fields = types.variant_fields_for_parent(&parent, name);
@@ -29582,7 +29679,12 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                             format!("{}: {}", field, arg)
                         })
                         .collect::<Vec<_>>();
-                    format!("{}::{} {{ {} }}", parent, name, named_args.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        named_args.join(", ")
+                    )
                 }
                 None if args.is_empty() => name.clone(),
                 None => format!("{}({})", name, arg_strs.join(", ")),
@@ -29614,7 +29716,12 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                     format!("{} {{ {} }}", parent, field_strs.join(", "))
                 }
                 Some(parent) => {
-                    format!("{}::{} {{ {} }}", parent, name, field_strs.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        field_strs.join(", ")
+                    )
                 }
                 None => format!("{} {{ {} }}", name, field_strs.join(", ")),
             }
@@ -31816,13 +31923,37 @@ impl RustCodegen {
         // Definition ABIs and exact-call consumability deliberately differ:
         // an intrinsically partial but type-consistent rule can still be
         // emitted, while Explore/SMT must not consume it as a total call.
-        self.canonical_rule_return_types = artifacts.rule_dispatch_backend_return_types.clone();
+        // Generated Rust erases units of measure, so the metadata names the
+        // same `Int` representations as the program it is emitted with.
+        let erase = |type_name: &String| artifacts.erase_unit_type_name(type_name);
+        self.canonical_rule_return_types = artifacts
+            .rule_dispatch_backend_return_types
+            .iter()
+            .map(|(key, result)| (key.clone(), erase(result)))
+            .collect();
         self.canonical_rule_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
-        self.inferred_function_return_types = artifacts.function_inferred_return_types.clone();
-        self.module_inferred_function_return_types =
-            artifacts.module_function_inferred_return_types.clone();
+        self.inferred_function_return_types = artifacts
+            .function_inferred_return_types
+            .iter()
+            .map(|(key, result)| (key.clone(), erase(result)))
+            .collect();
+        self.module_inferred_function_return_types = artifacts
+            .module_function_inferred_return_types
+            .iter()
+            .map(|(key, result)| (key.clone(), erase(result)))
+            .collect();
         self.inferred_function_return_issues = artifacts.function_inferred_return_issues.clone();
-        self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
+        self.canonical_rule_parameter_types = artifacts
+            .rule_dispatch_parameter_types
+            .iter()
+            .map(|(key, parameters)| {
+                let parameters = parameters
+                    .iter()
+                    .map(|parameter| parameter.as_ref().map(erase))
+                    .collect();
+                (key.clone(), parameters)
+            })
+            .collect();
         self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
         self.canonical_rule_parameter_issues = artifacts.rule_dispatch_parameter_issues.clone();
         self.runtime_rule_boolean_miss_keys =
@@ -31997,6 +32128,7 @@ impl RustCodegen {
                     variants: vec![variant],
                     methods: vec![],
                     except_from: None,
+                    field_meta: None,
                 }
             }
             "enum" => {
@@ -32036,6 +32168,7 @@ impl RustCodegen {
                     variants,
                     methods: vec![],
                     except_from: None,
+                    field_meta: None,
                 }
             }
             _ => {
@@ -32051,6 +32184,7 @@ impl RustCodegen {
                     }],
                     methods: vec![],
                     except_from: None,
+                    field_meta: None,
                 }
             }
         }
@@ -32195,10 +32329,18 @@ impl RustCodegen {
                         (format!("{}({})", name, items.join(", ")), parent_ty.clone())
                     }
                 } else if args.is_empty() {
-                    (format!("{}::{}", parent_ty, name), parent_ty.clone())
+                    (
+                        format!("{}::{}", parent_ty, rust_variant_name(name)),
+                        parent_ty.clone(),
+                    )
                 } else {
                     (
-                        format!("{}::{}({})", parent_ty, name, items.join(", ")),
+                        format!(
+                            "{}::{}({})",
+                            parent_ty,
+                            rust_variant_name(name),
+                            items.join(", ")
+                        ),
                         parent_ty.clone(),
                     )
                 }
@@ -32212,7 +32354,7 @@ impl RustCodegen {
                 let qualified = if parent_ty.is_empty() || parent_ty == *name {
                     name.clone() // Struct type (parent == name) or unknown
                 } else {
-                    format!("{}::{}", parent_ty, name) // Enum variant
+                    format!("{}::{}", parent_ty, rust_variant_name(name)) // Enum variant
                 };
                 if fields.is_empty() {
                     (
@@ -32439,7 +32581,9 @@ impl RustCodegen {
                         exported.insert(name.clone());
                         exported.extend(variants.iter().map(|variant| variant.name.clone()));
                     }
-                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    Stmt::TypeDecl(
+                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                    ) => {
                         exported.insert(name.clone());
                     }
                     Stmt::Rule(rule) => {
@@ -32900,6 +33044,9 @@ impl RustCodegen {
                     .and_then(|result| parse_type_annotation(result).ok());
             }
         }
+        // Units of measure are `Int` in generated Rust; the checker has
+        // already kept them apart.
+        erase_unit_types(&mut all_stmts);
 
         self.types.module_value_bindings.clear();
         self.types.module_stream_bindings.clear();
@@ -32964,7 +33111,9 @@ impl RustCodegen {
                                 self.types.root_exported_names.insert(variant.name.clone());
                             }
                         }
-                        Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                        Stmt::TypeDecl(
+                            TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                        ) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
                         }
@@ -34946,7 +35095,7 @@ impl RustCodegen {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::RustBlock(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
                 | Stmt::Explore(_) => {}
@@ -35387,7 +35536,7 @@ impl RustCodegen {
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
-            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
             | Stmt::Explore(_) => {}
         }
     }
@@ -40461,6 +40610,7 @@ fn __futuruna_install_error_hook() {
                 variants,
                 methods,
                 except_from: _,
+                ..
             } => {
                 if variants.is_empty() {
                     return format!("// type {} (opaque)\n", name);
@@ -40579,8 +40729,9 @@ fn __futuruna_install_error_hook() {
                         } else {
                             ""
                         };
+                        let variant = rust_variant_name(&v.name);
                         if v.fields.is_empty() {
-                            out.push_str(&format!("{}    {},\n", default_attr, v.name));
+                            out.push_str(&format!("{}    {},\n", default_attr, variant));
                         } else if v.positional {
                             // Positional → Rust tuple variant
                             let fields_str: Vec<String> = v
@@ -40595,10 +40746,10 @@ fn __futuruna_install_error_hook() {
                                     }
                                 })
                                 .collect();
-                            out.push_str(&format!("    {}({}),\n", v.name, fields_str.join(", ")));
+                            out.push_str(&format!("    {}({}),\n", variant, fields_str.join(", ")));
                         } else {
                             // Named → Rust struct variant
-                            out.push_str(&format!("    {} {{\n", v.name));
+                            out.push_str(&format!("    {} {{\n", variant));
                             for f in &v.fields {
                                 let base = self.emit_type_with_params(&f.ty, params);
                                 let ty_str = if self.type_references_adt(&f.ty, name) {
@@ -40624,7 +40775,7 @@ fn __futuruna_install_error_hook() {
                     let head = if is_struct {
                         "Self".to_string()
                     } else {
-                        format!("Self::{}", v.name)
+                        format!("Self::{}", rust_variant_name(&v.name))
                     };
                     let pattern = if v.fields.is_empty() {
                         if is_struct && !v.positional {
@@ -40651,7 +40802,8 @@ fn __futuruna_install_error_hook() {
                     if is_struct {
                         name.clone()
                     } else {
-                        v.name.clone()
+                        // A shared constructor shows the name it was declared with.
+                        constructor_display_name(&v.name).into_owned()
                     }
                 };
                 // `Nil`/`Cons(head, tail)` values display and order as lists.
@@ -40887,6 +41039,15 @@ fn __futuruna_install_error_hook() {
             }
             TypeDecl::RuleScope { name, params, body } => {
                 self.emit_rule_scope_decl(name, params, body)
+            }
+            // A unit is `Int`: values are i64 and conversions are erased.
+            TypeDecl::Unit {
+                name, description, ..
+            } => {
+                format!(
+                    "/// {}\n#[allow(dead_code)]\npub type {name} = i64;\n",
+                    description.replace(['\n', '\r'], " ")
+                )
             }
             TypeDecl::EffectDecl { name, ops } => {
                 // Emit effect as a trait — each operation becomes a method
@@ -43016,14 +43177,14 @@ fn __futuruna_install_error_hook() {
                     let owner = if is_struct {
                         parent
                     } else {
-                        format!("{parent}::{constructor}")
+                        format!("{parent}::{}", rust_variant_name(&constructor))
                     };
                     Ok(format!("{owner}({})", patterns.join(", ")))
                 } else {
                     let owner = if is_struct {
                         parent
                     } else {
-                        format!("{parent}::{constructor}")
+                        format!("{parent}::{}", rust_variant_name(&constructor))
                     };
                     let fields = fields
                         .iter()
@@ -44448,7 +44609,7 @@ fn __futuruna_install_error_hook() {
                     if let Some(variant_names) = self.finite_nullary_variants(&type_name) {
                         let items: Vec<String> = variant_names
                             .iter()
-                            .map(|variant| format!("{}::{}", type_name, variant))
+                            .map(|variant| format!("{}::{}", type_name, rust_variant_name(variant)))
                             .collect();
                         let call_args: Vec<String> = goal_args
                             .iter()
@@ -50595,7 +50756,11 @@ fn __futuruna_install_error_hook() {
         let constructor_path = if metadata.struct_type {
             parent_path
         } else {
-            format!("{}::{}", parent_path, sanitize_name(constructor))
+            format!(
+                "{}::{}",
+                parent_path,
+                sanitize_name(&rust_variant_name(constructor))
+            )
         };
         if metadata.positional {
             Some(format!("{}({})", constructor_path, emitted_args.join(", ")))
@@ -52439,7 +52604,12 @@ fn __futuruna_install_error_hook() {
                             if is_struct_type {
                                 return format!("{}({})", parent, wrapped.join(", "));
                             } else {
-                                return format!("{}::{}({})", parent, name, wrapped.join(", "));
+                                return format!(
+                                    "{}::{}({})",
+                                    parent,
+                                    rust_variant_name(name),
+                                    wrapped.join(", ")
+                                );
                             }
                         } else {
                             // Named/struct variant
@@ -52458,7 +52628,12 @@ fn __futuruna_install_error_hook() {
                             if is_struct_type {
                                 return format!("{} {{ {} }}", parent, pairs.join(", "));
                             } else {
-                                return format!("{}::{} {{ {} }}", parent, name, pairs.join(", "));
+                                return format!(
+                                    "{}::{} {{ {} }}",
+                                    parent,
+                                    rust_variant_name(name),
+                                    pairs.join(", ")
+                                );
                             }
                         }
                     }
@@ -53262,7 +53437,7 @@ fn __futuruna_install_error_hook() {
                                 arms.push(format!(
                                     "{}::{} {{ {}: ref __f, .. }} => {}",
                                     type_name,
-                                    sanitize_name(&constructor),
+                                    sanitize_name(&rust_variant_name(&constructor)),
                                     sanitize_name(field),
                                     clone_expr
                                 ));
@@ -53366,7 +53541,10 @@ fn __futuruna_install_error_hook() {
                                 };
                                 arms.push(format!(
                                     "{}::{} {{ {}: ref __f, .. }} => {}",
-                                    parent_name, variant_name, field, clone_expr
+                                    parent_name,
+                                    rust_variant_name(variant_name),
+                                    field,
+                                    clone_expr
                                 ));
                             }
                         }
@@ -55581,7 +55759,7 @@ fn __futuruna_install_error_hook() {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::Explore(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
                     self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
                 }
@@ -56036,15 +56214,15 @@ fn __futuruna_install_error_hook() {
             if is_struct_type {
                 return name.to_string();
             }
-            return format!("{}::{}", parent, name);
+            return format!("{}::{}", parent, rust_variant_name(name));
         }
 
         let is_pos = self.types.variant_positional_for_parent(&parent, name);
         match (is_struct_type, is_pos) {
             (true, true) => format!("{}(..)", parent),
             (true, false) => format!("{} {{ .. }}", parent),
-            (false, true) => format!("{}::{}(..)", parent, name),
-            (false, false) => format!("{}::{} {{ .. }}", parent, name),
+            (false, true) => format!("{}::{}(..)", parent, rust_variant_name(name)),
+            (false, false) => format!("{}::{} {{ .. }}", parent, rust_variant_name(name)),
         }
     }
 
@@ -56144,7 +56322,7 @@ fn __futuruna_install_error_hook() {
             Pat::Wild => "_".to_string(),
             Pat::Con(name, args) if args.is_empty() => {
                 let parent = self.find_parent_type(name);
-                format!("{}::{}", parent, name)
+                format!("{}::{}", parent, rust_variant_name(name))
             }
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
@@ -56156,7 +56334,7 @@ fn __futuruna_install_error_hook() {
                     .unwrap_or(true);
                 let ps: Vec<String> = args.iter().map(|p| self.emit_pattern_binding(p)).collect();
                 if is_pos {
-                    format!("{}::{}({})", parent, name, ps.join(", "))
+                    format!("{}::{}({})", parent, rust_variant_name(name), ps.join(", "))
                 } else {
                     // Named variant: destructure with field names
                     let fields = self.types.variant_fields.get(name.as_str());
@@ -56171,7 +56349,12 @@ fn __futuruna_install_error_hook() {
                             format!("{}: {}", fname, p)
                         })
                         .collect();
-                    format!("{}::{} {{ {} }}", parent, name, named_ps.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        named_ps.join(", ")
+                    )
                 }
             }
             Pat::NamedCon(name, named_args) => {
@@ -56180,7 +56363,12 @@ fn __futuruna_install_error_hook() {
                     .iter()
                     .map(|(fname, p)| format!("{}: {}", fname, self.emit_pattern_binding(p)))
                     .collect();
-                format!("{}::{} {{ {} }}", parent, name, ps.join(", "))
+                format!(
+                    "{}::{} {{ {} }}",
+                    parent,
+                    rust_variant_name(name),
+                    ps.join(", ")
+                )
             }
             Pat::Lit(lit) => self.emit_literal(lit),
             Pat::As(inner, name) => {
@@ -56230,7 +56418,7 @@ fn __futuruna_install_error_hook() {
                 if self.types.struct_types.contains(&parent) {
                     name.clone()
                 } else {
-                    format!("{}::{}", parent, name)
+                    format!("{}::{}", parent, rust_variant_name(name))
                 }
             }
             Pat::Con(name, args) => {
@@ -56288,7 +56476,7 @@ fn __futuruna_install_error_hook() {
                     if is_struct_type {
                         format!("{}({})", parent, ps.join(", "))
                     } else {
-                        format!("{}::{}({})", parent, name, ps.join(", "))
+                        format!("{}::{}({})", parent, rust_variant_name(name), ps.join(", "))
                     }
                 } else {
                     let fields = self.types.variant_fields_for_parent(&parent, name);
@@ -56306,7 +56494,12 @@ fn __futuruna_install_error_hook() {
                     if is_struct_type {
                         format!("{} {{ {} }}", parent, named_ps.join(", "))
                     } else {
-                        format!("{}::{} {{ {} }}", parent, name, named_ps.join(", "))
+                        format!(
+                            "{}::{} {{ {} }}",
+                            parent,
+                            rust_variant_name(name),
+                            named_ps.join(", ")
+                        )
                     }
                 }
             }
@@ -56376,7 +56569,12 @@ fn __futuruna_install_error_hook() {
                 if is_struct_type {
                     format!("{} {{ {} }}", parent, ps.join(", "))
                 } else {
-                    format!("{}::{} {{ {} }}", parent, name, ps.join(", "))
+                    format!(
+                        "{}::{} {{ {} }}",
+                        parent,
+                        rust_variant_name(name),
+                        ps.join(", ")
+                    )
                 }
             }
             Pat::Lit(lit) => self.emit_literal(lit),
@@ -56433,7 +56631,9 @@ fn __futuruna_install_error_hook() {
                     let parent = self.find_parent_type(sub_name);
                     guards.push(format!(
                         "matches!({}, {}::{})",
-                        deref_expr, parent, sub_name
+                        deref_expr,
+                        parent,
+                        rust_variant_name(sub_name)
                     ));
                 }
                 Pat::Con(sub_name, _) => {
@@ -56447,12 +56647,16 @@ fn __futuruna_install_error_hook() {
                     if is_positional {
                         guards.push(format!(
                             "matches!({}, {}::{}(..))",
-                            deref_expr, parent, sub_name
+                            deref_expr,
+                            parent,
+                            rust_variant_name(sub_name)
                         ));
                     } else {
                         guards.push(format!(
                             "matches!({}, {}::{} {{ .. }})",
-                            deref_expr, parent, sub_name
+                            deref_expr,
+                            parent,
+                            rust_variant_name(sub_name)
                         ));
                     }
                 }
@@ -56460,7 +56664,9 @@ fn __futuruna_install_error_hook() {
                     let parent = self.find_parent_type(sub_name);
                     guards.push(format!(
                         "matches!({}, {}::{} {{ .. }})",
-                        deref_expr, parent, sub_name
+                        deref_expr,
+                        parent,
+                        rust_variant_name(sub_name)
                     ));
                 }
                 _ => {}
@@ -56651,8 +56857,10 @@ mod tests {
             input: calculate::CalculationTypeRef::Unit,
             output: calculate::CalculationTypeRef::Primitive {
                 name: "String".to_string(),
+                unit: None,
             },
             definitions: Vec::new(),
+            units: Vec::new(),
             metadata: Vec::new(),
             field_metadata: Vec::new(),
             schema_hash: "test-schema-hash".to_string(),
@@ -56667,6 +56875,7 @@ mod tests {
             results: vec![calculate::CalculationResultCase {
                 case_id: "case-1".to_string(),
                 result: serde_json::Value::String(long_value.clone()),
+                explanation: None,
             }],
             diagnostics: Vec::new(),
         };
@@ -58324,6 +58533,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     body: owned_expr("adt_method_body"),
                 }],
                 except_from: None,
+                field_meta: None,
             }),
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name: "WhenCarrier".to_string(),
@@ -59096,6 +59306,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
+            TypeDecl::Unit { .. } => "Unit",
         }
     }
 
@@ -59151,6 +59362,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                         body: coverage_expr("adt_method_body"),
                     }],
                     except_from: None,
+                    field_meta: None,
                 }),
                 ownership_markers: vec!["adt_method_body"],
                 import_expansion: retained,
@@ -59171,6 +59383,16 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
                     name: "EffectVisit".to_string(),
                     ops: vec![("op".to_string(), vec![], None)],
+                }),
+                ownership_markers: vec![],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::Unit",
+                stmt: Stmt::TypeDecl(TypeDecl::Unit {
+                    name: "UnitVisit".to_string(),
+                    description: "units of a visit".to_string(),
+                    scale: None,
                 }),
                 ownership_markers: vec![],
                 import_expansion: retained,
@@ -59719,6 +59941,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "TraitDecl",
             "ImplBlock",
             "RuleScope",
+            "Unit",
         ]
         .into_iter()
         .collect();
@@ -60506,6 +60729,20 @@ match stmt {
                     .join(" | ");
                 out.push_str(&format!("{}when-type {} = {}\n", pad, name, variants));
             }
+            Stmt::TypeDecl(TypeDecl::Unit {
+                name,
+                description,
+                scale,
+            }) => {
+                let scale = scale
+                    .as_ref()
+                    .map(|scale| format!(" = {scale}"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "{}unit {} {:?}{}\n",
+                    pad, name, description, scale
+                ));
+            }
             Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                 out.push_str(&format!("{}effect {}/{}\n", pad, name, ops.len()));
             }
@@ -61198,6 +61435,7 @@ module Local
                 variants: vec![],
                 methods: vec![],
                 except_from: None,
+                field_meta: None,
             }),
             Stmt::Rule(Rule::Clause {
                 head: ExprKind::Var("allowed".to_string()).into(),

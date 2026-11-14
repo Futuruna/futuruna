@@ -3,8 +3,10 @@ feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
   - typed-calculation-contracts
+  - calculation-field-declarations
   - rust-escape-hatches
   - exploratory-audit-tooling
+  - unit-types
 ---
 
 # The Seven Runes
@@ -54,6 +56,8 @@ the prelude. Their constructors (`None`, `Some`, `Ok`, `Err`), `Pair`, and the
 built-in list constructors `Nil` and `Cons` belong to those types: another type
 may not declare a variant with one of these names. A variant may also not reuse
 a built-in type name such as `Int` or `String`; Futuruna has no type aliases.
+To give a whole number a domain meaning such as an amount in øre, declare a
+[unit](#unit) instead.
 
 A field of a multi-variant type can be read directly only when every variant
 declares it with the same type. Otherwise, match on the variant first. Inside
@@ -101,6 +105,104 @@ called the same way:
   type has a `fee` method; `Case(1).fee()` still calls the method of `Case`.
 - A free call whose first argument's type has no such method is a runtime
   error naming the method and the type.
+
+### Unit
+
+Experimental. `# unit Name "description"` declares a unit of measure for
+whole numbers. The description says what the unit counts; the calculation
+contract repeats it wherever a field has the unit. `= Base / n` declares its
+scale: `n` of the unit make one `Base`.
+
+```runa
+# unit Ore "DKK øre" = DKK / 100
+# unit MicroDkk "millionths of a krone" = DKK / 1000000
+# unit Micro "millionths of a share or unit" = 1 / 1000000
+# Account(name: String, balance: Ore)
+
+> market_value(quantity: Micro, price: Ore) -> Ore {
+    price * (Int(quantity) / 1000000) + price * (Int(quantity) % 1000000) / 1000000
+}
+
+> total(accounts: List(Account)) -> Ore {
+    foldl(accounts, 0, |acc, a| acc + a.balance)
+}
+
+= fee: Ore = Ore(250)
+= accounts = [Account(name = "a", balance = 10000), Account(name = "b", balance = 2500)]
+@ print(show(Int(total(accounts) - fee))) -- 12250
+@ print(show(market_value(Micro(1500000), 200))) -- 300
+@ print(show(to_nearest(Ore, MicroDkk(1235000)))) -- 124
+@ print(show(to(MicroDkk, fee))) -- 2500000
+```
+
+`unit` is contextual: it is an ordinary name everywhere else, and there is no
+Danish keyword for it. A unit may not reuse a built-in type name or the name of
+a declared type or constructor. Units exist for `Int` only; there are no
+`Float` units.
+
+For a unit `U`, another unit `V` and a plain `Int` value `n`:
+
+| Expression | Type |
+|---|---|
+| `U + U`, `U - U`, `U % U`, `-U` | `U` |
+| `U * n`, `n * U`, `U / n`, `U % n` | `U` |
+| `U / U` | `Int` (a ratio) |
+| `U` compared with `U` | `Bool` |
+| `U * U`, `n / U`, `n % U` | error: no squared or inverse units |
+| `U` with `V` in any operator | error |
+| `U + n`, `U - n`, `U` compared with `n` | error |
+
+A number written in the source (`0`, `-5`, `100 * 100`) has no unit of its own:
+it takes the unit its place requires. `amount > 0`, `amount + 100`, an `Ore`
+field given `0`, a function returning `0` for `-> Ore`,
+`if c { 0 } else { amount }`, a match arm `| None -> 0` beside an `Ore` arm,
+and `= amounts: List(Ore) = [0, 100]` need no conversion. A named value has the
+unit it was given: `= counts = [0, 1]` is a `List(Int)`, so passing an element
+to an `Ore` parameter is an error.
+
+The parameter of a callback given to `map`, `filter`, `foldl` and the other
+collection functions has the type of the collection's elements, so a mistake
+inside the callback is caught as it would be outside:
+`map(prices, |p| Out(price_ore = p.price_micro))` is an error when the two
+fields have different units.
+
+`Ore(n)` gives a plain `Int` the unit and `Int(amount)` takes it off; both leave
+the value unchanged. `Ore(x)` of a value in another unit is an error.
+
+The base of a scale is a name of its own (a currency code such as `DKK`, or
+another quantity) or `1` for a plain number; it is never a declared type or
+unit, so every unit of one base names the base itself. Two units of one base
+convert when one scale is a whole multiple of the other: `to(MicroDkk, fee)`
+multiplies exactly, and a conversion that divides names its rounding:
+`to_nearest(Ore, m)` (halves away from zero), `to_floor`, `to_ceiling` or
+`to_toward_zero`. `to(Ore, m)` is an error that lists the roundings, and a
+rounding name on a conversion that multiplies is an error, so the rounding
+written is always the one that happens. A conversion between units of
+different bases, or from a unit without a scale, is a rule of the model: a
+function that uses `Int(...)` and the unit, as `market_value` does above. A
+program that declares its own `to` (or `to_nearest`, ...) keeps it.
+
+`abs`, `min_int`, `max_int`, `clamp`, `sum` and `sum_list` keep the unit of
+their arguments, and every argument must have the same unit. `foldl`'s
+accumulator has the type of its start value. A start written as a number takes
+the unit its step brings in: above, `acc + a.balance` makes the accumulator
+`Ore`. When the step brings in no unit (`n + 1`), the accumulator is a plain
+`Int`, so a step that adds two different units is an error; write
+`foldl(xs, Ore(0), ...)` to start from a unit explicitly. A closure bound to a
+name (`= f = |x| x + fee`) is checked again at each call with its argument
+types: `f(quantity)` adds `Micro` to `Ore` and is an error. `[a] == [m]` and
+`Some(a) == Some(m)` compare different units and are errors. A rule family
+may mix literal clauses with unit clauses: `| fee(x: Ore) -> 0 under x < 100`
+beside `| fee(x: Ore) -> x / 10` gives `fee` the type `Ore`.
+
+A unit value is an `Int` everywhere outside the checker: the interpreter,
+`runa call` JSON, `runa verify` and generated Rust (which declares
+`pub type Ore = i64;`) see plain `Int`, and each `to...` conversion is the
+`Int` arithmetic it stands for. In a `runa schema` contract a unit-typed field
+keeps the type `{"kind": "primitive", "name": "Int"}` and gains
+`"unit": "Ore"`, and the contract lists its units with their descriptions and
+scales; see [Calculations](calculations.md#unit-types). See also
+[the design](../rfcs/unit-types.md).
 
 ### Product types with rule members
 ```runa
@@ -565,9 +667,14 @@ Top-level plain imports form one merged declaration scope. They are resolved
 in import order before the importing file's declarations, regardless of where
 the directives appear. Imported functions override injected prelude defaults;
 local functions override imported functions. A local type declaration likewise
-replaces an imported type with the same name, including its constructors. A
-constructor name belongs to one sum type: declaring it in two different types
-visible in one scope is a checker error that names both types.
+replaces an imported type with the same name, including its constructors.
+Two types in the merged scope may declare the same constructor name. A use of
+such a name takes its owner from the type the context expects (a pattern from
+the matched value, an argument, field or result from its declared type, one
+side of `==` from the other side), or names it as `Type.Constructor` in an
+expression or a pattern. A shared name with no expected type is an error that
+names both types; the owner is never chosen by arity or fields. Types inside
+one inline module keep distinct constructor names.
 Imported initializers and later
 calls use that same final function and rule context. Unique bindings across the
 merged scope follow the dependency order described above. A canonical source
@@ -623,6 +730,24 @@ Marks one typed rule or function as a discoverable calculation boundary for
 an effect or change rule semantics. Its optional single string labels the whole
 calculation; nested input labels and questions remain field metadata. See
 [calculations.md](calculations.md).
+
+### Field (calculation field metadata)
+```runa
+@ field(label = "Filing status")
+# FilingStatus = Single | Joint
+
+# TaxInput(
+    @ field(label = "Monthly income", question = "What do you earn before tax each month?", unit = "DKK")
+    monthly_income: Int,
+    status: FilingStatus
+)
+```
+
+Gives a calculation input field its label, question, help, unit, sources and
+providing entry. Before a named field it describes that field wherever its type
+is used; before a `#` data type it describes every input field of that type.
+It does not change the type. See
+[calculations.md](calculations.md#describe-human-input).
 
 ### Comptime (compile-time evaluation)
 ```runa

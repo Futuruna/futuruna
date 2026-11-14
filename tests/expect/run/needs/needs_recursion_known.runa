@@ -1,0 +1,33 @@
+-- A recursion whose own conditions are known runs under an outer unknown
+-- condition as it does in every completion: only a recursion that depends on
+-- an unknown condition is cut. The function over its result still runs, so
+-- the fact it reads is a need together with the unknown amount, not hidden
+-- behind it.
+-- expect-command: call
+-- expect-input: needs_recursion_known.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_recursion_known.stdout
+
+# Account(id: String, opening_ore: Int)
+# Case(owner_liable: Bool, accounts: List(Account))
+# Outcome = Rejected(total: Int) | Checked(issues: Int, total: Int)
+
+> in_order(accounts: List(Account)) -> List(Account) {
+    if length(accounts) == 0 { [] } else { concat([head(accounts)], in_order(tail(accounts))) }
+}
+
+> account_issue(liable: Bool, a: Account) -> List(String) {
+    if liable { [] } else { [a.id] }
+}
+
+> outcome(c: Case) -> Outcome {
+    = total = foldl(map(c.accounts, |a| a.opening_ore), 0, |sum, x| sum + x)
+    if total < 0 {
+        Rejected(total = total)
+    } else {
+        Checked(issues = length(flat_map(in_order(c.accounts), |a| account_issue(c.owner_liable, a))), total = total)
+    }
+}
+
+@ calculate
+| needs_recursion_known(c: Case) -> outcome(c)

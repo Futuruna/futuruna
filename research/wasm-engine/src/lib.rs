@@ -15,11 +15,11 @@
 
 use futuruna::calculate::{self, CalculationInputEnvelope, PreparedCalculation};
 use futuruna::{
-    parse_prelude, prepend_prelude, provide_source_files, Lexer, Parser, Stmt, TypeChecker,
+    parse_prelude, prepend_prelude, provide_source_files, with_constructor_elaboration, Lexer,
+    Parser, TypeChecker,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 /// Every model file is placed under this directory, so imports resolve
@@ -47,6 +47,8 @@ fn report_panics() {
 pub struct Model {
     files: Vec<(PathBuf, String)>,
     entries: Vec<PreparedCalculation>,
+    /// The root file, as the interpreter sees it (`/model/<main>`).
+    main: PathBuf,
 }
 
 #[wasm_bindgen]
@@ -75,6 +77,7 @@ impl Model {
         provide_source_files(files.iter().cloned());
 
         let user_statements = Parser::new(Lexer::new(&main_source).tokenize(), &main_source)
+            .with_source_path(&root.join(main))
             .parse_program()
             .map_err(|error| format!("{main}: {error:?}"))?;
         let statements = prepend_prelude(parse_prelude(), &user_statements);
@@ -82,8 +85,11 @@ impl Model {
             .join(main)
             .parent()
             .map(|dir| dir.to_string_lossy().into_owned());
-        let artifacts =
-            TypeChecker::check_with_artifacts(&statements, source_dir.clone(), &main_source);
+        // The check starts from no other model's constructor names and leaves
+        // its own with this model alone: each entry runs under them.
+        let artifacts = with_constructor_elaboration(None, || {
+            TypeChecker::check_with_artifacts(&statements, source_dir.clone(), &main_source)
+        });
         if !artifacts.diagnostics.is_empty() {
             let messages = artifacts
                 .diagnostics
@@ -92,15 +98,25 @@ impl Model {
                 .collect::<Vec<_>>();
             return Err(format!("{main}: {}", messages.join("\n")));
         }
-        let statements: Arc<[Stmt]> = statements.into();
+        let statements = artifacts.program().clone();
         let entries = artifacts
             .calculation_contracts
             .into_iter()
             .map(|contract| {
-                PreparedCalculation::new(contract, statements.clone(), source_dir.clone())
+                PreparedCalculation::new(
+                    contract,
+                    statements.clone(),
+                    source_dir.clone(),
+                    artifacts.constructor_elaboration.clone(),
+                )
+                .with_root_file(root.join(main))
             })
             .collect();
-        Ok(Model { files, entries })
+        Ok(Model {
+            files,
+            entries,
+            main: root.join(main),
+        })
     }
 
     /// The model's calculation entries.
@@ -114,7 +130,7 @@ impl Model {
     /// Run the calculation `entry` on `input`, a `runa call` input document,
     /// and return the `runa call` output document.
     pub fn call(&mut self, entry: &str, input: &str) -> Result<String, String> {
-        self.invoke(entry, input, None)
+        self.invoke(entry, input, None, None)
     }
 
     /// Run the calculation `entry` on `input`, whose cases may leave facts
@@ -126,6 +142,36 @@ impl Model {
             entry,
             input,
             Some(futuruna::partial::PartialMode::Propagate),
+            None,
+        )
+    }
+
+    /// `call`, with an explanation of every leaf of each result: the
+    /// `runa call --explain` document, or `--explain=full` when `full`.
+    #[wasm_bindgen(js_name = callExplained)]
+    pub fn call_explained(
+        &mut self,
+        entry: &str,
+        input: &str,
+        full: Option<bool>,
+    ) -> Result<String, String> {
+        self.invoke(entry, input, None, Some(full.unwrap_or(false)))
+    }
+
+    /// `callPartial`, with an explanation of every `Complete` result: the
+    /// `runa call --partial --explain` document.
+    #[wasm_bindgen(js_name = callPartialExplained)]
+    pub fn call_partial_explained(
+        &mut self,
+        entry: &str,
+        input: &str,
+        full: Option<bool>,
+    ) -> Result<String, String> {
+        self.invoke(
+            entry,
+            input,
+            Some(futuruna::partial::PartialMode::Propagate),
+            Some(full.unwrap_or(false)),
         )
     }
 }
@@ -136,6 +182,7 @@ impl Model {
         entry: &str,
         input: &str,
         partial: Option<futuruna::partial::PartialMode>,
+        explain: Option<bool>,
     ) -> Result<String, String> {
         let Some(index) = self
             .entries
@@ -154,9 +201,18 @@ impl Model {
         // the model; serve them from this model.
         provide_source_files(self.files.iter().cloned());
         let prepared = &mut self.entries[index];
-        let result = match partial {
-            None => prepared.invoke(&envelope),
-            Some(mode) => prepared.invoke_partial(&envelope, mode),
+        let options = explain.map(|full| calculate::ExplainOptions {
+            full,
+            root_file: Some(self.main.clone()),
+            display_root: Some(PathBuf::from(MODEL_ROOT)),
+        });
+        let result = match (partial, &options) {
+            (None, None) => prepared.invoke(&envelope),
+            (Some(mode), None) => prepared.invoke_partial(&envelope, mode),
+            (None, Some(options)) => prepared.invoke_explained(&envelope, options),
+            (Some(mode), Some(options)) => {
+                prepared.invoke_partial_explained(&envelope, mode, options)
+            }
         };
         let document = serde_json::to_string_pretty(&result).map_err(|error| error.to_string())?;
         Ok(document + "\n")

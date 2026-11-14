@@ -1,0 +1,62 @@
+-- Field metadata written on the declarations. Its listed twin,
+-- listed.calculate.runa, anchors the same metadata to the calculation by
+-- path; `runa schema --entry household_tax` gives both the same field
+-- metadata.
+
+# SourceInfo(url: String)
+# FieldRole(a) = Source(value: a)
+# impl MetaRole for FieldRole {}
+
+= tax_law = SourceInfo(url = "https://example.invalid/tax-law")
+
+# Date(
+    @ field(label = "year") year: Int,
+    @ field(label = "month") month: Int,
+    @ field(label = "day") day: Int
+)
+
+@ field(label = "Buy or sell", help = "Buy for a purchase, Sell for a sale.")
+# Side = Buy | Sell
+
+@ field(label = "Payment method")
+# Payment =
+    Card(@ field(label = "Last four digits") last_digits: String) |
+    Transfer(@ field(label = "Account number", sources = [Source(value = tax_law)]) account: String)
+
+# Trade(
+    @ field(label = "Trade id", help = "Unique within the case.")
+    id: String,
+    @ field(label = "Trade date")
+    date: Date,
+    side: Side,
+    @ field(label = "Amount", unit = "DKK øre", sources = [Source(value = tax_law)])
+    amount_ore: Int
+)
+
+# Spouse(
+    @ field(label = "Spouse's income", question = "What did your spouse earn?", unit = "DKK øre")
+    income_ore: Int
+)
+
+# Household(
+    @ field(label = "Income year", unit = "year")
+    income_year: Int,
+    @ field(label = "Trades")
+    trades: List(Trade),
+    payment: Payment,
+    @ field(label = "Spouse")
+    spouse: Spouse?,
+    @ field(label = "Spouse's share", unit = "DKK øre", entry = "spouse_share", subject = "spouse")
+    spouse_share_ore: Int
+)
+# HouseholdTax(total_ore: Int)
+
+@ calculate
+| spouse_share(s: Spouse) -> s.income_ore / 2
+
+> trade_total(trades: List(Trade)) -> Int {
+    foldl(trades, 0, |total, trade| total + trade.amount_ore)
+}
+
+@ calculate("Household tax")
+| household_tax(h: Household) -> HouseholdTax(total_ore = trade_total(h.trades) + h.spouse_share_ore)

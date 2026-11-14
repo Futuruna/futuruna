@@ -510,7 +510,7 @@ fn compact_schema_is_explicit_lossless_and_keeps_the_logical_fingerprint() {
     ]);
     assert_eq!(invalid.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&invalid.stderr)
-        .contains("expected json, compact-json or partial-result"));
+        .contains("expected json, compact-json, partial-result or explanation"));
     assert_eq!(
         std::fs::read(&destination).unwrap(),
         compact.stdout,
@@ -24736,4 +24736,218 @@ fn write_workbook_data(
                 .unwrap();
         }
     }
+}
+
+fn field_declaration_fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/calculation-field-declarations")
+        .join(name)
+}
+
+fn household_tax_schema(name: &str) -> Value {
+    let path = field_declaration_fixture(name);
+    let output = run(&[
+        "schema",
+        path.to_str().expect("fixture path"),
+        "--entry",
+        "household_tax",
+    ]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    parse_stdout(&output)
+}
+
+/// Field metadata without its provenance: where it was written.
+fn field_metadata_without_provenance(schema: &Value) -> Vec<Value> {
+    schema["field_metadata"]
+        .as_array()
+        .expect("field metadata")
+        .iter()
+        .map(|field| {
+            let mut field = field.clone();
+            let object = field.as_object_mut().expect("field object");
+            object.remove("anchor");
+            object.remove("binding");
+            if let Some(sources) = object.get_mut("sources") {
+                for source in sources.as_array_mut().expect("sources") {
+                    let source = source.as_object_mut().expect("source object");
+                    for key in ["label", "attachment_path", "text", "symbols"] {
+                        source.remove(key);
+                    }
+                }
+            }
+            field
+        })
+        .collect()
+}
+
+#[test]
+fn schema_declared_field_metadata_equals_listed_field_metadata() {
+    let listed = household_tax_schema("listed.calculate.runa");
+    let declared = household_tax_schema("declared.calculate.runa");
+    let listed_fields = field_metadata_without_provenance(&listed);
+    let declared_fields = field_metadata_without_provenance(&declared);
+    assert_eq!(listed_fields.len(), 15);
+    assert_eq!(listed_fields, declared_fields);
+
+    let fields = declared["field_metadata"]
+        .as_array()
+        .expect("field metadata");
+    let at = |path: &str| {
+        fields
+            .iter()
+            .find(|field| field["path"] == path)
+            .unwrap_or_else(|| panic!("no metadata for {path}"))
+    };
+    assert_eq!(at("trades.date.year")["label"], "Trade date: year");
+    assert_eq!(at("trades.date.year")["anchor"], "Date");
+    assert_eq!(at("trades.date.year")["binding"], "Date::year");
+    assert_eq!(at("trades.side")["binding"], "Side");
+    assert_eq!(at("payment.$variant")["label"], "Payment method");
+    assert_eq!(
+        at("payment.Transfer.account")["binding"],
+        "Payment::Transfer::account"
+    );
+    let source = &at("trades.amount_ore")["sources"][0];
+    assert_eq!(source["role"], "source");
+    assert_eq!(source["binding"], "tax_law");
+    assert_eq!(source["attachment_path"], "Trade::amount_ore.sources[0]");
+    assert_eq!(
+        at("spouse_share_ore")["provided_by"],
+        serde_json::json!({"entry": "spouse_share", "subject": "spouse"})
+    );
+    // The removed metadata list binding was provenance, so the fingerprint
+    // differs while the field metadata does not.
+    assert_ne!(listed["schema_hash"], declared["schema_hash"]);
+}
+
+#[test]
+fn schema_field_metadata_precedence_is_exact_path_then_field_then_type() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "@ field(label = \"Status (type)\")\n\
+# Status = Single | Married\n\
+# Child(@ field(label = \"Age\") age: Int)\n\
+# Input(@ field(label = \"Status (field)\") status: Status, other_status: Status, child: Child, second: Child)\n\
+# Result(value: Int)\n\
+# ExactField(path: String, label: String)\n\
+# ExactMeta(fields: List(ExactField))\n\
+# impl Meta for ExactMeta {}\n\
+= exact_meta = ExactMeta(fields = [\n\
+    ExactField(path = pathof(Input::second::age), label = \"Second child's age\")\n\
+])\n\
+--@label:calculate::meta:exact_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.child.age)\n",
+    )
+    .expect("write precedence source");
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let labels = schema["field_metadata"]
+        .as_array()
+        .expect("field metadata")
+        .iter()
+        .map(|field| {
+            (
+                field["path"].as_str().unwrap().to_string(),
+                field["label"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(labels["status"], "Status (field)");
+    assert_eq!(labels["other_status"], "Status (type)");
+    assert_eq!(labels["child.age"], "Age");
+    assert_eq!(labels["second.age"], "Second child's age");
+    assert_eq!(labels.len(), 4);
+}
+
+#[test]
+fn schema_composes_declared_labels_below_labelled_record_fields() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Day(@ field(label = \"day\") day: Int)\n\
+# Period(@ field(label = \"Start\") start: Day)\n\
+# Input(@ field(label = \"Contract\") contract: Period, plain: Period, relabelled: Period)\n\
+# Result(value: Int)\n\
+# ExactField(path: String, label: String)\n\
+# ExactMeta(fields: List(ExactField))\n\
+# impl Meta for ExactMeta {}\n\
+= exact_meta = ExactMeta(fields = [\n\
+    ExactField(path = pathof(Input::relabelled::start), label = \"First day\")\n\
+])\n\
+--@label:calculate::meta:exact_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = 0)\n",
+    )
+    .expect("write composition source");
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let labels = schema["field_metadata"]
+        .as_array()
+        .expect("field metadata")
+        .iter()
+        .map(|field| {
+            (
+                field["path"].as_str().unwrap().to_string(),
+                field["label"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    // Record fields have no column: only their members are emitted.
+    assert_eq!(
+        labels,
+        BTreeMap::from([
+            (
+                "contract.start.day".to_string(),
+                "Contract: Start: day".to_string()
+            ),
+            ("plain.start.day".to_string(), "Start: day".to_string()),
+            (
+                "relabelled.start.day".to_string(),
+                "First day: day".to_string()
+            ),
+        ])
+    );
+}
+
+#[test]
+fn schema_rejects_declared_field_metadata_that_is_not_ground_data() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "> help_text() -> String {\n\
+    @ print(\"computing help\")\n\
+    \"Before tax.\"\n\
+}\n\
+# Input(@ field(label = \"Income\", help = help_text()) income: Int)\n\
+# Result(value: Int)\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.income)\n",
+    )
+    .expect("write impure metadata source");
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("`@ field` on `Input::income`: `help` must be a pure ground `String`"),
+        "stderr:\n{stderr}"
+    );
 }

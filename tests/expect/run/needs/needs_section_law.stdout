@@ -1,0 +1,39 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "8b98c536517ab68794ccb19b55e0fb68496efdf4b615b31df1a86dd07cf3b968",
+    "entry": "needs_section_law"
+  },
+  "results": [
+    {
+      "case_id": "liability-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "fully_liable",
+            "waiting": [
+              {
+                "paragraphs": [
+                  {
+                    "act": {
+                      "identifier": "LOV nr. 1 af 01/01/2026",
+                      "title": "Lov om prøveskat",
+                      "url": "https://example.invalid/lov/1"
+                    },
+                    "paragraph": "§ 1",
+                    "source": "sources/law.txt"
+                  }
+                ],
+                "rule": "liable",
+                "section": "liability"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

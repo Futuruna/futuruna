@@ -104,6 +104,17 @@
       ]
     },
     {
+      "id": "scoped-constructor-names",
+      "kind": "language",
+      "name": "Constructor names shared between types",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: two types in one scope may share a constructor name, resolved by the expected type or written `Type.Constructor`; the resolution rules and diagnostics may change.",
+      "docs": [
+        "docs/rfcs/scoped-constructors.md",
+        "docs/reference/runes.md"
+      ]
+    },
+    {
       "id": "http-builtins",
       "kind": "runtime",
       "name": "HTTP client and server builtins",
@@ -111,6 +122,17 @@
       "notes": "No compatibility guarantee: builtin signatures and error behavior may change, and interpreter and compiled behavior are not guaranteed to match.",
       "docs": [
         "docs/reference/stdlib.md"
+      ]
+    },
+    {
+      "id": "unit-types",
+      "kind": "language",
+      "name": "Unit types for whole numbers (`# unit`)",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: declaration syntax (including `= Base / n` scales), arithmetic rules, the `to` conversions, error texts and the contract's `unit`/`units`/`scale` members may change.",
+      "docs": [
+        "docs/reference/runes.md",
+        "docs/rfcs/unit-types.md"
       ]
     },
     {
@@ -274,6 +296,18 @@
       ]
     },
     {
+      "id": "calculation-field-declarations",
+      "kind": "tooling",
+      "name": "Calculation field metadata on declarations (`@ field(...)`)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/reference/calculations.md",
+        "docs/reference/runes.md",
+        "docs/rfcs/field-metadata.md"
+      ]
+    },
+    {
       "id": "calculation-needs",
       "kind": "tooling",
       "name": "Partial calculation cases and needs (`runa call --partial`)",
@@ -282,6 +316,17 @@
       "docs": [
         "docs/reference/calculations.md",
         "docs/rfcs/calculation-needs.md"
+      ]
+    },
+    {
+      "id": "calculation-explanations",
+      "kind": "tooling",
+      "name": "Explanations of calculation results (`runa call --explain`) and paragraph citations (`--@cite`)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/reference/calculations.md",
+        "docs/rfcs/explanations.md"
       ]
     },
     {
@@ -507,10 +552,24 @@
       ]
     },
     {
+      "path": "docs/rfcs/field-metadata.md",
+      "stage": "experimental",
+      "surfaces": [
+        "calculation-field-declarations"
+      ]
+    },
+    {
       "path": "docs/rfcs/calculation-needs.md",
       "stage": "experimental",
       "surfaces": [
         "calculation-needs"
+      ]
+    },
+    {
+      "path": "docs/rfcs/unit-types.md",
+      "stage": "experimental",
+      "surfaces": [
+        "unit-types"
       ]
     },
     {
@@ -580,6 +639,7 @@
       "stage": "mixed",
       "surfaces": [
         "typed-calculation-contracts",
+        "calculation-field-declarations",
         "calculation-needs",
         "typescript-sdk"
       ]
@@ -590,8 +650,10 @@
       "surfaces": [
         "core-language-syntax",
         "typed-calculation-contracts",
+        "calculation-field-declarations",
         "rust-escape-hatches",
-        "exploratory-audit-tooling"
+        "exploratory-audit-tooling",
+        "unit-types"
       ]
     },
     {

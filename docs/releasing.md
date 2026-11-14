@@ -113,9 +113,12 @@ Review all four build logs. Download the workflow artifacts and verify that:
 
 Confirm that `Cargo.toml`, both the root and website `Cargo.lock` entries for
 `futuruna`, `CITATION.cff`, both CodeMeta files (`codemeta.json` and
-`website/public/codemeta.json`), the website JSON-LD in `website/index.html`, and
-release notes
+`website/public/codemeta.json`), the website JSON-LD in `website/index.html`, the
+WebAssembly engine's `research/wasm-engine/Cargo.toml` and its `Cargo.lock`
+entry, and release notes
 agree on the version. The website locks its local compiler dependency separately.
+`python3 scripts/repository-hygiene.py` rejects an engine version that differs
+from `Cargo.toml`.
 Use an annotated or
 signed tag when the maintainer's signing setup is available:
 

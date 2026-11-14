@@ -51,7 +51,11 @@
               }
             ],
             "unit": "yes/no",
-            "waiting_rule": "rate"
+            "waiting": [
+              {
+                "rule": "rate"
+              }
+            ]
           }
         ]
       }

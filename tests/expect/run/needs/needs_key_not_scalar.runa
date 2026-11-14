@@ -1,0 +1,12 @@
+-- A key identifies a list element by one `String` or `Int` field of a record.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(key = True)` on `Position::lot`: a key field holds a `String` or an `Int`
+
+# Lot(number: Int)
+# Position(@ field(label = "Lot", key = True) lot: Lot, amount: Int)
+# Case(positions: List(Position))
+# Result(total: Int)
+
+@ calculate
+| needs_key_not_scalar(c: Case) -> Result(total = foldl(c.positions, 0, |sum, p| sum + p.amount))

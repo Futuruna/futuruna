@@ -1,0 +1,11 @@
+-- `@ field` before something other than a data type declaration.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(...)` must be followed by the `#` data type it describes, or written before a field inside one
+
+# Input(income: Int)
+# TaxResult(tax: Int)
+
+@ field(label = "Tax")
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.income)

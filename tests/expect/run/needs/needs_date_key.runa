@@ -1,0 +1,22 @@
+-- A date is one fact: a need for its year, month or day is one need at the
+-- date's path, with the date field's own label and help. A need inside a list
+-- element carries the element's key, declared with `@ field(key = True)`.
+-- expect-command: call
+-- expect-input: needs_date_key.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_date_key.stdout
+
+# Date(@ field(label = "year") year: Int, @ field(label = "month") month: Int, @ field(label = "day") day: Int)
+# Trade(
+    @ field(label = "ISIN", key = True) isin: String,
+    @ field(label = "Trade date", help = "The day the trade was agreed.") date: Date,
+    @ field(label = "Amount") amount: Int
+)
+# Case(trades: List(Trade))
+# Result(days: Int, total: Int)
+
+@ calculate
+| needs_date_key(c: Case) -> Result(
+    days = foldl(c.trades, 0, |sum, t| sum + t.date.year * 366 + t.date.month * 31 + t.date.day),
+    total = foldl(c.trades, 0, |sum, t| sum + t.amount)
+)

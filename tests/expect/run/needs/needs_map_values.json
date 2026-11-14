@@ -1,0 +1,44 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "2b91b69b5574df0231678233be4d6c9d9f86f878fe767480172b0e64eaaf8c7f",
+    "entry": "needs_map_values"
+  },
+  "cases": [
+    {
+      "case_id": "other-fields-left-out",
+      "input_status": "ready",
+      "input": {
+        "wanted": "a",
+        "accounts": [
+          {
+            "id": "b",
+            "kind": "depot"
+          },
+          {
+            "id": "a",
+            "kind": "ask"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "the-wanted-field-left-out",
+      "input_status": "ready",
+      "input": {
+        "wanted": "a",
+        "accounts": [
+          {
+            "id": "b",
+            "kind": "depot",
+            "opening_ore": 1
+          },
+          {
+            "id": "a",
+            "opening_ore": 2
+          }
+        ]
+      }
+    }
+  ]
+}

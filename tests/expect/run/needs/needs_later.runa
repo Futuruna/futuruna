@@ -1,0 +1,21 @@
+-- A fact read only behind an unknown condition that evaluation could not
+-- decide is not a need yet: the match on the unknown kind is undecided, so
+-- `kind` is the need and the amounts its arms read are `later`.
+-- expect-command: call
+-- expect-input: needs_later.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_later.stdout
+
+# Kind = Salary | Pension
+# Income(kind: Kind, salary: Int, pension: Int)
+# Result(tax: Int)
+
+> taxed(i: Income) -> Int {
+    match i.kind {
+        | Salary -> i.salary / 4
+        | Pension -> i.pension / 5
+    }
+}
+
+@ calculate
+| needs_later(i: Income) -> Result(tax = taxed(i))

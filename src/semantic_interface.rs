@@ -478,6 +478,7 @@ fn collect_type_interface(
             variants,
             methods,
             except_from,
+            ..
         } => {
             types.push(SemanticTypeDeclaration {
                 kind: "adt".to_string(),
@@ -510,6 +511,23 @@ fn collect_type_interface(
                 name: name.clone(),
                 parameters: Vec::new(),
                 variants: variants.iter().map(semantic_variant).collect(),
+                details,
+            });
+        }
+        TypeDecl::Unit {
+            name,
+            description,
+            scale,
+        } => {
+            let mut details = vec![format!("description:{description}")];
+            if let Some(scale) = scale {
+                details.push(format!("scale:{scale}"));
+            }
+            types.push(SemanticTypeDeclaration {
+                kind: "unit".to_string(),
+                name: name.clone(),
+                parameters: Vec::new(),
+                variants: Vec::new(),
                 details,
             });
         }

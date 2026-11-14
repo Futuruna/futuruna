@@ -16,7 +16,11 @@
             "path": "accounts[1].closing_ore",
             "question": "What was the balance on the closing day?",
             "unit": "øre",
-            "waiting_rule": "account_tax"
+            "waiting": [
+              {
+                "rule": "account_tax"
+              }
+            ]
           }
         ]
       }
@@ -29,7 +33,11 @@
           {
             "kind": "fact",
             "path": "accounts",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }

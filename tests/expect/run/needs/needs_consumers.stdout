@@ -1,0 +1,54 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "23da0f9deaa3205ab4de8f243a7ea0fd0a5d5d49a4c31e1d81027532a78ea8da",
+    "entry": "needs_consumers"
+  },
+  "results": [
+    {
+      "case_id": "amount-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "amount_micro",
+            "waiting": [
+              {
+                "paragraphs": [
+                  {
+                    "act": {
+                      "identifier": "LOV nr. 1 af 01/01/2026",
+                      "title": "Lov om prøveskat",
+                      "url": "https://example.invalid/lov/1"
+                    },
+                    "paragraph": "§ 1",
+                    "source": "sources/law.txt"
+                  }
+                ],
+                "rule": "tax",
+                "section": "law"
+              },
+              {
+                "paragraphs": [
+                  {
+                    "act": {
+                      "identifier": "LOV nr. 1 af 01/01/2026",
+                      "title": "Lov om prøveskat",
+                      "url": "https://example.invalid/lov/1"
+                    },
+                    "paragraph": "§ 2",
+                    "source": "sources/law.txt"
+                  }
+                ],
+                "rule": "kept",
+                "section": "law"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -227,42 +227,43 @@ fn inline_module_imports_keep_their_local_constructor_scope() {
 }
 
 #[test]
-fn constructor_names_shared_across_imported_types_are_rejected_at_the_later_declaration() {
+fn constructor_names_shared_across_imported_types_resolve_by_expected_type() {
     let mut fixture = Fixture::new();
     fixture.write(
         "legacy.runa",
         "# Legacy = Shared | LegacyOnly\n# Entry(kind: Legacy)\n= entry = Entry(kind = Shared)\n",
     );
     fixture.write("current.runa", "# Current = Shared | CurrentOnly\n");
-    for (imports, location) in [
-        (
-            "@ import ./legacy\n@ import ./current\n",
-            "current.runa:1:13",
-        ),
-        (
-            "@ import ./current\n@ import ./legacy\n",
-            "legacy.runa:1:12",
-        ),
+    for imports in [
+        "@ import ./legacy\n@ import ./current\n",
+        "@ import ./current\n@ import ./legacy\n",
     ] {
         fixture.write(
             "main.runa",
-            &format!("{imports}@ print(\"must not run\")\n"),
+            &format!("{imports}= current: Current = Shared\n@ print(show(entry))\n@ print(show(current))\n"),
         );
-        for args in [&["check", "--frontend"][..], &[][..], &["run"][..]] {
+        for args in [&[][..], &["run"][..]] {
             let output = fixture.run(args);
             assert_eq!(
                 output.status.code(),
-                Some(1),
+                Some(0),
                 "{imports}, {args:?}: {output:?}"
             );
-            assert!(output.stdout.is_empty(), "{imports}, {args:?}: {output:?}");
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            assert!(
-                stderr.contains("constructor `Shared` is declared in both type")
-                    && stderr.contains(location),
-                "{imports}, {args:?}: {stderr}"
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout),
+                "Entry(kind: Shared)\nShared\n",
+                "{imports}, {args:?}"
             );
         }
+        fixture.write("main.runa", &format!("{imports}= unknown = Shared\n"));
+        let output = fixture.run(&["check", "--frontend"]);
+        assert_eq!(output.status.code(), Some(1), "{imports}: {output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("constructor `Shared` belongs to")
+                && stderr.contains("or give `unknown` a type"),
+            "{imports}: {stderr}"
+        );
     }
 }
 

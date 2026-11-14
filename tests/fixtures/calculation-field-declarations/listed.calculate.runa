@@ -1,0 +1,70 @@
+-- Field metadata listed by path and anchored to the calculation. Its
+-- declared twin, declared.calculate.runa, writes the same metadata on the
+-- declarations; `runa schema --entry household_tax` gives both the same
+-- field metadata.
+
+# Date(year: Int, month: Int, day: Int)
+# Side = Buy | Sell
+# Payment = Card(last_digits: String) | Transfer(account: String)
+# Trade(id: String, date: Date, side: Side, amount_ore: Int)
+# Spouse(income_ore: Int)
+# Household(
+    income_year: Int,
+    trades: List(Trade),
+    payment: Payment,
+    spouse: Spouse?,
+    spouse_share_ore: Int
+)
+# HouseholdTax(total_ore: Int)
+
+# SourceInfo(url: String)
+# FieldRole(a) = Source(value: a)
+# impl MetaRole for FieldRole {}
+
+= tax_law = SourceInfo(url = "https://example.invalid/tax-law")
+
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: String?, subject: String?)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl Meta for CalculationMeta {}
+
+= household_fields = CalculationMeta(
+    fields = [
+        CalculationField(path = pathof(Household::income_year), label = "Income year", question = None, help = None, unit = Some("year"), entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades), label = "Trades", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::id), label = "Trade id", question = None, help = Some("Unique within the case."), unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::date), label = "Trade date", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::date::year), label = "Trade date: year", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::date::month), label = "Trade date: month", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::date::day), label = "Trade date: day", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::trades::side), label = "Buy or sell", question = None, help = Some("Buy for a purchase, Sell for a sale."), unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::payment::$variant), label = "Payment method", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::payment::Card::last_digits), label = "Last four digits", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::spouse), label = "Spouse", question = None, help = None, unit = None, entry = None, subject = None),
+        CalculationField(path = pathof(Household::spouse::income_ore), label = "Spouse's income", question = Some("What did your spouse earn?"), help = None, unit = Some("DKK øre"), entry = None, subject = None),
+        CalculationField(path = pathof(Household::spouse_share_ore), label = "Spouse's share", question = None, help = None, unit = Some("DKK øre"), entry = Some("spouse_share"), subject = Some("spouse"))
+    ],
+    attachments = ()
+)
+
+= sourced_fields = CalculationMeta(
+    fields = [
+        CalculationField(path = pathof(Household::trades::amount_ore), label = "Amount", question = None, help = None, unit = Some("DKK øre"), entry = None, subject = None),
+        CalculationField(path = pathof(Household::payment::Transfer::account), label = "Account number", question = None, help = None, unit = None, entry = None, subject = None)
+    ],
+    attachments = (
+        Source(value = tax_law),
+    )
+)
+
+--@label:household_tax::meta:household_fields--
+--@label:household_tax::meta:sourced_fields--
+
+@ calculate
+| spouse_share(s: Spouse) -> s.income_ore / 2
+
+> trade_total(trades: List(Trade)) -> Int {
+    foldl(trades, 0, |total, trade| total + trade.amount_ore)
+}
+
+@ calculate("Household tax")
+| household_tax(h: Household) -> HouseholdTax(total_ore = trade_total(h.trades) + h.spouse_share_ore)

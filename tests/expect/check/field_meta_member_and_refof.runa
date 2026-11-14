@@ -1,0 +1,24 @@
+-- `@ field` on a field and `refof` metadata for the same field are the same
+-- precedence level, so they conflict.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: duplicate field metadata for `child.age` in bindings `child_meta.fields[0]` and `Child::age`
+
+# Child(
+    @ field(label = "Age")
+    age: Int
+)
+# Input(child: Child)
+# TaxResult(tax: Int)
+# RelativeField(path: ProgramReference, label: String)
+# RelativeMeta(fields: List(RelativeField))
+# impl Meta for RelativeMeta {}
+
+= child_meta = RelativeMeta(fields = [
+    RelativeField(path = refof(Child::age), label = "Child age")
+])
+
+--@label:Child::meta:child_meta--
+
+@ calculate
+| tax(input: Input) -> TaxResult(tax = input.child.age)

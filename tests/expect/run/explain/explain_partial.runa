@@ -1,0 +1,14 @@
+-- A partial case that completes is explained; the facts left out are not read.
+-- expect-command: call
+-- expect-input: explain_partial.json
+-- expect-args: --partial --explain
+-- expect-stdout-file: explain_partial.stdout
+
+# Case(income: Int, married: Bool, spouse_income: Int)
+# Result(allowance: Int, income: Int)
+
+| allowance(married: Bool) -> 4000
+| exception married allowance(married: Bool) -> 8000 under married
+
+@ calculate
+| explain_partial(c: Case) -> Result(allowance = allowance(c.married), income = c.income)

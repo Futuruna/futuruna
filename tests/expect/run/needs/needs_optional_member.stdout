@@ -15,7 +15,11 @@
             "label": "Spouse age",
             "path": "spouse.age",
             "question": "How old is your spouse?",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           },
           {
             "help": "Answer no when you were separated.",
@@ -23,7 +27,11 @@
             "label": "Spouse cohabiting",
             "path": "spouse.cohabiting",
             "question": "Did you live with your spouse at the end of the year?",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           },
           {
             "kind": "fact",
@@ -31,7 +39,11 @@
             "path": "spouse.income",
             "question": "What was your spouse's income?",
             "unit": "kr",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }
@@ -47,7 +59,11 @@
             "path": "spouse.income",
             "question": "What was your spouse's income?",
             "unit": "kr",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }
@@ -62,7 +78,11 @@
             "label": "Spouse age",
             "path": "spouse.age",
             "question": "How old is your spouse?",
-            "waiting_rule": "household_tax"
+            "waiting": [
+              {
+                "rule": "household_tax"
+              }
+            ]
           }
         ]
       }

@@ -1,0 +1,14 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "40bf82dc18fa255228244fc64427ff9de3dc8c25a48278f42af71850bbb07ba8",
+    "entry": "explain_partial"
+  },
+  "cases": [
+    {
+      "case_id": "married",
+      "input_status": "ready",
+      "input": { "income": 30000, "married": true }
+    }
+  ]
+}

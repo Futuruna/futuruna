@@ -1,0 +1,50 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "40bf82dc18fa255228244fc64427ff9de3dc8c25a48278f42af71850bbb07ba8",
+    "entry": "explain_partial"
+  },
+  "results": [
+    {
+      "case_id": "married",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "allowance": 8000,
+          "income": 30000
+        },
+        "unused_paths": []
+      },
+      "explanation": {
+        "sections": {},
+        "values": {
+          "allowance": {
+            "because": [
+              {
+                "$variant": "Input",
+                "path": "married",
+                "value": true
+              }
+            ],
+            "by": {
+              "$variant": "Rule",
+              "clause": "exception",
+              "exception": "married",
+              "location": "tests/expect/run/explain/explain_partial.runa:11",
+              "rule": "allowance"
+            },
+            "value": 8000
+          },
+          "income": {
+            "by": {
+              "$variant": "Input",
+              "path": "income"
+            },
+            "value": 30000
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": []
+}

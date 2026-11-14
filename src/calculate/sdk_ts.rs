@@ -1,11 +1,17 @@
 //! TypeScript SDK generation for calculation contracts (`runa sdk ts`).
 //!
-//! Everything is derived from the contracts `runa schema` emits. The types and
-//! Zod validators follow the canonical JSON encoding that `decode_value` reads
-//! and `encode_value` writes; the partial-case types and the `Complete`/`Needs`
-//! result follow `docs/rfcs/calculation-needs.md`; the client reaches an engine
-//! only through a transport. The output depends only on the contracts and the
-//! source label, so regenerating an unchanged model rewrites identical files.
+//! Everything is derived from the contracts `runa schema` emits. The SDK reads
+//! as ordinary TypeScript: camelCase field names, a sum type whose variants
+//! carry no fields as a string union, and `Date` as an ISO `YYYY-MM-DD` string.
+//! The wire is unchanged: the canonical JSON encoding that `decode_value`
+//! reads and `encode_value` writes. Each entry's modules carry codec tables
+//! (TypeScript name, wire name, encoding), and the shared runtime encodes a
+//! case before a call and decodes the result and the needs' paths after it.
+//! The partial-case types and the `Complete`/`Needs` result follow
+//! `docs/rfcs/calculation-needs.md`; the client reaches an engine only through
+//! a transport. The output depends only on the contracts, the source label and
+//! the runtime path, so regenerating an unchanged model rewrites identical
+//! files.
 
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
@@ -13,11 +19,29 @@ use super::{
     CalculationFieldMetadata, CalculationTypeDefinition, CalculationTypeRef, CalculationVariant,
     CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
 };
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 /// The output envelope schema of `runa call --partial`.
 pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.calculate.partial-output.v1";
+
+/// Where the runtime module goes, relative to the output directory, unless
+/// `--runtime` says otherwise.
+pub const DEFAULT_RUNTIME_PATH: &str = "runtime.ts";
+
+/// The modules generated for the entries of one source file.
+const ENTRY_MODULES: [&str; 5] = [
+    "types.ts",
+    "schema.ts",
+    "partial.ts",
+    "client.ts",
+    "index.ts",
+];
+
+/// The fields of a Futuruna `Date`, in the order the engine sorts the paths of
+/// a date's parts (`date.day` < `date.month` < `date.year`).
+const DATE_PARTS: [&str; 3] = ["day", "month", "year"];
 
 const PRIMITIVES: [&str; 5] = ["Int", "Float", "Bool", "String", "Char"];
 
@@ -70,45 +94,80 @@ const TS_RESERVED: [&str; 46] = [
     "with",
 ];
 
-/// One generated TypeScript module.
+/// One generated TypeScript module, named by its path relative to the output
+/// directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GeneratedFile {
-    pub name: &'static str,
+    pub name: String,
     pub contents: String,
 }
 
 /// Generate the TypeScript SDK for every calculation entry of one source file.
 ///
-/// `source` names the file in the generated headers. A file whose contracts
-/// cannot be expressed (an unsupported type, two entries disagreeing on a
-/// type, or a contract name that collides with a generated name) is an error.
+/// `source` names the file in the generated headers. `runtime_path` is where
+/// the runtime module goes, relative to the output directory (`runtime.ts`,
+/// or `../runtime.ts` for one runtime shared by the SDKs of several files);
+/// the entry modules import it from there. A file whose contracts cannot be
+/// expressed (an unsupported type, two entries disagreeing on a type, two
+/// fields with the same camelCase name, or a contract name that collides with
+/// a generated name) is an error.
 pub fn generate_typescript_sdk(
     contracts: &[CalculationContract],
     source: &str,
+    runtime_path: &str,
 ) -> Result<Vec<GeneratedFile>, String> {
-    let sdk = Sdk::new(contracts, source)?;
+    let sdk = Sdk::new(contracts, source, runtime_specifier(runtime_path)?)?;
     Ok(vec![
         GeneratedFile {
-            name: "types.ts",
+            name: "types.ts".to_string(),
             contents: sdk.types_module(),
         },
         GeneratedFile {
-            name: "schema.ts",
+            name: "schema.ts".to_string(),
             contents: sdk.schema_module(),
         },
         GeneratedFile {
-            name: "partial.ts",
+            name: "partial.ts".to_string(),
             contents: sdk.partial_module(),
         },
         GeneratedFile {
-            name: "client.ts",
+            name: "client.ts".to_string(),
             contents: sdk.client_module(),
         },
         GeneratedFile {
-            name: "index.ts",
+            name: "index.ts".to_string(),
             contents: sdk.index_module(),
         },
+        GeneratedFile {
+            name: runtime_path.to_string(),
+            contents: runtime_module(),
+        },
     ])
+}
+
+/// The module specifier the entry modules import the runtime by:
+/// `../runtime.ts` → `../runtime.js`, `runtime.ts` → `./runtime.js`.
+fn runtime_specifier(path: &str) -> Result<String, String> {
+    let invalid = |reason: &str| Err(format!("the runtime path `{path}` {reason}"));
+    let Some(stem) = path.strip_suffix(".ts") else {
+        return invalid("must name a `.ts` file");
+    };
+    if stem.is_empty() || stem.ends_with('/') || stem.ends_with(".d") {
+        return invalid("must name a `.ts` file");
+    }
+    if path.starts_with('/') || path.contains('\\') || path.contains(':') {
+        return invalid("must be relative to the output directory, with `/` between directories");
+    }
+    let file = path.strip_prefix("./").unwrap_or(path);
+    if ENTRY_MODULES.contains(&file) {
+        return invalid("is the path of a generated entry module");
+    }
+    let specifier = format!("{stem}.js");
+    if specifier.starts_with("./") || specifier.starts_with("../") {
+        Ok(specifier)
+    } else {
+        Ok(format!("./{specifier}"))
+    }
 }
 
 /// Where a type is written: inside `types.ts`, from another module (complete
@@ -120,30 +179,106 @@ enum Side {
     Partial,
 }
 
+/// How a contract type appears in TypeScript.
+#[derive(Clone, Copy)]
+enum Shape<'d> {
+    /// A record: an object with camelCase fields.
+    Record(&'d CalculationVariant),
+    /// A sum type whose variants carry no fields: the variant's name.
+    Enum,
+    /// A sum type with payload variants: a union tagged by `$variant`.
+    Union,
+    /// A type without values: `never`.
+    Empty,
+    /// The prelude's `Date(year: Int, month: Int, day: Int)`: an ISO date string.
+    Date,
+}
+
+fn shape(definition: &CalculationTypeDefinition) -> Shape<'_> {
+    if is_date(definition) {
+        Shape::Date
+    } else if let Some(variant) = product_variant(definition) {
+        Shape::Record(variant)
+    } else if definition.variants.is_empty() {
+        Shape::Empty
+    } else if definition
+        .variants
+        .iter()
+        .all(|variant| variant.fields.is_empty())
+    {
+        Shape::Enum
+    } else {
+        Shape::Union
+    }
+}
+
+fn is_date(definition: &CalculationTypeDefinition) -> bool {
+    definition.name == "Date"
+        && definition.parameters.is_empty()
+        && product_variant(definition).is_some_and(|variant| {
+            variant.fields.len() == 3
+                && ["year", "month", "day"]
+                    .iter()
+                    .zip(&variant.fields)
+                    .all(|(name, field)| {
+                        field.name == *name
+                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None } if name == "Int")
+                    })
+        })
+}
+
+fn without_optional(ty: &CalculationTypeRef) -> &CalculationTypeRef {
+    match ty {
+        CalculationTypeRef::Optional { item } => without_optional(item),
+        other => other,
+    }
+}
+
 struct Entry<'a> {
     contract: &'a CalculationContract,
     /// `tax_report` → `taxReport`, the per-entry function prefix.
     value_name: String,
     /// `tax_report` → `TaxReport`, the per-entry type prefix.
     type_name: String,
-    /// Input path pattern → TypeScript types of the values written there.
+    /// TypeScript input path pattern → TypeScript types of the values written there.
     patterns: BTreeMap<String, BTreeSet<String>>,
+    /// The lists whose elements declare a key field, by element pattern.
+    keys: BTreeMap<String, ElementKey>,
     /// A recursive input type has paths of any depth.
     open_paths: bool,
 }
 
+/// The key field a list's element type declares (`@ field(key = True)`): its
+/// camelCase name, and its complete type and validator as `partial.ts` writes them.
+#[derive(Clone)]
+struct ElementKey {
+    field: String,
+    ty: String,
+    zod: String,
+}
+
 struct Sdk<'a> {
     source: &'a str,
+    /// The module specifier of the runtime, such as `../runtime.js`.
+    runtime: String,
     entries: Vec<Entry<'a>>,
     definitions: BTreeMap<&'a str, &'a CalculationTypeDefinition>,
     input_definitions: BTreeSet<&'a str>,
+    /// The units of measure (`# unit Ore "DKK øre"`) the contracts use, by
+    /// name, with their descriptions: each is a branded number type.
+    units: BTreeMap<&'a str, &'a str>,
     /// (type, variant, field) → the field metadata of every input path the
-    /// field occurs at, including the metadata of its `$variant` tag.
-    field_metadata: BTreeMap<(&'a str, &'a str, &'a str), Vec<&'a CalculationFieldMetadata>>,
+    /// field occurs at, including the metadata of its `$variant` tag, and for
+    /// a `Date` field without its own metadata, the metadata its parts share.
+    field_metadata: BTreeMap<(&'a str, &'a str, &'a str), Vec<Cow<'a, CalculationFieldMetadata>>>,
 }
 
 impl<'a> Sdk<'a> {
-    fn new(contracts: &'a [CalculationContract], source: &'a str) -> Result<Self, String> {
+    fn new(
+        contracts: &'a [CalculationContract],
+        source: &'a str,
+        runtime: String,
+    ) -> Result<Self, String> {
         if contracts.is_empty() {
             return Err(format!("{source} declares no `@ calculate` entry"));
         }
@@ -181,21 +316,49 @@ impl<'a> Sdk<'a> {
             }
         }
 
+        let mut units: BTreeMap<&str, &str> = BTreeMap::new();
+        for contract in &contracts {
+            for unit in &contract.units {
+                match units.insert(&unit.name, &unit.description) {
+                    Some(other) if other != unit.description => {
+                        return Err(format!(
+                            "unit `{}` is described both as {other:?} and as {:?}",
+                            unit.name, unit.description
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         let mut sdk = Sdk {
             source,
+            runtime,
             entries: Vec::new(),
             definitions,
             input_definitions: BTreeSet::new(),
+            units,
             field_metadata: BTreeMap::new(),
         };
         for definition in sdk.definitions.values() {
             for variant in &definition.variants {
+                let mut names: BTreeMap<String, &str> = BTreeMap::new();
                 for field in &variant.fields {
                     sdk.validate_type(
                         &field.ty,
                         &definition.parameters,
                         &format!("field `{}` of `{}`", field.name, definition.name),
                     )?;
+                    if variant.positional {
+                        continue;
+                    }
+                    let name = camel_case(&field.name);
+                    if let Some(other) = names.insert(name.clone(), &field.name) {
+                        return Err(format!(
+                            "fields `{other}` and `{}` of `{}` are both `{name}` in TypeScript; rename one",
+                            field.name, definition.name
+                        ));
+                    }
                 }
             }
         }
@@ -232,6 +395,7 @@ impl<'a> Sdk<'a> {
                 value_name: value_identifier(&contract.entry),
                 type_name: pascal_case(&contract.entry),
                 patterns: BTreeMap::new(),
+                keys: BTreeMap::new(),
                 open_paths: false,
             };
             sdk.collect_paths(
@@ -255,11 +419,15 @@ impl<'a> Sdk<'a> {
         context: &str,
     ) -> Result<(), String> {
         match ty {
-            CalculationTypeRef::Primitive { name } => {
-                if PRIMITIVES.contains(&name.as_str()) {
-                    Ok(())
-                } else {
+            CalculationTypeRef::Primitive { name, unit } => {
+                if !PRIMITIVES.contains(&name.as_str()) {
                     Err(format!("{context}: unsupported primitive type `{name}`"))
+                } else if unit.is_some() && name != "Int" {
+                    Err(format!(
+                        "{context}: a unit of measure on `{name}`, not `Int`"
+                    ))
+                } else {
+                    Ok(())
                 }
             }
             CalculationTypeRef::Unit => Ok(()),
@@ -267,7 +435,7 @@ impl<'a> Sdk<'a> {
             | CalculationTypeRef::List { item }
             | CalculationTypeRef::Set { item } => self.validate_type(item, parameters, context),
             CalculationTypeRef::Map { key, value } => {
-                if !matches!(key.as_ref(), CalculationTypeRef::Primitive { name } if name == "String")
+                if !matches!(key.as_ref(), CalculationTypeRef::Primitive { name, .. } if name == "String")
                 {
                     return Err(format!("{context}: only `Map(String, T)` is supported"));
                 }
@@ -326,6 +494,31 @@ impl<'a> Sdk<'a> {
         }
     }
 
+    /// The shape of a named type, seen through `Optional`; `None` for other types.
+    fn named_shape(&self, ty: &CalculationTypeRef) -> Option<Shape<'a>> {
+        match without_optional(ty) {
+            CalculationTypeRef::Named { name, .. } => self
+                .definitions
+                .get(name.as_str())
+                .map(|definition| shape(definition)),
+            _ => None,
+        }
+    }
+
+    fn is_date_type(&self, ty: &CalculationTypeRef) -> bool {
+        matches!(self.named_shape(ty), Some(Shape::Date))
+    }
+
+    fn is_enum_type(&self, ty: &CalculationTypeRef) -> bool {
+        matches!(self.named_shape(ty), Some(Shape::Enum))
+    }
+
+    /// An enum or a `Date` is one value in TypeScript but a record on the
+    /// wire, so inside a list or map its partial form adds `Unknown`, `{}`.
+    fn is_atomic_record(&self, ty: &CalculationTypeRef) -> bool {
+        matches!(self.named_shape(ty), Some(Shape::Enum | Shape::Date))
+    }
+
     /// Field metadata is keyed by input path, with the variant name between a
     /// sum type's path and its fields (`events.AccountCharge.amount_ore`).
     fn collect_field_metadata(&mut self, contract: &'a CalculationContract) {
@@ -343,19 +536,36 @@ impl<'a> Sdk<'a> {
                     };
                     for field in &variant.fields {
                         let field_path = joined_column_path(&base, &field.name);
-                        for candidate in [field_path.clone(), format!("{field_path}.$variant")] {
-                            let Some(metadata) = contract.field_metadata_for_path(&candidate)
-                            else {
-                                continue;
-                            };
-                            let list = self
-                                .field_metadata
-                                .entry((
-                                    definition.name.as_str(),
-                                    variant.name.as_str(),
-                                    field.name.as_str(),
-                                ))
-                                .or_default();
+                        let mut found: Vec<Cow<'a, CalculationFieldMetadata>> =
+                            [field_path.clone(), format!("{field_path}.$variant")]
+                                .iter()
+                                .filter_map(|candidate| contract.field_metadata_for_path(candidate))
+                                .map(Cow::Borrowed)
+                                .collect();
+                        if found.is_empty() && self.is_date_type(&field.ty) {
+                            let parts: Vec<&CalculationFieldMetadata> = DATE_PARTS
+                                .iter()
+                                .filter_map(|part| {
+                                    contract
+                                        .field_metadata_for_path(&format!("{field_path}.{part}"))
+                                })
+                                .collect();
+                            if !parts.is_empty() {
+                                found.push(Cow::Owned(date_metadata(&field_path, &parts)));
+                            }
+                        }
+                        if found.is_empty() {
+                            continue;
+                        }
+                        let list = self
+                            .field_metadata
+                            .entry((
+                                definition.name.as_str(),
+                                variant.name.as_str(),
+                                field.name.as_str(),
+                            ))
+                            .or_default();
+                        for metadata in found {
                             if !list.contains(&metadata) {
                                 list.push(metadata);
                             }
@@ -366,9 +576,11 @@ impl<'a> Sdk<'a> {
         }
     }
 
-    /// Input path patterns as the needs RFC writes concrete paths: record
-    /// fields and a sum type's fields join with `.`, list and set elements are
-    /// `[]`, map values are `*`, and a sum type's tag is `.$variant`.
+    /// Input path patterns in TypeScript terms: record fields and a sum
+    /// type's fields join with `.` under their camelCase names, list and set
+    /// elements are `[]`, map values are `*`, and the tag of a sum type with
+    /// payload variants is `.$variant`. An enum or a `Date` is one value at its
+    /// own path.
     fn collect_paths(
         &self,
         ty: &CalculationTypeRef,
@@ -384,16 +596,23 @@ impl<'a> Sdk<'a> {
             }
             CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
                 let element = format!("{path}[]");
-                self.record_path(entry, &element, item);
+                self.record_path(entry, &element, item, true);
+                if let Some(key) = self.element_key(item) {
+                    entry.keys.insert(element.clone(), key);
+                }
                 self.collect_paths(item, substitutions, &element, active, entry);
             }
             CalculationTypeRef::Map { value, .. } => {
                 let element = joined_column_path(path, "*");
-                self.record_path(entry, &element, value);
+                self.record_path(entry, &element, value, true);
                 self.collect_paths(value, substitutions, &element, active, entry);
             }
             CalculationTypeRef::Named { name, arguments } => {
                 let definition = self.definitions[name.as_str()];
+                let shape = shape(definition);
+                if matches!(shape, Shape::Enum | Shape::Date | Shape::Empty) {
+                    return;
+                }
                 let key = ty.display_name();
                 if active.contains(&key) {
                     entry.open_paths = true;
@@ -401,14 +620,14 @@ impl<'a> Sdk<'a> {
                 }
                 active.push(key);
                 let local = definition_substitutions(definition, arguments);
-                if let Some(variant) = product_variant(definition) {
+                if let Shape::Record(variant) = shape {
                     for field in &variant.fields {
                         let field_ty = substitute_contract_type(&field.ty, &local);
-                        let field_path = joined_column_path(path, &field.name);
-                        self.record_path(entry, &field_path, &field_ty);
+                        let field_path = joined_column_path(path, &camel_case(&field.name));
+                        self.record_path(entry, &field_path, &field_ty, false);
                         self.collect_paths(&field_ty, &local, &field_path, active, entry);
                     }
-                } else if !definition.variants.is_empty() {
+                } else {
                     let tag = joined_column_path(path, "$variant");
                     let names = definition
                         .variants
@@ -440,14 +659,14 @@ impl<'a> Sdk<'a> {
                             for (index, field) in variant.fields.iter().enumerate() {
                                 let field_ty = substitute_contract_type(&field.ty, &local);
                                 let field_path = format!("{values}[{index}]");
-                                self.record_path(entry, &field_path, &field_ty);
+                                self.record_path(entry, &field_path, &field_ty, false);
                                 self.collect_paths(&field_ty, &local, &field_path, active, entry);
                             }
                         } else {
                             for field in &variant.fields {
                                 let field_ty = substitute_contract_type(&field.ty, &local);
-                                let field_path = joined_column_path(path, &field.name);
-                                self.record_path(entry, &field_path, &field_ty);
+                                let field_path = joined_column_path(path, &camel_case(&field.name));
+                                self.record_path(entry, &field_path, &field_ty, false);
                                 self.collect_paths(&field_ty, &local, &field_path, active, entry);
                             }
                         }
@@ -461,40 +680,88 @@ impl<'a> Sdk<'a> {
         }
     }
 
-    fn record_path(&self, entry: &mut Entry<'a>, pattern: &str, ty: &CalculationTypeRef) {
+    /// The key field of a list element whose type declares one: a record's
+    /// field, or the field every variant of a sum type declares alike.
+    fn element_key(&self, item: &CalculationTypeRef) -> Option<ElementKey> {
+        let CalculationTypeRef::Named { name, arguments } = without_optional(item) else {
+            return None;
+        };
+        let definition = self.definitions[name.as_str()];
+        let key = definition.key.as_deref()?;
+        let field = definition
+            .variants
+            .first()?
+            .fields
+            .iter()
+            .find(|field| field.name == key)?;
+        let ty =
+            substitute_contract_type(&field.ty, &definition_substitutions(definition, arguments));
+        Some(ElementKey {
+            field: camel_case(key),
+            ty: self.ts_type(&ty, Side::Qualified),
+            zod: self.zod(&ty, Side::Qualified),
+        })
+    }
+
+    /// `element` is a list element or map value, where an enum or a `Date`
+    /// may also be `Unknown`.
+    fn record_path(
+        &self,
+        entry: &mut Entry<'a>,
+        pattern: &str,
+        ty: &CalculationTypeRef,
+        element: bool,
+    ) {
+        let rendered = if element {
+            self.element_type(ty, Side::Partial)
+        } else {
+            self.ts_type(ty, Side::Partial)
+        };
         entry
             .patterns
             .entry(pattern.to_string())
             .or_default()
-            .insert(self.ts_type(ty, Side::Partial));
+            .insert(rendered);
     }
 
     fn check_exported_names(&self) -> Result<(), String> {
         let mut names: Vec<(String, &str)> = Vec::new();
-        for name in SCHEMA_RUNTIME_EXPORTS {
-            names.push((name.to_string(), "schema.ts"));
+        for (name, _) in runtime_exports() {
+            names.push((name.to_string(), "the runtime"));
         }
-        for name in PARTIAL_RUNTIME_EXPORTS {
-            names.push((name.to_string(), "partial.ts"));
+        names.push(("SCHEMA_HASH".to_string(), "schema.ts"));
+        for unit in self.units.keys() {
+            names.push((unit.to_string(), "types.ts"));
+            names.push((format!("{unit}Schema"), "schema.ts"));
+            names.push((value_identifier(unit), "schema.ts"));
         }
-        for name in CLIENT_RUNTIME_EXPORTS {
-            names.push((name.to_string(), "client.ts"));
+        for (name, definition) in &self.definitions {
+            match shape(definition) {
+                Shape::Date => {}
+                Shape::Enum | Shape::Empty => {
+                    names.push((name.to_string(), "types.ts"));
+                    names.push((format!("{name}Schema"), "schema.ts"));
+                }
+                Shape::Record(_) | Shape::Union => {
+                    names.push((name.to_string(), "types.ts"));
+                    names.push((format!("{name}Schema"), "schema.ts"));
+                    names.push((format!("{name}Codec"), "schema.ts"));
+                }
+            }
         }
-        for name in self.definitions.keys() {
-            names.push((name.to_string(), "types.ts"));
-            names.push((format!("{name}Schema"), "schema.ts"));
-        }
-        for name in &self.input_definitions {
+        for name in self.partial_definitions() {
             names.push((format!("Partial{name}"), "partial.ts"));
             names.push((format!("Partial{name}Schema"), "partial.ts"));
         }
         for entry in &self.entries {
             let (types, values) = (&entry.type_name, &entry.value_name);
             for suffix in [
-                "InputPaths",
-                "InputPath",
                 "InputPatterns",
+                "InputPattern",
+                "InputPatternList",
+                "InputPath",
                 "InputPathSchema",
+                "ElementKey",
                 "Need",
                 "NeedSchema",
                 "QueryResult",
@@ -505,6 +772,9 @@ impl<'a> Sdk<'a> {
             names.push((format!("{values}SetAt"), "partial.ts"));
             names.push((values.clone(), "client.ts"));
             names.push((format!("{values}Query"), "client.ts"));
+            names.push((format!("{values}Explained"), "client.ts"));
+            names.push((format!("{values}QueryExplained"), "client.ts"));
+            names.push((format!("{values}Entry"), "client.ts"));
             names.push((format!("{types}Resolvers"), "client.ts"));
         }
         let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
@@ -518,20 +788,39 @@ impl<'a> Sdk<'a> {
         Ok(())
     }
 
+    /// The input types with a partial form: records and sum types with
+    /// payload variants. An enum and a `Date` are partial only as a whole.
+    fn partial_definitions(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.input_definitions.iter().copied().filter(|name| {
+            matches!(
+                shape(self.definitions[name]),
+                Shape::Record(_) | Shape::Union | Shape::Empty
+            )
+        })
+    }
+
     fn ts_type(&self, ty: &CalculationTypeRef, side: Side) -> String {
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                unit: Some(unit), ..
+            } => match side {
+                Side::Local => unit.clone(),
+                Side::Qualified | Side::Partial => format!("types.{unit}"),
+            },
+            CalculationTypeRef::Primitive { name, unit: None } => match name.as_str() {
                 "Int" | "Float" => "number",
                 "Bool" => "boolean",
                 _ => "string",
             }
             .to_string(),
             CalculationTypeRef::Unit => "null".to_string(),
-            CalculationTypeRef::Optional { item } => {
-                format!("{} | null", self.ts_type(item, side))
-            }
+            // In a partial case "none" is `none`, so a bare `null` cannot pass for it.
+            CalculationTypeRef::Optional { item } => match side {
+                Side::Partial => format!("{} | None", self.ts_type(item, side)),
+                Side::Local | Side::Qualified => format!("{} | null", self.ts_type(item, side)),
+            },
             CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
-                let item = self.ts_type(item, side);
+                let item = self.element_type(item, side);
                 if item.contains(" | ") {
                     format!("({item})[]")
                 } else {
@@ -539,10 +828,14 @@ impl<'a> Sdk<'a> {
                 }
             }
             CalculationTypeRef::Map { value, .. } => {
-                format!("{{ [key: string]: {} }}", self.ts_type(value, side))
+                format!("{{ [key: string]: {} }}", self.element_type(value, side))
             }
             CalculationTypeRef::TypeParameter { name } => name.clone(),
             CalculationTypeRef::Named { name, arguments } => {
+                let shape = shape(self.definitions[name.as_str()]);
+                if matches!(shape, Shape::Date) {
+                    return "IsoDate".to_string();
+                }
                 let arguments = if arguments.is_empty() {
                     String::new()
                 } else {
@@ -555,41 +848,72 @@ impl<'a> Sdk<'a> {
                             .join(", ")
                     )
                 };
-                match side {
-                    Side::Local => format!("{name}{arguments}"),
-                    Side::Qualified => format!("types.{name}{arguments}"),
-                    Side::Partial => format!("Partial{name}{arguments}"),
+                match (side, shape) {
+                    (Side::Local, _) => format!("{name}{arguments}"),
+                    (Side::Qualified, _) | (Side::Partial, Shape::Enum) => {
+                        format!("types.{name}{arguments}")
+                    }
+                    (Side::Partial, _) => format!("Partial{name}{arguments}"),
                 }
             }
         }
     }
 
+    /// The type of a list element or map value: in a partial case an enum or
+    /// a `Date` there may also be `Unknown`.
+    fn element_type(&self, item: &CalculationTypeRef, side: Side) -> String {
+        let rendered = self.ts_type(item, side);
+        if side == Side::Partial && self.is_atomic_record(item) {
+            format!(
+                "{rendered} | Unknown<{}>",
+                self.ts_type(without_optional(item), side)
+            )
+        } else {
+            rendered
+        }
+    }
+
     /// The Zod expression for `ty`; `Local` means inside `schema.ts`.
     fn zod(&self, ty: &CalculationTypeRef, side: Side) -> String {
-        let module = if side == Side::Local { "" } else { "schema." };
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
-                "Int" => format!("{module}IntSchema"),
-                "Float" => format!("{module}FloatSchema"),
-                "Char" => format!("{module}CharSchema"),
-                "Bool" => "z.boolean()".to_string(),
-                _ => "z.string()".to_string(),
+            CalculationTypeRef::Primitive {
+                unit: Some(unit), ..
+            } => match side {
+                Side::Local => format!("{unit}Schema"),
+                Side::Qualified | Side::Partial => format!("schema.{unit}Schema"),
             },
+            CalculationTypeRef::Primitive { name, unit: None } => match name.as_str() {
+                "Int" => "IntSchema",
+                "Float" => "FloatSchema",
+                "Char" => "CharSchema",
+                "Bool" => "z.boolean()",
+                _ => "z.string()",
+            }
+            .to_string(),
             CalculationTypeRef::Unit => "z.null()".to_string(),
-            CalculationTypeRef::Optional { item } => format!("{}.nullable()", self.zod(item, side)),
-            CalculationTypeRef::List { item } => format!("z.array({})", self.zod(item, side)),
+            CalculationTypeRef::Optional { item } => match side {
+                Side::Partial => format!("z.union([{}, NoneSchema])", self.zod(item, side)),
+                Side::Local | Side::Qualified => format!("{}.nullable()", self.zod(item, side)),
+            },
+            CalculationTypeRef::List { item } => {
+                format!("z.array({})", self.element_zod(item, side))
+            }
             CalculationTypeRef::Set { item } => {
-                format!("{module}SetSchema({})", self.zod(item, side))
+                format!("SetSchema({})", self.element_zod(item, side))
             }
             CalculationTypeRef::Map { value, .. } => {
-                format!("z.record(z.string(), {})", self.zod(value, side))
+                format!("z.record(z.string(), {})", self.element_zod(value, side))
             }
             CalculationTypeRef::TypeParameter { name } => format!("schema_{name}"),
             CalculationTypeRef::Named { name, arguments } => {
-                let schema = match side {
-                    Side::Local => format!("{name}Schema"),
-                    Side::Qualified => format!("schema.{name}Schema"),
-                    Side::Partial => format!("Partial{name}Schema"),
+                let shape = shape(self.definitions[name.as_str()]);
+                let schema = match (side, shape) {
+                    (_, Shape::Date) => return "IsoDateSchema".to_string(),
+                    (Side::Local, _) => format!("{name}Schema"),
+                    (Side::Qualified, _) | (Side::Partial, Shape::Enum) => {
+                        format!("schema.{name}Schema")
+                    }
+                    (Side::Partial, _) => format!("Partial{name}Schema"),
                 };
                 if arguments.is_empty() {
                     schema
@@ -602,6 +926,64 @@ impl<'a> Sdk<'a> {
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
+                }
+            }
+        }
+    }
+
+    fn element_zod(&self, item: &CalculationTypeRef, side: Side) -> String {
+        let schema = self.zod(item, side);
+        if side == Side::Partial && self.is_atomic_record(item) {
+            format!("z.union([{schema}, UnknownSchema])")
+        } else {
+            schema
+        }
+    }
+
+    /// The codec expression for `ty`; `qualified` reaches the codecs of
+    /// named types through the `schema` namespace. Optional values need no
+    /// codec of their own: `null` is the same on both sides.
+    fn codec(&self, ty: &CalculationTypeRef, qualified: bool) -> String {
+        let wrap = |constructor: &str, item: &CalculationTypeRef| {
+            let item = self.codec(item, qualified);
+            if item == "valueCodec" {
+                item
+            } else {
+                format!("{constructor}({item})")
+            }
+        };
+        match ty {
+            CalculationTypeRef::Primitive { .. } | CalculationTypeRef::Unit => {
+                "valueCodec".to_string()
+            }
+            CalculationTypeRef::Optional { item } => {
+                format!("optionalCodec({})", self.codec(item, qualified))
+            }
+            CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
+                wrap("listCodec", item)
+            }
+            CalculationTypeRef::Map { value, .. } => wrap("mapCodec", value),
+            CalculationTypeRef::TypeParameter { name } => format!("codec_{name}"),
+            CalculationTypeRef::Named { name, arguments } => {
+                match shape(self.definitions[name.as_str()]) {
+                    Shape::Date => "isoDateCodec".to_string(),
+                    Shape::Enum => "enumCodec".to_string(),
+                    Shape::Empty => "valueCodec".to_string(),
+                    Shape::Record(_) | Shape::Union => {
+                        let prefix = if qualified { "schema." } else { "" };
+                        if arguments.is_empty() {
+                            format!("() => {prefix}{name}Codec")
+                        } else {
+                            format!(
+                                "() => {prefix}{name}Codec({})",
+                                arguments
+                                    .iter()
+                                    .map(|argument| self.codec(argument, qualified))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -625,89 +1007,187 @@ impl<'a> Sdk<'a> {
         out.push('\n');
     }
 
-    fn types_module(&self) -> String {
+    /// The import lines of a module whose code is `body`: each namespace in
+    /// `namespaces` (name, specifier, type-only) and each runtime export the
+    /// code uses.
+    fn imports(&self, body: &str, namespaces: &[(&str, &str, bool)], type_only: bool) -> String {
+        // String literals (paths, variant names) name no identifiers.
+        let code: Vec<String> = body
+            .lines()
+            .filter(|line| {
+                let line = line.trim_start();
+                !(line.starts_with("//") || line.starts_with("/*") || line.starts_with('*'))
+            })
+            .map(without_strings)
+            .collect();
+        let uses = |name: &str| code.iter().any(|line| uses_identifier(line, name));
         let mut out = String::new();
-        self.header(
-            &mut out,
-            "Types of every calculation input and result, in their canonical JSON encoding.",
-        );
-        out.push_str(
-            "// Int is `number` and holds safe integers only; the validators in schema.ts\n// reject anything else. An optional value is `T | null`.\n\n",
-        );
-        for definition in self.definitions.values() {
-            self.write_type(&mut out, definition);
+        if uses("z") {
+            out.push_str("import { z } from \"zod\";\n");
+        }
+        for (name, specifier, type_only) in namespaces {
+            if code.iter().any(|line| line.contains(&format!("{name}."))) {
+                let keyword = if *type_only { "import type" } else { "import" };
+                let _ = writeln!(out, "{keyword} * as {name} from \"{specifier}\";");
+            }
+        }
+        let used: Vec<String> = runtime_exports()
+            .filter(|(name, _)| uses(name))
+            .map(|(name, is_type)| {
+                if is_type && !type_only {
+                    format!("type {name}")
+                } else {
+                    name.to_string()
+                }
+            })
+            .collect();
+        if !used.is_empty() {
+            let keyword = if type_only { "import type" } else { "import" };
+            let specifier = string_literal(&self.runtime);
+            let line = format!("{keyword} {{ {} }} from {specifier};", used.join(", "));
+            if line.len() <= 100 {
+                let _ = writeln!(out, "{line}");
+            } else {
+                let _ = writeln!(out, "{keyword} {{");
+                for name in &used {
+                    let _ = writeln!(out, "  {name},");
+                }
+                let _ = writeln!(out, "}} from {specifier};");
+            }
+        }
+        if !out.is_empty() {
             out.push('\n');
         }
         out
     }
 
+    fn types_module(&self) -> String {
+        let mut body = String::new();
+        for (unit, description) in &self.units {
+            write_doc(
+                &mut body,
+                "",
+                &[
+                    sentence(description),
+                    String::new(),
+                    format!(
+                        "A Futuruna `{unit}`: a safe integer of this unit, on the wire the same JSON number. Only `{}(n)` and the validators make one; a bare number or a value of another unit is not one.",
+                        value_identifier(unit)
+                    ),
+                ],
+            );
+            let _ = writeln!(
+                body,
+                "export type {unit} = number & {{ readonly __unit: {} }};\n",
+                string_literal(unit)
+            );
+        }
+        for definition in self.definitions.values() {
+            if matches!(shape(definition), Shape::Date) {
+                continue;
+            }
+            self.write_type(&mut body, definition);
+            body.push('\n');
+        }
+        let mut out = String::new();
+        self.header(
+            &mut out,
+            "Types of every calculation input and result. The SDK writes them in runa call's JSON on the wire.",
+        );
+        out.push_str(
+            "// Field names are camelCase (snake_case on the wire). A sum type whose variants carry\n// no fields is its variant's name; other sum types are unions tagged by `$variant`.\n// A `Date` is an ISO `YYYY-MM-DD` string (`IsoDate`, made by `isoDate`). Int is `number`\n// and holds safe integers only; the validators in schema.ts reject anything else. An\n// optional value is `T | null` (in a partial case, `T | None`: \"none\" is `none`).\n// An Int with a unit of measure (`# unit Ore \"DKK øre\"`) is the branded number type `Ore`.\n\n",
+        );
+        out.push_str(&self.imports(&body, &[], true));
+        out.push_str(&body);
+        out
+    }
+
     fn write_type(&self, out: &mut String, definition: &CalculationTypeDefinition) {
         let parameters = type_parameters(definition);
-        if let Some(variant) = product_variant(definition) {
-            write_doc(
-                out,
-                "",
-                &[format!(
-                    "Futuruna record `{}`.",
-                    display_definition(definition)
-                )],
-            );
-            let _ = writeln!(out, "export type {}{parameters} = {{", definition.name);
-            for field in &variant.fields {
-                self.write_field(out, "  ", definition, variant, field);
-            }
-            out.push_str("};\n");
-            return;
-        }
-        if definition.variants.is_empty() {
-            write_doc(
-                out,
-                "",
-                &[format!(
-                    "Futuruna type `{}`, which has no values.",
-                    display_definition(definition)
-                )],
-            );
-            let _ = writeln!(out, "export type {}{parameters} = never;", definition.name);
-            return;
-        }
-        write_doc(
-            out,
-            "",
-            &[format!(
-                "Futuruna sum type `{}`, tagged by `$variant`: {}.",
-                display_definition(definition),
-                variant_list(definition)
-            )],
-        );
-        let _ = writeln!(out, "export type {}{parameters} =", definition.name);
-        let mut members = Vec::new();
-        for variant in &definition.variants {
-            let tag = string_literal(&variant.name);
-            if variant.positional {
-                members.push(format!(
-                    "  | {{ $variant: {tag}; $values: [{}] }}",
-                    variant
-                        .fields
-                        .iter()
-                        .map(|field| self.ts_type(&field.ty, Side::Local))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ));
-            } else if variant.fields.is_empty() {
-                members.push(format!("  | {{ $variant: {tag} }}"));
-            } else {
-                let mut member = String::from("  | {\n");
-                let _ = writeln!(member, "      $variant: {tag};");
+        let name = &definition.name;
+        match shape(definition) {
+            Shape::Record(variant) => {
+                write_doc(
+                    out,
+                    "",
+                    &[format!(
+                        "Futuruna record `{}`.",
+                        display_definition(definition)
+                    )],
+                );
+                let _ = writeln!(out, "export type {name}{parameters} = {{");
                 for field in &variant.fields {
-                    self.write_field(&mut member, "      ", definition, variant, field);
+                    self.write_field(out, "  ", definition, variant, field);
                 }
-                member.push_str("    }");
-                members.push(member);
+                out.push_str("};\n");
             }
+            Shape::Empty => {
+                write_doc(
+                    out,
+                    "",
+                    &[format!(
+                        "Futuruna type `{}`, which has no values.",
+                        display_definition(definition)
+                    )],
+                );
+                let _ = writeln!(out, "export type {name}{parameters} = never;");
+            }
+            Shape::Enum => {
+                write_doc(
+                    out,
+                    "",
+                    &[format!(
+                        "Futuruna sum type `{}`; its variants carry no fields, so a value is its variant's name.",
+                        display_definition(definition)
+                    )],
+                );
+                let _ = writeln!(
+                    out,
+                    "export type {name}{parameters} = {};",
+                    variant_names(definition)
+                );
+            }
+            Shape::Union => {
+                write_doc(
+                    out,
+                    "",
+                    &[format!(
+                        "Futuruna sum type `{}`, tagged by `$variant`: {}.",
+                        display_definition(definition),
+                        variant_list(definition)
+                    )],
+                );
+                let _ = writeln!(out, "export type {name}{parameters} =");
+                let mut members = Vec::new();
+                for variant in &definition.variants {
+                    let tag = string_literal(&variant.name);
+                    if variant.positional {
+                        members.push(format!(
+                            "  | {{ $variant: {tag}; $values: [{}] }}",
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| self.ts_type(&field.ty, Side::Local))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
+                    } else if variant.fields.is_empty() {
+                        members.push(format!("  | {{ $variant: {tag} }}"));
+                    } else {
+                        let mut member = String::from("  | {\n");
+                        let _ = writeln!(member, "      $variant: {tag};");
+                        for field in &variant.fields {
+                            self.write_field(&mut member, "      ", definition, variant, field);
+                        }
+                        member.push_str("    }");
+                        members.push(member);
+                    }
+                }
+                out.push_str(&members.join("\n"));
+                out.push_str(";\n");
+            }
+            Shape::Date => {}
         }
-        out.push_str(&members.join("\n"));
-        out.push_str(";\n");
     }
 
     fn write_field(
@@ -722,7 +1202,7 @@ impl<'a> Sdk<'a> {
         let _ = writeln!(
             out,
             "{indent}{}: {};",
-            property_name(&field.name),
+            property_name(&camel_case(&field.name)),
             self.ts_type(&field.ty, Side::Local)
         );
     }
@@ -735,6 +1215,8 @@ impl<'a> Sdk<'a> {
         variant: &CalculationVariant,
         field: &CalculationField,
     ) -> Vec<String> {
+        // An enum's `$variant` is the value itself, not a tag.
+        let tag_label = !self.is_enum_type(&field.ty);
         let mut groups: Vec<(Vec<String>, Vec<&str>)> = Vec::new();
         if let Some(list) = self.field_metadata.get(&(
             definition.name.as_str(),
@@ -742,7 +1224,7 @@ impl<'a> Sdk<'a> {
             field.name.as_str(),
         )) {
             for metadata in list {
-                let block = metadata_block(metadata);
+                let block = metadata_block(metadata, tag_label);
                 match groups.iter_mut().find(|(existing, _)| *existing == block) {
                     Some((_, paths)) => paths.push(&metadata.path),
                     None => groups.push((block, vec![&metadata.path])),
@@ -759,7 +1241,7 @@ impl<'a> Sdk<'a> {
                     "At {}:",
                     paths
                         .iter()
-                        .map(|path| format!("`{path}`"))
+                        .map(|path| format!("`{}`", camel_case_path(path)))
                         .collect::<Vec<_>>()
                         .join(", ")
                 ));
@@ -767,37 +1249,90 @@ impl<'a> Sdk<'a> {
                 lines.push(String::new());
             }
         }
-        let mut type_line = format!("Futuruna type: `{}`", field.ty.display_name());
+        let mut notes = Vec::new();
         if mentions_int(&field.ty) {
-            type_line.push_str("; Int values are safe integers");
+            notes.push("Int values are safe integers");
+        }
+        if self.mentions_date(&field.ty) {
+            notes.push("a `Date` is an ISO `YYYY-MM-DD` string");
+        }
+        let mut type_line = format!("Futuruna type: `{}`", futuruna_type(&field.ty));
+        for note in notes {
+            type_line.push_str("; ");
+            type_line.push_str(note);
         }
         type_line.push('.');
         lines.push(type_line);
         lines
     }
 
+    fn mentions_date(&self, ty: &CalculationTypeRef) -> bool {
+        match ty {
+            CalculationTypeRef::Optional { item }
+            | CalculationTypeRef::List { item }
+            | CalculationTypeRef::Set { item } => self.mentions_date(item),
+            CalculationTypeRef::Map { value, .. } => self.mentions_date(value),
+            CalculationTypeRef::Named { arguments, .. } => {
+                self.is_date_type(ty)
+                    || arguments
+                        .iter()
+                        .any(|argument| self.mentions_date(argument))
+            }
+            CalculationTypeRef::Primitive { .. }
+            | CalculationTypeRef::TypeParameter { .. }
+            | CalculationTypeRef::Unit => false,
+        }
+    }
+
     fn schema_module(&self) -> String {
-        let mut out = String::new();
-        self.header(
-            &mut out,
-            "Zod validators for every calculation input and result type.",
-        );
-        out.push_str("import { z } from \"zod\";\nimport type * as types from \"./types.js\";\n\n");
-        out.push_str(SCHEMA_RUNTIME);
-        out.push_str("\n/** The contract fingerprint of each calculation entry. */\nexport const SCHEMA_HASH = {\n");
+        let mut body = String::new();
+        body.push_str("/** The contract fingerprint of each calculation entry. */\nexport const SCHEMA_HASH = {\n");
         for entry in &self.entries {
             let _ = writeln!(
-                out,
+                body,
                 "  {}: {},",
                 property_name(&entry.contract.entry),
                 string_literal(&entry.contract.schema_hash)
             );
         }
-        out.push_str("} as const;\n");
-        for definition in self.definitions.values() {
-            out.push('\n');
-            self.write_schema(&mut out, definition, Side::Local);
+        body.push_str("} as const;\n");
+        for (unit, description) in &self.units {
+            let _ = writeln!(
+                body,
+                "\n/** Validates a `{unit}` ({}): a safe integer, typed `{unit}` once parsed. */\nexport const {unit}Schema: z.ZodType<types.{unit}> = unitSchema<types.{unit}>({});\n",
+                escape_doc(description),
+                string_literal(unit)
+            );
+            let _ = writeln!(
+                body,
+                "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
+                value_identifier(unit),
+                string_literal(unit)
+            );
         }
+        for definition in self.definitions.values() {
+            if matches!(shape(definition), Shape::Date) {
+                continue;
+            }
+            body.push('\n');
+            self.write_schema(&mut body, definition, Side::Local);
+        }
+        body.push_str(
+            "\n// Wire codecs: each TypeScript field name with the field's name in runa call's JSON\n// and its codec. The runtime's toWire and fromWire read them.\n",
+        );
+        for definition in self.definitions.values() {
+            if matches!(shape(definition), Shape::Record(_) | Shape::Union) {
+                body.push('\n');
+                self.write_codec(&mut body, definition);
+            }
+        }
+        let mut out = String::new();
+        self.header(
+            &mut out,
+            "Zod validators and wire codecs for every calculation input and result type.",
+        );
+        out.push_str(&self.imports(&body, &[("types", "./types.js", true)], false));
+        out.push_str(&body);
         out
     }
 
@@ -814,6 +1349,33 @@ impl<'a> Sdk<'a> {
                 format!("{}Schema", definition.name),
             ),
         };
+        if let Shape::Enum = shape(definition) {
+            let names = definition
+                .variants
+                .iter()
+                .map(|variant| string_literal(&variant.name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            if definition.parameters.is_empty() {
+                let _ = writeln!(
+                    out,
+                    "export const {schema_name}: z.ZodType<{type_name}> = z.enum([{names}]);"
+                );
+            } else {
+                let parameters = definition.parameters.join(", ");
+                let arguments = definition
+                    .parameters
+                    .iter()
+                    .map(|parameter| format!("_schema_{parameter}: z.ZodType<{parameter}>"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let _ = writeln!(
+                    out,
+                    "export const {schema_name} = <{parameters}>({arguments}): z.ZodType<{type_name}<{parameters}>> =>\n  z.enum([{names}]);"
+                );
+            }
+            return;
+        }
         let body = self.schema_body(definition, side);
         if definition.parameters.is_empty() {
             let _ = writeln!(
@@ -851,7 +1413,7 @@ impl<'a> Sdk<'a> {
                 let _ = writeln!(
                     body,
                     "      {}: {},",
-                    property_name(&field.name),
+                    property_name(&camel_case(&field.name)),
                     field_schema(field)
                 );
             }
@@ -890,7 +1452,7 @@ impl<'a> Sdk<'a> {
                         let _ = writeln!(
                             object,
                             "          {}: {},",
-                            property_name(&field.name),
+                            property_name(&camel_case(&field.name)),
                             field_schema(field)
                         );
                     }
@@ -901,173 +1463,206 @@ impl<'a> Sdk<'a> {
             .collect::<String>();
         let union = format!("z.discriminatedUnion(\"$variant\", [\n{objects}    ])");
         if partial {
-            format!("  z.union([\n    z.object({{}}).strict(),\n    {union},\n  ])")
+            format!("  z.union([\n    UnknownSchema,\n    {union},\n  ])")
         } else {
             format!("  {union}")
         }
     }
 
+    fn write_codec(&self, out: &mut String, definition: &CalculationTypeDefinition) {
+        let name = &definition.name;
+        let fields = |out: &mut String, indent: &str, variant: &CalculationVariant| {
+            for field in &variant.fields {
+                let _ = writeln!(
+                    out,
+                    "{indent}{}: [{}, {}],",
+                    property_name(&camel_case(&field.name)),
+                    string_literal(&field.name),
+                    self.codec(&field.ty, false)
+                );
+            }
+        };
+        let mut body = String::new();
+        match shape(definition) {
+            Shape::Record(variant) => {
+                body.push_str("recordCodec({\n");
+                fields(&mut body, "  ", variant);
+                body.push_str("})");
+            }
+            _ => {
+                body.push_str("unionCodec({\n");
+                for variant in &definition.variants {
+                    let tag = property_name(&variant.name);
+                    if variant.positional {
+                        let _ = writeln!(
+                            body,
+                            "  {tag}: {{ $values: [{}] }},",
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| self.codec(&field.ty, false))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                    } else if variant.fields.is_empty() {
+                        let _ = writeln!(body, "  {tag}: {{}},");
+                    } else {
+                        let _ = writeln!(body, "  {tag}: {{");
+                        fields(&mut body, "    ", variant);
+                        body.push_str("  },\n");
+                    }
+                }
+                body.push_str("})");
+            }
+        }
+        if definition.parameters.is_empty() {
+            let _ = writeln!(out, "export const {name}Codec: Codec = {body};");
+        } else {
+            let arguments = definition
+                .parameters
+                .iter()
+                .map(|parameter| format!("codec_{parameter}: CodecRef"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(
+                out,
+                "export const {name}Codec = ({arguments}): Codec =>\n  {};",
+                body.replace('\n', "\n  ")
+            );
+        }
+    }
+
     fn partial_module(&self) -> String {
+        let mut body = String::new();
+        let mut first = true;
+        for name in self.partial_definitions() {
+            let definition = self.definitions[name];
+            if !first {
+                body.push('\n');
+            }
+            first = false;
+            self.write_partial_type(&mut body, definition);
+            body.push('\n');
+            self.write_schema(&mut body, definition, Side::Partial);
+        }
+        for entry in &self.entries {
+            if !first {
+                body.push('\n');
+            }
+            first = false;
+            self.write_entry_paths(&mut body, entry);
+        }
         let mut out = String::new();
         self.header(
             &mut out,
             "Partial cases, the Complete/Needs result of a partial call, typed needs and setAt.",
         );
-        out.push_str(
-            "import { z } from \"zod\";\nimport type * as types from \"./types.js\";\nimport * as schema from \"./schema.js\";\n\n",
-        );
-        out.push_str(PARTIAL_RUNTIME);
-        for name in &self.input_definitions {
-            let definition = self.definitions[name];
-            out.push('\n');
-            self.write_partial_type(&mut out, definition);
-            out.push('\n');
-            self.write_schema(&mut out, definition, Side::Partial);
-        }
-        for entry in &self.entries {
-            out.push('\n');
-            self.write_entry_paths(&mut out, entry);
-        }
+        out.push_str(&self.imports(
+            &body,
+            &[
+                ("types", "./types.js", true),
+                ("schema", "./schema.js", false),
+            ],
+            false,
+        ));
+        out.push_str(&body);
         out
     }
 
     fn write_partial_type(&self, out: &mut String, definition: &CalculationTypeDefinition) {
         let parameters = type_parameters(definition);
         let name = &definition.name;
-        if let Some(variant) = product_variant(definition) {
-            write_doc(
-                out,
-                "",
-                &[format!(
-                    "{{@link types.{name}}} in a partial case: a field left out is unknown, and `{{}}` is a record whose fields are all unknown."
-                )],
-            );
-            let _ = writeln!(out, "export type Partial{name}{parameters} = {{");
-            for field in &variant.fields {
-                write_doc(out, "  ", &self.field_doc(definition, variant, field));
-                let _ = writeln!(
+        match shape(definition) {
+            Shape::Record(variant) => {
+                write_doc(
                     out,
-                    "  {}?: {} | undefined;",
-                    property_name(&field.name),
-                    self.ts_type(&field.ty, Side::Partial)
+                    "",
+                    &[format!(
+                        "{{@link types.{name}}} in a partial case: a field left out is unknown, `none` answers that an optional field is absent, and `{{}}` is a record whose fields are all unknown."
+                    )],
                 );
-            }
-            out.push_str("};\n");
-            return;
-        }
-        if definition.variants.is_empty() {
-            let _ = writeln!(out, "export type Partial{name}{parameters} = never;");
-            return;
-        }
-        write_doc(
-            out,
-            "",
-            &[format!(
-                "{{@link types.{name}}} in a partial case: without `$variant` (left out, or `{{}}`) the variant is unknown; once it is given, a field left out is unknown."
-            )],
-        );
-        let _ = writeln!(out, "export type Partial{name}{parameters} =");
-        let mut members = vec!["  | { [key: string]: never }".to_string()];
-        for variant in &definition.variants {
-            let tag = string_literal(&variant.name);
-            if variant.positional {
-                members.push(format!(
-                    "  | {{ $variant: {tag}; $values?: [{}] | undefined }}",
-                    variant
-                        .fields
-                        .iter()
-                        .map(|field| self.ts_type(&field.ty, Side::Partial))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ));
-            } else if variant.fields.is_empty() {
-                members.push(format!("  | {{ $variant: {tag} }}"));
-            } else {
-                let mut member = format!("  | {{\n      $variant: {tag};\n");
+                let _ = writeln!(out, "export type Partial{name}{parameters} = {{");
                 for field in &variant.fields {
-                    write_doc(
-                        &mut member,
-                        "      ",
-                        &self.field_doc(definition, variant, field),
-                    );
+                    write_doc(out, "  ", &self.field_doc(definition, variant, field));
                     let _ = writeln!(
-                        member,
-                        "      {}?: {} | undefined;",
-                        property_name(&field.name),
+                        out,
+                        "  {}?: {} | undefined;",
+                        property_name(&camel_case(&field.name)),
                         self.ts_type(&field.ty, Side::Partial)
                     );
                 }
-                member.push_str("    }");
-                members.push(member);
+                out.push_str("};\n");
             }
+            Shape::Union => {
+                write_doc(
+                    out,
+                    "",
+                    &[format!(
+                        "{{@link types.{name}}} in a partial case: `{{}}` (or the field left out) is a variant not known yet; once `$variant` is given, a field left out is unknown."
+                    )],
+                );
+                let _ = writeln!(out, "export type Partial{name}{parameters} =");
+                let mut members = vec![format!("  | Unknown<types.{name}{parameters}>")];
+                for variant in &definition.variants {
+                    let tag = string_literal(&variant.name);
+                    if variant.positional {
+                        members.push(format!(
+                            "  | {{ $variant: {tag}; $values?: [{}] | undefined }}",
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| self.ts_type(&field.ty, Side::Partial))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
+                    } else if variant.fields.is_empty() {
+                        members.push(format!("  | {{ $variant: {tag} }}"));
+                    } else {
+                        let mut member = format!("  | {{\n      $variant: {tag};\n");
+                        for field in &variant.fields {
+                            write_doc(
+                                &mut member,
+                                "      ",
+                                &self.field_doc(definition, variant, field),
+                            );
+                            let _ = writeln!(
+                                member,
+                                "      {}?: {} | undefined;",
+                                property_name(&camel_case(&field.name)),
+                                self.ts_type(&field.ty, Side::Partial)
+                            );
+                        }
+                        member.push_str("    }");
+                        members.push(member);
+                    }
+                }
+                out.push_str(&members.join("\n"));
+                out.push_str(";\n");
+            }
+            Shape::Empty => {
+                let _ = writeln!(out, "export type Partial{name}{parameters} = never;");
+            }
+            Shape::Enum | Shape::Date => {}
         }
-        out.push_str(&members.join("\n"));
-        out.push_str(";\n");
     }
 
     fn write_entry_paths(&self, out: &mut String, entry: &Entry<'_>) {
         let contract = entry.contract;
+        let name = &contract.entry;
         let types = &entry.type_name;
         let values = &entry.value_name;
         let input = self.ts_type(&contract.input, Side::Partial);
         let output = self.ts_type(&contract.output, Side::Qualified);
         let output_schema = self.zod(&contract.output, Side::Qualified);
-        let _ = writeln!(out, "// `{}`\n", contract.entry);
+        let _ = writeln!(out, "// `{name}`\n");
 
         write_doc(
             out,
             "",
             &[
-                format!(
-                    "Every input path of `{}` a need can name, with the value an answer writes there.",
-                    contract.entry
-                ),
-                "List indices are `[${number}]` and map keys `${string}`.".to_string(),
+                format!("The input path patterns of `{name}` a need can name, with the value an answer writes there."),
+                "A list index is `[]` and a map key `*`.".to_string(),
             ],
-        );
-        let _ = writeln!(out, "export interface {types}InputPaths {{");
-        for (pattern, value_types) in &entry.patterns {
-            // A map key is `${string}`, which also matches every longer path
-            // through that map; TypeScript requires their values to fit it.
-            let mut value_types = value_types.clone();
-            if pattern.contains('*') {
-                for (other, other_types) in &entry.patterns {
-                    if other != pattern && template_matches(pattern, other) {
-                        value_types.extend(other_types.iter().cloned());
-                    }
-                }
-            }
-            let value = value_types.into_iter().collect::<Vec<_>>().join(" | ");
-            if pattern.contains("[]") || pattern.contains('*') {
-                let template = pattern
-                    .replace("[]", "[${number}]")
-                    .replace('*', "${string}");
-                let _ = writeln!(out, "  [path: `{template}`]: {value};");
-            } else {
-                let _ = writeln!(out, "  {}: {value};", string_literal(pattern));
-            }
-        }
-        if entry.open_paths {
-            out.push_str("  [path: string]: unknown;\n");
-        }
-        out.push_str("}\n\n");
-        let _ = writeln!(
-            out,
-            "/** A concrete input path of `{}`, with list indices and map keys filled in. */",
-            contract.entry
-        );
-        let _ = writeln!(
-            out,
-            "export type {types}InputPath = Extract<keyof {types}InputPaths, string>;\n"
-        );
-
-        write_doc(
-            out,
-            "",
-            &[format!(
-                "The input path patterns of `{}` (list indices as `[]`, map keys as `*`), keying resolvers.",
-                contract.entry
-            )],
         );
         let _ = writeln!(out, "export interface {types}InputPatterns {{");
         for (pattern, value_types) in &entry.patterns {
@@ -1078,82 +1673,134 @@ impl<'a> Sdk<'a> {
             out.push_str("  [pattern: string]: unknown;\n");
         }
         out.push_str("}\n\n");
+        let _ = writeln!(out, "/** An input path pattern of `{name}`. */");
+        let _ = writeln!(
+            out,
+            "export type {types}InputPattern = Extract<keyof {types}InputPatterns, string>;\n"
+        );
+        let _ = writeln!(
+            out,
+            "/** The input path patterns of `{name}`, which tag its needs. */"
+        );
+        let _ = writeln!(
+            out,
+            "export const {types}InputPatternList: readonly {types}InputPattern[] = ["
+        );
+        for pattern in entry.patterns.keys() {
+            let _ = writeln!(out, "  {},", string_literal(pattern));
+        }
+        out.push_str("];\n\n");
 
-        if entry.open_paths {
-            let _ = writeln!(
-                out,
-                "export const {types}InputPathSchema: z.ZodType<{types}InputPath> = z.string();\n"
-            );
+        // A recursive input type has paths of any depth: they cannot be listed.
+        let listed = if entry.open_paths {
+            "undefined".to_string()
+        } else {
+            format!("{types}InputPatternList")
+        };
+        let _ = writeln!(
+            out,
+            "/** A concrete input path of `{name}`, with list indices and map keys filled in. */"
+        );
+        let _ = writeln!(
+            out,
+            "export type {types}InputPath = InputPath<{types}InputPattern>;"
+        );
+        let _ = writeln!(
+            out,
+            "export const {types}InputPathSchema = inputPathSchema<{types}InputPattern>({listed});\n"
+        );
+
+        let element_key = if entry.keys.is_empty() {
+            "never".to_string()
         } else {
             let _ = writeln!(
                 out,
-                "export const {types}InputPathSchema = inputPathSchema<{types}InputPath>(["
+                "/** The key of a list element of `{name}` a need lies in, where its type declares one. */"
             );
-            for pattern in entry.patterns.keys() {
-                let _ = writeln!(out, "  {},", string_literal(pattern));
-            }
-            out.push_str("]);\n\n");
-        }
-
-        let _ = writeln!(
-            out,
-            "/** A need of `{}`: its concrete path and the field's metadata. */",
-            contract.entry
-        );
-        let _ = writeln!(out, "export type {types}Need = Need<{types}InputPath>;");
-        let _ = writeln!(
-            out,
-            "export const {types}NeedSchema = needSchema({types}InputPathSchema);\n"
-        );
-        let _ = writeln!(
-            out,
-            "/** The result of a partial call of `{}`. */",
-            contract.entry
-        );
-        let _ = writeln!(
-            out,
-            "export type {types}QueryResult = QueryResult<{output}, {types}InputPath>;"
-        );
-        let _ = writeln!(
-            out,
-            "export const {types}QueryResultSchema = queryResultSchema({output_schema}, {types}InputPathSchema);\n"
-        );
+            let members = entry
+                .keys
+                .iter()
+                .map(|(element, key)| {
+                    format!(
+                        "  | ElementKey<{}, {}, {}>",
+                        string_literal(element),
+                        string_literal(&key.field),
+                        key.ty
+                    )
+                })
+                .collect::<Vec<_>>();
+            let _ = writeln!(
+                out,
+                "export type {types}ElementKey =\n{};\n",
+                members.join("\n")
+            );
+            format!("{types}ElementKey")
+        };
         write_doc(
             out,
             "",
             &[format!(
-                "{{@link setAt}} for a `{}` case, typed by the path.",
-                contract.entry
+                "A need of `{name}`: its pattern, its concrete path and the field's metadata. Narrowing `pattern` narrows the type of its answer."
             )],
         );
         let _ = writeln!(
             out,
-            "export function {values}SetAt<K extends {types}InputPath>(\n  partialCase: {input},\n  path: K,\n  value: {types}InputPaths[K],\n): {input} {{\n  return setAt(partialCase, path, value);\n}}"
+            "export type {types}Need = Need<{types}InputPattern, {element_key}>;"
+        );
+        let key_schemas = entry
+            .keys
+            .iter()
+            .map(|(element, key)| {
+                format!(
+                    "  {{ element: {}, field: {}, value: {} }},\n",
+                    string_literal(element),
+                    string_literal(&key.field),
+                    key.zod
+                )
+            })
+            .collect::<String>();
+        let key_schemas = if key_schemas.is_empty() {
+            "[]".to_string()
+        } else {
+            format!("[\n{key_schemas}]")
+        };
+        let _ = writeln!(
+            out,
+            "export const {types}NeedSchema = needSchema<{types}InputPattern, {element_key}>({listed}, {key_schemas});\n"
+        );
+        let _ = writeln!(out, "/** The result of a partial call of `{name}`. */");
+        let _ = writeln!(
+            out,
+            "export type {types}QueryResult = QueryResult<{output}, {types}Need>;"
+        );
+        let _ = writeln!(
+            out,
+            "export const {types}QueryResultSchema = queryResultSchema({output_schema}, {types}NeedSchema, {types}InputPathSchema);\n"
+        );
+        write_doc(
+            out,
+            "",
+            &[
+                format!("{{@link setAt}} for a `{name}` case: writes `value` at the need's path, typed by the need's pattern."),
+                "A need of several patterns takes no value until `need.pattern` is narrowed.".to_string(),
+            ],
+        );
+        let _ = writeln!(
+            out,
+            "export function {values}SetAt<N extends {types}Need>(\n  partialCase: {input},\n  need: N,\n  value: AnswerTo<{types}InputPatterns, N>,\n): {input} {{\n  return setAt(partialCase, need.path, value);\n}}"
         );
     }
 
     fn client_module(&self) -> String {
-        let mut out = String::new();
-        self.header(
-            &mut out,
-            "Typed calls of each calculation entry through an engine transport, and the resolver loop.",
-        );
-        out.push_str("import { z } from \"zod\";\nimport type * as types from \"./types.js\";\nimport * as schema from \"./schema.js\";\nimport * as partial from \"./partial.js\";\nimport type { Need, QueryResult } from \"./partial.js\";\n\n");
-        out.push_str(
-            &CLIENT_RUNTIME
-                .replace("{INPUT_SCHEMA}", INPUT_SCHEMA)
-                .replace("{OUTPUT_SCHEMA}", OUTPUT_SCHEMA)
-                .replace("{PARTIAL_OUTPUT_SCHEMA}", PARTIAL_OUTPUT_SCHEMA),
-        );
+        let mut body = String::new();
+        let mut first = true;
         for entry in &self.entries {
             let contract = entry.contract;
-            let name = string_literal(&contract.entry);
             let types = &entry.type_name;
             let values = &entry.value_name;
             let input = self.ts_type(&contract.input, Side::Qualified);
             let input_schema = self.zod(&contract.input, Side::Qualified);
-            let partial_input = self.ts_type(&contract.input, Side::Partial);
-            let partial_input = qualify_partial(&partial_input);
+            let partial_input = qualify_partial(&self.ts_type(&contract.input, Side::Partial));
             let partial_schema = qualify_partial(&self.zod(&contract.input, Side::Partial));
             let output = self.ts_type(&contract.output, Side::Qualified);
             let output_schema = self.zod(&contract.output, Side::Qualified);
@@ -1161,52 +1808,189 @@ impl<'a> Sdk<'a> {
                 Some(label) => format!("`{}`: {}.", contract.entry, escape_doc(label)),
                 None => format!("`{}`.", contract.entry),
             };
-            out.push('\n');
-            let _ = writeln!(out, "// `{}`\n", contract.entry);
+            if !first {
+                body.push('\n');
+            }
+            first = false;
+            let _ = writeln!(body, "// `{}`\n", contract.entry);
+            let _ = writeln!(
+                body,
+                "/** The `{}` entry: its name, contract hash, the wire codecs of its input and result, and its input path patterns. */",
+                contract.entry
+            );
+            let _ = writeln!(
+                body,
+                "export const {values}Entry: CalculationEntry = {{\n  name: {},\n  schemaHash: schema.SCHEMA_HASH{},\n  input: {},\n  output: {},\n  patterns: partial.{types}InputPatternList,\n}};\n",
+                string_literal(&contract.entry),
+                property_access(&contract.entry),
+                self.codec(&contract.input, true),
+                self.codec(&contract.output, true)
+            );
             write_doc(
-                &mut out,
+                &mut body,
                 "",
                 &[
                     format!("Calculate {title}"),
                     String::new(),
-                    "Validates the case, runs it through `transport.call`, checks the envelope's schema hash and validates the result.".to_string(),
+                    "Validates the case, encodes it for the engine, runs it through `transport.call`, checks the envelope's schema hash, and decodes and validates the result.".to_string(),
                 ],
             );
             let _ = writeln!(
-                out,
-                "export function {values}(transport: EngineTransport, input: {input}): Promise<{output}> {{\n  return invoke(transport, {name}, false, {input_schema}, {output_schema}, input);\n}}\n"
+                body,
+                "export function {values}(transport: EngineTransport, input: {input}): Promise<{output}> {{\n  return callEntry(transport, {values}Entry, {input_schema}, {output_schema}, input);\n}}\n"
             );
             write_doc(
-                &mut out,
+                &mut body,
                 "",
                 &[
                     format!("Query {title}"),
                     String::new(),
-                    "Runs a partial case through `transport.callPartial` and returns `Complete` with the result, or `Needs` with every fact and entry that blocks it.".to_string(),
+                    "Runs a partial case through `transport.callPartial` and returns `Complete` with the result, or `Needs` with every fact and entry that blocks it, at TypeScript paths.".to_string(),
                 ],
             );
             let _ = writeln!(
-                out,
-                "export function {values}Query(\n  transport: EngineTransport,\n  input: {partial_input},\n): Promise<partial.{types}QueryResult> {{\n  return invoke(transport, {name}, true, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
+                body,
+                "export function {values}Query(\n  transport: EngineTransport,\n  input: {partial_input},\n): Promise<partial.{types}QueryResult> {{\n  return queryEntry(transport, {values}Entry, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
+            );
+            write_doc(
+                &mut body,
+                "",
+                &[
+                    format!("Calculate and explain {title}"),
+                    String::new(),
+                    "As the plain call, through `transport.callExplained` (`runa call --explain`): also returns where every leaf of the result came from, at TypeScript paths.".to_string(),
+                ],
             );
             let _ = writeln!(
-                out,
-                "/** Resolvers for the needs of `{}`, keyed by path pattern. */",
+                body,
+                "export function {values}Explained(\n  transport: ExplainingTransport,\n  input: {input},\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<{output}>> {{\n  return explainEntry(transport, {values}Entry, depth, {input_schema}, {output_schema}, input);\n}}\n"
+            );
+            write_doc(
+                &mut body,
+                "",
+                &[
+                    format!("Query and explain {title}"),
+                    String::new(),
+                    "As the query, through `transport.callPartialExplained` (`runa call --partial --explain`): a `Complete` result comes with its explanation.".to_string(),
+                ],
+            );
+            let _ = writeln!(
+                body,
+                "export function {values}QueryExplained(\n  transport: ExplainingTransport,\n  input: {partial_input},\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.{types}QueryResult>> {{\n  return explainQueryEntry(transport, {values}Entry, depth, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
+            );
+            let _ = writeln!(
+                body,
+                "/** Resolvers for the needs of `{}`, keyed by pattern; each is called once per round with that round's needs at and below its pattern, its replies typed by each need's pattern. */",
                 contract.entry
             );
             let _ = writeln!(
-                out,
-                "export type {types}Resolvers = {{\n  readonly [K in keyof partial.{types}InputPatterns]?: Resolver<\n    {partial_input},\n    partial.{types}InputPatterns[K],\n    partial.{types}InputPath\n  >;\n}};"
+                body,
+                "export type {types}Resolvers = Resolvers<{partial_input}, partial.{types}Need, partial.{types}InputPatterns>;"
             );
         }
+        let mut out = String::new();
+        self.header(
+            &mut out,
+            "Typed calls of each calculation entry through an engine transport.",
+        );
+        out.push_str(&self.imports(
+            &body,
+            &[
+                ("types", "./types.js", true),
+                ("schema", "./schema.js", false),
+                ("partial", "./partial.js", false),
+            ],
+            false,
+        ));
+        out.push_str(&body);
         out
     }
 
     fn index_module(&self) -> String {
         let mut out = String::new();
-        self.header(&mut out, "The SDK's public surface.");
+        self.header(
+            &mut out,
+            "The SDK's public surface, with the runtime it imports.",
+        );
         out.push_str("export * from \"./types.js\";\nexport * from \"./schema.js\";\nexport * from \"./partial.js\";\nexport * from \"./client.js\";\n");
+        let _ = writeln!(out, "export * from {};", string_literal(&self.runtime));
         out
+    }
+}
+
+/// The runtime module: the same text for every model, so the SDKs of several
+/// source files can share one copy.
+fn runtime_module() -> String {
+    format!(
+        "// Generated by `runa sdk ts`. Do not edit; regenerate instead.\n// The runtime of the SDKs `runa sdk ts` generates: the wire codec, paths and setAt,\n// needs, calls through an engine transport, and the resolver loop. It depends on\n// no model, so the SDKs generated by one `runa` can share one copy (`--runtime`).\n\n{}",
+        RUNTIME
+            .replace("{INPUT_SCHEMA}", INPUT_SCHEMA)
+            .replace("{OUTPUT_SCHEMA}", OUTPUT_SCHEMA)
+            .replace("{PARTIAL_OUTPUT_SCHEMA}", PARTIAL_OUTPUT_SCHEMA)
+    )
+}
+
+/// The metadata of a `Date` field from the metadata of its parts: the label
+/// they share (their common beginning, without trailing separators, such as
+/// `Booking date` from `Booking date: year` and `Booking date: month`), and
+/// the question, help, unit and sources where all parts agree. The runtime
+/// merges the needs of a date's parts by the same rule.
+fn date_metadata(path: &str, parts: &[&CalculationFieldMetadata]) -> CalculationFieldMetadata {
+    let first = parts[0];
+    let agreed = |get: fn(&CalculationFieldMetadata) -> &Option<String>| {
+        let value = get(first);
+        parts
+            .iter()
+            .all(|part| get(part) == value)
+            .then(|| value.clone())
+            .flatten()
+    };
+    CalculationFieldMetadata {
+        path: path.to_string(),
+        label: shared_label(parts.iter().map(|part| part.label.as_str())),
+        question: agreed(|metadata| &metadata.question),
+        help: agreed(|metadata| &metadata.help),
+        unit: agreed(|metadata| &metadata.unit),
+        anchor: first.anchor.clone(),
+        binding: first.binding.clone(),
+        sources: if parts.iter().all(|part| part.sources == first.sources) {
+            first.sources.clone()
+        } else {
+            Vec::new()
+        },
+        provided_by: None,
+    }
+}
+
+/// The label several labels share: all of it when they are equal, otherwise
+/// their common beginning without trailing whitespace, `:`, `;`, `,`, `(`,
+/// `-` or `–`, or the first label when nothing is left.
+fn shared_label<'s>(mut labels: impl Iterator<Item = &'s str>) -> String {
+    let Some(first) = labels.next() else {
+        return String::new();
+    };
+    let mut prefix: Vec<char> = first.chars().collect();
+    let mut equal = true;
+    for label in labels {
+        if label != first {
+            equal = false;
+        }
+        let common = prefix
+            .iter()
+            .zip(label.chars())
+            .take_while(|(left, right)| *left == right)
+            .count();
+        prefix.truncate(common);
+    }
+    if equal {
+        return first.to_string();
+    }
+    let shared: String = prefix.into_iter().collect();
+    let trimmed = shared.trim_end_matches(|c: char| c.is_whitespace() || ":;,(-–".contains(c));
+    if trimmed.is_empty() {
+        first.to_string()
+    } else {
+        trimmed.to_string()
     }
 }
 
@@ -1230,41 +2014,47 @@ fn qualify_partial(rendered: &str) -> String {
     out
 }
 
-/// Whether every concrete path of pattern `other` also matches pattern
-/// `pattern` as TypeScript reads their templates: `*` (`${string}`) matches
-/// any text and `[]` (`[${number}]`) a list index.
-fn template_matches(pattern: &str, other: &str) -> bool {
-    if let Some(rest) = pattern.strip_prefix('*') {
-        return (0..=other.len())
-            .filter(|&split| other.is_char_boundary(split))
-            .any(|split| template_matches(rest, &other[split..]));
-    }
-    if let Some(rest) = pattern.strip_prefix("[]") {
-        if let Some(other_rest) = other.strip_prefix("[]") {
-            return template_matches(rest, other_rest);
+/// Whether `line` uses the identifier `name`: not as part of a longer
+/// identifier, and not as a property (`.name`) or a key (`name:`).
+fn uses_identifier(line: &str, name: &str) -> bool {
+    let identifier = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '$';
+    let mut start = 0;
+    while let Some(found) = line[start..].find(name) {
+        let at = start + found;
+        let end = at + name.len();
+        let before = line[..at].chars().next_back();
+        let after = line[end..].chars().next();
+        if !before.is_some_and(|c| identifier(c) || c == '.')
+            && !after.is_some_and(|c| identifier(c) || c == ':')
+        {
+            return true;
         }
-        let Some(digits) = other.strip_prefix('[') else {
-            return false;
-        };
-        let end = digits
-            .find(|c: char| !c.is_ascii_digit())
-            .unwrap_or(digits.len());
-        return end > 0
-            && digits[end..].starts_with(']')
-            && template_matches(rest, &digits[end + 1..]);
+        start = end;
     }
-    match (pattern.chars().next(), other.chars().next()) {
-        (None, None) => true,
-        (Some(left), Some(right)) if left == right && right != '*' => {
-            template_matches(&pattern[left.len_utf8()..], &other[right.len_utf8()..])
-        }
-        _ => false,
-    }
+    false
 }
 
-fn metadata_block(metadata: &CalculationFieldMetadata) -> Vec<String> {
+/// `line` with the contents of its double-quoted string literals blanked out.
+fn without_strings(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let (mut quoted, mut escaped) = (false, false);
+    for c in line.chars() {
+        if quoted && (escaped || c != '"') {
+            escaped = !escaped && c == '\\';
+            out.push(' ');
+            continue;
+        }
+        if c == '"' {
+            quoted = !quoted;
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn metadata_block(metadata: &CalculationFieldMetadata, tag_label: bool) -> Vec<String> {
     let mut lines = Vec::new();
-    let label = if metadata.path.ends_with(".$variant") {
+    let label = if tag_label && metadata.path.ends_with(".$variant") {
         format!("Variant: {}", metadata.label)
     } else {
         metadata.label.clone()
@@ -1302,9 +2092,33 @@ fn sentence(text: &str) -> String {
     }
 }
 
+/// The Futuruna type as the model writes it: an `Int` with a unit is the unit.
+fn futuruna_type(ty: &CalculationTypeRef) -> String {
+    match ty {
+        CalculationTypeRef::Primitive {
+            unit: Some(unit), ..
+        } => unit.clone(),
+        CalculationTypeRef::Optional { item } => format!("{}?", futuruna_type(item)),
+        CalculationTypeRef::List { item } => format!("List({})", futuruna_type(item)),
+        CalculationTypeRef::Set { item } => format!("Set({})", futuruna_type(item)),
+        CalculationTypeRef::Map { key, value } => {
+            format!("Map({}, {})", futuruna_type(key), futuruna_type(value))
+        }
+        CalculationTypeRef::Named { name, arguments } if !arguments.is_empty() => format!(
+            "{name}({})",
+            arguments
+                .iter()
+                .map(futuruna_type)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        _ => ty.display_name(),
+    }
+}
+
 fn mentions_int(ty: &CalculationTypeRef) -> bool {
     match ty {
-        CalculationTypeRef::Primitive { name } => name == "Int",
+        CalculationTypeRef::Primitive { name, .. } => name == "Int",
         CalculationTypeRef::Optional { item }
         | CalculationTypeRef::List { item }
         | CalculationTypeRef::Set { item } => mentions_int(item),
@@ -1359,6 +2173,15 @@ fn variant_list(definition: &CalculationTypeDefinition) -> String {
         .join(", ")
 }
 
+fn variant_names(definition: &CalculationTypeDefinition) -> String {
+    definition
+        .variants
+        .iter()
+        .map(|variant| string_literal(&variant.name))
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
 fn type_parameters(definition: &CalculationTypeDefinition) -> String {
     if definition.parameters.is_empty() {
         String::new()
@@ -1371,17 +2194,59 @@ fn string_literal(text: &str) -> String {
     serde_json::to_string(text).expect("strings serialize")
 }
 
-fn property_name(name: &str) -> String {
+fn is_identifier(name: &str) -> bool {
     let mut chars = name.chars();
-    let identifier = chars
+    chars
         .next()
         .is_some_and(|first| first.is_ascii_alphabetic() || first == '_' || first == '$')
-        && chars.all(|next| next.is_ascii_alphanumeric() || next == '_' || next == '$');
-    if identifier {
+        && chars.all(|next| next.is_ascii_alphanumeric() || next == '_' || next == '$')
+}
+
+fn property_name(name: &str) -> String {
+    if is_identifier(name) {
         name.to_string()
     } else {
         string_literal(name)
     }
+}
+
+/// `.name`, or `["name"]` for a name that is not an identifier.
+fn property_access(name: &str) -> String {
+    if is_identifier(name) {
+        format!(".{name}")
+    } else {
+        format!("[{}]", string_literal(name))
+    }
+}
+
+/// `opening_cash_ore` → `openingCashOre`: each `_` is dropped and the letter
+/// after it raised; leading underscores stay. A name without `_` (a variant
+/// name, `$variant`) is unchanged.
+fn camel_case(name: &str) -> String {
+    let body = name.trim_start_matches('_');
+    let mut out = String::with_capacity(name.len());
+    out.push_str(&name[..name.len() - body.len()]);
+    let mut raise = false;
+    for c in body.chars() {
+        if c == '_' {
+            raise = true;
+        } else if raise {
+            out.extend(c.to_uppercase());
+            raise = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// A contract metadata path (`events.AccountCharge.amount_ore`) with its
+/// field names in camelCase (`events.AccountCharge.amountOre`).
+fn camel_case_path(path: &str) -> String {
+    path.split('.')
+        .map(camel_case)
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 fn pascal_case(name: &str) -> String {
@@ -1409,610 +2274,27 @@ fn value_identifier(name: &str) -> String {
     }
 }
 
-const SCHEMA_RUNTIME_EXPORTS: [&str; 5] = [
-    "IntSchema",
-    "FloatSchema",
-    "CharSchema",
-    "SetSchema",
-    "SCHEMA_HASH",
-];
+/// The runtime module's source: the same for every model.
+const RUNTIME: &str = include_str!("sdk_ts_runtime.ts");
 
-const SCHEMA_RUNTIME: &str = r#"/** `Int`: a safe integer. Values beyond ±(2^53 − 1) are rejected, never rounded. */
-export const IntSchema = z.number().refine(Number.isSafeInteger, "expected a safe integer (Int within ±(2^53 − 1))");
-
-/** `Float`: a finite number. */
-export const FloatSchema = z.number().refine(Number.isFinite, "expected a finite number");
-
-/** `Char`: a string of exactly one character. */
-export const CharSchema = z.string().refine((text) => [...text].length === 1, "expected exactly one character");
-
-/** `Set(T)`: an array without duplicate values. */
-export const SetSchema = <T>(item: z.ZodType<T>): z.ZodType<T[]> =>
-  z.array(item).refine(
-    (values) => new Set(values.map(canonicalJson)).size === values.length,
-    "expected a set without duplicate values",
-  );
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (typeof value === "object" && value !== null) {
-    const entries = Object.entries(value).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
+/// Every name the runtime exports, and whether it is a type only, read from
+/// its `export` declarations.
+fn runtime_exports() -> impl Iterator<Item = (&'static str, bool)> {
+    RUNTIME.lines().filter_map(|line| {
+        let rest = line.strip_prefix("export ")?;
+        let rest = rest.strip_prefix("async ").unwrap_or(rest);
+        let (keyword, rest) = rest.split_once(' ')?;
+        let is_type = match keyword {
+            "type" | "interface" => true,
+            "const" | "function" | "class" => false,
+            _ => return None,
+        };
+        let end = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+            .unwrap_or(rest.len());
+        Some((&rest[..end], is_type))
+    })
 }
-"#;
-
-const PARTIAL_RUNTIME_EXPORTS: [&str; 17] = [
-    "PathSegment",
-    "PathError",
-    "parsePath",
-    "setAt",
-    "pathPattern",
-    "matchesPathPattern",
-    "inputPathSchema",
-    "SourceReference",
-    "SourceReferenceSchema",
-    "FactNeed",
-    "EntryNeed",
-    "Need",
-    "needSchema",
-    "Complete",
-    "Needs",
-    "QueryResult",
-    "queryResultSchema",
-];
-
-const PARTIAL_RUNTIME: &str = r#"/** One step of a concrete input path: a field (record field, map key, `$variant`, `$values`) or a list index. */
-export type PathSegment = { readonly field: string } | { readonly index: number };
-
-/** A path that does not parse, or that {@link setAt} cannot write. */
-export class PathError extends Error {
-  readonly path: string;
-
-  constructor(path: string, message: string) {
-    super(`${path}: ${message}`);
-    this.name = "PathError";
-    this.path = path;
-  }
-}
-
-const FIRST_FIELD = /^[^.[\]]+/;
-const NEXT_FIELD = /^\.([^.[\]]+)/;
-const LIST_INDEX = /^\[(\d+)\]/;
-
-/** Split a concrete input path such as `accounts[2].closing_cash_ore` into its steps. */
-export function parsePath(path: string): PathSegment[] {
-  const first = FIRST_FIELD.exec(path);
-  if (first === null) throw new PathError(path, "a path starts with a field name");
-  const segments: PathSegment[] = [{ field: first[0] }];
-  let rest = path.slice(first[0].length);
-  while (rest.length > 0) {
-    const index = LIST_INDEX.exec(rest);
-    if (index !== null) {
-      segments.push({ index: Number(index[1]) });
-      rest = rest.slice(index[0].length);
-      continue;
-    }
-    const field = NEXT_FIELD.exec(rest);
-    if (field === null) throw new PathError(path, `unexpected \`${rest}\``);
-    segments.push({ field: field[1] as string });
-    rest = rest.slice(field[0].length);
-  }
-  return segments;
-}
-
-/**
- * Write `value` at a concrete input path, such as `accounts[2].closing_cash_ore`
- * or `taxpayer.outside_endavu.$variant`, and return the new case. The case
- * passed in is not changed. A record on the way that was left out is created as
- * `{}`; a list element must already exist. Writing `$variant` keeps the object
- * when the variant is unchanged, and otherwise starts the new variant with its
- * fields unknown.
- */
-export function setAt<C>(partialCase: C, path: string, value: unknown): C {
-  return writeAt(partialCase, parsePath(path), 0, value, path) as C;
-}
-
-function writeAt(node: unknown, segments: readonly PathSegment[], at: number, value: unknown, path: string): unknown {
-  const segment = segments[at];
-  if (segment === undefined) return value;
-  if ("index" in segment) {
-    if (!Array.isArray(node) || segment.index >= node.length) {
-      throw new PathError(path, `there is no list element [${segment.index}] to write into`);
-    }
-    const copy: unknown[] = node.slice();
-    copy[segment.index] = writeAt(node[segment.index], segments, at + 1, value, path);
-    return copy;
-  }
-  if (node === null) {
-    throw new PathError(path, `\`${segment.field}\` is inside a value given as null ("none")`);
-  }
-  if (node !== undefined && (typeof node !== "object" || Array.isArray(node))) {
-    throw new PathError(path, `\`${segment.field}\` is inside a value that is not an object`);
-  }
-  const record = (node ?? {}) as { readonly [key: string]: unknown };
-  if (segment.field === "$variant" && at === segments.length - 1) {
-    return record["$variant"] === value ? record : { $variant: value };
-  }
-  return { ...record, [segment.field]: writeAt(record[segment.field], segments, at + 1, value, path) };
-}
-
-/** The pattern of a concrete path: list indices become `[]` (`accounts[2].kind` → `accounts[].kind`). */
-export function pathPattern(path: string): string {
-  return path.replace(/\[\d+\]/g, "[]");
-}
-
-const patternExpressions = new Map<string, RegExp>();
-
-/** Whether a concrete path matches a pattern, where `[]` stands for any list index and `*` for any map key. */
-export function matchesPathPattern(path: string, pattern: string): boolean {
-  let expression = patternExpressions.get(pattern);
-  if (expression === undefined) {
-    const source = pattern
-      .split("[]")
-      .map((part) => part.split("*").map(escapeRegExp).join("[^.[\\]]+"))
-      .join("\\[\\d+\\]");
-    expression = new RegExp(`^${source}$`);
-    patternExpressions.set(pattern, expression);
-  }
-  return expression.test(path);
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** A validator for the concrete input paths matching one of `patterns`. */
-export function inputPathSchema<P extends string>(patterns: readonly string[]): z.ZodType<P> {
-  return z.custom<P>(
-    (value) => typeof value === "string" && patterns.some((pattern) => matchesPathPattern(value, pattern)),
-    "not an input path of this calculation",
-  );
-}
-
-/** A source reference from the contract's field metadata, unchanged. */
-export type SourceReference = {
-  label: string;
-  role: string;
-  binding: string;
-  attachment_path?: string | undefined;
-  type?: string | undefined;
-  value?: string | undefined;
-  data?: unknown;
-  text?: string | undefined;
-  symbols?: string[] | undefined;
-};
-
-export const SourceReferenceSchema: z.ZodType<SourceReference> = z
-  .object({
-    label: z.string(),
-    role: z.string(),
-    binding: z.string(),
-    attachment_path: z.string().optional(),
-    type: z.string().optional(),
-    value: z.string().optional(),
-    data: z.unknown().optional(),
-    text: z.string().optional(),
-    symbols: z.array(z.string()).optional(),
-  })
-  .strict();
-
-/** The field metadata a need carries; each part is left out when the contract does not give it. */
-type NeedMetadata = {
-  label?: string | undefined;
-  question?: string | undefined;
-  help?: string | undefined;
-  unit?: string | undefined;
-  sources?: SourceReference[] | undefined;
-  /** The innermost rule family evaluating when the path was first read. */
-  waiting_rule: string;
-};
-
-/** A fact the client answers, at `path`. */
-export type FactNeed<P extends string = string> = NeedMetadata & {
-  kind: "fact";
-  /** The concrete input path to answer, with list indices. */
-  path: P;
-};
-
-/** A value another calculation entry provides: run `entry` for `subject` and write its result at `path`. */
-export type EntryNeed<P extends string = string> = NeedMetadata & {
-  kind: "entry";
-  /** The concrete input path the entry's result is written at. */
-  path: P;
-  /** The calculation entry that provides the value. */
-  entry: string;
-  /** The input path of the subject the entry runs for. */
-  subject: string;
-};
-
-/** Something a partial case still needs: a fact, or another entry's result. */
-export type Need<P extends string = string> = FactNeed<P> | EntryNeed<P>;
-
-export function needSchema<P extends string>(path: z.ZodType<P>): z.ZodType<Need<P>> {
-  const metadata = {
-    label: z.string().optional(),
-    question: z.string().optional(),
-    help: z.string().optional(),
-    unit: z.string().optional(),
-    sources: z.array(SourceReferenceSchema).optional(),
-    waiting_rule: z.string(),
-  };
-  return z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("fact"), path, ...metadata }).strict(),
-    z.object({ kind: z.literal("entry"), path, entry: z.string(), subject: z.string(), ...metadata }).strict(),
-  ]) as unknown as z.ZodType<Need<P>>;
-}
-
-/** A partial case whose result no completion of its unknown fields can change. */
-export type Complete<R, P extends string = string> = {
-  $variant: "Complete";
-  result: R;
-  /** The provided input paths evaluation never read, sorted. */
-  unused_paths: P[];
-};
-
-/** A partial case that cannot be decided yet. */
-export type Needs<P extends string = string> = {
-  $variant: "Needs";
-  /** Every fact and entry that blocks the result, sorted by path, each path once. */
-  needs: Need<P>[];
-};
-
-/** The result of a partial call. */
-export type QueryResult<R, P extends string = string> = Complete<R, P> | Needs<P>;
-
-export function queryResultSchema<R, P extends string>(
-  result: z.ZodType<R>,
-  path: z.ZodType<P>,
-): z.ZodType<QueryResult<R, P>> {
-  return z.discriminatedUnion("$variant", [
-    z.object({ $variant: z.literal("Complete"), result, unused_paths: z.array(path) }).strict(),
-    z.object({ $variant: z.literal("Needs"), needs: z.array(needSchema(path)) }).strict(),
-  ]) as unknown as z.ZodType<QueryResult<R, P>>;
-}
-"#;
-
-const CLIENT_RUNTIME_EXPORTS: [&str; 21] = [
-    "INPUT_SCHEMA",
-    "OUTPUT_SCHEMA",
-    "PARTIAL_OUTPUT_SCHEMA",
-    "EngineTransport",
-    "CalculationErrorKind",
-    "CalculationDiagnostic",
-    "CalculationError",
-    "EntryFrame",
-    "ResolverAnswer",
-    "ask",
-    "answer",
-    "ResolverContext",
-    "Query",
-    "Resolver",
-    "Resolvers",
-    "Resolution",
-    "PendingEntry",
-    "ResolveOptions",
-    "ResolveError",
-    "ResolveCycleError",
-    "resolve",
-];
-
-const CLIENT_RUNTIME: &str = r#"export const INPUT_SCHEMA = "{INPUT_SCHEMA}";
-export const OUTPUT_SCHEMA = "{OUTPUT_SCHEMA}";
-export const PARTIAL_OUTPUT_SCHEMA = "{PARTIAL_OUTPUT_SCHEMA}";
-
-const CASE_ID = "case-1";
-
-/**
- * How the SDK reaches an engine. Each method receives the input document
- * `runa call --input` reads (one case, marked ready) and resolves to the output
- * document `runa call` writes, as an object or as its JSON text.
- */
-export interface EngineTransport {
-  /** Run `entry` on complete input, as `runa call`. */
-  call(entry: string, input: unknown): Promise<unknown>;
-  /** Run `entry` on a partial case, as `runa call --partial`. */
-  callPartial(entry: string, input: unknown): Promise<unknown>;
-}
-
-/**
- * Why a call failed: the input did not validate, the output did not validate,
- * the envelope is for another contract or entry, or the engine reported
- * diagnostics for the case.
- */
-export type CalculationErrorKind = "input" | "output" | "envelope" | "diagnostics";
-
-/** A diagnostic the engine reported for the case. */
-export type CalculationDiagnostic = { case_id: string; path: string; message: string };
-
-export class CalculationError extends Error {
-  readonly kind: CalculationErrorKind;
-  readonly entry: string;
-  /** The validation issues, for `input` and `output`. */
-  readonly issues: readonly unknown[];
-  /** The engine's diagnostics, for `diagnostics`. */
-  readonly diagnostics: readonly CalculationDiagnostic[];
-
-  constructor(
-    kind: CalculationErrorKind,
-    entry: string,
-    message: string,
-    details: { issues?: readonly unknown[]; diagnostics?: readonly CalculationDiagnostic[] } = {},
-  ) {
-    super(`${entry}: ${message}`);
-    this.name = "CalculationError";
-    this.kind = kind;
-    this.entry = entry;
-    this.issues = details.issues ?? [];
-    this.diagnostics = details.diagnostics ?? [];
-  }
-}
-
-type EntryName = keyof typeof schema.SCHEMA_HASH;
-
-function isObject(value: unknown): value is { readonly [key: string]: unknown } {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function issueSummary(issues: readonly { path: readonly PropertyKey[]; message: string }[]): string {
-  const first = issues[0];
-  if (first === undefined) return "invalid";
-  const at = first.path.length === 0 ? "$" : first.path.map(String).join(".");
-  return `${issues.length} issue${issues.length === 1 ? "" : "s"}; first at ${at}: ${first.message}`;
-}
-
-function caseResult(entry: EntryName, outputSchema: string, document: unknown): unknown {
-  const parsed: unknown = typeof document === "string" ? JSON.parse(document) : document;
-  if (!isObject(parsed) || !("$futuruna" in parsed)) return parsed;
-  const envelope = parsed["$futuruna"];
-  if (!isObject(envelope)) throw new CalculationError("envelope", entry, "`$futuruna` is not an object");
-  const expectedHash = schema.SCHEMA_HASH[entry];
-  if (envelope["schema_hash"] !== undefined && envelope["schema_hash"] !== expectedHash) {
-    throw new CalculationError(
-      "envelope",
-      entry,
-      `the engine runs contract ${String(envelope["schema_hash"])}, but this SDK was generated for ${expectedHash}`,
-    );
-  }
-  if (envelope["entry"] !== undefined && envelope["entry"] !== entry) {
-    throw new CalculationError("envelope", entry, `the output is for entry ${String(envelope["entry"])}`);
-  }
-  if (envelope["schema"] !== undefined && envelope["schema"] !== outputSchema) {
-    throw new CalculationError("envelope", entry, `expected a ${outputSchema} document, got ${String(envelope["schema"])}`);
-  }
-  const diagnostics = parsed["diagnostics"];
-  if (Array.isArray(diagnostics) && diagnostics.length > 0) {
-    const list = diagnostics.filter(isObject).map((diagnostic) => ({
-      case_id: String(diagnostic["case_id"]),
-      path: String(diagnostic["path"]),
-      message: String(diagnostic["message"]),
-    }));
-    const first = list[0];
-    const summary = first === undefined ? "" : `; first at ${first.path}: ${first.message}`;
-    throw new CalculationError("diagnostics", entry, `${diagnostics.length} diagnostic(s)${summary}`, {
-      diagnostics: list,
-    });
-  }
-  const results = parsed["results"];
-  const only: unknown = Array.isArray(results) && results.length === 1 ? results[0] : undefined;
-  if (!isObject(only) || !("result" in only)) {
-    throw new CalculationError("envelope", entry, "the output document does not hold exactly one case result");
-  }
-  return only["result"];
-}
-
-async function invoke<I, O>(
-  transport: EngineTransport,
-  entry: EntryName,
-  partialCall: boolean,
-  inputSchema: z.ZodType<I>,
-  outputSchema: z.ZodType<O>,
-  input: I,
-): Promise<O> {
-  const checkedInput = inputSchema.safeParse(input);
-  if (!checkedInput.success) {
-    const issues = checkedInput.error.issues;
-    throw new CalculationError("input", entry, `invalid input: ${issueSummary(issues)}`, { issues });
-  }
-  const document = {
-    $futuruna: { schema: INPUT_SCHEMA, schema_hash: schema.SCHEMA_HASH[entry], entry },
-    cases: [{ case_id: CASE_ID, input_status: "ready", input: checkedInput.data }],
-  };
-  const output = partialCall ? await transport.callPartial(entry, document) : await transport.call(entry, document);
-  const result = caseResult(entry, partialCall ? PARTIAL_OUTPUT_SCHEMA : OUTPUT_SCHEMA, output);
-  const checkedOutput = outputSchema.safeParse(result);
-  if (!checkedOutput.success) {
-    const issues = checkedOutput.error.issues;
-    throw new CalculationError("output", entry, `invalid result: ${issueSummary(issues)}`, { issues });
-  }
-  return checkedOutput.data;
-}
-
-/** One calculation entry running for one subject, on the resolver stack. */
-export type EntryFrame = { readonly entry: string; readonly subject: string };
-
-/**
- * What a resolver returns: an answer to write at the need's path, `ask` when
- * only the customer knows, or the resolution of another entry
- * ({@link ResolverContext.runEntry}).
- */
-export type ResolverAnswer<V = unknown> =
-  | { readonly kind: "answer"; readonly value: V }
-  | { readonly kind: "ask" }
-  | { readonly kind: "entry"; readonly resolution: Resolution<unknown, V, string> };
-
-/** The resolver reply for a need only the customer can answer. */
-export const ask: { readonly kind: "ask" } = Object.freeze({ kind: "ask" });
-
-/** The resolver reply that answers a need with `value`. */
-export function answer<V>(value: V): ResolverAnswer<V> {
-  return { kind: "answer", value };
-}
-
-export interface ResolverContext<C> {
-  /** The case sent in this round. */
-  readonly partialCase: C;
-  /** The entries running above this loop, outermost first. */
-  readonly frames: readonly EntryFrame[];
-  /**
-   * Resolve another entry for this need, through the same loop. The frame is
-   * the need's `entry` and `subject` unless given; a frame already on the
-   * stack is a cycle and throws {@link ResolveCycleError}.
-   */
-  runEntry<C2, R2, P2 extends string>(
-    query: Query<C2, R2, P2>,
-    initialCase: C2,
-    resolvers: Resolvers<C2, P2>,
-    frame?: EntryFrame,
-  ): Promise<ResolverAnswer<R2>>;
-}
-
-/** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
-export type Query<C, R, P extends string = string> = (partialCase: C) => Promise<QueryResult<R, P>>;
-
-export type Resolver<C, V, P extends string = string> = (
-  need: Need<P>,
-  context: ResolverContext<C>,
-) => ResolverAnswer<V> | Promise<ResolverAnswer<V>>;
-
-/**
- * Resolvers keyed by path pattern: a concrete path (`taxpayer.married`), or a
- * pattern with `[]` for any list index (`accounts[].closing_cash_ore`) and `*`
- * for any map key. A need no resolver matches is a question.
- */
-export type Resolvers<C, P extends string = string> = {
-  readonly [pattern: string]: Resolver<C, unknown, P> | undefined;
-};
-
-/** An entry need whose own loop stopped at questions about its subject. */
-export type PendingEntry = { readonly need: Need; readonly resolution: Resolution<unknown, unknown, string> };
-
-/**
- * Where a resolver loop stopped: `Complete`, or `Questions` when a round
- * produced no answer. The partial case holds every answer written so far.
- */
-export type Resolution<C, R, P extends string = string> =
-  | {
-      readonly $variant: "Complete";
-      readonly result: R;
-      readonly unused_paths: readonly P[];
-      readonly partialCase: C;
-      readonly rounds: number;
-    }
-  | {
-      readonly $variant: "Questions";
-      /** The needs to ask the customer. */
-      readonly questions: readonly Need<P>[];
-      /** Entry needs waiting on questions in another entry's case. */
-      readonly pending: readonly PendingEntry[];
-      readonly partialCase: C;
-      readonly rounds: number;
-    };
-
-export type ResolveOptions = {
-  /** The entries already running above this loop; nested loops pass their stack. */
-  readonly frames?: readonly EntryFrame[];
-};
-
-/** The resolver loop cannot continue. */
-export class ResolveError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ResolveError";
-  }
-}
-
-/** Two entries need each other for the same subjects: a model error; join them into one entry. */
-export class ResolveCycleError extends ResolveError {
-  readonly frames: readonly EntryFrame[];
-
-  constructor(frames: readonly EntryFrame[]) {
-    super(
-      `calculation entries need each other: ${frames.map((frame) => `${frame.entry}(${frame.subject})`).join(" → ")}; model them as one joint entry`,
-    );
-    this.name = "ResolveCycleError";
-    this.frames = frames;
-  }
-}
-
-function findResolver<C, P extends string>(
-  resolvers: Resolvers<C, P>,
-  patterns: readonly string[],
-  path: string,
-): Resolver<C, unknown, P> | undefined {
-  if (Object.prototype.hasOwnProperty.call(resolvers, path) && resolvers[path] !== undefined) return resolvers[path];
-  const pattern = patterns.find((candidate) => resolvers[candidate] !== undefined && partial.matchesPathPattern(path, candidate));
-  return pattern === undefined ? undefined : resolvers[pattern];
-}
-
-/**
- * Resolve a partial case: query it, let the resolvers answer its needs, write
- * the answers into the case with {@link partial.setAt}, and query again. Stops
- * with `Complete`, or with `Questions` when a round adds no answer. A path that
- * is still needed after it was answered is a {@link ResolveError}; an entry
- * that needs itself for the same subject is a {@link ResolveCycleError}.
- */
-export async function resolve<C, R, P extends string>(
-  query: Query<C, R, P>,
-  initialCase: C,
-  resolvers: Resolvers<C, P>,
-  options: ResolveOptions = {},
-): Promise<Resolution<C, R, P>> {
-  const frames = options.frames ?? [];
-  const patterns = Object.keys(resolvers).sort();
-  const answered = new Set<string>();
-  let partialCase = initialCase;
-  for (let rounds = 1; ; rounds += 1) {
-    const result = await query(partialCase);
-    if (result.$variant === "Complete") {
-      return { $variant: "Complete", result: result.result, unused_paths: result.unused_paths, partialCase, rounds };
-    }
-    const questions: Need<P>[] = [];
-    const pending: PendingEntry[] = [];
-    let next = partialCase;
-    for (const need of result.needs) {
-      if (answered.has(need.path)) {
-        throw new ResolveError(`the engine still needs \`${need.path}\` after it was answered`);
-      }
-      const resolver = findResolver(resolvers, patterns, need.path);
-      if (resolver === undefined) {
-        questions.push(need);
-        continue;
-      }
-      const reply = await resolver(need, {
-        partialCase,
-        frames,
-        async runEntry(nestedQuery, nestedCase, nestedResolvers, frame) {
-          const target = frame ?? (need.kind === "entry" ? { entry: need.entry, subject: need.subject } : undefined);
-          if (target === undefined) {
-            throw new ResolveError(`\`${need.path}\` is a fact need; give runEntry the frame of the entry it runs`);
-          }
-          const stack = [...frames, target];
-          if (frames.some((active) => active.entry === target.entry && active.subject === target.subject)) {
-            throw new ResolveCycleError(stack);
-          }
-          const resolution = await resolve(nestedQuery, nestedCase, nestedResolvers, { frames: stack });
-          return { kind: "entry", resolution };
-        },
-      });
-      if (reply.kind === "ask") {
-        questions.push(need);
-      } else if (reply.kind === "answer") {
-        next = partial.setAt(next, need.path, reply.value);
-        answered.add(need.path);
-      } else if (reply.resolution.$variant === "Complete") {
-        next = partial.setAt(next, need.path, reply.resolution.result);
-        answered.add(need.path);
-      } else {
-        pending.push({ need, resolution: reply.resolution });
-      }
-    }
-    if (next === partialCase) return { $variant: "Questions", questions, pending, partialCase, rounds };
-    partialCase = next;
-  }
-}
-"#;
 
 #[cfg(test)]
 mod tests {
@@ -2027,12 +2309,16 @@ mod tests {
             .expect("extract calculation contracts")
     }
 
-    fn generate(source: &str) -> BTreeMap<&'static str, String> {
-        generate_typescript_sdk(&contracts(source), "model.calculate.runa")
-            .expect("generate SDK")
-            .into_iter()
-            .map(|file| (file.name, file.contents))
-            .collect()
+    fn generate(source: &str) -> BTreeMap<String, String> {
+        generate_typescript_sdk(
+            &contracts(source),
+            "model.calculate.runa",
+            DEFAULT_RUNTIME_PATH,
+        )
+        .expect("generate SDK")
+        .into_iter()
+        .map(|file| (file.name, file.contents))
+        .collect()
     }
 
     fn assert_contains(text: &str, expected: &str) {
@@ -2065,6 +2351,28 @@ mod tests {
 
 @ calculate("Household tax")
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
+"#
+        )
+    }
+
+    fn ledger_source() -> String {
+        format!(
+            r#"{META}
+# Date(year: Int, month: Int, day: Int)
+# Direction = Deposit | Withdrawal
+# Movement(booked_on: Date, direction: Direction, amount_ore: Int, settled_on: Date?)
+# Ledger(opening_cash_ore: Int, movements: List(Movement), directions: List(Direction), holidays: Map(String, Date))
+# Summary(closing_cash_ore: Int, last_booked_on: Date)
+
+= year_field = CalculationField(path = "movements.booked_on.year", label = "Booking date: year", question = None, help = None, unit = None)
+= month_field = CalculationField(path = "movements.booked_on.month", label = "Booking date: month", question = None, help = None, unit = None)
+= day_field = CalculationField(path = "movements.booked_on.day", label = "Booking date: day", question = None, help = None, unit = None)
+= direction_field = CalculationField(path = "movements.direction", label = "In or out", question = Some("Did the money go in or out?"), help = None, unit = None)
+= ledger_meta = CalculationMeta(fields = [year_field, month_field, day_field, direction_field], attachments = ())
+--@label:ledger_balance::meta:ledger_meta--
+
+@ calculate
+> ledger_balance(input: Ledger) -> Summary {{ Summary(closing_cash_ore = input.opening_cash_ore, last_booked_on = Date(year = 2026, month = 1, day = 1)) }}
 "#
         )
     }
@@ -2106,8 +2414,14 @@ mod tests {
         assert_contains(types, "  grants: { [key: string]: number };");
         assert_contains(types, "  codes: string[];");
         assert_contains(types, "  resident: boolean;");
+        assert!(!types.contains("import"), "types.ts needs no runtime here");
 
         let schema = &files["schema.ts"];
+        assert_contains(
+            schema,
+            "import { z } from \"zod\";\nimport type * as types from \"./types.js\";\nimport {",
+        );
+        assert_contains(schema, "} from \"./runtime.js\";");
         assert_contains(
             schema,
             "export const HouseholdSchema: z.ZodType<types.Household> = z.lazy(() =>",
@@ -2120,16 +2434,24 @@ mod tests {
         assert_contains(schema, "      grants: z.record(z.string(), IntSchema),");
         assert_contains(schema, "      codes: SetSchema(z.string()),");
         assert_contains(schema, "    .strict()");
-        assert_contains(schema, "refine(Number.isSafeInteger");
         assert_contains(schema, "  household_tax: \"");
+        assert_contains(
+            schema,
+            "  children: [\"children\", listCodec(() => ChildCodec)],",
+        );
+        assert_contains(schema, "  grants: [\"grants\", valueCodec],");
 
         let partial = &files["partial.ts"];
         assert_contains(partial, "export type PartialHousehold = {");
-        assert_contains(partial, "  deduction?: number | null | undefined;");
+        assert_contains(partial, "  deduction?: number | None | undefined;");
         assert_contains(partial, "  children?: PartialChild[] | undefined;");
         assert_contains(
             partial,
-            "      deduction: schema.IntSchema.nullable().optional(),",
+            "      deduction: z.union([IntSchema, NoneSchema]).optional(),",
+        );
+        assert_contains(
+            schema,
+            "  deduction: [\"deduction\", optionalCodec(valueCodec)],",
         );
         assert!(
             !partial.contains("PartialResult"),
@@ -2155,7 +2477,102 @@ mod tests {
     }
 
     #[test]
-    fn sum_types_are_unions_tagged_by_variant() {
+    fn fields_are_camel_case_enums_are_names_and_dates_are_iso_strings() {
+        let files = generate(&ledger_source());
+        let types = &files["types.ts"];
+        assert_contains(types, "import type { IsoDate } from \"./runtime.js\";");
+        assert!(!types.contains("export type Date"), "a Date is an IsoDate");
+        assert_contains(
+            types,
+            "/** Futuruna sum type `Direction`; its variants carry no fields, so a value is its variant's name. */\nexport type Direction = \"Deposit\" | \"Withdrawal\";",
+        );
+        assert_contains(types, "  openingCashOre: number;");
+        assert_contains(types, "  settledOn: IsoDate | null;");
+        assert_contains(types, "  holidays: { [key: string]: IsoDate };");
+        // The parts' labels give the date's label; an enum's label has no `Variant:`.
+        assert_contains(
+            types,
+            "  /**\n   * Booking date.\n   *\n   * Futuruna type: `Date`; a `Date` is an ISO `YYYY-MM-DD` string.\n   */\n  bookedOn: IsoDate;",
+        );
+        assert_contains(
+            types,
+            "  /**\n   * In or out.\n   *\n   * Did the money go in or out?\n   *\n   * Futuruna type: `Direction`.\n   */\n  direction: Direction;",
+        );
+
+        let schema = &files["schema.ts"];
+        assert_contains(
+            schema,
+            "export const DirectionSchema: z.ZodType<types.Direction> = z.enum([\"Deposit\", \"Withdrawal\"]);",
+        );
+        assert_contains(schema, "      bookedOn: IsoDateSchema,");
+        assert!(
+            !schema.contains("DateSchema: "),
+            "no schema of its own for Date"
+        );
+        assert_contains(
+            schema,
+            "export const MovementCodec: Codec = recordCodec({\n  bookedOn: [\"booked_on\", isoDateCodec],\n  direction: [\"direction\", enumCodec],\n  amountOre: [\"amount_ore\", valueCodec],\n  settledOn: [\"settled_on\", optionalCodec(isoDateCodec)],\n});",
+        );
+        assert_contains(
+            schema,
+            "  directions: [\"directions\", listCodec(enumCodec)],",
+        );
+        assert_contains(
+            schema,
+            "  holidays: [\"holidays\", mapCodec(isoDateCodec)],",
+        );
+
+        let partial = &files["partial.ts"];
+        assert!(
+            !partial.contains("PartialDirection"),
+            "an enum is partial only as a whole"
+        );
+        assert!(
+            !partial.contains("PartialDate"),
+            "a date is partial only as a whole"
+        );
+        assert_contains(partial, "  direction?: types.Direction | undefined;");
+        assert_contains(partial, "  bookedOn?: IsoDate | undefined;");
+        assert_contains(
+            partial,
+            "  directions?: (types.Direction | Unknown<types.Direction>)[] | undefined;",
+        );
+        assert_contains(
+            partial,
+            "      directions: z.array(z.union([schema.DirectionSchema, UnknownSchema])).optional(),",
+        );
+        assert_contains(partial, "  \"movements[].bookedOn\": IsoDate;");
+        assert_contains(partial, "  \"movements[].direction\": types.Direction;");
+        assert_contains(partial, "  \"openingCashOre\": number;");
+        assert!(
+            !partial.contains("bookedOn.year"),
+            "a date's parts have no paths"
+        );
+        assert!(
+            !partial.contains("direction.$variant"),
+            "an enum is its own value"
+        );
+
+        let client = &files["client.ts"];
+        assert_contains(
+            client,
+            "export const ledgerBalanceEntry: CalculationEntry = {\n  name: \"ledger_balance\",\n  schemaHash: schema.SCHEMA_HASH.ledger_balance,\n  input: () => schema.LedgerCodec,\n  output: () => schema.SummaryCodec,\n  patterns: partial.LedgerBalanceInputPatternList,\n};",
+        );
+    }
+
+    #[test]
+    fn two_fields_with_one_camel_case_name_are_an_error() {
+        let error = generate_typescript_sdk(
+            &contracts("# Input(tax_year: Int, taxYear: Int)\n@ calculate\n> both(input: Input) -> Int { input.tax_year }\n"),
+            "model.calculate.runa",
+            DEFAULT_RUNTIME_PATH,
+        )
+        .expect_err("`tax_year` and `taxYear` collide");
+        assert!(error.contains("are both `taxYear`"), "{error}");
+    }
+
+    #[test]
+    fn sum_types_with_payloads_are_unions_tagged_by_variant() {
         let files = generate(
             r#"# Shape = Circle(Int) | Rect(w: Int, h: Int) | Empty
 # Pair(a, b) = Pair(first: a, second: b)
@@ -2190,17 +2607,25 @@ mod tests {
             "export const PairSchema = <a, b>(schema_a: z.ZodType<a>, schema_b: z.ZodType<b>): z.ZodType<types.Pair<a, b>> =>",
         );
         assert_contains(schema, "      pair: PairSchema(IntSchema, z.boolean()),");
+        assert_contains(
+            schema,
+            "export const ShapeCodec: Codec = unionCodec({\n  Circle: { $values: [valueCodec] },\n  Rect: {\n    w: [\"w\", valueCodec],\n    h: [\"h\", valueCodec],\n  },\n  Empty: {},\n});",
+        );
+        assert_contains(
+            schema,
+            "export const PairCodec = (codec_a: CodecRef, codec_b: CodecRef): Codec =>\n  recordCodec({\n    first: [\"first\", codec_a],",
+        );
+        assert_contains(
+            schema,
+            "  pair: [\"pair\", () => PairCodec(valueCodec, valueCodec)],",
+        );
 
         let partial = &files["partial.ts"];
         assert_contains(
             partial,
-            "export type PartialShape =\n  | { [key: string]: never }",
+            "export type PartialShape =\n  | Unknown<types.Shape>\n  | { $variant: \"Circle\"; $values?: [number] | undefined }",
         );
-        assert_contains(
-            partial,
-            "  | { $variant: \"Circle\"; $values?: [number] | undefined }",
-        );
-        assert_contains(partial, "    z.object({}).strict(),");
+        assert_contains(partial, "    UnknownSchema,");
         assert_contains(
             partial,
             "  \"shape.$variant\": \"Circle\" | \"Rect\" | \"Empty\";",
@@ -2210,22 +2635,41 @@ mod tests {
         assert_contains(partial, "  \"pair.first\": number;");
         assert_contains(
             partial,
-            "export const AreaQueryResultSchema = queryResultSchema(schema.PairSchema(schema.IntSchema, z.string()), AreaInputPathSchema);",
+            "export const AreaQueryResultSchema = queryResultSchema(schema.PairSchema(IntSchema, z.string()), AreaNeedSchema, AreaInputPathSchema);",
+        );
+        assert_contains(
+            &files["client.ts"],
+            "  output: () => schema.PairCodec(valueCodec, valueCodec),",
         );
     }
 
     #[test]
     fn paths_use_list_indices_and_map_keys() {
         let partial = &generate(&records_source())["partial.ts"];
-        assert_contains(partial, "  [path: `children[${number}].age`]: number;");
-        assert_contains(partial, "  [path: `grants.${string}`]: number;");
         assert_contains(partial, "  \"children[].age\": number;");
         assert_contains(partial, "  \"grants.*\": number;");
-        assert_contains(partial, "  \"deduction\": number | null;");
+        assert_contains(partial, "  \"deduction\": number | None;");
         assert_contains(
             partial,
-            "export function householdTaxSetAt<K extends HouseholdTaxInputPath>(",
+            "export type HouseholdTaxInputPattern = Extract<keyof HouseholdTaxInputPatterns, string>;",
         );
+        assert_contains(
+            partial,
+            "export type HouseholdTaxInputPath = InputPath<HouseholdTaxInputPattern>;\nexport const HouseholdTaxInputPathSchema = inputPathSchema<HouseholdTaxInputPattern>(HouseholdTaxInputPatternList);",
+        );
+        assert_contains(
+            partial,
+            "export type HouseholdTaxNeed = Need<HouseholdTaxInputPattern, never>;\nexport const HouseholdTaxNeedSchema = needSchema<HouseholdTaxInputPattern, never>(HouseholdTaxInputPatternList, []);",
+        );
+        assert_contains(
+            partial,
+            "export function householdTaxSetAt<N extends HouseholdTaxNeed>(\n  partialCase: PartialHousehold,\n  need: N,\n  value: AnswerTo<HouseholdTaxInputPatterns, N>,\n): PartialHousehold {\n  return setAt(partialCase, need.path, value);\n}",
+        );
+        assert!(
+            !partial.contains("${number}"),
+            "a path is an InputPath, not a template"
+        );
+        assert_contains(partial, "  type AnswerTo,\n");
     }
 
     #[test]
@@ -2242,14 +2686,26 @@ mod tests {
         let client = &files["client.ts"];
         assert_contains(
             client,
-            "export function personTax(transport: EngineTransport, input: types.Person): Promise<number> {",
+            "export function personTax(transport: EngineTransport, input: types.Person): Promise<number> {\n  return callEntry(transport, personTaxEntry, schema.PersonSchema, IntSchema, input);",
         );
         assert_contains(
             client,
             "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n): Promise<partial.CoupleTaxQueryResult> {",
         );
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
-        assert_contains(client, "export type PersonTaxResolvers = {");
+        assert_contains(client, "export type PersonTaxResolvers = Resolvers<");
+        for expected in [
+            "export function personTaxExplained(\n  transport: ExplainingTransport,\n  input: types.Person,\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<number>> {\n  return explainEntry(transport, personTaxEntry, depth, schema.PersonSchema, IntSchema, input);",
+            "export function coupleTaxQueryExplained(\n  transport: ExplainingTransport,\n  input: partial.PartialCouple,\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.CoupleTaxQueryResult>> {",
+            "export function personTax(transport: EngineTransport, input: types.Person)",
+            "  patterns: partial.PersonTaxInputPatternList,\n};",
+            "export type CoupleTaxResolvers = Resolvers<partial.PartialCouple, partial.CoupleTaxNeed, partial.CoupleTaxInputPatterns>;",
+            "type ExplainDepth",
+            "type Explained,",
+            "type ExplainedQuery",
+        ] {
+            assert_contains(client, expected);
+        }
         let schema = &files["schema.ts"];
         for contract in &contracts {
             assert_contains(
@@ -2261,34 +2717,162 @@ mod tests {
                 &format!("//   {}: {}", contract.entry, contract.schema_hash),
             );
         }
+        assert_contains(&files["index.ts"], "export * from \"./runtime.js\";");
         // Entries are ordered by name, so declaration order does not matter.
         assert!(schema.find("  couple_tax:").unwrap() < schema.find("  person_tax:").unwrap());
         let mut reversed = contracts.clone();
         reversed.reverse();
         assert_eq!(
-            generate_typescript_sdk(&contracts, "model.calculate.runa").unwrap(),
-            generate_typescript_sdk(&reversed, "model.calculate.runa").unwrap()
+            generate_typescript_sdk(&contracts, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+                .unwrap(),
+            generate_typescript_sdk(&reversed, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+                .unwrap()
         );
     }
 
     #[test]
-    fn map_key_signatures_cover_longer_paths_through_the_map() {
+    fn the_runtime_is_one_module_every_model_shares() {
+        let ledger = generate_typescript_sdk(
+            &contracts(&ledger_source()),
+            "ledger.calculate.runa",
+            "../runtime.ts",
+        )
+        .unwrap();
+        let household = generate_typescript_sdk(
+            &contracts(&records_source()),
+            "household.calculate.runa",
+            "../runtime.ts",
+        )
+        .unwrap();
+        let runtime = |files: &[GeneratedFile]| {
+            files
+                .iter()
+                .find(|file| file.name == "../runtime.ts")
+                .expect("the runtime is generated")
+                .contents
+                .clone()
+        };
+        assert_eq!(runtime(&ledger), runtime(&household));
+        assert_contains(
+            &runtime(&ledger),
+            "export async function resolve<C, R, N extends Need>(",
+        );
+        assert!(!runtime(&ledger).contains("{INPUT_SCHEMA}"));
+        for file in &ledger {
+            if file.name != "../runtime.ts" {
+                assert!(
+                    !file.contents.contains("export class"),
+                    "{} holds runtime code",
+                    file.name
+                );
+                assert!(
+                    !file.contents.contains("\"./runtime.js\""),
+                    "{} imports the default runtime",
+                    file.name
+                );
+            }
+        }
+        let index = &ledger
+            .iter()
+            .find(|file| file.name == "index.ts")
+            .unwrap()
+            .contents;
+        assert_contains(index, "export * from \"../runtime.js\";");
+
+        assert_eq!(runtime_specifier("runtime.ts").unwrap(), "./runtime.js");
+        assert_eq!(
+            runtime_specifier("./shared/sdk.ts").unwrap(),
+            "./shared/sdk.js"
+        );
+        for invalid in [
+            "/tmp/runtime.ts",
+            "runtime.js",
+            "types.ts",
+            "./index.ts",
+            ".ts",
+            "lib/.d.ts",
+            "a\\b.ts",
+        ] {
+            assert!(runtime_specifier(invalid).is_err(), "{invalid}");
+        }
+    }
+
+    #[test]
+    fn a_date_label_is_what_its_parts_share() {
+        assert_eq!(
+            shared_label(
+                [
+                    "Booking date: day",
+                    "Booking date: month",
+                    "Booking date: year"
+                ]
+                .into_iter()
+            ),
+            "Booking date"
+        );
+        assert_eq!(
+            shared_label(["Payment date (day)", "Payment date (year)"].into_iter()),
+            "Payment date"
+        );
+        assert_eq!(
+            shared_label(["Same: label", "Same: label"].into_iter()),
+            "Same: label"
+        );
+        assert_eq!(shared_label(["Day", "Month"].into_iter()), "Day");
+        assert_eq!(camel_case("opening_cash_ore"), "openingCashOre");
+        assert_eq!(camel_case("_private_note"), "_privateNote");
+        assert_eq!(camel_case("AccountCharge"), "AccountCharge");
+        assert_eq!(
+            camel_case_path("events.AccountCharge.amount_ore.$variant"),
+            "events.AccountCharge.amountOre.$variant"
+        );
+    }
+
+    #[test]
+    fn map_values_and_list_elements_are_patterns() {
         let partial = &generate(
-            "# Item(code: String, amount: Int?)\n# Input(items: Map(String, Item))\n@ calculate\n> count(input: Input) -> Int { 0 }\n",
+            "# Item(code: String, amount: Int?)\n# Input(items: Map(String, Item), tags: List(String))\n@ calculate\n> count(input: Input) -> Int { 0 }\n",
         )["partial.ts"];
-        assert_contains(
-            partial,
-            "  [path: `items.${string}`]: PartialItem | number | null | string;",
-        );
-        assert_contains(
-            partial,
-            "  [path: `items.${string}.amount`]: number | null;",
-        );
         assert_contains(partial, "  \"items.*\": PartialItem;");
-        assert!(template_matches("a.*", "a.*.b[]"));
-        assert!(template_matches("a[].b", "a[3].b"));
-        assert!(!template_matches("a.*.b", "a.*"));
-        assert!(!template_matches("a[0]", "a[]"));
+        assert_contains(partial, "  \"items.*.amount\": number | None;");
+        assert_contains(partial, "  \"tags[]\": string;");
+        assert_contains(
+            partial,
+            "export const CountInputPatternList: readonly CountInputPattern[] = [\n  \"items\",\n  \"items.*\",\n  \"items.*.amount\",\n  \"items.*.code\",\n  \"tags\",\n  \"tags[]\",\n];",
+        );
+    }
+
+    #[test]
+    fn a_list_element_key_types_the_needs_keys() {
+        let mut contracts = contracts(
+            "# unit Ore \"DKK øre\"\n# Position(isin: String, value_ore: Ore)\n# Account(positions: List(Position), owner: String)\n@ calculate\n> worth(input: Account) -> Int { 0 }\n",
+        );
+        for contract in &mut contracts {
+            for definition in &mut contract.definitions {
+                if definition.name == "Position" {
+                    definition.key = Some("isin".to_string());
+                }
+            }
+        }
+        let files: BTreeMap<String, String> =
+            generate_typescript_sdk(&contracts, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+                .expect("generate SDK")
+                .into_iter()
+                .map(|file| (file.name, file.contents))
+                .collect();
+        let partial = &files["partial.ts"];
+        assert_contains(
+            partial,
+            "export type WorthElementKey =\n  | ElementKey<\"positions[]\", \"isin\", string>;",
+        );
+        assert_contains(
+            partial,
+            "export type WorthNeed = Need<WorthInputPattern, WorthElementKey>;",
+        );
+        assert_contains(
+            partial,
+            "export const WorthNeedSchema = needSchema<WorthInputPattern, WorthElementKey>(WorthInputPatternList, [\n  { element: \"positions[]\", field: \"isin\", value: z.string() },\n]);",
+        );
     }
 
     #[test]
@@ -2300,24 +2884,82 @@ mod tests {
 "#,
         );
         let partial = &files["partial.ts"];
-        assert_contains(partial, "  [path: string]: unknown;");
+        assert_contains(partial, "  [pattern: string]: unknown;");
         assert_contains(
             partial,
-            "export const TotalInputPathSchema: z.ZodType<TotalInputPath> = z.string();",
+            "export const TotalInputPathSchema = inputPathSchema<TotalInputPattern>(undefined);",
         );
         assert_contains(&files["types.ts"], "      left: Node;");
+        assert_contains(
+            &files["schema.ts"],
+            "    left: [\"left\", () => NodeCodec],",
+        );
     }
 
     #[test]
     fn a_contract_name_that_collides_with_a_generated_name_is_an_error() {
+        for (source, name) in [
+            ("# Need(amount: Int)\n@ calculate\n> needed(input: Need) -> Int { input.amount }\n", "`Need`"),
+            ("# Unknown(amount: Int)\n@ calculate\n> needed(input: Unknown) -> Int { input.amount }\n", "`Unknown`"),
+        ] {
+            let error = generate_typescript_sdk(&contracts(source), "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+                .expect_err("the name collides with a runtime export");
+            assert!(error.contains(name), "{error}");
+        }
+    }
+
+    #[test]
+    fn units_of_measure_are_branded_number_types() {
+        let source = r#"# unit Ore "DKK øre"
+# unit Micro "millionths of a share"
+# Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore)?)
+@ calculate
+> holding_value(input: Holding) -> Ore { input.value_ore }
+"#;
+        let files = generate(source);
+        let types = &files["types.ts"];
+        assert_contains(
+            types,
+            "/**\n * DKK øre.\n *\n * A Futuruna `Ore`: a safe integer of this unit, on the wire the same JSON number. Only `ore(n)` and the validators make one; a bare number or a value of another unit is not one.\n */\nexport type Ore = number & { readonly __unit: \"Ore\" };",
+        );
+        assert_contains(
+            types,
+            "export type Micro = number & { readonly __unit: \"Micro\" };",
+        );
+        assert_contains(types, "  quantityMicro: Micro;");
+        assert_contains(types, "  count: number;");
+        assert_contains(types, "  history: Ore[] | null;");
+        assert_contains(
+            &files["partial.ts"],
+            "  history?: types.Ore[] | None | undefined;",
+        );
+        assert_contains(types, "Futuruna type: `List(Ore)?`");
+        let schema = &files["schema.ts"];
+        assert_contains(
+            schema,
+            "export const OreSchema: z.ZodType<types.Ore> = unitSchema<types.Ore>(\"Ore\");",
+        );
+        assert_contains(
+            schema,
+            "export function ore(value: number): types.Ore {\n  return unitValue<types.Ore>(\"Ore\", value);\n}",
+        );
+        assert_contains(schema, "      valueOre: OreSchema,");
+        assert_contains(schema, "      count: IntSchema,");
+        let partial = &files["partial.ts"];
+        assert_contains(partial, "  \"valueOre\": types.Ore;");
+        assert_contains(partial, "  \"history[]\": types.Ore;");
+        assert_contains(partial, "      valueOre: schema.OreSchema.optional(),");
+        assert_contains(
+            &files["client.ts"],
+            "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<types.Ore> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
+        );
         let error = generate_typescript_sdk(
-            &contracts(
-                "# Need(amount: Int)\n@ calculate\n> needed(input: Need) -> Int { input.amount }\n",
-            ),
+            &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ calculate\n> f(input: In) -> Int { 0 }\n"),
             "model.calculate.runa",
+            DEFAULT_RUNTIME_PATH,
         )
-        .expect_err("`Need` collides with the generated need type");
-        assert!(error.contains("`Need`"), "{error}");
+        .expect_err("`answer` is a runtime export");
+        assert!(error.contains("`answer`"), "{error}");
     }
 
     #[test]
@@ -2327,8 +2969,12 @@ mod tests {
             "partial.PartialPair<partial.PartialChild, number>[]"
         );
         assert_eq!(
-            qualify_partial("PartialPairSchema(schema.IntSchema)"),
-            "partial.PartialPairSchema(schema.IntSchema)"
+            qualify_partial("PartialPairSchema(IntSchema)"),
+            "partial.PartialPairSchema(IntSchema)"
         );
+        assert!(uses_identifier("x: Need<P>;", "Need"));
+        assert!(!uses_identifier("x: TaxReportNeed;", "Need"));
+        assert!(!uses_identifier("  name: \"a\",", "name"));
+        assert!(!uses_identifier("schema.IntSchema", "IntSchema"));
     }
 }

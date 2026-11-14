@@ -18,7 +18,9 @@ mod json;
 pub use json::parse_calculation_json;
 
 pub mod compact;
+pub mod explain;
 pub mod sdk_ts;
+pub use explain::{explanation_json_schema, ExplainOptions};
 
 #[cfg(test)]
 thread_local! {
@@ -38,6 +40,11 @@ const DEFAULT_MAX_CALCULATION_WORKERS: usize = 8;
 pub enum CalculationTypeRef {
     Primitive {
         name: String,
+        /// The unit of measure of an `Int` declared with `# unit`; its
+        /// description is in the contract's `units`. The value on the wire is
+        /// the same JSON number.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unit: Option<String>,
     },
     Named {
         name: String,
@@ -66,7 +73,7 @@ pub enum CalculationTypeRef {
 impl CalculationTypeRef {
     pub fn display_name(&self) -> String {
         match self {
-            Self::Primitive { name } | Self::TypeParameter { name } => name.clone(),
+            Self::Primitive { name, .. } | Self::TypeParameter { name } => name.clone(),
             Self::Named { name, arguments } => display_type_application(name, arguments),
             Self::Optional { item } => format!("{}?", item.display_name()),
             Self::List { item } => format!("List({})", item.display_name()),
@@ -77,6 +84,38 @@ impl CalculationTypeRef {
             Self::Unit => "()".to_string(),
         }
     }
+
+    /// The unit of measure of this type: of the `Int` itself, or of the
+    /// optional value or list items it holds.
+    pub fn unit(&self) -> Option<&str> {
+        match self {
+            Self::Primitive { unit, .. } => unit.as_deref(),
+            Self::Optional { item } | Self::List { item } | Self::Set { item } => item.unit(),
+            _ => None,
+        }
+    }
+}
+
+/// A unit of measure declared with `# unit Ore "DKK øre" = DKK / 100` and
+/// used by a type in the contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationUnit {
+    pub name: String,
+    pub description: String,
+    /// How many of the unit make one of its base, when the unit declares a
+    /// scale: `{"of": "DKK", "per": 100}` for øre.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale: Option<CalculationUnitScale>,
+}
+
+/// `per` of the unit make one `of`. `of` is the base the declaration names
+/// (a currency code such as `DKK`, or another quantity) or `"1"` for a plain
+/// number; `per` is a whole number of at least 1. Two units of one base
+/// convert exactly by the ratio of their `per`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationUnitScale {
+    pub of: String,
+    pub per: i64,
 }
 
 fn display_type_application(name: &str, arguments: &[CalculationTypeRef]) -> String {
@@ -115,6 +154,9 @@ pub struct CalculationTypeDefinition {
     pub parameters: Vec<String>,
     pub kind: String,
     pub variants: Vec<CalculationVariant>,
+    /// The field that identifies an element of this type in a list (`@ field(key = True)`): a record's field, or the field every variant of a sum type declares.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -179,6 +221,10 @@ pub struct CalculationContract {
     pub input: CalculationTypeRef,
     pub output: CalculationTypeRef,
     pub definitions: Vec<CalculationTypeDefinition>,
+    /// The units of measure the input and result types use, with the
+    /// description each unit is declared with.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub units: Vec<CalculationUnit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<CalculationMetadataReference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -447,6 +493,9 @@ pub struct CalculationInputEnvelope {
 pub struct CalculationResultCase {
     pub case_id: String,
     pub result: JsonValue,
+    /// Where every leaf of `result` came from (`runa call --explain`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explanation: Option<JsonValue>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -475,6 +524,11 @@ pub enum CalculationPartialResult {
     },
     Needs {
         needs: Vec<CalculationNeed>,
+        /// Facts evaluation read only behind an unknown condition, which do
+        /// not block the result as it stands; answering `needs` may make
+        /// them needs.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        later: Vec<CalculationNeed>,
     },
 }
 
@@ -493,6 +547,9 @@ pub struct CalculationNeed {
     pub kind: CalculationNeedKind,
     /// The concrete input path to answer, with list indices.
     pub path: String,
+    /// The keys of the list elements the path lies in, outermost first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keys: Vec<CalculationNeedKey>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -507,8 +564,53 @@ pub struct CalculationNeed {
     pub unit: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<CalculationMetadataReference>,
-    /// The innermost rule family evaluating when the path was first read.
-    pub waiting_rule: String,
+    /// The rules that wait for the value: those of law sections that read
+    /// it, cited ones only when there are any. Never empty.
+    pub waiting: Vec<CalculationWaiting>,
+}
+
+/// A list element a need's path lies in, and the value of its key field.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalculationNeedKey {
+    /// The element's input path (`opening_positions[0]`).
+    pub path: String,
+    /// The element type's key field.
+    pub field: String,
+    pub value: JsonValue,
+}
+
+/// A rule or function a need waits on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationWaiting {
+    pub rule: String,
+    /// The section (anchor label) the rule's clause or function is in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// The paragraphs the clause or function cites (`--@cite`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paragraphs: Vec<CalculationParagraph>,
+}
+
+/// A cited paragraph, the quoted document it is in and that document's act.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationParagraph {
+    /// `§ 9, stk. 3`.
+    pub paragraph: String,
+    /// The `[sources/...]` document of the quote it was found in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act: Option<CalculationAct>,
+}
+
+/// The act a quoted document is, from the document's header.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationAct {
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identifier: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 enum InputPathToken<'a> {
@@ -601,12 +703,13 @@ impl CalculationContract {
         Some(canonical.join("."))
     }
 
-    /// The need for a concrete input path, with the field's metadata.
+    /// The need for a concrete input path, with the field's metadata and
+    /// the keys of the list elements it lies in.
     pub(crate) fn need_for_path(
         &self,
         input: &JsonValue,
         path: String,
-        waiting_rule: String,
+        waiting: Vec<CalculationWaiting>,
     ) -> CalculationNeed {
         let metadata = self
             .canonical_input_path(input, &path)
@@ -624,6 +727,7 @@ impl CalculationContract {
             } else {
                 CalculationNeedKind::Fact
             },
+            keys: self.need_keys(input, &path),
             path,
             entry: provider.map(|provider| provider.entry.clone()),
             subject: provider.map(|provider| provider.subject.clone()),
@@ -634,9 +738,148 @@ impl CalculationContract {
             sources: metadata
                 .map(|metadata| metadata.sources.clone())
                 .unwrap_or_default(),
-            waiting_rule,
+            waiting,
         }
     }
+
+    /// The keys of the list elements `path` lies in, outermost first: for
+    /// each element whose type declares a key field that the case
+    /// gives, the element's path and the key's value.
+    pub(crate) fn need_keys(&self, input: &JsonValue, path: &str) -> Vec<CalculationNeedKey> {
+        let mut keys = Vec::new();
+        let Some(tokens) = input_path_tokens(path) else {
+            return keys;
+        };
+        let mut ty = self.input.clone();
+        let mut substitutions = BTreeMap::new();
+        let mut json = Some(input);
+        let mut concrete = String::new();
+        for token in tokens {
+            loop {
+                ty = substitute_contract_type(&ty, &substitutions);
+                match ty {
+                    CalculationTypeRef::Optional { item } => ty = *item,
+                    _ => break,
+                }
+            }
+            match token {
+                InputPathToken::Index(index) => {
+                    let (CalculationTypeRef::List { item } | CalculationTypeRef::Set { item }) =
+                        &ty
+                    else {
+                        return keys;
+                    };
+                    let mut element = substitute_contract_type(item, &substitutions);
+                    while let CalculationTypeRef::Optional { item } = element {
+                        element = *item;
+                    }
+                    concrete = format!("{concrete}[{index}]");
+                    json = json.and_then(|json| json.get(index));
+                    if let CalculationTypeRef::Named { name, .. } = &element {
+                        let key = self
+                            .definition(name)
+                            .and_then(|definition| definition.key.as_ref());
+                        if let Some(field) = key {
+                            if let Some(value) = json
+                                .and_then(|json| json.get(field))
+                                .filter(|value| !value.is_null())
+                            {
+                                keys.push(CalculationNeedKey {
+                                    path: concrete.clone(),
+                                    field: field.clone(),
+                                    value: value.clone(),
+                                });
+                            }
+                        }
+                    }
+                    ty = element;
+                }
+                InputPathToken::Field(name) => {
+                    concrete = partial::join_path(&concrete, name);
+                    match &ty {
+                        CalculationTypeRef::Map { value, .. } => {
+                            json = json.and_then(|json| json.get(name));
+                            ty = (**value).clone();
+                        }
+                        CalculationTypeRef::Named {
+                            name: type_name,
+                            arguments,
+                        } => {
+                            let Some(definition) = self.definition(type_name) else {
+                                return keys;
+                            };
+                            substitutions = definition_substitutions(definition, arguments);
+                            let field = match product_variant(definition) {
+                                Some(variant) => variant.fields.iter().find(|f| f.name == name),
+                                None => {
+                                    let chosen = json
+                                        .and_then(|json| json.get("$variant"))
+                                        .and_then(JsonValue::as_str);
+                                    definition
+                                        .variants
+                                        .iter()
+                                        .filter(|variant| {
+                                            chosen.map_or(true, |chosen| variant.name == chosen)
+                                        })
+                                        .find_map(|variant| {
+                                            variant.fields.iter().find(|f| f.name == name)
+                                        })
+                                }
+                            };
+                            let Some(field) = field else {
+                                return keys;
+                            };
+                            ty = field.ty.clone();
+                            json = json.and_then(|json| json.get(name));
+                        }
+                        _ => return keys,
+                    }
+                }
+            }
+        }
+        keys
+    }
+
+    /// The fact a concrete input path belongs to: a part of a `Date`
+    /// (`year`, `month`, `day`) is the date's; any other path is its own.
+    pub(crate) fn fact_path(&self, input: &JsonValue, path: &str) -> String {
+        let Some((parent, part)) = path.rsplit_once('.') else {
+            return path.to_string();
+        };
+        if !matches!(part, "year" | "month" | "day") {
+            return path.to_string();
+        }
+        let is_date = self
+            .canonical_input_path(input, parent)
+            .and_then(|canonical| contract_type_at_path(self, &canonical))
+            .is_some_and(|ty| match ty {
+                CalculationTypeRef::Named { name, .. } => {
+                    self.definition(&name).is_some_and(is_date_definition)
+                }
+                _ => false,
+            });
+        if is_date {
+            parent.to_string()
+        } else {
+            path.to_string()
+        }
+    }
+}
+
+/// The standard `Date` record: one fact, though its year, month and day are
+/// separate fields.
+pub(crate) fn is_date_definition(definition: &CalculationTypeDefinition) -> bool {
+    definition.name == "Date"
+        && definition.parameters.is_empty()
+        && product_variant(definition).is_some_and(|variant| {
+            variant.fields.len() == 3
+                && ["year", "month", "day"].iter().all(|part| {
+                    variant.fields.iter().any(|field| {
+                        field.name == *part
+                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, .. } if name == "Int")
+                    })
+                })
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -767,6 +1010,7 @@ enum CatalogType {
         parameters: Vec<String>,
         variants: Vec<Variant>,
         except_from: Option<(String, Vec<String>)>,
+        field_meta: Option<Box<TypeFieldMeta>>,
     },
     RuleScope {
         parameters: Vec<Param>,
@@ -785,6 +1029,10 @@ pub(crate) struct TypeCatalog {
     type_order: BTreeMap<String, usize>,
     next_type_order: usize,
     exact_mode: bool,
+    /// Units of measure (`# unit Ore "DKK øre"`) -> description.
+    units: BTreeMap<String, String>,
+    /// The declared scale of a unit (`Ore` -> `DKK / 100`).
+    unit_scales: BTreeMap<String, UnitScale>,
 }
 
 impl TypeCatalog {
@@ -900,6 +1148,17 @@ impl TypeCatalog {
         );
     }
 
+    /// The `@ field(...)` declarations of a data type.
+    fn field_meta(&self, name: &str) -> Option<&TypeFieldMeta> {
+        match self.types.get(name) {
+            Some(CatalogType::Adt {
+                field_meta: Some(field_meta),
+                ..
+            }) => Some(field_meta),
+            _ => None,
+        }
+    }
+
     fn collect_inner(
         &mut self,
         stmts: &[Stmt],
@@ -917,6 +1176,7 @@ impl TypeCatalog {
                         params,
                         variants,
                         except_from,
+                        field_meta,
                         ..
                     },
                 ) => {
@@ -943,6 +1203,7 @@ impl TypeCatalog {
                             parameters: params.iter().map(|param| param.name.clone()).collect(),
                             variants: variants.clone(),
                             except_from: except_from.clone(),
+                            field_meta: field_meta.clone(),
                         },
                     );
                 }
@@ -967,6 +1228,16 @@ impl TypeCatalog {
                             parameters: params.clone(),
                         },
                     );
+                }
+                Stmt::TypeDecl(TypeDecl::Unit {
+                    name,
+                    description,
+                    scale,
+                }) => {
+                    self.units.insert(name.clone(), description.clone());
+                    if let Some(scale) = scale {
+                        self.unit_scales.insert(name.clone(), scale.clone());
+                    }
                 }
                 Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                     if checked {
@@ -1736,11 +2007,27 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             ),
         );
     }
-    let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
+    let declared_field_meta = match resolve_declared_field_meta(
+        &catalog,
+        &metadata_labels,
+        source,
+        stmts,
+        source_dir.as_deref(),
+        checker,
+    ) {
+        Ok(declared) => declared,
+        Err(mut diagnostics) => {
+            metadata_diagnostics.append(&mut diagnostics);
+            DeclaredFieldMeta::default()
+        }
+    };
+    let mut contracts = Vec::new();
     for candidate in candidates {
-        let input = ty_to_contract_ref(&candidate.input, false).expect("validated input type");
-        let output = ty_to_contract_ref(&candidate.output, false).expect("validated output type");
+        let input = ty_to_contract_ref(&candidate.input, false, &catalog.units)
+            .expect("validated input type");
+        let output = ty_to_contract_ref(&candidate.output, false, &catalog.units)
+            .expect("validated output type");
         let mut reachable = BTreeSet::new();
         collect_reachable_type_names(&candidate.input, &catalog, &mut reachable);
         collect_reachable_type_names(&candidate.output, &catalog, &mut reachable);
@@ -1763,14 +2050,22 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             parameter: candidate.parameter,
             input,
             output,
+            units: Vec::new(),
             definitions,
             metadata,
             field_metadata: Vec::new(),
             schema_hash: String::new(),
         };
-        match contract_field_metadata(&meta_index, &contract) {
+        contract.units = contract_units(&contract, &catalog.units, &catalog.unit_scales);
+        match contract_field_metadata(&meta_index, &contract, &declared_field_meta) {
             Ok(field_metadata) => contract.field_metadata = field_metadata,
             Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
+        }
+        if let Err(mut diagnostics) = apply_declared_keys(&mut contract, &declared_field_meta) {
+            metadata_diagnostics.append(&mut diagnostics);
+        }
+        if let Err(mut diagnostics) = apply_unit_field_metadata(&mut contract) {
+            metadata_diagnostics.append(&mut diagnostics);
         }
         contracts.push(contract.finish_hash());
     }
@@ -2016,12 +2311,22 @@ fn is_canonical_exact_runtime_declaration(declaration: &TypeDecl) -> bool {
     })
 }
 
-fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationTypeRef, String> {
+fn ty_to_contract_ref(
+    ty: &Ty,
+    allow_parameters: bool,
+    units: &BTreeMap<String, String>,
+) -> Result<CalculationTypeRef, String> {
     match ty {
         Ty::Name(name) => {
             if let Some(name) = primitive_name(name) {
                 Ok(CalculationTypeRef::Primitive {
                     name: name.to_string(),
+                    unit: None,
+                })
+            } else if units.contains_key(name) {
+                Ok(CalculationTypeRef::Primitive {
+                    name: "Int".to_string(),
+                    unit: Some(name.clone()),
                 })
             } else {
                 Ok(CalculationTypeRef::Named {
@@ -2036,7 +2341,7 @@ fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationType
             };
             let arguments = arguments
                 .iter()
-                .map(|argument| ty_to_contract_ref(argument, allow_parameters))
+                .map(|argument| ty_to_contract_ref(argument, allow_parameters, units))
                 .collect::<Result<Vec<_>, _>>()?;
             match (name.as_str(), arguments.as_slice()) {
                 ("List", [item]) => Ok(CalculationTypeRef::List {
@@ -2059,7 +2364,7 @@ fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationType
             }
         }
         Ty::Optional(item) => Ok(CalculationTypeRef::Optional {
-            item: Box::new(ty_to_contract_ref(item, allow_parameters)?),
+            item: Box::new(ty_to_contract_ref(item, allow_parameters, units)?),
         }),
         Ty::Var(name) if allow_parameters => {
             Ok(CalculationTypeRef::TypeParameter { name: name.clone() })
@@ -2094,7 +2399,9 @@ fn validate_type_inner(
     active: &mut BTreeSet<String>,
 ) -> Result<(), String> {
     match ty {
-        Ty::Name(name) if primitive_name(name).is_some() => Ok(()),
+        Ty::Name(name) if primitive_name(name).is_some() || catalog.units.contains_key(name) => {
+            Ok(())
+        }
         Ty::Name(name) => validate_named_type(name, &[], catalog, active),
         Ty::App(base, arguments) => {
             let Ty::Name(name) = base.as_ref() else {
@@ -2284,7 +2591,7 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
                 .fields
                 .into_iter()
                 .filter_map(|field| {
-                    ty_to_contract_ref(&field.ty, true)
+                    ty_to_contract_ref(&field.ty, true, &catalog.units)
                         .ok()
                         .map(|ty| CalculationField {
                             name: field.name,
@@ -2299,6 +2606,7 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
         parameters,
         kind,
         variants,
+        key: None,
     })
 }
 
@@ -2520,9 +2828,41 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                     contract.entry, field.path, provider.entry
                 ))),
             }
+            // The provider runs on the value at the subject path: it must
+            // exist and have the provider's input type.
+            match contract_type_at_path(contract, &provider.subject).map(contained_value_type) {
+                Some(ty) if ty == providing.input => {}
+                Some(ty) => diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` is provided by `{}` for subject `{}` of type `{}`, but `{}` takes `{}`",
+                    contract.entry,
+                    field.path,
+                    provider.entry,
+                    provider.subject,
+                    ty.display_name(),
+                    provider.entry,
+                    providing.input.display_name()
+                ))),
+                None => diagnostics.push(Diagnostic::error(format!(
+                    "calculation `{}` field `{}` is provided by `{}` for subject `{}`, which is not an input path of `{}`",
+                    contract.entry, field.path, provider.entry, provider.subject, contract.entry
+                ))),
+            }
         }
     }
     diagnostics
+}
+
+/// The value inside optional, list, set and map wrappers.
+fn contained_value_type(mut ty: CalculationTypeRef) -> CalculationTypeRef {
+    loop {
+        match ty {
+            CalculationTypeRef::List { item }
+            | CalculationTypeRef::Set { item }
+            | CalculationTypeRef::Optional { item }
+            | CalculationTypeRef::Map { value: item, .. } => ty = *item,
+            other => return other,
+        }
+    }
 }
 
 /// The type of the input field at a canonical path (list, set, optional and
@@ -2567,9 +2907,228 @@ fn contract_type_at_path(contract: &CalculationContract, path: &str) -> Option<C
     Some(substitute_contract_type(&ty, &substitutions))
 }
 
+/// The declared units the contract's types use, in name order.
+fn contract_units(
+    contract: &CalculationContract,
+    declared: &BTreeMap<String, String>,
+    scales: &BTreeMap<String, UnitScale>,
+) -> Vec<CalculationUnit> {
+    fn collect(ty: &CalculationTypeRef, used: &mut BTreeSet<String>) {
+        match ty {
+            CalculationTypeRef::Primitive {
+                unit: Some(unit), ..
+            } => {
+                used.insert(unit.clone());
+            }
+            CalculationTypeRef::Named { arguments, .. } => {
+                for argument in arguments {
+                    collect(argument, used);
+                }
+            }
+            CalculationTypeRef::Optional { item }
+            | CalculationTypeRef::List { item }
+            | CalculationTypeRef::Set { item } => collect(item, used),
+            CalculationTypeRef::Map { key, value } => {
+                collect(key, used);
+                collect(value, used);
+            }
+            CalculationTypeRef::Primitive { unit: None, .. }
+            | CalculationTypeRef::TypeParameter { .. }
+            | CalculationTypeRef::Unit => {}
+        }
+    }
+    let mut used = BTreeSet::new();
+    collect(&contract.input, &mut used);
+    collect(&contract.output, &mut used);
+    for definition in &contract.definitions {
+        for variant in &definition.variants {
+            for field in &variant.fields {
+                collect(&field.ty, &mut used);
+            }
+        }
+    }
+    used.into_iter()
+        .filter_map(|name| {
+            declared.get(&name).map(|description| CalculationUnit {
+                description: description.clone(),
+                scale: scales.get(&name).map(|scale| CalculationUnitScale {
+                    of: scale.of.clone(),
+                    per: scale.per,
+                }),
+                name,
+            })
+        })
+        .collect()
+}
+
+/// A type whose field is declared `@ field(key = True)` names that field as
+/// its `key`: what identifies an element of the type in a list, so a need
+/// inside the element can carry it. A key holds a `String` or an `Int`; a
+/// record declares one, and a sum type one in every variant, of the same name
+/// and type, so that every element has it whatever its variant.
+fn apply_declared_keys(
+    contract: &mut CalculationContract,
+    declared: &DeclaredFieldMeta,
+) -> Result<(), Vec<Diagnostic>> {
+    let mut diagnostics = Vec::new();
+    for definition in &mut contract.definitions {
+        let Some(type_meta) = declared.types.get(&definition.name) else {
+            continue;
+        };
+        let keys: Vec<&ResolvedMemberFieldMeta> = type_meta
+            .members
+            .iter()
+            .filter(|member| member.meta.key)
+            .collect();
+        if keys.is_empty() {
+            continue;
+        }
+        match declared_key(definition, &keys) {
+            Ok(field) => definition.key = Some(field),
+            Err(diagnostic) => diagnostics.push(diagnostic),
+        }
+    }
+    if diagnostics.is_empty() {
+        Ok(())
+    } else {
+        Err(diagnostics)
+    }
+}
+
+/// The key field of `definition`, from its non-empty `keys` declarations.
+fn declared_key(
+    definition: &CalculationTypeDefinition,
+    keys: &[&ResolvedMemberFieldMeta],
+) -> Result<String, Diagnostic> {
+    let record = product_variant(definition).is_some();
+    // Each variant's key and its type, in the type's variant order.
+    let mut variant_keys = Vec::new();
+    for variant in &definition.variants {
+        let declared: Vec<&ResolvedMemberFieldMeta> = keys
+            .iter()
+            .copied()
+            .filter(|key| key.variant == variant.name)
+            .collect();
+        let Some(key) = declared.first() else {
+            variant_keys.push((variant, None));
+            continue;
+        };
+        if let Some(other) = declared.get(1) {
+            return Err(Diagnostic::error(if record {
+                format!(
+                    "type `{}` declares more than one key field (`{}` and `{}`); a record has one key",
+                    definition.name, key.field, other.field
+                )
+            } else {
+                format!(
+                    "variant `{}` of `{}` declares more than one key field (`{}` and `{}`); an element has one key",
+                    variant.name, definition.name, key.field, other.field
+                )
+            }));
+        }
+        let ty = variant
+            .fields
+            .iter()
+            .find(|field| field.name == key.field)
+            .map(|field| &field.ty)
+            .filter(|ty| {
+                matches!(
+                    ty,
+                    CalculationTypeRef::Primitive { name, .. } if matches!(name.as_str(), "String" | "Int")
+                )
+            });
+        let Some(ty) = ty else {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: a key field holds a `String` or an `Int`",
+                key.meta.binding
+            )));
+        };
+        variant_keys.push((variant, Some((*key, ty))));
+    }
+    let Some((first_variant, (first, first_ty))) = variant_keys
+        .iter()
+        .find_map(|(variant, key)| key.map(|key| (variant, key)))
+    else {
+        // Declarations on variants the contract does not have.
+        return Err(Diagnostic::error(format!(
+            "`@ field(key = True)` on `{}`: `{}` has no such field",
+            keys[0].meta.binding, definition.name
+        )));
+    };
+    for (variant, key) in &variant_keys {
+        let Some((key, ty)) = *key else {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares the key `{}`, and `{}` declares none",
+                first.meta.binding, definition.name, first.field, variant.name
+            )));
+        };
+        if key.field != first.field {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares the same key field, and `{}` keys `{}` where `{}` keys `{}`",
+                key.meta.binding, definition.name, variant.name, key.field, first_variant.name, first.field
+            )));
+        }
+        if ty != first_ty {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares a key of the same type, and it holds `{}` where `{}` holds `{}`",
+                key.meta.binding,
+                definition.name,
+                ty.display_name(),
+                first.meta.binding,
+                first_ty.display_name()
+            )));
+        }
+    }
+    Ok(first.field.clone())
+}
+
+/// A field whose type has a unit takes the `unit` of its field metadata from
+/// the unit's declaration. An authored `unit` on such a field would say the
+/// unit a second time, so it is an error.
+fn apply_unit_field_metadata(contract: &mut CalculationContract) -> Result<(), Vec<Diagnostic>> {
+    if contract.units.is_empty() {
+        return Ok(());
+    }
+    let descriptions = contract
+        .units
+        .iter()
+        .map(|unit| (unit.name.clone(), unit.description.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let units = contract
+        .field_metadata
+        .iter()
+        .map(|metadata| {
+            contract_type_at_path(contract, &metadata.path)
+                .and_then(|ty| ty.unit().map(str::to_string))
+        })
+        .collect::<Vec<_>>();
+    let mut diagnostics = Vec::new();
+    for (metadata, unit) in contract.field_metadata.iter_mut().zip(units) {
+        let Some(unit) = unit else {
+            continue;
+        };
+        let Some(description) = descriptions.get(&unit) else {
+            continue;
+        };
+        match &metadata.unit {
+            None => metadata.unit = Some(description.clone()),
+            Some(authored) => diagnostics.push(Diagnostic::error(format!(
+                "calculation field `{}` has the unit `{unit}` (\"{description}\") from its type; remove `unit = Some(\"{authored}\")` from its field metadata",
+                metadata.path
+            ))),
+        }
+    }
+    if diagnostics.is_empty() {
+        Ok(())
+    } else {
+        Err(diagnostics)
+    }
+}
+
 fn contract_field_metadata(
     index: &MetaIndex,
     contract: &CalculationContract,
+    declared: &DeclaredFieldMeta,
 ) -> Result<Vec<CalculationFieldMetadata>, Vec<Diagnostic>> {
     let layout = contract.input_layout();
     let mut valid_paths = BTreeSet::new();
@@ -2588,6 +3147,24 @@ fn contract_field_metadata(
             .collection_tables
             .iter()
             .map(|table| table.path.clone()),
+    );
+    // A required record field has no column: its members are spread into
+    // columns of their own. Metadata may still name it, for its label.
+    let group_paths = record_group_paths(contract);
+    let mut targets = valid_paths.clone();
+    targets.extend(group_paths.iter().cloned());
+    // A date is one fact: a required `Date` field keeps its own metadata at
+    // its path, where a need for any of its parts is asked.
+    valid_paths.extend(
+        group_paths
+            .iter()
+            .filter(|path| {
+                contract_type_at_path(contract, path).is_some_and(|ty| {
+                    matches!(&ty, CalculationTypeRef::Named { name, .. }
+                        if contract.definition(name).is_some_and(is_date_definition))
+                })
+            })
+            .cloned(),
     );
 
     let type_occurrence_paths = calculation_type_occurrence_paths(contract);
@@ -2668,6 +3245,7 @@ fn contract_field_metadata(
                     &binding,
                     value,
                     anchor,
+                    &targets,
                     &valid_paths,
                     &input_type_names,
                     &type_occurrence_paths,
@@ -2686,8 +3264,15 @@ fn contract_field_metadata(
             }
         }
     }
+    declared_field_metadata_candidates(
+        contract,
+        declared,
+        &type_occurrence_paths,
+        &targets,
+        &mut candidates_by_path,
+    );
 
-    let mut result = Vec::new();
+    let mut winners = BTreeMap::new();
     for (path, candidates) in candidates_by_path {
         let highest_specificity = candidates
             .iter()
@@ -2706,21 +3291,483 @@ fn contract_field_metadata(
                 contract.entry, path, first.metadata.binding, second.metadata.binding
             )));
         } else {
-            result.push(first.metadata);
+            winners.insert(path, first);
         }
     }
 
-    if diagnostics.is_empty() {
-        Ok(result)
-    } else {
-        Err(diagnostics)
+    if !diagnostics.is_empty() {
+        return Err(diagnostics);
     }
+    let labels = winners
+        .keys()
+        .map(|path| {
+            (
+                path.clone(),
+                composed_field_label(path, &winners, &group_paths),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    Ok(winners
+        .into_iter()
+        .filter(|(path, _)| valid_paths.contains(path))
+        .map(|(path, candidate)| CalculationFieldMetadata {
+            label: labels[&path].clone(),
+            ..candidate.metadata
+        })
+        .collect())
+}
+
+/// Precedence of field metadata for one input path, lowest first.
+const TYPE_DEFAULT_SPECIFICITY: u8 = 0;
+const MEMBER_SPECIFICITY: u8 = 1;
+const EXACT_PATH_SPECIFICITY: u8 = 2;
+
+/// The label a path's winning metadata gives it. Metadata written for a type
+/// or a type's member does not know where the type is used: when such a
+/// label sits below a record field that has a label, the record field's label
+/// comes first (`Trade date: year`). Metadata written for an exact path keeps
+/// its label as written.
+fn composed_field_label(
+    path: &str,
+    winners: &BTreeMap<String, CalculationFieldMetadataCandidate>,
+    group_paths: &BTreeSet<String>,
+) -> String {
+    let candidate = &winners[path];
+    let label = candidate.metadata.label.clone();
+    if candidate.specificity == EXACT_PATH_SPECIFICITY {
+        return label;
+    }
+    let mut ancestor = path;
+    while let Some((parent, _)) = ancestor.rsplit_once('.') {
+        ancestor = parent;
+        if group_paths.contains(parent) && winners.contains_key(parent) {
+            return format!(
+                "{}: {}",
+                composed_field_label(parent, winners, group_paths),
+                label
+            );
+        }
+    }
+    label
 }
 
 #[derive(Debug, Clone)]
 struct CalculationFieldMetadataCandidate {
     metadata: CalculationFieldMetadata,
     specificity: u8,
+}
+
+/// One resolved `@ field(...)` declaration.
+#[derive(Debug, Clone)]
+struct ResolvedFieldMeta {
+    /// The type that declares it.
+    anchor: String,
+    /// `Type` for a type default, `Type::field` or `Type::Variant::field`
+    /// for a field.
+    binding: String,
+    label: String,
+    question: Option<String>,
+    help: Option<String>,
+    unit: Option<String>,
+    sources: Vec<CalculationMetadataReference>,
+    provided_by: Option<CalculationFieldProvider>,
+    /// `key = True`: the field identifies an element of its type.
+    key: bool,
+}
+
+impl ResolvedFieldMeta {
+    fn metadata(&self, path: String) -> CalculationFieldMetadata {
+        CalculationFieldMetadata {
+            path,
+            label: self.label.clone(),
+            question: self.question.clone(),
+            help: self.help.clone(),
+            unit: self.unit.clone(),
+            anchor: self.anchor.clone(),
+            binding: self.binding.clone(),
+            sources: self.sources.clone(),
+            provided_by: self.provided_by.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedMemberFieldMeta {
+    variant: String,
+    field: String,
+    meta: ResolvedFieldMeta,
+}
+
+#[derive(Debug, Clone, Default)]
+struct ResolvedTypeFieldMeta {
+    type_default: Option<ResolvedFieldMeta>,
+    members: Vec<ResolvedMemberFieldMeta>,
+}
+
+/// The `@ field(...)` declarations of the types calculation inputs reach.
+#[derive(Debug, Default)]
+struct DeclaredFieldMeta {
+    types: BTreeMap<String, ResolvedTypeFieldMeta>,
+}
+
+/// Resolve the `@ field(...)` declarations of `type_names`. String literals
+/// are read directly; any other value is resolved like a metadata binding:
+/// pure ground data in the program's flat import scope.
+fn resolve_declared_field_meta(
+    catalog: &TypeCatalog,
+    type_names: &BTreeSet<String>,
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    checker: &TypeChecker,
+) -> Result<DeclaredFieldMeta, Vec<Diagnostic>> {
+    let mut declarations = Vec::new();
+    for type_name in type_names {
+        let Some(type_meta) = catalog.field_meta(type_name) else {
+            continue;
+        };
+        if let Some(default) = &type_meta.type_default {
+            declarations.push((type_name, None, type_name.clone(), default));
+        }
+        for member in &type_meta.members {
+            let binding = if &member.variant == type_name {
+                format!("{}::{}", type_name, member.field)
+            } else {
+                format!("{}::{}::{}", type_name, member.variant, member.field)
+            };
+            declarations.push((type_name, Some(member), binding, &member.meta));
+        }
+    }
+
+    let computed = declarations
+        .iter()
+        .flat_map(|(_, _, _, declaration)| declaration.entries.iter())
+        .map(|(_, value)| value)
+        .filter(|value| !matches!(value.kind, ExprKind::Lit(Literal::Str(_))))
+        .collect::<Vec<_>>();
+    let (mut computed_values, meta_role_types) = if computed.is_empty() {
+        (Vec::new().into_iter(), BTreeSet::new())
+    } else {
+        (
+            resolve_field_meta_exprs(source, stmts, source_dir, checker, &computed).into_iter(),
+            checker.implementations_for_trait("MetaRole"),
+        )
+    };
+
+    let mut declared = DeclaredFieldMeta::default();
+    let mut diagnostics = Vec::new();
+    for (type_name, member, binding, declaration) in declarations {
+        let mut values = BTreeMap::new();
+        for (key, value) in &declaration.entries {
+            let resolved = match &value.kind {
+                ExprKind::Lit(Literal::Str(text)) => Some(MetaValue::String(text.clone())),
+                _ => computed_values.next().flatten(),
+            };
+            values.insert(key.as_str(), resolved);
+        }
+        match resolved_field_meta(type_name, &binding, &values, &meta_role_types) {
+            Ok(meta) => {
+                let entry = declared.types.entry(type_name.clone()).or_default();
+                match member {
+                    None => entry.type_default = Some(meta),
+                    Some(member) => entry.members.push(ResolvedMemberFieldMeta {
+                        variant: member.variant.clone(),
+                        field: member.field.clone(),
+                        meta,
+                    }),
+                }
+            }
+            Err(diagnostic) => diagnostics.push(diagnostic),
+        }
+    }
+    if diagnostics.is_empty() {
+        Ok(declared)
+    } else {
+        Err(diagnostics)
+    }
+}
+
+fn resolve_field_meta_exprs(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    checker: &TypeChecker,
+    exprs: &[&Expr],
+) -> Vec<Option<MetaValue>> {
+    let mut bindings = BTreeMap::new();
+    collect_local_meta_bindings(source, stmts, None, &mut bindings);
+    collect_imported_meta_bindings(stmts, source_dir, &mut bindings, &mut BTreeSet::new());
+    let value_bindings = bindings
+        .iter()
+        .map(|(name, definition)| (name.clone(), &definition.expr))
+        .collect::<BTreeMap<_, _>>();
+    let mut evaluator = MetaGroundEvaluator::new(stmts, source_dir);
+    exprs
+        .iter()
+        .map(|expr| {
+            resolve_static_meta_expr(
+                expr,
+                &value_bindings,
+                &checker.constructors,
+                &mut BTreeSet::new(),
+                &mut evaluator,
+            )
+        })
+        .collect()
+}
+
+fn resolved_field_meta(
+    type_name: &str,
+    binding: &str,
+    values: &BTreeMap<&str, Option<MetaValue>>,
+    meta_role_types: &BTreeSet<String>,
+) -> Result<ResolvedFieldMeta, Diagnostic> {
+    let text = |key: &str| -> Result<Option<String>, Diagnostic> {
+        match values.get(key) {
+            None => Ok(None),
+            Some(Some(MetaValue::String(value))) => {
+                let value = value.trim();
+                Ok((!value.is_empty()).then(|| value.to_string()))
+            }
+            Some(_) => Err(Diagnostic::error(format!(
+                "`@ field` on `{}`: `{}` must be a pure ground `String`",
+                binding, key
+            ))),
+        }
+    };
+    let label = text("label")?.ok_or_else(|| {
+        Diagnostic::error(format!("`@ field` on `{}` has an empty label", binding))
+    })?;
+    let provided_by = match (text("entry")?, text("subject")?) {
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+        _ => None,
+    };
+    let sources = match values.get("sources") {
+        None => Vec::new(),
+        Some(Some(MetaValue::List(items))) => items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| declared_field_source(type_name, binding, index, item, meta_role_types))
+            .collect::<Result<Vec<_>, _>>()?,
+        Some(_) => {
+            return Err(Diagnostic::error(format!(
+                "`@ field` on `{}`: `sources` must be a pure ground list of source values such as `[Source(value = law)]`",
+                binding
+            )))
+        }
+    };
+    let key = match values.get("key") {
+        None => false,
+        Some(Some(MetaValue::Constructor {
+            name, arguments, ..
+        })) if arguments.is_empty() && matches!(name.as_str(), "True" | "False") => name == "True",
+        Some(Some(MetaValue::Boolean(key))) => *key,
+        Some(_) => {
+            return Err(Diagnostic::error(format!(
+                "`@ field` on `{}`: `key` must be `True` or `False`",
+                binding
+            )))
+        }
+    };
+    Ok(ResolvedFieldMeta {
+        anchor: type_name.to_string(),
+        binding: binding.to_string(),
+        label,
+        question: text("question")?,
+        help: text("help")?,
+        unit: text("unit")?,
+        sources,
+        provided_by,
+        key,
+    })
+}
+
+/// One `sources` item: a value of a sum type implementing `MetaRole` whose
+/// variant names the role and whose sole `value` field is the source.
+fn declared_field_source(
+    type_name: &str,
+    binding: &str,
+    index: usize,
+    item: &MetaValue,
+    meta_role_types: &BTreeSet<String>,
+) -> Result<CalculationMetadataReference, Diagnostic> {
+    let attachment = item
+        .attachments_with_role_types(meta_role_types)
+        .into_iter()
+        .find(|attachment| attachment.attachment_path == "$")
+        .ok_or_else(|| {
+            Diagnostic::error(format!(
+                "`@ field` on `{}`: `sources` item {} must be a source value such as `Source(value = law)`, whose type implements `MetaRole` and has one named `value` field",
+                binding, index
+            ))
+        })?;
+    let attachment_path = format!("{}.sources[{}]", binding, index);
+    Ok(CalculationMetadataReference {
+        label: type_name.to_string(),
+        role: attachment.role,
+        binding: attachment
+            .binding_name
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{}.value", attachment_path)),
+        attachment_path: Some(attachment_path),
+        qualified_type: attachment.value.qualified_type().map(str::to_string),
+        value: Some(attachment.value.to_source()),
+        data: Some(calculation_meta_value_json(attachment.value)),
+        text: String::new(),
+        symbols: Vec::new(),
+    })
+}
+
+/// Candidates from `@ field(...)` declarations: a type's default at every
+/// field whose value has that type, and a field's metadata at every
+/// occurrence of its type.
+fn declared_field_metadata_candidates(
+    contract: &CalculationContract,
+    declared: &DeclaredFieldMeta,
+    type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
+    targets: &BTreeSet<String>,
+    candidates: &mut BTreeMap<String, Vec<CalculationFieldMetadataCandidate>>,
+) {
+    let mut push = |path: String, meta: &ResolvedFieldMeta, specificity: u8| {
+        candidates
+            .entry(path.clone())
+            .or_default()
+            .push(CalculationFieldMetadataCandidate {
+                metadata: meta.metadata(path),
+                specificity,
+            });
+    };
+    for (type_name, prefixes) in type_occurrence_paths {
+        let (Some(type_meta), Some(definition)) = (
+            declared.types.get(type_name),
+            contract.definition(type_name),
+        ) else {
+            continue;
+        };
+        if let Some(default) = &type_meta.type_default {
+            for prefix in prefixes.iter().filter(|prefix| !prefix.is_empty()) {
+                if let Some(path) = type_value_target(prefix, definition, targets) {
+                    push(path, default, TYPE_DEFAULT_SPECIFICITY);
+                }
+            }
+        }
+        let product = product_variant(definition).is_some();
+        for member in &type_meta.members {
+            for prefix in prefixes {
+                let base = if product {
+                    prefix.clone()
+                } else {
+                    joined_column_path(prefix, &member.variant)
+                };
+                let field_path = joined_column_path(&base, &member.field);
+                if let Some(path) = field_target(field_path, targets) {
+                    push(path, &member.meta, MEMBER_SPECIFICITY);
+                }
+            }
+        }
+    }
+}
+
+/// Where a field's metadata goes: the field's own path, or the `$variant`
+/// column of a required sum with payloads, which has no other column.
+fn field_target(path: String, targets: &BTreeSet<String>) -> Option<String> {
+    if targets.contains(&path) {
+        return Some(path);
+    }
+    let variant = format!("{}.$variant", path);
+    targets.contains(&variant).then_some(variant)
+}
+
+/// Where a type's default goes for a value of that type at `path`: the
+/// value's `$variant` column for a sum with payloads, the value's path
+/// otherwise.
+fn type_value_target(
+    path: &str,
+    definition: &CalculationTypeDefinition,
+    targets: &BTreeSet<String>,
+) -> Option<String> {
+    if is_payload_sum(definition) {
+        let variant = format!("{}.$variant", path);
+        if targets.contains(&variant) {
+            return Some(variant);
+        }
+    }
+    targets.contains(path).then(|| path.to_string())
+}
+
+/// Paths of required record fields. Such a field has no column of its own:
+/// its members are spread into columns.
+fn record_group_paths(contract: &CalculationContract) -> BTreeSet<String> {
+    let mut groups = BTreeSet::new();
+    collect_record_group_paths(
+        &contract.input,
+        contract,
+        &BTreeMap::new(),
+        "",
+        &mut BTreeSet::new(),
+        &mut groups,
+    );
+    groups
+}
+
+fn collect_record_group_paths(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    substitutions: &BTreeMap<String, CalculationTypeRef>,
+    path: &str,
+    active: &mut BTreeSet<String>,
+    groups: &mut BTreeSet<String>,
+) {
+    match substitute_contract_type(ty, substitutions) {
+        CalculationTypeRef::Optional { item }
+        | CalculationTypeRef::List { item }
+        | CalculationTypeRef::Set { item }
+        | CalculationTypeRef::Map { value: item, .. } => {
+            collect_record_group_paths(&item, contract, substitutions, path, active, groups)
+        }
+        CalculationTypeRef::Named { name, arguments } => {
+            let Some(definition) = contract.definition(&name) else {
+                return;
+            };
+            if !active.insert(name.clone()) {
+                return;
+            }
+            let local = definition_substitutions(definition, &arguments);
+            let product = product_variant(definition).is_some();
+            for variant in &definition.variants {
+                let base = if product {
+                    path.to_string()
+                } else {
+                    joined_column_path(path, &variant.name)
+                };
+                for field in &variant.fields {
+                    let field_path = joined_column_path(&base, &field.name);
+                    if let CalculationTypeRef::Named { name, .. } =
+                        substitute_contract_type(&field.ty, &local)
+                    {
+                        if contract
+                            .definition(&name)
+                            .is_some_and(|definition| product_variant(definition).is_some())
+                        {
+                            groups.insert(field_path.clone());
+                        }
+                    }
+                    collect_record_group_paths(
+                        &field.ty,
+                        contract,
+                        &local,
+                        &field_path,
+                        active,
+                        groups,
+                    );
+                }
+            }
+            active.remove(&name);
+        }
+        CalculationTypeRef::Primitive { .. }
+        | CalculationTypeRef::TypeParameter { .. }
+        | CalculationTypeRef::Unit => {}
+    }
 }
 
 fn calculation_field_values(reference: &MetaReference) -> Vec<(String, String, &MetaValue)> {
@@ -2813,6 +3860,7 @@ fn calculation_field_metadata_from_value(
     binding: &str,
     value: &MetaValue,
     anchor: &MetaAnchor,
+    targets: &BTreeSet<String>,
     valid_paths: &BTreeSet<String>,
     input_type_names: &BTreeSet<String>,
     type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
@@ -2869,6 +3917,7 @@ fn calculation_field_metadata_from_value(
             ))
         })?,
         anchor,
+        targets,
         valid_paths,
         input_type_names,
         type_occurrence_paths,
@@ -2913,16 +3962,16 @@ fn calculation_field_paths_from_value(
     binding: &str,
     value: &MetaValue,
     anchor: &MetaAnchor,
+    targets: &BTreeSet<String>,
     valid_paths: &BTreeSet<String>,
     input_type_names: &BTreeSet<String>,
     type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<(u8, Vec<String>), Diagnostic> {
     if let MetaValue::String(declared_path) = value {
-        let path = normalize_calculation_field_path(contract, declared_path, valid_paths)
-            .ok_or_else(|| {
-                unknown_calculation_field_path(contract, binding, declared_path, valid_paths)
-            })?;
-        return Ok((2, vec![path]));
+        let path = normalize_calculation_field_path(contract, declared_path, targets).ok_or_else(
+            || unknown_calculation_field_path(contract, binding, declared_path, valid_paths),
+        )?;
+        return Ok((EXACT_PATH_SPECIFICITY, vec![path]));
     }
 
     let (root_type, relative_path) = calculation_program_member_path(value).ok_or_else(|| {
@@ -2946,16 +3995,16 @@ fn calculation_field_paths_from_value(
         _ => None,
     };
     let specificity = if root_input_type == Some(root_type.as_str()) {
-        2
+        EXACT_PATH_SPECIFICITY
     } else {
-        1
+        MEMBER_SPECIFICITY
     };
     let paths = type_occurrence_paths
         .get(&root_type)
         .into_iter()
         .flat_map(|paths| paths.iter())
         .map(|prefix| joined_column_path(&prefix, &relative_path))
-        .filter_map(|path| canonical_calculation_field_path(&path, valid_paths))
+        .filter_map(|path| canonical_calculation_field_path(&path, targets))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
@@ -3541,7 +4590,7 @@ fn decode_missing(
             bindings: Rc::new(fields.into_iter().collect()),
         }
     } else {
-        Value::NamedConstructor(variant.name.clone(), fields.into())
+        Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
     };
     partial_container(Some(partial), value, path)
 }
@@ -3556,7 +4605,7 @@ fn decode_value(
 ) -> Result<Value, Vec<CalculationValueError>> {
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
-        CalculationTypeRef::Primitive { name } => {
+        CalculationTypeRef::Primitive { name, .. } => {
             let decoded = decode_primitive(value, &name, path).map_err(|error| vec![error])?;
             partial_provided(partial, path);
             Ok(decoded)
@@ -3616,7 +4665,7 @@ fn decode_value(
             .map(Value::List)
         }
         CalculationTypeRef::Map { key, value: item } => {
-            if !matches!(*key, CalculationTypeRef::Primitive { ref name } if name == "String") {
+            if !matches!(*key, CalculationTypeRef::Primitive { ref name, .. } if name == "String") {
                 return Err(vec![value_error(path, "only Map(String, T) is supported")]);
             }
             let object = value
@@ -3721,7 +4770,10 @@ fn decode_value(
                         bindings: Rc::new(fields.into_iter().collect()),
                     }
                 } else {
-                    Value::NamedConstructor(variant.name.clone(), fields.into())
+                    Value::NamedConstructor(
+                        runtime_variant_name(definition, variant),
+                        fields.into(),
+                    )
                 };
                 Ok(partial_container(partial, decoded, path))
             } else {
@@ -3943,7 +4995,7 @@ fn decode_variant(
         match decoded {
             Ok(values) if errors.is_empty() => Ok(partial_container(
                 partial,
-                Value::Constructor(variant.name.clone(), values.into()),
+                Value::Constructor(runtime_variant_name(definition, variant), values.into()),
                 path,
             )),
             Ok(_) => Err(errors),
@@ -3956,9 +5008,9 @@ fn decode_variant(
         let fields =
             decode_named_fields(value, variant, contract, substitutions, path, true, partial)?;
         let decoded = if fields.is_empty() {
-            Value::Constructor(variant.name.clone(), Vec::new().into())
+            Value::Constructor(runtime_variant_name(definition, variant), Vec::new().into())
         } else {
-            Value::NamedConstructor(variant.name.clone(), fields.into())
+            Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
         };
         Ok(partial_container(partial, decoded, path))
     }
@@ -3979,7 +5031,7 @@ fn encode_value(
     }
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
-        CalculationTypeRef::Primitive { name } => encode_primitive(value, &name, path),
+        CalculationTypeRef::Primitive { name, .. } => encode_primitive(value, &name, path),
         CalculationTypeRef::Unit => match value {
             Value::Unit => Ok(JsonValue::Null),
             _ => Err(runtime_type_error(path, "()", value)),
@@ -4022,7 +5074,7 @@ fn encode_value(
             ))
         }
         CalculationTypeRef::Map { key, value: item } => {
-            if !matches!(*key, CalculationTypeRef::Primitive { ref name } if name == "String") {
+            if !matches!(*key, CalculationTypeRef::Primitive { ref name, .. } if name == "String") {
                 return Err(value_error(path, "only Map(String, T) is supported"));
             }
             let Value::Map(values) = value else {
@@ -4143,7 +5195,9 @@ fn runtime_named_fields<'a>(
     path: &str,
 ) -> Result<&'a [(String, Value)], CalculationValueError> {
     match value {
-        Value::NamedConstructor(name, fields) if name == &variant.name => Ok(fields),
+        Value::NamedConstructor(name, fields) if constructor_display_name(name) == variant.name => {
+            Ok(fields)
+        }
         Value::RuleScopeInstance { name, bindings } if name == &definition.name => {
             // Rule-scope results are intentionally not a v1 output surface. Keeping
             // this branch explicit produces a useful diagnostic instead of a panic.
@@ -4217,7 +5271,7 @@ fn encode_variant(
             let variant = definition
                 .variants
                 .iter()
-                .find(|variant| &variant.name == name)
+                .find(|variant| variant.name == constructor_display_name(name))
                 .ok_or_else(|| runtime_type_error(path, &definition.name, value))?;
             if variant.positional {
                 if variant.fields.len() != values.len() {
@@ -4232,7 +5286,10 @@ fn encode_variant(
                     ));
                 }
                 let mut object = JsonMap::new();
-                object.insert("$variant".to_string(), JsonValue::String(name.clone()));
+                object.insert(
+                    "$variant".to_string(),
+                    JsonValue::String(variant.name.clone()),
+                );
                 object.insert(
                     "$values".to_string(),
                     JsonValue::Array(
@@ -4255,7 +5312,10 @@ fn encode_variant(
                 Ok(JsonValue::Object(object))
             } else if values.is_empty() && variant.fields.is_empty() {
                 let mut object = JsonMap::new();
-                object.insert("$variant".to_string(), JsonValue::String(name.clone()));
+                object.insert(
+                    "$variant".to_string(),
+                    JsonValue::String(variant.name.clone()),
+                );
                 Ok(JsonValue::Object(object))
             } else {
                 Err(runtime_type_error(path, &definition.name, value))
@@ -4265,12 +5325,23 @@ fn encode_variant(
             let variant = definition
                 .variants
                 .iter()
-                .find(|variant| &variant.name == name && !variant.positional)
+                .find(|variant| {
+                    variant.name == constructor_display_name(name) && !variant.positional
+                })
                 .ok_or_else(|| runtime_type_error(path, &definition.name, value))?;
             encode_named_fields(fields, variant, contract, substitutions, path, true)
         }
         _ => Err(runtime_type_error(path, &definition.name, value)),
     }
+}
+
+/// The runtime name of a contract variant: a shared constructor carries its
+/// internal name while the program runs, and its declared name in data.
+fn runtime_variant_name(
+    definition: &CalculationTypeDefinition,
+    variant: &CalculationVariant,
+) -> String {
+    constructor_runtime_name(&definition.name, &variant.name).into_owned()
 }
 
 fn field_path(parent: &str, field: &str) -> String {
@@ -4350,7 +5421,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 variant_guards,
                 active,
             ),
-            CalculationTypeRef::Primitive { name } => {
+            CalculationTypeRef::Primitive { name, .. } => {
                 columns.push(scalar_column(
                     layout_column_path(column_path, parent_table),
                     normalized_input_path(absolute_path),
@@ -4661,7 +5732,7 @@ fn scalar_column(
 }
 
 fn is_string_type(ty: &CalculationTypeRef) -> bool {
-    matches!(ty, CalculationTypeRef::Primitive { name } if name == "String")
+    matches!(ty, CalculationTypeRef::Primitive { name, .. } if name == "String")
 }
 
 fn is_normalized_collection_type(ty: &CalculationTypeRef) -> bool {
@@ -4928,17 +5999,30 @@ struct CalculationProgram {
     entry: String,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    /// The program's internal constructor names and rewritten imports.
+    constructor_elaboration: Option<Arc<ConstructorElaboration>>,
+    /// The program's root file, where rules without a recorded file are.
+    root_file: Option<PathBuf>,
     rule_dispatch: Arc<RuleDispatchMetadata>,
 }
 
 impl CalculationProgram {
-    fn new(entry: &str, stmts: Arc<[Stmt]>, source_dir: Option<String>) -> Self {
+    /// Runs under `constructor_elaboration`, which must be current.
+    fn new(
+        entry: &str,
+        stmts: Arc<[Stmt]>,
+        source_dir: Option<String>,
+        constructor_elaboration: Option<Arc<ConstructorElaboration>>,
+        root_file: Option<PathBuf>,
+    ) -> Self {
         let (return_types, return_issues, runtime_boolean_miss_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
         Self {
             entry: entry.to_string(),
             stmts,
             source_dir,
+            constructor_elaboration,
+            root_file,
             rule_dispatch: Arc::new(RuleDispatchMetadata {
                 return_types,
                 return_issues,
@@ -4958,6 +6042,10 @@ struct CalculationWorker {
     needs_reinitialization: bool,
     /// Set for partial cases (`runa call --partial`).
     partial: Option<partial::PartialMode>,
+    /// Set for explained cases (`runa call --explain`).
+    explain: Option<explain::ExplainRenderer>,
+    /// The law sections of rule families, for needs.
+    sections: Option<explain::ExplainRenderer>,
 }
 
 impl CalculationWorker {
@@ -4995,6 +6083,8 @@ impl CalculationWorker {
             initialization_error,
             needs_reinitialization: false,
             partial: None,
+            explain: None,
+            sections: None,
         }
     }
 
@@ -5032,8 +6122,10 @@ impl CalculationWorker {
 
         if self.needs_reinitialization {
             let partial = self.partial;
+            let explain = self.explain.take();
             *self = Self::new(self.program.clone());
             self.partial = partial;
+            self.explain = explain;
         }
         if let Some(message) = &self.initialization_error {
             trace_calculation_case(&case.case_id, started);
@@ -5050,9 +6142,31 @@ impl CalculationWorker {
                 .begin_partial_case(self.partial, &contract.entry);
             self.interpreter.partial.borrow_mut().containers =
                 decoder.containers.iter().cloned().collect();
+            if self.interpreter.partial_cited.is_none() {
+                let mut renderer = explain::ExplainRenderer::new(ExplainOptions {
+                    full: false,
+                    root_file: self.program.root_file.clone(),
+                    display_root: None,
+                });
+                let hook: partial::CitedFrames = Rc::new(RefCell::new(
+                    move |interpreter: &Interpreter, frame: &partial::CallFrame| {
+                        renderer.frame_cited(interpreter, frame)
+                    },
+                ));
+                self.interpreter.partial_cited = Some(hook);
+            }
         }
 
         let mut runtime_env = self.base_env.clone();
+        let input = if self.explain.is_some() {
+            self.interpreter.begin_explained_case();
+            let tagged = explain::tag_input(&self.interpreter, &input, contract);
+            self.interpreter
+                .explain_keep_partial_containers(&input, &tagged);
+            tagged
+        } else {
+            input
+        };
         let input_binding = "__futuruna_calculation_input".to_string();
         runtime_env.set(input_binding.clone(), input);
         let call: Expr = ExprKind::App(
@@ -5068,8 +6182,10 @@ impl CalculationWorker {
         // case: either way the program is initialized again first.
         self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
             || self.interpreter.prepared_live_cell_changed();
+        let explained = self.interpreter.finish_explained_case();
         if let Some(decoder) = decoder {
-            let outcome = self.finish_partial(contract, case, evaluated, &decoder);
+            let outcome =
+                self.finish_partial(contract, case, evaluated, &decoder, explained.as_ref());
             self.interpreter.begin_partial_case(None, "");
             trace_calculation_case(&case.case_id, started);
             return outcome;
@@ -5085,10 +6201,21 @@ impl CalculationWorker {
                 });
             }
         };
+        let explanation = match (self.explain.as_mut(), explained.as_ref()) {
+            (Some(renderer), Some(state)) => {
+                Some(renderer.explanation(&self.interpreter, state, &result, contract))
+            }
+            _ => None,
+        };
+        let result = match explanation {
+            Some(_) => crate::explain::strip_deep(&result),
+            None => result,
+        };
         let outcome = match contract.encode_output(&result) {
             Ok(result) => CalculationCaseOutcome::Result(CalculationResultCase {
                 case_id: case.case_id.clone(),
                 result,
+                explanation,
             }),
             Err(error) => CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
                 case_id: case.case_id.clone(),
@@ -5107,6 +6234,7 @@ impl CalculationWorker {
         case: &CalculationInputCase,
         evaluated: Result<Value, CalculationRuntimeFailure>,
         decoder: &PartialDecoder,
+        explained: Option<&crate::explain::ExplainState>,
     ) -> CalculationCaseOutcome {
         let diagnostic = |path: String, message: String| {
             CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
@@ -5117,10 +6245,9 @@ impl CalculationWorker {
         };
         let outcome = match evaluated {
             Ok(result) => self.interpreter.finish_partial_case(result),
-            Err(CalculationRuntimeFailure::NeedsInput(paths)) => partial::PartialOutcome::Needs {
-                paths,
-                waiting: self.interpreter.partial_waiting(),
-            },
+            Err(CalculationRuntimeFailure::NeedsInput(paths)) => {
+                self.interpreter.partial_needs(paths)
+            }
             Err(error) => {
                 return diagnostic(
                     "$".to_string(),
@@ -5128,39 +6255,89 @@ impl CalculationWorker {
                 );
             }
         };
+        let mut explanation = None;
         let result = match outcome {
             partial::PartialOutcome::Complete {
                 result,
                 read_exact,
                 read_subtree,
-            } => match contract.encode_output(&result) {
-                Ok(result) => CalculationPartialResult::Complete {
-                    result,
-                    unused_paths: decoder
-                        .provided
-                        .iter()
-                        .filter(|path| !partial::path_was_read(path, &read_exact, &read_subtree))
-                        .cloned()
-                        .collect(),
-                },
-                Err(error) => return diagnostic(error.path, error.message),
-            },
-            partial::PartialOutcome::Needs { paths, waiting } => CalculationPartialResult::Needs {
-                needs: paths
-                    .into_iter()
-                    .map(|path| {
-                        let rule = waiting
-                            .get(&path)
+            } => {
+                if let (Some(renderer), Some(state)) = (self.explain.as_mut(), explained) {
+                    explanation =
+                        Some(renderer.explanation(&self.interpreter, state, &result, contract));
+                }
+                let result = match explanation {
+                    Some(_) => crate::explain::strip_deep(&result),
+                    None => result,
+                };
+                match contract.encode_output(&result) {
+                    Ok(result) => CalculationPartialResult::Complete {
+                        result,
+                        unused_paths: decoder
+                            .provided
+                            .iter()
+                            .filter(|path| {
+                                !partial::path_was_read(path, &read_exact, &read_subtree)
+                            })
                             .cloned()
-                            .unwrap_or_else(|| contract.entry.clone());
-                        contract.need_for_path(&case.input, path, rule)
+                            .collect(),
+                    },
+                    Err(error) => return diagnostic(error.path, error.message),
+                }
+            }
+            partial::PartialOutcome::Needs {
+                paths,
+                waiting,
+                later,
+            } => {
+                let renderer = self.sections.get_or_insert_with(|| {
+                    explain::ExplainRenderer::new(ExplainOptions {
+                        full: false,
+                        root_file: self.program.root_file.clone(),
+                        display_root: None,
                     })
-                    .collect(),
-            },
+                });
+                // A part of a date is the date's need; stacks of merged parts
+                // are joined.
+                let facts = |paths: &BTreeSet<String>| {
+                    let mut facts: BTreeMap<String, Vec<partial::WaitingRules>> = BTreeMap::new();
+                    for path in paths {
+                        let stacks = facts
+                            .entry(contract.fact_path(&case.input, path))
+                            .or_default();
+                        for stack in waiting.get(path).into_iter().flatten() {
+                            if !stacks.iter().any(|known| Rc::ptr_eq(known, stack)) {
+                                stacks.push(stack.clone());
+                            }
+                        }
+                    }
+                    facts
+                };
+                let needed = facts(&paths);
+                let mut needs_for = |facts: BTreeMap<String, Vec<partial::WaitingRules>>| {
+                    facts
+                        .into_iter()
+                        .map(|(path, stacks)| {
+                            let waiting =
+                                renderer.consumers(&self.interpreter, &stacks, &contract.entry);
+                            contract.need_for_path(&case.input, path, waiting)
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let later = facts(&later)
+                    .into_iter()
+                    .filter(|(path, _)| !needed.contains_key(path))
+                    .collect();
+                CalculationPartialResult::Needs {
+                    needs: needs_for(needed),
+                    later: needs_for(later),
+                }
+            }
         };
         CalculationCaseOutcome::Result(CalculationResultCase {
             case_id: case.case_id.clone(),
             result: serde_json::to_value(result).expect("partial result is JSON"),
+            explanation,
         })
     }
 }
@@ -5266,28 +6443,49 @@ fn invoke_calculation_case_queue(
 /// A batch with four or more ready cases also runs on further workers, each
 /// initializing its own interpreter for that batch (natively; WebAssembly runs
 /// one worker).
+///
+/// The program's constructor elaboration (its internal constructor names and
+/// rewritten imports) is part of the program: every batch, and every worker of
+/// a batch, runs under it, whatever other program this thread or process has
+/// checked or run since.
 pub struct PreparedCalculation {
     contract: CalculationContract,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    constructor_elaboration: Option<Arc<ConstructorElaboration>>,
+    root_file: Option<PathBuf>,
     worker: Option<CalculationWorker>,
 }
 
 impl PreparedCalculation {
     /// Prepare `contract`'s entry of the program `stmts` (with the prelude
-    /// already prepended when the program uses it). Nothing runs until the
-    /// first batch with a ready case.
+    /// already prepended when the program uses it) and its
+    /// `constructor_elaboration`, both as its check returned them
+    /// ([`TypeCheckArtifacts::program`] and
+    /// [`TypeCheckArtifacts::constructor_elaboration`]); `None` for a
+    /// program that renames no constructor. Nothing runs until the first
+    /// batch with a ready case.
     pub fn new(
         contract: CalculationContract,
         stmts: Arc<[Stmt]>,
         source_dir: Option<String>,
+        constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     ) -> Self {
         Self {
             contract,
             stmts,
             source_dir,
+            constructor_elaboration,
+            root_file: None,
             worker: None,
         }
+    }
+
+    /// Name the program's root file, so needs can name the law section of a
+    /// rule declared in it. Rules from imported files are found without it.
+    pub fn with_root_file(mut self, root_file: PathBuf) -> Self {
+        self.root_file = Some(root_file);
+        self
     }
 
     pub fn contract(&self) -> &CalculationContract {
@@ -5311,16 +6509,68 @@ impl PreparedCalculation {
         self.invoke_batch(envelope, requested_calculation_jobs(), Some(mode))
     }
 
+    /// [`Self::invoke`] with an explanation of every result
+    /// (`runa call --explain`; `docs/rfcs/explanations.md`).
+    pub fn invoke_explained(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        options: &ExplainOptions,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(envelope, requested_calculation_jobs(), None, Some(options))
+    }
+
+    /// [`Self::invoke_partial`] with an explanation of every `Complete`
+    /// result (`runa call --partial --explain`).
+    pub fn invoke_partial_explained(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        mode: partial::PartialMode,
+        options: &ExplainOptions,
+    ) -> CalculationOutputEnvelope {
+        self.run_batch(
+            envelope,
+            requested_calculation_jobs(),
+            Some(mode),
+            Some(options),
+        )
+    }
+
     fn invoke_batch(
         &mut self,
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
         partial: Option<partial::PartialMode>,
     ) -> CalculationOutputEnvelope {
+        self.run_batch(envelope, requested_jobs, partial, None)
+    }
+
+    /// Run a batch under the program's own constructor elaboration.
+    fn run_batch(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+        explain_options: Option<&ExplainOptions>,
+    ) -> CalculationOutputEnvelope {
+        let elaboration = self.constructor_elaboration.clone();
+        with_constructor_elaboration(elaboration.as_ref(), || {
+            self.run_batch_in_program(envelope, requested_jobs, partial, explain_options)
+        })
+    }
+
+    fn run_batch_in_program(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+        explain_options: Option<&ExplainOptions>,
+    ) -> CalculationOutputEnvelope {
         let Self {
             contract,
             stmts,
             source_dir,
+            constructor_elaboration,
+            root_file,
             worker,
         } = self;
         let contract = &*contract;
@@ -5379,9 +6629,12 @@ impl PreparedCalculation {
                 &contract.entry,
                 stmts.clone(),
                 source_dir.clone(),
+                constructor_elaboration.clone(),
+                root_file.clone(),
             ))
         });
         primary.partial = partial;
+        primary.explain = explain_options.cloned().map(explain::ExplainRenderer::new);
         let initialized_after = started.map(|started| started.elapsed());
         let mut outcomes = if worker_count == 1 {
             invoke_calculation_case_stride(primary, contract, &cases, 0, 1)
@@ -5400,14 +6653,22 @@ impl PreparedCalculation {
                                 .name(format!("futuruna-calculation-{worker_index}"))
                                 .stack_size(CALCULATION_WORKER_STACK_BYTES)
                                 .spawn_scoped(scope, move || {
-                                    let mut worker = CalculationWorker::new(program.clone());
-                                    worker.partial = partial;
-                                    invoke_calculation_case_queue(
-                                        &mut worker,
-                                        contract,
-                                        cases,
-                                        next_case,
-                                    )
+                                    // A worker thread starts with no
+                                    // elaboration current: give it the program's.
+                                    let elaboration = program.constructor_elaboration.as_ref();
+                                    with_constructor_elaboration(elaboration, || {
+                                        let mut worker = CalculationWorker::new(program.clone());
+                                        worker.partial = partial;
+                                        worker.explain = explain_options
+                                            .cloned()
+                                            .map(explain::ExplainRenderer::new);
+                                        invoke_calculation_case_queue(
+                                            &mut worker,
+                                            contract,
+                                            cases,
+                                            next_case,
+                                        )
+                                    })
                                 })
                                 .expect("start calculation worker"),
                         );
@@ -5497,7 +6758,7 @@ impl CalculationContract {
         let ty = substitute_contract_type(ty, substitutions);
         let shallow = depth >= COMPLETION_DEPTH_LIMIT;
         match ty {
-            CalculationTypeRef::Primitive { name } => match name.as_str() {
+            CalculationTypeRef::Primitive { name, .. } => match name.as_str() {
                 "Int" => {
                     if rng.below(3) == 0 {
                         let magnitude = (rng.next() % 1_000_000_000_000) as i64;
@@ -5735,15 +6996,89 @@ impl CalculationContract {
     }
 }
 
+/// JSON Schema of the act a quoted document is (`CalculationAct`).
+pub(crate) fn act_json_schema() -> JsonValue {
+    serde_json::json!({
+        "type": "object",
+        "description": "The act a quoted document is, from the header of the document under sources/: its `Title:`, `Document identifier:` and `Human-readable URL:` (or `URL:`) lines.",
+        "required": ["title"],
+        "additionalProperties": false,
+        "properties": {
+            "title": { "type": "string" },
+            "identifier": { "type": "string" },
+            "url": { "type": "string" }
+        }
+    })
+}
+
+/// JSON Schema of a cited paragraph in a need (`CalculationParagraph`).
+fn paragraph_json_schema() -> JsonValue {
+    serde_json::json!({
+        "type": "object",
+        "required": ["paragraph"],
+        "additionalProperties": false,
+        "properties": {
+            "paragraph": { "type": "string", "description": "The cited paragraph, as `§ 9, stk. 3`." },
+            "source": { "type": "string", "description": "The `[sources/...]` document of the quote it was found in." },
+            "act": act_json_schema()
+        }
+    })
+}
+
 /// JSON Schema of one case's `result` in a partial output envelope
 /// (`futuruna.calculate.partial-output.v1`). The calculation's own output
 /// type is the contract's `output`.
 pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
     let string = serde_json::json!({ "type": "string" });
+    let need = serde_json::json!({
+        "type": "object",
+        "required": ["kind", "path", "waiting"],
+        "additionalProperties": false,
+        "properties": {
+            "kind": { "enum": ["fact", "entry"] },
+            "path": string,
+            "keys": {
+                "type": "array",
+                "description": "The list elements the path lies in whose type declares a key field, outermost first, each with the key's value in the case.",
+                "items": {
+                    "type": "object",
+                    "required": ["path", "field", "value"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "path": { "type": "string", "description": "The element's input path." },
+                        "field": { "type": "string", "description": "The element type's key field." },
+                        "value": { "description": "The key's canonical JSON value." }
+                    }
+                }
+            },
+            "entry": string,
+            "subject": string,
+            "label": string,
+            "question": string,
+            "help": string,
+            "unit": string,
+            "sources": { "type": "array", "items": { "type": "object" } },
+            "waiting": {
+                "type": "array",
+                "minItems": 1,
+                "description": "The rules that wait for the value: every rule or function of a law section that read it, the cited ones only when there are any.",
+                "items": {
+                    "type": "object",
+                    "required": ["rule"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "rule": string,
+                        "section": { "type": "string", "description": "The section (anchor label) of the rule's clause or function." },
+                        "paragraphs": { "type": "array", "items": paragraph_json_schema(), "description": "The paragraphs the clause or function cites." }
+                    }
+                }
+            }
+        }
+    });
     serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": format!("Partial result of `{}`", contract.entry),
-        "description": "A partial case answers Complete with its result, or Needs with the facts and entries that block it. See docs/rfcs/calculation-needs.md.",
+        "description": "A partial case answers Complete with its result, or Needs with the facts and entries that block it as it stands. See docs/rfcs/calculation-needs.md.",
         "x-futuruna-output-schema": PARTIAL_OUTPUT_SCHEMA,
         "x-futuruna-schema-hash": contract.schema_hash,
         "oneOf": [
@@ -5763,25 +7098,11 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
                 "additionalProperties": false,
                 "properties": {
                     "$variant": { "const": "Needs" },
-                    "needs": {
+                    "needs": { "type": "array", "items": need.clone() },
+                    "later": {
                         "type": "array",
-                        "items": {
-                            "type": "object",
-                            "required": ["kind", "path", "waiting_rule"],
-                            "additionalProperties": false,
-                            "properties": {
-                                "kind": { "enum": ["fact", "entry"] },
-                                "path": string,
-                                "entry": string,
-                                "subject": string,
-                                "label": string,
-                                "question": string,
-                                "help": string,
-                                "unit": string,
-                                "sources": { "type": "array", "items": { "type": "object" } },
-                                "waiting_rule": string
-                            }
-                        }
+                        "items": need,
+                        "description": "Facts evaluation read only behind an unknown condition, which do not block the result as it stands; answering `needs` may make them needs."
                     }
                 }
             }
@@ -5912,7 +7233,7 @@ mod calculation_execution_tests {
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
     ) -> CalculationOutputEnvelope {
-        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir).invoke_batch(
+        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir, None).invoke_batch(
             envelope,
             requested_jobs,
             None,
@@ -6021,7 +7342,11 @@ mod calculation_execution_tests {
         let need = contract.need_for_path(
             &serde_json::json!({ "spouse": {} }),
             "spouse.income".to_string(),
-            "rate".to_string(),
+            vec![CalculationWaiting {
+                rule: "rate".to_string(),
+                section: None,
+                paragraphs: Vec::new(),
+            }],
         );
         assert_eq!(
             need.question.as_deref(),
@@ -6035,7 +7360,7 @@ mod calculation_execution_tests {
         let (stmts, contract) = needs_fixture();
         let envelope = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
         let checked =
-            PreparedCalculation::new(contract, stmts.into(), None).check_partial(&envelope);
+            PreparedCalculation::new(contract, stmts.into(), None, None).check_partial(&envelope);
         assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
         assert_eq!(
             checked.results[0].result,
@@ -6127,6 +7452,9 @@ mod calculation_execution_tests {
 
     #[test]
     fn calculation_imports_resolve_against_provided_source_files() {
+        let _provided = crate::PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         // No such directory exists: every import is served from the
         // host-provided files, as in the WebAssembly engine.
         let root = Path::new("/futuruna-provided-sources-test/model/src");
@@ -6163,11 +7491,141 @@ mod calculation_execution_tests {
                 input: serde_json::json!({"amount": 100000}),
             }],
         };
-        let output =
-            PreparedCalculation::new(contract, statements.into(), source_dir).invoke(&envelope);
+        let output = PreparedCalculation::new(contract, statements.into(), source_dir, None)
+            .invoke(&envelope);
         crate::provide_source_files([]);
         assert!(output.diagnostics.is_empty(), "{output:?}");
         assert_eq!(output.results[0].result, serde_json::json!(27000));
+    }
+
+    /// Two programs checked and prepared in one thread, then run alternately,
+    /// as two WebAssembly `Model`s in one instance are. Each shares
+    /// constructor names between two of its types, so each runs elaborated
+    /// under its own internal names; neither may decode, match or encode a
+    /// constructor by the other's names. Before constructor names belonged to
+    /// their program, the account program run after the door program was
+    /// checked decoded `AccountState`'s `Closed` as `Event`'s: an entry
+    /// prepared before found no arm in `account_label`, and one prepared after
+    /// took the wildcard arm of `status` and answered "open" without an error.
+    #[test]
+    fn programs_checked_in_one_thread_run_with_their_own_constructor_names() {
+        let _provided = crate::PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let root = Path::new("/futuruna-two-programs-test/model/src");
+        let files = [
+            (
+                "events.runa",
+                "# Event = Opened | Closed\n# AccountState = Active | Closed\n> account_label(state: AccountState) -> String {\n    match state {\n        | Active -> \"account open\"\n        | Closed -> \"account closed\"\n    }\n}\n",
+            ),
+            (
+                "account.calculate.runa",
+                "@ import ./events\n# Input(state: AccountState, event: Event)\n# Output(label: String, status: String, state: AccountState, event: Event)\n> status(state: AccountState) -> String {\n    match state {\n        | Closed -> \"closed\"\n        | _ -> \"open\"\n    }\n}\n@ calculate\n> account(input: Input) -> Output { Output(account_label(input.state), status(input.state), input.state, input.event) }\n",
+            ),
+            (
+                "door.calculate.runa",
+                "# Door = Open | Shut\n# Valve = Shut | Leak\n# Input(valve: Valve)\n@ calculate\n> door(input: Input) -> String {\n    match input.valve {\n        | Shut -> \"valve shut\"\n        | _ -> \"valve leaking\"\n    }\n}\n",
+            ),
+        ];
+        crate::provide_source_files(
+            files
+                .iter()
+                .map(|(name, source)| (root.join(name), source.to_string())),
+        );
+        let source_dir = Some(root.to_string_lossy().into_owned());
+        // What `Model::new` does: check the root, prepare its entry.
+        let load = |name: &str| {
+            let source = files.iter().find(|(file, _)| *file == name).unwrap().1;
+            let statements = Parser::new(Lexer::new(source).tokenize(), source)
+                .parse_program()
+                .expect("parse root");
+            let mut artifacts =
+                TypeChecker::check_with_artifacts(&statements, source_dir.clone(), source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{name}: {:?}",
+                artifacts.diagnostics
+            );
+            assert!(
+                artifacts.constructor_elaboration.is_some(),
+                "{name} shares a constructor name"
+            );
+            PreparedCalculation::new(
+                artifacts.calculation_contracts.pop().expect("one entry"),
+                artifacts.program().clone(),
+                source_dir.clone(),
+                artifacts.constructor_elaboration.clone(),
+            )
+            .with_root_file(root.join(name))
+        };
+        let call = |prepared: &mut PreparedCalculation, input: serde_json::Value| {
+            let envelope = CalculationInputEnvelope {
+                futuruna: CalculationEnvelopeMetadata {
+                    schema: INPUT_SCHEMA.to_string(),
+                    schema_hash: prepared.contract().schema_hash.clone(),
+                    entry: prepared.contract().entry.clone(),
+                },
+                cases: vec![CalculationInputCase {
+                    case_id: "case".to_string(),
+                    input_status: Some(CalculationInputStatus::Ready),
+                    input,
+                }],
+            };
+            let output = prepared.invoke(&envelope);
+            assert!(output.diagnostics.is_empty(), "{output:?}");
+            output.results[0].result.clone()
+        };
+        let account_input = |state: &str| {
+            serde_json::json!({
+                "state": {"$variant": state},
+                "event": {"$variant": "Closed"},
+            })
+        };
+        let account_output = |label: &str, status: &str, state: &str| {
+            serde_json::json!({
+                "label": label,
+                "status": status,
+                "state": {"$variant": state},
+                "event": {"$variant": "Closed"},
+            })
+        };
+        let check_account = |prepared: &mut PreparedCalculation| {
+            assert_eq!(
+                call(prepared, account_input("Closed")),
+                account_output("account closed", "closed", "Closed")
+            );
+            assert_eq!(
+                call(prepared, account_input("Active")),
+                account_output("account open", "open", "Active")
+            );
+        };
+        let check_door = |prepared: &mut PreparedCalculation| {
+            assert_eq!(
+                call(prepared, serde_json::json!({"valve": {"$variant": "Shut"}})),
+                "valve shut"
+            );
+            assert_eq!(
+                call(prepared, serde_json::json!({"valve": {"$variant": "Leak"}})),
+                "valve leaking"
+            );
+        };
+
+        // Prepared (on its first call) before another program is checked.
+        let mut early = load("account.calculate.runa");
+        check_account(&mut early);
+        // Prepared after another program is checked.
+        let mut late = load("account.calculate.runa");
+        let mut door = load("door.calculate.runa");
+        check_account(&mut late);
+        check_account(&mut early);
+        check_door(&mut door);
+        check_account(&mut late);
+        check_account(&mut early);
+        let mut door_again = load("door.calculate.runa");
+        check_account(&mut early);
+        check_door(&mut door_again);
+        check_door(&mut door);
+        crate::provide_source_files([]);
     }
 
     #[test]
@@ -6960,6 +8418,8 @@ mod calculation_execution_tests {
             "calculate_scenario",
             stmts.into(),
             None,
+            None,
+            None,
         ));
 
         assert!(worker.interpreter.output.is_empty());
@@ -7243,7 +8703,7 @@ mod calculation_execution_tests {
                 .collect(),
         );
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None);
+            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None, None);
         let first = prepared.invoke_batch(&envelope, Some(1), None);
         assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
         let shuffled = &first.results[0].result["shuffled"];
@@ -7278,7 +8738,7 @@ mod calculation_execution_tests {
     fn a_prepared_calculation_is_initialized_once_for_every_call() {
         let (stmts, contract, envelope) = batch_fixture();
         let fresh = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
         for _ in 0..3 {
             let output = prepared.invoke_batch(&envelope, Some(1), None);
             assert_eq!(document(&output), document(&fresh));
@@ -7301,7 +8761,7 @@ mod calculation_execution_tests {
         );
         let fresh = |envelope: &CalculationInputEnvelope, partial| {
             document(
-                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None)
+                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None)
                     .invoke_batch(envelope, Some(1), partial),
             )
         };
@@ -7315,7 +8775,7 @@ mod calculation_execution_tests {
         assert!(expected[1].contains("Needs"), "{}", expected[1]);
 
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None);
+            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None);
         for _ in 0..2 {
             for (envelope, partial, expected) in [
                 (&decided, propagate, &expected[0]),
@@ -7329,5 +8789,93 @@ mod calculation_execution_tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn an_unexplained_case_creates_no_trace_and_explaining_changes_no_result() {
+        let source = r#"
+# Line(amount: Int, kind: Kind)
+# Kind = Ordinary | Reduced
+# Case(lines: List(Line), rate_bp: Int)
+# Total(net: Int, tax: Int, kind: Kind)
+
+| line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 10000
+| exception reduced line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 20000 under l.kind == Reduced
+
+@ calculate
+| total(c: Case) -> Total(net = foldl(c.lines, 0, |acc, l| acc + l.amount), tax = foldl(c.lines, 0, |acc, l| acc + line_tax(l, c.rate_bp)), kind = head(c.lines).kind)
+"#;
+        let stmts = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("parse");
+        let stmts = prepend_prelude(parse_prelude(), &stmts);
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("contract")
+            .pop()
+            .expect("one entry");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "c".to_string(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input: serde_json::json!({
+                    "lines": [
+                        {"amount": 10000, "kind": {"$variant": "Ordinary"}},
+                        {"amount": 4000, "kind": {"$variant": "Reduced"}}
+                    ],
+                    "rate_bp": 2500
+                }),
+            }],
+        };
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
+        let before = crate::explain::tracing_counts();
+        let off = prepared.invoke_batch(&envelope, Some(1), None);
+        assert_eq!(
+            crate::explain::tracing_counts(),
+            before,
+            "mode off traced a value"
+        );
+        assert!(off.results[0].explanation.is_none());
+
+        let explained = prepared.invoke_explained(&envelope, &ExplainOptions::default());
+        let (traced, nodes) = crate::explain::tracing_counts();
+        assert!(traced > before.0 && nodes > before.1);
+        let mut stripped = explained.clone();
+        let explanation = stripped.results[0].explanation.take().expect("explained");
+        assert_eq!(document(&stripped), document(&off));
+        let values = &explanation["values"];
+        // The entry is a rule: it produced every leaf, from the inputs.
+        assert_eq!(values["net"]["by"]["rule"], "total");
+        assert_eq!(values["net"]["by"]["clause"], "default");
+        let net_from = values["net"]["from"].as_array().expect("contributors");
+        assert_eq!(net_from.len(), 2);
+        assert_eq!(net_from[0]["path"], "lines[0].amount");
+        assert_eq!(net_from[1]["path"], "lines[1].amount");
+        assert_eq!(values["tax"]["value"], 3000);
+        let from = values["tax"]["from"].as_array().expect("contributors");
+        assert!(from.iter().any(|item| item["rule"] == "line_tax"
+            && item["clause"] == "exception"
+            && item["exception"] == "reduced"));
+        assert!(from
+            .iter()
+            .any(|item| item["rule"] == "line_tax" && item["clause"] == "default"));
+        // Passed on unchanged from the input: the input path, not a rule.
+        assert_eq!(values["kind.$variant"]["by"]["$variant"], "Input");
+        assert_eq!(
+            values["kind.$variant"]["by"]["path"],
+            "lines[0].kind.$variant"
+        );
+
+        // Off again after an explained call: still no trace.
+        let before = crate::explain::tracing_counts();
+        assert_eq!(
+            document(&prepared.invoke_batch(&envelope, Some(1), None)),
+            document(&off)
+        );
+        assert_eq!(crate::explain::tracing_counts(), before);
     }
 }
