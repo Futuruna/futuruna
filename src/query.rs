@@ -381,7 +381,8 @@ fn path_comparisons(files: &[ProgramFile]) -> Vec<Diagnostic> {
                 if operator != "==" && operator != "!=" {
                     return;
                 }
-                if let (Some(left_root), Some(right_root)) = (pathof_root(left), pathof_root(right)) {
+                if let (Some(left_root), Some(right_root)) = (pathof_root(left), pathof_root(right))
+                {
                     if left_root != right_root {
                         diagnostics.push(file.diagnostic(
                             expr.span,
