@@ -1,0 +1,53 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "e4fd3f9c1f02625f5d5109470bb730afc05be66419a33523267e167b20e2f318",
+    "entry": "needs_sort_carries"
+  },
+  "results": [
+    {
+      "case_id": "owner-and-amount-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "accounts[0].opening_ore",
+            "waiting": [
+              {
+                "rule": "needs_sort_carries"
+              }
+            ]
+          },
+          {
+            "kind": "fact",
+            "path": "owner_liable",
+            "waiting": [
+              {
+                "rule": "needs_sort_carries"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "amount-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "accounts[0].opening_ore",
+            "waiting": [
+              {
+                "rule": "needs_sort_carries"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -23879,6 +23879,9 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     let mut items = list_to_vec(list);
+                    if self.partial_mode.is_some() {
+                        return self.partial_sort(list, items);
+                    }
                     items.sort_by(value_sort_cmp);
                     Value::List(items)
                 }
@@ -23937,6 +23940,13 @@ impl Interpreter {
                     Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
+                if self.partial_mode.is_some() {
+                    return match self.partial_predicate_scan("any", &items, &func, env, true, true)
+                    {
+                        Ok(decided) => Value::Bool(decided.is_some()),
+                        Err(unknown) => unknown,
+                    };
+                }
                 Value::Bool(items.into_iter().any(|item| {
                     let result =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
@@ -23951,6 +23961,13 @@ impl Interpreter {
                     Value::Stream(v) => v.clone(),
                     other => list_to_vec(other),
                 };
+                if self.partial_mode.is_some() {
+                    return match self.partial_predicate_scan("all", &items, &func, env, false, true)
+                    {
+                        Ok(decided) => Value::Bool(decided.is_none()),
+                        Err(unknown) => unknown,
+                    };
+                }
                 Value::Bool(items.into_iter().all(|item| {
                     let result =
                         self.apply_checked_builtin_callback(1, func.clone(), vec![item], env);
@@ -23960,6 +23977,17 @@ impl Interpreter {
             "find" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
                     let items = list_to_vec(list);
+                    if self.partial_mode.is_some() {
+                        return match self
+                            .partial_predicate_scan("find", &items, func, env, true, false)
+                        {
+                            Ok(Some(index)) => {
+                                Value::Constructor("Some".into(), vec![items[index].clone()].into())
+                            }
+                            Ok(None) => Value::Constructor("None".into(), vec![].into()),
+                            Err(unknown) => unknown,
+                        };
+                    }
                     for item in items {
                         let result = self.apply_checked_builtin_callback(
                             1,
@@ -29557,14 +29585,30 @@ fn runtime_numeric_is_zero(value: &Value) -> bool {
 }
 
 pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
+    let mut unknown = BTreeSet::new();
+    let ordering = value_sort_cmp_reading(a, b, &mut unknown);
+    if !unknown.is_empty() {
+        partial::report_unknown_leak("ordering");
+    }
+    ordering
+}
+
+/// The order of `a` and `b`, reading only the parts the comparison reaches:
+/// an unknown part compares equal and its paths go to `unknown`.
+pub(crate) fn value_sort_cmp_reading(
+    a: &Value,
+    b: &Value,
+    unknown: &mut BTreeSet<String>,
+) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let (a, b) = (explain::untraced(a), explain::untraced(b));
     if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
-        partial::report_unknown_leak("ordering");
+        partial::collect_unknown_paths(a, false, unknown);
+        partial::collect_unknown_paths(b, false, unknown);
         return Ordering::Equal;
     }
     if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
-        return value_sort_cmp(&a, &b);
+        return value_sort_cmp_reading(&a, &b, unknown);
     }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {
@@ -29575,9 +29619,9 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
             value
         }
     }
-    fn seq_cmp(a: &[Value], b: &[Value]) -> Ordering {
+    fn seq_cmp(a: &[Value], b: &[Value], unknown: &mut BTreeSet<String>) -> Ordering {
         for (left, right) in a.iter().zip(b.iter()) {
-            let ordering = value_sort_cmp(left, right);
+            let ordering = value_sort_cmp_reading(left, right, unknown);
             if ordering != Ordering::Equal {
                 return ordering;
             }
@@ -29611,7 +29655,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
         (Value::Unit, Value::Unit) => Ordering::Equal,
         (Value::List(a), Value::List(b))
         | (Value::Tuple(a), Value::Tuple(b))
-        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b),
+        | (Value::Stream(a), Value::Stream(b)) => seq_cmp(a, b, unknown),
         (Value::Map(a), Value::Map(b)) => {
             let flatten = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
                 runtime_map_ordered_entries(entries)
@@ -29624,7 +29668,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     })
                     .collect()
             };
-            seq_cmp(&flatten(a), &flatten(b))
+            seq_cmp(&flatten(a), &flatten(b), unknown)
         }
         (Value::Set(a), Value::Set(b)) => {
             let ordered = |entries: &BTreeMap<String, Value>| -> Vec<Value> {
@@ -29633,7 +29677,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     .cloned()
                     .collect()
             };
-            seq_cmp(&ordered(a), &ordered(b))
+            seq_cmp(&ordered(a), &ordered(b), unknown)
         }
         _ => match (constructor_parts(a), constructor_parts(b)) {
             (Some((left_name, left)), Some((right_name, right))) => {
@@ -29643,7 +29687,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
                     .cmp(&constructor_display_name(right_name))
                     .then_with(|| {
                         for (left, right) in left.iter().zip(right.iter()) {
-                            let ordering = value_sort_cmp(left, right);
+                            let ordering = value_sort_cmp_reading(left, right, unknown);
                             if ordering != Ordering::Equal {
                                 return ordering;
                             }
@@ -29654,7 +29698,7 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
             _ => {
                 let (left, right) = (list_to_vec(a), list_to_vec(b));
                 if matches!(a, Value::Constructor(..)) && matches!(b, Value::Constructor(..)) {
-                    seq_cmp(&left, &right)
+                    seq_cmp(&left, &right, unknown)
                 } else {
                     format!("{}", a).cmp(&format!("{}", b))
                 }

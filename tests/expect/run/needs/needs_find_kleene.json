@@ -1,0 +1,32 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "2d473dd49a1dd5129561cdb13edc918a506024d420819ad418c95a60fa64c930",
+    "entry": "needs_find_kleene"
+  },
+  "cases": [
+    {
+      "case_id": "two-unknown-answers-before-a-match",
+      "input_status": "ready",
+      "input": {
+        "third": true
+      }
+    },
+    {
+      "case_id": "a-match-before-any-unknown-answer",
+      "input_status": "ready",
+      "input": {
+        "first": true
+      }
+    },
+    {
+      "case_id": "no-match",
+      "input_status": "ready",
+      "input": {
+        "first": false,
+        "second": false,
+        "third": false
+      }
+    }
+  ]
+}

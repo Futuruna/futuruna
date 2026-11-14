@@ -1,0 +1,19 @@
+-- A map built from pairs with known keys is a known map that carries its
+-- values: looking a value up reads the keys, not the other values' unknown
+-- fields, so a field the result never reads is not a need.
+-- expect-command: call
+-- expect-input: needs_map_values.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_map_values.stdout
+
+# Account(id: String, kind: String, opening_ore: Int)
+# Case(wanted: String, accounts: List(Account))
+# Found(kind: String)
+
+@ calculate
+| needs_map_values(c: Case) -> Found(
+    kind = match map_get(map_from(map(c.accounts, |a| (a.id, a))), c.wanted) {
+        | Some(a) -> a.kind
+        | None -> ""
+    }
+)

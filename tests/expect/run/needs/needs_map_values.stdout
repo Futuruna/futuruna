@@ -1,0 +1,39 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "2b91b69b5574df0231678233be4d6c9d9f86f878fe767480172b0e64eaaf8c7f",
+    "entry": "needs_map_values"
+  },
+  "results": [
+    {
+      "case_id": "other-fields-left-out",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "kind": "ask"
+        },
+        "unused_paths": [
+          "accounts[0].kind"
+        ]
+      }
+    },
+    {
+      "case_id": "the-wanted-field-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "accounts[1].kind",
+            "waiting": [
+              {
+                "rule": "needs_map_values"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

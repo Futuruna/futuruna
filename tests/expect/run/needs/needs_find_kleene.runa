@@ -1,0 +1,23 @@
+-- `find` scans past an unknown answer to the first known match: an earlier
+-- item whose answer is unknown might be the first match, so the result is
+-- unknown with the paths of every unknown answer before that match, and a
+-- known match with nothing unknown before it decides.
+-- expect-command: call
+-- expect-input: needs_find_kleene.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_find_kleene.stdout
+
+# Case(first: Bool, second: Bool, third: Bool)
+# Found(value: Int)
+
+> matches(c: Case, x: Int) -> Bool {
+    if x == 1 { c.first } else { if x == 2 { c.second } else { c.third } }
+}
+
+@ calculate
+| needs_find_kleene(c: Case) -> Found(
+    value = match find([1, 2, 3], |x| matches(c, x)) {
+        | Some(x) -> x
+        | None -> 0
+    }
+)

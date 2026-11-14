@@ -1,0 +1,56 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "2d473dd49a1dd5129561cdb13edc918a506024d420819ad418c95a60fa64c930",
+    "entry": "needs_find_kleene"
+  },
+  "results": [
+    {
+      "case_id": "two-unknown-answers-before-a-match",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "first",
+            "waiting": [
+              {
+                "rule": "needs_find_kleene"
+              }
+            ]
+          },
+          {
+            "kind": "fact",
+            "path": "second",
+            "waiting": [
+              {
+                "rule": "needs_find_kleene"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "a-match-before-any-unknown-answer",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "value": 1
+        },
+        "unused_paths": []
+      }
+    },
+    {
+      "case_id": "no-match",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "value": 0
+        },
+        "unused_paths": []
+      }
+    }
+  ],
+  "diagnostics": []
+}

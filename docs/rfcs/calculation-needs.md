@@ -107,13 +107,24 @@ or function, storing it in a record or list. Reading it propagates:
 - builtins follow a strictness table: each argument is either needed whole
   (`show`, arithmetic helpers, string functions), needed only as a structure
   (`length` needs the list, not its elements), or passed through (the elements
-  given to a higher-order builtin's function). A builtin with an unknown needed
+  given to a higher-order builtin's function). The map builtins (`map_from`,
+  `map_get`, `map_get_or`, `map_contains`, `map_len`) need the keys whole and
+  carry the values. A builtin with an unknown needed
   argument gives an unknown result. A higher-order builtin over a list of
   unknown length gives an unknown result with the list's path. What a
   builtin's function returns is read the same way: `map` and `foldl` carry
-  it, `flat_map` needs its list structure, and every other builtin (a
-  predicate's Bool, a sort key) needs it whole; an unknown answer makes the
-  builtin's result unknown;
+  it, `flat_map` needs its list structure, `any`, `all` and `find` read its
+  answers in Kleene logic, and every other builtin (`filter`'s Bool, a sort
+  key) needs it whole; an unknown answer makes the builtin's result unknown;
+- `any` and `all` scan past an unknown answer: a `True` answer decides `any`
+  and a `False` answer decides `all` even after unknown ones, otherwise the
+  result is unknown with every unknown answer's paths. `find` is decided by a
+  match with no unknown answer before it; a match after unknown answers gives
+  an unknown result with their paths, since one of them might be the first;
+- `sort` reads what its comparisons reach: items ordered by known parts (a
+  key and a position before a record with unknown fields) sort into a known
+  list that carries the unknown parts. A comparison that reaches an unknown
+  part makes the result unknown with every unknown path of the list;
 - a loop (`for`, `while`) over an unknown list or condition stops the case
   with that need;
 - field access on a record reads only that field; field access on an unknown
@@ -142,10 +153,13 @@ terminates and cannot grow exponentially:
   evaluation of the case gives an unknown result with its condition's paths
   without exploring further;
 - a call to a rule or named function that is already on the call stack,
-  entered while a speculative evaluation is active, is not evaluated: its
-  result is unknown with the paths of every active speculation's condition.
-  `| f(n) -> f(n - 1) under n > 0` with `n` unknown therefore needs `n`
-  instead of recursing forever.
+  entered under a speculative evaluation that began inside the activation it
+  recurs from, is not evaluated: the recursion depends on an unknown
+  condition, and its result is unknown with the paths of every active
+  speculation's condition. `| f(n) -> f(n - 1) under n > 0` with `n` unknown
+  therefore needs `n` instead of recursing forever. A recursion whose own
+  conditions are known (a helper that splits a known list) runs as it would
+  in every completion, also under an outer speculation, within the budget.
 
 Both cuts are conservative: they may ask a fact that deeper exploration would
 have shown irrelevant, and they never turn a `Needs` into a wrong `Complete`.
