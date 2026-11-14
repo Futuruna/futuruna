@@ -680,17 +680,20 @@ impl<'a> Sdk<'a> {
         }
     }
 
-    /// The key field of a list element whose record type declares one.
+    /// The key field of a list element whose type declares one: a record's
+    /// field, or the field every variant of a sum type declares alike.
     fn element_key(&self, item: &CalculationTypeRef) -> Option<ElementKey> {
         let CalculationTypeRef::Named { name, arguments } = without_optional(item) else {
             return None;
         };
         let definition = self.definitions[name.as_str()];
         let key = definition.key.as_deref()?;
-        let Shape::Record(variant) = shape(definition) else {
-            return None;
-        };
-        let field = variant.fields.iter().find(|field| field.name == key)?;
+        let field = definition
+            .variants
+            .first()?
+            .fields
+            .iter()
+            .find(|field| field.name == key)?;
         let ty =
             substitute_contract_type(&field.ty, &definition_substitutions(definition, arguments));
         Some(ElementKey {
@@ -1877,7 +1880,7 @@ impl<'a> Sdk<'a> {
             );
             let _ = writeln!(
                 body,
-                "/** Resolvers for the needs of `{}`, keyed by pattern; each receives the needs of its pattern. */",
+                "/** Resolvers for the needs of `{}`, keyed by pattern; each is called once per round with that round's needs of its pattern. */",
                 contract.entry
             );
             let _ = writeln!(

@@ -154,7 +154,7 @@ pub struct CalculationTypeDefinition {
     pub parameters: Vec<String>,
     pub kind: String,
     pub variants: Vec<CalculationVariant>,
-    /// The field that identifies an element of this record type in a list (`@ field(key = True)`).
+    /// The field that identifies an element of this type in a list (`@ field(key = True)`): a record's field, or the field every variant of a sum type declares.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
 }
@@ -743,7 +743,7 @@ impl CalculationContract {
     }
 
     /// The keys of the list elements `path` lies in, outermost first: for
-    /// each element whose record type declares a key field that the case
+    /// each element whose type declares a key field that the case
     /// gives, the element's path and the key's value.
     pub(crate) fn need_keys(&self, input: &JsonValue, path: &str) -> Vec<CalculationNeedKey> {
         let mut keys = Vec::new();
@@ -2961,10 +2961,11 @@ fn contract_units(
         .collect()
 }
 
-/// A record type whose field is declared `@ field(key = True)` names that
-/// field as its `key`: what identifies an element of the type in a list, so
-/// a need inside the element can carry it. The key is one field of a record
-/// (not of a sum type's variant) and holds a `String` or an `Int`.
+/// A type whose field is declared `@ field(key = True)` names that field as
+/// its `key`: what identifies an element of the type in a list, so a need
+/// inside the element can carry it. A key holds a `String` or an `Int`; a
+/// record declares one, and a sum type one in every variant, of the same name
+/// and type, so that every element has it whatever its variant.
 fn apply_declared_keys(
     contract: &mut CalculationContract,
     declared: &DeclaredFieldMeta,
@@ -2979,47 +2980,106 @@ fn apply_declared_keys(
             .iter()
             .filter(|member| member.meta.key)
             .collect();
-        let Some(first) = keys.first() else {
-            continue;
-        };
-        if keys.len() > 1 {
-            diagnostics.push(Diagnostic::error(format!(
-                "type `{}` declares more than one key field (`{}` and `{}`); a record has one key",
-                definition.name, first.field, keys[1].field
-            )));
+        if keys.is_empty() {
             continue;
         }
-        let Some(variant) = product_variant(definition) else {
-            diagnostics.push(Diagnostic::error(format!(
-                "`@ field(key = True)` on `{}`: a key identifies an element of a record type, and `{}` is not a record",
-                first.meta.binding, definition.name
-            )));
-            continue;
-        };
-        let scalar = variant
-            .fields
-            .iter()
-            .find(|field| field.name == first.field)
-            .is_some_and(|field| {
-                matches!(
-                    &field.ty,
-                    CalculationTypeRef::Primitive { name, .. } if matches!(name.as_str(), "String" | "Int")
-                )
-            });
-        if !scalar {
-            diagnostics.push(Diagnostic::error(format!(
-                "`@ field(key = True)` on `{}`: a key field holds a `String` or an `Int`",
-                first.meta.binding
-            )));
-            continue;
+        match declared_key(definition, &keys) {
+            Ok(field) => definition.key = Some(field),
+            Err(diagnostic) => diagnostics.push(diagnostic),
         }
-        definition.key = Some(first.field.clone());
     }
     if diagnostics.is_empty() {
         Ok(())
     } else {
         Err(diagnostics)
     }
+}
+
+/// The key field of `definition`, from its non-empty `keys` declarations.
+fn declared_key(
+    definition: &CalculationTypeDefinition,
+    keys: &[&ResolvedMemberFieldMeta],
+) -> Result<String, Diagnostic> {
+    let record = product_variant(definition).is_some();
+    // Each variant's key and its type, in the type's variant order.
+    let mut variant_keys = Vec::new();
+    for variant in &definition.variants {
+        let declared: Vec<&ResolvedMemberFieldMeta> = keys
+            .iter()
+            .copied()
+            .filter(|key| key.variant == variant.name)
+            .collect();
+        let Some(key) = declared.first() else {
+            variant_keys.push((variant, None));
+            continue;
+        };
+        if let Some(other) = declared.get(1) {
+            return Err(Diagnostic::error(if record {
+                format!(
+                    "type `{}` declares more than one key field (`{}` and `{}`); a record has one key",
+                    definition.name, key.field, other.field
+                )
+            } else {
+                format!(
+                    "variant `{}` of `{}` declares more than one key field (`{}` and `{}`); an element has one key",
+                    variant.name, definition.name, key.field, other.field
+                )
+            }));
+        }
+        let ty = variant
+            .fields
+            .iter()
+            .find(|field| field.name == key.field)
+            .map(|field| &field.ty)
+            .filter(|ty| {
+                matches!(
+                    ty,
+                    CalculationTypeRef::Primitive { name, .. } if matches!(name.as_str(), "String" | "Int")
+                )
+            });
+        let Some(ty) = ty else {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: a key field holds a `String` or an `Int`",
+                key.meta.binding
+            )));
+        };
+        variant_keys.push((variant, Some((*key, ty))));
+    }
+    let Some((first_variant, (first, first_ty))) = variant_keys
+        .iter()
+        .find_map(|(variant, key)| key.map(|key| (variant, key)))
+    else {
+        // Declarations on variants the contract does not have.
+        return Err(Diagnostic::error(format!(
+            "`@ field(key = True)` on `{}`: `{}` has no such field",
+            keys[0].meta.binding, definition.name
+        )));
+    };
+    for (variant, key) in &variant_keys {
+        let Some((key, ty)) = *key else {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares the key `{}`, and `{}` declares none",
+                first.meta.binding, definition.name, first.field, variant.name
+            )));
+        };
+        if key.field != first.field {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares the same key field, and `{}` keys `{}` where `{}` keys `{}`",
+                key.meta.binding, definition.name, variant.name, key.field, first_variant.name, first.field
+            )));
+        }
+        if ty != first_ty {
+            return Err(Diagnostic::error(format!(
+                "`@ field(key = True)` on `{}`: every variant of `{}` declares a key of the same type, and it holds `{}` where `{}` holds `{}`",
+                key.meta.binding,
+                definition.name,
+                ty.display_name(),
+                first.meta.binding,
+                first_ty.display_name()
+            )));
+        }
+    }
+    Ok(first.field.clone())
 }
 
 /// A field whose type has a unit takes the `unit` of its field metadata from
@@ -3311,7 +3371,7 @@ struct ResolvedFieldMeta {
     unit: Option<String>,
     sources: Vec<CalculationMetadataReference>,
     provided_by: Option<CalculationFieldProvider>,
-    /// `key = True`: the field identifies an element of its record type.
+    /// `key = True`: the field identifies an element of its type.
     key: bool,
 }
 
@@ -6940,7 +7000,7 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
             "path": string,
             "keys": {
                 "type": "array",
-                "description": "The list elements the path lies in whose record type declares a key field, outermost first, each with the key's value in the case.",
+                "description": "The list elements the path lies in whose type declares a key field, outermost first, each with the key's value in the case.",
                 "items": {
                     "type": "object",
                     "required": ["path", "field", "value"],

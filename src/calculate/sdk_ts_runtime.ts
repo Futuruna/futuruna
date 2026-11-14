@@ -1348,8 +1348,8 @@ export async function explainQueryEntry<I, R, N extends Need>(
 export type EntryFrame = { readonly entry: string; readonly subject: string };
 
 /**
- * What a resolver returns: an answer to write at the need's path, `ask` when
- * only the customer knows, or the resolution of another entry
+ * What a resolver gives for one need: an answer to write at the need's path,
+ * `ask` when only the customer knows, or the resolution of another entry
  * ({@link ResolverContext.runEntry}).
  */
 export type ResolverAnswer<V = unknown> =
@@ -1366,36 +1366,59 @@ export function answer<V>(value: V): ResolverAnswer<V> {
 }
 
 export interface ResolverContext<C> {
-  /** The case sent in this round. */
+  /** The case sent in this round: every answer written so far. */
   readonly partialCase: C;
   /** The entries running above this loop, outermost first. */
   readonly frames: readonly EntryFrame[];
   /**
-   * Resolve another entry for this need, through the same loop. The frame is
-   * the need's `entry` and `subject` unless given; a frame already on the
-   * stack is a cycle and throws {@link ResolveCycleError}.
+   * Resolve another entry through the same loop, as the entry `frame` runs
+   * for its subject. An entry need is its own frame:
+   * `context.runEntry(query, initialCase, resolvers, need)`. A frame already
+   * on the stack is a cycle and throws {@link ResolveCycleError}.
    */
   runEntry<C2, R2, N2 extends Need>(
     query: Query<C2, R2, N2>,
     initialCase: C2,
     resolvers: Resolvers<C2, N2>,
-    frame?: EntryFrame,
+    frame: EntryFrame,
   ): Promise<ResolverAnswer<R2>>;
 }
 
 /** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
 export type Query<C, R, N extends Need = Need> = (partialCase: C) => Promise<QueryResult<R, N>>;
 
-/** Answers a need `N` with a value `V`, asks, or resolves another entry. */
+/** Answers one need of a resolver's batch with a value `V`, asks, or resolves another entry. */
+export type AnswerEach<V, N extends Need = Need> = (need: N) => ResolverAnswer<V> | Promise<ResolverAnswer<V>>;
+
+/**
+ * Resolves the needs `N` of one pattern, a round's at a time: the loop calls
+ * it once per round with every need of its pattern in that round, so it can
+ * fetch what they ask for in one batch (by `need.keys` or `need.path`), and
+ * it returns the function that answers each need, which the loop calls once
+ * per need:
+ *
+ * ```ts
+ * async (needs) => {
+ *   const rows = await backend.events(needs.map(eventId));
+ *   return (need) => answer(rows.get(eventId(need)).foreignTaxOre);
+ * }
+ * ```
+ *
+ * It returns a function rather than a list of answers so that each answer is
+ * made from its own need: an answer cannot land at another need's path, as
+ * one from a list in another order (the backend's rows, say) would, and no
+ * need can be left without one.
+ */
 export type Resolver<C, V, N extends Need = Need> = (
-  need: N,
+  needs: readonly N[],
   context: ResolverContext<C>,
-) => ResolverAnswer<V> | Promise<ResolverAnswer<V>>;
+) => AnswerEach<V, N> | Promise<AnswerEach<V, N>>;
 
 /**
  * Resolvers keyed by a need's pattern, with `[]` for any list index
- * (`accounts[].closingCashOre`) and `*` for any map key; each receives the
- * needs of its pattern. A need no resolver matches is a question.
+ * (`accounts[].closingCashOre`) and `*` for any map key; each receives a
+ * round's needs of its pattern at once. A need no resolver matches is a
+ * question.
  */
 export type Resolvers<C, N extends Need = Need> = {
   readonly [P in N["pattern"]]?: Resolver<C, unknown, Extract<N, { pattern: P }>>;
@@ -1453,12 +1476,13 @@ export class ResolveCycleError extends ResolveError {
 }
 
 /**
- * Resolve a partial case: query it, let the resolver of each need's pattern
- * answer it, write the answers into the case with {@link setAt}, and query
- * again. Stops with `Complete`, or with `Questions` when a round adds no
- * answer. A path that is still needed after it was answered is a
- * {@link ResolveError}; an entry that needs itself for the same subject is a
- * {@link ResolveCycleError}.
+ * Resolve a partial case: query it, call the resolver of each pattern once
+ * with all of the round's needs of that pattern (the resolvers of different
+ * patterns at the same time), write their answers into the case with
+ * {@link setAt}, and query again. Stops with `Complete`, or with `Questions`
+ * when a round adds no answer. A path that is still needed after it was
+ * answered is a {@link ResolveError}; an entry that needs itself for the same
+ * subject is a {@link ResolveCycleError}.
  */
 export async function resolve<C, R, N extends Need>(
   query: Query<C, R, N>,
@@ -1476,35 +1500,47 @@ export async function resolve<C, R, N extends Need>(
     if (result.$variant === "Complete") {
       return { $variant: "Complete", result: result.result, unusedPaths: result.unusedPaths, partialCase, rounds };
     }
-    const questions: N[] = [];
-    const pending: PendingEntry[] = [];
-    let next = partialCase;
+    // The round's needs of each pattern, in the engine's order.
+    const batches = new Map<string, N[]>();
     for (const need of result.needs) {
       if (answered.has(need.path)) {
         throw new ResolveError(`the engine still needs \`${need.path}\` after it was answered`);
       }
-      const resolver = hasOwn(byPattern, need.pattern) ? byPattern[need.pattern] : undefined;
-      if (resolver === undefined) {
-        questions.push(need);
-        continue;
-      }
-      const reply = await resolver(need, {
-        partialCase,
-        frames,
-        async runEntry(nestedQuery, nestedCase, nestedResolvers, frame) {
-          const target = frame ?? (need.kind === "entry" ? { entry: need.entry, subject: need.subject } : undefined);
-          if (target === undefined) {
-            throw new ResolveError(`\`${need.path}\` is a fact need; give runEntry the frame of the entry it runs`);
-          }
-          const stack = [...frames, target];
-          if (frames.some((active) => active.entry === target.entry && active.subject === target.subject)) {
-            throw new ResolveCycleError(stack);
-          }
-          const resolution = await resolve(nestedQuery, nestedCase, nestedResolvers, { frames: stack });
-          return { kind: "entry", resolution };
-        },
-      });
-      if (reply.kind === "ask") {
+      const batch = batches.get(need.pattern);
+      if (batch === undefined) batches.set(need.pattern, [need]);
+      else batch.push(need);
+    }
+    const context: ResolverContext<C> = {
+      partialCase,
+      frames,
+      async runEntry(nestedQuery, nestedCase, nestedResolvers, frame) {
+        const stack = [...frames, { entry: frame.entry, subject: frame.subject }];
+        if (frames.some((active) => active.entry === frame.entry && active.subject === frame.subject)) {
+          throw new ResolveCycleError(stack);
+        }
+        const resolution = await resolve(nestedQuery, nestedCase, nestedResolvers, { frames: stack });
+        return { kind: "entry", resolution };
+      },
+    };
+    const replies = new Map<N, ResolverAnswer>();
+    await Promise.all(
+      Array.from(batches, async ([pattern, needs]) => {
+        const resolver = hasOwn(byPattern, pattern) ? byPattern[pattern] : undefined;
+        if (resolver === undefined) return;
+        const answerEach = await resolver(needs, context);
+        await Promise.all(
+          needs.map(async (need) => {
+            replies.set(need, await answerEach(need));
+          }),
+        );
+      }),
+    );
+    const questions: N[] = [];
+    const pending: PendingEntry[] = [];
+    let next = partialCase;
+    for (const need of result.needs) {
+      const reply = replies.get(need);
+      if (reply === undefined || reply.kind === "ask") {
         questions.push(need);
       } else if (reply.kind === "answer") {
         next = setAt(next, need.path, reply.value);

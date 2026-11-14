@@ -1,0 +1,13 @@
+-- Every variant of a sum type keys its elements by a field of the same name.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(key = True)` on `Event::Withdrawal::reference`: every variant of `Event` declares the same key field, and `Withdrawal` keys `reference` where `Deposit` keys `id`
+
+# Event =
+    Deposit(@ field(label = "Event id", key = True) id: String, amount: Int) |
+    Withdrawal(@ field(label = "Reference", key = True) reference: String, amount: Int)
+# Case(events: List(Event))
+# Result(count: Int)
+
+@ calculate
+| needs_variant_key_name(c: Case) -> Result(count = length(c.events))

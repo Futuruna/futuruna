@@ -732,8 +732,11 @@ need's `path` is concrete, with list indices; its `label`, `question`,
 without indices. A `Date` is one fact: when its year, month or day is
 unknown, the need is at the date's path, with the date field's own metadata,
 and is answered with the whole date. `keys` names the list elements the path
-lies in by their key, outermost first, when the element's record type has a
-key field (`@ field(label = "ISIN", key = True)`) that the case gives.
+lies in by their key, outermost first, when the element's type has a key
+field (`@ field(label = "ISIN", key = True)`) that the case gives. A record
+declares one key field; a sum type declares it in every variant, with the
+same name and type (an event's `id` in each kind of event), so that an
+element is keyed whatever its variant.
 
 `waiting` lists the rules that wait for the value: of every rule and function
 evaluation was in when it read the value (or a value computed from it), the
@@ -1046,9 +1049,10 @@ narrowing `need.pattern` narrows the need. Each need carries the field's
 them; `waiting`, the rules and functions in a law section that wait for the
 value, the ones citing paragraphs first, each with its `section` and cited
 `paragraphs` (paragraph, quoted source and act); and, inside a list whose
-element type declares a key field (`@ field(key = True)`), `keys`: the
-element's path, key field and value, typed by the contract, so a need on
-`openingPositions[0].marketValue` names the ISIN it is about. A need of kind
+element type declares a key field (`@ field(key = True)`, on a record or on
+every variant of a sum type), `keys`: the element's path, key field and value,
+typed by the contract, so a need on `openingPositions[0].marketValue` names the
+ISIN it is about. A need of kind
 `entry` also names the `entry` that provides the value and the `subject` it
 runs for. Besides `needs`, a `Needs` result may hold `later`: needs of the same
 type for facts read only behind a condition not known yet, which answering
@@ -1076,25 +1080,43 @@ function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCas
 ### Resolving needs
 
 `resolve(query, initialCase, resolvers)` runs the interview loop. It queries the
-case, gives each need to the resolver registered for its path pattern, writes
-the answers into the case and queries again:
+case, calls the resolver registered for each path pattern once with all of
+that round's needs of its pattern, the resolvers of different patterns at the
+same time, writes the answers into the case and queries again. A resolver
+fetches what its needs ask for in one batch and returns the function that
+answers each need:
 
 ```ts
+const accountId = (need: TaxReportNeed) => need.keys?.find((key) => key.field === "accountId")?.value;
 const resolvers: TaxReportResolvers = {
-  "accounts[].closingCashOre": (need) => answer(ledger.closingCash(need.path)),
-  "taxpayer.married": () => ask,
+  "accounts[].closingCashOre": async (needs) => {
+    const balances = await ledger.closingCash(needs.map(accountId));
+    return (need) => answer(balances.get(accountId(need)));
+  },
+  "taxpayer.married": () => () => ask,
 };
 const outcome = await resolve((c) => taxReportQuery(transport, c), {}, resolvers);
 if (outcome.$variant === "Complete") report(outcome.result);
 else store(outcome.partialCase, outcome.questions);
 ```
 
-A resolver returns `answer(value)`, `ask` for a question only the customer can
-answer, or the resolution of another entry from `context.runEntry(query,
-case, resolvers)`. A need without a resolver is a question. The loop stops
+The loop calls the returned function once per need, so every need gets an
+answer made from that need: an answer cannot land at another need's path, as
+one from a list of answers in another order (the backend's rows) would, and
+none is left out. It returns `answer(value)`, `ask` for a question only the
+customer can answer, or the resolution of another entry from
+`context.runEntry(query, case, resolvers, frame)`, where an entry need is its
+own frame. `context.partialCase` is the case of the round, with every answer
+so far. A need without a resolver is a question. The loop stops
 with `Complete`, or with `Questions` (the questions, entry needs waiting on
 another case's questions, and the partial case) when a round adds no answer.
 It keeps the stack of `(entry, subject)` pairs it runs: a pair that repeats
 throws `ResolveCycleError`, since entries that need each other belong in one
 joint entry. A path the engine still needs after it was answered throws
 `ResolveError`.
+
+Batches make second-order resolution cheap: a resolver for a list
+(`events`) answers skeletons that give each element's key and variant and
+leave its details out; the next round needs only the fields the law reads,
+inside those elements, each need with the element's key in `keys`, and the
+resolver of each such pattern fetches them in one call.
