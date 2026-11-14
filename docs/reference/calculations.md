@@ -258,8 +258,10 @@ The emitted field binding names include stable aggregate paths such as
 `tax_input_meta.fields[0]`. A `@ meta` value without calculation fields is
 simply ignored by the calculation field consumer. Nested variants of types
 implementing `MetaRole` are copied into the calculation and field source traces.
-Each trace keeps
-the canonical source `binding` and adds the aggregate `attachment_path`.
+Each trace keeps the canonical source `binding` (`""` for a value written
+inline). The calculation's `metadata` list is sorted by label, role, binding
+and value, without duplicates. Where in an aggregate a value sits is
+reported by `runa meta` (`path`), not by the contract.
 
 Field metadata appears structurally in `runa schema` and participates in the
 schema fingerprint. In XLSX, the human label is the visible column header; the
@@ -862,7 +864,8 @@ walked from any value. `sections` holds each section an explained clause
 sits in, by name: the location of its `@ section` line, the files of the
 documents it quotes (`sources`), each quoted document with its binding, file
 and role (`documents`), its attachments (the roles of its quotes and its
-`@ meta` values) and its `quote`: its `@ quote` blocks in order, each
+`@ meta` values, sorted by role, binding and value) and its `quote`: its
+`@ quote` blocks in order, each
 document's text after a `[<file>]` line. When an amending act quoted in the
 section amends a quoted base passage, `superseded` lists that passage with the
 instruction (`as_amended_by`), so the replaced wording is shown as replaced. A

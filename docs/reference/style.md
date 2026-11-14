@@ -291,7 +291,7 @@ A clause names the paragraphs of its section's quotes it implements:
 - `runa check` finds each paragraph in the section's quotes, read the way the
   quote marks them: a line starting `§ N.` opens a paragraph, `Stk. N.` a
   subsection, `N)` a numbered item. `§ 8 a` and `§ 8 A` are the same
-  paragraph; a citation is shown as written. A paragraph the quotes do not
+  paragraph, shown with a capital letter (`§ 8 A`). A paragraph the quotes do not
   hold is an error that lists what they do hold.
 - **Sentences.** A subsection splits into sentences after a full stop followed
   by a space and a capital letter or an ordinal (`1. og 2. pkt. gælder ...`),
@@ -611,10 +611,17 @@ Quoted text with no `[sources/...]` document stays a `----` block comment
 directly above the section. A type whose values are quoted documents gains
 `# impl Document for <Type> {}` after its declaration.
 
+Spans around the same code (nested `--@begin`/`--@end` pairs with only
+directives between them, as models wrote for a consolidated act and the acts
+that amended it) become one section, named by the innermost label (the
+section the code's rules belonged to), holding the quotes and metadata of all
+the labels; each label that joined is reported. A label whose anchor has two
+quotes likewise becomes one section with both quotes.
+
 The migration leaves a file unchanged and lists why when it cannot rewrite it:
 a `[sources/<file>]` that no binding (or more than one) declares, a
 `--@begin` without its `--@end` or spans that close out of order, an indented
-span, a quote that names documents but has no span, an anchor with two quotes,
+span, a section with two spans, a quote that names documents but has no span,
 or a directive it does not read. It cannot know which passages a model applies
 as amended; after it, `runa check` reports every plain citation of a passage
 that a quoted instruction amends.

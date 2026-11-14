@@ -177,8 +177,8 @@ Provenance differs, because the metadata is written somewhere else:
 
 - `anchor` is the declaring type, `binding` is `Type`, `Type::field` or
   `Type::Variant::field`;
-- a source's `label` is the declaring type and its `attachment_path` is
-  `<binding>.sources[i]`;
+- a source's `label` is the declaring type (the contract carries no
+  `attachment_path`; `runa meta` reports a value's place in an aggregate);
 - the calculation's `metadata` list no longer contains the removed metadata
   list binding.
 
