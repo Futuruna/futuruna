@@ -255,7 +255,10 @@ fn type_constructors(name: &str, text: &str) -> Vec<String> {
     let mut depth = 0i32;
     let mut start = equals + 1;
     let body = &rest;
-    for (offset, character) in body.char_indices().skip_while(|(offset, _)| *offset <= equals) {
+    for (offset, character) in body
+        .char_indices()
+        .skip_while(|(offset, _)| *offset <= equals)
+    {
         match character {
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' => depth -= 1,
@@ -322,7 +325,10 @@ impl MigrationProgram {
         constructors
             .iter()
             .filter_map(|name| {
-                if source.lines().any(|line| line.starts_with(&format!("# {name}("))) {
+                if source
+                    .lines()
+                    .any(|line| line.starts_with(&format!("# {name}(")))
+                {
                     let implemented = source
                         .lines()
                         .any(|line| line.starts_with(&format!("# impl Document for {name} ")));
@@ -370,7 +376,9 @@ fn collect_runa_files(directory: &Path, files: &mut Vec<PathBuf>) {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
-            if !matches!(name.as_str(), "target" | ".git" | "node_modules") && !name.starts_with('.') {
+            if !matches!(name.as_str(), "target" | ".git" | "node_modules")
+                && !name.starts_with('.')
+            {
                 collect_runa_files(&path, files);
             }
         } else if name.ends_with(".runa") {
@@ -467,8 +475,12 @@ fn split_quote(lines: &[String]) -> (Vec<String>, Vec<QuotedPart>) {
     let mut parts: Vec<QuotedPart> = Vec::new();
     for (index, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
-        let alone = index.checked_sub(1).is_none_or(|i| lines[i].trim().is_empty())
-            && lines.get(index + 1).is_none_or(|next| next.trim().is_empty());
+        let alone = index
+            .checked_sub(1)
+            .is_none_or(|i| lines[i].trim().is_empty())
+            && lines
+                .get(index + 1)
+                .is_none_or(|next| next.trim().is_empty());
         if trimmed.len() > 2 && trimmed.starts_with('[') && trimmed.ends_with(']') && alone {
             parts.push(QuotedPart {
                 file: trimmed[1..trimmed.len() - 1].trim().to_string(),
@@ -490,11 +502,19 @@ fn split_quote(lines: &[String]) -> (Vec<String>, Vec<QuotedPart>) {
 /// The elements of `B = Ctor(attachments = (a, b, ...))`, when `B` has
 /// exactly that shape.
 fn attachment_elements(text: &str) -> Option<(String, char, Vec<String>)> {
-    let (_, value) = text.split_once('=')?.1.split_once('=').map(|(a, b)| (a, b))?;
+    let (_, value) = text
+        .split_once('=')?
+        .1
+        .split_once('=')
+        .map(|(a, b)| (a, b))?;
     let value = value.trim();
     let (constructor, rest) = value.split_once('(')?;
     let rest = rest.trim().strip_suffix(')')?.trim();
-    let rest = rest.strip_prefix("attachments")?.trim_start().strip_prefix('=')?.trim();
+    let rest = rest
+        .strip_prefix("attachments")?
+        .trim_start()
+        .strip_prefix('=')?
+        .trim();
     let open = rest.chars().next()?;
     let close = match open {
         '(' => ')',
@@ -618,7 +638,10 @@ fn declaration_start(lines: &[&str], line: usize) -> usize {
 
 /// Rewrite the comment directives of `source`. On failure, every reason the
 /// file cannot be rewritten, by line.
-pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<MigratedFile, Vec<String>> {
+pub fn migrate_source(
+    source: &str,
+    program: &MigrationProgram,
+) -> Result<MigratedFile, Vec<String>> {
     let lines: Vec<&str> = source.lines().collect();
     let mut errors = Vec::new();
     let mut notes = Vec::new();
@@ -761,8 +784,10 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
             trimmed.is_empty() || (trimmed.starts_with("--") && !trimmed.starts_with("----"))
         })
     };
-    let mut by_begin: Vec<(String, (usize, usize))> =
-        spans.iter().map(|(label, span)| (label.clone(), *span)).collect();
+    let mut by_begin: Vec<(String, (usize, usize))> = spans
+        .iter()
+        .map(|(label, span)| (label.clone(), *span))
+        .collect();
     by_begin.sort_by_key(|(_, (begin, _))| *begin);
     // The span directly inside each span that marks the same code.
     let mut same_inner: BTreeMap<String, String> = BTreeMap::new();
@@ -774,7 +799,9 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
         else {
             continue;
         };
-        if only_directives(outer_begin + 1..*inner_begin) && only_directives(inner_end + 1..*outer_end) {
+        if only_directives(outer_begin + 1..*inner_begin)
+            && only_directives(inner_end + 1..*outer_end)
+        {
             same_inner.insert(outer.clone(), inner.clone());
         }
     }
@@ -830,26 +857,30 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
     // what the metadata says.
     let mut own = MigrationProgram::default();
     own.add_source(Path::new(""), source);
-    let meta_lines = |attrs: &[(String, String)], errors: &mut Vec<String>, label: &str, line: usize| {
-        let mut values = Vec::new();
-        for (role, binding) in attrs {
-            if binding.is_empty() {
-                continue;
+    let meta_lines =
+        |attrs: &[(String, String)], errors: &mut Vec<String>, label: &str, line: usize| {
+            let mut values = Vec::new();
+            for (role, binding) in attrs {
+                if binding.is_empty() {
+                    continue;
+                }
+                if role == "meta" {
+                    values.push(format!("@ meta({binding})"));
+                    continue;
+                }
+                match own
+                    .role_wrapper(role)
+                    .or_else(|_| program.role_wrapper(role))
+                {
+                    Ok(wrapper) => values.push(format!("@ meta({wrapper}(value = {binding}))")),
+                    Err(message) => errors.push(format!(
+                        "{}: `{label}` gives `{binding}` the role `{role}`: {message}",
+                        line + 1
+                    )),
+                }
             }
-            if role == "meta" {
-                values.push(format!("@ meta({binding})"));
-                continue;
-            }
-            match own.role_wrapper(role).or_else(|_| program.role_wrapper(role)) {
-                Ok(wrapper) => values.push(format!("@ meta({wrapper}(value = {binding}))")),
-                Err(message) => errors.push(format!(
-                    "{}: `{label}` gives `{binding}` the role `{role}`: {message}",
-                    line + 1
-                )),
-            }
-        }
-        values
-    };
+            values
+        };
 
     let mut labels: Vec<String> = anchor_order.clone();
     for label in spans.keys() {
@@ -866,7 +897,10 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                     .quotes
                     .iter()
                     .map(|(open, close)| {
-                        lines[open + 1..*close].iter().map(|line| line.to_string()).collect()
+                        lines[open + 1..*close]
+                            .iter()
+                            .map(|line| line.to_string())
+                            .collect()
                     })
                     .collect()
             })
@@ -902,9 +936,13 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
             .unwrap_or_default();
         let declaration_only = parts.is_empty()
             && !span_items.is_empty()
-            && span_items.iter().all(|(_, name)| name.as_deref() == Some(label.as_str()));
+            && span_items
+                .iter()
+                .all(|(_, name)| name.as_deref() == Some(label.as_str()));
 
-        let attrs: Vec<(String, String)> = anchor.map(|anchor| anchor.attrs.clone()).unwrap_or_default();
+        let attrs: Vec<(String, String)> = anchor
+            .map(|anchor| anchor.attrs.clone())
+            .unwrap_or_default();
 
         if let Some((begin, end)) = span.filter(|_| !declaration_only) {
             // Rule 1: a section.
@@ -957,10 +995,9 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                 for element in elements {
                     let target = quote_argument(&element).ok().and_then(|(document, role)| {
                         role?;
-                        documents
-                            .iter()
-                            .enumerate()
-                            .position(|(index, candidate)| *candidate == document && !assigned[index])
+                        documents.iter().enumerate().position(|(index, candidate)| {
+                            *candidate == document && !assigned[index]
+                        })
                     });
                     match target {
                         Some(index) => {
@@ -976,7 +1013,10 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                     }
                 }
                 removed.extend(definition..=last);
-                if lines.get(last + 1).is_some_and(|line| line.trim().is_empty()) {
+                if lines
+                    .get(last + 1)
+                    .is_some_and(|line| line.trim().is_empty())
+                {
                     removed.insert(last + 1);
                 }
                 match remaining.len() {
@@ -1121,7 +1161,9 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
         order: &mut Vec<usize>,
     ) {
         let (begin, end, _) = &spans[index];
-        let children: Vec<usize> = (0..spans.len()).filter(|child| parents[*child] == Some(index)).collect();
+        let children: Vec<usize> = (0..spans.len())
+            .filter(|child| parents[*child] == Some(index))
+            .collect();
         let mut line = *begin;
         while line <= *end {
             if let Some(child) = children.iter().find(|child| spans[**child].0 == line) {
@@ -1893,11 +1935,15 @@ Guide text.
     #[test]
     fn what_cannot_be_rewritten_stops_the_file() {
         let unmatched = "--@begin:a--\n| f(x: Int) -> x\n";
-        assert!(migrate_source(unmatched, &MigrationProgram::default()).unwrap_err()[0]
-            .contains("no matching `--@end`"));
+        assert!(
+            migrate_source(unmatched, &MigrationProgram::default()).unwrap_err()[0]
+                .contains("no matching `--@end`")
+        );
         let unknown = "--@label:a::meta:m--\n----\n[sources/nowhere.txt]\n\ntext\n----\n--@begin:a--\n| f(x: Int) -> x\n--@end:a--\n";
-        assert!(migrate_source(unknown, &MigrationProgram::default()).unwrap_err()[0]
-            .contains("names a document no binding declares"));
+        assert!(
+            migrate_source(unknown, &MigrationProgram::default()).unwrap_err()[0]
+                .contains("names a document no binding declares")
+        );
     }
 
     #[test]
@@ -1918,7 +1964,10 @@ Guide text.
             migrated.source.trim_start(),
             "----\nBase.\n\nAmended.\n\nMore base.\n----\n\n@ meta(base_meta)\n@ meta(amended_meta)\n@ section amended {\n\n| f(x: Int) -> x\n\n}\n"
         );
-        assert!(migrated.notes.iter().any(|note| note.contains("`base` joins section `amended`")));
+        assert!(migrated
+            .notes
+            .iter()
+            .any(|note| note.contains("`base` joins section `amended`")));
     }
 
     #[test]

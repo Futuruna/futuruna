@@ -231,7 +231,11 @@ fn item_on_line(lines: &[&str], line: usize, stop_lines: &BTreeSet<usize>) -> Op
     let (kind, name) = if trimmed.starts_with('#') {
         ("type", meta_type_symbol_name(trimmed)?)
     } else if trimmed.starts_with('|') {
-        let kind = if indentation(text) > 0 { "member" } else { "rule" };
+        let kind = if indentation(text) > 0 {
+            "member"
+        } else {
+            "rule"
+        };
         (kind, meta_rule_symbol_name(trimmed)?)
     } else if trimmed.starts_with('>') {
         ("function", meta_fn_symbol_name(trimmed)?)
@@ -431,11 +435,7 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                 };
                 result.errors.push((
                     annotation.line,
-                    format!(
-                        "{} {}{reason}",
-                        describe(annotation),
-                        placement(annotation)
-                    ),
+                    format!("{} {}{reason}", describe(annotation), placement(annotation)),
                 ));
             }
             continue;
@@ -531,9 +531,10 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                 "cite" => {
                     let clause = target_text.starts_with('|') || target_text.starts_with('>');
                     if !clause {
-                        result
-                            .errors
-                            .push((annotation.line, format!("{} {CITE_PLACEMENT}", describe(annotation))));
+                        result.errors.push((
+                            annotation.line,
+                            format!("{} {CITE_PLACEMENT}", describe(annotation)),
+                        ));
                     } else if cited {
                         result.errors.push((
                             annotation.line,
@@ -556,9 +557,10 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                             value: annotation.argument.clone(),
                         });
                     } else {
-                        result
-                            .errors
-                            .push((annotation.line, format!("{} {META_PLACEMENT}", describe(annotation))));
+                        result.errors.push((
+                            annotation.line,
+                            format!("{} {META_PLACEMENT}", describe(annotation)),
+                        ));
                     }
                 }
             }
@@ -896,9 +898,7 @@ pub(crate) fn annotation_diagnostics(
             }
         }
     }
-    errors.extend(
-        crate::citations::file_citations_from(&annotations, &documents).errors,
-    );
+    errors.extend(crate::citations::file_citations_from(&annotations, &documents).errors);
     line_diagnostics(source, errors)
 }
 
@@ -969,7 +969,13 @@ fn file_declarations(source: &str, annotations: &Annotations) -> Vec<(String, De
             None
         };
         if let Some((kind, name)) = declared {
-            declarations.push((name, Declaration { kind, line: index + 1 }));
+            declarations.push((
+                name,
+                Declaration {
+                    kind,
+                    line: index + 1,
+                },
+            ));
         }
     }
     for section in &annotations.sections {
@@ -1171,7 +1177,11 @@ fn meta_for_diagnostics(
         BTreeMap::new();
     let declaration_key = |kind: &'static str, file: &str, name: &str| {
         // A rule's clauses may stand in several files.
-        let file = if kind == "rule" { String::new() } else { file.to_string() };
+        let file = if kind == "rule" {
+            String::new()
+        } else {
+            file.to_string()
+        };
         (kind, file, name.to_string())
     };
     for (key, file) in &files {
@@ -1182,12 +1192,15 @@ fn meta_for_diagnostics(
                     // Consecutive lines for one name are one place.
                     let continues = previous.is_some_and(|(target, line)| {
                         target == meta_for.target
-                            && file.source.lines().skip(line).take(meta_for.line - line - 1).all(
-                                |text| {
+                            && file
+                                .source
+                                .lines()
+                                .skip(line)
+                                .take(meta_for.line - line - 1)
+                                .all(|text| {
                                     let trimmed = text.trim();
                                     trimmed.starts_with("--") && !trimmed.starts_with("----")
-                                },
-                            )
+                                })
                     });
                     previous = Some((&meta_for.target, meta_for.line));
                     if !continues {
@@ -1232,7 +1245,9 @@ fn meta_for_diagnostics(
             continue;
         }
         let shown = |(file, line, apart): &(String, usize, bool)| {
-            let display = files.get(file).map_or(file.as_str(), |file| file.display.as_str());
+            let display = files
+                .get(file)
+                .map_or(file.as_str(), |file| file.display.as_str());
             if *apart {
                 format!("`@ meta(...) for {name}` at {display}:{line}")
             } else {
@@ -1300,7 +1315,8 @@ fn check_imported_quotes(
         else {
             continue;
         };
-        let canonical = std::fs::canonicalize(&file_path).unwrap_or_else(|_| PathBuf::from(&file_path));
+        let canonical =
+            std::fs::canonicalize(&file_path).unwrap_or_else(|_| PathBuf::from(&file_path));
         if !visited.insert(canonical.to_string_lossy().into_owned()) {
             continue;
         }
@@ -1389,13 +1405,15 @@ mod tests {
         assert_eq!(section.quotes[0].role.as_deref(), Some("Source"));
         assert_eq!(section.quotes[0].text, "§ 9. Text.");
         assert_eq!(annotations.citations[0].clause_line, 16);
-        assert_eq!(
-            annotations.citations[0].section.as_deref(),
-            Some("ceiling")
-        );
+        assert_eq!(annotations.citations[0].section.as_deref(), Some("ceiling"));
         let meta = &annotations.item_metas[0];
         assert_eq!(
-            (meta.item.kind, meta.item.name.as_str(), meta.item.line, meta.item.end_line),
+            (
+                meta.item.kind,
+                meta.item.name.as_str(),
+                meta.item.line,
+                meta.item.end_line
+            ),
             ("function", "g", 19, 21)
         );
     }
@@ -1453,7 +1471,10 @@ mod tests {
             ("@ section a {\n@ section b {\n}\n}\n", "do not nest"),
             ("@ section a {\n| f(x: Int) -> x\n", "no closing `}`"),
             ("> g() -> Int {\n@ section a {\n}\n1\n}\n", "top level"),
-            ("> g() -> Int {\n    @ meta(m) for X\n    1\n}\n", "stands alone at top level"),
+            (
+                "> g() -> Int {\n    @ meta(m) for X\n    1\n}\n",
+                "stands alone at top level",
+            ),
             ("@ meta(m) for\n", "names the declaration"),
         ] {
             let tokens = Lexer::new(source).tokenize();
@@ -1478,12 +1499,14 @@ mod tests {
 
     #[test]
     fn quoted_paragraphs_are_compared_with_the_saved_file() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna-quote-check-{}",
-            std::process::id()
-        ));
+        let directory =
+            std::env::temp_dir().join(format!("futuruna-quote-check-{}", std::process::id()));
         std::fs::create_dir_all(&directory).unwrap();
-        std::fs::write(directory.join("law.txt"), "§ 9. Text\u{ad} that\n  is   saved.\n").unwrap();
+        std::fs::write(
+            directory.join("law.txt"),
+            "§ 9. Text\u{ad} that\n  is   saved.\n",
+        )
+        .unwrap();
         let source = MODEL.replace("§ 9. Text.", "§ 9. Text that is saved.\n\nAltered text.");
         let stmts = Parser::new(Lexer::new(&source).tokenize(), &source)
             .parse_program()

@@ -1544,6 +1544,8 @@ mod tests {
 # Input(amount: Int)
 # Result(amount: Int)
 # Shape = Circle | Triangle
+# trait Meta {}
+# trait Document {}
 # impl Meta for Shape {}
 # SourceInfo(file: String)
 # impl Document for SourceInfo {}
@@ -1565,6 +1567,8 @@ Original source text
 # Input(amount: Int)
 # Result(amount: Int)
 # Shape = Circle | Triangle
+# trait Meta {}
+# trait Document {}
 # impl Meta for Shape {}
 # SourceInfo(file: String)
 # impl Document for SourceInfo {}
@@ -1586,6 +1590,8 @@ Changed source text
 # Input(amount: Int)
 # Result(amount: Int)
 # Shape = Circle | Triangle
+# trait Meta {}
+# trait Document {}
 # impl Meta for Shape {}
 # SourceInfo(file: String)
 # impl Document for SourceInfo {}

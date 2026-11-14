@@ -19,7 +19,10 @@ fn fnv1a_update(hash: &mut u64, value: &str) {
 /// block that quotes it (kept as a block comment directly above the
 /// section's `@ meta`, since the Constitution's text has no saved file) and
 /// the line of the `}` that closes it.
-fn constitution_sections<'a>(path: &Path, lines: &[&'a str]) -> Vec<(&'a str, usize, usize, usize)> {
+fn constitution_sections<'a>(
+    path: &Path,
+    lines: &[&'a str],
+) -> Vec<(&'a str, usize, usize, usize)> {
     let mut sections = Vec::new();
     for (index, line) in lines.iter().enumerate() {
         let Some(label) = line

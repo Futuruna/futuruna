@@ -348,9 +348,10 @@ impl Change {
 fn paragraph_marker(line: &str) -> Option<(String, Option<u32>)> {
     let rest = line.trim_start().strip_prefix('§')?.trim_start();
     if let Some((number, after)) = rest.split_once(" Stk.") {
-        if let (Some(number), Some(subsection)) =
-            (normalize_section_number(number), subsection_marker(&format!("Stk.{after}")))
-        {
+        if let (Some(number), Some(subsection)) = (
+            normalize_section_number(number),
+            subsection_marker(&format!("Stk.{after}")),
+        ) {
             return Some((number, Some(subsection)));
         }
     }
@@ -392,7 +393,11 @@ fn item_marker(line: &str) -> Option<u32> {
 fn act_number_and_year(text: &str, marker: &str) -> Option<(u32, u32)> {
     let start = text.find(marker)? + marker.len();
     let rest = &text[start..];
-    let number: String = rest.trim_start().chars().take_while(char::is_ascii_digit).collect();
+    let number: String = rest
+        .trim_start()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
     let number = number.parse().ok()?;
     let date = rest.split_once(" af ")?.1;
     let date: String = date.chars().take_while(|c| *c != ',').collect();
@@ -457,7 +462,9 @@ fn instruction_marker(line: &str) -> Option<(u32, CitationRef, Option<Change>)> 
     ))
 }
 
-const ABBREVIATIONS: &[&str] = &["kr", "pct", "stk", "nr", "pkt", "jf", "m.v", "f.eks", "bl.a"];
+const ABBREVIATIONS: &[&str] = &[
+    "kr", "pct", "stk", "nr", "pkt", "jf", "m.v", "f.eks", "bl.a",
+];
 
 /// The sentences of a quoted subsection or item: its lines joined, the
 /// `§ N.`, `Stk. N.` or `N)` marker removed, split after a full stop
@@ -486,7 +493,8 @@ fn sentences(text: &str) -> Vec<String> {
         if *character != '.' {
             continue;
         }
-        let (Some((_, ' ')), Some((_, next))) = (characters.get(index + 1), characters.get(index + 2))
+        let (Some((_, ' ')), Some((_, next))) =
+            (characters.get(index + 1), characters.get(index + 2))
         else {
             continue;
         };
@@ -590,18 +598,18 @@ impl Quote {
                     close_rewording(document, &mut rewording, index);
                     let amendment = document.amendments.len() - 1;
                     let change = change.unwrap_or_else(|| {
-                        rewording = Some((
-                            amendment,
-                            document.amendments[amendment].instructions.len(),
-                        ));
+                        rewording =
+                            Some((amendment, document.amendments[amendment].instructions.len()));
                         Change::Reworded(index + 1..index + 1)
                     });
-                    document.amendments[amendment].instructions.push(Instruction {
-                        number,
-                        line: line.trim().to_string(),
-                        target,
-                        change,
-                    });
+                    document.amendments[amendment]
+                        .instructions
+                        .push(Instruction {
+                            number,
+                            line: line.trim().to_string(),
+                            target,
+                            change,
+                        });
                 }
                 continue;
             }
@@ -893,7 +901,8 @@ impl Quote {
                 }
                 for instruction in &amendment.instructions {
                     if by.is_some_and(|by| {
-                        by.instruction.is_some_and(|number| number != instruction.number)
+                        by.instruction
+                            .is_some_and(|number| number != instruction.number)
                     }) {
                         continue;
                     }
@@ -1051,10 +1060,7 @@ impl Quote {
 }
 
 /// The quote of a section, its documents resolved by `documents`.
-pub(crate) fn section_quote(
-    section: &crate::annotations::Section,
-    documents: &Documents,
-) -> Quote {
+pub(crate) fn section_quote(section: &crate::annotations::Section, documents: &Documents) -> Quote {
     let parts: Vec<QuotePart<'_>> = section
         .quotes
         .iter()
@@ -1088,7 +1094,10 @@ pub(crate) struct FileCitations {
 }
 
 /// Read and check every citation of a file's annotations.
-pub(crate) fn file_citations_from(annotations: &Annotations, documents: &Documents) -> FileCitations {
+pub(crate) fn file_citations_from(
+    annotations: &Annotations,
+    documents: &Documents,
+) -> FileCitations {
     let mut result = FileCitations::default();
     let mut quotes: BTreeMap<&str, Quote> = BTreeMap::new();
     for citation in &annotations.citations {
@@ -1246,7 +1255,9 @@ Endvidere skal der betales en afgift på 3 pct. p.a.
             cited.paragraphs[0].source.as_deref(),
             Some("sources/01-aktiesparekontoloven.txt")
         );
-        assert!(cited.paragraphs[0].text.starts_with("Stk. 3. Foretages indskud"));
+        assert!(cited.paragraphs[0]
+            .text
+            .starts_with("Stk. 3. Foretages indskud"));
         assert!(cited.paragraphs[0].text.ends_with("stk. 2, 3. pkt."));
     }
 
@@ -1275,7 +1286,10 @@ Endvidere skal der betales en afgift på 3 pct. p.a.
         let missing = CEILING.replace("@ cite(§ 9, stk. 4)", "@ cite(§ 9, stk. 3, 4. pkt.)");
         let errors = citations_of(&missing).errors;
         assert!(errors[0].1.contains("has 3 sentence(s)"), "{errors:?}");
-        assert!(errors[0].1.contains("1. pkt. »Foretages indskud"), "{errors:?}");
+        assert!(
+            errors[0].1.contains("1. pkt. »Foretages indskud"),
+            "{errors:?}"
+        );
     }
 
     #[test]
@@ -1332,7 +1346,9 @@ Endvidere skal der betales en afgift på 3 pct. p.a.
         assert_eq!(quote.resolve(&other[0]).unwrap().text, "§ 1. Begæres.");
         assert_eq!(other[1].label(), "§ 16 A");
         assert_eq!(quote.resolve(&other[1]).unwrap().text, "§ 16 A. Udbytte.");
-        assert!(quote.resolve(&parse_citation("§ 1 in a").unwrap()[0]).is_err());
+        assert!(quote
+            .resolve(&parse_citation("§ 1 in a").unwrap()[0])
+            .is_err());
         assert!(parse_citation("§ 1 in sources/b.txt")
             .unwrap_err()
             .contains("name the document's binding"));
@@ -1349,7 +1365,8 @@ Skat af aktieindkomst, der ikke overstiger et grundbeløb på 51.500 kr.
 
 3. § 8 a, stk. 3, ophæves.";
 
-    const BASE: &str = "§ 8 a. Skat af aktieindkomst, der ikke overstiger et grundbeløb på 48.300 kr.
+    const BASE: &str =
+        "§ 8 a. Skat af aktieindkomst, der ikke overstiger et grundbeløb på 48.300 kr.
 (2010-niveau), beregnes som en endelig skat på 27 pct., jf. dog stk. 2. Andet punktum.
 
 Stk. 2. Skat af aktieindkomst, der overstiger grundbeløbet, beregnes med 42 pct.
@@ -1383,11 +1400,21 @@ Stk. 3. Ophævet tekst.";
         assert_eq!(reworded.source.as_deref(), Some("sources/04.txt"));
         let by = reworded.as_amended_by.unwrap();
         assert_eq!(by.paragraph, "§ 4, nr. 1");
-        assert_eq!(by.instruction, "1. § 8 a, stk. 1, 1. pkt., affattes således:");
+        assert_eq!(
+            by.instruction,
+            "1. § 8 a, stk. 1, 1. pkt., affattes således:"
+        );
         let replaced = quote
-            .resolve(&parse_citation("§ 8 a, stk. 2, 1. pkt. as amended by aendring § 4, nr. 2").unwrap()[0])
+            .resolve(
+                &parse_citation("§ 8 a, stk. 2, 1. pkt. as amended by aendring § 4, nr. 2")
+                    .unwrap()[0],
+            )
             .unwrap();
-        assert!(replaced.text.ends_with("beregnes med 43 pct."), "{}", replaced.text);
+        assert!(
+            replaced.text.ends_with("beregnes med 43 pct."),
+            "{}",
+            replaced.text
+        );
         let repealed = quote
             .resolve(&parse_citation("§ 8 a, stk. 3 as amended").unwrap()[0])
             .unwrap_err();
@@ -1407,7 +1434,10 @@ Stk. 3. Ophævet tekst.";
         let container = quote
             .resolve(&parse_citation("§ 8 a, stk. 1").unwrap()[0])
             .unwrap_err();
-        assert!(container.contains("contains § 8 A, stk. 1, 1. pkt."), "{container}");
+        assert!(
+            container.contains("contains § 8 A, stk. 1, 1. pkt."),
+            "{container}"
+        );
         assert!(quote
             .resolve(&parse_citation("§ 8 a, stk. 1, 2. pkt.").unwrap()[0])
             .is_ok());
@@ -1419,12 +1449,18 @@ Stk. 3. Ophævet tekst.";
         let missing = quote
             .resolve(&parse_citation("§ 8 a, stk. 4, 1. pkt. as amended").unwrap()[0])
             .unwrap_err();
-        assert!(missing.contains("no instruction quoted in this section amends"), "{missing}");
+        assert!(
+            missing.contains("no instruction quoted in this section amends"),
+            "{missing}"
+        );
         let other_act = amended_quote("Kildeskatteloven, LBK nr. 460 af 01/04/2024");
         let mismatch = other_act
             .resolve(&parse_citation("§ 8 a, stk. 1, 1. pkt. as amended").unwrap()[0])
             .unwrap_err();
-        assert!(mismatch.contains("amends lovbekendtgørelse nr. 1284 of 2021"), "{mismatch}");
+        assert!(
+            mismatch.contains("amends lovbekendtgørelse nr. 1284 of 2021"),
+            "{mismatch}"
+        );
         assert_eq!(quote.superseded().len(), 3);
     }
 

@@ -433,15 +433,15 @@ impl ExplainRenderer {
         let display = self.display_path(Path::new(path));
         let meta = scan_meta_comments_with_dir(&source, directory);
         let annotations = crate::annotations::read(&source);
-        let documents =
-            crate::annotations::Documents::for_file(&source, module.statements(), path);
+        let documents = crate::annotations::Documents::for_file(&source, module.statements(), path);
         let mut spans = Vec::new();
         let mut item_spans = Vec::new();
         for span in &meta.spans {
             let entry = (span.label.clone(), span.code_start_line, span.code_end_line);
-            if annotations.section(&span.label).is_some_and(|section| {
-                section.line == span.begin_marker_line
-            }) {
+            if annotations
+                .section(&span.label)
+                .is_some_and(|section| section.line == span.begin_marker_line)
+            {
                 spans.push(entry);
             } else {
                 item_spans.push(entry);
@@ -480,7 +480,10 @@ impl ExplainRenderer {
             attachments.sort_by_cached_key(|attachment| {
                 (
                     attachment["role"].as_str().unwrap_or_default().to_string(),
-                    attachment["binding"].as_str().unwrap_or_default().to_string(),
+                    attachment["binding"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string(),
                     attachment["value"].to_string(),
                 )
             });
@@ -898,7 +901,9 @@ impl ExplainRenderer {
         };
         match (innermost(&index.item_spans), innermost(&index.spans)) {
             (Some((label, item_start, _)), section)
-                if section.as_ref().is_none_or(|(_, start, _)| *start <= item_start) =>
+                if section
+                    .as_ref()
+                    .is_none_or(|(_, start, _)| *start <= item_start) =>
             {
                 let attachments = index.item_attachments.get(&label)?.clone();
                 Some((label, attachments))
@@ -1086,7 +1091,10 @@ impl ExplainRenderer {
                         let mut object = JsonMap::new();
                         object.insert("location".into(), JsonValue::from(section.location.clone()));
                         object.insert("sources".into(), serde_json::json!(section.sources));
-                        object.insert("documents".into(), JsonValue::Array(section.documents.clone()));
+                        object.insert(
+                            "documents".into(),
+                            JsonValue::Array(section.documents.clone()),
+                        );
                         object.insert(
                             "attachments".into(),
                             JsonValue::Array(section.attachments.clone()),

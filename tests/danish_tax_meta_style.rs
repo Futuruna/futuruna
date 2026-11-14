@@ -31,16 +31,14 @@ fn example_metadata_uses_thin_typed_annotations() {
             };
             // `@ meta(binding)` or `@ meta(binding) for Name`: one line that
             // names a typed metadata binding.
-            let thin = body
-                .split_once(')')
-                .is_some_and(|(binding, rest)| {
-                    !binding.is_empty()
-                        && binding.chars().all(|c| c == '_' || c.is_alphanumeric())
-                        && (rest.is_empty()
-                            || rest
-                                .strip_prefix(" for ")
-                                .is_some_and(|name| !name.is_empty() && !name.contains(' ')))
-                });
+            let thin = body.split_once(')').is_some_and(|(binding, rest)| {
+                !binding.is_empty()
+                    && binding.chars().all(|c| c == '_' || c.is_alphanumeric())
+                    && (rest.is_empty()
+                        || rest
+                            .strip_prefix(" for ")
+                            .is_some_and(|name| !name.is_empty() && !name.contains(' ')))
+            });
             if !thin || line.chars().count() > 160 {
                 violations.push(format!("{}:{}: {line}", path.display(), index + 1));
             }

@@ -115,8 +115,11 @@ fn metadata_written_for_a_declaration_is_its_metadata() {
 fn section_metadata_is_one_contract_however_it_is_written() {
     let directory = temp_path("dir");
     std::fs::create_dir_all(directory.join("sources")).expect("create model directory");
-    std::fs::write(directory.join("sources/guide.md"), "Round to whole kroner.\n")
-        .expect("write guide");
+    std::fs::write(
+        directory.join("sources/guide.md"),
+        "Round to whole kroner.\n",
+    )
+    .expect("write guide");
     let head = "# SourceInfo(file: String)\n\
 # impl Document for SourceInfo {}\n\
 # AssumptionInfo(id: String)\n\
@@ -177,7 +180,10 @@ fn section_metadata_is_one_contract_however_it_is_written() {
             )
         })
         .collect();
-    assert_eq!(roles, [("assumption", "assumption_x"), ("guidance", "guide")]);
+    assert_eq!(
+        roles,
+        [("assumption", "assumption_x"), ("guidance", "guide")]
+    );
     for schema in &schemas[1..] {
         assert_eq!(schema["metadata"], schemas[0]["metadata"]);
         assert_eq!(schema["schema_hash"], schemas[0]["schema_hash"]);

@@ -25,8 +25,12 @@ fn copy_directory(from: &Path, to: &Path) {
 
 #[test]
 fn a_migrated_model_computes_what_it_computed() {
-    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/annotation-migration");
-    let copy = std::env::temp_dir().join(format!("futuruna-annotation-migration-{}", std::process::id()));
+    let fixture =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/annotation-migration");
+    let copy = std::env::temp_dir().join(format!(
+        "futuruna-annotation-migration-{}",
+        std::process::id()
+    ));
     std::fs::remove_dir_all(&copy).ok();
     copy_directory(&fixture, &copy);
 
@@ -42,14 +46,21 @@ fn a_migrated_model_computes_what_it_computed() {
     assert!(model.contains("@ section tax {"), "{model}");
     assert!(model.contains("@ quote(Source(value = law))"), "{model}");
     let domain_meta = std::fs::read_to_string(copy.join("domain_meta.runa")).unwrap();
-    assert!(domain_meta.contains("@ meta(input_meta) for Input"), "{domain_meta}");
+    assert!(
+        domain_meta.contains("@ meta(input_meta) for Input"),
+        "{domain_meta}"
+    );
 
     let check = Command::new(runa())
         .args(["check", "--frontend", "model.calculate.runa"])
         .current_dir(&copy)
         .output()
         .expect("run runa check");
-    assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
 
     let call = Command::new(runa())
         .args(["call", "model.calculate.runa", "--input", "cases.json"])
@@ -58,6 +69,10 @@ fn a_migrated_model_computes_what_it_computed() {
         .expect("run runa call");
     let expected = std::fs::read_to_string(fixture.join("expected.json")).unwrap();
     std::fs::remove_dir_all(&copy).ok();
-    assert!(call.status.success(), "{}", String::from_utf8_lossy(&call.stderr));
+    assert!(
+        call.status.success(),
+        "{}",
+        String::from_utf8_lossy(&call.stderr)
+    );
     assert_eq!(String::from_utf8_lossy(&call.stdout), expected);
 }
