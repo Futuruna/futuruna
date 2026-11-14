@@ -41040,7 +41040,9 @@ fn __futuruna_install_error_hook() {
                 self.emit_rule_scope_decl(name, params, body)
             }
             // A unit is `Int`: values are i64 and conversions are erased.
-            TypeDecl::Unit { name, description } => {
+            TypeDecl::Unit {
+                name, description, ..
+            } => {
                 format!(
                     "/// {}\n#[allow(dead_code)]\npub type {name} = i64;\n",
                     description.replace(['\n', '\r'], " ")
@@ -59389,6 +59391,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 stmt: Stmt::TypeDecl(TypeDecl::Unit {
                     name: "UnitVisit".to_string(),
                     description: "units of a visit".to_string(),
+                    scale: None,
                 }),
                 ownership_markers: vec![],
                 import_expansion: retained,
@@ -60725,8 +60728,19 @@ match stmt {
                     .join(" | ");
                 out.push_str(&format!("{}when-type {} = {}\n", pad, name, variants));
             }
-            Stmt::TypeDecl(TypeDecl::Unit { name, description }) => {
-                out.push_str(&format!("{}unit {} {:?}\n", pad, name, description));
+            Stmt::TypeDecl(TypeDecl::Unit {
+                name,
+                description,
+                scale,
+            }) => {
+                let scale = scale
+                    .as_ref()
+                    .map(|scale| format!(" = {scale}"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "{}unit {} {:?}{}\n",
+                    pad, name, description, scale
+                ));
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                 out.push_str(&format!("{}effect {}/{}\n", pad, name, ops.len()));

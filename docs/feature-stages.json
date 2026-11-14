@@ -129,7 +129,7 @@
       "kind": "language",
       "name": "Unit types for whole numbers (`# unit`)",
       "stage": "experimental",
-      "notes": "No compatibility guarantee: declaration syntax, arithmetic rules, error texts and the contract's `unit`/`units` members may change.",
+      "notes": "No compatibility guarantee: declaration syntax (including `= Base / n` scales), arithmetic rules, the `to` conversions, error texts and the contract's `unit`/`units`/`scale` members may change.",
       "docs": [
         "docs/reference/runes.md",
         "docs/rfcs/unit-types.md"

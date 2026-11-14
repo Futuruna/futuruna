@@ -514,13 +514,21 @@ fn collect_type_interface(
                 details,
             });
         }
-        TypeDecl::Unit { name, description } => {
+        TypeDecl::Unit {
+            name,
+            description,
+            scale,
+        } => {
+            let mut details = vec![format!("description:{description}")];
+            if let Some(scale) = scale {
+                details.push(format!("scale:{scale}"));
+            }
             types.push(SemanticTypeDeclaration {
                 kind: "unit".to_string(),
                 name: name.clone(),
                 parameters: Vec::new(),
                 variants: Vec::new(),
-                details: vec![format!("description:{description}")],
+                details,
             });
         }
         TypeDecl::EffectDecl { name, ops } => {

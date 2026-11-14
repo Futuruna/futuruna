@@ -164,8 +164,9 @@ pub fn clear_constructor_elaboration() {
     *registry = ConstructorNameRegistry::default();
 }
 
-/// The checked program with every shared constructor given its internal name
-/// and every `Type.Constructor` written as the constructor alone.
+/// The checked program with every shared constructor given its internal name,
+/// every `Type.Constructor` written as the constructor alone, and every unit
+/// conversion (`to_nearest(Ore, amount)`) written as its `Int` arithmetic.
 #[derive(Debug, Clone, Default)]
 pub struct ConstructorElaboration {
     root: Option<Vec<Stmt>>,
@@ -206,6 +207,37 @@ impl ConstructorElaboration {
         let active = !registry.display.is_empty() || !registry.modules.is_empty();
         drop(registry);
         REGISTRY_ACTIVE.store(active, AtomicOrdering::Release);
+    }
+
+    /// Rewrite one file of the program: the root when `module` is `None`,
+    /// else the imported file at that canonical path. Starts from the file
+    /// as elaboration has rewritten it so far, or as it is written.
+    pub(crate) fn rewrite_file(
+        &mut self,
+        module: Option<&Path>,
+        root: &[Stmt],
+        rewrite: impl FnOnce(&mut Vec<Stmt>),
+    ) {
+        let Some(path) = module else {
+            let mut statements = self.root.take().unwrap_or_else(|| root.to_vec());
+            rewrite(&mut statements);
+            self.root = Some(statements);
+            return;
+        };
+        let original = match self.modules.get(path) {
+            Some(module) => module.clone(),
+            None => match parse_source_module_file_cached(path) {
+                Ok(module) => module,
+                // The checker read this file; it cannot be missing now.
+                Err(_) => return,
+            },
+        };
+        let mut statements = original.statements().to_vec();
+        rewrite(&mut statements);
+        self.modules.insert(
+            path.to_path_buf(),
+            Arc::new(ParsedSourceModule::elaborated(&original, statements)),
+        );
     }
 }
 
@@ -519,17 +551,32 @@ impl TypeChecker {
     }
 
     /// Resolve every shared constructor and every `Type.Constructor` in the
-    /// root program and its plain imports. Reports a shared name that no
-    /// context types and returns the elaborated program.
+    /// root program and its plain imports, and write every checked unit
+    /// conversion as its arithmetic. Reports a shared name that no context
+    /// types and returns the elaborated program.
     pub(crate) fn elaborate_constructor_scope(
         &mut self,
         root: &[Stmt],
     ) -> Option<ConstructorElaboration> {
         let shared = self.shared_constructor_plan();
-        if shared.owners.is_empty() && !self.constructor_scope_used.get() {
+        let constructors = !shared.owners.is_empty() || self.constructor_scope_used.get();
+        if !constructors && !self.has_unit_conversions() {
             return None;
         }
+        let mut elaboration = if constructors {
+            self.elaborate_constructor_names(root, &shared)
+        } else {
+            ConstructorElaboration::default()
+        };
+        self.elaborate_unit_conversions(root, &mut elaboration);
+        Some(elaboration)
+    }
 
+    fn elaborate_constructor_names(
+        &mut self,
+        root: &[Stmt],
+        shared: &SharedConstructors,
+    ) -> ConstructorElaboration {
         // Every module of the merged scope, root first, then plain and hash
         // imports in the order the checker reached them.
         let root_dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
@@ -588,7 +635,7 @@ impl TypeChecker {
         }
 
         let (root_statements, rewrites) =
-            self.elaborate_constructor_statements(root, &shared, &functions, &rules);
+            self.elaborate_constructor_statements(root, shared, &functions, &rules);
         if rewrites > 0 {
             elaboration.root = Some(root_statements);
         }
@@ -598,7 +645,7 @@ impl TypeChecker {
             let start = self.diagnostics.len();
             let (statements, rewrites) = self.elaborate_constructor_statements(
                 module.statements(),
-                &shared,
+                shared,
                 &functions,
                 &rules,
             );
@@ -611,7 +658,7 @@ impl TypeChecker {
                 );
             }
         }
-        Some(elaboration)
+        elaboration
     }
 
     fn elaborate_constructor_statements(

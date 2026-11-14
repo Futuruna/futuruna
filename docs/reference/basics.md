@@ -277,8 +277,11 @@ either operand is a `String`; use `concat` to combine lists.
 Whole numbers can carry a declared unit (`# unit Ore "DKK øre"`, Experimental).
 `Ore + Ore` is `Ore`, `Ore * 3` is `Ore` and `Ore / Ore` is a plain `Int`;
 adding `Ore` to another unit or to a named plain `Int` is a type error, while a
-literal such as `0` takes the unit its place requires. Convert with `Ore(n)` and
-`Int(amount)`. See [Unit](runes.md#unit) for the full rules.
+literal such as `0` takes the unit its place requires. `Ore(n)` gives a plain
+`Int` the unit and `Int(amount)` takes it off. Units declared with a scale of
+one base (`# unit Ore "DKK øre" = DKK / 100`) convert with `to(MicroDkk, amount)`
+or, when the conversion divides, a named rounding such as
+`to_nearest(Ore, amount)`. See [Unit](runes.md#unit) for the full rules.
 
 ### Comparison
 | Op | Meaning |

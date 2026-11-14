@@ -173,7 +173,11 @@ impl TypeChecker {
         right: &Expr,
         right_type: Option<&str>,
     ) {
-        if self.check_unit_operands(expression, operator, left, left_type, right, right_type) {
+        if self.check_unit_operands(expression, operator, left, left_type, right, right_type)
+            || self.check_unit_element_equality(
+                expression, operator, left, left_type, right, right_type,
+            )
+        {
             return;
         }
         let left_ty = Self::ordinary_operand_type(left, left_type);
