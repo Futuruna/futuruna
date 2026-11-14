@@ -17,6 +17,7 @@ default-run = "runa"
 publish = ["crates-io"]
 include = [
     "/src/**/*.rs",
+    "/src/calculate/sdk_ts_runtime.ts",
     "/docs/feature-stages.json",
     "/README.md",
     "/LICENSE",

@@ -858,10 +858,10 @@ whose only dependency is [`zod`](https://zod.dev):
 |------|----------|
 | `types.ts` | One type per contract type, as TypeScript writes it (see [Types](#types)). Every field carries its label, question, help, unit and source labels as TSDoc. |
 | `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. |
-| `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; `Need` and the `Complete`/`Needs` result typed by the entry's input paths; and `<entry>SetAt`. |
-| `client.ts` | A call and a query function per entry, each also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's descriptor (`<entry>Entry`: name, schema hash, codecs), and its resolver map type. |
+| `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; each entry's input path patterns (`<Entry>InputPatterns`, with the value written at each), its `Need` tagged by pattern, the `Complete`/`Needs` result, and `<entry>SetAt`. |
+| `client.ts` | A call and a query function per entry, each also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns), and its resolver map type. |
 | `index.ts` | Re-exports the other modules and the runtime. |
-| `runtime.ts` | What every SDK shares: the value validators, the wire codec, `setAt` and paths, needs, the calls through a transport, `resolve`, and the error classes. It depends on no model. |
+| `runtime.ts` | What every SDK shares: the value validators and `isoDate`, `none`, the wire codec, `setAt` and paths, needs, the calls through a transport, `resolve`, and the error classes. It depends on no model, and it passes typescript-eslint's `strictTypeChecked` as generated. |
 
 `--runtime PATH` writes the runtime at `PATH`, relative to the output
 directory, and the entry modules import it from there. The SDKs of several
@@ -890,9 +890,9 @@ the SDK converts between them on every call:
 | field `opening_cash_ore` | `openingCashOre` | `opening_cash_ore` |
 | `# CashDirection = Deposit \| Withdrawal` (no variant carries fields) | `"Deposit" \| "Withdrawal"` | `{ "$variant": "Deposit" }` |
 | `# Event = Trade(…) \| CashMovement(…)` (payload variants) | a union tagged by `$variant`, positional payloads in `$values` | the same, with snake_case fields |
-| `Date` | an ISO date `"2026-03-01"` (`IsoDate`) | `{ "year": 2026, "month": 3, "day": 1 }` |
+| `Date` | an ISO date `"2026-03-01"`, typed `IsoDate`: only `isoDate(text)` and the validators make one | `{ "year": 2026, "month": 3, "day": 1 }` |
 | `Ore`, an `Int` with a [unit](runes.md#unit) | `Ore`, a branded number: `number & { readonly __unit: "Ore" }` | the same number |
-| `T?` | `T \| null` | the same |
+| `T?` | `T \| null`; in a partial case `T \| None`, "none" written `none` | `null` |
 | `List(T)`, `Set(T)` | arrays | the same |
 | `Map(String, T)` | an object; keys are kept as they are | the same |
 
@@ -902,14 +902,15 @@ field can be named `$variant`, so the tag never collides with a field, where
 ordinary); narrowing works on it as on any literal property, and it is the
 name the engine's paths and results use (`Complete`, `Needs`). A date is
 validated as a day on the calendar from 0000 to 9999: `2026-02-30` is
-rejected.
+rejected, and `isoDate("2026-02-30")` throws a `RangeError`; a bare string
+such as `"yesterday"` is not an `IsoDate`.
 
 A unit is declared once in `types.ts`, with its description as TSDoc, and
 `schema.ts` holds its validator (`OreSchema`, typed `Ore` once parsed) and its
 constructor `ore(n)`, which throws a `RangeError` unless `n` is a safe
-integer. Wherever the contract says `Ore` (fields, results, the path tables of
-`setAt` and the resolvers) a bare number or a `Micro` is a type error, while a
-plain `Int` stays `number`.
+integer. Wherever the contract says `Ore` (fields, results, the answers of
+`<entry>SetAt` and the resolvers) a bare number or a `Micro` is a type error,
+while a plain `Int` stays `number`.
 
 `toWire(codec, value)` and `fromWire(codec, value)` convert a value either way
 with a codec from `schema.ts` (or `<entry>Entry.input` and `.output`), for
@@ -920,16 +921,18 @@ mismatch stays as it is, for the validators to reject.
 
 ### Calls
 
-The SDK reaches an engine only through a transport. Both methods receive the
+The SDK reaches an engine only through a transport. Each method receives the
 JSON document `runa call --input` reads, holding one case marked ready, and
-return the document `runa call` writes, as an object or as JSON text:
+returns the document `runa call` writes, as an object or as JSON text:
 
 ```ts
 interface EngineTransport {
   call(entry: string, input: unknown): Promise<unknown>;
   callPartial(entry: string, input: unknown): Promise<unknown>;
-  callExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
-  callPartialExplained?(entry: string, input: unknown, full: boolean): Promise<unknown>;
+}
+interface ExplainingTransport extends EngineTransport {
+  callExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
+  callPartialExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
 }
 ```
 
@@ -946,12 +949,16 @@ For an entry `tax_report` with input `TaxCase`:
   `taxReportQueryExplained(transport, input, depth?)` do the same through
   `callExplained` and `callPartialExplained` (`--explain`, or
   `--explain=full` for depth `"full"`) and return `{ result, explanation }`,
-  typed by `Explanation`. The explanation speaks TypeScript too: its values
+  typed by `Explanation`. They take an `ExplainingTransport`: passing a
+  transport that cannot explain is a type error, not a runtime failure. The
+  explanation speaks TypeScript too: its values
   are keyed by TypeScript paths of the result, an input it names is at its
   TypeScript path in the case, and `from_omitted` is `fromOmitted`. Leaf values
   are numbers, strings, booleans and an enum's variant name; a `Date` is one
   value, its ISO date, unless its parts came from different places, when each
-  part is explained at `<date>.year`, `.month` and `.day`.
+  part is explained at `<date>.year`, `.month` and `.day`. The inputs and
+  rules a clause's guards read (`because`) are at TypeScript paths as `from`
+  is, and `assumptions` come as the engine reports them.
 
 A failure throws `CalculationError` with `kind` `input`, `output`, `envelope`
 or `diagnostics`, and the validation issues (at TypeScript paths) or the
@@ -961,34 +968,61 @@ from the runtime, so `instanceof` holds across every SDK that shares it.
 ### Partial cases and needs
 
 In a partial case a value is the answer, `{}` is a record whose fields are not
-known yet, `null` is the answer "none", and a field left out is unknown. A sum
-type with payload variants whose variant is not known yet is `{}`, typed
-`Unknown<T>`; an enum or a date is known whole or left out (inside a list or
-map, where nothing can be left out, it may also be `Unknown<T>`).
+known yet, `none` is the answer "none" for an optional field, and a field left
+out (or `undefined`) is unknown. A bare `null` is not a partial value: it is a
+type error and fails validation, so "none" cannot come from a stray `?? null`.
+On the wire `none` is `null`. A sum type with payload variants whose variant
+is not known yet is `{}`, typed `Unknown<T>`, whose `$variant` is `undefined`:
+a `switch` on `$variant` that does not handle it is not exhaustive. An enum or
+a date is known whole or left out (inside a list or map, where nothing can be
+left out, it may also be `Unknown<T>`). At an optional position, an object
+whose only key is `$none` (with value `true`) is `none`.
 
 A need names a concrete input path as TypeScript writes it: fields join with
 `.` under their camelCase names, list elements are `[index]`, map values are
 `.key`, and the tag of a sum type with payload variants is `.$variant`, as in
 `accounts[2].closingCashOre` or `taxpayer.outsideEndavu.$variant`. An enum is
-needed at its own path (`events[0].direction`), and a date as a whole
-(`events[0].date`): the needs of its parts become one need, labelled by what
-their labels share (`Booking date` from `Booking date: year` and `Booking
-date: month`). `unusedPaths` and an entry need's `subject` are TypeScript
-paths too. The paths are the ones a TypeScript caller writes into the case, so
-`need.path`, the keys of `<entry>SetAt` and the resolver patterns are one
-vocabulary; the engine's own paths (`runa call --partial`) stay snake_case.
-Each need carries the field's `label`, `question`, `help`, `unit` and
-`sources` where the contract gives them, the `waitingRule`, and its law
-`section` and cited `paragraphs` where it has them. A need of kind
-`entry` also names the `entry` that provides the value and the `subject` it
-runs for.
+needed at its own path (`events[0].direction`) and a date as a whole
+(`events[0].date`). `unusedPaths` and an entry need's `subject` are TypeScript
+paths too; the engine's own paths (`runa call --partial`) stay snake_case.
 
-`setAt(case, path, value)` returns a new case with `value` written at a
-concrete path; `taxReportSetAt` is the same, with the value typed by the path.
-`TaxReportInputPaths` maps every concrete path to the type written there, and
-`TaxReportInputPatterns` the same by pattern, with `[]` for any list index and
-`*` for any map key. `fromWirePath(codec, wireCase, path)` turns an engine
-path into its TypeScript path.
+Each need is tagged with its `pattern`, the path with `[]` for every list
+index and `*` for every map key (`accounts[].closingCashOre`), and its `path`
+is an `InputPath` of that pattern: a branded string only the validators make,
+so a path such as `accounts[-1].closingCashOre` cannot be written by hand.
+`TaxReportInputPatterns` maps every pattern to the value an answer writes
+there; `TaxReportNeed` is the union of the needs of every pattern, so
+narrowing `need.pattern` narrows the need. Each need carries the field's
+`label`, `question`, `help`, `unit` and `sources` where the contract gives
+them; `waiting`, the rules and functions in a law section that wait for the
+value, the ones citing paragraphs first, each with its `section` and cited
+`paragraphs` (paragraph, quoted source and act); and, inside a list whose
+element type declares a key field (`@ field(key = True)`), `keys`: the
+element's path, key field and value, typed by the contract, so a need on
+`openingPositions[0].marketValue` names the ISIN it is about. A need of kind
+`entry` also names the `entry` that provides the value and the `subject` it
+runs for. Besides `needs`, a `Needs` result may hold `later`: needs of the same
+type for facts read only behind a condition not known yet, which answering
+`needs` may turn into needs.
+
+`taxReportSetAt(case, need, value)` returns a new case with `value` written at
+the need's path; the value's type is the one at the need's pattern, and a need
+not yet narrowed to one pattern takes no value. `setAt(case, path, value)` is
+the same, untyped. `fromWirePath(codec, wireCase, path)` turns an engine path
+into its TypeScript path.
+
+```ts
+function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCase {
+  switch (need.pattern) {
+    case "accounts[].closingCashOre":
+      return taxReportSetAt(c, need, ledger.closingCash(need.path));
+    case "taxpayer.spouse":
+      return taxReportSetAt(c, need, none);
+    default:
+      return c;
+  }
+}
+```
 
 ### Resolving needs
 
