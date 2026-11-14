@@ -9,6 +9,7 @@
 -- expect-args: --explain
 -- expect-stdout-file: explain_because.stdout
 
+# SourceInfo(file: String)
 # AssumptionInfo(id: String, statement: String)
 # LawRole(a) = Assumption(value: a)
 # Metadata(a) = Metadata(attachments: a)
@@ -18,6 +19,7 @@
 = closing_day = AssumptionInfo(id = "CLOSING-DAY", statement = "The value on the closing day is the custodian's.")
 = transfer_statement = AssumptionInfo(id = "TRANSFER", statement = "The giving institute's statement is complete.")
 = closing_meta = Metadata(attachments = (Assumption(value = closing_day),))
+= law = SourceInfo(file = "sources/law.txt")
 = transfer_meta = Metadata(attachments = (Assumption(value = transfer_statement),))
 
 # Ending(day: Int)

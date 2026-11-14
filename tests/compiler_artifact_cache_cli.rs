@@ -181,7 +181,8 @@ fn check_omits_pure_imported_metadata_from_generated_runtime() {
 # Output(value: Int)\n\
 = imported_source = SourceInfo(url = \"https://example.invalid/law\")\n\
 = imported_metadata = ImportedMetadata(source = imported_source)\n\
---@label:unrelated_law::meta:imported_metadata--\n",
+@ meta(imported_metadata)\n\
+# UnrelatedLaw(value: Int)\n",
     )
     .expect("write imported metadata dependency");
     let source = source.to_str().expect("source path");

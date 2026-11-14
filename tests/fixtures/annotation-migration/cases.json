@@ -1,0 +1,11 @@
+{
+ "$futuruna": {
+  "schema": "futuruna.calculate.input.v2",
+  "schema_hash": "6f2939b9533bda47953921dae58f3c0ad4880c3b2d615224ff5011a57305dff5",
+  "entry": "calculate"
+ },
+ "cases": [
+  {"case_id": "small-deduction", "input_status": "ready", "input": {"income": 50000, "deduction": 400}},
+  {"case_id": "capped-deduction", "input_status": "ready", "input": {"income": 50000, "deduction": 5000}}
+ ]
+}

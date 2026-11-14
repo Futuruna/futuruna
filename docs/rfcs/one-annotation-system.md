@@ -527,6 +527,35 @@ Details the design above leaves open, as implemented:
   constructor, as in a metadata binding. Direct role chains
   (`::source:binding`) are gone: the migration writes `@ meta(binding)` and
   reports the role it dropped.
+- **Metadata written apart: `@ meta(<value>) for <name>`.** A model may keep
+  the metadata of declarations in a file of its own (danish-income-tax's
+  `*-beregningsmeta.runa` files describe the input types the domain files
+  declare). The line stands alone at top level and attaches to nothing below
+  it. `<name>` is a checked name, never a string: a type, rule, function or
+  section declared in the file or a file it imports, resolved as any other
+  reference; a name that names nothing in scope, or names two things (a
+  section and the rule it holds), is an error. It means exactly what
+  `@ meta(<value>)` on the declaration means: the value is resolved where
+  the line is written and indexed under the declaration's name, so field
+  metadata, entry metadata, needs and the contract read it unchanged.
+  **One place per declaration:** a declaration whose metadata is written on
+  it and in a `for`, or in two `for`s anywhere in the program, is an error
+  that names both places (consecutive `for` lines with only comments between
+  are one place), so a reader always finds all of a declaration's metadata
+  in one place. `runa meta --json` gives every anchor `target.declared_in`
+  and `written` (`on_declaration` or `for`) with `written_line`; an editor
+  hover on a declaration lists its metadata and where each value is
+  written. The migration writes `--@label:X::meta:B--` as `@ meta(B) for X`
+  when `X` is declared in another file, and as `@ meta(B)` on `X` when it is
+  declared in the same file. A `for` gives a rule or function no code span:
+  metadata that explanations attach to a clause is written on the clause.
+- **Spans around the same code are one section.** Old models marked code
+  that implements several passages (a consolidated act and the acts that
+  amended it) with nested `--@begin`/`--@end` pairs around the same lines.
+  The migration makes them one section, named by the outermost label, whose
+  quotes and metadata are those of all the labels, and reports each label
+  that joined; a label with two quotes likewise becomes one section with two
+  quotes.
 - **Paragraph numbers compare without case**: `§ 8 a` and `§ 8 A` are the
   same paragraph; a citation is shown as written.
 - **Sentences.** Besides a capital letter, a sentence may open with an

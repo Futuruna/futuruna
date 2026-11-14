@@ -297,10 +297,18 @@ fn parse_directive(line: &str) -> Option<Directive> {
 
 #[derive(Debug)]
 struct Anchor {
-    line: usize,
+    /// The anchor's lines: one per `--@label` naming it, and the anchors of
+    /// spans merged into it.
+    lines: Vec<usize>,
     attrs: Vec<(String, String)>,
-    /// The `----` lines of the quote under the anchor.
-    quote: Option<(usize, usize)>,
+    /// The `----` lines of each quote under the anchor.
+    quotes: Vec<(usize, usize)>,
+}
+
+impl Anchor {
+    fn line(&self) -> usize {
+        self.lines[0]
+    }
 }
 
 /// One quoted document: its `[sources/...]` file and its text.
@@ -535,24 +543,20 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                 }
                 match anchors.get_mut(&directive.label) {
                     Some(anchor) => {
+                        // A second anchor for the label: its quote is one
+                        // more quote of the same section.
                         anchor.attrs.extend(directive.attrs);
-                        if anchor.quote.is_some() && quote.is_some() {
-                            errors.push(format!(
-                                "{}: anchor `{}` has a second quote; merge its quotes into one",
-                                index + 1,
-                                directive.label
-                            ));
-                        }
-                        anchor.quote = anchor.quote.or(quote);
+                        anchor.lines.push(index);
+                        anchor.quotes.extend(quote);
                     }
                     None => {
                         anchor_order.push(directive.label.clone());
                         anchors.insert(
                             directive.label.clone(),
                             Anchor {
-                                line: index,
+                                lines: vec![index],
                                 attrs: directive.attrs,
-                                quote,
+                                quotes: quote.into_iter().collect(),
                             },
                         );
                     }
@@ -611,6 +615,66 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
     let mut removed: BTreeSet<usize> = BTreeSet::new();
     let mut replaced: BTreeMap<usize, Vec<String>> = BTreeMap::new();
     let mut inserted: BTreeMap<usize, Vec<String>> = BTreeMap::new();
+    // The spans that become sections: (begin, end, label).
+    let mut section_spans: Vec<(usize, usize, String)> = Vec::new();
+
+    // Spans that enclose the same code (their `--@begin` lines adjacent and
+    // their `--@end` lines adjacent) implement several passages together:
+    // one section, named by the outermost, holding all their quotes and
+    // metadata. Sections do not nest.
+    let only_directives = |range: std::ops::Range<usize>| {
+        range.into_iter().all(|line| {
+            let trimmed = lines[line].trim();
+            trimmed.is_empty() || (trimmed.starts_with("--") && !trimmed.starts_with("----"))
+        })
+    };
+    let mut by_begin: Vec<(String, (usize, usize))> =
+        spans.iter().map(|(label, span)| (label.clone(), *span)).collect();
+    by_begin.sort_by_key(|(_, (begin, _))| *begin);
+    let mut outer_of: BTreeMap<String, String> = BTreeMap::new();
+    for (position, (inner, (inner_begin, inner_end))) in by_begin.iter().enumerate() {
+        let Some((outer, (outer_begin, outer_end))) = by_begin[..position]
+            .iter()
+            .rev()
+            .find(|(_, (begin, end))| begin < inner_begin && inner_end < end)
+        else {
+            continue;
+        };
+        if only_directives(outer_begin + 1..*inner_begin) && only_directives(inner_end + 1..*outer_end) {
+            let root = outer_of.get(outer).cloned().unwrap_or_else(|| outer.clone());
+            outer_of.insert(inner.clone(), root);
+        }
+    }
+    for (inner, outer) in &outer_of {
+        let Some((begin, end)) = spans.remove(inner) else {
+            continue;
+        };
+        removed.insert(begin);
+        removed.insert(end);
+        anchor_order.retain(|label| label != inner);
+        if let Some(merged) = anchors.remove(inner) {
+            match anchors.get_mut(outer) {
+                Some(anchor) => {
+                    anchor.lines.extend(merged.lines);
+                    anchor.attrs.extend(merged.attrs);
+                    anchor.quotes.extend(merged.quotes);
+                }
+                None => {
+                    anchor_order.push(outer.clone());
+                    anchors.insert(outer.clone(), merged);
+                }
+            }
+        }
+        notes.push(format!(
+            "`{inner}` joins section `{outer}`: they mark the same code, and sections do not nest"
+        ));
+    }
+    for anchor in anchors.values_mut() {
+        anchor.lines.sort();
+        anchor.quotes.sort();
+        let mut seen = BTreeSet::new();
+        anchor.attrs.retain(|attr| seen.insert(attr.clone()));
+    }
 
     // Metadata lines of one anchor, after rule 2 moved roles onto quotes.
     let meta_lines = |attrs: &[(String, String)], notes: &mut Vec<String>, label: &str| {
@@ -638,13 +702,29 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
     for label in &labels {
         let anchor = anchors.get(label);
         let span = spans.get(label).copied();
-        let quote_text: Option<Vec<String>> = anchor.and_then(|anchor| anchor.quote).map(|(open, close)| {
-            lines[open + 1..close].iter().map(|line| line.to_string()).collect()
-        });
-        let (preamble, parts) = quote_text
-            .as_deref()
-            .map(split_quote)
+        let quote_texts: Vec<Vec<String>> = anchor
+            .map(|anchor| {
+                anchor
+                    .quotes
+                    .iter()
+                    .map(|(open, close)| {
+                        lines[open + 1..*close].iter().map(|line| line.to_string()).collect()
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
+        let mut preamble: Vec<String> = Vec::new();
+        let mut parts: Vec<QuotedPart> = Vec::new();
+        for text in &quote_texts {
+            let (own_preamble, own_parts) = split_quote(text);
+            if !own_preamble.is_empty() {
+                if !preamble.is_empty() {
+                    preamble.push(String::new());
+                }
+                preamble.extend(own_preamble);
+            }
+            parts.extend(own_parts);
+        }
         let preamble_block = (!preamble.is_empty()).then(|| {
             let mut block = vec!["----".to_string()];
             block.extend(preamble.iter().cloned());
@@ -653,9 +733,9 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
             block
         });
         if let Some(anchor) = anchor {
-            removed.insert(anchor.line);
-            if let Some((open, close)) = anchor.quote {
-                removed.extend(open..=close);
+            removed.extend(anchor.lines.iter().copied());
+            for (open, close) in &anchor.quotes {
+                removed.extend(*open..=*close);
             }
         }
 
@@ -681,7 +761,7 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                     }
                     Err(message) => errors.push(format!(
                         "{}: {message}",
-                        anchor.map_or(begin, |anchor| anchor.line) + 1
+                        anchor.map_or(begin, Anchor::line) + 1
                     )),
                 }
             }
@@ -769,6 +849,7 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                 header.push(String::new());
             }
             replaced.insert(begin, header);
+            section_spans.push((begin, end, label.clone()));
             replaced.insert(end, vec![String::new(), "}".to_string()]);
             continue;
         }
@@ -777,7 +858,7 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
         if !parts.is_empty() {
             errors.push(format!(
                 "{}: the quote of `{label}` names documents but no `--@begin:{label}--` span marks the code that implements it",
-                anchor.map_or(0, |anchor| anchor.line) + 1
+                anchor.map_or(0, Anchor::line) + 1
             ));
             continue;
         }
@@ -787,13 +868,13 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
         }
         if let (Some(anchor), Some(block)) = (anchor, preamble_block) {
             // Quoted text with no saved document stays a block comment.
-            inserted.entry(anchor.line).or_default().extend(block);
+            inserted.entry(anchor.line()).or_default().extend(block);
         }
         let metas = meta_lines(&attrs, &mut notes, label);
         if metas.is_empty() {
             continue;
         }
-        let after = anchor.map_or(0, |anchor| anchor.line);
+        let after = anchor.map_or(0, Anchor::line);
         let named = |start: usize, end: usize| {
             items_between(&lines, start, end)
                 .into_iter()
@@ -806,10 +887,19 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
             .or_else(|| named(after, lines.len()))
             .or_else(|| named(0, after));
         let Some(declaration) = declaration else {
-            errors.push(format!(
-                "{}: anchor `{label}` names no declaration in this file; write `@ meta(...)` above the item it describes",
-                after + 1
-            ));
+            // Declared in another file: the metadata is written apart, for
+            // the declaration by name; `runa check` resolves the name.
+            if anchor.is_none() {
+                errors.push(format!(
+                    "{}: span `{label}` names no declaration in this file",
+                    after + 1
+                ));
+                continue;
+            }
+            inserted
+                .entry(after)
+                .or_default()
+                .extend(metas.into_iter().map(|meta| format!("{meta} for {label}")));
             continue;
         };
         let start = declaration_start(&lines, declaration);
@@ -839,8 +929,65 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
         errors.sort();
         return Err(errors);
     }
+    // Sections do not nest: a span inside another span, around code of its
+    // own, moves to just after the enclosing span, so each passage's code
+    // stays in its own section.
+    section_spans.sort();
+    let parent_of = |index: usize| {
+        let (begin, end, _) = &section_spans[index];
+        section_spans[..index]
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, (outer_begin, outer_end, _))| outer_begin < begin && end < outer_end)
+            .map(|(position, _)| position)
+    };
+    let parents: Vec<Option<usize>> = (0..section_spans.len()).map(parent_of).collect();
+    for (index, parent) in parents.iter().enumerate() {
+        if let Some(parent) = parent {
+            notes.push(format!(
+                "section `{}` stood inside section `{}`; it now follows it, since sections do not nest",
+                section_spans[index].2, section_spans[*parent].2
+            ));
+        }
+    }
+    fn emit_span(
+        index: usize,
+        spans: &[(usize, usize, String)],
+        parents: &[Option<usize>],
+        order: &mut Vec<usize>,
+    ) {
+        let (begin, end, _) = &spans[index];
+        let children: Vec<usize> = (0..spans.len()).filter(|child| parents[*child] == Some(index)).collect();
+        let mut line = *begin;
+        while line <= *end {
+            if let Some(child) = children.iter().find(|child| spans[**child].0 == line) {
+                line = spans[*child].1 + 1;
+                continue;
+            }
+            order.push(line);
+            line += 1;
+        }
+        for child in children {
+            emit_span(child, spans, parents, order);
+        }
+    }
+    let mut order: Vec<usize> = Vec::with_capacity(lines.len());
+    let mut line = 0;
+    while line < lines.len() {
+        if let Some(top) = (0..section_spans.len())
+            .find(|index| parents[*index].is_none() && section_spans[*index].0 == line)
+        {
+            emit_span(top, &section_spans, &parents, &mut order);
+            line = section_spans[top].1 + 1;
+            continue;
+        }
+        order.push(line);
+        line += 1;
+    }
     let mut output: Vec<String> = Vec::new();
-    for (index, line) in lines.iter().enumerate() {
+    for index in order {
+        let line = lines[index];
         if let Some(before) = inserted.get(&index) {
             output.extend(before.iter().cloned());
         }
@@ -984,6 +1131,38 @@ Guide text.
         let unknown = "--@label:a::meta:m--\n----\n[sources/nowhere.txt]\n\ntext\n----\n--@begin:a--\n| f(x: Int) -> x\n--@end:a--\n";
         assert!(migrate_source(unknown, &MigrationProgram::default()).unwrap_err()[0]
             .contains("names a document no binding declares"));
+    }
+
+    #[test]
+    fn metadata_for_a_declaration_of_another_file_is_written_for_it() {
+        let source = "@ import ./domain\n= guide = \"g\"\n--@label:Input::meta:guide--\n\n| f(x: Int) -> x\n";
+        let migrated = migrate_source(source, &MigrationProgram::default()).unwrap();
+        assert_eq!(
+            migrated.source,
+            "@ import ./domain\n= guide = \"g\"\n@ meta(guide) for Input\n\n| f(x: Int) -> x\n"
+        );
+    }
+
+    #[test]
+    fn spans_around_the_same_code_are_one_section() {
+        let source = "--@label:base::meta:base_meta--\n----\nBase.\n----\n\n--@label:amended::meta:amended_meta--\n----\nAmended.\n----\n\n--@label:base::meta:base_meta--\n----\nMore base.\n----\n\n--@begin:base--\n--@begin:amended--\n| f(x: Int) -> x\n--@end:amended--\n--@end:base--\n";
+        let migrated = migrate_source(source, &MigrationProgram::default()).unwrap();
+        assert_eq!(
+            migrated.source.trim_start(),
+            "----\nBase.\n\nAmended.\n\nMore base.\n----\n\n@ meta(base_meta)\n@ meta(amended_meta)\n@ section base {\n\n| f(x: Int) -> x\n\n}\n"
+        );
+        assert!(migrated.notes.iter().any(|note| note.contains("`amended` joins section `base`")));
+    }
+
+    #[test]
+    fn a_span_inside_another_follows_it() {
+        let source = "--@begin:outer--\n| a(x: Int) -> x\n--@begin:inner--\n| b(x: Int) -> x\n--@end:inner--\n| c(x: Int) -> x\n--@end:outer--\n";
+        let migrated = migrate_source(source, &MigrationProgram::default()).unwrap();
+        assert_eq!(
+            migrated.source,
+            "@ section outer {\n\n| a(x: Int) -> x\n| c(x: Int) -> x\n\n}\n@ section inner {\n\n| b(x: Int) -> x\n\n}\n"
+        );
+        assert!(migrated.notes[0].contains("now follows it"));
     }
 
     #[test]

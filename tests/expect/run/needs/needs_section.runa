@@ -5,27 +5,31 @@
 -- expect-args: --partial
 -- expect-stdout-file: needs_section.stdout
 
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= law = SourceInfo(file = "sources/law.txt")
+
 # Owner(fully_liable: Bool, income: Int)
 # Result(tax: Int)
 
---@label:liability--
-----
-[sources/law.txt]
+-- A helper outside any section.
+| checked(flag: Bool) -> flag == True
 
+@ section liability {
+
+@ quote(law)
+----
 § 1. Personer, der er fuldt skattepligtige, beskattes af hele indkomsten.
 
 § 2. Andre beskattes ikke.
 ----
 
--- A helper outside any section.
-| checked(flag: Bool) -> flag == True
-
---@begin:liability--
---@cite:§ 1--
+@ cite(§ 1)
 | taxed(o: Owner) -> o.income / 4
---@cite:§ 2--
+@ cite(§ 2)
 | exception not_liable taxed(o: Owner) -> 0 under not(checked(o.fully_liable))
---@end:liability--
+
+}
 
 @ calculate
 | needs_section(o: Owner) -> Result(tax = taxed(o))

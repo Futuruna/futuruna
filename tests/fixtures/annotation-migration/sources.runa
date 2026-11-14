@@ -1,0 +1,9 @@
+-- The documents the model quotes and the metadata types that hold them.
+# SourceInfo(file: String, identifier: String)
+# Role(a) = Source(value: a) | Assumption(value: a)
+# Metadata(a) = Metadata(attachments: a)
+# AssumptionInfo(id: String, statement: String)
+# impl MetaRole for Role {}
+# impl Meta for Metadata {}
+
+= law = SourceInfo(file = "sources/law.txt", identifier = "LOV nr. 1 af 01/01/2026")

@@ -751,7 +751,8 @@ pub enum TplPart {
 /// before.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LexedAnnotation {
-    /// `section`, `section_end`, `quote`, `cite` or `meta`.
+    /// `section`, `section_end`, `quote`, `cite`, `meta` or `meta_for`
+    /// (`@ meta(<value>) for <name>`, standing alone).
     pub kind: &'static str,
     pub line: usize,
     pub col: usize,
@@ -759,6 +760,8 @@ pub struct LexedAnnotation {
     pub end_line: usize,
     /// The section's name, or the text between the parentheses.
     pub argument: String,
+    /// The declaration a `meta_for` describes: the name after `for`.
+    pub target: Option<String>,
 }
 
 pub struct Lexer {
@@ -934,6 +937,7 @@ impl Lexer {
                 col,
                 end_line: line,
                 argument: name,
+                target: None,
             });
             return Some(Ok(()));
         }
@@ -981,6 +985,46 @@ impl Lexer {
             ))));
         }
         let end_line = self.line;
+        // `@ meta(<value>) for <name>`: metadata written apart from its
+        // declaration, standing alone at top level.
+        let mut target = None;
+        if kind == "meta" {
+            let rest: String = self.chars[self.pos..]
+                .iter()
+                .take_while(|c| **c != '\n')
+                .collect();
+            let after_for = rest
+                .trim_start()
+                .strip_prefix("for")
+                .filter(|after| after.is_empty() || after.starts_with(char::is_whitespace));
+            if let Some(after) = after_for {
+                let name: String = after
+                    .trim_start()
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                let consumed = rest.len() - rest.trim_start().len()
+                    + 3
+                    + (after.len() - after.trim_start().len())
+                    + name.len();
+                for _ in 0..rest[..consumed].chars().count() {
+                    self.advance();
+                }
+                if name.is_empty() {
+                    self.skip_rest_of_line();
+                    return Some(Err(error(
+                        "`@ meta(...) for` names the declaration it describes: `@ meta(<value>) for <name>`".to_string(),
+                    )));
+                }
+                if col != 1 || self.brace_depth_after(tokens) != 0 {
+                    self.skip_rest_of_line();
+                    return Some(Err(error(format!(
+                        "`@ meta(...) for {name}` stands alone at top level, at the start of a line"
+                    ))));
+                }
+                target = Some(name);
+            }
+        }
         if !self.rest_of_line_is_blank() {
             self.skip_rest_of_line();
             return Some(Err(error(format!(
@@ -989,11 +1033,12 @@ impl Lexer {
         }
         self.skip_rest_of_line();
         self.annotations.push(LexedAnnotation {
-            kind,
+            kind: if target.is_some() { "meta_for" } else { kind },
             line,
             col,
             end_line,
             argument: argument.trim().to_string(),
+            target,
         });
         Some(Ok(()))
     }
@@ -1146,6 +1191,7 @@ impl Lexer {
                     col,
                     end_line: line,
                     argument: String::new(),
+                    target: None,
                 });
                 continue;
             }
@@ -2569,6 +2615,10 @@ impl MetaReference {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaAnchor {
     pub kind: String,
+    /// For `@ meta(...) for <name>`: the file that declares the item, as
+    /// the program imports it; `None` when the metadata stands on the
+    /// declaration itself.
+    pub declared_in: Option<String>,
     pub label: String,
     pub references: Vec<MetaReference>,
     pub comment_line: usize,
@@ -2922,6 +2972,7 @@ fn scan_meta_comment_structure(source: &str) -> MetaIndex {
         source,
         parsed_meta_rule_symbols(source),
         &annotations::Documents::default(),
+        &BTreeMap::new(),
     )
 }
 
@@ -2938,7 +2989,8 @@ fn scan_meta_comment_structure_from_stmts(
     } else {
         annotations::Documents::default()
     };
-    scan_meta_annotations(source, Some(symbols), &documents)
+    let targets = annotations::meta_for_targets(source, stmts, source_dir);
+    scan_meta_annotations(source, Some(symbols), &documents, &targets)
 }
 
 /// One metadata reference of an `@ meta(...)` value or of a quote's role:
@@ -2966,6 +3018,7 @@ fn scan_meta_annotations(
     source: &str,
     parsed_rule_symbols: Option<BTreeMap<usize, Vec<String>>>,
     documents: &annotations::Documents,
+    for_targets: &BTreeMap<String, (&'static str, String)>,
 ) -> MetaIndex {
     let lines: Vec<&str> = source.lines().collect();
     let read = annotations::read(source);
@@ -3017,6 +3070,7 @@ fn scan_meta_annotations(
         let last = section.quotes.last();
         anchors.push(MetaAnchor {
             kind: "section".to_string(),
+            declared_in: None,
             label: section.name.clone(),
             references,
             comment_line: section.line,
@@ -3055,6 +3109,7 @@ fn scan_meta_annotations(
             .collect();
         anchors.push(MetaAnchor {
             kind: item.kind.to_string(),
+            declared_in: None,
             label: item.name.clone(),
             references,
             comment_line: first_line,
@@ -3079,6 +3134,32 @@ fn scan_meta_annotations(
                 ),
             });
         }
+    }
+
+    // `@ meta(...) for <name>` is the same as `@ meta(...)` on the
+    // declaration: an anchor labelled with the declaration's name, whose
+    // value is resolved in this file.
+    for meta_for in &read.metas_for {
+        comments.push(comment("meta", &meta_for.target, meta_for.line));
+        let (kind, declared_in) = for_targets
+            .get(&meta_for.target)
+            .map_or(("unresolved", String::new()), |(kind, file)| (*kind, file.clone()));
+        anchors.push(MetaAnchor {
+            kind: kind.to_string(),
+            declared_in: Some(declared_in),
+            label: meta_for.target.clone(),
+            references: vec![annotation_meta_reference(
+                &meta_for.target,
+                &meta_for.value,
+                meta_for.line,
+            )],
+            comment_line: meta_for.line,
+            text_begin_marker_line: None,
+            text_end_marker_line: None,
+            text_start_line: None,
+            text_end_line: None,
+            text: String::new(),
+        });
     }
 
     for citation in &read.citations {

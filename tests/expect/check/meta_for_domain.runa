@@ -1,0 +1,8 @@
+-- expect-skip: dependency-only fixture: the domain declares the input, the metadata files describe it
+
+# Child(age: Int)
+# Input(child: Child)
+# Result(value: Int)
+
+@ calculate
+| calculate(input: Input) -> Result(value = input.child.age)

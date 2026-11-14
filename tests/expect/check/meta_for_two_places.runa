@@ -1,0 +1,18 @@
+-- A declaration's metadata is written in one place: on the declaration or
+-- in one `@ meta(...) for <name>`. Two `for`s for one type are an error that
+-- names both places.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the metadata of type `Child` is written in more than one place
+-- expect-stderr: meta_for_second.runa:9
+-- expect-stderr: meta_for_two_places.runa:17
+
+@ import ./meta_for_domain
+@ import ./meta_for_second
+
+# RelativeField(path: ProgramReference, label: String)
+# RelativeMeta(fields: List(RelativeField))
+# impl Meta for RelativeMeta {}
+
+@ meta(child_meta) for Child
+= child_meta = RelativeMeta(fields = [RelativeField(path = refof(Child::age), label = "Child age")])

@@ -424,11 +424,9 @@ const CALCULATION: &str = "# unit Ore \"DKK øre\"
     CalculationField(path = pathof(Account::shares), label = \"Shares\", unit = None)
 ])
 
---@label:account_total::meta:guide--
---@begin:account_total--
+@ meta(guide)
 @ calculate(\"Total of an account\")
 > account_total(a: Account) -> Result { Result(total_ore = a.cash_ore + sum_list(a.holdings)) }
---@end:account_total--
 ";
 
 #[test]

@@ -15,6 +15,52 @@ fn fnv1a_update(hash: &mut u64, value: &str) {
     }
 }
 
+/// Every `@ section <label> {` of a chapter, with the lines of the `----`
+/// block that quotes it (kept as a block comment directly above the
+/// section's `@ meta`, since the Constitution's text has no saved file) and
+/// the line of the `}` that closes it.
+fn constitution_sections<'a>(path: &Path, lines: &[&'a str]) -> Vec<(&'a str, usize, usize, usize)> {
+    let mut sections = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        let Some(label) = line
+            .strip_prefix("@ section ")
+            .and_then(|rest| rest.strip_suffix(" {"))
+        else {
+            continue;
+        };
+        assert_eq!(
+            lines.get(index - 1),
+            Some(&"@ meta(grundlov_kildemetadata)"),
+            "{} must attach the shared source metadata to {label}",
+            path.display()
+        );
+        assert_eq!(
+            (lines.get(index - 3), lines.get(index - 2)),
+            (Some(&"----"), Some(&"")),
+            "{} must place the legal source block directly above {label}",
+            path.display()
+        );
+        let open = lines[..index - 3]
+            .iter()
+            .rposition(|line| *line == "----")
+            .expect("opened Constitution source block");
+        let end = lines[index + 1..]
+            .iter()
+            .position(|line| *line == "}")
+            .map(|offset| index + 1 + offset)
+            .expect("closed Constitution section");
+        assert!(
+            lines[index + 1..end]
+                .iter()
+                .all(|line| !line.starts_with("@ section ")),
+            "{}: sections do not nest ({label})",
+            path.display()
+        );
+        sections.push((label, open, index - 3, end));
+    }
+    sections
+}
+
 #[test]
 fn constitution_source_blocks_have_canonical_typed_spans() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/danish-constitution");
@@ -39,55 +85,11 @@ fn constitution_source_blocks_have_canonical_typed_spans() {
             path.display()
         );
         let expected_file_blocks = delimiter_count / 2;
-        let mut labeled_file_blocks = 0;
-        let mut index = 0;
-
-        while index < lines.len() {
-            let Some(anchor) = lines[index].strip_prefix("--@label:") else {
-                index += 1;
-                continue;
-            };
-            let (label, binding) = anchor
-                .strip_suffix("--")
-                .and_then(|body| body.split_once("::meta:"))
-                .expect("canonical typed Constitution metadata anchor");
-            assert_eq!(
-                binding,
-                "grundlov_kildemetadata",
-                "{} uses an unexpected source binding for {label}",
-                path.display()
-            );
-            assert_eq!(
-                lines.get(index + 1),
-                Some(&"----"),
-                "{} must place the legal source block directly after {label}",
-                path.display()
-            );
-
-            let source_end = lines[index + 2..]
-                .iter()
-                .position(|line| *line == "----")
-                .map(|offset| index + 2 + offset)
-                .expect("closed Constitution source block");
-            let begin = format!("--@begin:{label}--");
-            let end = format!("--@end:{label}--");
-            assert_eq!(
-                lines.get(source_end + 2),
-                Some(&begin.as_str()),
-                "{} must begin the matching implementation span after {label}",
-                path.display()
-            );
-            assert_eq!(
-                lines.iter().filter(|line| **line == end).count(),
-                1,
-                "{} must contain exactly one end marker for {label}",
-                path.display()
-            );
-
+        let sections = constitution_sections(&path, &lines);
+        let labeled_file_blocks = sections.len();
+        for (label, _, _, _) in &sections {
             source_block_count += 1;
-            labeled_file_blocks += 1;
             *label_counts.entry(label.to_string()).or_default() += 1;
-            index = source_end + 1;
         }
 
         assert_eq!(
@@ -143,21 +145,8 @@ fn constitution_legal_text_matches_verified_source_fingerprint() {
     for path in chapter_paths(&root) {
         let source = fs::read_to_string(&path).expect("read Constitution chapter");
         let lines = source.lines().collect::<Vec<_>>();
-        for (index, line) in lines.iter().enumerate() {
-            let Some(anchor) = line.strip_prefix("--@label:") else {
-                continue;
-            };
-            let label = anchor
-                .strip_suffix("--")
-                .and_then(|body| body.split_once("::meta:"))
-                .map(|(label, _)| label)
-                .expect("canonical Constitution metadata anchor");
-            let source_end = lines[index + 2..]
-                .iter()
-                .position(|line| *line == "----")
-                .map(|offset| index + 2 + offset)
-                .expect("closed Constitution source block");
-            let normalized = lines[index + 2..source_end]
+        for (label, open, close, _) in constitution_sections(&path, &lines) {
+            let normalized = lines[open + 1..close]
                 .join(" ")
                 .split_whitespace()
                 .collect::<Vec<_>>()

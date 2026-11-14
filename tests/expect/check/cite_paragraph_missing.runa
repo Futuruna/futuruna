@@ -3,10 +3,14 @@
 -- expect-status: fail
 -- expect-stderr: citation `§ 2, stk. 3`: § 2, stk. 3 does not appear in the quote of this section; the quote holds § 1; § 2, stk. 1, 2 (section `tax`)
 
---@label:tax--
-----
-[sources/tax-law.txt]
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= tax_law = SourceInfo(file = "sources/tax-law.txt")
 
+@ section tax {
+
+@ quote(tax_law)
+----
 § 1. Skatten beregnes af summen af posterne.
 
 § 2. Skatten er 27 pct.
@@ -14,7 +18,7 @@
 Stk. 2. For indkomstår før 2020 er skatten 15 pct.
 ----
 
---@begin:tax--
---@cite:§ 2, stk. 3--
+@ cite(§ 2, stk. 3)
 | rate_bp(year: Int) -> 2700
---@end:tax--
+
+}

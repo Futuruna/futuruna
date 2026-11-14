@@ -64,6 +64,50 @@ fn parse_stdout(output: &Output) -> Value {
     })
 }
 
+/// `@ meta(B) for X` in a file of its own means what `@ meta(B)` on `X`'s
+/// declaration means: the contract's field metadata and its hash are the
+/// same.
+#[test]
+fn metadata_written_for_a_declaration_is_its_metadata() {
+    let directory = temp_path("dir");
+    std::fs::create_dir_all(&directory).expect("create model directory");
+    let meta_types = "# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# impl Meta for RelativeMeta {}\n";
+    let binding = "= child_meta = RelativeMeta(fields = [RelativeField(path = refof(Child::age), label = \"Child age\")])\n";
+    let types = "# Child(age: Int)\n# Input(child: Child)\n# Result(value: Int)\n";
+    let entry = "@ calculate\n| calculate(input: Input) -> Result(value = input.child.age)\n";
+    let on = directory.join("on.runa");
+    std::fs::write(
+        &on,
+        format!("{meta_types}{binding}@ meta(child_meta)\n{types}{entry}"),
+    )
+    .expect("write metadata on the declaration");
+    std::fs::write(directory.join("domain.runa"), types).expect("write domain");
+    std::fs::write(
+        directory.join("domain_meta.runa"),
+        format!("@ import ./domain\n{meta_types}{binding}@ meta(child_meta) for Child\n"),
+    )
+    .expect("write metadata apart");
+    let apart = directory.join("apart.runa");
+    std::fs::write(&apart, format!("@ import ./domain_meta\n{entry}")).expect("write entry");
+
+    let schema = |path: &Path| {
+        let output = run(&["schema", path.to_str().expect("source path")]);
+        assert!(
+            output.status.success(),
+            "stderr:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        parse_stdout(&output)
+    };
+    let (on_schema, apart_schema) = (schema(&on), schema(&apart));
+    std::fs::remove_dir_all(&directory).ok();
+    assert_eq!(on_schema["field_metadata"][0]["label"], "Child age");
+    assert_eq!(on_schema["field_metadata"], apart_schema["field_metadata"]);
+    assert_eq!(on_schema["schema_hash"], apart_schema["schema_hash"]);
+}
+
 fn fixture_facts() -> Value {
     serde_json::json!({
         "monthly_income": 0,
@@ -599,7 +643,7 @@ fn schema_preserves_localized_keyword_field_spelling() {
 # impl Meta for Beregningsmeta {}\n\
 = felt = Beregningsfelt(path = refof(Input::omfang), label = \"Beregningens omfang\")\n\
 = metadata = Beregningsmeta(attachments = (Field(value = felt),))\n\
---@label:beregn::meta:metadata--\n\
+@ meta(metadata)\n\
 @ calculate\n\
 | beregn(input: Input) -> Resultat(værdi = input.omfang)\n",
     )
@@ -649,7 +693,7 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
     Field(value = CalculationField(path = \"deduction\", label = \"Deduction\", question = Some(\"What may be deducted?\"), help = None, unit = Some(\"currency/year\"))),\n\
     Source(value = source),\n\
 ))\n\
---@label:calculate::meta:calculation_meta--\n\
+@ meta(calculation_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.monthly_income * 12 - input.deduction)\n",
     )
@@ -700,7 +744,7 @@ fn schema_lowers_structural_pathof_field_metadata_to_canonical_paths() {
     CalculationField(path = pathof(Input::income::$variant), label = \"Income kind\"),\n\
     CalculationField(path = pathof(Input::income::Wage::amount), label = \"Wage amount\")\n\
 ])\n\
---@label:calculate::meta:calculation_meta--\n\
+@ meta(calculation_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
@@ -740,11 +784,11 @@ fn schema_projects_typed_relative_field_metadata_and_prefers_exact_overrides() {
 = child_meta = RelativeMeta(fields = [\n\
     RelativeField(path = refof(Child::age), label = \"Child age\")\n\
 ])\n\
---@label:Child::meta:child_meta--\n\
+@ meta(child_meta) for Child\n\
 = exact_meta = ExactMeta(fields = [\n\
     ExactField(path = pathof(Input::first::primary::age), label = \"Primary child age\")\n\
 ])\n\
---@label:calculate::meta:exact_meta--\n\
+@ meta(exact_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
@@ -809,11 +853,11 @@ fn schema_projects_enum_discriminator_metadata_to_scalar_enum_columns() {
 = gift_meta = RelativeMeta(fields = [\n\
     RelativeField(path = refof(GiftInput::gifts::art::Binding::mode::$variant), label = \"Payment mode\")\n\
 ])\n\
---@label:GiftInput::meta:gift_meta--\n\
+@ meta(gift_meta) for GiftInput\n\
 = exact_meta = ExactMeta(fields = [\n\
     ExactField(path = pathof(Input::direct_mode::$variant), label = \"Direct mode\")\n\
 ])\n\
---@label:calculate::meta:exact_meta--\n\
+@ meta(exact_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
@@ -855,11 +899,11 @@ fn schema_exact_field_metadata_supersedes_multiple_relative_candidates() {
     RelativeField(path = refof(Child::age), label = \"Relative age one\"),\n\
     RelativeField(path = refof(Child::age), label = \"Relative age two\")\n\
 ])\n\
---@label:Child::meta:relative_meta--\n\
+@ meta(relative_meta) for Child\n\
 = exact_meta = ExactMeta(fields = [\n\
     ExactField(path = pathof(Input::child::age), label = \"Exact age\")\n\
 ])\n\
---@label:calculate::meta:exact_meta--\n\
+@ meta(exact_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.child.age)\n",
     )
@@ -894,7 +938,7 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
     RelativeField(path = refof(Child::age), label = \"Age one\"),\n\
     RelativeField(path = refof(Child::age), label = \"Age two\")\n\
 ])\n\
---@label:Child::meta:child_meta--\n\
+@ meta(child_meta) for Child\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
@@ -922,7 +966,7 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
 = invalid_meta = RelativeMeta(fields = [\n\
     RelativeField(path = refof(calculate), label = \"Invalid\")\n\
 ])\n\
---@label:calculate::meta:invalid_meta--\n\
+@ meta(invalid_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.value)\n",
     )
@@ -950,7 +994,7 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
 = exact_meta = ExactMeta(fields = [\n\
     ExactField(path = \"child.agee\", label = \"Child age\")\n\
 ])\n\
---@label:calculate::meta:exact_meta--\n\
+@ meta(exact_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
@@ -980,7 +1024,7 @@ const OPTIONAL_MEMBER_METADATA_SOURCE: &str = "# Child(age: Int, name: String)\n
     RelativeField(path = refof(Child::age), label = \"Child age\", question = Some(\"How old is the child?\")),\n\
     RelativeField(path = refof(Child::name), label = \"Child name\", question = None)\n\
 ])\n\
---@label:Child::meta:child_meta--\n\
+@ meta(child_meta) for Child\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.income)\n";
 
@@ -1188,7 +1232,7 @@ fn schema_expands_computed_typed_aggregate_meta_into_field_metadata() {
     FieldSeed(path = \"third\", label = \"Third value\")\n\
 ], fields_from_seed)\n\
 = calculation_meta = CalculationMeta(fields = concat(direct_fields, nested_fields))\n\
---@label:calculate::meta:calculation_meta--\n\
+@ meta(calculation_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.first + input.second + input.third)\n",
     )
@@ -1228,7 +1272,7 @@ fn schema_rejects_unknown_paths_from_computed_typed_aggregate_meta() {
     FieldSeed(path = \"not_an_input_path\", label = \"Invalid value\")\n\
 ], field_from_seed)\n\
 = calculation_meta = CalculationMeta(fields = computed_fields)\n\
---@label:calculate::meta:calculation_meta--\n\
+@ meta(calculation_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.amount)\n",
     )
@@ -1269,7 +1313,7 @@ fn schema_scopes_sources_through_nested_typed_metadata() {
     attachments = Source(value = second_source)\n\
 )\n\
 = calculation_meta = CalculationMeta(parts = (first_meta, second_meta))\n\
---@label:calculate::meta:calculation_meta--\n\
+@ meta(calculation_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.first + input.second)\n",
     )
@@ -23634,7 +23678,7 @@ fn calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
         "# Input(value: Int)\n\
 # CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
 = bad_field = CalculationField(path = \"missing\", label = \"Missing\", question = \"\", help = \"\", unit = \"\")\n\
---@label:calculate::field:bad_field--\n\
+@ meta(bad_field)\n\
 @ calculate\n\
 | calculate(input: Input) -> input.value\n",
     )
@@ -23651,7 +23695,8 @@ fn calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
 # CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
 = first_field = CalculationField(path = \"value\", label = \"First\", question = \"\", help = \"\", unit = \"\")\n\
 = second_field = CalculationField(path = \"Input.value\", label = \"Second\", question = \"\", help = \"\", unit = \"\")\n\
---@label:calculate::field:first_field::field:second_field--\n\
+@ meta(first_field)\n\
+@ meta(second_field)\n\
 @ calculate\n\
 | calculate(input: Input) -> input.value\n",
     )
@@ -23674,7 +23719,7 @@ fn aggregate_calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
 # CalculationMeta(fields: List(CalculationField))\n\
 # impl Meta for CalculationMeta {{}}\n\
 = calculation_meta = CalculationMeta(fields = [{fields}])\n\
---@label:calculate::meta:calculation_meta--\n\
+@ meta(calculation_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.value)\n"
         )
@@ -23721,7 +23766,7 @@ fn changing_field_metadata_makes_an_xlsx_template_stale() {
             "# Input(value: Int)\n\
 # CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
 = value_field = CalculationField(path = \"value\", label = {label:?}, question = \"What is the value?\", help = \"\", unit = \"\")\n\
---@label:calculate::field:value_field--\n\
+@ meta(value_field)\n\
 @ calculate\n\
 | calculate(input: Input) -> input.value\n"
         )
@@ -24840,7 +24885,7 @@ fn schema_field_metadata_precedence_is_exact_path_then_field_then_type() {
 = exact_meta = ExactMeta(fields = [\n\
     ExactField(path = pathof(Input::second::age), label = \"Second child's age\")\n\
 ])\n\
---@label:calculate::meta:exact_meta--\n\
+@ meta(exact_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = input.child.age)\n",
     )
@@ -24886,7 +24931,7 @@ fn schema_composes_declared_labels_below_labelled_record_fields() {
 = exact_meta = ExactMeta(fields = [\n\
     ExactField(path = pathof(Input::relabelled::start), label = \"First day\")\n\
 ])\n\
---@label:calculate::meta:exact_meta--\n\
+@ meta(exact_meta)\n\
 @ calculate\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )

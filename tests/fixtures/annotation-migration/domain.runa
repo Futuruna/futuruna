@@ -1,0 +1,4 @@
+@ import ./sources
+
+# Input(income: Int, deduction: Int)
+# Result(tax: Int, base: Int)

@@ -6428,11 +6428,21 @@ fn meta_index_json_value(
                 .filter(|reference| !filtered || reference.matches(type_filter, role_filter))
                 .map(meta_reference_json)
                 .collect();
+            // Metadata written apart (`@ meta(...) for <name>`) says where
+            // its declaration is; on the declaration it is this file.
+            let declared_in = match anchor.declared_in.as_deref() {
+                None => filename,
+                Some("") => filename,
+                Some(file) => file,
+            };
             serde_json::json!({
                 "target": {
                     "kind": anchor.kind,
                     "name": anchor.label,
+                    "declared_in": declared_in,
                 },
+                "written": if anchor.declared_in.is_some() { "for" } else { "on_declaration" },
+                "written_line": anchor.comment_line,
                 "kind": anchor.kind,
                 "label": anchor.label,
                 "comment_line": anchor.comment_line,
@@ -23637,7 +23647,7 @@ fn lsp_hover_in_document(
     col: u32,
     source_dir: Option<String>,
 ) -> serde_json::Value {
-    if let Some((name, _, fields)) = lsp_member_fields(source, line, col, source_dir) {
+    if let Some((name, _, fields)) = lsp_member_fields(source, line, col, source_dir.clone()) {
         return fields
             .iter()
             .find(|field| field.name == name)
@@ -23659,8 +23669,11 @@ fn lsp_hover_in_document(
     let mut parser = Parser::new(tokens, source);
     if let Ok(stmts) = parser.parse_program() {
         if let Some(info) = lsp_hover_from_ast(&word, &stmts) {
+            let note = lsp_metadata_note(source, &word, source_dir.as_deref())
+                .map(|note| format!("\n\n{note}"))
+                .unwrap_or_default();
             return serde_json::json!({
-                "contents": {"kind": "markdown", "value": format!("```runa\n{}\n```", info)}
+                "contents": {"kind": "markdown", "value": format!("```runa\n{}\n```{note}", info)}
             });
         }
     }
@@ -23674,6 +23687,51 @@ fn lsp_hover_in_document(
     }
 
     serde_json::Value::Null
+}
+
+/// The metadata of declaration `name` for a hover, and where each value is
+/// written: `@ meta(...)` on the declaration in this file, or
+/// `@ meta(...) for <name>` in any file of the project.
+fn lsp_metadata_note(source: &str, name: &str, source_dir: Option<&str>) -> Option<String> {
+    let mut places = Vec::new();
+    let index = futuruna::scan_meta_comments(source);
+    for anchor in index.anchors_for_label(name) {
+        if anchor.declared_in.is_some() && source_dir.is_some() {
+            continue;
+        }
+        for reference in &anchor.references {
+            let written = if anchor.declared_in.is_some() {
+                format!(" for {name}")
+            } else {
+                String::new()
+            };
+            places.push(format!(
+                "- `@ meta({}){written}`, line {}",
+                reference.binding_name, reference.comment_line
+            ));
+        }
+    }
+    if let Some(directory) = source_dir {
+        let root = migration_root(&Path::new(directory).join("_"));
+        let mut files = Vec::new();
+        collect_runa_files(&root.to_string_lossy(), &mut files);
+        files.sort();
+        let needle = format!(") for {name}");
+        for file in files {
+            let Ok(text) = std::fs::read_to_string(&file) else {
+                continue;
+            };
+            if !text.contains(&needle) {
+                continue;
+            }
+            for (index, line) in text.lines().enumerate() {
+                if line.starts_with("@ meta(") && line.trim_end().ends_with(&needle) {
+                    places.push(format!("- `{}`, {file}:{}", line.trim_end(), index + 1));
+                }
+            }
+        }
+    }
+    (!places.is_empty()).then(|| format!("Metadata:\n{}", places.join("\n")))
 }
 
 fn lsp_hover_from_ast(name: &str, stmts: &[Stmt]) -> Option<String> {

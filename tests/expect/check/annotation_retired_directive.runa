@@ -1,0 +1,8 @@
+-- A `--@` comment directive left in a model is an error, not a comment: a
+-- citation must not be lost by being read as one.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the `--@cite` comment directive is gone: write `@ cite(...)` on the line above the clause, member or function; `runa fmt --migrate <file>` rewrites the file
+
+--@cite:§ 2--
+| rate_bp(year: Int) -> 2700

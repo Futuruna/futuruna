@@ -1,0 +1,12 @@
+-- The input's field metadata, kept apart from the domain that declares it.
+@ import ./domain
+
+# Field(path: ProgramReference, label: String)
+# InputMeta(fields: List(Field))
+# impl Meta for InputMeta {}
+
+= input_meta = InputMeta(fields = [
+    Field(path = refof(Input::income), label = "Income"),
+    Field(path = refof(Input::deduction), label = "Deduction")
+])
+--@label:Input::meta:input_meta--

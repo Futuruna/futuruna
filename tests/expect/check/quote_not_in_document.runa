@@ -1,0 +1,23 @@
+-- Every paragraph of a quote is compared with the saved file of its
+-- document: a quote that drifted from the law is an error at its line.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: this quoted paragraph is not in `sources/tax-law.txt` (document `tax_law`) verbatim: § 2. Skatten er 25 pct.
+
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= tax_law = SourceInfo(file = "sources/tax-law.txt")
+
+@ section tax {
+
+@ quote(tax_law)
+----
+§ 1. Skatten beregnes af summen af posterne.
+
+§ 2. Skatten er 25 pct.
+----
+
+@ cite(§ 2)
+| rate_bp(year: Int) -> 2700
+
+}

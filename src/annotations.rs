@@ -107,12 +107,25 @@ pub(crate) struct CiteAnnotation {
     pub(crate) section: Option<String>,
 }
 
+/// `@ meta(<value>) for <name>`: metadata on a declaration written apart
+/// from it, standing alone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MetaFor {
+    pub(crate) line: usize,
+    /// The value as written.
+    pub(crate) value: String,
+    /// The declaration it describes, as named after `for`.
+    pub(crate) target: String,
+}
+
 /// The annotations of one source file.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Annotations {
     pub(crate) sections: Vec<Section>,
     pub(crate) item_metas: Vec<ItemMeta>,
     pub(crate) citations: Vec<CiteAnnotation>,
+    /// `@ meta(...) for <name>` lines.
+    pub(crate) metas_for: Vec<MetaFor>,
     /// Misplaced annotations, by line.
     pub(crate) errors: Vec<(usize, String)>,
 }
@@ -325,6 +338,15 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
             index += 1;
             continue;
         }
+        if first.kind == "meta_for" {
+            result.metas_for.push(MetaFor {
+                line: first.line,
+                value: first.argument.clone(),
+                target: first.target.clone().unwrap_or_default(),
+            });
+            index += 1;
+            continue;
+        }
         // A group: annotations on consecutive lines, with only comments
         // between; a section ends its group.
         let mut group = vec![index];
@@ -335,6 +357,7 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                 break;
             };
             if candidate.kind == "section_end"
+                || candidate.kind == "meta_for"
                 || ((end_line + 1)..candidate.line).any(|line| {
                     let trimmed = lines[line - 1].trim();
                     !is_comment_line(trimmed)
@@ -897,6 +920,354 @@ pub fn check_quoted_documents(filename: &str, source: &str) -> Vec<Diagnostic> {
     let root_errors = quote_errors_of(source, &stmts, &directory, &root);
     diagnostics.extend(line_diagnostics(source, root_errors));
     check_imported_quotes(&stmts, &directory, &root, &mut visited, &mut diagnostics);
+    diagnostics.extend(meta_for_diagnostics(filename, source, &stmts, &directory));
+    diagnostics
+}
+
+/// A declaration `@ meta(...) for <name>` may name.
+#[derive(Debug, Clone)]
+struct Declaration {
+    kind: &'static str,
+    line: usize,
+}
+
+/// One file of a program, as the metadata written apart from its
+/// declarations needs it.
+struct ProgramFile {
+    /// The path as the program reads it.
+    display: String,
+    source: Arc<str>,
+    annotations: Annotations,
+    declarations: Vec<(String, Declaration)>,
+    /// The files it imports, by key.
+    imports: Vec<String>,
+}
+
+/// The types, rules, functions and sections a file declares.
+fn file_declarations(source: &str, annotations: &Annotations) -> Vec<(String, Declaration)> {
+    let mut declarations = Vec::new();
+    let mut in_block = false;
+    for (index, line) in source.lines().enumerate() {
+        if line.starts_with("----") {
+            if in_block || block_comment_delimiter_count(line.trim()) % 2 == 1 {
+                in_block = !in_block;
+            }
+            continue;
+        }
+        if in_block || line.starts_with(char::is_whitespace) {
+            continue;
+        }
+        let declared = if line.starts_with('#') {
+            meta_type_symbol_name(line)
+                .filter(|name| !matches!(name.as_str(), "impl" | "trait" | "unit" | "effect"))
+                .map(|name| ("type", name))
+        } else if line.starts_with('|') {
+            meta_rule_symbol_name(line).map(|name| ("rule", name))
+        } else if line.starts_with('>') {
+            meta_fn_symbol_name(line).map(|name| ("function", name))
+        } else {
+            None
+        };
+        if let Some((kind, name)) = declared {
+            declarations.push((name, Declaration { kind, line: index + 1 }));
+        }
+    }
+    for section in &annotations.sections {
+        declarations.push((
+            section.name.clone(),
+            Declaration {
+                kind: "section",
+                line: section.line,
+            },
+        ));
+    }
+    declarations
+}
+
+/// The file `key` and every file it imports, transitively.
+fn collect_program_files(
+    key: String,
+    display: String,
+    source: Arc<str>,
+    stmts: &[Stmt],
+    directory: &str,
+    files: &mut BTreeMap<String, ProgramFile>,
+) {
+    let annotations = read(&source);
+    let declarations = file_declarations(&source, &annotations);
+    let mut imports = Vec::new();
+    let mut pending = Vec::new();
+    for stmt in stmts {
+        let Stmt::Import(import_path) = stmt else {
+            continue;
+        };
+        let Some(file_path) = Interpreter::resolve_import_path_for_source(import_path, directory)
+        else {
+            continue;
+        };
+        let canonical = std::fs::canonicalize(&file_path)
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| file_path.clone());
+        imports.push(canonical.clone());
+        pending.push((canonical, file_path));
+    }
+    files.insert(
+        key,
+        ProgramFile {
+            display,
+            source,
+            annotations,
+            declarations,
+            imports,
+        },
+    );
+    for (canonical, file_path) in pending {
+        if files.contains_key(&canonical) {
+            continue;
+        }
+        let Ok(module) = parse_source_module_file_cached(Path::new(&file_path)) else {
+            continue;
+        };
+        let nested = Path::new(&file_path)
+            .parent()
+            .map(|parent| parent.to_string_lossy().into_owned())
+            .unwrap_or_else(|| ".".to_string());
+        collect_program_files(
+            canonical,
+            file_path.clone(),
+            Arc::from(module.source()),
+            module.statements(),
+            &nested,
+            files,
+        );
+    }
+}
+
+/// The files in scope of `key`: itself and what it imports, transitively,
+/// in import order.
+fn files_in_scope(files: &BTreeMap<String, ProgramFile>, key: &str) -> Vec<String> {
+    let mut order = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut stack = vec![key.to_string()];
+    while let Some(next) = stack.pop() {
+        if !seen.insert(next.clone()) {
+            continue;
+        }
+        if let Some(file) = files.get(&next) {
+            stack.extend(file.imports.iter().rev().cloned());
+        }
+        order.push(next);
+    }
+    order
+}
+
+/// The declaration `@ meta(...) for <target>` in file `key` describes: its
+/// file's key, kind and line.
+fn resolve_meta_for(
+    files: &BTreeMap<String, ProgramFile>,
+    key: &str,
+    target: &str,
+) -> Result<(String, &'static str, usize), String> {
+    let mut found: Vec<(String, &'static str, usize)> = Vec::new();
+    for file_key in files_in_scope(files, key) {
+        let Some(file) = files.get(&file_key) else {
+            continue;
+        };
+        for (name, declaration) in &file.declarations {
+            // The clauses of one rule are one declaration.
+            let same = found.iter().any(|(other, kind, _)| {
+                *kind == declaration.kind && (*kind == "rule" || *other == file_key)
+            });
+            if name == target && !same {
+                found.push((file_key.clone(), declaration.kind, declaration.line));
+            }
+        }
+    }
+    match found.len() {
+        0 => Err(format!(
+            "`@ meta(...) for {target}`: no type, rule, function or section named `{target}` is declared in this file or a file it imports"
+        )),
+        1 => Ok(found.remove(0)),
+        _ => Err(format!(
+            "`@ meta(...) for {target}`: `{target}` names {}; write `@ meta(...)` on the line above the one it describes",
+            found
+                .iter()
+                .map(|(file, kind, line)| format!(
+                    "a {kind} at {}:{line}",
+                    files.get(file).map_or(file.as_str(), |file| file.display.as_str())
+                ))
+                .collect::<Vec<_>>()
+                .join(" and ")
+        )),
+    }
+}
+
+/// The kind and declaring file of every `@ meta(...) for <name>` in
+/// `source`, for the metadata index; the file is empty when it is `source`
+/// itself. Names that do not resolve are left out (`runa check` reports
+/// them).
+pub(crate) fn meta_for_targets(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+) -> BTreeMap<String, (&'static str, String)> {
+    if !source.contains(") for ") {
+        return BTreeMap::new();
+    }
+    let annotations = read(source);
+    if annotations.metas_for.is_empty() {
+        return BTreeMap::new();
+    }
+    let mut files = BTreeMap::new();
+    collect_program_files(
+        String::new(),
+        String::new(),
+        Arc::from(source),
+        stmts,
+        source_dir.unwrap_or("."),
+        &mut files,
+    );
+    annotations
+        .metas_for
+        .iter()
+        .filter_map(|meta_for| {
+            let (file, kind, _) = resolve_meta_for(&files, "", &meta_for.target).ok()?;
+            let display = files.get(&file).map(|file| file.display.clone())?;
+            Some((meta_for.target.clone(), (kind, display)))
+        })
+        .collect()
+}
+
+/// `@ meta(...) for <name>` across the program of `filename`: the name
+/// resolves to one declaration in scope, and a declaration takes its
+/// metadata in one place, on itself or in one `for`.
+fn meta_for_diagnostics(
+    filename: &str,
+    source: &str,
+    stmts: &[Stmt],
+    directory: &str,
+) -> Vec<Diagnostic> {
+    let mut files = BTreeMap::new();
+    let root = std::fs::canonicalize(filename)
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| filename.to_string());
+    collect_program_files(
+        root.clone(),
+        filename.to_string(),
+        Arc::from(source),
+        stmts,
+        directory,
+        &mut files,
+    );
+    if files
+        .values()
+        .all(|file| file.annotations.metas_for.is_empty())
+    {
+        return Vec::new();
+    }
+    let mut errors: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+    // Every place a declaration's metadata is written: (file, line).
+    let mut places: BTreeMap<(&'static str, String, String), Vec<(String, usize, bool)>> =
+        BTreeMap::new();
+    let declaration_key = |kind: &'static str, file: &str, name: &str| {
+        // A rule's clauses may stand in several files.
+        let file = if kind == "rule" { String::new() } else { file.to_string() };
+        (kind, file, name.to_string())
+    };
+    for (key, file) in &files {
+        let mut previous: Option<(&str, usize)> = None;
+        for meta_for in &file.annotations.metas_for {
+            match resolve_meta_for(&files, key, &meta_for.target) {
+                Ok((declared, kind, _)) => {
+                    // Consecutive lines for one name are one place.
+                    let continues = previous.is_some_and(|(target, line)| {
+                        target == meta_for.target
+                            && file.source.lines().skip(line).take(meta_for.line - line - 1).all(
+                                |text| {
+                                    let trimmed = text.trim();
+                                    trimmed.starts_with("--") && !trimmed.starts_with("----")
+                                },
+                            )
+                    });
+                    previous = Some((&meta_for.target, meta_for.line));
+                    if !continues {
+                        places
+                            .entry(declaration_key(kind, &declared, &meta_for.target))
+                            .or_default()
+                            .push((key.clone(), meta_for.line, true));
+                    }
+                }
+                Err(message) => {
+                    previous = None;
+                    errors
+                        .entry(key.clone())
+                        .or_default()
+                        .push((meta_for.line, message));
+                }
+            }
+        }
+    }
+    for (key, file) in &files {
+        for item_meta in &file.annotations.item_metas {
+            let item = &item_meta.item;
+            if !matches!(item.kind, "type" | "rule" | "function") {
+                continue;
+            }
+            let declaration = declaration_key(item.kind, key, &item.name);
+            if let Some(found) = places.get_mut(&declaration) {
+                let line = item_meta.metas.first().map_or(item.line, |meta| meta.line);
+                found.push((key.clone(), line, false));
+            }
+        }
+        for section in &file.annotations.sections {
+            let declaration = declaration_key("section", key, &section.name);
+            if let (Some(found), Some(meta)) = (places.get_mut(&declaration), section.metas.first())
+            {
+                found.push((key.clone(), meta.line, false));
+            }
+        }
+    }
+    for ((kind, _, name), found) in &places {
+        if found.len() < 2 {
+            continue;
+        }
+        let shown = |(file, line, apart): &(String, usize, bool)| {
+            let display = files.get(file).map_or(file.as_str(), |file| file.display.as_str());
+            if *apart {
+                format!("`@ meta(...) for {name}` at {display}:{line}")
+            } else {
+                format!("`@ meta(...)` on the {kind} at {display}:{line}")
+            }
+        };
+        let all = found.iter().map(shown).collect::<Vec<_>>().join(" and ");
+        for (file, line, apart) in found {
+            if *apart {
+                errors.entry(file.clone()).or_default().push((
+                    *line,
+                    format!(
+                        "the metadata of {kind} `{name}` is written in more than one place: {all}; write it in one, so a reader finds all of it there"
+                    ),
+                ));
+            }
+        }
+    }
+    let mut diagnostics = Vec::new();
+    for (key, file_errors) in errors {
+        let Some(file) = files.get(&key) else {
+            continue;
+        };
+        for mut diagnostic in line_diagnostics(&file.source, file_errors) {
+            if key != root {
+                diagnostic.origin = Some(DiagnosticOrigin {
+                    path: PathBuf::from(&key),
+                    source: file.source.clone(),
+                    span: diagnostic.span,
+                });
+                diagnostic.span = None;
+            }
+            diagnostics.push(diagnostic);
+        }
+    }
     diagnostics
 }
 
@@ -1058,6 +1429,23 @@ mod tests {
     }
 
     #[test]
+    fn metadata_written_for_a_declaration_stands_alone() {
+        let source = "@ meta(guide) for Input\n@ meta(note)\n| f(x: Int) -> x\n";
+        let annotations = read(source);
+        assert_eq!(annotations.errors, Vec::<(usize, String)>::new());
+        assert_eq!(
+            annotations.metas_for,
+            vec![MetaFor {
+                line: 1,
+                value: "guide".to_string(),
+                target: "Input".to_string(),
+            }]
+        );
+        assert_eq!(annotations.item_metas[0].metas.len(), 1);
+        assert_eq!(annotations.item_metas[0].item.name, "f");
+    }
+
+    #[test]
     fn retired_directives_and_broken_sections_are_lexical_errors() {
         for (source, expected) in [
             ("--@label:x::meta:y--\n", "runa fmt --migrate"),
@@ -1065,6 +1453,8 @@ mod tests {
             ("@ section a {\n@ section b {\n}\n}\n", "do not nest"),
             ("@ section a {\n| f(x: Int) -> x\n", "no closing `}`"),
             ("> g() -> Int {\n@ section a {\n}\n1\n}\n", "top level"),
+            ("> g() -> Int {\n    @ meta(m) for X\n    1\n}\n", "stands alone at top level"),
+            ("@ meta(m) for\n", "names the declaration"),
         ] {
             let tokens = Lexer::new(source).tokenize();
             assert!(

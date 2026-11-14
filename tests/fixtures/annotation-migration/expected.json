@@ -1,0 +1,24 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.output.v1",
+    "schema_hash": "6f2939b9533bda47953921dae58f3c0ad4880c3b2d615224ff5011a57305dff5",
+    "entry": "calculate"
+  },
+  "results": [
+    {
+      "case_id": "small-deduction",
+      "result": {
+        "base": 49600,
+        "tax": 4960
+      }
+    },
+    {
+      "case_id": "capped-deduction",
+      "result": {
+        "base": 49000,
+        "tax": 4900
+      }
+    }
+  ],
+  "diagnostics": []
+}

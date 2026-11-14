@@ -118,7 +118,7 @@ fn multiline_and_template_strings_keep_their_exact_value() {
 fn quoted_legal_source_preserves_indentation_spaces_and_blank_lines() {
     let quoted =
         "----\nSection 3. Text.  \n      Item 1) indented item\n\n\n   Item 2) other\n----";
-    let source = format!("# SourceInfo(identifier: String)\n# impl Meta for SourceInfo {{}}\n= section_meta = SourceInfo(identifier = \"section 3\")\n\n--@label:section3::meta:section_meta--\n{quoted}\n--@begin:section3--\n| permitted()->True\n--@end:section3--\n");
+    let source = format!("# SourceInfo(file: String)\n# impl Document for SourceInfo {{}}\n= section_document = SourceInfo(file = \"section3.txt\")\n\n@ section section3 {{\n\n@ quote(section_document)\n{quoted}\n\n| permitted()->True\n\n}}\n");
     let formatted = format_successfully(&source);
     assert!(formatted.contains(quoted), "{formatted}");
     // Raw source text is provenance independent of the executable AST.

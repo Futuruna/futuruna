@@ -1,0 +1,14 @@
+-- `@ meta(...) for <name>` names a declaration in scope; a name that names
+-- nothing is an error, never a string that silently describes nothing.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ meta(...) for Chlid`: no type, rule, function or section named `Chlid` is declared in this file or a file it imports
+
+@ import ./meta_for_domain
+
+# RelativeField(path: ProgramReference, label: String)
+# RelativeMeta(fields: List(RelativeField))
+# impl Meta for RelativeMeta {}
+
+= child_meta = RelativeMeta(fields = [RelativeField(path = refof(Child::age), label = "Child age")])
+@ meta(child_meta) for Chlid
