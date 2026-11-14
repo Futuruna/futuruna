@@ -935,7 +935,7 @@ test at the query, naming its round (the how-manyth time this query ran) and
 the completion that disproves it:
 
 ```text
-tests/interviews.runa:7: query tax_of, round 1: the propagated result is Complete, but the completion income = 120 returns a different result: {"tax":12} instead of {"tax":4}
+asks_income.runa:7: query tax_of, round 1: the propagated result is Complete, but the completion income = -1 returns a different result: {"tax":0} instead of {"tax":-10}
 ```
 
 `runa build` and `runa run` refuse a program with a `query` or `unknown`,

@@ -338,17 +338,17 @@ pub(crate) fn check_program(
     checker: &TypeChecker,
 ) -> Vec<Diagnostic> {
     let files = program_files(statements, source, checker);
+    let mut diagnostics = path_comparisons(&files);
     let mentions = files
         .iter()
         .any(|file| file.statements.iter().any(stmt_mentions_query_or_unknown));
     if !mentions {
-        return Vec::new();
+        return diagnostics;
     }
     let entries: BTreeSet<&str> = files
         .iter()
         .flat_map(|file| calculation_entries(file.statements))
         .collect();
-    let mut diagnostics = Vec::new();
     for file in &files {
         let mut placement = Placement {
             file,
@@ -361,6 +361,39 @@ pub(crate) fn check_program(
         }
     }
     diagnostics.extend(reachability(&files, &entries));
+    diagnostics
+}
+
+/// `pathof(A::...) == pathof(B::...)` with `A` not `B` compares paths into
+/// different types, which are never equal: a check error, as a `Path(A)`
+/// compared with a `pathof` rooted elsewhere is.
+fn path_comparisons(files: &[ProgramFile]) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    for file in files {
+        for statement in file.statements {
+            walk_ast_stmt(statement, &mut |child| {
+                let AstChild::Expr(expr) = child else {
+                    return;
+                };
+                let ExprKind::BinOp(operator, left, right) = &expr.kind else {
+                    return;
+                };
+                if operator != "==" && operator != "!=" {
+                    return;
+                }
+                if let (Some(left_root), Some(right_root)) = (pathof_root(left), pathof_root(right)) {
+                    if left_root != right_root {
+                        diagnostics.push(file.diagnostic(
+                            expr.span,
+                            format!(
+                                "`{operator}` compares a `Path({left_root})` with a `Path({right_root})`: paths into different types are never equal. Compare paths of one root"
+                            ),
+                        ));
+                    }
+                }
+            });
+        }
+    }
     diagnostics
 }
 
@@ -1940,14 +1973,14 @@ mod tests {
                 "= same = pathof(Case::spouse::income) == pathof(Case::spouse::income)",
                 "same"
             ),
-            "True"
+            "true"
         );
         assert_eq!(
             value_of(
                 "= indexed = pathof(Case::incomes[1]) == pathof(Case::incomes[1])",
                 "indexed"
             ),
-            "True"
+            "true"
         );
     }
 
@@ -1958,14 +1991,14 @@ mod tests {
                 "= other = pathof(Case::income) == pathof(Case::spouse::income)",
                 "other"
             ),
-            "False"
+            "false"
         );
         assert_eq!(
             value_of(
                 "= index = pathof(Case::incomes[0]) == pathof(Case::incomes[1])",
                 "index"
             ),
-            "False"
+            "false"
         );
     }
 

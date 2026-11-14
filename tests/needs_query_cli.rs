@@ -67,7 +67,7 @@ fn runa_test(dir: &Path, arguments: &[&str], fault: Option<&str>) -> String {
 fn a_query_passes_runa_test_and_runs_interpreted_under_run() {
     let dir = fixture(ASKS_INCOME);
     let tested = runa_test(&dir, &[], None);
-    assert!(tested.contains("1 passed"), "{tested}");
+    assert!(tested.contains("All 1 tests passed"), "{tested}");
     let run = runa_test(&dir, &["--run"], None);
     assert!(run.contains("interpreted (query)"), "{run}");
     let _ = std::fs::remove_dir_all(dir);
