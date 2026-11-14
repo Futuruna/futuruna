@@ -1,0 +1,27 @@
+-- `unknown` is placed, never read; `query` asks only a calculation entry.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `unknown` cannot be a side of a comparison
+-- expect-stderr: `unknown` takes the type of its place, and this place has none
+-- expect-stderr: `unknown` cannot be an argument of a builtin
+-- expect-stderr: `query` asks a calculation entry (`@ calculate`); `threshold` is not one
+
+# Spouse(@ field(label = "Spouse's income") income: Int, cohabiting: Bool)
+# Household(income: Int, married: Bool, spouse: Option(Spouse))
+# Result(tax: Int)
+
+@ section transfer {
+| threshold(h: Household) -> match h.spouse {
+    | Some(s) -> if s.cohabiting { 200 - s.income } else { 100 }
+    | None -> 100
+}
+}
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))
+
+= compared = unknown == 3
+= untyped = unknown
+= shown = show(unknown)
+= typed: Int = unknown
+= asked = query threshold(Household(income = 1, married = False, spouse = None))

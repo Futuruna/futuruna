@@ -69,6 +69,12 @@ fn replace_current(
     CURRENT.with(|current| current.replace(elaboration))
 }
 
+/// The elaboration current on this thread, to restore after checking another
+/// program.
+pub(crate) fn current_elaboration() -> Option<Arc<ConstructorElaboration>> {
+    CURRENT.with(|current| current.borrow().clone())
+}
+
 /// Run `run` with `elaboration` as this thread's constructor names and
 /// imports, then restore the ones current before, also when `run` panics.
 /// `None` runs a program that renames nothing: no other program's names are
@@ -1881,7 +1887,14 @@ impl ConstructorScopeWalk<'_> {
         // Compiler markers carry names and types, not values.
         if let ExprKind::Var(marker) = &function.kind {
             match marker.as_str() {
-                PATHOF_MARKER | REFOF_MARKER => return,
+                PATHOF_MARKER | REFOF_MARKER | UNKNOWN_MARKER => return,
+                // `query entry(case)`: the entry call, read as any call.
+                QUERY_MARKER => {
+                    for argument in arguments.iter_mut() {
+                        self.expr(argument, &Expect::none(), locals);
+                    }
+                    return;
+                }
                 "__typed" => {
                     if let Some(value) = arguments.first_mut() {
                         self.expr(value, &Expect::none(), locals);

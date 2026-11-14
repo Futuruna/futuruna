@@ -1,0 +1,51 @@
+-- A query asks a calculation entry about a case with unknowns; interview
+-- answers its needs round by round until the case is complete.
+-- expect-command: interp
+-- expect-stdout: |two_rounds| holds
+-- expect-stdout: |first_asks_the_spouse| holds
+-- expect-stdout: |alone_is_complete| holds
+-- expect-stdout: |ends_complete| holds
+-- expect-stdout: |transfer_section_waits| holds
+
+# Spouse(@ field(label = "Spouse's income") income: Int, cohabiting: Bool)
+# Household(income: Int, married: Bool, spouse: Option(Spouse))
+# Result(tax: Int)
+
+@ section transfer {
+| threshold(h: Household) -> match h.spouse {
+    | Some(s) -> if s.cohabiting { 200 - s.income } else { 100 }
+    | None -> 100
+}
+}
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))
+= alone = Household(income = 500, married = False, spouse = None)
+= with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
+
+= first = query household_tax(Household(income = 500, married = True, spouse = unknown))
+| first_asks_the_spouse: first -> match first {
+    | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)]
+    | Complete -> False
+}
+
+= decided = query household_tax(alone)
+| alone_is_complete: decided -> match decided {
+    | Complete -> decided.result == household_tax(alone)
+    | Needs -> False
+}
+
+= asked = interview(|c| query household_tax(c), Household(income = 500, married = True, spouse = unknown), with_spouse)
+| two_rounds: asked -> asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]
+| ends_complete: asked -> asked.result == household_tax(with_spouse)
+
+? first_asks_the_spouse
+? alone_is_complete
+? two_rounds
+| transfer_section_waits: first -> match first {
+    | Needs -> all(first.needs, |n| any(n.waiting, |w| w.section == Some(refof(section transfer))))
+    | Complete -> False
+}
+
+? ends_complete
+? transfer_section_waits

@@ -30,13 +30,13 @@
     | ResolvedByAssumption(assumption_id) -> conformance_assumption_exists(assumptions, assumption_id)
     | OutsideComparedOutputs(reason) -> conformance_non_empty(reason)
 }
-| conformance_unknown_blocks_comparison(unknown: ConformanceUnknownFact) -> match unknown.treatment {
+| conformance_unknown_blocks_comparison(fact: ConformanceUnknownFact) -> match fact.treatment {
     | BlocksComparison(_) -> true
     | _ -> false
 }
-| conformance_unknown_fact_valid(unknown: ConformanceUnknownFact, assumptions: List(ConformanceAssumption)) -> conformance_non_empty(unknown.id) && conformance_non_empty(unknown.statement) && conformance_unknown_treatment_valid(unknown.treatment, assumptions)
-| conformance_unknown_ids_unique(unknowns: List(ConformanceUnknownFact)) -> length(distinct(map(unknowns, |unknown: ConformanceUnknownFact| unknown.id))) == length(unknowns)
-| conformance_unknowns_valid(unknowns: List(ConformanceUnknownFact), assumptions: List(ConformanceAssumption)) -> conformance_unknown_ids_unique(unknowns) && all(unknowns, |unknown: ConformanceUnknownFact| conformance_unknown_fact_valid(unknown, assumptions))
+| conformance_unknown_fact_valid(fact: ConformanceUnknownFact, assumptions: List(ConformanceAssumption)) -> conformance_non_empty(fact.id) && conformance_non_empty(fact.statement) && conformance_unknown_treatment_valid(fact.treatment, assumptions)
+| conformance_unknown_ids_unique(unknowns: List(ConformanceUnknownFact)) -> length(distinct(map(unknowns, |fact: ConformanceUnknownFact| fact.id))) == length(unknowns)
+| conformance_unknowns_valid(unknowns: List(ConformanceUnknownFact), assumptions: List(ConformanceAssumption)) -> conformance_unknown_ids_unique(unknowns) && all(unknowns, |fact: ConformanceUnknownFact| conformance_unknown_fact_valid(fact, assumptions))
 | conformance_has_blocking_unknown(unknowns: List(ConformanceUnknownFact)) -> any(unknowns, conformance_unknown_blocks_comparison)
 
 | conformance_observed_output_valid(output: ConformanceObservedOutput) -> conformance_non_empty(output.id) && conformance_non_empty(output.label) && conformance_non_empty(output.unit) && conformance_non_empty(output.source_reference)

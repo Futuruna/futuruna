@@ -34,10 +34,10 @@ use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex, OnceLock};
 
 mod annotation_types;
+mod annotations;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
-mod annotations;
 mod citations;
 mod constructor_scope;
 pub use constructor_scope::{
@@ -73,6 +73,7 @@ mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
 pub mod partial;
+pub mod query;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
@@ -691,8 +692,13 @@ pub fn parse_prelude() -> Vec<Stmt> {
 }
 
 /// Prepend prelude statements to user statements, skipping prelude definitions
-/// that the user has already defined (user definitions take priority).
-pub fn prepend_prelude(prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
+/// that the user has already defined (user definitions take priority). A
+/// program that asks a `query` or places an `unknown` also gets the types and
+/// functions of needs in the language (`query::needs_prelude`).
+pub fn prepend_prelude(mut prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
+    if query::program_uses_needs(user_stmts) {
+        prelude.extend(query::needs_prelude());
+    }
     // Collect names defined by the user
     let mut user_names: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for s in user_stmts {
@@ -848,9 +854,7 @@ impl Lexer {
     /// A retired `--@label`, `--@begin`, `--@end`, `--@cite`, `--@source`
     /// or `--@meta` comment directive at the current position.
     fn retired_directive(&self) -> Option<String> {
-        if !(self.peek() == Some('-')
-            && self.peek2() == Some('-')
-            && self.peek_at(2) == Some('@'))
+        if !(self.peek() == Some('-') && self.peek2() == Some('-') && self.peek_at(2) == Some('@'))
         {
             return None;
         }
@@ -980,9 +984,7 @@ impl Lexer {
             self.advance();
         }
         if depth != 0 {
-            return Some(Err(error(format!(
-                "`@ {kind}(` has no closing `)`"
-            ))));
+            return Some(Err(error(format!("`@ {kind}(` has no closing `)`"))));
         }
         let end_line = self.line;
         // `@ meta(<value>) for <name>`: metadata written apart from its
@@ -2876,7 +2878,9 @@ fn collect_imported_meta_anchors_from_stmts(
             .unwrap_or_else(|| ".".to_string());
 
         if imported_source.contains("@ ")
-            && labels.iter().any(|label| imported_source.contains(label.as_str()))
+            && labels
+                .iter()
+                .any(|label| imported_source.contains(label.as_str()))
         {
             let mut imported_index = scan_meta_comment_structure_from_stmts(
                 imported_source,
@@ -3084,7 +3088,11 @@ fn scan_meta_annotations(
             ));
         }
         for meta in &section.metas {
-            references.push(annotation_meta_reference(&section.name, &meta.value, meta.line));
+            references.push(annotation_meta_reference(
+                &section.name,
+                &meta.value,
+                meta.line,
+            ));
             comments.push(comment("meta", &section.name, meta.line));
         }
         comments.push(comment("section", &section.name, section.line));
@@ -3165,7 +3173,9 @@ fn scan_meta_annotations(
         comments.push(comment("meta", &meta_for.target, meta_for.line));
         let (kind, declared_in) = for_targets
             .get(&meta_for.target)
-            .map_or(("unresolved", String::new()), |(kind, file)| (*kind, file.clone()));
+            .map_or(("unresolved", String::new()), |(kind, file)| {
+                (*kind, file.clone())
+            });
         anchors.push(MetaAnchor {
             kind: kind.to_string(),
             declared_in: Some(declared_in),
@@ -4096,8 +4106,7 @@ fn resolve_meta_references_with_stmts_and_checker(
                     &mut visiting,
                     &mut ground_evaluator,
                 );
-                reference.static_value =
-                    reference.static_data.as_ref().map(MetaValue::to_source);
+                reference.static_value = reference.static_data.as_ref().map(MetaValue::to_source);
                 let mut roots = BTreeSet::new();
                 collect_meta_expr_dependencies(&expr, &mut roots);
                 reference.value_binding_definitions =
@@ -4721,11 +4730,17 @@ mod meta_comment_tests {
         assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
         assert_eq!(index.anchors.len(), 1);
         let anchor = &index.anchors[0];
-        assert_eq!((anchor.kind.as_str(), anchor.label.as_str()), ("section", "kommunal_par5_stk3"));
+        assert_eq!(
+            (anchor.kind.as_str(), anchor.label.as_str()),
+            ("section", "kommunal_par5_stk3")
+        );
         assert_eq!(anchor.comment_line, 9);
         assert_eq!(anchor.references[0].role, "meta");
         assert_eq!(anchor.references[0].binding_name, "source1234");
-        assert_eq!(anchor.references[0].qualified_type.as_deref(), Some("SourceInfo"));
+        assert_eq!(
+            anchor.references[0].qualified_type.as_deref(),
+            Some("SourceInfo")
+        );
         assert_eq!(
             anchor.references[0].static_value.as_deref(),
             Some("SourceInfo(url = \"ret.dk/1234\")")
@@ -4794,7 +4809,13 @@ Guide.
             .references
             .iter()
             .flat_map(|reference| reference.attachments())
-            .map(|attachment| format!("{} {}", attachment.role, attachment.binding_name.unwrap_or("-")))
+            .map(|attachment| {
+                format!(
+                    "{} {}",
+                    attachment.role,
+                    attachment.binding_name.unwrap_or("-")
+                )
+            })
             .collect();
         assert_eq!(roles, vec!["source law", "guidance guide"]);
     }
@@ -4953,7 +4974,10 @@ Guide.
 
         assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
         let reference = &index.anchors[0].references[0];
-        assert_eq!(reference.meta_role_types, BTreeSet::from(["SourceMetaRole".into()]));
+        assert_eq!(
+            reference.meta_role_types,
+            BTreeSet::from(["SourceMetaRole".into()])
+        );
         let attachments = reference.attachments();
         assert_eq!(attachments.len(), 2);
         assert_eq!(attachments[0].role, "source");
@@ -5016,7 +5040,9 @@ Guide.
         assert!(index.diagnostics.iter().any(|diagnostic| {
             diagnostic.line == 13
                 && diagnostic.message.contains("metadata role `Source`")
-                && diagnostic.message.contains("exactly one named `value` field")
+                && diagnostic
+                    .message
+                    .contains("exactly one named `value` field")
         }));
         assert!(index.anchors[0].references[0].attachments().is_empty());
     }
@@ -5440,6 +5466,108 @@ pub enum ExprKind {
 pub const NAMED_ARG_MARKER: &str = "__named_arg";
 pub const PATHOF_MARKER: &str = "__pathof";
 pub const REFOF_MARKER: &str = "__refof";
+/// `unknown`: a value not known yet, placed in a case a `query` asks.
+pub const UNKNOWN_MARKER: &str = "__unknown";
+/// `query entry(case)`: `App(Var(QUERY_MARKER), [App(Var(entry), [case])])`,
+/// so every pass reads the entry call as an ordinary call.
+pub const QUERY_MARKER: &str = "__query";
+
+/// `unknown` is a reserved word: it may not name a binding, parameter or
+/// function.
+pub fn reject_reserved_name(name: &str, line: usize, col: usize) -> Result<(), String> {
+    if name == "unknown" {
+        return Err(format!(
+            "{line}:{col}: `unknown` is a reserved word (a value not known yet); rename this binding, as `runa fmt --migrate` does to `unknown_`"
+        ));
+    }
+    Ok(())
+}
+
+/// Whether `expr` is the `unknown` expression.
+pub fn is_unknown_expr(expr: &Expr) -> bool {
+    matches!(&expr.kind, ExprKind::App(function, arguments)
+        if arguments.is_empty() && matches!(&function.kind, ExprKind::Var(name) if name == UNKNOWN_MARKER))
+}
+
+/// The parts of `query entry(case)`: the entry's name, the entry call and the
+/// case.
+pub fn query_parts(expr: &Expr) -> Option<(&str, &Expr, &Expr)> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == QUERY_MARKER)
+        || arguments.len() != 1
+    {
+        return None;
+    }
+    let call = &arguments[0];
+    let ExprKind::App(entry, case) = &call.kind else {
+        return None;
+    };
+    let ExprKind::Var(entry) = &entry.kind else {
+        return None;
+    };
+    match case.as_slice() {
+        [case] => Some((entry.as_str(), call, case)),
+        _ => None,
+    }
+}
+
+/// Whether `expr` contains a `query` or an `unknown`.
+pub fn expr_mentions_query_or_unknown(expr: &Expr) -> bool {
+    if is_unknown_expr(expr) || query_parts(expr).is_some() {
+        return true;
+    }
+    let mut found = false;
+    visit_ast_expr_children(expr, &mut |child| {
+        found = found
+            || match child {
+                AstChild::Expr(child) => expr_mentions_query_or_unknown(child),
+                AstChild::Stmt(statement) => stmt_mentions_query_or_unknown(statement),
+            };
+    });
+    found
+}
+
+/// Whether `statement` contains a `query` or an `unknown`.
+pub fn stmt_mentions_query_or_unknown(statement: &Stmt) -> bool {
+    let mut found = false;
+    visit_ast_stmt_children(statement, &mut |child| {
+        found = found
+            || match child {
+                AstChild::Expr(child) => expr_mentions_query_or_unknown(child),
+                AstChild::Stmt(statement) => stmt_mentions_query_or_unknown(statement),
+            };
+    });
+    found
+}
+
+/// The root type of a `pathof`.
+pub fn pathof_root(expr: &Expr) -> Option<&str> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == PATHOF_MARKER) {
+        return None;
+    }
+    match &arguments.first()?.kind {
+        ExprKind::Lit(Literal::Str(root)) => Some(root),
+        _ => None,
+    }
+}
+
+/// Join `pathof` segments into the JSON path: fields with `.`, list indices
+/// (`[1]`) directly after their list.
+pub fn join_pathof_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut path = String::new();
+    for segment in segments {
+        if !path.is_empty() && !segment.starts_with('[') {
+            path.push('.');
+        }
+        path.push_str(segment);
+    }
+    path
+}
 
 /// Expression AST node: wraps ExprKind with source location.
 #[derive(Debug, Clone)]
@@ -5525,16 +5653,25 @@ pub fn pathof_canonical_path(expr: &Expr) -> Option<String> {
             _ => None,
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(segments.join("."))
+    Some(join_pathof_segments(segments))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProgramReferenceLiteral {
-    Symbol { name: String },
-    Type { name: String },
-    Member { root_type: String, path: String },
+    Symbol {
+        name: String,
+    },
+    Type {
+        name: String,
+    },
+    Member {
+        root_type: String,
+        path: String,
+    },
     /// `refof(section <name>)`.
-    Section { name: String },
+    Section {
+        name: String,
+    },
 }
 
 /// Decode the parser's internal `refof` expression into its portable value.
@@ -7372,7 +7509,15 @@ fn collect_true_free_symbol_uses(
 ) {
     // These parser intrinsics contain declaration identities, not evaluated
     // callees or captured values. Their portable literal needs no environment.
-    if pathof_canonical_path(expr).is_some() || refof_literal(expr).is_some() {
+    if pathof_canonical_path(expr).is_some()
+        || refof_literal(expr).is_some()
+        || is_unknown_expr(expr)
+    {
+        return;
+    }
+    // `query entry(case)` uses what the entry call uses.
+    if let Some((_, call, _)) = query_parts(expr) {
+        collect_true_free_symbol_uses(call, uses, bound, typed_receivers);
         return;
     }
     match &expr.kind {
@@ -9905,6 +10050,15 @@ impl Parser {
         }
     }
 
+    /// A name a binding, parameter or function introduces; `unknown` is
+    /// reserved.
+    pub fn expect_binding_name(&mut self) -> Result<String, String> {
+        let tok = self.peek().clone();
+        let name = self.expect_ident()?;
+        reject_reserved_name(&name, tok.line, tok.col)?;
+        Ok(name)
+    }
+
     pub fn expect_field_name(&mut self) -> Result<String, String> {
         let tok = self.advance();
         match tok.kind {
@@ -11695,6 +11849,7 @@ impl Parser {
     pub fn parse_definition(&mut self) -> Result<Stmt, String> {
         let name_tok = self.advance();
         let name = name_tok.text;
+        reject_reserved_name(&name, name_tok.line, name_tok.col)?;
 
         // > actor Name(state) { ... }
         if name == "actor" {
@@ -11815,7 +11970,7 @@ impl Parser {
     pub fn parse_params(&mut self) -> Result<Vec<Param>, String> {
         self.expect(TokenKind::LParen)?;
         self.parse_comma_separated(TokenKind::RParen, "function parameter", |parser| {
-            let name = parser.expect_ident()?;
+            let name = parser.expect_binding_name()?;
             let mut inout = false;
             let ty = if parser.peek_kind() == TokenKind::Colon {
                 parser.advance();
@@ -13489,6 +13644,7 @@ impl Parser {
                 if tok.text == "_" {
                     Ok(Pat::Wild)
                 } else {
+                    reject_reserved_name(&tok.source_text, tok.line, tok.col)?;
                     // A keyword used as a name keeps the spelling the author wrote.
                     Ok(Pat::Var(tok.source_text))
                 }
@@ -13834,6 +13990,25 @@ impl Parser {
                 ExprKind::Lit(Literal::Str(segment.source_text.clone())),
                 self.token_span(&segment),
             ));
+            // `[n]` indexes the list the segment names.
+            while self.peek_kind() == TokenKind::LBracket {
+                let open = self.advance();
+                let index = self.advance();
+                let valid = index.kind == TokenKind::Int_
+                    && index.text.parse::<usize>().is_ok()
+                    && self.peek_kind() == TokenKind::RBracket;
+                if !valid {
+                    return Err(format!(
+                        "{}:{}: a pathof index is a whole number in brackets, as `accounts[1]`",
+                        open.line, open.col
+                    ));
+                }
+                self.advance();
+                arguments.push(Expr::new(
+                    ExprKind::Lit(Literal::Str(format!("[{}]", index.text))),
+                    self.token_span(&index),
+                ));
+            }
         }
 
         if arguments.len() == 1 {
@@ -13963,6 +14138,47 @@ impl Parser {
                 if tok.text == "refof" && self.peek_kind() == TokenKind::LParen {
                     return self.parse_refof_expr(tok);
                 }
+                if tok.text == "unknown" {
+                    let span = self.token_span(&tok);
+                    return Ok(Expr::new(
+                        ExprKind::App(
+                            Box::new(Expr::new(ExprKind::Var(UNKNOWN_MARKER.to_string()), span)),
+                            Vec::new(),
+                        ),
+                        span,
+                    ));
+                }
+                // `query entry(case)`; `query` stays a name elsewhere.
+                if tok.text == "query"
+                    && self.peek_kind() == TokenKind::Ident
+                    && self.tokens.get(self.pos + 1).map(|next| next.kind)
+                        == Some(TokenKind::LParen)
+                {
+                    let entry = self.advance();
+                    let entry_expr =
+                        Expr::new(ExprKind::Var(entry.text.clone()), self.token_span(&entry));
+                    self.expect(TokenKind::LParen)?;
+                    let mut arguments = self.parse_comma_separated(
+                        TokenKind::RParen,
+                        "query argument",
+                        |parser| parser.parse_expr(),
+                    )?;
+                    if arguments.len() != 1 || is_named_arg_expr(&arguments[0]) {
+                        return Err(format!(
+                            "{}:{}: `query {}(...)` takes the entry's one input, the case: `query {}(case)`",
+                            tok.line, tok.col, entry.text, entry.text
+                        ));
+                    }
+                    let call = self.spanned(
+                        ExprKind::App(Box::new(entry_expr), vec![arguments.remove(0)]),
+                        &entry,
+                    );
+                    let function = Expr::new(
+                        ExprKind::Var(QUERY_MARKER.to_string()),
+                        self.token_span(&tok),
+                    );
+                    return Ok(self.spanned(ExprKind::App(Box::new(function), vec![call]), &tok));
+                }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
             }
@@ -14079,7 +14295,7 @@ impl Parser {
                 }
                 let params =
                     self.parse_comma_separated(TokenKind::Pipe, "lambda parameter", |parser| {
-                        let name = parser.expect_ident()?;
+                        let name = parser.expect_binding_name()?;
                         let ty = if parser.peek_kind() == TokenKind::Colon {
                             parser.advance();
                             Some(parser.parse_type()?)
@@ -17112,6 +17328,9 @@ pub struct Interpreter {
     /// is cited in a law section: the value it returns is then that rule's,
     /// and a later read of it waits on the rule, not on the fact.
     pub(crate) partial_cited: Option<partial::CitedFrames>,
+    /// How `query` runs: the prepared entries it asks and whether each query
+    /// also checks the guarantee (`runa test`); see `query`.
+    pub(crate) query: query::QueryRuntime,
     /// Set while an explained case runs; see `explain`.
     explain: Option<RefCell<explain::ExplainState>>,
     /// The file each rule declared outside the root file came from, by the
@@ -17211,6 +17430,7 @@ impl Interpreter {
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
             partial_cited: None,
+            query: query::QueryRuntime::default(),
             explain: None,
             rule_source_files: HashMap::new(),
             runtime_source_file: None,
@@ -19777,6 +19997,7 @@ impl Interpreter {
         env.set("concat".into(), Value::Builtin("concat".into()));
         env.set("reverse".into(), Value::Builtin("reverse".into()));
         env.set("map".into(), Value::Builtin("map".into()));
+        env.set("__fill".into(), Value::Builtin("__fill".into()));
         env.set("filter".into(), Value::Builtin("filter".into()));
         env.set("foldl".into(), Value::Builtin("foldl".into()));
         env.set("assert".into(), Value::Builtin("assert".into()));
@@ -22731,6 +22952,12 @@ impl Interpreter {
                     .map(|reference| self.eval(&reference, env))
                     .unwrap_or(Value::Unit);
             }
+            if function_name == UNKNOWN_MARKER {
+                return self.eval_unknown(expression);
+            }
+            if function_name == QUERY_MARKER {
+                return self.eval_query(expression, env);
+            }
             let namespace = self.namespace_for_env(env);
             if self.exhaustive_preview_forbid_effects
                 && self.runtime_effect_operation_exists(&namespace, function_name)
@@ -23877,6 +24104,9 @@ impl Interpreter {
         if self.partial_mode.is_some() {
             return self.partial_builtin(namespace, name, args, env);
         }
+        if let Some(refused) = self.unplaced_builtin_read(name, &args) {
+            return refused;
+        }
         self.eval_named_builtin(namespace, name, args, env)
     }
 
@@ -23923,6 +24153,12 @@ impl Interpreter {
         }
 
         match name {
+            "__fill" => match <[Value; 3]>::try_from(args) {
+                Ok([partial, complete, paths]) => self.eval_fill(partial, complete, paths),
+                Err(_) => self.panic_or_ground_fail(
+                    "fill takes a partial case, a complete case and a list of paths",
+                ),
+            },
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -31773,6 +32009,9 @@ pub struct TypeChecker {
     pub source_dir: Option<String>,
     /// already-imported file paths (prevents cycles)
     pub imported: BTreeSet<String>,
+    /// Each plainly imported file with its parsed module, for the checks of
+    /// `query` and `unknown` across the program (`query::check_program`).
+    pub(crate) imported_modules: Vec<(String, Arc<ParsedSourceModule>)>,
     imported_body_checks: Vec<ImportedBodyCheck>,
     /// Already-resolved plain import edges for lexical rule-family diagnostics.
     /// Retain the declaration prepass's immutable syntax, never reread a file.
@@ -46004,7 +46243,12 @@ impl<'a> CheckedResolutionRecorder<'a> {
         if let ExprKind::Var(name) = &function.kind {
             if matches!(
                 name.as_str(),
-                NAMED_ARG_MARKER | "__typed" | PATHOF_MARKER | REFOF_MARKER
+                NAMED_ARG_MARKER
+                    | "__typed"
+                    | PATHOF_MARKER
+                    | REFOF_MARKER
+                    | UNKNOWN_MARKER
+                    | QUERY_MARKER
             ) {
                 return (
                     Some(CheckedCallTarget::Builtin {
@@ -48079,7 +48323,12 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     ExprKind::Var(name)
                         if matches!(
                             name.as_str(),
-                            NAMED_ARG_MARKER | "__typed" | PATHOF_MARKER | REFOF_MARKER
+                            NAMED_ARG_MARKER
+                                | "__typed"
+                                | PATHOF_MARKER
+                                | REFOF_MARKER
+                                | UNKNOWN_MARKER
+                                | QUERY_MARKER
                         )
                 );
                 let typed_marker =
@@ -48485,6 +48734,7 @@ impl TypeChecker {
             explore_inline_module_depth: 0,
             source_dir: None,
             imported: BTreeSet::new(),
+            imported_modules: Vec::new(),
             imported_body_checks: Vec::new(),
             rule_contract_imports: BTreeMap::new(),
             rule_contract_import_modules: BTreeMap::new(),
@@ -48679,13 +48929,15 @@ impl TypeChecker {
             ("as_stream", 1),
             ("findall", 2),
             ("search", 2),
+            // `fill` of the needs prelude (`query`)
+            ("__fill", 3),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }
         // Built-in types
         for name in &[
             "Int", "Float", "String", "Bool", "Char", "List", "Unit", "Option", "Result", "Pair",
-            "Stream", "Subject", "TypeDef",
+            "Stream", "Subject", "TypeDef", "Path",
         ] {
             tc.types.insert(name.to_string());
         }
@@ -48696,6 +48948,9 @@ impl TypeChecker {
             .insert("Result".into(), vec!["a".into(), "e".into()]);
         tc.type_parameters_by_owner
             .insert("Pair".into(), vec!["a".into(), "b".into()]);
+        // `Path(i)`: a path into a value of type `i` (`pathof`).
+        tc.type_parameters_by_owner
+            .insert("Path".into(), vec!["i".into()]);
         tc.register_constructor_signature("Option", "None", true, vec![], vec![], vec![]);
         tc.register_constructor_signature(
             "Option",
@@ -52100,6 +52355,35 @@ impl TypeChecker {
                 );
                 return;
             };
+            if segment.starts_with('[') {
+                let mut list = &current;
+                while let Ty::Optional(inner)
+                | Ty::Ref(inner)
+                | Ty::MutRef(inner)
+                | Ty::Shared(inner) = list
+                {
+                    list = inner;
+                }
+                match list {
+                    Ty::App(head, items)
+                        if matches!(head.as_ref(), Ty::Name(name) if name == "List")
+                            && items.len() == 1 =>
+                    {
+                        current = items[0].clone();
+                        continue;
+                    }
+                    _ => {
+                        self.error_at_expr(
+                            argument,
+                            format!(
+                                "{} index `{}` selects a list element, but the value there is a `{}`",
+                                operation, segment, current
+                            ),
+                        );
+                        return;
+                    }
+                }
+            }
             current = Self::pathof_transparent_ty(&current).clone();
             let Some(type_name) = Self::pathof_named_type(&current).map(str::to_string) else {
                 self.error_at_expr(
@@ -53070,6 +53354,25 @@ impl TypeChecker {
                     if name == REFOF_MARKER {
                         return Some("ProgramReference".to_string());
                     }
+                    // `unknown` takes the type of its place.
+                    if name == UNKNOWN_MARKER {
+                        return None;
+                    }
+                    // `query entry(case)`: `Query(output, input)`.
+                    if name == QUERY_MARKER {
+                        let (_, call, case) = query_parts(expr)?;
+                        let output = self.infer_expr_type_name_with_locals_in_scope(
+                            call,
+                            locals,
+                            active_rule_scope,
+                        )?;
+                        let input = self.infer_expr_type_name_with_locals_in_scope(
+                            case,
+                            locals,
+                            active_rule_scope,
+                        )?;
+                        return Some(format!("Query({output}, {input})"));
+                    }
                     if !locals.contains_key(name) {
                         if self.is_unit_conversion_name(name) && args.len() == 1 {
                             return Some(name.clone());
@@ -53842,6 +54145,8 @@ impl TypeChecker {
                 if name == NAMED_ARG_MARKER
                     || name == PATHOF_MARKER
                     || name == REFOF_MARKER
+                    || name == UNKNOWN_MARKER
+                    || name == QUERY_MARKER
                     || (matches!(name.as_str(), "findall" | "search") && arguments.len() == 2)
                     || self
                         .effect_ops
@@ -55302,7 +55607,10 @@ impl TypeChecker {
                             )
                         });
                     }
-                    if matches!(name.as_str(), PATHOF_MARKER | REFOF_MARKER) {
+                    if matches!(
+                        name.as_str(),
+                        PATHOF_MARKER | REFOF_MARKER | UNKNOWN_MARKER | QUERY_MARKER
+                    ) {
                         return inferred();
                     }
                     // `Ore(n)` and `Int(amount)` leave the value unchanged.
@@ -57484,6 +57792,8 @@ impl TypeChecker {
         file_path: &str,
         fallback_dir: &str,
     ) {
+        self.imported_modules
+            .push((file_path.to_string(), Arc::clone(module)));
         self.rule_contract_imports.insert(
             (
                 self.source_dir
@@ -58912,7 +59222,12 @@ impl TypeChecker {
         let (name, arity) = key;
         if matches!(
             name.as_str(),
-            "values" | NAMED_ARG_MARKER | PATHOF_MARKER | REFOF_MARKER
+            "values"
+                | NAMED_ARG_MARKER
+                | PATHOF_MARKER
+                | REFOF_MARKER
+                | UNKNOWN_MARKER
+                | QUERY_MARKER
         ) {
             return true;
         }
@@ -61557,6 +61872,17 @@ impl TypeChecker {
                     self.check_refof_expr(expr, args);
                     return;
                 }
+                // `unknown` is checked where it stands (`query::check_program`).
+                if matches!(&func.kind, ExprKind::Var(name) if name == UNKNOWN_MARKER) {
+                    return;
+                }
+                // `query entry(case)` checks as the entry call.
+                if matches!(&func.kind, ExprKind::Var(name) if name == QUERY_MARKER) {
+                    for argument in args {
+                        self.check_expr(argument, _in_fn);
+                    }
+                    return;
+                }
                 if let ExprKind::Var(name) = &func.kind {
                     if self.check_unit_conversion_call(expr, name, args, _in_fn) {
                         return;
@@ -62870,6 +63196,8 @@ impl TypeChecker {
         tc.prepare_rule_dispatch_metadata(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        let query_diagnostics = query::check_program(stmts, source, &tc);
+        tc.diagnostics.extend(query_diagnostics);
         let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
         let elaborated_root = constructor_elaboration
             .as_mut()

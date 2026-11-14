@@ -817,6 +817,17 @@ impl TypeChecker {
     /// `[0, 5]` for `List(Ore)`.
     pub(super) fn unit_literal_fits(&self, expr: &Expr, expected: &Ty) -> bool {
         let expr = named_arg_parts(expr).map_or(expr, |(_, value)| value);
+        // `unknown` takes the type of its place; `pathof(T::...)` is a
+        // `Path(T)` where a path is expected.
+        if is_unknown_expr(expr) {
+            return true;
+        }
+        if let (Some(root), Ty::App(head, arguments)) = (pathof_root(expr), expected) {
+            if matches!(head.as_ref(), Ty::Name(name) if name == "Path") {
+                return matches!(arguments.as_slice(), [Ty::Var(_)])
+                    || matches!(arguments.as_slice(), [Ty::Name(name)] if name == root);
+            }
+        }
         match expected {
             Ty::Name(name) if self.is_unit_type(name) => Self::is_unitless_literal(expr),
             Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {

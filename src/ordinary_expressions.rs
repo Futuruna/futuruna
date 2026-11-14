@@ -164,6 +164,32 @@ impl TypeChecker {
         }
     }
 
+    /// A `pathof` in `expr` (or in its list literals and `Some`s) rooted at
+    /// another type than the `Path(T)` that `ty` holds there: (root, T).
+    fn path_root_mismatch(expr: &Expr, ty: &Ty) -> Option<(String, String)> {
+        let Ty::App(head, arguments) = ty else {
+            return None;
+        };
+        let Ty::Name(head) = head.as_ref() else {
+            return None;
+        };
+        match (head.as_str(), arguments.as_slice(), &expr.kind) {
+            ("Path", [Ty::Name(expected)], _) => {
+                let root = pathof_root(expr)?;
+                (root != expected).then(|| (root.to_string(), expected.clone()))
+            }
+            ("List", [inner], ExprKind::List(items)) => items
+                .iter()
+                .find_map(|item| Self::path_root_mismatch(item, inner)),
+            ("Option", [inner], ExprKind::App(function, values)) if values.len() == 1 => {
+                matches!(&function.kind, ExprKind::Var(name) if name == "Some")
+                    .then(|| Self::path_root_mismatch(&values[0], inner))
+                    .flatten()
+            }
+            _ => None,
+        }
+    }
+
     fn check_operator_operands(
         &mut self,
         expression: &Expr,
@@ -173,6 +199,20 @@ impl TypeChecker {
         right: &Expr,
         right_type: Option<&str>,
     ) {
+        if matches!(operator, "==" | "!=") {
+            for (literal, other) in [(right, left_type), (left, right_type)] {
+                let Some(other) = other.and_then(|other| parse_type_annotation(other).ok()) else {
+                    continue;
+                };
+                if let Some((found, expected)) = Self::path_root_mismatch(literal, &other) {
+                    self.error_at_expr(
+                        literal,
+                        format!("`pathof({found}::...)` is a path into `{found}`, compared with a `Path({expected})`; write the path from `{expected}`"),
+                    );
+                    return;
+                }
+            }
+        }
         if self.check_unit_operands(expression, operator, left, left_type, right, right_type)
             || self.check_unit_element_equality(
                 expression, operator, left, left_type, right, right_type,

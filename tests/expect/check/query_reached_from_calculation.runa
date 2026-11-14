@@ -1,0 +1,21 @@
+-- A calculation must not reach `query` or `unknown`: its result would depend
+-- on which facts are known.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `query` in `answer_or_zero`, reached from the calculation `household_tax` through `fd_tax`: a calculation's result must not depend on which facts are known
+
+# Household(income: Int)
+# Result(tax: Int)
+
+> answer_or_zero(h: Household) -> Int {
+    = q = query household_tax(h)
+    match q {
+        | Complete -> 1
+        | Needs -> 0
+    }
+}
+
+> fd_tax(h: Household) -> Int { answer_or_zero(h) + h.income }
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = fd_tax(h))

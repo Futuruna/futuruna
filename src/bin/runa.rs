@@ -5764,9 +5764,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             } else {
                 user_stmts
             };
+            // A query runs in the interpreter only.
             // Pre-codegen type checking (M16)
             let type_check = backend_type_check_artifacts(&stmts, source, filename);
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
+                std::process::exit(1);
+            }
+            let refusals = native_query_refusals(&stmts);
+            if print_type_check_diagnostics(&refusals, source, filename) {
                 std::process::exit(1);
             }
             let stmts = type_check.program().clone();
@@ -6325,11 +6330,13 @@ fn print_meta_index_human(
                     attachment.role,
                     attachment.value.to_source(),
                     attachment.value.qualified_type().unwrap_or("-"),
-                    meta_attachment_definition(reference, &attachment)
-                        .map_or_else(|| "-".to_string(), |location| match &location.file {
+                    meta_attachment_definition(reference, &attachment).map_or_else(
+                        || "-".to_string(),
+                        |location| match &location.file {
                             Some(file) => format!("{}:{}", file, location.line),
                             None => location.line.to_string(),
-                        })
+                        }
+                    )
                 );
             }
         }
@@ -11093,6 +11100,9 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
     let mut interp = Interpreter::new();
     interp.source_dir = source_dir;
     interp.install_rule_dispatch_metadata(&artifacts);
+    // Every query a test asks also runs the strict-mode oracle and the
+    // completion test, failing at the query's line.
+    interp.check_queries(Path::new(filename));
     let mut env = interp.default_env();
     interp.run_program(&stmts, &mut env);
 }
@@ -11119,6 +11129,37 @@ fn source_has_embedded_rust(source: &str) -> bool {
             .strip_prefix("@ rust")
             .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
     })
+}
+
+/// Whether a test file asks a `query` or places an `unknown`.
+fn source_asks_query(source: &str) -> bool {
+    Parser::new(Lexer::new(source).tokenize(), source)
+        .parse_program()
+        .is_ok_and(|statements| statements.iter().any(stmt_mentions_query_or_unknown))
+}
+
+/// Each `query` and `unknown` of a program compiled to native code: a query
+/// runs in the interpreter, and native code takes complete input.
+fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
+    let mut refusals = Vec::new();
+    for statement in stmts {
+        walk_ast_stmt(statement, &mut |child| {
+            if let AstChild::Expr(expr) = child {
+                let what = if is_unknown_expr(expr) {
+                    "`unknown`"
+                } else if query_parts(expr).is_some() {
+                    "`query`"
+                } else {
+                    return;
+                };
+                refusals.push(Diagnostic::error_at(
+                    expr.span,
+                    format!("{what} runs in the interpreter; native code takes complete input. Run the program with `runa FILE` and its tests with `runa test`"),
+                ));
+            }
+        });
+    }
+    refusals
 }
 
 fn run_test_case(
@@ -11157,9 +11198,12 @@ fn run_test_case(
         };
     }
 
+    // A query runs in the interpreter: under `--run` its test runs there too.
+    let interpreted_query =
+        compile_mode && expected_errors.is_empty() && source_asks_query(&source);
     let (command, expected, expectation_label, error_kind) = if !expected_errors.is_empty() {
         ("check", &expected_errors, "expect-error", "error")
-    } else if compile_mode {
+    } else if compile_mode && !interpreted_query {
         (
             "run",
             &expected_runtime_errors,
@@ -11192,7 +11236,11 @@ fn run_test_case(
     );
     let outcome = if output.status.success() {
         if expected.is_empty() {
-            TestFileOutcome::Pass("")
+            TestFileOutcome::Pass(if interpreted_query {
+                "interpreted (query)"
+            } else {
+                ""
+            })
         } else {
             TestFileOutcome::Fail(format!("expected {error_kind} but program succeeded"))
         }
@@ -20048,7 +20096,10 @@ fn check_source(
                 std::process::exit(1);
             }
 
-            if frontend_only {
+            // A program that asks a query runs in the interpreter only:
+            // native code takes complete input, so there is no Rust to check.
+            let interpreted_query = stmts.iter().any(stmt_mentions_query_or_unknown);
+            if frontend_only || interpreted_query {
                 check_output.success(
                     &CheckArtifactSummary {
                         statement_count: stmt_count,
@@ -20057,7 +20108,7 @@ fn check_source(
                         cargo_dependency_count: 0,
                         rust_line_count: 0,
                     },
-                    None,
+                    interpreted_query.then_some("interpreted (query)"),
                     start.elapsed(),
                 );
                 return;
@@ -20833,7 +20884,10 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        if !source.lines().any(|line| line.trim_start().starts_with("--@")) {
+        if !source
+            .lines()
+            .any(|line| line.trim_start().starts_with("--@"))
+        {
             continue;
         }
         let root = migration_root(Path::new(path));
@@ -20887,7 +20941,10 @@ fn migrate_targets(targets: &[String], check: bool) {
             continue;
         }
         if check {
-            eprintln!("{}: needs `# impl Document for {type_name} {{}}`", file.display());
+            eprintln!(
+                "{}: needs `# impl Document for {type_name} {{}}`",
+                file.display()
+            );
         } else if std::fs::write(&file, updated).is_ok() {
             eprintln!(
                 "{}: added `# impl Document for {type_name} {{}}`: its values are quoted documents",
@@ -21871,7 +21928,8 @@ fn fmt_layout_source(source: &str) -> String {
         if depth == 0 && continuation_stack.is_empty() {
             let annotation = trimmed.strip_prefix('@').map(str::trim_start);
             if !section_open
-                && annotation.is_some_and(|rest| rest.starts_with("section ") && rest.ends_with('{'))
+                && annotation
+                    .is_some_and(|rest| rest.starts_with("section ") && rest.ends_with('{'))
             {
                 result.push(fmt_normalize_line(trimmed));
                 section_open = true;

@@ -561,7 +561,9 @@ impl Interpreter {
     /// value is unknown, strict mode stops the case and propagation gives the
     /// site an unknown result; either way the caller returns the given value.
     pub(crate) fn partial_need(&self, values: &[&Value], deep: bool) -> Option<Value> {
-        self.partial_mode?;
+        if self.partial_mode.is_none() {
+            return self.unplaced_unknown_values(values, deep);
+        }
         let mut paths = BTreeSet::new();
         for value in values {
             self.partial_consume(value, deep);
@@ -596,6 +598,9 @@ impl Interpreter {
         right: &Expr,
         env: &Env,
     ) -> Value {
+        if let Some(value) = self.unplaced_unknown_read(&paths) {
+            return value;
+        }
         if self.partial_mode == Some(PartialMode::Strict) {
             return self.partial_unknown_read(paths);
         }
@@ -804,6 +809,9 @@ impl Interpreter {
     }
 
     pub(crate) fn partial_unknown_read(&self, paths: BTreeSet<String>) -> Value {
+        if let Some(value) = self.unplaced_unknown_read(&paths) {
+            return value;
+        }
         self.partial.borrow_mut().record_waiting(&paths);
         match self.partial_mode {
             Some(PartialMode::Strict) => {
@@ -819,6 +827,9 @@ impl Interpreter {
     /// Stop the case with a need for `paths`, in either mode: used where an
     /// unknown value reaches a site with no propagation rule.
     pub(crate) fn partial_stop(&self, paths: BTreeSet<String>) {
+        if self.unplaced_unknown_read(&paths).is_some() {
+            return;
+        }
         self.partial.borrow_mut().record_waiting(&paths);
         let mut error = self.calculation_error.borrow_mut();
         if error.is_none() {
@@ -831,6 +842,9 @@ impl Interpreter {
     /// this returns `true`; anywhere else the case stops and this returns
     /// `false`.
     pub(crate) fn partial_possible_match(&self, paths: &BTreeSet<String>) -> bool {
+        if self.unplaced_unknown_read(paths).is_some() {
+            return false;
+        }
         {
             let mut state = self.partial.borrow_mut();
             if let Some(probe) = state.probe.as_mut() {
@@ -1306,9 +1320,37 @@ impl Interpreter {
         env: &Env,
         allow_bare: bool,
     ) -> Value {
+        if let Some(paths) = unknown_paths(&value, false) {
+            if let Some(value) = self.unplaced_unknown_read(&paths) {
+                return value;
+            }
+        }
         self.partial_site(|interpreter| {
             interpreter.partial_match_site(value, arms, env, allow_bare)
         })
+    }
+
+    /// A builtin outside a partial case: an unplaced `unknown` it reads is an
+    /// error. `fill` places unknowns and reads none.
+    pub(crate) fn unplaced_builtin_read(&self, name: &str, args: &[Value]) -> Option<Value> {
+        if !self.query.unknown_built.get() || name == "__fill" {
+            return None;
+        }
+        let strictness = builtin_strictness(name);
+        if strictness == BuiltinStrictness::Carries {
+            return None;
+        }
+        let deep = strictness == BuiltinStrictness::Whole;
+        let mut paths = BTreeSet::new();
+        for arg in args {
+            if !matches!(
+                arg,
+                Value::Closure { .. } | Value::Builtin(_) | Value::NamespacedBuiltin { .. }
+            ) {
+                collect_unknown_paths(arg, deep, &mut paths);
+            }
+        }
+        self.unplaced_unknown_read(&paths)
     }
 
     fn partial_match_site(

@@ -123,6 +123,9 @@ impl Interpreter {
         path: &Path,
         source: &str,
     ) -> Result<Value, Diagnostic> {
+        if self.query_root_unset() {
+            self.set_query_root(path);
+        }
         let context = self.diagnostic_source_context(path, source);
         let previous = self.runtime_diagnostic_context.replace(context);
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
